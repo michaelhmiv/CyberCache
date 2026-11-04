@@ -7,7 +7,9 @@
  *   - 0074 names exactly the drops/deletes the removal needs and
  *     keeps the history (ledger rows, metrics columns) untouched;
  *   - the restated cc_compute_economy_metrics is the chain head
- *     (0068) VERBATIM apart from the slot panel — the transform
+ *     (0071 — 0068 plus Econ 6's scrap-meter panels, which the
+ *     restatement preserves whole) VERBATIM apart from the slot
+ *     panel — the transform
  *     below is the exact recipe the migration was built with, so
  *     any future drift between the two bodies fails here;
  *   - no live source file (outside this test, the deletion's
@@ -27,7 +29,7 @@ import { describe, expect, it } from 'vitest';
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), 'utf8');
 
-const MIGRATION_0068 = read('db/migrations/0068_dispatch_reroll.sql');
+const MIGRATION_0071 = read('db/migrations/0071_vendor_scrap_meters.sql');
 const MIGRATION_0074 = read('db/migrations/0074_slots_removal.sql');
 
 function sliceFn(sql: string, startMarker: string): string {
@@ -38,7 +40,7 @@ function sliceFn(sql: string, startMarker: string): string {
   return sql.slice(start, end + 'end;$$;'.length);
 }
 
-const METRICS_0068 = sliceFn(MIGRATION_0068, 'create or replace function public.cc_compute_economy_metrics');
+const METRICS_0071 = sliceFn(MIGRATION_0071, 'create or replace function public.cc_compute_economy_metrics');
 const METRICS_0074 = sliceFn(MIGRATION_0074, 'create or replace function public.cc_compute_economy_metrics');
 
 /** The exact panel-removal recipe 0074 was built with. */
@@ -132,14 +134,14 @@ describe('0074 — the drops name exactly the machine', () => {
   });
 });
 
-describe('0074 — the metrics restatement is 0068 verbatim apart from the slot panel', () => {
+describe('0074 — the metrics restatement is 0071 verbatim apart from the slot panel', () => {
   it('the restated body carries no slot reference at all', () => {
     expect(METRICS_0074).not.toContain('slot');
     expect(METRICS_0074).not.toContain('Slot');
   });
 
-  it('equals the chain head (0068) under the panel-removal recipe', () => {
-    expect(stripSlotPanel(METRICS_0068)).toBe(METRICS_0074);
+  it('equals the chain head (0071) under the panel-removal recipe', () => {
+    expect(stripSlotPanel(METRICS_0071)).toBe(METRICS_0074);
   });
 });
 

@@ -39,9 +39,10 @@
 -- the truth: no pulls can occur).
 --
 -- PROVENANCE (collision law): cc_compute_economy_metrics chain
--- head is 0068 (verified: 0068's body = 0065's body + the
--- dispatch-reroll panel only, five hunks, all reroll). The body
--- below is 0068's VERBATIM apart from the slot panel: the fold's
+-- head is 0071 (verified by diff: 0071's body = 0068's body + the
+-- Econ-6 scrap-meter panels only; 0068 = 0065 + the dispatch-
+-- reroll panel). The body below is 0071's VERBATIM apart from
+-- the slot panel — every scrap panel is preserved: the fold's
 -- seven slot fields, the `+ m.slot_credits_paid` minted term, the
 -- `+ m.slot_wagered` destroyed term, and the slot columns in the
 -- insert list, values list, and upsert assignments. The verbatim-
@@ -84,7 +85,7 @@ delete from public.economy_config
  where key in ('slotDailyPullCap', 'slotBetTier1', 'slotBetTier2', 'slotBetTier3');
 
 -- ---------------------------------------------------------------------
--- 5. cc_compute_economy_metrics — 0068 body verbatim apart from
+-- 5. cc_compute_economy_metrics — 0071 body verbatim apart from
 --    the slot panel (see provenance note above).
 -- ---------------------------------------------------------------------
 
@@ -100,6 +101,9 @@ declare
   m record;
   v_minted_total bigint;
   v_destroyed_total bigint;
+  v_scrap_minted_total bigint;
+  v_scrap_destroyed_total bigint;
+  v_scrap_destroyed_crafting bigint;
   cj record;
   rj record;
   sj record;
@@ -254,6 +258,32 @@ begin
     -- below (contracts/dispatch family).
     coalesce(sum((result_payload ->> 'credits_charged')::bigint)
       filter (where action_type = 'cc_reroll_dispatch_board'), 0) as destroyed_dispatch_rerolls,
+    -- Scrap meters (0071, brief S4.4 + S6): the engine material's
+    -- faucets, folded from the same ledger payloads as the credit
+    -- meters. Salvage counts every application of the salvage rate
+    -- to an item: manual recycles (single + batch scrap_award) and
+    -- the boss Second Opinion auto-scrap (the attempt's top-level
+    -- scrap_awarded, credited through the attempt's scrap delta).
+    (coalesce(sum((result_payload ->> 'scrap_award')::bigint)
+        filter (where action_type in ('cc_recycle_item', 'cc_recycle_batch')), 0)
+     + coalesce(sum((result_payload ->> 'scrap_awarded')::bigint)
+        filter (where action_type = 'cc_apply_boss_attempt'), 0)) as scrap_minted_salvage,
+    -- Roaming folds the trickle wherever it is paid: live claims,
+    -- offline settlement (the same trickle paid in arrears), and
+    -- the retired legacy claim rows the credit fold still reads.
+    coalesce(sum((result_payload -> 'rewards' ->> 'scrap_awarded')::bigint)
+      filter (where action_type in ('cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards')), 0) as scrap_minted_roaming,
+    coalesce(sum((result_payload -> 'payout' ->> 'scrap')::bigint)
+      filter (where action_type = 'cc_dispatch_settle'), 0) as scrap_minted_dispatch,
+    (coalesce(sum((result_payload -> 'payout' ->> 'scrap')::bigint)
+        filter (where action_type in ('cc_end_endless_run', 'cc_apply_endless_encounter')), 0)
+     + coalesce(sum((result_payload -> 'abandoned_settlement' -> 'payout' ->> 'scrap')::bigint)
+        filter (where action_type = 'cc_start_endless_run'), 0)) as scrap_minted_endless,
+    -- The starter bundle's +500 Scrap (0069): the bundle result
+    -- carries no scrap field, so the fold counts grants x the
+    -- shipped grant, exactly as minted_other counts 5000 x grants
+    -- for the bundle's credits.
+    500 * count(*) filter (where action_type = 'cc_initial_bundle') as scrap_minted_bundle,
     coalesce(sum((result_payload ->> 'passes_completed')::bigint)
       filter (where action_type = 'cc_apply_extraction'), 0) as extraction_passes,
     coalesce(sum((result_payload ->> 'xp_awarded')::bigint)
@@ -490,6 +520,47 @@ begin
     + m.standing_tribute_destroyed + m.standing_purchases_destroyed
     + m.destroyed_dispatch_rerolls;
 
+  -- Scrap destroyed by crafting (0071): the 'Scrap' leg of the
+  -- materials fold below (enqueue escrows + catalysts, net of
+  -- cancel refunds), PLUS tint escrows — tint jobs enqueue under
+  -- their own action type, and the tint's flat Scrap leg is a
+  -- crafting burn the brief names (S4.4). The materials jsonb fold
+  -- keeps its shipped enqueue-only scope; this scalar is the
+  -- scrap-complete view. Floored at 0 like the jsonb fold's
+  -- per-key having clause (a cancel can outrun its enqueue day).
+  select greatest(0, coalesce(sum(delta), 0))::bigint
+    into v_scrap_destroyed_crafting
+    from (
+      select (e.value)::bigint as delta
+        from public.verified_action_ledger l,
+             jsonb_each_text(coalesce(l.result_payload -> 'job' -> 'escrow_inputs', '{}'::jsonb)) as e
+       where l.action_type = 'cc_enqueue_craft_job' and e.key = 'Scrap'
+         and l.created_at >= v_start and l.created_at < v_end
+      union all
+      select (e.value)::bigint
+        from public.verified_action_ledger l,
+             jsonb_each_text(coalesce(l.result_payload -> 'job' -> 'escrow_catalyst', '{}'::jsonb)) as e
+       where l.action_type = 'cc_enqueue_craft_job' and e.key = 'Scrap'
+         and l.created_at >= v_start and l.created_at < v_end
+      union all
+      select (e.value)::bigint
+        from public.verified_action_ledger l,
+             jsonb_each_text(coalesce(l.result_payload -> 'job' -> 'escrow_inputs', '{}'::jsonb)) as e
+       where l.action_type = 'cc_enqueue_tint_job' and e.key = 'Scrap'
+         and l.created_at >= v_start and l.created_at < v_end
+      union all
+      select -(e.value)::bigint
+        from public.verified_action_ledger l,
+             jsonb_each_text(coalesce(l.result_payload -> 'refunded_inputs', '{}'::jsonb)) as e
+       where l.action_type = 'cc_cancel_craft_job' and e.key = 'Scrap'
+         and l.created_at >= v_start and l.created_at < v_end
+    ) d;
+
+  v_scrap_minted_total := m.scrap_minted_salvage + m.scrap_minted_roaming
+    + m.scrap_minted_dispatch + m.scrap_minted_endless + m.scrap_minted_bundle;
+  v_scrap_destroyed_total := v_scrap_destroyed_crafting
+    + m.scrap_destroyed_reforge + m.scrap_destroyed_contract_rerolls;
+
   insert into public.economy_metrics (
     day,
     credits_minted_roaming, credits_minted_boss, credits_minted_offline,
@@ -524,6 +595,9 @@ begin
     cache_rank_tokens_granted, cache_rank_tokens_spent,
     credits_minted_dispatch, credits_minted_courier,
     credits_destroyed_dispatch_rerolls,
+    scrap_minted_salvage, scrap_minted_roaming, scrap_minted_dispatch,
+    scrap_minted_endless, scrap_minted_bundle, scrap_minted_total,
+    scrap_destroyed_crafting, scrap_destroyed_total, net_scrap_change,
     extraction_passes, extraction_xp_awarded, materials_minted_extraction,
     credits_minted_login_streak, cache_fragments_from_login_streak,
     cache_keys_from_login_streak,
@@ -611,6 +685,10 @@ begin
     m.cache_rank_tokens_granted, m.cache_rank_tokens_spent,
     m.minted_dispatch, m.minted_courier,
     m.destroyed_dispatch_rerolls,
+    m.scrap_minted_salvage, m.scrap_minted_roaming, m.scrap_minted_dispatch,
+    m.scrap_minted_endless, m.scrap_minted_bundle, v_scrap_minted_total,
+    v_scrap_destroyed_crafting, v_scrap_destroyed_total,
+    v_scrap_minted_total - v_scrap_destroyed_total,
     m.extraction_passes::integer, m.extraction_xp,
     (select coalesce(jsonb_object_agg(key, total), '{}'::jsonb)
        from (
@@ -718,6 +796,15 @@ begin
     credits_minted_dispatch = excluded.credits_minted_dispatch,
     credits_minted_courier = excluded.credits_minted_courier,
     credits_destroyed_dispatch_rerolls = excluded.credits_destroyed_dispatch_rerolls,
+    scrap_minted_salvage = excluded.scrap_minted_salvage,
+    scrap_minted_roaming = excluded.scrap_minted_roaming,
+    scrap_minted_dispatch = excluded.scrap_minted_dispatch,
+    scrap_minted_endless = excluded.scrap_minted_endless,
+    scrap_minted_bundle = excluded.scrap_minted_bundle,
+    scrap_minted_total = excluded.scrap_minted_total,
+    scrap_destroyed_crafting = excluded.scrap_destroyed_crafting,
+    scrap_destroyed_total = excluded.scrap_destroyed_total,
+    net_scrap_change = excluded.net_scrap_change,
     extraction_passes = excluded.extraction_passes,
     extraction_xp_awarded = excluded.extraction_xp_awarded,
     materials_minted_extraction = excluded.materials_minted_extraction,
