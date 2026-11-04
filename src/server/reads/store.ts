@@ -70,6 +70,7 @@ import {
   type WeeklyFoldInput,
 } from '../leaderboards/fold';
 import { NPC_MARKET_USER_ID } from '../lib/npcMarket';
+import { repairSparseStarterRowsPg, repairStarterItemInPlace } from '../lib/starterWeapon';
 import {
   buildActivityRecords, decodeActivityCursor, encodeActivityCursor,
   normalizeActivityLimit, queryActivityRecords,
@@ -2031,6 +2032,14 @@ export class InMemoryReadStore implements ReadStore {
   }
 
   async getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]> {
+    // Starter repair (gear-truth slice): the bootstrap seed row's
+    // sparse payload becomes the real generated Starter Pistol
+    // before any surface reads it — see src/server/lib/starterWeapon.
+    for (const item of this.seed.items) {
+      if (item.owner_user_id === playerId) {
+        repairStarterItemInPlace(item as unknown as { id: string; payload: unknown });
+      }
+    }
     const excluded = new Set(['salvaged', 'consumed', 'listed']);
     return this.seed.items
       .filter((i) => i.owner_user_id === playerId && !excluded.has(i.runtime_state))
@@ -2919,6 +2928,13 @@ export class PgReadStore implements ReadStore {
   }
 
   async getMyRuntimeItems(playerId: string): Promise<RuntimeItemData[]> {
+    // Starter repair (gear-truth slice): persist the canonical
+    // Starter Pistol payload onto the sparse bootstrap seed row
+    // before serving items — see src/server/lib/starterWeapon.
+    await repairSparseStarterRowsPg(
+      async (sql, params) => (await this.db.query(sql, params)).rows,
+      playerId,
+    );
     const { rows } = await this.db.query(
       `select id, item_level, rarity, is_locked, runtime_state, equipped_slot, payload, created_at, kind, condition_current, condition_max
        from public.item_instances
