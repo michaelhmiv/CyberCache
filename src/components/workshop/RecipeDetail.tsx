@@ -51,7 +51,7 @@ export const SourceLine: React.FC<{
           <span key={index}>
             {sep}
             <button type="button" className={doorClass} onClick={() => onRefineFocus(source.recipeId)}>
-              Refine here — the {source.station === 'furnace' ? 'Lab furnace' : 'crusher'} <PxIcon name="chevR" size={13} />
+              Refine here — the {source.station === 'furnace' ? 'furnace' : 'crusher'} <PxIcon name="chevR" size={13} />
             </button>
           </span>
         );

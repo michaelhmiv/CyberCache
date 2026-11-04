@@ -118,14 +118,21 @@ describe('Workshop Direction A — the page at the mock fixture', { timeout: 60_
     expect(screen.getByPlaceholderText('Search name, job or material…')).toBeTruthy();
   });
 
-  it('prints standing and the bench strip with its legend in words', async () => {
+  it('prints standing and the bench card — one bench, its relics named', async () => {
     render(<WorkshopScreen onNavigate={vi.fn()} />);
     expect(screen.getByText('Your standing — the gates read these')).toBeTruthy();
     expect(screen.getByText(/Mastery · Consumables/)).toBeTruthy();
     expect(await screen.findByText(/Research · Production Systems/)).toBeTruthy();
-    expect(screen.getByText(/Bench dots: green = ready · amber = working · grey = locked/)).toBeTruthy();
-    expect(screen.getByText(/25,000cr · 10 Void Dust/)).toBeTruthy();
-    // Step 4: the strip prints price alone — no bench cites a hunter level.
+    // Slice 9: the three-tier bench strip (dots legend, prices) is
+    // replaced by the Bench card — one bench, always ready, and
+    // the craft relics listed as its permanent modifiers.
+    expect(screen.getAllByText('The Bench').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/One bench, always ready/)).toBeTruthy();
+    expect(screen.getAllByText(/Precision Calipers/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Prime Laboratory/).length).toBeGreaterThanOrEqual(1);
+    // Nothing is for sale and nothing cites a hunter level.
+    expect(screen.queryByText(/25,000cr · 10 Void Dust/)).toBeNull();
+    expect(screen.queryByText(/Bench dots:/)).toBeNull();
     expect(screen.queryByText(/Lv\.30/)).toBeNull();
   });
 
@@ -208,7 +215,11 @@ describe('Workshop Direction A — the page at the mock fixture', { timeout: 60_
     const cta = master.getByRole('button', { name: 'QUEUE JOB' });
     expect((cta as HTMLButtonElement).disabled).toBe(true);
     const calipers = card('tool_precision_calipers');
-    expect(calipers.getByText(/Circuit Lattice is made in the Lab furnace/)).toBeTruthy();
+    // Pre-collapse the card narrated the Lab in its source lines
+    // ('made in the Lab furnace'); the tier is gone — the furnace
+    // is a station on the one bench, and no card names a Lab.
+    expect(calipers.getByText(/Circuit Lattice/)).toBeTruthy();
+    expect(document.body.textContent).not.toContain('Lab furnace');
     expect((calipers.getByRole('button', { name: 'QUEUE JOB' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -235,15 +246,17 @@ describe('Workshop Direction A — the page at the mock fixture', { timeout: 60_
     expect(document.getElementById('workshop-recipe-recipe_medkit')).toBeNull();
   });
 
-  it('zero feature loss: activity, benches & tools, materials, and tinting all render', async () => {
+  it('zero feature loss: activity, the bench, materials, and tinting all render', async () => {
     render(<WorkshopScreen onNavigate={vi.fn()} />);
     expect(screen.getByText('Workshop Activity')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Work the Benches' })).toBeTruthy();
-    // The header AND gate-door buttons both carry this text.
-    expect(screen.getAllByText('Benches & Tools').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: 'Work the Bench' })).toBeTruthy();
+    // Slice 9: 'Benches & Tools' (the purchase/fit panel) is
+    // replaced by the Bench card; its relic list renders instead.
+    expect(screen.getAllByText('The Bench').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Benches & Tools')).toBeNull();
     expect(screen.getByText(/Materials & Essences/)).toBeTruthy();
     expect(await screen.findByTestId('tint-panel')).toBeTruthy();
-    // The bench select still names its unlock remedy verbatim.
-    expect(document.body.textContent).toContain('(locked — unlock at Benches & Tools above)');
+    // No bench can be locked, so no unlock remedy exists to name.
+    expect(document.body.textContent).not.toContain('(locked — unlock at Benches & Tools above)');
   });
 });

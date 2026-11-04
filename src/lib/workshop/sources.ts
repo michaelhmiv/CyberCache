@@ -98,7 +98,7 @@ export function sourceSummary(inputId: string): string {
   const parts = sourcesForInput(inputId).map((s) => {
     switch (s.kind) {
       case 'refine':
-        return `Refine here — the ${s.station === 'furnace' ? 'Lab furnace' : 'crusher'}`;
+        return `Refine here — the ${s.station === 'furnace' ? 'furnace' : 'crusher'}`;
       case 'roam':
         return s.home ? `Roam ${s.areaName} — its home area` : `Roam ${s.areaName}`;
       case 'vendor':
