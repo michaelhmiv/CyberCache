@@ -1113,6 +1113,10 @@ describe('migration 0043 — textual pins', () => {
       // Slice 9's Prime Laboratory relic postdates 0043 the same
       // way (pinned against 0073 in econBenchRelic).
       if (recipe.id === 'relic_prime_laboratory') continue;
+      // The Elemental Coating recipe postdates 0043 the same way
+      // (it lands in 0077's restated catalog, pinned in
+      // elementalCoatingRecipe.test.ts).
+      if (recipe.id === 'recipe_elemental_coating') continue;
       expect(sqlIds.has(recipe.id), recipe.id).toBe(true);
     }
     // The six standing recipes match the TS catalog field for field.

@@ -2,7 +2,8 @@
  * Gate-removal step 2 (migration 0057) — consumable recipe levels:
  *
  *   - 0057's restated SQL catalog deep-equals the TS catalog
- *     (87 recipes): every kind='consumable' entry (43 at 0057; 44 in TS since 0077) now carries
+ *     (87 recipes): every kind='consumable' entry (43 at 0057; the
+ *     TS catalog carries 44 since 0077) now carries
  *     requiresLevel 1 in both mirrors — the 36 formerly gated tiers
  *     (Shield Cell L3 up to Adrenaline Shot L20) are deleted, and
  *     after steps 1–2 no recipe in the catalog gates on level.
