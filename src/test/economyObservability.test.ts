@@ -298,6 +298,17 @@ describe('daily economy metrics — attribution', () => {
     expect(m.cacheBoxesOpenedAd).toBe(0);
     expect(m.cacheBoxesOpenedKey).toBe(1);
     expect(m.cacheFragmentsAwarded).toBe(10);
+    // Scrap meters (0071): the seeded boss rows carry the Second
+    // Opinion auto-scrap (scrap_awarded 10 + 0) into the salvage
+    // breakout, and the day's one cc_initial_bundle row counts its
+    // +500 Scrap grant into the bundle breakout (500 x grants, the
+    // same literal-count shape as its 5000-credit fold above).
+    expect(m.scrapMintedSalvage).toBe(10);
+    expect(m.scrapMintedRoaming).toBe(0);
+    expect(m.scrapMintedBundle).toBe(500);
+    expect(m.scrapMintedTotal).toBe(510);
+    expect(m.scrapDestroyedTotal).toBe(0);
+    expect(m.netScrapChange).toBe(510);
   });
 
   it('recompute is idempotent — the same day twice yields the same stored row', async () => {
@@ -321,8 +332,79 @@ describe('daily economy metrics — attribution', () => {
     expect(m.creditsMintedTotal).toBe(0);
     expect(m.creditsDestroyedTotal).toBe(0);
     expect(m.netCreditChange).toBe(0);
+    expect(m.scrapMintedTotal).toBe(0);
+    expect(m.scrapDestroyedTotal).toBe(0);
+    expect(m.netScrapChange).toBe(0);
     expect(m.marketMedianPrice).toBeNull();
     expect(m.marketMedianByRarity).toEqual({});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3b. Scrap meters — attribution (0071, brief §4.4 + §6)
+// ---------------------------------------------------------------------------
+
+describe('scrap meters — attribution (0071)', () => {
+  const SCRAP_DAY = '2027-03-04';
+  const sat = (hhmmss: string) => `${SCRAP_DAY}T${hhmmss}.000Z`;
+
+  function scrapSeededDay(): EconomySeed {
+    const seed = emptyEconomySeed();
+    const row = (action_type: string, result_payload: Record<string, unknown>): EconomyLedgerRow => ({
+      action_type,
+      created_at: sat('12:00:00'),
+      result_payload,
+    });
+    seed.ledger = [
+      // Roaming trickle: live claim + offline settlement + legacy row.
+      row('cc_apply_chef_rewards', { rewards: { scrap_awarded: 120 } }),
+      row('cc_settle_offline_roaming', { rewards: { scrap_awarded: 80 } }),
+      row('cc_claim_roaming_rewards', { rewards: { scrap_awarded: 7 } }),
+      // Salvage: manual single + batch recycles + the boss Second
+      // Opinion auto-scrap on the attempt payload.
+      row('cc_recycle_item', { scrap_award: 35, item: { rarity: 'Common' } }),
+      row('cc_recycle_batch', { scrap_award: 140 }),
+      row('cc_apply_boss_attempt', {
+        entry_fee: 0, scrap_awarded: 60,
+        attempt: { victory: true, creditsGained: 0, creditsLost: 0 },
+      }),
+      // Dispatch + endless escrow payouts.
+      row('cc_dispatch_settle', { family: 'foot', payout: { credits: 100, scrap: 45 } }),
+      row('cc_end_endless_run', { ended: true, payout: { credits: 0, xp: 0, scrap: 33 } }),
+      row('cc_start_endless_run', { abandoned_settlement: { payout: { credits: 0, xp: 0, scrap: 10 } } }),
+      // Starter bundles: +500 Scrap each, counted like the credits fold.
+      row('cc_initial_bundle', {}),
+      row('cc_initial_bundle', {}),
+      // Crafting burns: a recipe escrow, a tint escrow, a cancel refund.
+      row('cc_enqueue_craft_job', { job: { escrow_inputs: { Scrap: 100, BallisticParts: 5 }, escrow_catalyst: {} } }),
+      row('cc_enqueue_tint_job', { job: { escrow_inputs: { Scrap: 25, Chromaweave: 1 } } }),
+      row('cc_cancel_craft_job', { refunded_inputs: { Scrap: 40 } }),
+      // The pre-existing single-purpose folds join the destroyed total.
+      row('cc_reforge_item', { scrap_charged: 105, cores_charged: 0 }),
+      row('cc_reroll_contract', { scrap_charged: 100 }),
+    ];
+    return seed;
+  }
+
+  it('folds every faucet and sink into its breakout, totals, and the net line', async () => {
+    const store = new InMemoryEconomyStore(scrapSeededDay());
+    const m = await store.computeMetricsForDay(SCRAP_DAY);
+    expect(m.scrapMintedRoaming).toBe(207); // 120 + 80 + 7
+    expect(m.scrapMintedSalvage).toBe(235); // 35 + 140 + 60
+    expect(m.scrapMintedDispatch).toBe(45);
+    expect(m.scrapMintedEndless).toBe(43); // 33 + 10 abandoned
+    expect(m.scrapMintedBundle).toBe(1000); // 2 grants x 500
+    expect(m.scrapMintedTotal).toBe(1530);
+    // Crafting: 100 escrow + 25 tint escrow − 40 cancel refund.
+    expect(m.scrapDestroyedCrafting).toBe(85);
+    expect(m.scrapDestroyedReforge).toBe(105);
+    expect(m.scrapDestroyedTotal).toBe(290); // 85 + 105 + 100
+    expect(m.netScrapChange).toBe(1240);
+    // The materials jsonb fold keeps its shipped scope: enqueue
+    // escrows net of refunds, WITHOUT the tint leg — Scrap 60 +
+    // BallisticParts 5 here, against the scalar column's 85. The
+    // difference is exactly the tint escrow, by design (0071).
+    expect(m.materialsDestroyedCrafting).toEqual({ Scrap: 60, BallisticParts: 5 });
   });
 });
 

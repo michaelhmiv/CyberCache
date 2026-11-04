@@ -85,9 +85,11 @@ it trades on the player market:
   one and only Scrap: what salvage pays is what the bench charges,
   and you can list it on [[The Market]] — salvage-rich hunters sell
   it, crafters buy it. There is no second scrap: what older hunters
-  knew as Scrap Alloy was the same stock all along, and the
-  [[Vendor]] sells Scrap itself at 10 credits. See [[Collections]]
-  and [[Crafting]].
+  knew as Scrap Alloy was the same stock all along. The [[Vendor]]
+  neither sells nor buys Scrap — play and the player market are the
+  only doors — and scrap's faucets and sinks are metered daily
+  alongside credits, so its supply is tuned on real numbers. See
+  [[Collections]] and [[Crafting]].
 - **Cache fragments and keys** — 5 fragments make a key, and openings
   share a daily budget of 10. See [[Caches]].
 - **Legendary cores** — minted only by salvaging Legendary gear, spent
