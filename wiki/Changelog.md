@@ -6,6 +6,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 - **One bench** — the Workshop's three benches are now a single bench that is simply yours. The old workshop tools did not vanish: they joined the relic family as permanent, equippable relics with their effects intact, and the Lab's quality touch survives as a top-end crafting relic. Anyone who owned a second or third bench was refunded in full.
 - **Dispatch: start from a build** — staffing a contract no longer means re-ticking the same spare set by hand. Pick an offer, tap one of your saved builds, and its dispatchable gear (or its vehicle, for courier work) arrives pre-picked. Anything that cannot go — equipped, listed, out on another contract, tied up in a service job, or gone since the build was saved — is named with its reason and how to free it. The build itself stays a simple list: starting from one equips, reserves, and sends nothing.
+- **Builds have a face** — saved loadouts are called builds everywhere now, and every build carries a pixel glyph you pick yourself from the game's glyph sheet (existing builds start with the gun mark). Your glyph rides the build chip, the Saved Builds sheet, and the report that confirms an apply — a build is recognizable at a glance, not just by its name.
 
 ## 2026-11-03 — Profiles, the Gear Split, and the weapon marriage
 

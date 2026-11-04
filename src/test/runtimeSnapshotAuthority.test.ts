@@ -10,6 +10,7 @@ import { useSkillStore } from '@/store/slices/skillSlice';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
 import { useWorkshopStore } from '@/store/slices/workshopSlice';
+import { useLoadoutPresetsStore } from '@/store/slices/loadoutPresetsSlice';
 import { RiskSetting, DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { GearItem, Weapon } from '@/types/items';
 
@@ -183,6 +184,37 @@ describe('runtime display snapshots are not economy authority', () => {
     });
     expect(useSurvivalStore.getState()).toMatchObject({ currentHp: 321, maxHp: 777, shieldHp: 44 });
     expect(useKillCycleStore.getState()).toMatchObject({ currentTargetId: 'target', totalKills: 9 });
+  });
+
+  it('SB-2: restored builds always land with a resolved glyph — pre-SB-2 records default to the gun', () => {
+    useLoadoutPresetsStore.setState({ presets: [], activePresetId: null });
+    const emptySlots = {
+      primary: null, secondary: null, heavy: null, ordnance: null,
+      shield: null, classMod: null, relic: null, vehicle: null,
+    };
+    const emptyBelt = { PreFight: null, MidFight: null, Emergency: null };
+
+    applyRuntimeDisplaySnapshot({
+      loadoutPresets: {
+        presets: [
+          // Written before SB-2: no glyph on the record at all.
+          { id: 'old-build', name: 'Old Kit', slots: emptySlots, consumables: emptyBelt, createdAt: 1, updatedAt: 1 },
+          { id: 'new-build', name: 'Forge Kit', icon: 'anvil', slots: emptySlots, consumables: emptyBelt, createdAt: 2, updatedAt: 2 },
+        ],
+        activePresetId: 'new-build',
+      },
+    } as never);
+
+    const { presets, activePresetId } = useLoadoutPresetsStore.getState();
+    expect(activePresetId).toBe('new-build');
+    expect(presets.find((p) => p.id === 'old-build')?.icon).toBe('gun');
+    expect(presets.find((p) => p.id === 'new-build')?.icon).toBe('anvil');
+
+    // The round trip back out carries the resolved glyph with the
+    // build, so the record that syncs cross-device is complete.
+    const out = buildRuntimeDisplaySnapshot();
+    expect(out.loadoutPresets.presets.find((p) => p.id === 'old-build')?.icon).toBe('gun');
+    expect(out.loadoutPresets.presets.find((p) => p.id === 'new-build')?.icon).toBe('anvil');
   });
 
   it('writes only display hydration fields in new snapshots', () => {

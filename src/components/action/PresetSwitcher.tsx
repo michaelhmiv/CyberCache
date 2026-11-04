@@ -1,24 +1,30 @@
 /**
- * PresetSwitcher — horizontal scroll of saved loadout presets.
+ * PresetSwitcher — horizontal scroll of saved builds.
  *
- * Shows saved presets as tappable chips. Active preset is highlighted.
- * "Save" button appears when under the limit. A visible "Manage"
- * button opens the preset list with Apply / Rename / Overwrite /
- * Delete controls for every preset (Phase 1: nothing about presets
- * may live ONLY behind the long-press; the long-press remains as a
- * shortcut to the same per-preset sheet).
+ * Shows saved builds as tappable chips, each wearing its own §7
+ * glyph (SB-2). The active build is highlighted. "Save" button
+ * appears when under the limit. A visible "Manage" button opens the
+ * build list with Apply / Rename / Icon / Overwrite / Delete
+ * controls for every build (Phase 1: nothing about builds may live
+ * ONLY behind the long-press; the long-press remains as a shortcut
+ * to the same per-build sheet).
  *
  * Applying a build is one server operation (SB-1, cc_apply_build):
  * the report under the chips states the truth — a clean apply gets a
  * one-line confirmation; a partial apply lists every slot that did
  * not land, why, and its remedy (delist & equip, recall, pick a
  * replacement — every "no" carries its remedy, DESIGN.md).
+ *
+ * Iconography is the §7 pixel sheet via PxIcon end-to-end (SB-2,
+ * brief D5) — the switcher's old Lucide set is retired.
  */
 import React, { useCallback, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bookmark, Plus, Trash2, Pencil } from 'lucide-react';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import {
   useLoadoutPresetsStore,
+  BUILD_ICONS,
+  resolveBuildIcon,
   type ApplyBuildReport,
   type BuildSlotOutcome,
 } from '@/store/slices/loadoutPresetsSlice';
@@ -46,6 +52,38 @@ function formatReturnTime(iso: string): string {
   return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+/**
+ * The §7 glyph picker (SB-2, brief D5): the curated build glyphs at
+ * the sheet's row size; tapping one dresses the build immediately.
+ */
+const BuildIconPicker: React.FC<{
+  value: PxIconName;
+  onPick: (icon: PxIconName) => void;
+}> = ({ value, onPick }) => (
+  <div className="flex flex-wrap gap-1.5" data-testid="build-icon-picker">
+    {BUILD_ICONS.map((icon) => {
+      const selected = icon === value;
+      return (
+        <button
+          key={icon}
+          type="button"
+          onClick={() => onPick(icon)}
+          aria-label={`Build icon: ${icon}`}
+          aria-pressed={selected}
+          className={`flex items-center justify-center border-2 p-1.5 transition-colors ${
+            selected
+              ? 'border-amber bg-amber/15 text-amber'
+              : 'border-border bg-bg/60 text-text-muted hover:border-amber/40 hover:text-amber'
+          }`}
+          style={signClip}
+        >
+          <PxIcon name={icon} size={26} />
+        </button>
+      );
+    })}
+  </div>
+);
+
 /** The per-slot outcome sheet rendered after an apply (SB-1). */
 const ApplyReport: React.FC<{
   report: ApplyBuildReport;
@@ -54,8 +92,12 @@ const ApplyReport: React.FC<{
   const dismissApplyReport = useLoadoutPresetsStore((s) => s.dismissApplyReport);
   const delistAndReapply = useLoadoutPresetsStore((s) => s.delistAndReapply);
   const recallAndReapply = useLoadoutPresetsStore((s) => s.recallAndReapply);
+  const presets = useLoadoutPresetsStore((s) => s.presets);
   const inventoryItems = useInventoryStore((s) => s.items);
   const vehicleItems = useVehicleStore((s) => s.vehicles);
+
+  /** The build's own glyph — the report names the build it belongs to. */
+  const reportIcon = resolveBuildIcon(presets.find((p) => p.id === report.presetId)?.icon);
 
   /** The item's display name when the local stores still carry it
    *  (gone/listed items are excluded from the sync set — those read
@@ -92,6 +134,7 @@ const ApplyReport: React.FC<{
         data-testid="apply-report"
         className="mt-2 flex items-center gap-2 border-2 border-border bg-surface px-2 py-2"
       >
+        <PxIcon name={reportIcon} size={13} className="shrink-0 text-amber" />
         <span className="flex-1 text-[11px] font-bold text-text-primary">
           {report.presetName} applied — every slot equipped.
         </span>
@@ -110,6 +153,7 @@ const ApplyReport: React.FC<{
   return (
     <div data-testid="apply-report" className="mt-2 border-2 border-amber/50 bg-surface px-2 py-2">
       <div className="flex items-center gap-2">
+        <PxIcon name={reportIcon} size={13} className="shrink-0 text-amber" />
         <span className="flex-1 text-[11px] font-black text-text-primary">
           {report.presetName} partially applied — {attention.length}{' '}
           {attention.length === 1 ? 'slot needs' : 'slots need'} attention. The rest equipped fine.
@@ -175,6 +219,7 @@ export const PresetSwitcher: React.FC<{
   const loadPreset = useLoadoutPresetsStore((s) => s.loadPreset);
   const deletePreset = useLoadoutPresetsStore((s) => s.deletePreset);
   const renamePreset = useLoadoutPresetsStore((s) => s.renamePreset);
+  const setPresetIcon = useLoadoutPresetsStore((s) => s.setPresetIcon);
   const overwritePreset = useLoadoutPresetsStore((s) => s.overwritePreset);
   const findMatching = useLoadoutPresetsStore((s) => s.findMatchingPreset);
   const lastApplyReport = useLoadoutPresetsStore((s) => s.lastApplyReport);
@@ -184,6 +229,7 @@ export const PresetSwitcher: React.FC<{
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [listOpen, setListOpen] = useState(false);
+  const [iconPickId, setIconPickId] = useState<string | null>(null);
   const [rowRenameId, setRowRenameId] = useState<string | null>(null);
   const [rowRenameName, setRowRenameName] = useState('');
   const [manageId, setManageId] = useState<string | null>(null);
@@ -194,7 +240,7 @@ export const PresetSwitcher: React.FC<{
   const atMax = presets.length >= MAX_PRESETS;
 
   const handleSave = useCallback(() => {
-    const name = saveName.trim() || `Loadout ${presets.length + 1}`;
+    const name = saveName.trim() || `Build ${presets.length + 1}`;
     savePreset(name);
     setSaveName('');
     setSaveOpen(false);
@@ -230,8 +276,8 @@ export const PresetSwitcher: React.FC<{
           onClick={() => setSaveOpen(true)}
           className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-text-muted hover:text-amber transition-colors"
         >
-          <Bookmark size={12} />
-          <span>Save Loadout</span>
+          <PxIcon name="pin" size={13} />
+          <span>Save Build</span>
         </button>
       </div>
     );
@@ -259,7 +305,11 @@ export const PresetSwitcher: React.FC<{
               }`}
               style={signClip}
             >
-              <Bookmark size={10} className={isActive ? 'text-amber' : 'text-text-muted'} />
+              <PxIcon
+                name={resolveBuildIcon(preset.icon)}
+                size={13}
+                className={isActive ? 'text-amber' : 'text-text-muted'}
+              />
               <span className="truncate max-w-[80px]">{preset.name}</span>
             </button>
           );
@@ -273,7 +323,7 @@ export const PresetSwitcher: React.FC<{
             className="shrink-0 flex items-center gap-1 border-2 border-dashed border-border bg-bg/40 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted hover:border-amber/40 hover:text-amber transition-colors"
             style={signClip}
           >
-            <Plus size={10} />
+            <PxIcon name="plus" size={13} />
             <span>Save</span>
           </button>
         )}
@@ -287,7 +337,7 @@ export const PresetSwitcher: React.FC<{
             style={signClip}
             data-testid="preset-manage-button"
           >
-            <Pencil size={10} />
+            <PxIcon name="pencil" size={13} />
             <span>Manage</span>
           </button>
         )}
@@ -332,7 +382,7 @@ export const PresetSwitcher: React.FC<{
                 type="text"
                 value={saveName}
                 onChange={(e) => setSaveName(e.target.value)}
-                placeholder="Loadout name…"
+                placeholder="Build name…"
                 maxLength={32}
                 className="bl-input flex-1 px-2 py-1 text-[11px]"
                 autoFocus
@@ -345,7 +395,7 @@ export const PresetSwitcher: React.FC<{
         )}
       </AnimatePresence>
 
-      {/* Preset list sheet — visible list/apply/rename/delete controls */}
+      {/* Build list sheet — visible list/apply/rename/icon/delete controls */}
       <AnimatePresence>
         {listOpen && (
           <motion.div
@@ -353,7 +403,7 @@ export const PresetSwitcher: React.FC<{
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={() => { setListOpen(false); setRowRenameId(null); }}
+            onClick={() => { setListOpen(false); setRowRenameId(null); setIconPickId(null); }}
           >
             <motion.div
               initial={{ scale: 0.95 }}
@@ -363,7 +413,7 @@ export const PresetSwitcher: React.FC<{
               style={signClip}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-sm font-black text-text-primary mb-3">Loadout Presets</div>
+              <div className="text-sm font-black text-text-primary mb-3">Saved Builds</div>
               <div className="space-y-2">
                 {presets.map((preset) => {
                   const isActive = preset.id === activeId;
@@ -401,7 +451,11 @@ export const PresetSwitcher: React.FC<{
                       ) : (
                         <>
                           <div className="flex items-center gap-2">
-                            <Bookmark size={12} className={isActive ? 'text-amber' : 'text-text-muted'} />
+                            <PxIcon
+                              name={resolveBuildIcon(preset.icon)}
+                              size={17}
+                              className={isActive ? 'text-amber' : 'text-text-muted'}
+                            />
                             <span className="min-w-0 flex-1 truncate text-xs font-black text-text-primary">{preset.name}</span>
                             {isActive && <span className="text-[8px] font-black uppercase tracking-wider text-amber">Active</span>}
                           </div>
@@ -422,6 +476,14 @@ export const PresetSwitcher: React.FC<{
                             </button>
                             <button
                               type="button"
+                              onClick={() => setIconPickId(iconPickId === preset.id ? null : preset.id)}
+                              className="bl-secondary px-2 py-1 text-[9px] font-black"
+                              aria-expanded={iconPickId === preset.id}
+                            >
+                              Icon
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => overwritePreset(preset.id)}
                               className="bl-secondary px-2 py-1 text-[9px] font-black text-amber"
                             >
@@ -432,9 +494,17 @@ export const PresetSwitcher: React.FC<{
                               onClick={() => deletePreset(preset.id)}
                               className="flex items-center gap-1 border border-red/30 bg-red/5 px-2 py-1 text-[9px] font-black text-red"
                             >
-                              <Trash2 size={10} /> Delete
+                              <PxIcon name="x" size={13} /> Delete
                             </button>
                           </div>
+                          {iconPickId === preset.id && (
+                            <div className="mt-2">
+                              <BuildIconPicker
+                                value={resolveBuildIcon(preset.icon)}
+                                onPick={(icon) => { setPresetIcon(preset.id, icon); setIconPickId(null); }}
+                              />
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
@@ -443,7 +513,7 @@ export const PresetSwitcher: React.FC<{
               </div>
               <button
                 type="button"
-                onClick={() => { setListOpen(false); setRowRenameId(null); }}
+                onClick={() => { setListOpen(false); setRowRenameId(null); setIconPickId(null); }}
                 className="bl-secondary w-full mt-3 py-2 text-[10px] font-black"
               >
                 Close
@@ -471,7 +541,27 @@ export const PresetSwitcher: React.FC<{
               style={signClip}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-sm font-black text-text-primary mb-3">Manage Preset</div>
+              <div className="text-sm font-black text-text-primary mb-3">Manage Build</div>
+
+              {/* The build's glyph (SB-2): shown at row size, changed
+                  from the picker grid right here — no second sheet. */}
+              {(() => {
+                const managed = presets.find((p) => p.id === manageId);
+                if (!managed) return null;
+                const managedIcon = resolveBuildIcon(managed.icon);
+                return (
+                  <div className="mb-2 border-2 border-border bg-surface p-2">
+                    <div className="mb-2 flex items-center gap-2">
+                      <PxIcon name={managedIcon} size={26} className="text-amber" />
+                      <span className="min-w-0 flex-1 truncate text-xs font-black text-text-primary">{managed.name}</span>
+                    </div>
+                    <BuildIconPicker
+                      value={managedIcon}
+                      onPick={(icon) => setPresetIcon(managed.id, icon)}
+                    />
+                  </div>
+                );
+              })()}
 
               <button
                 type="button"
@@ -479,7 +569,7 @@ export const PresetSwitcher: React.FC<{
                 className="w-full flex items-center gap-2 border-2 border-border bg-surface p-2 text-left text-xs font-black text-amber mb-1"
                 style={signClip}
               >
-                <Bookmark size={14} /> Overwrite with current loadout
+                <PxIcon name="pin" size={17} /> Overwrite with current loadout
               </button>
 
               <button
@@ -488,7 +578,7 @@ export const PresetSwitcher: React.FC<{
                 className="w-full flex items-center gap-2 border-2 border-border bg-surface p-2 text-left text-xs font-black text-text-primary mb-1"
                 style={signClip}
               >
-                <Pencil size={14} /> Rename
+                <PxIcon name="pencil" size={17} /> Rename
               </button>
 
               {renameOpen && (
@@ -511,7 +601,7 @@ export const PresetSwitcher: React.FC<{
                 className="w-full flex items-center gap-2 border-2 border-red/30 bg-red/5 p-2 text-left text-xs font-black text-red mt-2"
                 style={signClip}
               >
-                <Trash2 size={14} /> Delete preset
+                <PxIcon name="x" size={17} /> Delete build
               </button>
 
               <button

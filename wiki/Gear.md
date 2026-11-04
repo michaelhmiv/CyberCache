@@ -42,6 +42,12 @@ all eight slots (vehicle included) plus your belt assignments, so one
 tap swaps your whole kit: boss build, farming build, market-day
 build.
 
+Every build also wears a **glyph** next to its name — a gun for the
+combat kit, an anvil for the crafting kit, a truck for the courier
+set. Pick one in **Manage** with the **Icon** control; the glyph
+rides the build's chip and the Loadout header, so your kits read
+apart at a glance. A new build starts with the gun.
+
 Applying a build is one checked operation, not a best-effort shuffle.
 Every slot either equips or tells you exactly why it didn't:
 

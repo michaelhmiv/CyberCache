@@ -53,7 +53,7 @@ import {
   type SlotBlockSummary,
 } from '@/lib/loadout/slotBlockSummary';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
-import { useLoadoutPresetsStore } from '@/store/slices/loadoutPresetsSlice';
+import { useLoadoutPresetsStore, resolveBuildIcon } from '@/store/slices/loadoutPresetsSlice';
 import { SKILL_NODES } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import type { GearItem, Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
@@ -389,7 +389,7 @@ export interface ActionLoadoutProps {
   /**
    * Read-only display mode (Phase 1: one gear home). Slot taps and the
    * Manage button route through `onManageLoadout` — the ONE door into
-   * the gear home (Inventory → Loadout). No picker, no presets, no
+   * the gear home (Inventory → Loadout). No picker, no builds, no
    * equip/unequip controls render in this mode.
    */
   readOnly?: boolean;
@@ -466,7 +466,7 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
   // A mount-time picker request (gear-home deep link) also forces expand.
   // Flow audit F3: in the gear home (manage mode) the panel ALWAYS
   // mounts expanded — a persisted collapse used to hide the entire
-  // slot grid behind a header + preset switcher, so the one equip
+  // slot grid behind a header + build switcher, so the one equip
   // surface mounted with nothing to tap. Collapse persistence now
   // belongs only to read-only display contexts (the Fight tab).
   const [collapsed, setCollapsed] = useState(() => {
@@ -567,11 +567,12 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
 
   // Build identity (merged-page header, right side): the dominant
   // skill tree — most points spent, ties break in enum order — and
-  // the active preset's name ("Gunslinger · Boss Kit"). Print only
-  // what exists: a fresh account shows neither clause.
+  // the active build's glyph + name ("Gunslinger · Boss Kit"). Print
+  // only what exists: a fresh account shows neither clause.
   const presets = useLoadoutPresetsStore((s) => s.presets);
   const activePresetId = useLoadoutPresetsStore((s) => s.activePresetId);
-  const activePresetName = presets.find((p) => p.id === activePresetId)?.name ?? null;
+  const activePreset = presets.find((p) => p.id === activePresetId) ?? null;
+  const activePresetName = activePreset?.name ?? null;
   const buildTree = useMemo(() => {
     const byTree = new Map<string, number>();
     for (const node of SKILL_NODES) {
@@ -668,13 +669,18 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
         {buildIdentity && (
           <div className="shrink-0 text-right">
             <div className="text-[11px] font-black uppercase tracking-widest text-text-muted">Build</div>
-            <div className="text-[13px] font-bold text-text-primary">{buildIdentity}</div>
+            <div className="flex items-center justify-end gap-1.5">
+              {activePreset && (
+                <PxIcon name={resolveBuildIcon(activePreset.icon)} size={13} className="shrink-0 text-amber" />
+              )}
+              <div className="text-[13px] font-bold text-text-primary">{buildIdentity}</div>
+            </div>
           </div>
         )}
       </div>
       )}
 
-      {/* Collapsed summary strip — presets are management, so they live
+      {/* Collapsed summary strip — builds are management, so they live
           only in the gear home (hidden in read-only display mode). */}
       {collapsed && !readOnly && (
         <div className="mt-2">

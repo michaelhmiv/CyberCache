@@ -8,7 +8,7 @@
  *
  *  - GearHub and ChestScreen contain NO equip calls — equipping
  *    lives only in the gear home's Slot Picker path (ActionLoadout
- *    manage mode + preset application, both hosted by the home).
+ *    manage mode + build application, both hosted by the home).
  *    SUPERSEDED IN PART by the 2026-11-01 UX audit (same exception
  *    class as flow-fix F11): UX-01 makes the cache reveal's Equip
  *    button equip in place (ChestScreen), and UX-02 adds an Unequip
@@ -222,13 +222,20 @@ describe('Phase 1 structure — transact locks on the actions + vocabulary', () 
   });
 });
 
-describe('Phase 1 structure — presets + offline summary + used-in', () => {
-  it('preset management is visible, not long-press only', () => {
+describe('Phase 1 structure — builds + offline summary + used-in', () => {
+  it('build management is visible, not long-press only', () => {
     const switcher = readSource('src/components/action/PresetSwitcher.tsx');
     expect(switcher).toContain('data-testid="preset-manage-button"');
-    expect(switcher).toContain('Loadout Presets');
+    expect(switcher).toContain('Saved Builds');
     // The long-press shortcut remains, but it is no longer the only path.
     expect(switcher).toContain('onContextMenu');
+  });
+
+  it('the switcher speaks §7 pixel glyphs end-to-end — Lucide retired (SB-2)', () => {
+    const switcher = readSource('src/components/action/PresetSwitcher.tsx');
+    expect(switcher).toContain('PxIcon');
+    expect(switcher).toContain('build-icon-picker');
+    expect(switcher).not.toContain('lucide-react');
   });
 
   it('the offline recap persists and can be re-opened from Home', () => {

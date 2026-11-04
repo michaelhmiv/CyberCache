@@ -24,16 +24,27 @@
  * The belt (client display state) applies only after the server op
  * returns, so a failed apply never leaves belt and gear from
  * different builds.
+ *
+ * IDENTITY (SB-2): the feature is named "Builds" everywhere a player
+ * reads it — switcher chips, the Manage sheet, the Loadout header.
+ * Each build also carries ONE glyph from the §7 pixel sheet (brief
+ * D5): `icon` rides the same runtime-snapshot record as the rest of
+ * the build, so it syncs cross-device with the build itself. Builds
+ * saved before SB-2 have no glyph on record; they read as the
+ * default (resolveBuildIcon), never as a broken image.
  */
 import { create } from 'zustand';
 import type { LoadoutSlot, LoadoutConsumables } from './loadoutSlice';
 import { useLoadoutStore } from './loadoutSlice';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { recallDispatch } from '@/lib/chef/chefClient';
+import type { PxIconName } from '@/lib/pixel/icons';
 
 export interface LoadoutPreset {
   id: string;
   name: string;
+  /** The build's §7 glyph (SB-2). One of BUILD_ICONS. */
+  icon: PxIconName;
   slots: Record<LoadoutSlot, string | null>;
   consumables: LoadoutConsumables;
   createdAt: number;
@@ -86,6 +97,10 @@ export interface LoadoutPresetsState {
   deletePreset: (id: string) => void;
   /** Rename a preset. */
   renamePreset: (id: string, name: string) => void;
+  /** Dress a build in a new §7 glyph (SB-2). Identity, not content:
+   *  the pick does not bump updatedAt, so the list order holds still
+   *  while the player is choosing. */
+  setPresetIcon: (id: string, icon: PxIconName) => void;
   /** Load a preset into the active loadout via cc_apply_build. Marks it active only on a clean full apply. */
   loadPreset: (id: string) => Promise<void>;
   /** Remedy for a 'listed' outcome: cancel the listing, then re-apply the build. */
@@ -105,6 +120,34 @@ export interface LoadoutPresetsState {
 }
 
 const MAX_PRESETS = 5;
+
+/**
+ * The curated build-glyph set (SB-2, brief D5): a subset of the §7
+ * pixel sheet (`src/lib/pixel/icons.ts`) covering the flavors a peak
+ * layout actually wears — combat, defense, crafting, and the road.
+ * Rendered via PxIcon; no new art, payload delta 0.
+ */
+export const BUILD_ICONS: readonly PxIconName[] = [
+  'gun', 'crosshair', 'skull', 'crown', 'bolt',
+  'shield', 'heart', 'cross',
+  'hammer', 'anvil', 'wrench', 'cog', 'flask', 'nodes',
+  'pick', 'truck', 'wheel', 'flame', 'star', 'trophy',
+];
+
+/** The glyph a build wears until the player picks another (brief D5). */
+export const DEFAULT_BUILD_ICON: PxIconName = 'gun';
+
+/**
+ * Read a stored glyph value as a build icon. Anything missing,
+ * mistyped, or no longer in the curated set reads as the default —
+ * a snapshot from before SB-2 (or after a future sheet change)
+ * never renders a broken or borrowed glyph.
+ */
+export function resolveBuildIcon(icon: unknown): PxIconName {
+  return typeof icon === 'string' && (BUILD_ICONS as readonly string[]).includes(icon)
+    ? (icon as PxIconName)
+    : DEFAULT_BUILD_ICON;
+}
 
 const SLOT_ORDER: LoadoutSlot[] = [
   'primary', 'secondary', 'heavy', 'ordnance', 'shield', 'classMod', 'relic', 'vehicle',
@@ -177,6 +220,7 @@ export const useLoadoutPresetsStore = create<LoadoutPresetsState>()((set, get) =
     const preset: LoadoutPreset = {
       id: nextId(),
       name: makeSlug(name),
+      icon: DEFAULT_BUILD_ICON,
       slots: { ...loadout.slots },
       consumables: { ...loadout.consumables },
       createdAt: Date.now(),
@@ -204,6 +248,13 @@ export const useLoadoutPresetsStore = create<LoadoutPresetsState>()((set, get) =
       presets: s.presets.map((p) =>
         p.id === id ? { ...p, name: makeSlug(name), updatedAt: Date.now() } : p,
       ),
+    }));
+  },
+
+  setPresetIcon: (id, icon) => {
+    const resolved = resolveBuildIcon(icon);
+    set((s) => ({
+      presets: s.presets.map((p) => (p.id === id ? { ...p, icon: resolved } : p)),
     }));
   },
 

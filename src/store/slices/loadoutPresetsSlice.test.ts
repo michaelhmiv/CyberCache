@@ -10,7 +10,12 @@
  * was defect 2's silent failure wearing a test's clothes.)
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { useLoadoutPresetsStore } from './loadoutPresetsSlice';
+import {
+  useLoadoutPresetsStore,
+  BUILD_ICONS,
+  DEFAULT_BUILD_ICON,
+  resolveBuildIcon,
+} from './loadoutPresetsSlice';
 import { useLoadoutStore, type LoadoutSlot } from './loadoutSlice';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { recallDispatch } from '@/lib/chef/chefClient';
@@ -184,5 +189,72 @@ describe('loadoutPresets — SB-1 truthful apply', () => {
     }
     expect(savePreset('One too many')).toBeNull();
     expect(useLoadoutPresetsStore.getState().presets).toHaveLength(5);
+  });
+});
+
+describe('loadoutPresets — SB-2 build identity (glyphs)', () => {
+  beforeEach(() => {
+    useLoadoutPresetsStore.setState({
+      presets: [],
+      activePresetId: null,
+      presetLoadError: null,
+      lastApplyReport: null,
+    });
+    setLoadout({});
+  });
+
+  it('a freshly saved build wears the default glyph — the gun', () => {
+    const id = useLoadoutPresetsStore.getState().savePreset('Runner');
+    if (!id) throw new Error('preset save failed');
+    const preset = useLoadoutPresetsStore.getState().presets.find((p) => p.id === id);
+    expect(preset?.icon).toBe(DEFAULT_BUILD_ICON);
+    expect(preset?.icon).toBe('gun');
+  });
+
+  it('setPresetIcon dresses the build — and only that build', () => {
+    const a = useLoadoutPresetsStore.getState().savePreset('Alpha');
+    const b = useLoadoutPresetsStore.getState().savePreset('Bravo');
+    if (!a || !b) throw new Error('preset save failed');
+
+    useLoadoutPresetsStore.getState().setPresetIcon(a, 'anvil');
+
+    const presets = useLoadoutPresetsStore.getState().presets;
+    expect(presets.find((p) => p.id === a)?.icon).toBe('anvil');
+    expect(presets.find((p) => p.id === b)?.icon).toBe('gun');
+  });
+
+  it('picking a glyph is dressing, not content: updatedAt and list order hold still', () => {
+    const a = useLoadoutPresetsStore.getState().savePreset('Alpha');
+    const b = useLoadoutPresetsStore.getState().savePreset('Bravo');
+    if (!a || !b) throw new Error('preset save failed');
+    const before = useLoadoutPresetsStore.getState().presets.map((p) => [p.id, p.updatedAt]);
+
+    useLoadoutPresetsStore.getState().setPresetIcon(a, 'skull');
+
+    const after = useLoadoutPresetsStore.getState().presets.map((p) => [p.id, p.updatedAt]);
+    expect(after).toEqual(before);
+  });
+
+  it('resolveBuildIcon passes curated glyphs through and defaults everything else', () => {
+    for (const icon of BUILD_ICONS) {
+      expect(resolveBuildIcon(icon)).toBe(icon);
+    }
+    // Pre-SB-2 snapshots carry no glyph at all.
+    expect(resolveBuildIcon(undefined)).toBe('gun');
+    expect(resolveBuildIcon(null)).toBe('gun');
+    // A glyph outside the curated set (or off the sheet entirely)
+    // never reaches the renderer.
+    expect(resolveBuildIcon('coin')).toBe('gun');
+    expect(resolveBuildIcon('not-a-glyph')).toBe('gun');
+    expect(resolveBuildIcon(42)).toBe('gun');
+  });
+
+  it('setPresetIcon refuses off-sheet values instead of storing them', () => {
+    const id = useLoadoutPresetsStore.getState().savePreset('Runner');
+    if (!id) throw new Error('preset save failed');
+    // The action's type only admits sheet glyphs; a stray runtime
+    // value still resolves to the default rather than persisting.
+    useLoadoutPresetsStore.getState().setPresetIcon(id, 'coin' as never);
+    expect(useLoadoutPresetsStore.getState().presets[0]?.icon).toBe('gun');
   });
 });
