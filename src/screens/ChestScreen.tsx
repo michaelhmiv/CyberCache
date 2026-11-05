@@ -498,8 +498,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                         setRevealed(null);
                         setItemActions({});
                         setEquipUndo(null);
-                        if (freeAvailable) handleOpenFree();
-                        else handleOpenKey();
+                        handleOpenKey();
                       }}
                       className="px-5 py-2 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm active:scale-95 transition-transform"
                     >

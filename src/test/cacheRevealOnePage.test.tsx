@@ -150,7 +150,7 @@ function seedStores() {
     consumables: { PreFight: null, MidFight: null, Emergency: null },
   });
   usePlayerStore.setState({
-    level: 30, credits: 100_000, scrap: 500, cacheKeys: 3, cacheKeyFragments: 0,
+    level: 30, credits: 100_000, scrap: 500, cacheKeys: 3,
     legendaryCores: 0, profileLoaded: true,
   });
   useSkillStore.setState({ spent: {}, classModBoosts: { nodeBoosts: {} } });

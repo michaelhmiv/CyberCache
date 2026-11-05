@@ -942,6 +942,13 @@ export interface ChefLoginStreakResult {
     cycleDay: number | null;
     tier: number | null;
     creditsAwarded: number;
+    /**
+     * Stored fact only (0082): claims recorded before the
+     * fragment currency was abolished carry their amount; every
+     * claim since records 0. Nothing renders it — it rides the
+     * wire so the claim-identity key can name the full reward.
+     */
+    fragmentsAwarded: number;
     cacheKeysAwarded: number;
   };
   profile: Record<string, unknown> | null;
