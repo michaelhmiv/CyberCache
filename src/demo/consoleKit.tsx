@@ -15,26 +15,7 @@
  * Nothing here paints a section.
  */
 import React from 'react';
-
-export const CK = {
-  /** Panel face — machined steel, lit from the top edge. */
-  panel: 'linear-gradient(180deg, #1C202B 0%, #12151D 78%)',
-  /** Panel inner face, one step darker (sub-modules). */
-  panelInner: 'linear-gradient(180deg, #171B24 0%, #10131A 80%)',
-  bezel: '#3A3644',
-  seam: 'rgba(255,255,255,0.07)',
-  /** LCD well glass. */
-  lcd: '#060705',
-  bone: '#EAE3D1',
-  boneDim: '#B4AB9C',
-  label: '#A79D8E',
-  amber: '#FF9000',
-  amberSoft: 'rgba(255,144,0,0.14)',
-  green: '#7CFC00',
-  greenSoft: 'rgba(124,252,0,0.12)',
-  red: '#FF4B5C',
-  lampOff: '#23262E',
-};
+import { CK } from './consoleTokens';
 
 const SCANLINES =
   'repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 3px)';

@@ -28,7 +28,8 @@
 import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { SECTIONS, TOUR_STEPS, type HelpSection } from '@/screens/HelpScreen';
-import { CK, ConsoleStyles, Lamp, Lcd, PushBtn, Rack, RackHead, Readout, SegMeter } from './consoleKit';
+import { ConsoleStyles, Lamp, Lcd, PushBtn, Rack, RackHead, Readout, SegMeter } from './consoleKit';
+import { CK } from './consoleTokens';
 
 type ManualView = { kind: 'index' } | { kind: 'section'; id: string };
 

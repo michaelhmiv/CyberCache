@@ -39,6 +39,9 @@ export interface TourStep {
 // One guided step per major gameplay phase. Each step names a real tab and
 // describes what the player should be looking at, so the manual is a real tour
 // rather than a static reference card.
+// PROTOTYPE (design/hunter-subpages-manual-b): exported so the demo
+// harness renders the shipped content verbatim; branch-only change.
+// eslint-disable-next-line react-refresh/only-export-components
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 'pick-turf',
@@ -108,6 +111,8 @@ export const TOUR_STEPS: TourStep[] = [
 // Section content reflects the post-PR-#52-to-#58 reality: single-tick loop,
 // per-area XP multiplier, new curve, server-minted rewards, build identity
 // from kill stats. The old "auto-salvage clutter" copy is gone.
+// PROTOTYPE (design/hunter-subpages-manual-b): export rationale as TOUR_STEPS.
+// eslint-disable-next-line react-refresh/only-export-components
 export const SECTIONS: HelpSection[] = [
   {
     id: 'start',
