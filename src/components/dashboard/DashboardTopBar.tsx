@@ -407,95 +407,99 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           its LV badge + second XP bar duplicated the Strip; the
           level pop-up's doors are the Strip's LV segment and the
           Return Sheet's door row. In its footprint: CACHE and
-          OFFLINE. Badges keep their inset corner, and a pill
-          carrying one reserves that corner in its padding
-          (DESIGN.md §6: adapt the host, never shrink the type).
-          FIT LAW (claim-row wrap fix, 2026-11-05): the badge
-          reservations are honest width — a CLAIM streak pill
-          (~129px) + a GUEST contracts pill (~146px) leave ~98px
-          of a 386px row, and the flex pair was crushed to ~46px
-          per button: labels clipped mid-word and the CACHE
-          bubble — the key count's only print on Home — fell
-          outside its button's box entirely. So the row WRAPS and
-          the pair carries a floor sized from its own content
-          (CACHE 104 = pad+icon+label+bubble; OFFLINE 90 quiet,
-          216 while a hold's CLAIM badge + figure ride it): when
-          the pills' reservations crowd the row, the pills take a
-          second line at full size instead of the pair starving.
-          One line whenever everything fits at natural width;
-          never shrink the type (§6). */}
-      <div data-testid="dashboard-top-bar" className="mb-3 flex flex-wrap items-stretch gap-2">
-        <span
-          className={`flex flex-1 items-stretch gap-2 ${holdPending ? 'min-w-[328px]' : 'min-w-[202px]'}`}
+          OFFLINE.
+          ICON-ONLY LAW (owner ruling, 2026-11-05): the row's
+          controls carry NO word labels — icon + data only, on ONE
+          line in every state. The owner's words: "just make those
+          logos then without text — people will learn what the
+          logos mean." This supersedes PR #402's flex-wrap fix,
+          which he rejected outright ("that second line looks so
+          bad"), and it is §6's own permitted shortening: the full
+          words live in the aria-labels and print in full on every
+          destination these keys open (the chest, the Return
+          Sheet, the streak and contracts panels, the Rep Desk).
+          What stays painted is DATA, never labels: the CACHE key
+          bubble (the count's only print on Home), the OFFLINE
+          pending figure, the streak day numeral, and the CLAIM /
+          GUEST / count corner badges.
+          FIT: with no label text, the old badge-corner padding
+          reservations (64/48/36px of right padding, there so a
+          badge could never tuck a label's last glyph) buy
+          nothing, so they are gone. Instead each key is two
+          zones: the CornerBadge keeps its inset top-right corner
+          (absolute, unchanged), and the content row anchors to
+          the key's BOTTOM (mt-auto in a flex-col key, content
+          baseline shared across the row per §6's alignment law),
+          so badge and content can never share a horizontal band
+          at any width. The keys size from their content: CACHE /
+          OFFLINE flex, streak / contracts / weekly are compact
+          fixed keys; the widest state (pending hold + both word
+          badges + weekly) sums ≈370px of the 386px row. Never
+          wrap, never shrink the type. */}
+      <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-2">
+        {/* CACHE — the key count's one print on Home (the Strip's
+            cache segment leaves Home in this package), as a
+            bubble on the button that spends them. */}
+        <button
+          type="button"
+          data-testid="top-cache-button"
+          aria-label={`Cache — ${cacheKeys} cache keys held. Opens the cache chest.`}
+          onClick={() => onNavigate?.('chest')}
+          className="bl-panel relative flex min-h-[40px] min-w-[64px] flex-1 flex-col overflow-hidden px-2 pb-1 pt-2"
         >
-          {/* CACHE — the key count's one print on Home (the Strip's
-              cache segment leaves Home in this package), as a
-              bubble on the button that spends them. */}
-          <button
-            type="button"
-            data-testid="top-cache-button"
-            aria-label={`Cache — ${cacheKeys} cache keys held. Opens the cache chest.`}
-            onClick={() => onNavigate?.('chest')}
-            className="bl-panel relative flex min-h-[40px] min-w-[104px] flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5"
-          >
+          <span className="mt-auto flex items-center gap-1.5">
             <PxIcon name="key" size={15} />
-            <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
-              Cache
-            </span>
             <span
               data-testid="top-cache-key-count"
               className="ml-auto shrink-0 bg-amber px-1.5 py-0.5 text-[11px] font-black leading-none tabular-nums text-black"
             >
               {cacheKeys}
             </span>
-          </button>
+          </span>
+        </button>
 
-          {/* OFFLINE — the held settlement's door and claim. While
-              the server holds unpaid earnings the button is a real
-              claimable (pulse + CLAIM badge + the pending figure,
-              the credits leg of the hold); tapping claims and
-              lands on the Return Sheet receipt. Quiet — plain
-              door to the Return Sheet — when nothing is held. */}
-          <button
-            type="button"
-            data-testid="top-offline-button"
-            aria-label={offlineLabel}
-            aria-busy={claiming || undefined}
-            disabled={claiming}
-            onClick={() => void handleOfflineTap()}
-            className={`bl-panel relative flex min-h-[40px] flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${holdPending ? 'min-w-[216px]' : 'min-w-[90px]'} ${holdPending ? 'pr-16' : ''}`}
-          >
-            {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
-            {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
+        {/* OFFLINE — the held settlement's door and claim. While
+            the server holds unpaid earnings the button is a real
+            claimable (pulse + CLAIM badge + the pending figure,
+            the credits leg of the hold); tapping claims and
+            lands on the Return Sheet receipt. Quiet — plain
+            door to the Return Sheet — when nothing is held. */}
+        <button
+          type="button"
+          data-testid="top-offline-button"
+          aria-label={offlineLabel}
+          aria-busy={claiming || undefined}
+          disabled={claiming}
+          onClick={() => void handleOfflineTap()}
+          className={`bl-panel relative flex min-h-[40px] flex-1 flex-col overflow-hidden px-2 pb-1 pt-2 ${holdPending ? 'min-w-[116px]' : 'min-w-[44px]'}`}
+        >
+          {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
+          {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
+          <span className="mt-auto flex items-center gap-1.5">
             <PxIcon name="clock" size={15} />
-            <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
-              Offline
-            </span>
             {holdPending && (
               <span
                 data-testid="top-offline-pending"
-                className="ml-auto shrink-0 whitespace-nowrap text-[13px] font-black tabular-nums"
+                className="ml-auto shrink-0 whitespace-nowrap text-[13px] font-black leading-none tabular-nums"
                 style={{ color: GAIN_GREEN }}
               >
                 {claiming ? 'Claiming…' : offlineFigure}
               </span>
             )}
-          </button>
-        </span>
+          </span>
+        </button>
 
-        {/* Daily streak — icon + pop-up door. While the NEW badge
-            is up, the pill reserves its corner (pr-12): the badge
-            is ~36px wide at its inset, so pr-10 left ~zero air and
-            the label's last glyph ("Day 1" → "DAY ") tucked under
-            it — the fix-pass defect on PR #293's captures. pr-12
-            keeps the full label clear of the badge, the same
-            reservation the level pill gives its AWAY badge. */}
+        {/* Daily streak — icon + day numeral + pop-up door. The
+            numeral is data (the current streak), not a label:
+            it stays under the icon-only law. The CLAIM / NEW
+            badge rides the top corner; the content row rides
+            the bottom, so the two never meet. */}
         <button
           type="button"
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakClaimable ? 'pr-16' : streakAnnouncement && !streakJustClaimed ? 'pr-12' : ''}`}
+          className="bl-panel relative flex min-h-[40px] min-w-[60px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
         >
           {streakClaimable ? (
             <>
@@ -508,48 +512,51 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
               <CornerBadge text="NEW" color={STREAK_ACCENT} />
             </>
           ) : null}
-          <PxIcon name="flame" size={15} />
-          <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
-            {streakDay !== null ? `Day ${streakDay}` : 'Streak'}
+          <span className="mt-auto flex items-center gap-1.5">
+            <PxIcon name="flame" size={15} />
+            {streakDay !== null && (
+              <span className="whitespace-nowrap text-[11px] font-black leading-none tabular-nums text-text-secondary">
+                {streakDay}
+              </span>
+            )}
           </span>
         </button>
 
-        {/* Contracts — icon + pop-up door */}
+        {/* Contracts — icon + pop-up door. Badges: the claimable
+            count while any contract can claim, else the GUEST
+            word badge for the guest lock (assumption-gaps G10:
+            the why prints as a word in the badge language, not
+            a bare lock glyph). */}
         <button
           type="button"
           data-testid="top-contracts-button"
           aria-label={contractsLabel}
           onClick={() => setSheet('contracts')}
-          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${contractsPulsing ? 'pr-9' : contractsGuestLocked ? 'pr-16' : ''}`}
+          className="bl-panel relative flex min-h-[40px] min-w-[48px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
         >
           {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
-          {/* Assumption-gaps G10: the guest lock used to be a
-              bare lock glyph — a badge with no visible why. In
-              the badge language this row already speaks (AWAY,
-              NEW, counts), the why prints as a word: GUEST. */}
           {contractsGuestLocked && <CornerBadge text="GUEST" color="#8A847C" />}
-          <PxIcon name="orders" size={15} />
-          <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
-            Orders
+          <span className="mt-auto flex items-center gap-1.5">
+            <PxIcon name="orders" size={15} />
           </span>
         </button>
 
-        {/* Weekly claimables — pill; renders only while a weekly
-            Parts Crate / Signature Order is claimable (§9). */}
+        {/* Weekly claimables — icon + count badge; renders only
+            while a weekly Parts Crate / Signature Order is
+            claimable (§9). */}
         {weeklyCount > 0 && (
           <button
             type="button"
             data-testid="top-weekly-button"
             aria-label={weeklyLabel}
             onClick={() => setSheet('weekly')}
-            className="bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden py-1.5 pl-2.5 pr-9"
+            className="bl-panel relative flex min-h-[40px] min-w-[48px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
           >
             <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
             <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
-            <PxIcon name="crate" size={15} />
-            <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
-              Weekly
+            <span className="mt-auto flex items-center gap-1.5">
+              <PxIcon name="crate" size={15} />
             </span>
           </button>
         )}
