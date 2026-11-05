@@ -283,7 +283,7 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expectIconKey(cacheButton, 'min-w-[64px]');
     expectIconKey(offlineButton, 'min-w-[44px]');
     expectIconKey(streakButton, 'min-w-[60px]');
-    expectIconKey(contractsButton, 'min-w-[48px]');
+    expectIconKey(contractsButton, 'min-w-[56px]');
   });
 
   it('both badges + the weekly pill: five icon keys, one line', { timeout: 20_000 }, async () => {
@@ -297,7 +297,7 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(weekly.textContent).toContain('1');
     expect(weekly.textContent).not.toContain('Weekly');
     expect(weekly.getAttribute('aria-label')).toContain('Weekly claimables');
-    expectIconKey(weekly, 'min-w-[48px]');
+    expectIconKey(weekly, 'min-w-[56px]');
     const row = screen.getByTestId('dashboard-top-bar');
     expect(row.className).not.toContain('flex-wrap');
     for (const id of ['top-cache-button', 'top-offline-button', 'top-streak-button', 'top-contracts-button']) {

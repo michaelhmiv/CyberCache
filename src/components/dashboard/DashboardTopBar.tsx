@@ -429,12 +429,17 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           zones: the CornerBadge keeps its inset top-right corner
           (absolute, unchanged), and the content row anchors to
           the key's BOTTOM (mt-auto in a flex-col key, content
-          baseline shared across the row per §6's alignment law),
-          so badge and content can never share a horizontal band
-          at any width. The keys size from their content: CACHE /
-          OFFLINE flex, streak / contracts / weekly are compact
-          fixed keys; the widest state (pending hold + both word
-          badges + weekly) sums ≈370px of the 386px row. Never
+          baseline shared across the row per §6's alignment law).
+          The keys stand 44px — the tap-target floor — which is
+          also the zone math: the badge band ends 21px below the
+          key's top edge (border + inset + its 15px height) and
+          the content band starts at 23px, so the two never
+          share a band at any width. The keys size from their
+          content: CACHE / OFFLINE flex, streak / contracts /
+          weekly are compact fixed keys (contracts/weekly wide
+          enough to hold the GUEST word badge whole inside the
+          box); the widest state (pending hold + both word
+          badges + weekly) sums ≈378px of the 386px row. Never
           wrap, never shrink the type. */}
       <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-2">
         {/* CACHE — the key count's one print on Home (the Strip's
@@ -445,7 +450,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="top-cache-button"
           aria-label={`Cache — ${cacheKeys} cache keys held. Opens the cache chest.`}
           onClick={() => onNavigate?.('chest')}
-          className="bl-panel relative flex min-h-[40px] min-w-[64px] flex-1 flex-col overflow-hidden px-2 pb-1 pt-2"
+          className="bl-panel relative flex min-h-[44px] min-w-[64px] flex-1 flex-col overflow-hidden px-2 pb-1 pt-2"
         >
           <span className="mt-auto flex items-center gap-1.5">
             <PxIcon name="key" size={15} />
@@ -471,7 +476,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           aria-busy={claiming || undefined}
           disabled={claiming}
           onClick={() => void handleOfflineTap()}
-          className={`bl-panel relative flex min-h-[40px] flex-1 flex-col overflow-hidden px-2 pb-1 pt-2 ${holdPending ? 'min-w-[116px]' : 'min-w-[44px]'}`}
+          className={`bl-panel relative flex min-h-[44px] flex-1 flex-col overflow-hidden px-2 pb-1 pt-2 ${holdPending ? 'min-w-[116px]' : 'min-w-[44px]'}`}
         >
           {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
           {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
@@ -499,7 +504,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className="bl-panel relative flex min-h-[40px] min-w-[60px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
+          className="bl-panel relative flex min-h-[44px] min-w-[60px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
         >
           {streakClaimable ? (
             <>
@@ -532,7 +537,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="top-contracts-button"
           aria-label={contractsLabel}
           onClick={() => setSheet('contracts')}
-          className="bl-panel relative flex min-h-[40px] min-w-[48px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
+          className="bl-panel relative flex min-h-[44px] min-w-[56px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
         >
           {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
@@ -551,7 +556,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             data-testid="top-weekly-button"
             aria-label={weeklyLabel}
             onClick={() => setSheet('weekly')}
-            className="bl-panel relative flex min-h-[40px] min-w-[48px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
+            className="bl-panel relative flex min-h-[44px] min-w-[56px] shrink-0 flex-col overflow-hidden px-2 pb-1 pt-2"
           >
             <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
             <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
