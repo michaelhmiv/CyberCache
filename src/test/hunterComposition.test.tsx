@@ -26,6 +26,15 @@
  * trophy is the actual standout item, whole; the Now panel carries
  * every datum the three retired cards carried) and source pins for
  * the retired chrome.
+ *
+ * Register B rebuild (owner pick from the Hunter sub-page review
+ * PDF, 2026-11-05): the Profile stop's identity + record + shelf
+ * were recomposed as Service Telemetry — identity is its own unit
+ * panel, the record one telemetry bank, the shelf a Pinned Units
+ * spec sheet. The F4 facts survive (the trophy is the real
+ * instance, printed whole; values never truncate; the Now panel
+ * merge stands); the identity/shelf arrangement pins below are
+ * the B composition's.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -211,30 +220,39 @@ beforeEach(() => {
   vi.mocked(fetchProfileLifetime).mockResolvedValue(lifetimePayload());
 });
 
-describe('Hunter composition — identity panel carries the Trophy Shelf', () => {
-  it('the trophy is the real standout item, printed whole, inside the identity panel', async () => {
+describe('Hunter composition — the Profile stop in Register B (Service Telemetry)', () => {
+  it('the trophy is the real standout item, printed whole, on the Pinned Units spec sheet', async () => {
     render(<ProfileScreen onNavigate={() => {}} />);
 
     const row = await screen.findByTestId('trophy-weapon');
-    // The rendered trophy IS the payload's instance: full name,
-    // rarity and level from the wire, never a generic stand-in.
+    // The rendered trophy IS the payload's instance: full name and
+    // the spec line read straight off its fields (level · type ·
+    // manufacturer · rarity · equipped, then the roll quality),
+    // never a generic stand-in and never ellipsized.
     expect(row.textContent).toContain(TROPHY_NAME);
-    expect(row.textContent).toContain('Legendary · Lv 12');
-    expect(row.textContent).toContain('Equipped');
+    expect(row.textContent).toContain('LV 12 · PISTOL · HELIXWORKS · LEGENDARY · EQUIPPED');
+    expect(row.textContent).toContain('ROLL Q90');
 
-    // One panel: the shelf's card ancestor also carries the
-    // identity line (name + handle · Level) — the two are not
-    // separate stacked cards anymore.
+    // Register B (owner pick, 2026-11-05) supersedes the F4
+    // one-panel arrangement: the shelf is its own rack panel, and
+    // the Cache Rank balance rides its foot as one readout row.
     const shelf = screen.getByTestId('trophy-shelf');
-    const panel = shelf.closest('.bl-card');
-    expect(panel).toBeTruthy();
-    expect(panel!.textContent).toContain('tester');
-    expect(panel!.textContent).toContain('@hunter');
-    expect(panel!.textContent).toContain('Level 5');
+    expect(shelf.textContent).toContain('Pinned Units');
+    expect(shelf.textContent).toContain('2 ranks · 3 tokens');
 
-    // The fact boxes print whole values next to the trophy.
-    expect(panel!.textContent).toContain('2 ranks · 3 tokens');
-    expect(panel!.textContent).toContain('Best Depth');
+    // Identity is the unit panel now: name + handle print there,
+    // and the level rides its LCD well (the bar stays in the Strip).
+    const unit = screen.getByTestId('profile-unit-panel');
+    expect(unit.textContent).toContain('tester');
+    expect(unit.textContent).toContain('@hunter');
+    expect(unit.querySelector('button[aria-label="Level: 5. Open the breakdown."]')).toBeTruthy();
+
+    // The endless best depth prints exactly once — in the career
+    // bank, never re-printed on the shelf.
+    await screen.findByTestId('profile-career-panel');
+    const stop = screen.getByTestId('hunter-section-profile');
+    expect(stop.textContent).toContain('Endless Best Depth');
+    expect(shelf.textContent).not.toContain('Best Depth');
   });
 });
 

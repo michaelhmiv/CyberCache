@@ -362,9 +362,14 @@ describe('Papercut 6 — values wrap whole (toast detail, Trophy Shelf chips)', 
     expect(deck).toContain('data-toast-variant="compact"');
   });
 
-  it('Trophy Shelf fact chips print their values whole', () => {
+  it('Trophy Shelf fact values print their values whole', () => {
     const shelf = readSource('src/components/profile/TrophyShelfPanel.tsx');
-    expect(shelf).not.toContain('truncate text-sm font-black');
-    expect(shelf).toContain('text-sm font-black leading-tight text-text-primary');
+    // Register B (2026-11-05): the fact chips became telemetry
+    // readout rows — the papercut's discipline is unchanged: no
+    // shelf value ellipsizes, and the Cache Rank balance prints
+    // from the payload, whole.
+    expect(shelf).not.toContain('truncate');
+    expect(shelf).toContain('cache_rank_total_ranks');
+    expect(shelf).toContain('cache_rank_tokens');
   });
 });
