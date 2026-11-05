@@ -132,6 +132,8 @@ export interface ActivityRecord {
     direction: 'bought' | 'sold';
     priceCredits: number;
     feeCredits: number | null;
+    /** Sold records only: the credits the seller was actually credited (price − fee + any Silver Tongue uplift), from the accept rows' own market_fee block. Null when no accept row proves it. */
+    proceedsCredits?: number | null;
     counterpartyId: string | null;
     counterpartyName: string | null;
     listingId: string | null;
@@ -244,8 +246,8 @@ export interface ActivityRawInput {
   cacheItemIds: ReadonlySet<string>;
   /** Hunter display names by user id, for market counterparties. */
   names: ReadonlyMap<string, string>;
-  /** Per sold listing, the facts that live only in the buyer's accept row: the fee and the buyer. */
-  saleFacts: ReadonlyMap<string, { feeCredits: number | null; buyerId: string | null }>;
+  /** Per sold listing, the facts that live only in the buyer's accept row: the fee, the buyer, and the proceeds the seller was actually credited (summed across partial-fill legs). */
+  saleFacts: ReadonlyMap<string, { feeCredits: number | null; buyerId: string | null; proceedsCredits: number | null }>;
 }
 
 export function emptyActivityInput(): ActivityRawInput {
@@ -680,6 +682,7 @@ export function buildActivityRecords(input: ActivityRawInput): ActivityRecord[] 
         direction: 'sold',
         priceCredits: listing.price_credits,
         feeCredits: facts?.feeCredits ?? null,
+        proceedsCredits: facts?.proceedsCredits ?? null,
         counterpartyId: facts?.buyerId ?? null,
         counterpartyName: buyerName,
         listingId: listing.id,

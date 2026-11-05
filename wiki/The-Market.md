@@ -139,6 +139,12 @@ One refinement: certain skill nodes shrink the fee on *your* sales (the
 reduction is relative — it shrinks the fee, not the price). See
 [[Progression]] for the trees that carry them.
 
+You never have to wonder whether something sold: when a listing sells,
+Home announces it on the **Sold** chip under the claim chips, showing the
+exact amount you were credited — price minus fee, plus any proceeds bonus.
+Tapping the chip lands here, on the Sell stop's **History** segment, where
+the sale is recorded; opening History yourself clears the announcement.
+
 ## Price history and trends
 
 Pricing on the Market is informed, not guessed. Listings and sell forms

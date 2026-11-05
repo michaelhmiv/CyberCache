@@ -129,6 +129,12 @@ Lab — and every recipe now runs on the one bench.) It runs **1 job
 at a time with 5 queued** behind it; a Fixer keystone raises the
 queue. The crusher and the furnace are stations on the same bench.
 
+When a job finishes while you are somewhere else in the game, Home
+announces it — a **Bench ready** chip under the claim chips, naming the
+job (or counting several). Tap it to come straight here and collect. If
+you are already watching the Workshop when the job lands, no announcement
+appears: you saw it happen.
+
 ## Bench time
 
 The bench strip at the top of the Workshop carries your **bench

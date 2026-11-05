@@ -199,7 +199,15 @@ function seedEquipped(
 
 describe('stats truth — roaming claim (HTTP)', () => {
   it('(a) relic affixes reach roaming: DPS (bossDamageMod) and XP (+% XP Gain) vs the same claim without the relic', async () => {
-    const { base, store, tokenA, tokenB } = await makeServer();
+    // The route clock is pinned: the claim route derives the daily hot
+    // area from the server's UTC date, and dustwaste_frontier is hot on
+    // 2026-11-05 UTC (+10% XP), which silently inflated the exact XP
+    // pins below (20 -> 22) when the suite ran that day. On 2026-11-04
+    // UTC the hot area is helixworks_labyrinth, so Dustwaste pays base
+    // rates here. The hot-day payout is pinned deliberately in (a2).
+    const { base, store, tokenA, tokenB } = await makeServer(new InMemoryChefGameplayStore(), {
+      now: () => new Date('2026-11-04T12:00:00.000Z'),
+    });
     store.seedProfile({ id: A, player_level: 10 });
     store.seedProfile({ id: B, player_level: 10 });
 
@@ -238,6 +246,38 @@ describe('stats truth — roaming claim (HTTP)', () => {
     const killsA = (claimA.json.killCycle as { totalKills: number }).totalKills;
     const killsB = (claimB.json.killCycle as { totalKills: number }).totalKills;
     expect(killsA).toBeGreaterThan(killsB);
+  });
+
+  it('(a2) on a hot-area day the same claims pay +10% XP — the rotation folds through the relic stack', async () => {
+    // Same fixture as (a), route clock pinned to 2026-11-05 UTC, the
+    // day dustwaste_frontier IS the hot area: base 20 XP -> 22, and the
+    // relic-doubled 40 -> 44 (hotYieldMult multiplies after the relic's
+    // xpBoostMod in the composition order).
+    const { base, store, tokenA, tokenB } = await makeServer(new InMemoryChefGameplayStore(), {
+      now: () => new Date('2026-11-05T12:00:00.000Z'),
+    });
+    store.seedProfile({ id: A, player_level: 10 });
+    store.seedProfile({ id: B, player_level: 10 });
+
+    const weapon = makeWeapon();
+    const classMod = makeClassMod();
+    seedEquipped(store, A, 'primary', weapon);
+    seedEquipped(store, A, 'classMod', classMod);
+    seedEquipped(store, A, 'relic', makeRelic());
+    seedEquipped(store, B, 'primary', weapon);
+    seedEquipped(store, B, 'classMod', classMod);
+    const claimA = await post(base, '/api/claim', {
+      playerId: A, areaId: 'dustwaste_frontier', ticks: 20, tickCount: 20, playerLevel: 10,
+      survival: ALIVE,
+    }, tokenA);
+    const claimB = await post(base, '/api/claim', {
+      playerId: B, areaId: 'dustwaste_frontier', ticks: 20, tickCount: 20, playerLevel: 10,
+      survival: ALIVE,
+    }, tokenB);
+    expect(claimA.status).toBe(200);
+    expect(claimB.status).toBe(200);
+    expect((claimB.json.rewards as { xpAwarded: number }).xpAwarded).toBe(22);
+    expect((claimA.json.rewards as { xpAwarded: number }).xpAwarded).toBe(44);
   });
 
   it('(b) shield mitigation is real in roaming: an 80% mitigation shield cuts HP damage vs the same shield at 0%', async () => {

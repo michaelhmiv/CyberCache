@@ -110,7 +110,10 @@ kits you hold are spent. You have two ways to
 use one:
 
 - **Self-repair** — do it yourself in the Workshop: untrained and slow,
-  at the kit's base rate.
+  at the kit's base rate. A **Workshop Rush Ticket** can be escrowed
+  when you start a self-repair, exactly as at the crafting bench: the
+  job runs faster by the ticket's quality (a 100% ticket cuts the
+  time by 20%), and cancelling before work starts refunds the ticket.
 - **[[Repair Board]]** — post the job and let a mechanic do it:
   trained hands restore more per kit and earn their pay doing it.
 

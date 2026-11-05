@@ -166,8 +166,19 @@ everything below is on it, in one scroll:
   with everything vehicle: equip, refuel, and repair (see
   [[Vehicles and the Garage]]). (Your credits, scrap, keys, and
   item count print once, in the strip at the top of the tab.)
-- **Inventory** — your full item grid, with salvage/recycle. Its
-  header and toolbar stick to the top while you scroll its rows.
+- **Inventory** — everything you own, with salvage/recycle. Its
+  header and toolbar stick to the top while you scroll. Two views:
+  the **Grid** shows each item as a card — headline stats and the
+  item's own rolled affix lines — while the **List** is one line
+  per item for fast scanning: the item's picture with its element
+  as a small badge in the picture's corner (the badge's color and
+  symbol are the element; it is never spelled out), its level, its
+  name in its rarity color, and the one number that kind is judged
+  by (a weapon's DPS, a shield's HP, ordnance damage, a class
+  mod's boost, a relic's top affix). Equipped items carry their
+  slot chip; locked items carry the lock. Everything else about
+  an item — affixes, maker, source, the rest of its stats — is on
+  its inspect sheet, one tap away.
 - **Belt & Stacks** — your belt, plus every stack you carry:
   consumable batches with their quality % printed, materials,
   and essences.

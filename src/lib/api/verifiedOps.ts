@@ -174,7 +174,7 @@ export const verifiedOps = {
   refuelVehicle: (cells: number, itemKey?: string) => op('/ops/refuel-vehicle', { nonce: requestId('refuel'), cells, item_key: itemKey ?? null }),
   // Mechanics & repair services (0025): self-repair is a timed job;
   // the board is post → escrow → accept → work → terminal settle.
-  enqueueRepairJob: (itemId: string, kitType: string, units: number) => op('/ops/repair-enqueue', { nonce: requestId('repair-enqueue'), item_id: itemId, item_key: kitType, units }),
+  enqueueRepairJob: (itemId: string, kitType: string, units: number, useRushTicket = false) => op('/ops/repair-enqueue', { nonce: requestId('repair-enqueue'), item_id: itemId, item_key: kitType, units, use_rush_ticket: useRushTicket }),
   postRepairJob: (itemId: string, priceCredits: number, targetPoints?: number | null) => op('/ops/repair-post', { nonce: requestId('repair-post'), item_id: itemId, price_credits: priceCredits, target_points: targetPoints ?? null }),
   acceptRepairJob: (jobId: string, kitType: string) => op('/ops/repair-accept', { nonce: requestId('repair-accept'), job_id: jobId, item_key: kitType }),
   finishRepairJob: (jobId: string) => op('/ops/repair-finish', { nonce: requestId('repair-finish'), job_id: jobId }),

@@ -225,6 +225,7 @@ ALLOWED_STORAGE=(
   "$SRC/lib/pixel/headParts.ts:reads the device-local hunter head-variant cosmetic preference (not progression)"
   "$SRC/components/dashboard/NextMoveCard.tsx:seen/dismissal markers for the Next Move card — the Course Complete dismissal keyed to the server completion (inherited from the retired ResearchChip card) and the craft-completion seen-set keyed by server jobId (UI preference only; completions are server records, never stored here)"
   "$SRC/components/profile/standingsBadge.ts:device-local seen-week marker for the standings earnings notice (UI state only; earnings are server-settled facts read from the weekly payload, never stored here)"
+  "$SRC/store/slices/announcementsSlice.ts:sales-announcement watermark — timestamp + ids of sales already shown in the Sold chip (UI seen-marker only; sales are server ledger facts read from the activity log, never stored here, and a lost watermark re-derives after a silent first-read baseline)"
   "$SRC/screens/SettingsScreen.tsx:writes the device-local hunter head-variant cosmetic preference (not progression)"
   "$SRC/test/:test files"
 )

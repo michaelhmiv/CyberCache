@@ -17,8 +17,10 @@ import { GEAR_PAINT_ORDER, resolveGearMount, type MountedGearItem } from '@/lib/
 import {
   armedActorExtents,
   fitArmedActorHeight,
+  fitDollActorHeight,
   partsWeaponFractionsFor,
   type ArmedActorFit,
+  type DollActorFit,
 } from '@/lib/pixel/partsStage';
 import {
   pixelWeaponInputFromWeapon,
@@ -68,6 +70,14 @@ interface PixelPartsActorProps {
    *  does not resolve renders nothing. Absent/empty = no gear
    *  layers at all. */
   gear?: MountedGearItem[];
+  /** Width-fit law for this surface. 'stage' (default): the armed
+   *  width law — shrink until frame + held weapon fit the width;
+   *  right for stages, where the weapon's full run is action
+   *  information. 'doll': the doll fit (fitDollActorHeight) — the
+   *  FRAME fills the width and centers, the weapon crops at the
+   *  stage edge like a portrait; for the Gear Loadout doll, whose
+   *  subject is the hunter, not the gun's full length. */
+  fitMode?: 'stage' | 'doll';
   children?: React.ReactNode;
 }
 
@@ -98,6 +108,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   weaponTestId,
   testId,
   gear,
+  fitMode = 'stage',
   children,
 }) => {
   const [, setSwapTick] = useState(0);
@@ -232,6 +243,44 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     return () => observer.disconnect();
   }, [frameExtents, heightPct, xPct, groundY, feetX, flip]);
 
+  // The doll fit (fitMode 'doll' — the Gear Loadout stage): size
+  // to the FRAME, not the armed extent. Weapon-independent, so it
+  // measures on the same ResizeObserver pattern whether the hunter
+  // is armed or not, and equipping a weapon never resizes him.
+  // Inert on stage surfaces: the default mode never enters here,
+  // and the width-law effect above is untouched.
+  const [measuredDollFit, setMeasuredDollFit] = useState<DollActorFit | null>(null);
+  useLayoutEffect(() => {
+    if (fitMode !== 'doll') return;
+    const parent = rootRef.current?.parentElement;
+    if (!parent) return;
+    const measure = () => {
+      const w = parent.clientWidth;
+      const h = parent.clientHeight;
+      if (!w || !h) {
+        setMeasuredDollFit(null);
+        return;
+      }
+      const fit = fitDollActorHeight({
+        containerW: w,
+        containerH: h,
+        heightPct,
+        groundY,
+        feetX,
+      });
+      setMeasuredDollFit(fit.constrained ? fit : null);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, [fitMode, heightPct, groundY, feetX]);
+  // The measured fit only exists in doll mode (the effect above
+  // never runs otherwise); deriving at render keeps the value
+  // honest if the mode prop ever changes on a mounted actor.
+  const dollFit = fitMode === 'doll' ? measuredDollFit : null;
+
   const parts = useMemo(
     () =>
       PART_SLOTS.flatMap(({ slot, paintOrder }) => {
@@ -338,17 +387,25 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
       data-testid={testId}
       data-rig={set.id}
       data-armed={heldInput ? 'true' : 'false'}
-      data-fit={widthFit ? 'width' : undefined}
+      data-fit={dollFit ? 'doll' : widthFit ? 'width' : undefined}
       style={
-        widthFit
+        dollFit
           ? {
-              height: `${widthFit.heightPx}px`,
+              height: `${dollFit.heightPx}px`,
               aspectRatio: `${SKELETON.frameWidth} / ${SKELETON.frameHeight}`,
-              left: `${xPct}%`,
-              top: `${widthFit.topPx}px`,
+              left: `${dollFit.leftPct}%`,
+              top: `${dollFit.topPx}px`,
               zIndex,
             }
-          : {
+          : widthFit
+            ? {
+                height: `${widthFit.heightPx}px`,
+                aspectRatio: `${SKELETON.frameWidth} / ${SKELETON.frameHeight}`,
+                left: `${xPct}%`,
+                top: `${widthFit.topPx}px`,
+                zIndex,
+              }
+            : {
               height: `${heightPct}%`,
               aspectRatio: `${SKELETON.frameWidth} / ${SKELETON.frameHeight}`,
               left: `${xPct}%`,

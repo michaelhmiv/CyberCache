@@ -122,6 +122,65 @@ export function fitArmedActorHeight(args: {
   };
 }
 
+export interface DollActorFit extends ArmedActorFit {
+  /** Actor left in % of container width: the doll places the FRAME
+   *  (centered in the stage), not the feet anchor — the feet land
+   *  wherever the centered frame puts them. */
+  leftPct: number;
+}
+
+/**
+ * The DOLL fit (Gear Loadout stage, 2026-11-04): the width law
+ * above prices the whole armed extent — frame + held weapon — and
+ * in the Loadout column (152px wide for a 234px nominal figure) it
+ * crushed the hunter to ~90px, a third of his stage, hidden behind
+ * the DPS/HP plate. Portrait-crop (no fit at all) is worse in the
+ * opposite direction: at nominal height the stage window ends at
+ * frame x≈177 while every held weapon spans to x≈333–347, so only
+ * ~16–23% of the gun shows and a legendary sniper reads as a grip
+ * stub — the unarmed-read failure the width law was built to kill.
+ *
+ * The doll's subject is the hunter's FRAME: this fit sizes the
+ * actor by heightPct until the FRAME itself (260 S-REF px) fills
+ * the stage width, then centers the frame. The body is never
+ * cropped; the weapon runs past the frame's right edge and crops
+ * at the stage edge like a portrait — receiver, grip and most of
+ * the barrel stay in view, so the held weapon still reads as its
+ * type. The fit is weapon-independent (it never reads extents), so
+ * armed and unarmed hunters size identically and equipping a gun
+ * never resizes the figure. It engages only in a stage too narrow
+ * for the nominal height's frame; at unconstrained geometries the
+ * returned height is exactly heightPct of the container and the
+ * caller renders its ordinary % sizing. Doll surfaces opt in via
+ * the actor's `fitMode` prop — stage surfaces keep the width law
+ * above, untouched. Placement note: the returned left centers the
+ * actor BOX; a flipped actor mirrors its contents inside the box,
+ * so the box placement is the same either way (no doll caller
+ * flips today).
+ */
+export function fitDollActorHeight(args: {
+  containerW: number;
+  containerH: number;
+  heightPct: number;
+  groundY: number;
+  /** Feet anchor x as a fraction of the frame width. */
+  feetX?: number;
+}): DollActorFit {
+  const feetX = args.feetX ?? PARTS_FEET_X;
+  const desired = (args.heightPct / 100) * args.containerH;
+  const widthHeight = (args.containerW / SKELETON.frameWidth) * SKELETON.frameHeight;
+  const heightPx = Math.min(desired, widthHeight);
+  const actorW = (heightPx / SKELETON.frameHeight) * SKELETON.frameWidth;
+  const frameLeftPx = (args.containerW - actorW) / 2;
+  const leftPct = ((frameLeftPx + feetX * actorW) / args.containerW) * 100;
+  return {
+    heightPx,
+    topPx: args.groundY * args.containerH - heightPx,
+    leftPct,
+    constrained: heightPx < desired - 0.5,
+  };
+}
+
 /**
  * Convert a stage-space point (S-REF coordinates) into stage % for
  * a placement — the parts successor to movement's actorAnchorPoint

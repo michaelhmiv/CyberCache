@@ -3,7 +3,7 @@ import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X } from 'lucide-react';
-import { useActivityStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
+import { useActivityStore, useAnnouncementsStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 import { TintPanel } from '@/components/workshop/TintPanel';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
@@ -252,6 +252,14 @@ const OverclockBar: React.FC = () => {
 export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }> = ({ onNavigate }) => {
   const player = usePlayerStore();
   const workshop = useWorkshopStore();
+  // Bench-ready suppression (eye-leading pass): while the bench
+  // itself is on screen, job completions already read here — the
+  // announcements store must not ALSO raise the bench-ready chip.
+  const setBenchInView = useAnnouncementsStore((s) => s.setBenchInView);
+  useEffect(() => {
+    setBenchInView(true);
+    return () => setBenchInView(false);
+  }, [setBenchInView]);
   const activity = useActivityStore();
   const loadout = useLoadoutStore();
   // Real-item invariant: the bench hunter carries the player's actual

@@ -183,14 +183,17 @@ afterEach(() => {
 });
 
 describe('Home composition — mode rail (§2/§4)', () => {
-  it('renders exactly the six rail stops in order, above the Stage, with the belt in the rail\u2019s vacated slot', async () => {
+  it('renders exactly the five rail stops in order, above the Stage, with the belt in the rail\u2019s vacated slot', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
     const rail = await screen.findByTestId('home-mode-rail');
     const stops = within(rail).getAllByRole('button').map((b) => b.getAttribute('data-testid'));
+    // Owner ruling 2026-11-04: the Area stop is gone — Roam is
+    // the area door. Five stops, Roam first.
     expect(stops).toEqual([
-      'mode-rail-area', 'mode-rail-roam', 'mode-rail-boss',
+      'mode-rail-roam', 'mode-rail-boss',
       'mode-rail-endless', 'mode-rail-extract', 'mode-rail-craft',
     ]);
+    expect(within(rail).queryByTestId('mode-rail-area')).toBeNull();
     // §4 order (owner ruling 2026-11-04): claim row → rail →
     // Stage (+ rundown at its foot) → belt → lit workspace → deck.
     // The rail and the belt each mount exactly once on Home.
@@ -198,10 +201,12 @@ describe('Home composition — mode rail (§2/§4)', () => {
     expect(screen.getAllByTestId('consumable-belt')).toHaveLength(1);
     const topBar = screen.getByTestId('dashboard-top-bar');
     expect(topBar.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The rail sits ABOVE the stage: it precedes the diorama's
-    // on-stage controls and the hero rundown at the stage's foot.
-    const stageControls = screen.getByTestId('diorama-stage-controls');
-    expect(rail.compareDocumentPosition(stageControls) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The rail sits ABOVE the stage: it precedes the hero
+    // rundown at the stage's foot. At standby the stage carries
+    // NO controls overlay at all (owner rework 2026-11-04: the
+    // swap-arrow Switch chip is off the stage, and Stop exists
+    // only while an action runs) — the zone itself is absent.
+    expect(screen.queryByTestId('diorama-stage-controls')).toBeNull();
     const rundown = screen.getByTestId('hero-rundown');
     expect(rail.compareDocumentPosition(rundown) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // The belt takes the rail's vacated position: directly under
@@ -268,7 +273,7 @@ describe('Home composition — stage furniture + standby panel (drift-fix F2)', 
     expect(screen.queryByText('No target selected')).toBeNull();
   });
 
-  it('standby workspace is the Roam panel: facts + Away cell, the one Start Roam bar, full-width Change Area, no ghost Loadout door', async () => {
+  it('standby workspace is the Roam panel: facts + Away cell, the one Start Roam bar, Change Area row with the Switch door, no ghost Loadout door', async () => {
     const onNavigate = vi.fn();
     render(<HomeScreen onNavigate={onNavigate} />);
     const panel = await screen.findByTestId('home-standby-panel');
@@ -298,10 +303,17 @@ describe('Home composition — stage furniture + standby panel (drift-fix F2)', 
     expect(screen.getAllByText('Start Roam')).toHaveLength(1);
     // The ghost Loadout door is gone from Home entirely (the
     // count plate carries the signal; Gear → Loadout is the
-    // door), and Change Area takes the full row.
+    // door). Owner rework 2026-11-04: Change Area now shares
+    // its row with the Switch Action door — the swap-arrow chip
+    // left the stage (Stop took the corner), and the sheet it
+    // opens is still Salvage's door from Home, so the opener
+    // rides here in the workspace.
     expect(screen.queryByText(/Loadout · /)).toBeNull();
     const changeArea = within(panel).getByText('Change Area');
-    expect(changeArea.className).toContain('w-full');
+    expect(changeArea.className).toContain('flex-1');
+    const switchDoor = within(panel).getByRole('button', { name: 'Switch Action' });
+    expect(switchDoor.className).toContain('h-11');
+    expect(switchDoor.className).toContain('w-11');
   });
 });
 

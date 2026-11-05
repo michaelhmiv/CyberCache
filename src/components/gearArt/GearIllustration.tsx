@@ -34,6 +34,18 @@ interface GearIllustrationProps {
   className?: string;
   showBadges?: boolean;
   animate?: boolean;
+  /**
+   * Weapon composition density override. Default 'card' — the
+   * marriage rule: every card surface shows the same 240×88 image
+   * for the same weapon. Compact list rows pass 'stage' (120×44,
+   * DESIGN.md §8's detail-level-0 grid): a composed small-grid
+   * render at a quarter of the texels, never a downscale of the
+   * card render. The list is a scanning surface — at row size the
+   * two reads are the same silhouette + colorway — and the Gear
+   * freeze investigation (2026-11-04) priced card-density list
+   * rows at ~26 ms of compose per weapon on a cold cache.
+   */
+  weaponDensity?: 'stage' | 'card';
 }
 
 /**
@@ -54,10 +66,11 @@ export const GearIllustration: React.FC<GearIllustrationProps> = React.memo(({
   item,
   size = 'card',
   className = '',
+  weaponDensity = 'card',
 }: GearIllustrationProps) => {
   if (isWeaponItem(item)) {
     const pixelSize = typeof size === 'number' ? size : PIXEL_SIZE_PX[size];
-    return <PixelWeapon weapon={item} size={pixelSize} className={className} density="card" />;
+    return <PixelWeapon weapon={item} size={pixelSize} className={className} density={weaponDensity} />;
   }
   const kind = gearKindOf(item);
   if (kind === 'weapon') return null; // unreachable — handled above

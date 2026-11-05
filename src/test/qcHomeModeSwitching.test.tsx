@@ -108,7 +108,9 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
 
 import { HomeScreen } from '@/screens/HomeScreen';
 import { usePlayerStore } from '@/store';
+import { startActiveActivity } from '@/lib/api/activityService';
 import { useActivityStore } from '@/store/slices/activitySlice';
+import { useIdleStore } from '@/store/slices/idleSlice';
 import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
 import { useContractsStore } from '@/store/slices/contractsSlice';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
@@ -185,5 +187,103 @@ describe('Home mode rail — switching modes replaces the open panel (QC B2)', (
     expect(screen.getByText('Active Area')).toBeTruthy();
     expect(pressed('roam')).toBe('true');
     expect(pressed('endless')).toBe('false');
+  });
+});
+
+describe('Home mode rail — Roam is the area door (owner ruling 2026-11-04)', () => {
+  // The rail's separate Area stop is gone. The exact model:
+  // entering roam from any other activity starts the roam AND
+  // auto-opens the area picker; tapping Roam while already
+  // roaming opens the picker alone — no restart, and dismissing
+  // the picker leaves the running roam untouched. The picker is
+  // the same one the old Area stop opened (same cards, same
+  // danger warnings — areas warn, never wall).
+
+  const dismissPicker = async () => {
+    // The sheet's backdrop is the topmost fixed overlay (sheets
+    // portal to the body end; the latest-opened is last).
+    const backdrops = document.querySelectorAll('.fixed.inset-0');
+    const backdrop = backdrops[backdrops.length - 1];
+    expect(backdrop).toBeTruthy();
+    fireEvent.click(backdrop!);
+    await waitFor(() => expect(screen.queryByText('Choose Area')).toBeNull());
+  };
+
+  it('switch-to-roam opens the picker: entering roam from standby starts the roam and surfaces the location options', async () => {
+    render(<HomeScreen onNavigate={() => {}} />);
+    fireEvent.click(await screen.findByTestId('mode-rail-roam'));
+    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('roaming_loot'));
+    // The picker auto-opened on entry — title plus the area cards.
+    expect(await screen.findByText('Choose Area')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Select Ironwood Bastion' })).toBeTruthy();
+    expect(pressed('roam')).toBe('true');
+  });
+
+  it('switch-to-roam from another activity (Endless) also opens the picker on entry', async () => {
+    render(<HomeScreen onNavigate={() => {}} />);
+    fireEvent.click(await screen.findByTestId('mode-rail-endless'));
+    expect(await screen.findByTestId('endless-panel')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('mode-rail-roam'));
+    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('roaming_loot'));
+    expect(await screen.findByText('Choose Area')).toBeTruthy();
+  });
+
+  it('roam-while-roaming opens the picker only — the running roam is not restarted', async () => {
+    render(<HomeScreen onNavigate={() => {}} />);
+    fireEvent.click(await screen.findByTestId('mode-rail-roam'));
+    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('roaming_loot'));
+    expect(await screen.findByText('Choose Area')).toBeTruthy();
+    await dismissPicker();
+    const startsAfterEntry = vi.mocked(startActiveActivity).mock.calls.length;
+
+    fireEvent.click(screen.getByTestId('mode-rail-roam'));
+    expect(await screen.findByText('Choose Area')).toBeTruthy();
+    // No second start was issued; the same roam keeps running.
+    expect(vi.mocked(startActiveActivity).mock.calls.length).toBe(startsAfterEntry);
+    expect(useActivityStore.getState().current.kind).toBe('roaming_loot');
+    expect(useActivityStore.getState().current.targetId).toBe('dustwaste_frontier');
+  });
+
+  it('picker select switches the roam target while the roam keeps running', async () => {
+    render(<HomeScreen onNavigate={() => {}} />);
+    fireEvent.click(await screen.findByTestId('mode-rail-roam'));
+    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('roaming_loot'));
+    expect(await screen.findByText('Choose Area')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select Ironwood Bastion' }));
+    // The danger guard may interpose its warning first (areas
+    // warn, never wall) — "Roam anyway" always proceeds.
+    const confirm = await screen.findByTestId('area-danger-confirm-ironwood_bastion', {}, { timeout: 1500 }).catch(() => null);
+    if (confirm) fireEvent.click(confirm);
+
+    await waitFor(() => expect(useIdleStore.getState().selectedRoamingAreaId).toBe('ironwood_bastion'));
+    expect(useActivityStore.getState().current.kind).toBe('roaming_loot');
+    // The roaming workspace follows the new target.
+    expect(screen.getByText('Active Area')).toBeTruthy();
+    expect(screen.getAllByText('Ironwood Bastion').length).toBeGreaterThan(0);
+  });
+
+  it('picker dismiss keeps roaming: no restart, selection untouched, roam still running', async () => {
+    render(<HomeScreen onNavigate={() => {}} />);
+    fireEvent.click(await screen.findByTestId('mode-rail-roam'));
+    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('roaming_loot'));
+    expect(await screen.findByText('Choose Area')).toBeTruthy();
+    const startsAfterEntry = vi.mocked(startActiveActivity).mock.calls.length;
+    const selectionBefore = useIdleStore.getState().selectedRoamingAreaId;
+
+    await dismissPicker();
+
+    expect(useActivityStore.getState().current.kind).toBe('roaming_loot');
+    expect(useIdleStore.getState().selectedRoamingAreaId).toBe(selectionBefore);
+    expect(vi.mocked(startActiveActivity).mock.calls.length).toBe(startsAfterEntry);
+    expect(pressed('roam')).toBe('true');
+  });
+
+  it('the Area stop is absent from the rail', async () => {
+    render(<HomeScreen onNavigate={() => {}} />);
+    await screen.findByTestId('home-mode-rail');
+    expect(screen.queryByTestId('mode-rail-area')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Change area' })).toBeNull();
   });
 });

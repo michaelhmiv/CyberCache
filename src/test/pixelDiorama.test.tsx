@@ -156,6 +156,26 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
     expect(controls.className).not.toContain('bottom-11');
     expect(controls.textContent).toContain('Switch Action');
   });
+
+  it('extraction activity carries the extraction scene on the stage (one-stage law, 2026-11-04)', () => {
+    render(
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="extraction" reducedMotion />,
+    );
+    // The extraction set stands on the stage in the panel scene's
+    // arrangement — stakes, rig, crates — not the camp crate and
+    // not another mode's set.
+    expect(screen.getByTestId('pixel-extract-stakes')).toBeTruthy();
+    expect(screen.getByTestId('pixel-extract-rig')).toBeTruthy();
+    expect(screen.getByTestId('pixel-extract-crates')).toBeTruthy();
+    expect(screen.queryByTestId('pixel-crate-prop')).toBeNull();
+    expect(screen.queryByTestId('pixel-bench-set')).toBeNull();
+    // The hunter works the site: present, but holding NO weapon
+    // (gathering, not combat) even with a weapon equipped.
+    expect(screen.getByTestId('pixel-hunter')).toBeTruthy();
+    expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
+    // Non-combat mode: no combat HP plates ride the art.
+    expect(screen.queryByTestId('diorama-hunter-hp')).toBeNull();
+  });
 });
 
 describe('PixelWeapon component', () => {
