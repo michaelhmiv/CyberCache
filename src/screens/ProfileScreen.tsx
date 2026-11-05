@@ -20,6 +20,10 @@ import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
 import { ActivityLogDoor } from '@/components/profile/ActivityLogDoor';
 import { StandingsDoor } from '@/components/profile/StandingsDoor';
 import { useStandingsBadge } from '@/components/profile/standingsBadge';
+import { DeckHeader, HubDoor, HunterAnnouncements, HunterHero, ProgressionStrip, type ResearchStatusLine } from '@/components/profile/HunterMenuChrome';
+import { getSkillTreeNodes } from '@/constants/skillTrees';
+import { SkillTreeType } from '@/types/game';
+import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { CollectionsScreen } from './CollectionsScreen';
 import { LeaderboardsScreen } from './LeaderboardsScreen';
@@ -43,6 +47,18 @@ interface ProfileScreenProps {
    * themselves instead of the top of the Profile stop.
    */
   focusSection?: 'skills' | 'research' | 'wardrobe' | null;
+  /**
+   * PROTOTYPE ONLY (design/hunter-menu-prototype, 2026-11-04): the
+   * Hunter-menu direction under evaluation. 'current' is the shipped
+   * tab; the other three are design directions the owner picks from —
+   * this prop and everything it switches die with the prototype
+   * branch; the winning direction gets a clean production build.
+   */
+  menuVariant?: 'current' | 'deck' | 'strip' | 'hub';
+  /** PROTOTYPE seam: the active research course's status line for
+   *  the strip/hero/hub chrome. Production wiring reads the same
+   *  Chef research state ResearchPanel renders (getResearchState). */
+  fixtureResearch?: ResearchStatusLine | null;
 }
 
 /**
@@ -55,7 +71,10 @@ interface ProfileScreenProps {
  * The rail scrolls horizontally rather than shrinking its labels
  * (DESIGN.md §6); full stop names print here AND on the stops.
  */
-type HunterStop = 'profile' | 'collections' | 'cacheRank' | 'research' | 'trees' | 'standings' | 'account';
+type HunterStop = 'profile' | 'collections' | 'cacheRank' | 'research' | 'trees' | 'standings' | 'account'
+  // PROTOTYPE-only stops (hub direction): the menu landing itself,
+  // and Wardrobe standing alone as a door destination.
+  | 'hub' | 'wardrobe';
 
 const HUNTER_STOPS: Array<{ id: HunterStop; label: string; icon: PxIconName }> = [
   { id: 'profile', label: 'Profile', icon: 'person' },
@@ -64,6 +83,19 @@ const HUNTER_STOPS: Array<{ id: HunterStop; label: string; icon: PxIconName }> =
   { id: 'research', label: 'Research', icon: 'book' },
   { id: 'trees', label: 'Skill Trees', icon: 'nodes' },
   { id: 'standings', label: 'Standings', icon: 'flag' },
+  { id: 'account', label: 'Account', icon: 'cog' },
+];
+
+// PROTOTYPE (strip direction): the same seven stops, ordered by how
+// much they change the hunter — trees and research lead, cosmetics'
+// home (profile) and account trail.
+const STRIP_STOPS: Array<{ id: HunterStop; label: string; icon: PxIconName }> = [
+  { id: 'trees', label: 'Skill Trees', icon: 'nodes' },
+  { id: 'research', label: 'Research', icon: 'book' },
+  { id: 'profile', label: 'Profile', icon: 'person' },
+  { id: 'cacheRank', label: 'Cache Rank', icon: 'chevs' },
+  { id: 'standings', label: 'Standings', icon: 'flag' },
+  { id: 'collections', label: 'Collections', icon: 'shelf' },
   { id: 'account', label: 'Account', icon: 'cog' },
 ];
 
@@ -87,10 +119,13 @@ const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; de
   </button>
 );
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusSection = null }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusSection = null, menuVariant = 'current', fixtureResearch = null }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const skillStore = useSkillStore();
+  // PROTOTYPE (hub direction): the Wardrobe door's live status reads
+  // the same cosmetics view the Wardrobe panel renders.
+  const cosmeticsView = useCosmeticsStore((s) => s.view);
   const deathLog = useSurvivalStore((s) => s.deathLog);
   const { account, user, signOut, signInWithGoogle, actionLoading } = useAuth();
   const [stats, setStats] = useState<PlayerPublicStats | null>(null);
@@ -107,11 +142,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const { summary: totalsSummary } = useCharacterStatSummary();
   const activityKind = useActivityStore((s) => s.current.kind);
   const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
-  const [stop, setStop] = useState<HunterStop>(() => (focusSection === 'skills' ? 'trees' : focusSection === 'research' ? 'research' : 'profile'));
+  // PROTOTYPE: each direction owns its landing — Deck has no stops
+  // (one scroll), Strip lands ON the trees, Hub lands on the menu.
+  const initialStop: HunterStop = menuVariant === 'hub'
+    ? 'hub'
+    : menuVariant === 'strip'
+      ? 'trees'
+      : focusSection === 'skills' ? 'trees' : focusSection === 'research' ? 'research' : 'profile';
+  const [stop, setStop] = useState<HunterStop>(initialStop);
   // Stops whose content mounts lazily on first visit and stays
   // mounted (the two full screens: Collections, Standings) — the
   // always-resident stops are the panels that already lived here.
-  const [visitedStops, setVisitedStops] = useState<ReadonlySet<HunterStop>>(() => new Set<HunterStop>(['profile']));
+  const [visitedStops, setVisitedStops] = useState<ReadonlySet<HunterStop>>(() => new Set<HunterStop>(['profile', initialStop]));
   const standingsBadge = useStandingsBadge();
   // Door taps ask the Standings earnings panel to scroll itself
   // into view + highlight: the badge's destination is the panel,
@@ -183,6 +225,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const xpProgress = Math.round((player.xp / xpToNext) * 100);
   const spentSkillPoints = skillStore.getTotalSpent();
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
+  // PROTOTYPE (hub direction): per-tree spent, for the Skill Trees
+  // door's status line — the menu reports the build, not just a label.
+  const treeStatusLine = [SkillTreeType.Gunslinger, SkillTreeType.Demolition, SkillTreeType.Scavenger, SkillTreeType.Fixer]
+    .map((tree) => {
+      const spent = getSkillTreeNodes(tree).reduce((sum, node) => sum + (skillStore.spent[node.id] || 0), 0);
+      return `${tree} ${spent}`;
+    })
+    .join(' · ');
+  const wardrobePartsOwned = cosmeticsView?.parts.length ?? 0;
+  const wardrobePartsWorn = Object.keys(cosmeticsView?.selection.equipped ?? {}).length;
   const verifiedLabel = account?.accountType === 'verified'
     ? 'Verified account'
     : account?.accountType === 'guest'
@@ -217,31 +269,84 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     setDetailMetric(payload);
   };
 
+  // PROTOTYPE (deck direction): every stop renders, stacked in
+  // deck order via flex order on the page container — the tab is
+  // ONE scroll and the sections are its destinations. The header
+  // carries each section's headline fact.
+  const deckMode = menuVariant === 'deck';
+  const DECK_ORDER: Partial<Record<HunterStop, number>> = {
+    trees: 1, research: 2, cacheRank: 3, profile: 4, collections: 5, standings: 6, account: 7,
+  };
+  const DECK_HEADERS: Partial<Record<HunterStop, { label: string; right?: string }>> = {
+    trees: { label: 'Skill Trees', right: availableSkillPoints > 0 ? `${availableSkillPoints} pts to spend` : `${spentSkillPoints} pts spent` },
+    research: { label: 'Research', right: fixtureResearch ? `${fixtureResearch.courseLabel} · ${Math.round(fixtureResearch.progress * 100)}%` : undefined },
+    cacheRank: { label: 'Cache Rank' },
+    profile: { label: 'Profile & Record' },
+    collections: { label: 'Collections' },
+    standings: { label: 'Standings' },
+    account: { label: 'Account' },
+  };
+
   const stopSection = (id: HunterStop, children: React.ReactNode) => (
     <motion.section
       key={id}
       data-testid={`hunter-section-${id}`}
       initial={false}
-      animate={{ opacity: stop === id ? 1 : 0, y: stop === id ? 0 : 6 }}
+      animate={{ opacity: deckMode || stop === id ? 1 : 0, y: deckMode || stop === id ? 0 : 6 }}
       transition={{ duration: reduceMotion ? 0 : 0.18 }}
-      className={stop === id ? 'space-y-4' : 'hidden'}
-      aria-hidden={stop !== id}
+      className={deckMode || stop === id ? 'space-y-4' : 'hidden'}
+      style={deckMode ? { order: DECK_ORDER[id] ?? 9 } : undefined}
+      aria-hidden={!deckMode && stop !== id}
     >
+      {deckMode && DECK_HEADERS[id] && <DeckHeader label={DECK_HEADERS[id]!.label} right={DECK_HEADERS[id]!.right} />}
       {children}
     </motion.section>
   );
 
+  const railStops = menuVariant === 'strip' ? STRIP_STOPS : HUNTER_STOPS;
+
   return (
-    <div className="bl-page space-y-4 p-4 pb-20">
+    <div className={deckMode ? 'bl-page flex flex-col gap-4 p-4 pb-20' : 'bl-page space-y-4 p-4 pb-20'}>
       <ResourceBar onOpenSettings={() => onNavigate?.('settings')} />
 
+      {/* PROTOTYPE (strip direction): the persistent progression
+          strip — level, XP, research clock, unspent points — mounted
+          above the rail on every stop. */}
+      {menuVariant === 'strip' && (
+        <ProgressionStrip
+          level={player.level}
+          xp={player.xp}
+          xpToNext={xpToNext}
+          xpProgress={xpProgress}
+          availableSkillPoints={availableSkillPoints}
+          research={fixtureResearch}
+          onOpenTrees={() => goToStop('trees')}
+          onOpenResearch={() => goToStop('research')}
+        />
+      )}
+
+      {/* PROTOTYPE (hub direction): inside a door's stop, a single
+          back row returns to the menu — the rail is retired. */}
+      {menuVariant === 'hub' && stop !== 'hub' && (
+        <button
+          type="button"
+          data-testid="hunter-back-menu"
+          onClick={() => goToStop('hub')}
+          className="bl-secondary flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-black uppercase tracking-wide text-text-secondary"
+        >
+          <PxIcon name="chevs" size={13} className="-scale-x-100" />
+          Hunter Menu
+        </button>
+      )}
+
+      {menuVariant !== 'deck' && menuVariant !== 'hub' && (
       <div
         className="flex gap-2 overflow-x-auto pb-1"
         role="tablist"
         aria-label="Hunter sections"
         data-testid="hunter-rail"
       >
-        {HUNTER_STOPS.map((s) => {
+        {railStops.map((s) => {
           const active = stop === s.id;
           return (
             <button
@@ -259,6 +364,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
             >
               <PxIcon name={s.icon} size={13} />
               {s.label}
+              {/* PROTOTYPE (strip direction): unspent points badge
+                  the trees chip the way earnings badge standings —
+                  an unspent point is the tab's loudest fact. */}
+              {menuVariant === 'strip' && s.id === 'trees' && availableSkillPoints > 0 && (
+                <span
+                  data-testid="hunter-trees-count"
+                  className="relative border border-amber/60 bg-amber/25 px-1 text-[11px] font-black leading-tight text-amber"
+                >
+                  {availableSkillPoints}
+                </span>
+              )}
               {s.id === 'standings' && standingsBadge.unseenEarningsCount > 0 && (
                 <span
                   data-testid="hunter-standings-count"
@@ -276,6 +392,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           );
         })}
       </div>
+      )}
 
       {stopSection('profile', (
         <>
@@ -548,7 +665,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       ))}
 
       {stopSection('collections', (
-        visitedStops.has('collections') ? <CollectionsScreen embedded /> : null
+        deckMode || visitedStops.has('collections') ? <CollectionsScreen embedded /> : null
       ))}
 
       {stopSection('cacheRank', (
@@ -581,7 +698,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       ))}
 
       {stopSection('standings', (
-        visitedStops.has('standings') ? (
+        deckMode || visitedStops.has('standings') ? (
           <>
             <div className="flex items-center gap-2">
               <PxIcon name="crown" size={17} className="text-amber" />
@@ -623,6 +740,120 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         <ActionRow icon="power" label={actionLoading ? 'Signing out…' : 'Sign Out'} desc="End this CyberCache session on this device" onClick={() => signOut()} tone="#FF4B5C" />
       </div>
         </>
+      ))}
+
+      {/* PROTOTYPE (hub direction): the menu landing — hero +
+          live-status doors. Every current rail resident has a door;
+          cosmetics (Wardrobe) get a door of equal craft and quieter
+          data, at the tail with Account. */}
+      {menuVariant === 'hub' && stopSection('hub', (
+        <>
+          <HunterHero
+            level={player.level}
+            name={player.name}
+            xp={player.xp}
+            xpToNext={xpToNext}
+            xpProgress={xpProgress}
+            handleLine={(
+              <>
+                <span className={account?.hasUsername ? 'font-bold text-amber' : undefined}>
+                  {account?.hasUsername ? `@${account.username ?? profileSummary?.username}` : 'No handle set'}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>Level {player.level}</span>
+              </>
+            )}
+            announcements={(
+              <HunterAnnouncements
+                availableSkillPoints={availableSkillPoints}
+                earningsCount={standingsBadge.unseenEarningsCount}
+                research={fixtureResearch}
+                onOpenTrees={() => goToStop('trees')}
+                onOpenStandings={() => { goToStop('standings'); setEarningsFocusNonce((n) => n + 1); }}
+                onOpenResearch={() => goToStop('research')}
+              />
+            )}
+          />
+
+          <HubDoor
+            icon="nodes"
+            label="Skill Trees"
+            tone="#FF4B5C"
+            testId="hub-door-trees"
+            status={availableSkillPoints > 0 ? `${availableSkillPoints} points unspent · ${treeStatusLine}` : treeStatusLine}
+            hero={availableSkillPoints > 0 ? String(availableSkillPoints) : undefined}
+            onClick={() => goToStop('trees')}
+          />
+
+          <div className="grid grid-cols-2 gap-2">
+            <HubDoor
+              icon="book"
+              label="Research"
+              tone="#5AA7FF"
+              testId="hub-door-research"
+              status={fixtureResearch ? `${fixtureResearch.courseLabel} · in progress` : 'Course catalog · the parallel track'}
+              hero={fixtureResearch ? `${Math.round(fixtureResearch.progress * 100)}%` : undefined}
+              onClick={() => goToStop('research')}
+            />
+            <HubDoor
+              icon="chevs"
+              label="Cache Rank"
+              tone="#FFEA3A"
+              testId="hub-door-cache-rank"
+              status="Tracks, ranks, and token spend"
+              onClick={() => goToStop('cacheRank')}
+            />
+            <HubDoor
+              icon="flag"
+              label="Standings"
+              tone="#FF9000"
+              testId="hub-door-standings"
+              status="Weekly races · rewards auto-pay at settlement"
+              badge={standingsBadge.unseenEarningsCount}
+              onClick={() => { goToStop('standings'); setEarningsFocusNonce((n) => n + 1); }}
+            />
+            <HubDoor
+              icon="shelf"
+              label="Collections"
+              tone="#FF9800"
+              testId="hub-door-collections"
+              status="The 81 proofs · legendary cores"
+              hero={player.legendaryCores > 0 ? String(player.legendaryCores) : undefined}
+              onClick={() => goToStop('collections')}
+            />
+            <HubDoor
+              icon="person"
+              label="Wardrobe"
+              tone="#A855F7"
+              testId="hub-door-wardrobe"
+              status={wardrobePartsOwned > 0 ? `${wardrobePartsWorn} worn · ${wardrobePartsOwned} owned · pure cosmetic` : 'Skin parts · pure cosmetic — zero stats'}
+              onClick={() => goToStop('wardrobe')}
+            />
+            <HubDoor
+              icon="cog"
+              label="Account"
+              tone="#9CA3AF"
+              testId="hub-door-account"
+              status={verifiedLabel}
+              onClick={() => goToStop('account')}
+            />
+          </div>
+
+          <HubDoor
+            icon="chart"
+            label="Profile & Record"
+            tone="#FF9000"
+            testId="hub-door-profile"
+            status="Identity · trophy shelf · lifetime record · totals & sources"
+            onClick={() => goToStop('profile')}
+          />
+        </>
+      ))}
+
+      {/* PROTOTYPE (hub direction): Wardrobe stands alone behind
+          its door; the panel itself is unchanged. */}
+      {menuVariant === 'hub' && stopSection('wardrobe', (
+        <WardrobePanel />
       ))}
 
       {setupOpen && (
