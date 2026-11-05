@@ -17,6 +17,8 @@ import {
   TM_MUT,
   tmHeadStyle,
   tmMonoStyle,
+} from './profileTelemetryTheme';
+import {
   TmLed,
   TmPanel,
   TmPanelLabel,

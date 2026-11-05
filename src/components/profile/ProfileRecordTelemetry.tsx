@@ -47,6 +47,8 @@ import {
   TM_STEEL,
   tmDisplayStyle,
   tmMonoStyle,
+} from './profileTelemetryTheme';
+import {
   TmChannelRow,
   TmGroupDatum,
   TmLcdWell,

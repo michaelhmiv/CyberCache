@@ -25,6 +25,8 @@ import {
   TM_STEEL,
   tmHeadStyle,
   tmMonoStyle,
+} from '@/components/profile/profileTelemetryTheme';
+import {
   TmDoorKey,
   TmPanel,
   TmPushButton,
