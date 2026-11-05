@@ -198,7 +198,7 @@ export const ManualLedgerPage: React.FC<ManualLedgerPageProps> = ({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search the manual..."
-                  className="min-h-[44px] min-w-0 flex-1 bg-transparent font-bold focus:outline-none"
+                  className="unstyled min-h-[44px] min-w-0 flex-1 bg-transparent font-bold focus:outline-none"
                   style={{ ...monoStyle, color: INK, fontSize: 13, letterSpacing: '0.02em' }}
                 />
                 {query && (
