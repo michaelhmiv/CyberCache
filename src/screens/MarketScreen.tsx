@@ -757,7 +757,10 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     // itself). Together they overflowed the row by ~13px and the
     // level digit clipped at the bar's right edge (parent-verified
     // on the F3 Buy capture; pinned in marketComposition.test.tsx).
-    <div className="space-y-3 px-2.5 pt-4 pb-20">
+    // Section-gap law (owner, 2026-11-05): the root stack rides
+    // space-y-2 — a true 8px here, since Market has no .bl-page
+    // density layer — the one section gap every tab now shares.
+    <div className="space-y-2 px-2.5 pt-4 pb-20">
       <ResourceBar onOpenSettings={onNavigate ? () => onNavigate('settings') : undefined} />
 
       {/* The rail: stops are destinations, current state lit.

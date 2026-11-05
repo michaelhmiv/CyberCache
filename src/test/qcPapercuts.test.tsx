@@ -168,10 +168,12 @@ function boardResult(canClaim: boolean, dailyContracts: unknown[]) {
 
 /** The corner badge inside a top-bar button: the small span that
  *  carries the badge text/icon at the corner (the PulseGlow
- *  underlay is also absolute, but it is inset-0, not cornered). */
+ *  underlay is also absolute, but it is inset-0, not cornered).
+ *  R3 (2026-11-05): the tab sits flush at the hit box's corner
+ *  (right-0), so the finder keys on that. */
 function cornerBadgeIn(button: HTMLElement): HTMLElement {
   const badge = Array.from(button.querySelectorAll('span')).find((span) =>
-    span.className.includes('right-1') || span.className.includes('-right-'),
+    span.className.includes('right-0') || span.className.includes('-right-'),
   );
   if (!badge) throw new Error('no corner badge rendered in button');
   return badge as HTMLElement;
@@ -202,8 +204,14 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
     await waitFor(() => expect(button.textContent).toContain('NEW'));
     const badge = cornerBadgeIn(button);
     expect(badge.textContent).toBe('NEW');
-    expect(badge.className).toContain('top-1');
-    expect(badge.className).toContain('right-1');
+    // R3 (2026-11-05): the badge is a compact corner tab on
+    // the key's transparent HIT BOX (top-0/right-0 of the
+    // 44px button) — a host with no overflow or clip of its
+    // own, so the papercut's guarantee (renders whole, never
+    // clipped, never at a negative offset) is re-pinned at
+    // the new position rather than the old plate inset.
+    expect(badge.className).toContain('top-0');
+    expect(badge.className).toContain('right-0');
     expect(badge.className).not.toContain('-top');
     expect(badge.className).not.toContain('-right');
   });
@@ -227,15 +235,15 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
     await waitFor(() => expect(button.textContent).toContain('1'));
     const badge = cornerBadgeIn(button);
     expect(badge.textContent).toBe('1');
-    expect(badge.className).toContain('top-1');
-    expect(badge.className).toContain('right-1');
+    expect(badge.className).toContain('top-0');
+    expect(badge.className).toContain('right-0');
     expect(badge.className).not.toContain('-top');
     expect(badge.className).not.toContain('-right');
   });
 
   it('source: CornerBadge never positions outside the host box', () => {
     const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
-    expect(topBar).toContain('absolute right-1 top-1 z-10');
+    expect(topBar).toContain('absolute right-0 top-0 z-10');
     expect(topBar).not.toContain('absolute -top-1.5 -right-1.5');
   });
 
@@ -246,14 +254,17 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
   // "DAY 1" rendered as "DAY ". The label-era remedy was a
   // padding reservation pinned as a class contract.
   // ICON-ONLY SUPERSESSION (owner ruling, 2026-11-05): the row
-  // paints no labels at all, so there is no glyph to tuck. The
-  // guarantee is now structural: the badge keeps the top
-  // corner and the day numeral rides the key's BOTTOM baseline
-  // (mt-auto content row in a flex-col key) — the two zones can
-  // never share a band, so the papercut cannot recur at any
-  // width. jsdom has no layout, so the zones are pinned as a
-  // class contract, with the 412×915 capture as the geometry
-  // proof.
+  // paints no labels at all, so there is no glyph to tuck.
+  // R3 SUPERSESSION (owner feedback, 2026-11-05): the key is
+  // a chip in a hit box — the badge is a compact tab on the
+  // HIT BOX's corner (its own element, a sibling of the
+  // chip), and the day numeral rides INSIDE the chip, which
+  // centers in the box 8px below its top while its content
+  // centers in the chip. Tab and numeral live in different
+  // elements on different bands, so the papercut cannot
+  // recur at any width. jsdom has no layout, so the zones
+  // are pinned as a class contract, with the 412×915 capture
+  // + geometry probe as the pixel proof.
   it('the streak key keeps its numeral clear of the NEW badge — separate zones, no reservation', async () => {
     mockStreak.mockResolvedValue(streakResult(false));
     render(<HomeScreen onNavigate={() => {}} />);
@@ -264,9 +275,15 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
     // word "Day" lives in the aria-label and the panel now)…
     expect(button.textContent).toContain('3');
     expect(button.textContent).not.toContain('Day');
-    // …on the bottom baseline, away from the badge's corner…
-    const contentRow = button.querySelector(':scope > span:last-of-type') as HTMLElement;
-    expect(contentRow.className).toContain('mt-auto');
+    // …inside the painted chip, a different element from the
+    // badge tab, which rides the hit box's own corner…
+    const chip = button.querySelector(':scope > span[data-chip]') as HTMLElement;
+    expect(chip).toBeTruthy();
+    expect(chip.className).toContain('h-[28px]');
+    expect(chip.textContent).toContain('3');
+    expect(chip.textContent).not.toContain('NEW');
+    const badge = cornerBadgeIn(button);
+    expect(badge.parentElement).toBe(button);
     // …and the label-era reservations are gone for good.
     expect(button.className).not.toContain('pr-12');
     expect(button.className).not.toContain('pr-10');
@@ -276,8 +293,9 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
     const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
     // The reservations existed to keep a badge off a painted
     // label; the icon-only row (owner ruling, 2026-11-05) has
-    // no labels, and the two-zone key makes them unnecessary.
-    // None of the label-era reservation expressions may return.
+    // no labels, and the chip-in-hit-box key (r3) makes them
+    // unnecessary. None of the label-era reservation
+    // expressions may return.
     expect(topBar).not.toContain("holdPending ? 'pr-16' : ''");
     expect(topBar).not.toContain("contractsPulsing ? 'pr-9' : contractsGuestLocked ? 'pr-16' : ''");
     expect(topBar).not.toContain('pl-2.5 pr-9');

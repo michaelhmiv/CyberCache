@@ -118,6 +118,16 @@ describe('layout contract — ResourceBar at phone width', () => {
     // set cannot fit at honest sizes, the row scrolls — the type
     // never drops below the floor to force a fit.
     expect(bar.className).toContain('overflow-x-auto');
+    // Distribution (owner feedback r4, 2026-11-05): the row
+    // spreads ALL its items — counters and the right-end
+    // resident block alike — across its full width
+    // (justify-between over the pinned gap-1.5 floor). The old
+    // layout clustered the counters at the left and pushed the
+    // gear + LV right with an ml-auto, pooling every spare
+    // pixel in one dead gap in front of the gear; the
+    // right-end block must never carry that auto margin again.
+    expect(bar.className).toContain('justify-between');
+    expect(bar.lastElementChild?.className).not.toContain('ml-auto');
     // All six wallet segments ride the one row, in mock order.
     const order = ['credits', 'scrap', 'cacheKey', 'legendaryCore', 'loot', 'level'];
     const positions = order.map((id) => {

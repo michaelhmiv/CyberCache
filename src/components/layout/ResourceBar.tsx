@@ -92,6 +92,29 @@
  * the current/needed fraction plus a visible progress bar. Every
  * other tab renders the shipped Strip byte-identically.
  *
+ * DISTRIBUTION (owner feedback r4, 2026-11-05: "Up top too with
+ * credits etc, space out as well to not have that awkward gap"):
+ * the row used to cluster its counters at the left on the pinned
+ * gap-1.5 and push the gear + LV block to the right edge with an
+ * ml-auto — every spare pixel pooled in ONE dead gap in front of
+ * the gear. The row now distributes ALL of its items — counters
+ * and the right-end resident block alike — across its full width
+ * with justify-between over the same pinned gap-1.5 floor: first
+ * counter flush at the left pad, gear + LV flush at the right
+ * pad, the leftover width landing as equal gaps between items.
+ * The right-end block keeps its internal shape (gear resident,
+ * then LV) and drops only the ml-auto — an auto margin would eat
+ * the whole distribution and re-cluster the counters, which is
+ * the exact layout being replaced. Host-independence is
+ * preserved: the distribution is computed by the row's own flex
+ * layout, gap-1.5 remains the pinned minimum (never gap-2), and
+ * when an extreme balance set overflows the row, space-between
+ * degrades to flex-start and the row scrolls exactly as before
+ * (scroll-don't-shrink is untouched). The skeleton row carries
+ * the same distribution, so the geometry never shifts when the
+ * profile lands. The claim-row-look geometry probe measures the
+ * strip's item positions and its largest remaining dead gap.
+ *
  * All icons are §7 pixel drawings via PixelWalletIcon (the
  * visualAssets registry carries their tints); the settings gear
  * is the §7 pixel icon `cog`.
@@ -408,7 +431,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
   ) : null;
 
   const rightEnd = (children: React.ReactNode) => (
-    <span className="ml-auto flex shrink-0 items-center gap-1 pl-1">
+    <span className="flex shrink-0 items-center gap-1 pl-1">
       {gear}
       {children}
     </span>
@@ -420,7 +443,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     // false zeros). Same one-row geometry as the loaded Strip.
     return (
       <div data-testid="resource-bar-loading" className={`relative border-2 border-border bg-bg ${className}`}>
-        <div data-testid="resource-bar-strip" className="flex items-center gap-1.5 overflow-hidden px-2 py-1">
+        <div data-testid="resource-bar-strip" className="flex items-center justify-between gap-1.5 overflow-hidden px-2 py-1">
           <SkeletonSegment resourceId="credits" />
           <SkeletonSegment resourceId="scrap" />
           {!isHome && <SkeletonSegment resourceId="cacheKey" />}
@@ -443,7 +466,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     <div data-testid="resource-bar" className={`relative border-2 border-border bg-bg ${className}`}>
       <div
         data-testid="resource-bar-strip"
-        className="flex items-center gap-1.5 overflow-x-auto px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex items-center justify-between gap-1.5 overflow-x-auto px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <Segment
           resourceId="credits"
