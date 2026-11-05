@@ -510,7 +510,7 @@ export const ProfileRecordTelemetry: React.FC<ProfileRecordTelemetryProps> = (pr
             <TmReadoutRow label="Roaming Kills" value={fmt(safe.kills.roaming)} />
             <TmReadoutRow label="Elite Kills" value={fmt(safe.kills.elites)} />
             <TmReadoutRow label="Named Elites Downed" value={`${fmt(safe.kills.named_elites_downed)} / ${NAMED_ELITES.length}`} />
-            <TmReadoutRow label="Lifetime Deaths" value={fmt(safe.deaths)} detail="The lifetime counter (0051) — the combat head reads the stats summary" />
+            <TmReadoutRow label="Lifetime deaths" value={fmt(safe.deaths)} detail="The lifetime counter (0051) — the combat head reads the stats summary" />
             <TmReadoutRow label="Resurrections" value={fmt(safe.resurrections)} />
             <TmReadoutRow label="Reforges" value={fmt(safe.reforges)} />
             {safe.consumables.top_used.map((entry) => (

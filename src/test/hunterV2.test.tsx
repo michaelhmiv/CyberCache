@@ -306,9 +306,12 @@ describe('Hunter arrangement — Trophy tile door + Collections stop', () => {
 
     render(<ProfileScreen onNavigate={() => {}} />);
 
-    // The tile exists on the Trophy Shelf and carries the server count.
+    // The tile exists on the Trophy Shelf. The server count prints
+    // exactly once in the B build — the record bank's Collection
+    // row — and is not re-printed on the door.
     const tile = await screen.findByTestId('trophy-collections-tile');
-    expect(tile.textContent).toContain(`2 / ${COLLECTION_TOTAL}`);
+    const bank = await screen.findByTestId('lifetime-stats');
+    expect(bank.textContent).toContain(`2 / ${COLLECTION_TOTAL}`);
 
     // Collections content is NOT mounted before the door is used.
     expect(screen.queryByTestId(`collection-entry-boss-${foundBoss.key}`)).toBeNull();
@@ -321,7 +324,7 @@ describe('Hunter arrangement — Trophy tile door + Collections stop', () => {
     const missingCard = screen.getByTestId(`collection-entry-boss-${missingBoss.key}`);
     expect(missingCard.getAttribute('data-found')).toBe('false');
 
-    // Header prints the payload's core balance; shelf progress is 2/81.
+    // Header prints the payload's core balance; collection progress is 2/81.
     const collectionsSection = screen.getByTestId('hunter-section-collections');
     expect(collectionsSection.textContent).toContain('7');
     expect(collectionsSection.textContent).toContain(`2 / ${COLLECTION_TOTAL}`);
