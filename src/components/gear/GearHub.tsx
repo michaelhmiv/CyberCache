@@ -457,13 +457,19 @@ const GearCard = memo(({
 
       <span className="w-10 shrink-0 text-[11px] font-black tabular-nums text-text-muted">Lv {item.level}</span>
 
-      <div className="flex min-w-0 flex-1 items-center gap-1.5">
-        <span className="truncate text-[13px] font-black leading-tight" style={{ color }}>{item.name}</span>
-        {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
+      {/* Name block: flexes, but with a floor — the equipped chip
+          rides as a row-level sibling (not inside this block) and
+          the stat block is width-capped, so a long relic headline
+          can never starve the name to zero width again (the first
+          capture's Echo Stone row lost its name entirely that way). */}
+      <div className="flex min-w-16 flex-1 items-center gap-1.5">
+        <span className="min-w-0 truncate text-[13px] font-black leading-tight" style={{ color }}>{item.name}</span>
         {item.isLocked && <Lock size={12} className="shrink-0 text-red" />}
       </div>
 
-      <div className="flex min-w-0 shrink items-baseline gap-1">
+      {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
+
+      <div className="flex min-w-0 max-w-[38%] shrink items-baseline gap-1">
         {headline.label && (
           <span className="shrink-0 text-[11px] font-black uppercase tracking-wide text-text-muted">{headline.label}</span>
         )}

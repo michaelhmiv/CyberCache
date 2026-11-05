@@ -188,6 +188,32 @@ describe('gear list row — one-line anatomy', () => {
     expect(row.querySelector('[data-element-badge]')).toBeNull();
   });
 
+  it('equipped relic with a long activity headline keeps name, chip, and headline on the line', () => {
+    useLoadoutStore.setState({ slots: { ...EMPTY_SLOTS, relic: 'r-1' } });
+    renderHub([makeRelic({
+      level: 29,
+      affixes: [{
+        id: 'act1', category: 'activity', stat: 'salvagingModule', value: 0.96,
+        displayText: 'Salvage Module [90%] · +16.6% Salvage Yield · +6.5% Rare Material',
+        subStats: { salvageYield: 0.211, rareMaterialChance: 0.081 },
+      }],
+    })]);
+    const row = rowOf('Echo Stone');
+    expect(row.textContent).toContain('Relic'); // the equipped slot chip
+    expect(row.textContent).toContain('Salvage: +16.6% Salvage Yield'); // the headline
+    // Regression (first capture, 2026-11-04): the chip lived inside
+    // the name's flex block and the uncapped headline took the
+    // leftover — the name span rendered at 0 width and the headline
+    // painted over the chip. The chip is now a row-level sibling…
+    const nameEl = screen.getByText('Echo Stone');
+    expect(nameEl.parentElement?.textContent).not.toContain('Relic');
+    // …and the stat block is width-capped, so a long headline
+    // truncates instead of evicting the name.
+    const statBlock = [...row.querySelectorAll('div')].find((d) => d.textContent?.startsWith('Salvage:'));
+    expect(statBlock?.className).toContain('max-w-[38%]');
+    expect(nameEl.parentElement?.className).toContain('min-w-16');
+  });
+
   it('a row stays a row: per-row DOM nodes stay under the card-era ceiling', () => {
     renderHub([makeWeapon(), makeShield(), makeOrdnance(), makeClassMod(), makeRelic()]);
     for (const name of ['Ember Sidearm', 'Frost Aegis', 'Fire Grenade', 'Elite Gunslinger Class Mod', 'Echo Stone']) {
