@@ -254,7 +254,7 @@ describe('boss + endless belt — commitment-over-stock quick-buy mount', () => 
     hoisted.quickbuyQuote.mockImplementation(async (_kind: string, id: string, qty: number) =>
       quoteFor(id, qty, id === 'MedKit' ? 250 : null));
     useLoadoutStore.setState({
-      slots: { primary: null, secondary: null, heavy: null, shield: null, ordnance: null, classMod: null, relic: null },
+      slots: { primary: null, secondary: null, heavy: null, shield: null, ordnance: null, classMod: null, relic: null, vehicle: null },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
     useBossStore.setState({

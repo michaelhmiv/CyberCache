@@ -140,7 +140,7 @@ describe('GET /api/profile/stats — the counters ride the shipped read', () => 
 // ─── Element accrual — the 0034 choke point, second dimension ────
 
 const rewards = (kills: number): ChefRewardsInput => ({
-  credits: 0, scrap: 0, xp: 0, fragments: 0,
+  credits: 0, scrap: 0, xp: 0, keys: 0,
   materials: {} as ChefRewardsInput['materials'], essences: {} as ChefRewardsInput['essences'], kills,
 });
 
