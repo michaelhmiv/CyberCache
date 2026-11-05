@@ -397,12 +397,13 @@ describe('market fee — shipped path', () => {
     // The item is npc_market supply but the seller is a hunter: a
     // player sale, settled in full — no fee (the 0017/0064 supply
     // exemption), no refusal.
+    const sBefore = creditsOf(h, S);
     const bought = await post(h, '/api/ops/market-accept', h.tokens[B], {
       nonce: nonce(), listing_id: LISTING_RESALE,
     });
     expect(bought.status).toBe(200);
     expect(bought.json.market_fee).toMatchObject({ fee_credits: 0, seller_proceeds: 1000 });
-    expect(creditsOf(h, S)).toBe(1000);
+    expect(creditsOf(h, S)).toBe(sBefore + 1000);
     expect(h.store.seed.items.find((i) => i.id === ITEM_RESALE)?.owner_user_id).toBe(B);
   });
 });

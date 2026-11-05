@@ -48,7 +48,7 @@ describe('pure player market — the seed is gone at the source', () => {
 
 describe('pure player market — browse + price-history seams', () => {
   const readsStore = src('../server/reads/store.ts');
-  const readsMemory = src('../server/reads/memory.ts');
+  const readsMemory = src('../server/reads/store.ts'); // InMemoryReadStore shares the file
   const listingQuery = src('../lib/market/listingQuery.ts');
 
   it('the browse fold excludes sellerType npc outright — no rarity ceiling remains', () => {
@@ -57,7 +57,8 @@ describe('pure player market — browse + price-history seams', () => {
   });
 
   it('the Pg browse twin excludes by seller stamp or NPC account, in rows and counts alike', () => {
-    expect(readsStore).toContain("not (coalesce(ml.seller_type, 'player') = 'npc' or ml.seller_user_id = '");
+    expect(readsStore).toContain("coalesce(ml.seller_type, 'player') = 'npc'");
+    expect(readsStore).toContain("or ml.seller_user_id = '${NPC_MARKET_USER_ID}'::uuid");
     expect(readsStore).not.toContain("in ('Uncommon', 'Rare', 'Epic', 'Legendary')");
   });
 
@@ -67,8 +68,9 @@ describe('pure player market — browse + price-history seams', () => {
   });
 
   it('price history excludes NPC sales in both read stores', () => {
-    expect(readsStore).toContain("coalesce(ml.seller_type, 'player') <> 'npc' and ml.seller_user_id <> '");
-    expect(readsMemory).toContain("if (row.sellerType === 'npc') return;");
+    expect(readsStore).toContain("coalesce(ml.seller_type, 'player') <> 'npc'");
+    expect(readsStore).toContain("ml.seller_user_id <> '${NPC_MARKET_USER_ID}'::uuid");
+    expect(readsMemory).toContain("if (row.sellerType === 'npc') continue;");
   });
 });
 
@@ -83,8 +85,8 @@ describe('pure player market — write seams', () => {
   });
 
   it('Quick-Buy never sources from an NPC listing (planner + InMemory fill)', () => {
-    expect(quickBuy).toContain("row.sellerKind === 'npc'");
-    expect(writesMemory).toContain("listing.seller_type !== 'npc' && listing.seller_user_id !== NIL_UUID");
+    expect(quickBuy).toContain("row.sellerKind !== 'npc'");
+    expect(writesMemory).toContain("listing.seller_type !== 'npc' &&");
   });
 
   it('both write stores still share the vendor-weapon refusal (unchanged)', () => {
@@ -113,25 +115,26 @@ describe('migration 0081 — retirement + restated functions', () => {
 
   it('cc_accept_listing refuses NPC listings after the active-status check', () => {
     const accept = sql.slice(sql.indexOf('create or replace function public.cc_accept_listing'));
-    const statusCheck = accept.indexOf("raise exception 'listing not active'");
+    const statusCheck = accept.indexOf("raise exception 'Active listing not found'");
     const refusal = accept.indexOf('NPC listings are not part of the player market');
     expect(statusCheck).toBeGreaterThan(-1);
     expect(refusal).toBeGreaterThan(statusCheck);
-    expect(accept).toContain("listing.seller_type = 'npc'");
+    expect(accept).toContain("coalesce(listing.seller_type, 'player') = 'npc'");
     // The 0064 fee law rides verbatim, supply exemption included.
     expect(accept).toContain("coalesce(item.supply_mode, '') <> 'npc_market'");
-    expect(accept).toContain("cc_economy_config_number('marketFeeFloorCredits', 1)");
+    expect(accept).toContain('proceeds_bonus := least(fee_credits, floor((listing.price_credits - fee_credits)');
   });
 
   it('cc_market_create stamps player listings player, whatever the item provenance', () => {
     const create = sql.slice(sql.indexOf('create or replace function public.cc_market_create'));
-    expect(create).toContain("'player' as seller_type");
+    expect(create).toContain('seller_type describes the seller (0081; owner ruling');
+    expect(create).toContain("'player')");
     expect(create).not.toContain("then 'npc' else 'player'");
   });
 
   it('both Quick-Buy SQL functions exclude NPC listings from sourcing', () => {
-    const exclusions = sql.match(/coalesce\(ml\.seller_type, 'player'\) <> 'npc'/g) ?? [];
+    const exclusions = sql.match(/coalesce\(l\.seller_type, 'player'\) <> 'npc'/g) ?? [];
     expect(exclusions.length).toBe(2); // cc_quickbuy_quote + cc_quickbuy_fill
-    expect(sql).toContain(`ml.seller_user_id <> '${NIL}'::uuid`);
+    expect(sql).toContain(`l.seller_user_id <> '${NIL}'::uuid`);
   });
 });
