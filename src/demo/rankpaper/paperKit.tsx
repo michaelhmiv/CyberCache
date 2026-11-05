@@ -5,34 +5,25 @@
  *
  * The register is stamped field paperwork: the rank rendered as a
  * service record a wasteland clerk files — ruled documents, dotted
- * leaders, ledger lines, rubber stamps. Grounds and ink come from
- * the game's own DESIGN.md tokens (warm ink-browns, bone ink); the
- * documents are SQUARE (paper is square — no machined plate clips),
- * and color lives in stamp ink, never in a colored side bar.
+ * leaders, ledger lines, rubber stamps. The documents are SQUARE
+ * (paper is square — no machined plate clips), and color lives in
+ * stamp ink, never in a colored side bar. Constants live in
+ * paperTokens.ts; this file exports components only.
  */
 import React from 'react';
-
-export const GROUND = '#171008';
-export const WELL = '#120C06';
-export const STOCK = '#241A10'; // --panel: document stock
-export const STOCK_RAISED = '#2E2113'; // --panel2
-export const RULE = '#453218'; // --line: ruled hairlines
-export const RULE_SOFT = 'rgba(69,50,24,0.55)';
-export const INK = '#F5ECDA';
-export const MUT = '#C2B096';
-export const DIM = '#A08D6D';
-export const AMBER = '#FFA01F';
-export const CTA = '#FF8A00';
-export const PENCIL = '#FF5566'; // red-pencil annotation only
-export const GOLD = '#F2C063'; // rank gold — grant stamps, balance
-
-export const displayStyle: React.CSSProperties = {
-  fontFamily: "'Bebas Neue', sans-serif",
-  letterSpacing: '0.06em',
-  fontWeight: 400,
-};
-
-export const tabular: React.CSSProperties = { fontVariantNumeric: 'tabular-nums' };
+import {
+  DIM,
+  GOLD,
+  GROUND,
+  INK,
+  MUT,
+  RULE,
+  RULE_SOFT,
+  STOCK,
+  STOCK_RAISED,
+  displayStyle,
+  tabular,
+} from './paperTokens';
 
 /**
  * A filed document: square stock, black edge, one inset hairline.
@@ -196,9 +187,3 @@ export const Perf: React.FC = () => (
     }}
   />
 );
-
-/** Horizontal ruled-paper texture for ledger stock (faint). */
-export const ruledStock: React.CSSProperties = {
-  backgroundImage:
-    'repeating-linear-gradient(0deg, transparent 0px, transparent 27px, rgba(69,50,24,0.28) 27px, rgba(69,50,24,0.28) 28px)',
-};

@@ -24,7 +24,7 @@ import {
 } from '@/content/cacheRank';
 import { xpToNextLevel } from '@/content/simulation';
 import { CacheRankLedgerPage } from './rankpaper/CacheRankLedgerPage';
-import { DIM, GROUND, INK, RULE } from './rankpaper/paperKit';
+import { DIM, GROUND, INK, RULE } from './rankpaper/paperTokens';
 
 const STOPS: Array<{ id: string; label: string; icon: PxIconName }> = [
   { id: 'profile', label: 'Profile', icon: 'person' },

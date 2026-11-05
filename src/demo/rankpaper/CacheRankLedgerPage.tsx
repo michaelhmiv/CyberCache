@@ -28,26 +28,20 @@ import {
   type CacheRankStateView,
   type CacheRankTrackView,
 } from '@/content/cacheRank';
+import { Doc, Field, FormHead, LedgerRow, Perf, PunchHoles, Stamp } from './paperKit';
 import {
   AMBER,
   CTA,
   DIM,
-  Doc,
-  Field,
-  FormHead,
   GOLD,
   INK,
-  LedgerRow,
   MUT,
   PENCIL,
-  Perf,
-  PunchHoles,
   RULE,
-  Stamp,
   displayStyle,
   ruledStock,
   tabular,
-} from './paperKit';
+} from './paperTokens';
 
 /* ─── Doc 1 — the service record ─────────────────────────────────── */
 
