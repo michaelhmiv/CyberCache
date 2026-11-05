@@ -119,7 +119,7 @@ const FIXTURE_WEAPON_INPUT = (() => {
 const partLine = (p: CosmeticPartItemView): string => {
   const tint = p.tintPaletteId ? tintPaletteById(p.tintPaletteId) : undefined;
   return [
-    `${FINISH_LABELS[finishTierForQuality(p.quality)]} finish · Q${p.quality}`,
+    `${FINISH_LABELS[finishTierForQuality(p.quality)]} · Q${p.quality}`,
     tint ? `${tint.name} tint` : null,
     skinSetById(p.setId)?.name ?? p.setId,
     p.runtimeState === 'locked' ? 'Locked' : null,
@@ -219,7 +219,7 @@ export const WardrobeLedgerPage: React.FC<WardrobeLedgerPageProps> = ({
 
       {/* ── The figure — large, on empty ground ──────────────────── */}
       <div className="mt-6" data-testid="wardrobe-figure">
-        <HunterPortrait look={look} weaponInput={FIXTURE_WEAPON_INPUT} className="h-[452px]" testId="wardrobe-ledger-portrait" />
+        <HunterPortrait look={look} weaponInput={FIXTURE_WEAPON_INPUT} className="h-[252px]" testId="wardrobe-ledger-portrait" />
       </div>
 
       <div className="mt-2 flex items-baseline justify-between gap-3 pt-4" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
@@ -385,7 +385,7 @@ export const WardrobeLedgerPage: React.FC<WardrobeLedgerPageProps> = ({
                             >
                               {p.name}
                             </span>
-                            <span className="mt-0.5 block truncate text-[12px] leading-snug" style={{ color: BONE_FAINT }}>
+                            <span className="mt-0.5 block text-[12px] leading-snug" style={{ color: BONE_FAINT }}>
                               {partLine(p)}
                             </span>
                           </button>
@@ -456,16 +456,12 @@ export const WardrobeLedgerPage: React.FC<WardrobeLedgerPageProps> = ({
               </div>
               <div className="mt-2">
                 {rows.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-baseline justify-between gap-3 py-2"
-                    style={{ borderTop: `1px solid ${HAIRLINE}` }}
-                  >
-                    <div className="min-w-0 truncate text-[13px] font-semibold" style={{ color: BONE_MUTED }}>
+                  <div key={p.id} className="py-2.5" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
+                    <div className="text-[13px] font-semibold leading-snug" style={{ color: BONE_MUTED }}>
                       {p.name}
                       <span style={{ color: BONE_FAINT }}> · {SLOT_LABELS[p.slot]}</span>
                     </div>
-                    <div className="shrink-0 text-[12px]" style={{ color: BONE_FAINT }}>
+                    <div className="mt-0.5 text-[12px] leading-snug" style={{ color: BONE_FAINT }}>
                       {recipeCostLine(p.recipeId)}
                     </div>
                   </div>
