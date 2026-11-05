@@ -523,6 +523,7 @@ const LedgerRow: React.FC<{
     entry.previous_value == null
       ? null
       : `${entry.trend > 0 ? '+' : ''}${Math.round(entry.trend * 100)}%`;
+  const movementInk = entry.trend > 0 ? CLERK_GREEN : entry.trend < 0 ? CLERK_RED : INK_FAINT;
   return (
     <button
       type="button"
@@ -563,7 +564,13 @@ const LedgerRow: React.FC<{
           {entry.username ?? 'Vault Runner'}
         </span>
         <span className="block text-[11px]" style={{ ...MONO, color: INK_FAINT }}>
-          {movement == null ? 'No prior filing' : `${movement} vs prior filing`}
+          {movement == null ? (
+            'No prior filing'
+          ) : (
+            <>
+              <span style={{ color: movementInk }}>{movement}</span> vs prior filing
+            </>
+          )}
         </span>
       </span>
       {isMe && (
