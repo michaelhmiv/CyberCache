@@ -228,7 +228,7 @@ describe('hero rundown — one printing of each hero stat', () => {
     expect(document.body.textContent).not.toContain('ROAMING');
     // The retired duplicates stay retired.
     expect(screen.queryByText('Hunter Totals')).toBeNull();
-    expect(screen.queryByTestId('vehicle-status')).toBeNull();
+    expect(screen.queryByTestId('vehicle-button')).toBeNull();
   });
 
   it('tapping the DPS hero opens the breakdown sheet focused on DPS', async () => {
