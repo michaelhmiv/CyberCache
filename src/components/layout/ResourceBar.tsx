@@ -295,6 +295,11 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     if (
       !key ||
       awarded <= 0 ||
+      // True claim (0079): a held, unpaid reward never ticks the
+      // wallet — the count-up belongs to money that moved. When
+      // the claim lands, its profile sync raises the balance and
+      // the pulse-on-increase answers it.
+      streakResult.granted.claimable ||
       !loginStreakAnnouncement(streakResult, streakResultDay, streakSeenGrantKey) ||
       useLoginStreakStore.getState().tickedGrantKey === key
     ) {

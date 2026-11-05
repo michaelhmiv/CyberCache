@@ -24,10 +24,6 @@
  *
  * Poster-plate rebuild (streak audit D1–D3, 2026-11-03):
  *
- *  - ANNOUNCEMENT, NOT A CLAIM (D1). A fresh grant's pulse is an
- *    announcement — the reward already banked server-side at the
- *    check-in read; there is nothing to claim. The announcement
- *    lives only until the player acknowledges it.
  *  - ACKNOWLEDGEMENT (D2). `acknowledge()` records the held
  *    grant's key in `seenGrantKey`; the announcement derivation
  *    (TopBar pill, panel celebration, wallet tick) reads it, so
@@ -49,11 +45,40 @@
  *    prints remains the Chef's.
  *  - WALLET TICK. `tickedGrantKey` records which grant the
  *    Strip's count-up beat has already played for, so the beat
- *    fires once per grant and never replays on remount.
+ *    fires once per grant and never replays on remount. It is
+ *    gated OFF while a reward is claimable (0079): a held reward
+ *    must never tick a wallet it hasn't reached.
+ *
+ * TRUE CLAIM (0079, owner decision 2026-11-04 — supersedes D1's
+ * announcement model for any result the server marks claimable):
+ *
+ *  - THE CLAIMABLE. When the Chef's result carries
+ *    `granted.claimable`, the check-in recorded the day but the
+ *    reward is held UNPAID server-side. That state is a real
+ *    claimable — the chip pulses with a CLAIM badge and the
+ *    sheet's primary action is the claim. It needs no
+ *    acknowledgement bookkeeping: it ends when the claim lands
+ *    (or the day rolls and the reward expires), never because
+ *    the player looked at it.
+ *  - THE CLAIM. `claim()` POSTs the claim; on success the
+ *    response replaces the held result and its profile snapshot
+ *    syncs — the payout reaches the wallet through the same
+ *    verified sync as every other op, at the moment of the act.
+ *    `lastClaimedGrantKey` keys the panel's landing celebration;
+ *    `acknowledge()` retires it via `seenClaimKey`, D2's twin.
+ *    A failed claim changes nothing: the reward stays claimable
+ *    and `claimError` keeps the button live with its remedy.
+ *  - THE LEGACY ANNOUNCEMENT survives only for results with no
+ *    claimable flag (a pre-0079 server): a fresh auto-grant
+ *    announces until acknowledged, exactly as D1/D2 built it.
  */
 
 import { create } from 'zustand';
-import { getLoginStreakState, type ChefLoginStreakResult } from '@/lib/chef/chefClient';
+import {
+  claimLoginStreakDay,
+  getLoginStreakState,
+  type ChefLoginStreakResult,
+} from '@/lib/chef/chefClient';
 import { loginStreakUtcDay } from '@/content/loginStreak';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
 
@@ -69,6 +94,17 @@ export interface LoginStreakPanelState {
   seenGrantKey: string | null;
   /** Key of the fresh grant whose wallet tick has played. */
   tickedGrantKey: string | null;
+  /** True while a claim POST is in flight (0079). */
+  claiming: boolean;
+  /** The last claim attempt failed — the held reward stays
+   *  claimable and the panel keeps the CLAIM button live. */
+  claimError: boolean;
+  /** Key of the reward this session claimed (0079) — the
+   *  panel's landing celebration keys on it. */
+  lastClaimedGrantKey: string | null;
+  /** Key of the claimed reward the player has acknowledged —
+   *  the landing celebration's "seen" (D2's twin). */
+  seenClaimKey: string | null;
   /** Fetch the state view once per session (the daily check-in). */
   load: () => Promise<void>;
   /** Re-read when a live session crossed the UTC day boundary
@@ -78,9 +114,54 @@ export interface LoginStreakPanelState {
   acknowledge: () => void;
   /** Record that the Strip's wallet tick played for a grant. */
   markWalletTicked: (key: string) => void;
+  /**
+   * Pay the held claimable reward (0079): POST
+   * /api/login-streak/claim. On success the response replaces
+   * the held result and its profile snapshot syncs — the payout
+   * reaches the wallet through the same verified sync as every
+   * other op. A no-op unless the held result is claimable.
+   */
+  claim: () => Promise<void>;
   /** Replace the held state (a fresh view returned by an op). */
   applyResult: (result: ChefLoginStreakResult) => void;
   reset: () => void;
+}
+
+/**
+ * The identity of one recorded day's reward, claimed or not
+ * (0079). Unlike loginStreakGrantKey (which describes a fresh
+ * auto-grant and is null on replays), the claim key must also
+ * name a reward that was recorded on an earlier read and is
+ * still unpaid — a claim survives an app restart, so its key
+ * cannot depend on the read being fresh.
+ */
+export function loginStreakClaimKey(
+  result: ChefLoginStreakResult | null,
+  resultDay: string | null,
+): string | null {
+  const granted = result?.granted;
+  if (!granted || granted.streakLength === null) return null;
+  return [
+    'claim',
+    resultDay ?? 'undated',
+    granted.streakLength,
+    granted.cycleDay ?? 0,
+    granted.tier ?? 0,
+    granted.creditsAwarded,
+    granted.fragmentsAwarded,
+    granted.cacheKeysAwarded,
+  ].join(':');
+}
+
+/**
+ * The claimable derivation (0079): a recorded-but-unpaid reward
+ * is waiting on the player's claim. This is DESIGN.md §9's pulse
+ * used truthfully — the signal means act → paid.
+ */
+export function loginStreakClaimable(
+  result: ChefLoginStreakResult | null,
+): boolean {
+  return Boolean(result?.granted.claimable) && result?.granted.streakLength !== null;
 }
 
 /**
@@ -155,6 +236,10 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
     resultDay: null,
     seenGrantKey: null,
     tickedGrantKey: null,
+    claiming: false,
+    claimError: false,
+    lastClaimedGrantKey: null,
+    seenClaimKey: null,
     load: () => {
       const { loadState } = get();
       if (loadState === 'loading') return inFlight ?? Promise.resolve();
@@ -170,12 +255,41 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
       return fetchStreak();
     },
     acknowledge: () => {
-      const { result, resultDay, seenGrantKey } = get();
+      const { result, resultDay, seenGrantKey, lastClaimedGrantKey, seenClaimKey } = get();
       const key = loginStreakGrantKey(result, resultDay);
       if (key !== null && key !== seenGrantKey) set({ seenGrantKey: key });
+      // Acknowledging the sheet after a claim also retires the
+      // landing celebration (0079, D2's twin).
+      if (lastClaimedGrantKey !== null && lastClaimedGrantKey !== seenClaimKey) {
+        set({ seenClaimKey: lastClaimedGrantKey });
+      }
     },
     markWalletTicked: (key) => {
       if (get().tickedGrantKey !== key) set({ tickedGrantKey: key });
+    },
+    claim: async () => {
+      const { result, resultDay, claiming } = get();
+      if (claiming || !loginStreakClaimable(result)) return;
+      const claimedKey = loginStreakClaimKey(result, resultDay);
+      set({ claiming: true, claimError: false });
+      try {
+        const next = await claimLoginStreakDay();
+        set({
+          result: next,
+          loadState: 'ready',
+          resultDay: loginStreakUtcDay(new Date()),
+          claiming: false,
+          lastClaimedGrantKey: claimedKey,
+        });
+        if (next.profile) {
+          syncVerifiedResult(next as unknown as Record<string, unknown>);
+        }
+      } catch {
+        // The reward stays claimable — the panel keeps the
+        // CLAIM button live and names the failure (every "no"
+        // carries its remedy: tap again).
+        set({ claiming: false, claimError: true });
+      }
     },
     applyResult: (result) =>
       set({ result, loadState: 'ready', resultDay: loginStreakUtcDay(new Date()) }),
@@ -187,6 +301,10 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
         resultDay: null,
         seenGrantKey: null,
         tickedGrantKey: null,
+        claiming: false,
+        claimError: false,
+        lastClaimedGrantKey: null,
+        seenClaimKey: null,
       });
     },
   };

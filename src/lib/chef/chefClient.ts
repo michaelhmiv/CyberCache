@@ -917,17 +917,27 @@ export async function spendCacheRankBonus(request: {
 }
 
 /**
- * Login streak (0036). The daily check-in is an observe-and-record
- * read: the first authenticated call of a UTC day grants the
- * ladder reward server-side (exactly-once per day); the response
- * carries the state view, what the check-in granted, and the
- * profile snapshot to sync.
+ * Login streak (0036; true claim, 0079). The daily check-in is an
+ * observe-and-record read: the first authenticated call of a UTC
+ * day records the day server-side and stamps the ladder reward on
+ * the claim row UNPAID (exactly-once per day); the response
+ * carries the state view, the recorded reward with its claimable
+ * flag, and the profile snapshot to sync. Payment happens only
+ * through claimLoginStreakDay below.
  */
 export interface ChefLoginStreakResult {
   verified: true;
   loginStreak: import('@/content/loginStreak').LoginStreakStateView;
   granted: {
     alreadyClaimed: boolean;
+    /**
+     * True while today's recorded reward is held UNPAID by the
+     * server (0079) — the check-in recorded the day, the payout
+     * waits for the player's claim. Absent on a pre-0079 server,
+     * where every recorded day was already paid; clients treat
+     * undefined as the legacy paid flow.
+     */
+    claimable?: boolean;
     streakLength: number | null;
     cycleDay: number | null;
     tier: number | null;
@@ -943,6 +953,22 @@ export async function getLoginStreakState(): Promise<ChefLoginStreakResult> {
     '/login-streak/me',
     { method: 'GET' },
     'Chef login streak failed',
+  );
+}
+
+/**
+ * The streak claim (0079): POST /api/login-streak/claim, JWT
+ * identity only, no body — the server pays the held claim row
+ * for its own UTC today, exactly once (the row's paid stamp is
+ * the anchor; a replay returns alreadyClaimed and pays nothing).
+ * The response mirrors the check-in read's shape, with the
+ * post-payment profile snapshot to sync.
+ */
+export async function claimLoginStreakDay(): Promise<ChefLoginStreakResult> {
+  return endlessFetch<ChefLoginStreakResult>(
+    '/login-streak/claim',
+    { method: 'POST' },
+    'Chef login streak claim failed',
   );
 }
 
