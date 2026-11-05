@@ -251,11 +251,17 @@ describe('F3 — retired chrome stays retired (source pins)', () => {
     expect(market).toContain('BUY_SORT_LABELS[buySort]');
   });
 
-  it('Vendor: the 30px headline and the family-abbrev well are gone; rows carry the def icon and the full family label', () => {
+  it('Vendor: the 30px headline and the family-abbrev well are gone; rows carry the item sprite and the full family label', () => {
     expect(vendor).not.toContain('text-3xl');
     expect(vendor).toContain('text-[17px]');
     expect(vendor).not.toContain('FAMILY_LABELS[c.family].slice(0, 3)');
-    expect(vendor).toContain('c.visual.icon');
+    // Consumable item art (2026-11-04): vendor rows mount the
+    // formed-object sprite (consumableArt compositor), not the
+    // §7 sheet glyph — the pin moved from `c.visual.icon` to the
+    // PixelConsumable mount with the well grown to h-14 w-14.
+    expect(vendor).toContain('<PixelConsumable type={c.id} size={52} />');
+    expect(vendor).toContain('h-14 w-14');
+    expect(vendor).not.toContain('c.visual.icon');
     expect(vendor).toContain('{FAMILY_LABELS[c.family]}');
   });
 

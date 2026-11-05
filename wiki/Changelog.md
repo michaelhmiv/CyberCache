@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-04 — Your hunter fills his stage
+
+- **The Loadout hunter stands tall** — on the Gear page, your hunter used to shrink to about a third of his stage so the whole of a long gun fit inside the frame. The figure now fills the stage: the hunter is the subject, and a long weapon runs past the frame's right edge like a portrait, grip and receiver in view. Equipping or clearing a weapon no longer changes his size, and wide stages elsewhere in the game render exactly as before.
+
 ## 2026-11-04 — Elemental Coating can be made
 
 - **Elemental Coating joins the bench** — the coating existed in the game's files with no way to earn it: no recipe, no vendor stock, no rotation. It now crafts at the bench like the other elemental ammo — Scrap, Ballistic Parts, and Void Essence, twenty minutes a batch — as the ungated baseline beneath Prismatek's gated Prism Coating. Its quality rolls like every crafted consumable, and quality now genuinely deepens its shield and armor break in a boss fight: the numbers were printed on the item before, but the fight never read them. It stays off the vendor's shelves and off the player market — if you want one, you make it.

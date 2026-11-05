@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Filter, Lock, RefreshCw, Search, X } from 'lucide-react';
@@ -8,7 +9,7 @@ import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { GearCompare } from '@/components/gear/GearCompare';
 import { useAuth } from '@/auth/AuthProvider';
 import { trackMarketBuy, trackMarketList } from '@/lib/analytics/analytics';
-import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useSkillStore } from '@/store';
+import { useAnnouncementsStore, useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useSkillStore } from '@/store';
 import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
 import { CosmeticMiniCard } from '@/components/market/CosmeticMiniCard';
 import { RARITIES } from '@/constants/rarities';
@@ -253,13 +254,12 @@ function VehicleMiniCard({ vehicle }: { vehicle: VehicleDisplay }) {
 /** Compact card for consumable/material/resource stack listings (0019, 0050). */
 function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; right?: React.ReactNode; onShowUsage?: (materialId: string) => void }) {
   // Materials and essences render as their STUFF object (materialArt);
-  // every other stack kind keeps its §7 sheet glyph.
+  // consumables render as their formed-object sprite (consumableArt);
+  // fragment/core kinds keep their §7 sheet glyph.
   const stuffId = listing.kind === 'material' ? listing.materialId
     : listing.kind === 'essence' ? listing.essenceId
     : null;
-  const icon: PxIconName = listing.kind === 'consumable'
-    ? (listing.consumableType ? CONSUMABLES[listing.consumableType]?.visual.icon ?? 'flask' : 'flask')
-    : listing.kind === 'fragment' ? 'frag'
+  const icon: PxIconName = listing.kind === 'fragment' ? 'frag'
     : listing.kind === 'core' ? 'core'
     : listing.kind === 'essence' ? 'gem'
     : 'pack';
@@ -274,7 +274,7 @@ function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; righ
           : `Material · ${listing.quantity} ×`;
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg">{stuffId ? <PixelMaterial id={stuffId} size={26} /> : <PxIcon name={icon} size={26} />}</div>
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg">{stuffId ? <PixelMaterial id={stuffId} size={26} /> : listing.kind === 'consumable' && listing.consumableType ? <PixelConsumable type={listing.consumableType} size={26} /> : <PxIcon name={icon} size={26} />}</div>
       <div className="min-w-0 flex-1">
         <div className="text-xs font-black leading-snug text-text-primary">{listing.displayName}</div>
         <div className="text-[11px] text-text-muted">{meta}</div>
@@ -415,6 +415,30 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     useMarketStore.getState().setActiveTab(marketStopIntent.stop);
     useMarketStore.getState().clearMarketStopIntent();
   }, [marketStopIntent]);
+
+  // Sell-segment deep link (eye-leading pass): the Sold
+  // announcement chip opens the trade record itself, not just
+  // the Sell stop. Render-phase adjustment (the buy-browse
+  // pattern below), not an effect: sellSegment is local state,
+  // and the intent lands in the same commit as the stop switch
+  // that carried it; the seq guard keeps it one-shot.
+  const sellSegmentIntent = useMarketStore((s) => s.sellSegmentIntent);
+  const [appliedSegmentSeq, setAppliedSegmentSeq] = useState<number | null>(null);
+  if (sellSegmentIntent && sellSegmentIntent.seq !== appliedSegmentSeq) {
+    setAppliedSegmentSeq(sellSegmentIntent.seq);
+    setSellSegment(sellSegmentIntent.segment);
+    useMarketStore.getState().clearSellSegmentIntent();
+  }
+
+  // Reading your own trade record marks sales as seen: if the
+  // player opens History themselves, a pending Sold announcement
+  // is stale news and clears (the announcements store advances
+  // its watermark past the server's current sales).
+  useEffect(() => {
+    if (market.activeTab === 'sell' && sellSegment === 'history') {
+      void useAnnouncementsStore.getState().markSalesSeen();
+    }
+  }, [market.activeTab, sellSegment]);
 
   // Buy-browse deep link: a remedy door (e.g. a service board's
   // no-supply blocker) asked for the Buy stop pre-browsed to a

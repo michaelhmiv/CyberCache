@@ -29,6 +29,7 @@ import { MobileCard } from '../layout/MobileCard';
 import { BossFightStage } from '../pixelArt/BossFightStage';
 import { LootMoment } from '../pixelArt/LootMoment';
 import { GhostHpBar } from '../pixelArt/PixelFx';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 
 /**
  * EndlessPanel — the Chaos Chamber (0028), the Fight workspace's
@@ -505,7 +506,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
               const count = prepared[def.id] ?? 0;
               return (
                 <div key={def.id} className="flex items-center gap-2 border border-border bg-bg/70 p-2" style={slashClip}>
-                  <span className="inline-flex shrink-0"><PxIcon name={def.visual.icon} size={13} /></span>
+                  <span className="inline-flex shrink-0"><PixelConsumable type={def.id} size={20} density="thumb" /></span>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[11px] font-black text-text-primary">{def.name}</div>
                     <div className="truncate text-[9px] text-text-muted">{def.shortDescription}</div>

@@ -1,29 +1,38 @@
 /**
  * Owner ruling 2026-11-02 — the action controls float ON the stage.
  * Owner ruling 2026-11-03 — the controls are ICON-ONLY.
+ * Owner ruling 2026-11-04 — the arrows come off the stage; Stop
+ * moves left into their place.
  *
  * The Switch Action / Stop buttons used to occupy a dedicated row
  * under the Home mode rail; the owner killed the row from his
  * device ("that row is pure overhead") and chose the scene-float
- * placement over the activity-line placement. The controls render
- * on the stage itself, in the plates' overlay language, via the
- * diorama's `stageControls` slot — top-left, in the corner the
- * removed area plate vacated. In the 2026-11-03 consolidation the
- * owner made them icon-only ("way larger than they need to be
- * because of the text"): 44px squares carrying the §7 swap / stop
- * pixel glyphs, no visible text, the words in their aria-labels.
+ * placement over the activity-line placement. In the 2026-11-03
+ * consolidation the owner made them icon-only ("way larger than
+ * they need to be because of the text"): 44px squares carrying
+ * the §7 swap / stop pixel glyphs, no visible text, the words in
+ * their aria-labels.
+ *
+ * The 2026-11-04 rework: the "arrows" the owner pointed at on his
+ * Pixel were the Switch chip's swap glyph (two opposing arrows).
+ * He ordered them removed and Stop shifted left into the vacated
+ * place. The stage now carries Stop ALONE, leftmost, while an
+ * action runs — and nothing at standby. The Switch sheet did not
+ * die with its stage chip: it is still the door to Salvage, which
+ * has no rail stop, so its opener moved into the standby and
+ * roaming workspace panels (same aria-label, same sheet, same
+ * 44px square). No capability was removed; the door moved.
  *
  * Pins:
  *  - No standalone controls row exists anymore (source + render).
- *  - While an action runs, BOTH buttons sit inside the stage's
- *    controls overlay, exactly one of each in the document,
- *    reachable by accessible name, with NO visible text, and
- *    both still fire (Switch opens the sheet; Stop stops).
- *  - At standby, Stop leaves the stage (it rendered permanently
- *    disabled in the old row — a no-op), but Switch Action STAYS:
- *    it is the Switch sheet's only door and, through it, the
- *    standby path to Salvage, which has no rail stop. Hiding it
- *    would bury a feature, so the idle stage keeps the one button.
+ *  - The stageControls slot carries Stop and ONLY Stop (source).
+ *  - While an action runs, Stop sits inside the stage's controls
+ *    overlay — first and only child — icon-only at 44px, and it
+ *    still fires (stops the action). No Switch chip on the stage.
+ *  - The Switch Action door renders in the workspace panel
+ *    (standby AND roaming), exactly one per state, and opens the
+ *    sheet with Salvage in it.
+ *  - At standby the stage has no controls overlay at all.
  *
  * The render harness mirrors flowScreens.test.tsx (same mocks,
  * same store seeding) — this screen's established test habitat.
@@ -210,7 +219,7 @@ beforeEach(() => {
 const readSource = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
 
 describe('action controls on stage — the dedicated row is gone (source)', () => {
-  it('the screen no longer renders a controls row; the chips ride the stage slot', () => {
+  it('the screen no longer renders a controls row; the chip rides the stage slot', () => {
     const source = readSource('src/screens/ActionScreenContextual.tsx');
     expect(source).not.toContain('Controls row');
     expect(source).not.toContain('justify-end gap-3');
@@ -233,39 +242,48 @@ describe('action controls on stage — the dedicated row is gone (source)', () =
     expect(screen).toContain('HeroRundown');
   });
 
-  it('the controls are icon-only: swap/stop glyphs in 44px squares, words only in aria-labels (source)', () => {
+  it('the stageControls slot carries Stop and ONLY Stop — the swap arrows are off the stage (source)', () => {
     const screen = readSource('src/screens/ActionScreenContextual.tsx');
+    const slotStart = screen.indexOf('const stageControls');
+    const slotEnd = screen.indexOf('return (', slotStart);
+    const slot = screen.slice(slotStart, slotEnd);
+    expect(slot).toContain('aria-label="Stop"');
+    expect(slot).toContain('<PxIcon name="stop"');
+    expect(slot).not.toContain('Switch Action');
+    expect(slot).not.toContain('name="swap"');
+    // The Switch door still exists — in the workspace panels.
     expect(screen).toContain('aria-label="Switch Action"');
-    expect(screen).toContain('aria-label="Stop"');
     expect(screen).toContain('<PxIcon name="swap"');
-    expect(screen).toContain('<PxIcon name="stop"');
-    // No visible text rides the buttons anymore.
+    // No visible text rides any of the buttons.
     expect(screen).not.toContain('>Switch Action</button>');
     expect(screen).not.toContain('>Stop</button>');
   });
 });
 
 describe('action controls on stage — while an action runs', () => {
-  it('both buttons render inside the stage overlay, exactly one of each, icon-only at 44px', { timeout: 20_000 }, () => {
+  it('Stop renders ALONE inside the stage overlay, icon-only at 44px, at the left edge', { timeout: 20_000 }, () => {
     seedRoaming();
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
 
     const overlay = screen.getByTestId('diorama-stage-controls');
-    const switchButton = within(overlay).getByRole('button', { name: 'Switch Action' });
-    const stopButton = within(overlay).getByRole('button', { name: 'Stop' });
-    // Icon-only (owner ruling 2026-11-03): no visible text on
-    // either button; the glyph is the content; the tap target
-    // stays a full 44px square.
-    expect(switchButton.textContent?.trim()).toBe('');
+    const buttons = within(overlay).getAllByRole('button');
+    // Stop took the arrows' place: it is the overlay's first
+    // and ONLY button — the leftmost thing on the stage.
+    expect(buttons).toHaveLength(1);
+    const stopButton = buttons[0];
+    expect(stopButton.getAttribute('aria-label')).toBe('Stop');
+    // Icon-only (owner ruling 2026-11-03): no visible text; the
+    // glyph is the content; the tap target stays 44px square.
     expect(stopButton.textContent?.trim()).toBe('');
-    for (const button of [switchButton, stopButton]) {
-      expect(button.className).toContain('h-11');
-      expect(button.className).toContain('w-11');
-      expect(button.querySelector('svg, canvas, img, [data-icon]')).toBeTruthy();
-    }
-    // One door, one name — nowhere else on the screen.
-    expect(screen.getAllByRole('button', { name: 'Switch Action' })).toHaveLength(1);
+    expect(stopButton.className).toContain('h-11');
+    expect(stopButton.className).toContain('w-11');
+    expect(stopButton.querySelector('svg, canvas, img, [data-icon]')).toBeTruthy();
+    // No Switch chip on the stage — and exactly one Stop and
+    // one Switch door in the whole document (the door lives in
+    // the roaming workspace panel now).
+    expect(within(overlay).queryByRole('button', { name: 'Switch Action' })).toBeNull();
     expect(screen.getAllByRole('button', { name: 'Stop' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Switch Action' })).toHaveLength(1);
   });
 
   it('Stop still stops: the chip fires the same clear, then leaves the stage', async () => {
@@ -275,27 +293,43 @@ describe('action controls on stage — while an action runs', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
 
     await waitFor(() => expect(useActivityStore.getState().current.kind).toBe(IDLE_ACTIVITY.kind));
-    // Back at standby: Stop is gone, the Switch door remains.
+    // Back at standby: Stop is gone, the stage overlay is gone
+    // with it, and the Switch door remains — in the standby panel.
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+    expect(screen.queryByTestId('diorama-stage-controls')).toBeNull();
     expect(screen.getByRole('button', { name: 'Switch Action' })).toBeTruthy();
   });
 });
 
-describe('action controls on stage — at standby', () => {
-  it('no Stop chip, but the Switch door stays on the stage and opens the sheet', async () => {
+describe('the Switch door — relocated to the workspace panels', () => {
+  it('at standby the stage has NO overlay; the standby panel door opens the sheet with Salvage in it', async () => {
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
 
-    const overlay = screen.getByTestId('diorama-stage-controls');
-    expect(within(overlay).getByRole('button', { name: 'Switch Action' })).toBeTruthy();
+    expect(screen.queryByTestId('diorama-stage-controls')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+    const door = screen.getByRole('button', { name: 'Switch Action' });
+    expect(door.className).toContain('h-11');
+    expect(door.className).toContain('w-11');
 
-    fireEvent.click(within(overlay).getByRole('button', { name: 'Switch Action' }));
+    fireEvent.click(door);
     // The sheet's own detail line — the sheet is open.
     expect(await screen.findByText(/Broad action changes live in this drawer/)).toBeTruthy();
-    // …and Salvage, the path the standby door protects, is in it.
+    // …and Salvage, the path the door protects, is in it.
     const salvageRow = (await screen.findAllByRole('button')).find(
       (b) => b.textContent?.includes('Salvage') && b.textContent?.includes('items'),
     );
     expect(salvageRow).toBeDefined();
+  });
+
+  it('while roaming the door rides the roaming panel (not the stage) and opens the same sheet', async () => {
+    seedRoaming();
+    render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
+
+    const door = screen.getByRole('button', { name: 'Switch Action' });
+    const overlay = screen.getByTestId('diorama-stage-controls');
+    expect(overlay.contains(door)).toBe(false);
+
+    fireEvent.click(door);
+    expect(await screen.findByText(/Broad action changes live in this drawer/)).toBeTruthy();
   });
 });

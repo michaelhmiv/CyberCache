@@ -35,6 +35,13 @@ These are the floor of the consumable economy. A crafter who can't beat
 the vendor's price *and* quality on a staple has no product — and a hunter
 in a hurry never has to wait for the player market to restock the basics.
 
+The Ordnance Charge staple is the merged form of two items that used to
+share this name: the vendor's old "Grenade" stock and the crafted Ordnance
+Charge were the same item on paper, but only Ordnance Charge units counted
+as ordnance in a boss fight. They are one item now — the vendor sells
+Ordnance Charge, and any Grenade stock a hunter held was converted to
+Ordnance Charge 1:1.
+
 ## Today's rotation
 
 On top of the staples, the counter runs a small daily rotation:

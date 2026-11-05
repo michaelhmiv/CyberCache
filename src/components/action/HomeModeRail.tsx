@@ -5,8 +5,8 @@ import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 /**
  * Home mode rail (redesign Wave C, DESIGN.md §2/§3/§4).
  *
- * The stage's mode strip: exactly the six stops the language
- * specifies — Area · Roam · Boss · Endless · Extract · Craft —
+ * The stage's mode strip: exactly the five stops the language
+ * specifies — Roam · Boss · Endless · Extract · Craft —
  * rendered ABOVE the diorama (owner device ruling, 2026-11-04;
  * it sat under the stage until the swap) so the whole mode
  * vocabulary leads the screen, one tap from everything below
@@ -17,13 +17,21 @@ import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
  * is NOT a Home rail stop by design (§2): it stays on the mode
  * sheet and the Gear rail.
  *
+ * There is no Area stop (owner ruling, 2026-11-04): Roam IS
+ * the area door. Tapping Roam from any other activity starts
+ * the roam AND auto-opens the area picker; tapping it while
+ * already roaming opens the picker alone (picking switches
+ * the roam target, dismissing leaves the roam untouched).
+ * The workspace panels' Change Area buttons remain as the
+ * second door to the same picker.
+ *
  * The lit stop is the current mode (the one live workspace
  * below). The rail scrolls horizontally rather than shrinking
- * its stops (§6 scroll-don't-shrink) — at 390px the six stops
+ * its stops (§6 scroll-don't-shrink) — at 390px the five stops
  * fit, and narrower viewports get the scroll affordance.
  */
 
-export type HomeModeRailStop = 'area' | 'roam' | 'boss' | 'endless' | 'extract' | 'craft';
+export type HomeModeRailStop = 'roam' | 'boss' | 'endless' | 'extract' | 'craft';
 
 interface RailStopDef {
   stop: HomeModeRailStop;
@@ -33,8 +41,7 @@ interface RailStopDef {
 }
 
 const RAIL_STOPS: RailStopDef[] = [
-  { stop: 'area', label: 'Area', icon: 'pin', ariaLabel: 'Change area' },
-  { stop: 'roam', label: 'Roam', icon: 'crosshair', ariaLabel: 'Roam — let the hunter roam the current area' },
+  { stop: 'roam', label: 'Roam', icon: 'crosshair', ariaLabel: 'Roam — start roaming and choose the area' },
   { stop: 'boss', label: 'Boss', icon: 'skull', ariaLabel: 'Boss — choose a boss to fight' },
   { stop: 'endless', label: 'Endless', icon: 'infinity', ariaLabel: 'Endless — open the endless descent' },
   { stop: 'extract', label: 'Extract', icon: 'pick', ariaLabel: 'Extract — open the extraction runs' },
@@ -43,7 +50,7 @@ const RAIL_STOPS: RailStopDef[] = [
 
 export interface HomeModeRailProps {
   /** The lit stop, or null when no workspace mode is active. */
-  activeStop: Exclude<HomeModeRailStop, 'area'> | null;
+  activeStop: HomeModeRailStop | null;
   onSelect: (stop: HomeModeRailStop) => void;
 }
 
@@ -64,7 +71,7 @@ export const HomeModeRail: React.FC<HomeModeRailProps> = ({ activeStop, onSelect
             whileTap={{ scale: 0.96 }}
             onClick={() => onSelect(def.stop)}
             aria-label={def.ariaLabel}
-            aria-pressed={def.stop === 'area' ? undefined : lit}
+            aria-pressed={lit}
             data-testid={`mode-rail-${def.stop}`}
             className={`flex min-h-[48px] flex-1 flex-col items-center justify-center gap-1 border-r border-border px-2 py-1.5 last:border-r-0 ${
               lit ? 'bg-accent/15 text-accent' : 'text-text-secondary'

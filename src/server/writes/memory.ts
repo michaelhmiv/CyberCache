@@ -3258,6 +3258,7 @@ export class InMemoryWriteStore implements WriteStore {
         itemId: input.itemId,
         kitType: input.kitType,
         units: input.units,
+        useRushTicket: input.useRushTicket === true,
       }),
     );
     this.flushCraftView(playerId);

@@ -359,16 +359,67 @@ function selectedConsumableDefs(consumables: Record<string, number>): Consumable
   });
 }
 
-function getRuleTotals(defs: ConsumableDef[]): RuleTotals {
-  return defs.reduce<RuleTotals>(
-    (totals, def) => ({
-      deathFeeReduction: Math.min(0.95, totals.deathFeeReduction + (def.effectRules.deathFeeReduction || 0)),
-      bonusLootChance: Math.min(1, totals.bonusLootChance + (def.effectRules.bonusLootChance || 0)),
-      extraLootRollChance: Math.min(1, totals.extraLootRollChance + (def.effectRules.extraLootRollChance || 0)),
-      recommendationIntel: totals.recommendationIntel + (def.effectRules.recommendationIntel || 0),
-    }),
-    { deathFeeReduction: 0, bonusLootChance: 0, extraLootRollChance: 0, recommendationIntel: 0 }
-  );
+/**
+ * The prepared set's rule totals (death-fee reduction, loot chances,
+ * scanner intel), read from the consumable DEFS at the prepared
+ * units' quality — the same `getConsumableRuntimeEffects` read the
+ * roaming engine and the DPS chain make. Wiring package (2026-11-04):
+ * these totals used to sum the BASE `effectRules` values, so crafted
+ * quality bought nothing in a boss attempt even where the def
+ * declares quality scaling (Luck Booster 0.25 → 0.40 at Q160,
+ * Data Skimmer 0.25 → 0.40, Insurance Token 0.50 → 0.70). At quality
+ * 100 every total is bit-identical to the old base-value sum (the
+ * runtime base effects equal the effectRules values for these
+ * fields); a def that declares a rule in `effectRules` without a
+ * runtime field still counts at its declared value. Boss Scanner's
+ * `recommendationIntel` declares scaling mode 'none', so its intel
+ * stays quality-invariant by its own def.
+ */
+function getRuleTotals(
+  consumables: Record<string, number>,
+  consumableQuality?: Record<string, number>,
+): RuleTotals {
+  const totals: RuleTotals = {
+    deathFeeReduction: 0,
+    bonusLootChance: 0,
+    extraLootRollChance: 0,
+    recommendationIntel: 0,
+  };
+  for (const [type, count] of Object.entries(consumables)) {
+    if (count <= 0) continue;
+    const def = CONSUMABLES[type];
+    if (!def) continue;
+    const fx = getConsumableRuntimeEffects(type, consumableQuality?.[type]);
+    const perUnit = (field: 'deathFeeReduction' | 'bonusLootChance' | 'extraLootRollChance' | 'recommendationIntel') =>
+      fx[field] ?? def.effectRules[field] ?? 0;
+    totals.deathFeeReduction = Math.min(0.95, totals.deathFeeReduction + perUnit('deathFeeReduction') * count);
+    totals.bonusLootChance = Math.min(1, totals.bonusLootChance + perUnit('bonusLootChance') * count);
+    totals.extraLootRollChance = Math.min(1, totals.extraLootRollChance + perUnit('extraLootRollChance') * count);
+    totals.recommendationIntel += perUnit('recommendationIntel') * count;
+  }
+  return totals;
+}
+
+/**
+ * The distinct prepared types that are boss-scoped in their defs,
+ * with their runtime effects resolved at the prepared units'
+ * quality. The generic boss-sim readers (survival pool, break,
+ * mechanic, crit) all consume this one list — membership and
+ * magnitude come from the defs, never from a hardcoded ID table.
+ */
+function preparedBossEffects(
+  consumables: Record<string, number>,
+  consumableQuality?: Record<string, number>,
+): { type: string; count: number; fx: ReturnType<typeof getConsumableRuntimeEffects> }[] {
+  const out: { type: string; count: number; fx: ReturnType<typeof getConsumableRuntimeEffects> }[] = [];
+  for (const [type, count] of Object.entries(consumables)) {
+    if (count <= 0) continue;
+    const def = CONSUMABLES[type];
+    if (!def) continue;
+    if (!def.runtime.activityScopes.includes('boss')) continue;
+    out.push({ type, count, fx: getConsumableRuntimeEffects(type, consumableQuality?.[type]) });
+  }
+  return out;
 }
 
 /**
@@ -462,9 +513,9 @@ function ammoEfficiencyFromWindows(fullDuration: number, reloadDuration: number,
  * a Thousand Cuts) to price crit effects inside the pooled sim model
  * — the same expected-value style as the Amp shield model.
  */
-function critShareOf(weapon: Weapon | null): number {
+function critShareOf(weapon: Weapon | null, critChanceBonus = 0): number {
   if (!weapon) return 0;
-  const critFactor = weapon.critChance * weapon.critDamage;
+  const critFactor = (weapon.critChance + critChanceBonus) * weapon.critDamage;
   if (critFactor <= 0) return 0;
   return critFactor / (1 + critFactor);
 }
@@ -476,7 +527,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   const rm = getBossRiskModifiers(risk);
   const selectedDefs = selectedConsumableDefs(consumables);
-  const rules = getRuleTotals(selectedDefs);
+  const rules = getRuleTotals(consumables, input.consumableQuality);
 
   // Legendary effect modifiers (damage/survival/break/credit multipliers).
   // SIM PROXY note: several effects are approximated here as flat
@@ -522,30 +573,45 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   );
   const playerShieldHP = shield?.hp || 0;
 
-  const medkits = consumables['MedKit'] || 0;
-  const shieldCells = consumables['ShieldCell'] || 0;
-  const nanoSwarms = consumables['NanoSwarm'] || 0;
   const adrenaline = consumables['AdrenalineShot'] || 0;
 
-  // Quality wiring (crafting §2.4): the pooled survival values below
-  // are the sim's own baselines (150 / 100 / 250 per unit — the Shield
-  // Cell's 100 is the sim's long-standing pool value, NOT the def's
-  // 120 roaming restore; both are preserved). Each pool scales by the
-  // ratio of the def's runtime effect at the prepared units' quality
-  // to the def's base effect, so quality 100 leaves every pool
-  // bit-identical and a 150% batch pays exactly 1.5× its pool share.
-  const qualityScale = (type: string, field: 'healHp' | 'shieldRestore' | 'repairTotalHp'): number => {
-    const quality = input.consumableQuality?.[type];
-    if (quality === undefined) return 1;
-    const base = CONSUMABLES[type]?.runtime.baseEffects[field];
-    if (!base) return 1;
-    const scaled = getConsumableRuntimeEffects(type, quality)[field];
-    return scaled !== undefined ? scaled / base : 1;
-  };
+  // Generic survival pool (wiring package, 2026-11-04): membership
+  // and magnitude come from the DEFS — every prepared boss-scoped
+  // def contributes its declared heal/shield/repair runtime effect
+  // per unit, at the prepared units' quality (the same
+  // getConsumableRuntimeEffects read as everywhere else). The pool
+  // prices each field at the pooled model's long-standing field
+  // rate: direct heal at face, shield restore and repair at 5/6 of
+  // face — the discount the sim has always applied to those two
+  // fields. The legacy three therefore resolve bit-identically at
+  // any quality: MedKit healHp 150 × 1, Shield Cell shieldRestore
+  // 120 × 100/120 = the sim's 100 pool value, NanoSwarm
+  // repairTotalHp 300 × 250/300 = 250. What changes is membership:
+  // the pool is no longer a hardcoded guest list — MedKit Refined's
+  // declared 260 heal pools like any other heal (it used to be
+  // consumed on losses and add zero), and Adrenaline Shot's declared
+  // 80 heal pools too.
+  const preparedFx = preparedBossEffects(consumables, input.consumableQuality);
+  let medkitHealing = 0;
+  let shieldCellBoost = 0;
+  let nanoSwarmRepair = 0;
+  for (const { count, fx } of preparedFx) {
+    medkitHealing += count * (fx.healHp ?? 0);
+    shieldCellBoost += count * (fx.shieldRestore ?? 0) * (100 / 120);
+    nanoSwarmRepair += count * (fx.repairTotalHp ?? 0) * (250 / 300);
+  }
 
-  const medkitHealing = medkits * 150 * qualityScale('MedKit', 'healHp');
-  const shieldCellBoost = shieldCells * 100 * qualityScale('ShieldCell', 'shieldRestore');
-  const nanoSwarmRepair = nanoSwarms * 250 * qualityScale('NanoSwarm', 'repairTotalHp');
+  // Generic crit read (wiring package): def-declared critChanceBonus
+  // (Heartwood Sight Oil declares +0.05, quality-scaling to its 0.09
+  // cap) sums once per prepared TYPE. It prices into the sim's own
+  // crit terms below — the crit-attributable DPS share and the
+  // high-crit skill gate. The DPS chain's raw DPS keeps pricing crit
+  // from the weapon alone (the chain has no consumable-crit input;
+  // giving it one is a chain change, out of this package's scope).
+  let consumableCritBonus = 0;
+  for (const { fx } of preparedFx) {
+    consumableCritBonus += fx.critChanceBonus ?? 0;
+  }
 
   let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
 
@@ -722,12 +788,14 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // 2. Shield / Armor Break Check
   let shieldBreak = 0;
   let armorBreak = 0;
+  // Ordnance uses: the carrier type's prepared units, plus every
+  // prepared type's def-declared freeOrdnanceUses (Magnetized
+  // Payload declares 2 — read from its def, once per prepared type,
+  // exactly the value the old hardcode added).
   let grenades = consumables['OrdnanceCharge'] || 0;
-  const phaseShift = consumables['PhaseShiftGrenade'] || 0;
-
-  // MagnetizedPayload: +2 free ordnance uses
-  if (consumables['MagnetizedPayload'] > 0) {
-    grenades += 2;
+  for (const { type, fx } of preparedFx) {
+    if (type === 'OrdnanceCharge') continue;
+    if (fx.freeOrdnanceUses) grenades += Math.round(fx.freeOrdnanceUses);
   }
 
   if (primary) {
@@ -792,33 +860,34 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   shieldBreak += ordnanceShieldBreak;
   armorBreak += ordnanceArmorBreak;
 
-  // Elemental ammo modifiers
-  if (consumables['ShockAmmo'] > 0) {
-    shieldBreak *= 1.3;
+  // Generic break read (wiring package, 2026-11-04): every prepared
+  // boss-scoped def's declared break fields price into the totals at
+  // the prepared units' quality — replacing the hardcoded per-ID
+  // table (Shock ×1.3, Corrosive ×1.25, AP ×1.25, Phase Shift ×1.5).
+  // The legacy effects resolve to their DEF values: Shock ×1.3,
+  // Armor-Piercing ×1.25, Phase Shift ×1.5 — and Corrosive Ammo
+  // ×1.30, a DELIBERATE delta: the hardcode had flattened Corrosive
+  // to AP's ×1.25 while its def declares ×1.30. Effects that were
+  // dead paper before now read: Prism Coating ×1.12/×1.12, EMP
+  // Charge shield ×1.35, Corrosive Charge armor ×1.35, Forgeheart
+  // Charge armor ×1.15, Elemental Coating ×1.08/×1.08. Multipliers
+  // apply once per prepared TYPE (they are stance effects, not
+  // per-unit), matching the old table's per-type semantics.
+  // The ordnance-use carrier (OrdnanceCharge) is exempt from the
+  // multiplier read: its def's break multipliers describe the
+  // per-use burst the gear math above already prices per use —
+  // multiplying the totals as well would double-count every use.
+  // armorBypass shrinks the effective armor the break score is
+  // measured against (Phase Shift declares 0.4 at base quality).
+  let armorBypassProduct = 1;
+  for (const { type, fx } of preparedFx) {
+    if (type !== 'OrdnanceCharge') {
+      if (fx.shieldBreakMultiplier) shieldBreak *= fx.shieldBreakMultiplier;
+      if (fx.armorBreakMultiplier) armorBreak *= fx.armorBreakMultiplier;
+    }
+    if (fx.armorBypass) armorBypassProduct *= 1 - Math.min(0.95, Math.max(0, fx.armorBypass));
   }
-  if (consumables['CorrosiveAmmo'] > 0) {
-    armorBreak *= 1.25;
-  }
-  if (consumables['ArmorPiercingAmmo'] > 0) {
-    armorBreak *= 1.25;
-  }
-  if (consumables['ElementalCoating'] > 0) {
-    // The coating's break multipliers live on its def — read them at
-    // the prepared batch's quality like every other quality-priced
-    // effect (quality 100 returns the def's flat 1.08 / 1.08). Until
-    // the crafting disposition (2026-11-04) these multipliers were
-    // display-only: the sim never read them, so a prepared coating
-    // burned for nothing.
-    const coating = getConsumableRuntimeEffects(
-      'ElementalCoating',
-      input.consumableQuality?.['ElementalCoating'] ?? 100,
-    );
-    shieldBreak *= coating.shieldBreakMultiplier ?? 1;
-    armorBreak *= coating.armorBreakMultiplier ?? 1;
-  }
-  if (phaseShift > 0) {
-    armorBreak *= 1.5; // Phase Shift ignores armor for 5s
-  }
+  const effectiveArmor = boss.armor * armorBypassProduct;
 
   shieldBreak *= (1 + (skillBonuses.shieldBreak || 0));
   armorBreak *= (1 + (skillBonuses.armorBreak || 0));
@@ -835,7 +904,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   }
 
   const shieldBreakScore = boss.shield > 0 ? shieldBreak / boss.shield : 1;
-  const armorBreakScore = boss.armor > 0 ? armorBreak / boss.armor : 1;
+  const armorBreakScore = boss.armor > 0 ? armorBreak / effectiveArmor : 1;
   const breakScore = Math.min(shieldBreakScore, armorBreakScore);
 
   if (boss.shield > 0 && shieldBreakScore < 1) {
@@ -843,7 +912,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     recommendations.push(`Consider Shock weapons or Ordnance Charges.`);
   }
   if (boss.armor > 0 && armorBreakScore < 1) {
-    reasons.push(`Armor break is insufficient. Need ${Math.round(boss.armor - armorBreak)} more armor damage.`);
+    reasons.push(`Armor break is insufficient. Need ${Math.round(effectiveArmor - armorBreak)} more armor damage.`);
     recommendations.push(`Consider Corrosive weapons or grenades.`);
   }
 
@@ -885,7 +954,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const sub50CritMult = (weapon: Weapon | null): number => {
     const bonus = skillBonuses.critDamageSub50 || 0;
     if (!weapon || bonus <= 0) return 1;
-    return 1 + 0.5 * bonus * critShareOf(weapon);
+    return 1 + 0.5 * bonus * critShareOf(weapon, consumableCritBonus);
   };
 
   let primaryDPS = 0;
@@ -983,7 +1052,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     [primary, secondary, heavy].some((weapon) => weapon && effectiveWeaknesses.includes(weapon.element))
       ? (skillBonuses.weaknessMatchDamage || 0)
       : 0;
-  const effectiveCritChance = (primary?.critChance || 0) + (skillBonuses.critChance || 0);
+  const effectiveCritChance = (primary?.critChance || 0) + consumableCritBonus + (skillBonuses.critChance || 0);
   const highCritBonus = effectiveCritChance > 0.5 ? (skillBonuses.highCritBossDamage || 0) : 0;
   dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.cacheRankDamageBonus || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod + focusFireBonus + weaknessMatchBonus + highCritBonus) * classModDpsMult;
 
@@ -1033,9 +1102,9 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     const totalSlotDps = primaryDPS + secondaryDPS + heavyDPS;
     if (totalSlotDps > 0) {
       const critShare =
-        (primaryDPS * critShareOf(primary) +
-          secondaryDPS * critShareOf(secondary) +
-          heavyDPS * critShareOf(heavy)) /
+        (primaryDPS * critShareOf(primary, consumableCritBonus) +
+          secondaryDPS * critShareOf(secondary, consumableCritBonus) +
+          heavyDPS * critShareOf(heavy, consumableCritBonus)) /
         totalSlotDps;
       if (critShare > 0) {
         dpsScore *= 1 + critDpsBonus * critShare;
@@ -1077,6 +1146,38 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     if (mechanicScore < 1) {
       reasons.push(`Boss mechanic "${boss.mechanic.name}" is not fully countered.`);
       recommendations.push(`Increase ${boss.mechanic.requiredLoadoutTrait} through skills or gear.`);
+    }
+  }
+
+  // Generic mechanic read (wiring package, 2026-11-04): def-declared
+  // mechanic fields help MEET the check — mechanicScoreFlat adds
+  // directly (Boss Scanner +0.04, EMP Charge +0.10, Phase Shift
+  // +0.05 at base quality), repairSuppression adds against
+  // repair-flavored mechanics (the sim has no boss-repair term of
+  // its own for suppression to act on, so suppression prices as
+  // mechanic help precisely where a repair mechanic exists), and
+  // mechanicReduction closes that share of whatever shortfall
+  // remains (Jammer 0.20, EMP Charge 0.10). Nothing pushes the score
+  // past 1: a handled mechanic is handled, as before.
+  if (mechanicScore < 1) {
+    const repairMechanic =
+      boss.tags.includes('repair') || (boss.mechanic.id || '').includes('repair');
+    let mechanicFlat = 0;
+    let mechanicReduction = 0;
+    let repairSuppressionTotal = 0;
+    for (const { fx } of preparedFx) {
+      mechanicFlat += fx.mechanicScoreFlat ?? 0;
+      mechanicReduction += fx.mechanicReduction ?? 0;
+      if (repairMechanic) repairSuppressionTotal += fx.repairSuppression ?? 0;
+    }
+    if (mechanicFlat > 0 || mechanicReduction > 0 || repairSuppressionTotal > 0) {
+      mechanicScore = Math.min(
+        1,
+        mechanicScore +
+          mechanicFlat +
+          repairSuppressionTotal +
+          (1 - mechanicScore) * Math.min(1, mechanicReduction),
+      );
     }
   }
 
@@ -1166,8 +1267,7 @@ export function executeBossAttempt(
   playerCredits: number
 ): { result: BossAttemptResult; creditsDelta: number; loot: Weapon[]; consumedConsumables: Record<string, number>; extraLoot: boolean; bonusLootRolls: number } {
   const sim = simulateBoss(input);
-  const selectedDefs = selectedConsumableDefs(input.consumables);
-  const rules = getRuleTotals(selectedDefs);
+  const rules = getRuleTotals(input.consumables, input.consumableQuality);
   const legendary = applyLegendaryEffects(input.primary, input.pityCount || 0);
   // Apply chaos/RNG in actual combat (not in preview)
   const chaosRoll = (Math.random() - 0.5) * 0.1 + (input.risk === 'Conservative' ? -0.02 : input.risk === 'Greedy' ? 0.02 : input.risk === 'AllIn' ? 0.04 : 0);

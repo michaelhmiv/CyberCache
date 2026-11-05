@@ -44,11 +44,14 @@ afterEach(async () => {
   while (openServers.length) await openServers.pop()?.();
 });
 
-async function makeServer(store = new InMemoryChefGameplayStore()): Promise<Harness> {
+async function makeServer(
+  store = new InMemoryChefGameplayStore(),
+  routeOverrides: { now?: () => Date } = {},
+): Promise<Harness> {
   const app = express();
   app.use(express.json());
   mountChefHealthRoute(app);
-  mountGameplayRoutes(app, store, { jwtSecret: SECRET });
+  mountGameplayRoutes(app, store, { jwtSecret: SECRET, ...routeOverrides });
   const server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   openServers.push(
@@ -86,6 +89,17 @@ const CLAIM_BODY = {
   playerLevel: 10,
   idleMods: { offlineEarningsMod: 0, scrapYieldMod: 0, rareDropChanceMod: 0 },
 };
+
+// The claim route derives the daily HOT AREA from the server's UTC
+// date (src/content/hotArea.ts): a hot area pays +10% credits/XP.
+// dustwaste_frontier is hot on 2026-11-05 UTC (and ~1 day in 7
+// generally), so amount-pinning claim tests must pin the route clock —
+// unpinned, this file went red on 2026-11-05 when the rotation landed
+// on Dustwaste. On 2026-11-04 UTC the hot area is helixworks_labyrinth,
+// so Dustwaste pays its base rates under this clock.
+const DUSTWASTE_COLD_DAY = () => new Date('2026-11-04T12:00:00.000Z');
+// The day Dustwaste IS hot — used by the deliberate hot-area pin below.
+const DUSTWASTE_HOT_DAY = () => new Date('2026-11-05T12:00:00.000Z');
 
 describe('legacy Chef gameplay routes (B6)', () => {
   it('serves the June health shape without any configuration', async () => {
@@ -127,7 +141,7 @@ describe('legacy Chef gameplay routes (B6)', () => {
   });
 
   it('claim: applies rewards through the store and advances last_claimed_tick', async () => {
-    const { base, store, tokenA } = await makeServer();
+    const { base, store, tokenA } = await makeServer(new InMemoryChefGameplayStore(), { now: DUSTWASTE_COLD_DAY });
     store.seedProfile({ id: A, credits: 100 });
     const res = await post(base, '/api/claim', CLAIM_BODY, tokenA);
     expect(res.status).toBe(200);
@@ -141,7 +155,7 @@ describe('legacy Chef gameplay routes (B6)', () => {
   });
 
   it('claim: replaying a claimed tickCount is a 409 and changes nothing', async () => {
-    const { base, store, tokenA } = await makeServer();
+    const { base, store, tokenA } = await makeServer(new InMemoryChefGameplayStore(), { now: DUSTWASTE_COLD_DAY });
     store.seedProfile({ id: A, credits: 100 });
     await post(base, '/api/claim', CLAIM_BODY, tokenA);
     const res = await post(base, '/api/claim', CLAIM_BODY, tokenA);
@@ -149,6 +163,22 @@ describe('legacy Chef gameplay routes (B6)', () => {
     expect(res.json.error).toBe('tick_count already claimed');
     expect(res.json.lastClaimedTick).toBe(5);
     expect(store.profiles.get(A)!.credits).toBe(103);
+  });
+
+  it('claim: on a day dustwaste_frontier is the hot area, the +10% yield bonus pays out', async () => {
+    const { base, store, tokenA } = await makeServer(new InMemoryChefGameplayStore(), { now: DUSTWASTE_HOT_DAY });
+    store.seedProfile({ id: A, credits: 100 });
+    const res = await post(base, '/api/claim', CLAIM_BODY, tokenA);
+    expect(res.status).toBe(200);
+    // Same claim as the base-rate pin above, one UTC day later:
+    // Dustwaste is hot on 2026-11-05, so the hot-area yield bonus
+    // (HOT_AREA_YIELD_BONUS 0.1) applies — 0.75 x 1.1 x 5 ticks = 4.125
+    // -> +4 whole credits (100 -> 104), 0.125 banked. This is the
+    // designed daily rotation paying out, pinned deliberately under a
+    // controlled clock instead of ambushing the base-rate tests.
+    const profile = store.profiles.get(A)!;
+    expect(profile.last_claimed_tick).toBe(5);
+    expect(profile.credits).toBe(104);
   });
 
   it('claim: unknown profile is the June 500 read failure', async () => {

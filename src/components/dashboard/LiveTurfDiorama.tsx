@@ -53,7 +53,7 @@ import type { TickEvent } from '@/store/slices/tickSlice';
 
 export type LiveTurfFeedEvent = TickEvent;
 
-type DioramaMode = 'idle' | 'roaming' | 'bossPrep' | 'bossFight' | 'crafting' | 'salvaging' | 'workshopService' | 'marketListing';
+type DioramaMode = 'idle' | 'roaming' | 'bossPrep' | 'bossFight' | 'crafting' | 'salvaging' | 'workshopService' | 'marketListing' | 'extraction';
 
 interface LiveTurfDioramaProps {
   area: RoamingAreaDef;
@@ -65,14 +65,18 @@ interface LiveTurfDioramaProps {
   activityKind?: ActivityKind;
   bossPhase?: BossPhase;
   statSummary?: CharacterStatSummary;
-  /** Owner ruling 2026-11-02: the running action's controls
-   *  (Switch Action · Stop) float ON the stage as chips in the
-   *  plates' language — top-left since the same day's follow-up
-   *  ruling removed the area plate from that corner — supplied
-   *  by the screen, rendered by the stage. Owner ruling
-   *  2026-11-03: the chips are ICON-ONLY 44px squares (swap /
-   *  stop glyphs, aria-labels carry the words) — the text made
-   *  them way larger than they needed to be. */
+  /** Owner ruling 2026-11-02: the running action's control
+   *  floats ON the stage as a chip in the plates' language —
+   *  top-left since the same day's follow-up ruling removed the
+   *  area plate from that corner — supplied by the screen,
+   *  rendered by the stage. Owner ruling 2026-11-03: the chips
+   *  are ICON-ONLY 44px squares (glyphs, aria-labels carry the
+   *  words) — the text made them way larger than they needed
+   *  to be. Owner rework 2026-11-04: the Switch Action chip
+   *  (the swap "arrows") leaves the stage; Stop alone rides
+   *  here, leftmost, and only while an action runs — at standby
+   *  the screen passes nothing and the stage carries no
+   *  controls overlay at all. */
   stageControls?: React.ReactNode;
 }
 
@@ -92,6 +96,13 @@ const modeFromActivity = (kind?: ActivityKind, bossPhase?: BossPhase): DioramaMo
   if (kind === 'salvaging') return 'salvaging';
   if (kind === 'workshop_service') return 'workshopService';
   if (kind === 'market_listing') return 'marketListing';
+  // Extraction (one-stage law, owner ruling 2026-11-04): the
+  // stage carries the extraction scene while extraction holds
+  // the action slot — the workspace panel no longer renders its
+  // own animated scene. Before this mapping the kind fell
+  // through to the idle camp vista while the panel duplicated
+  // the scene below.
+  if (kind === 'extraction') return 'extraction';
   return 'idle';
 };
 
@@ -104,6 +115,7 @@ const modeInfo: Record<DioramaMode, { label: string; caption: string }> = {
   salvaging: { label: 'Salvaging', caption: 'gear broken into scrap' },
   workshopService: { label: 'Workshop', caption: 'servicing queued machines' },
   marketListing: { label: 'Market', caption: 'working the trade kiosk' },
+  extraction: { label: 'Extraction', caption: 'working the claimed site' },
 };
 
 // ── Drop visual helpers ──────────────────────────────────────────────────────────
@@ -141,7 +153,7 @@ const SceneProps: React.FC<{ prop: string; accent: string; dark: string }> = ({ 
 
 const ActivityProp: React.FC<{ mode: DioramaMode; accent: string; dark: string; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ mode, accent, dark, event, reduced }) => {
   const pulse = isImpact(event) && !reduced;
-  if (mode === 'crafting' || mode === 'workshopService') return <g stroke="#000" strokeLinejoin="round"><path d="M184 132 L264 124 L279 143 L197 154 Z" fill={dark} strokeWidth="5" /><path d="M199 110 L249 104 L259 126 L190 134 Z" fill="#1B1B20" strokeWidth="4" /><motion.g animate={pulse ? { opacity: [0, 1, 0], scale: [0.6, 1.2, 0.8] } : { opacity: 0.38 }}><path d="M224 101 L224 86 M214 105 L203 94 M236 103 L249 91" stroke={accent} strokeWidth="3" strokeLinecap="round" /><circle cx="224" cy="102" r="5" fill={accent} /></motion.g></g>;
+  if (mode === 'crafting' || mode === 'workshopService' || mode === 'extraction') return <g stroke="#000" strokeLinejoin="round"><path d="M184 132 L264 124 L279 143 L197 154 Z" fill={dark} strokeWidth="5" /><path d="M199 110 L249 104 L259 126 L190 134 Z" fill="#1B1B20" strokeWidth="4" /><motion.g animate={pulse ? { opacity: [0, 1, 0], scale: [0.6, 1.2, 0.8] } : { opacity: 0.38 }}><path d="M224 101 L224 86 M214 105 L203 94 M236 103 L249 91" stroke={accent} strokeWidth="3" strokeLinecap="round" /><circle cx="224" cy="102" r="5" fill={accent} /></motion.g></g>;
   if (mode === 'salvaging') return <g stroke="#000" strokeLinejoin="round"><path d="M187 143 L218 126 L259 134 L276 153 L229 164 Z" fill={dark} strokeWidth="5" /><path d="M202 136 L230 123 L255 134 L225 148 Z" fill="#A5A7B5" strokeWidth="4" /><motion.g animate={pulse ? { opacity: [0, 1, 0], x: [-4, 4, 8] } : { opacity: 0.42 }}><path d="M224 132 L244 113 M226 137 L250 128 M216 126 L200 114" stroke="#FFEA3A" strokeWidth="3" strokeLinecap="round" /></motion.g></g>;
   if (mode === 'bossPrep') return <g stroke="#000" strokeLinejoin="round"><path d="M197 75 L284 66 L291 132 L202 141 Z" fill="#161116" strokeWidth="5" /><path d="M208 84 L275 78 L280 123 L212 130 Z" fill={dark} strokeWidth="3" /><path d="M221 96 L264 91 M221 108 L270 103 M221 120 L251 116" stroke={accent} strokeWidth="3" strokeLinecap="round" /><circle cx="211" cy="96" r="4" fill="#FF4B5C" /><circle cx="211" cy="108" r="4" fill="#7CFC00" /><circle cx="211" cy="120" r="4" fill="#FF9000" /></g>;
   if (mode === 'marketListing') return <g stroke="#000" strokeLinejoin="round"><path d="M189 104 L258 94 L282 122 L270 154 L195 160 L176 130 Z" fill={dark} strokeWidth="5" /><path d="M201 111 L253 104 L268 122 L257 143 L204 148 L191 128 Z" fill="#111318" strokeWidth="3" /><path d="M211 119 L245 115 M211 131 L257 126" stroke={accent} strokeWidth="3" strokeLinecap="round" /></g>;
@@ -152,7 +164,7 @@ const ActivityProp: React.FC<{ mode: DioramaMode; accent: string; dark: string; 
 
 const RunnerSvg: React.FC<{ accent: string; mode: DioramaMode; event?: LiveTurfFeedEvent; reduced: boolean }> = ({ accent, mode, event, reduced }) => {
   const active = isImpact(event) && !reduced;
-  const bench = mode === 'crafting' || mode === 'salvaging' || mode === 'workshopService' || mode === 'marketListing';
+  const bench = mode === 'crafting' || mode === 'salvaging' || mode === 'workshopService' || mode === 'marketListing' || mode === 'extraction';
   const prep = mode === 'bossPrep';
   const isDamage = active && event?.tone === 'damage';
   const isHeal = active && event?.tone === 'heal';
@@ -900,7 +912,18 @@ const PixelSceneLayer: React.FC<{
       {!showEnemy && mode === 'marketListing' && (
         <PixelActor spriteId="set-vendor-stall" xPct={60} heightPct={34} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-vendor-set" />
       )}
-      {!showEnemy && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && (
+      {/* Extraction set (grammar ACTION_SETS.extraction, in the
+          arrangement the retired panel scene used): the stake
+          line marks the claim, the sift rig does the sorting,
+          the crates fill as passes land. */}
+      {!showEnemy && mode === 'extraction' && (
+        <>
+          <PixelActor spriteId="set-extract-stakes" xPct={14} heightPct={26} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-extract-stakes" />
+          <PixelActor spriteId="set-extract-rig" xPct={58} heightPct={36} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-extract-rig" />
+          <PixelActor spriteId="set-extract-crates" xPct={86} heightPct={24} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-extract-crates" />
+        </>
+      )}
+      {!showEnemy && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && mode !== 'extraction' && (
         <PixelActor spriteId="crate" xPct={63} heightPct={21} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-crate-prop" />
       )}
 
@@ -983,6 +1006,20 @@ const PixelSceneLayer: React.FC<{
             weaponTestId="pixel-held-weapon"
             testId="pixel-hunter"
             gear={mountedGear}
+          />
+        ) : mode === 'extraction' ? (
+          /* Extraction (one-stage law, 2026-11-04): the hunter
+             WORKS the site on the stage — pose 'work', weapon
+             slung (no held weapon is drawn; this is gathering,
+             not combat), exactly the treatment the retired
+             in-panel scene used. */
+          <PixelPartsActor
+            set={hunterSet}
+            partPalettes={look.partPalettes}
+            {...hunterPlacement}
+            reduced={reduced}
+            pose="work"
+            testId="pixel-hunter"
           />
         ) : weapon ? (
           /* Armed standby (loadout truth): the part set idles at the

@@ -501,11 +501,19 @@ const gearCache = new Map<string, GearRender>();
  * recompose gear they have already drawn.
  */
 export function composeGearCached(input: GearComposeInput, grammar: GearGrammar, density: GearDensity = 'card'): GearRender {
-  const composed = composeGear(input, grammar, density);
-  const cached = gearCache.get(composed.signature);
+  // Input-derived cache key (see composeWeaponCardCached): the
+  // render signature hashes the composed rows, so a signature-keyed
+  // lookup can only run AFTER a full compose and never hits. The
+  // key enumerates the same determinant fields the signature itself
+  // lists, plus grammar and density.
+  const key = hashString(
+    `gearkey-${density}|${input.kind}|${grammar.id}|${input.rarity}|${input.element ?? ''}|${input.seed}|${input.variant ?? ''}|${input.pips ?? 0}|${input.baseColor ?? ''}`,
+  ).toString(16);
+  const cached = gearCache.get(key);
   if (cached) return cached;
+  const composed = composeGear(input, grammar, density);
   if (gearCache.size > 400) gearCache.clear();
-  gearCache.set(composed.signature, composed);
+  gearCache.set(key, composed);
   return composed;
 }
 

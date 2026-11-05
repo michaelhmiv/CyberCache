@@ -66,6 +66,8 @@ All four share **one charge pool, 0–100**. Charge builds only from resolved pl
 
 Boss and endless fights are resolved as a **30-second model** of your loadout against the target — your DPS chain, shield break and armor break, survival pool, prepared consumables, chosen risk setting, and action skill all priced in at once. There is no twitch play and no mid-fight input: every decision that matters happens at prep, in your loadout, your belt, and your build. That is why the prep screen shows you the target in full — see [[Bosses]].
 
+Every consumable effect in that model is read from the item's own definition, at the quality of the units you actually burn — there is no separate list of "items the fight knows about". If a consumable declares a shield- or armor-break multiplier, a heal, a crit bonus, or a loot or death-fee effect, the model prices it, and a higher-quality crafted batch is worth more wherever the item's definition says quality scales. That includes the refined survival items (a Med Kit Refined's larger heal pools like any other) and the economy tools: a 160% Luck Booster or Insurance Token pays out at its quality-scaled rate in a boss attempt, not its base rate.
+
 ---
 
 _Source of truth: `src/lib/stats/dpsChain.ts`, `src/lib/combat/shieldBehaviors.ts`, `src/lib/combat/damageContract.ts`, `src/content/actionSkills.ts`, `src/lib/mechanics/buildCharacterMechanicsSnapshot.ts`, `src/lib/simulation/bossSimulator.ts`, `src/server/gameplay/serverLoadout.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

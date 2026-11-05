@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { Search, X, ArrowUpDown } from 'lucide-react';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { CONSUMABLES, VENDOR_CONSUMABLES } from '@/constants/consumables';
@@ -163,17 +164,20 @@ export const VendorScreen: React.FC = () => {
     const price = offer?.unitPrice ?? c.basePrice;
     const buying = busyId === `buy:${c.id}`;
     return (
-      // Compact storefront row (drift-fix F3, mock m40): the def's
-      // own pixel icon in the well (the 3-letter family abbrev is
-      // replaced by the full family label as the first chip — more
-      // legible, same datum), name/role/description/chips in the
-      // middle, Owned over a SMALL Buy in the right column. The
-      // full-width Buy band is gone; the handler, price and
-      // disabled rule are unchanged.
+      // Compact storefront row (drift-fix F3, mock m40): the item's
+      // formed-object sprite in the well (consumableArt — the §7
+      // sheet glyph at 20px in a 40px well was the flat clip-art
+      // the owner flagged 2026-11-04; the well now matches the
+      // gear-card register at 56px with the sprite at 52). The
+      // 3-letter family abbrev is replaced by the full family
+      // label as the first chip — more legible, same datum.
+      // Name/role/description/chips in the middle, Owned over a
+      // SMALL Buy in the right column. The full-width Buy band is
+      // gone; the handler, price and disabled rule are unchanged.
       <MobileCard key={c.id}>
         <div className="flex items-start gap-2.5">
-          <div className="bl-well flex h-10 w-10 shrink-0 items-center justify-center">
-            <PxIcon name={c.visual.icon} size={20} />
+          <div className="bl-well flex h-14 w-14 shrink-0 items-center justify-center">
+            <PixelConsumable type={c.id} size={52} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -419,9 +423,12 @@ export const VendorScreen: React.FC = () => {
               return (
                 <MobileCard key={batch.id} className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold leading-snug text-text-primary">{name}</div>
-                      <div className="text-[11px] text-text-muted">Quality {batch.quality_percent}% • unit value {Math.round(unitValue).toLocaleString()}cr</div>
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <PixelConsumable type={batch.consumable_type} size={26} className="mt-0.5" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold leading-snug text-text-primary">{name}</div>
+                        <div className="text-[11px] text-text-muted">Quality {batch.quality_percent}% • unit value {Math.round(unitValue).toLocaleString()}cr</div>
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-[11px] text-text-muted">Owned</div>

@@ -137,17 +137,23 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
     expect(action).not.toContain('const RouteCard');
   });
 
-  it('the area doors are the rail stop + workspace buttons; the stage carries no area plate', () => {
+  it('the area doors are the rail Roam stop + workspace buttons; the stage carries no area plate', () => {
     // Wave C (§4): the chip row sat beside the stage (area chip +
     // research chip). Drift-fix F2 folded the area read into the
     // stage's own slim plate; the owner then removed that plate
     // from the stage outright (ruling 2026-11-02 — no banner on
-    // the art). The picker sheet's doors are now the mode rail's
-    // AREA stop and the workspace panels' Change Area buttons —
-    // both one tap from the stage, both opening the same sheet.
-    // The deck never carried a door.
+    // the art). The picker sheet's doors were the mode rail's
+    // AREA stop and the workspace panels' Change Area buttons
+    // until the owner rework of 2026-11-04 removed the Area
+    // stop: Roam IS the area door now — the rail's Roam case
+    // opens the picker (on entry, and alone while roaming) —
+    // and the workspace panels' Change Area buttons remain the
+    // second door. Both open the same sheet. The deck never
+    // carried a door.
     const action = readSource('src/screens/ActionScreenContextual.tsx');
-    expect(action).toContain("case 'area': setShowAreaSelect(true);");
+    expect(action).not.toContain("case 'area':");
+    expect(action).toContain("case 'roam':");
+    expect(action).toContain('setShowAreaSelect(true)');
     expect(action).toContain('Change Area');
     expect(action).not.toContain('onTitleClick');
     expect(action).not.toContain('<CurrentAreaChip');

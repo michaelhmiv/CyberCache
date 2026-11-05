@@ -1380,6 +1380,16 @@ export interface EnqueueRepairJobInput {
   itemId: string;
   kitType: string;
   units: number;
+  /**
+   * Workshop Rush Ticket repair scope (wiring package, 2026-11-04):
+   * the ticket's def declares scopes ['crafting', 'repair'] with a
+   * repairStart trigger, but the repair enqueue used to hardcode the
+   * rush fields to null/0. When true, one ticket is escrowed at
+   * enqueue (FIFO, lowest quality first — the shipped burn order)
+   * and its quality prices the duration reduction, exactly as the
+   * craft enqueue does.
+   */
+  useRushTicket?: boolean;
 }
 
 /**
@@ -1437,6 +1447,9 @@ export function enqueueRepairJob(
   }
 
   if ((p.consumables[kitType] ?? 0) < units) fail(`Not enough ${kitType} in inventory`);
+  if (input.useRushTicket && (p.consumables['WorkshopRushTicket'] ?? 0) < 1) {
+    fail('No Workshop Rush Ticket available');
+  }
 
   // Escrow the kits: burn FIFO, recording each unit's quality/origin
   // so completion prices restoration from the ACTUAL kit and cancel /
@@ -1448,6 +1461,26 @@ export function enqueueRepairJob(
     if (!burned) fail(`Not enough ${kitType} in inventory`);
     kitQualities.push(burned.quality);
     kitOrigins.push(burned.origin);
+  }
+
+  // Rush ticket: escrowed at enqueue alongside the kits, burned when
+  // the job starts (the generic cancel path refunds it while the job
+  // has not started — the same treatment craft jobs get). Its
+  // quality prices the reduction through rushTicketTimeReduction,
+  // the one formula both enqueues share; the Fixer keystone's
+  // rushReductionCapBonus raises the 0.45 cap.
+  let rushTicketQuality: number | null = null;
+  let rushTicketOrigin: string | null = null;
+  let rushReduction = 0;
+  if (input.useRushTicket) {
+    const burned = adapter.burnOneBatchUnit(playerId, 'WorkshopRushTicket');
+    if (!burned) fail('No Workshop Rush Ticket available');
+    rushTicketQuality = burned.quality;
+    rushTicketOrigin = burned.origin;
+    rushReduction = rushTicketTimeReduction(
+      burned.quality,
+      adapter.skillBonus?.(playerId, 'rushReductionCapBonus') ?? 0,
+    );
   }
 
   const levers = adapter.levers();
@@ -1467,10 +1500,15 @@ export function enqueueRepairJob(
     levers.repairMasteryEfficiencyPerLevel,
     adapter.skillBonus?.(playerId, 'repairEfficiencyBonus') ?? 0,
   );
-  const unitDurationMs = repairKitUnitDurationMs(
-    kitBase,
-    workRate,
-    adapter.skillBonus?.(playerId, 'repairSpeedBonus') ?? 0,
+  const unitDurationMs = Math.max(
+    1,
+    Math.round(
+      repairKitUnitDurationMs(
+        kitBase,
+        workRate,
+        adapter.skillBonus?.(playerId, 'repairSpeedBonus') ?? 0,
+      ) * (1 - rushReduction),
+    ),
   );
 
   const now = adapter.nowMs();
@@ -1487,8 +1525,8 @@ export function enqueueRepairJob(
     status: 'active',
     escrow_inputs: {},
     escrow_catalyst: {},
-    rush_ticket_quality: null,
-    rush_ticket_origin: null,
+    rush_ticket_quality: rushTicketQuality,
+    rush_ticket_origin: rushTicketOrigin,
     snapshot: {
       toolId: null,
       toolQualityMultiplier: 1,
@@ -1496,7 +1534,7 @@ export function enqueueRepairJob(
       toolRefineYieldBonus: 0,
       toolBonusUnitChance: 0,
       skillDurationMultiplier: 1,
-      rushReduction: 0,
+      rushReduction,
       craftTimeScalar: 1,
       catalystMaterialId: null,
       gearRarity: null,
@@ -1796,6 +1834,30 @@ export interface CancelCraftJobResult {
   coresRefunded: number;
 }
 
+/**
+ * Rush ticket refund on cancel (the one rule for every job kind):
+ * refunded as a batch at its escrowed quality only when the job
+ * never started; on a started job it is spent.
+ */
+function refundRushTicketIfUnstarted(
+  adapter: CraftAdapter,
+  playerId: string,
+  j: CraftJobRecord,
+): boolean {
+  const started = j.units_completed > 0 || j.accrued_ms > 0;
+  if (j.rush_ticket_quality === null || started) return false;
+  adapter.addBatch(
+    playerId,
+    'WorkshopRushTicket',
+    1,
+    j.rush_ticket_quality,
+    j.rush_ticket_origin ?? 'crafted',
+    playerId,
+    null,
+  );
+  return true;
+}
+
 export function cancelCraftJob(
   adapter: CraftAdapter,
   playerId: string,
@@ -1812,15 +1874,18 @@ export function cancelCraftJob(
 
   // Repair jobs (0025): kits are discrete items, not divisible
   // inputs — every kit not yet applied refunds whole, including the
-  // in-progress unit's kit (it has not been applied yet).
+  // in-progress unit's kit (it has not been applied yet). The rush
+  // ticket follows the generic rule below (0078 wired tickets into
+  // repair enqueues; this branch's hardcoded false predates that).
   if (j.kind === 'repair') {
     const snap = j.snapshot.repair;
     const refundedCount = snap ? refundRemainingRepairKits(adapter, j) : 0;
+    const rushTicketRefunded = refundRushTicketIfUnstarted(adapter, playerId, j);
     j.status = 'cancelled';
     return {
       jobId: j.id,
       refundedInputs: snap && refundedCount > 0 ? { [snap.kitType]: refundedCount } : {},
-      rushTicketRefunded: false,
+      rushTicketRefunded,
       coresRefunded: 0,
     };
   }
@@ -1842,7 +1907,6 @@ export function cancelCraftJob(
     };
   }
 
-  const started = j.units_completed > 0 || j.accrued_ms > 0;
   const inProgress = j.accrued_ms > 0 ? 1 : 0;
   const unstarted = j.units_total - j.units_completed - inProgress;
 
@@ -1890,21 +1954,8 @@ export function cancelCraftJob(
     }
   }
 
-  // Rush ticket: refunded as a batch at its escrowed quality only
-  // when the job never started; on a started job it is spent.
-  let rushTicketRefunded = false;
-  if (j.rush_ticket_quality !== null && !started) {
-    adapter.addBatch(
-      playerId,
-      'WorkshopRushTicket',
-      1,
-      j.rush_ticket_quality,
-      j.rush_ticket_origin ?? 'crafted',
-      playerId,
-      null,
-    );
-    rushTicketRefunded = true;
-  }
+  // Rush ticket: the shared unstarted-only refund rule.
+  const rushTicketRefunded = refundRushTicketIfUnstarted(adapter, playerId, j);
 
   j.status = 'cancelled';
   return { jobId: j.id, refundedInputs: refunded, rushTicketRefunded, coresRefunded };

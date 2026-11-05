@@ -26,6 +26,8 @@ import {
 } from '@/lib/vehicles/vehicles';
 import { getPixelSprite } from '@/lib/pixel/manifest';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { rushTicketTimeReduction } from '@/content/crafting';
 
 const KIT_LABELS: Record<string, string> = {
   PatchKit: 'Patch Kit',
@@ -297,14 +299,15 @@ export const GaragePanel: React.FC<{
               FieldPatchKit: consumables.FieldPatchKit ?? 0,
               MasterPatchKit: consumables.MasterPatchKit ?? 0,
             }}
+            rushTickets={consumables.WorkshopRushTicket ?? 0}
             repairJob={repairJobFor(vehicle.id)}
             repairMasteryLevel={repairMasteryLevel}
             busy={busy}
             onEquip={() => void run(() => verifiedOps.equipItem(vehicle.id, 'vehicle'))}
             onUnequip={() => void run(() => verifiedOps.unequipSlot('vehicle'))}
-            onStartRepair={(kitType, units) =>
+            onStartRepair={(kitType, units, useRushTicket) =>
               void run(async () => {
-                await verifiedOps.enqueueRepairJob(vehicle.id, kitType, units);
+                await verifiedOps.enqueueRepairJob(vehicle.id, kitType, units, useRushTicket);
                 await refreshWorkshop();
               })
             }
@@ -334,18 +337,19 @@ const VehicleCard: React.FC<{
   vehicle: VehicleDisplay;
   equipped: boolean;
   kitCounts: Record<string, number>;
+  rushTickets: number;
   repairJob?: WorkshopJobView;
   repairMasteryLevel: number;
   busy: boolean;
   onEquip: () => void;
   onUnequip: () => void;
-  onStartRepair: (kitType: string, units: number) => void;
+  onStartRepair: (kitType: string, units: number, useRushTicket: boolean) => void;
   onWorkRepair: (job: WorkshopJobView) => void;
   onCancelRepair: (job: WorkshopJobView) => void;
   onRequestService?: () => void;
   onNavigate?: (screen: string) => void;
 }> = ({
-  vehicle, equipped, kitCounts, repairJob, repairMasteryLevel,
+  vehicle, equipped, kitCounts, rushTickets, repairJob, repairMasteryLevel,
   busy, onEquip, onUnequip, onStartRepair, onWorkRepair, onCancelRepair, onRequestService,
   onNavigate,
 }) => {
@@ -374,6 +378,7 @@ const VehicleCard: React.FC<{
   ) : null;
   const [kitType, setKitType] = useState<string>('PatchKit');
   const [units, setUnits] = useState(1);
+  const [useRush, setUseRush] = useState(false);
   const ownedOfSelected = kitCounts[kitType] ?? 0;
   const unitMs = repairKitUnitDurationMs(
     PATCH_KIT_BASES[kitType] ?? 30,
@@ -383,7 +388,7 @@ const VehicleCard: React.FC<{
       REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
     ),
   );
-  const unitHours = unitMs / 3600000;
+
   // QB-2 quick-buy shortfall for the selected kit: what a FULL
   // restore of this vehicle's deficit still needs once the kits on
   // hand are spent. The estimate walks the player's REAL batches
@@ -394,6 +399,18 @@ const VehicleCard: React.FC<{
   // vendor stock is sold at. The sheet re-quotes exactly, and its
   // stepper steps down freely, so an estimate can never oversell.
   const consumableBatches = usePlayerStore((s) => s.consumableBatches);
+  // Rush ticket preview (wiring package): the ticket's def declares
+  // a repair scope, and the enqueue now honors it. The escrow burns
+  // FIFO (lowest quality first — the shipped burn order), so the
+  // preview prices the reduction off the lowest-quality ticket on
+  // hand at the base cap; the Fixer keystone can only improve it.
+  const fifoTicketQuality = consumableBatches
+    .filter((b) => b.consumable_type === 'WorkshopRushTicket' && b.quantity > 0)
+    .reduce<number | null>((min, b) => (min === null || b.quality_percent < min ? b.quality_percent : min), null);
+  const rushPreviewReduction = useRush && fifoTicketQuality !== null
+    ? rushTicketTimeReduction(fifoTicketQuality, 0)
+    : 0;
+  const displayUnitHours = (unitMs * (1 - rushPreviewReduction)) / 3600000;
   const kitBase = PATCH_KIT_BASES[kitType] ?? 30;
   const kitEfficiency = repairEfficiencyWithSkill(
     repairMasteryLevel,
@@ -489,7 +506,7 @@ const VehicleCard: React.FC<{
           <div className="text-[11px] text-text-muted">
             Restore Condition — repair is timed work, not an instant fix. Your kits are held
             when the job starts and apply one at a time while Workshop Service is your active
-            action (repair mastery {repairMasteryLevel} sets the pace ≈ {unitHours.toFixed(1)}h
+            action (repair mastery {repairMasteryLevel} sets the pace ≈ {displayUnitHours.toFixed(1)}h
             per {kitType}).
           </div>
           {totalKits === 0 && (
@@ -536,11 +553,25 @@ const VehicleCard: React.FC<{
             <button
               type="button"
               disabled={busy || ownedOfSelected < 1}
-              onClick={() => onStartRepair(kitType, units)}
+              onClick={() => onStartRepair(kitType, units, useRush && rushTickets > 0)}
               className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
             >
               Start repair job
             </button>
+            {/* Rush ticket (wiring package): the ticket def declares a
+                repair scope — same toggle pattern as the Workshop
+                bench. Shown only when a ticket is on hand. */}
+            {rushTickets > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setUseRush(!useRush)}
+                title="Escrow one Workshop Rush Ticket: the repair runs faster by the ticket's quality"
+                className={`px-2 py-1 text-[11px] font-bold border ${useRush ? 'bl-primary border-transparent' : 'border-border text-text-secondary'} disabled:opacity-40`}
+              >
+                <span className="inline-flex items-center gap-1"><PxIcon name="tag" size={13} /> Rush ticket ({rushTickets})</span>
+              </button>
+            )}
             {/* QB-2: the lone + beside the kit shortfall for a full
                 restore — pricing and states live in the sheet. */}
             <QuickBuyPlus
@@ -561,6 +592,11 @@ const VehicleCard: React.FC<{
               </button>
             )}
           </div>
+          {useRush && rushTickets > 0 && (
+            <div className="text-[11px] text-text-muted">
+              One rush ticket is escrowed for this job — it runs faster by the ticket's quality.
+            </div>
+          )}
         </div>
       )}
 

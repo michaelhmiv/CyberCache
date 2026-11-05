@@ -62,7 +62,7 @@ Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|
 
 ## Your first hour
 
-1. **Roam the Dustwaste Frontier.** It is the first area and the right place to learn the rhythm: your hunter fights and loots in ticks, and drops appear as the run goes. Start the roam from [[The Board|the Board's]] stage.
+1. **Roam the Dustwaste Frontier.** It is the first area and the right place to learn the rhythm: your hunter fights and loots in ticks, and drops appear as the run goes. Start the roam from [[The Board|the Board's]] stage — tap **Roam** on the mode rail and the area picker opens as the roam starts; tap Roam again any time to change areas without stopping.
 2. **Equip whatever drops.** Even a small upgrade beats the starter setup. Salvage what you won't use — scrap feeds crafting and repairs.
 3. **Crack your free daily cache.** Every day includes one free cache box; more can be opened with the cache keys from your starter bundle, up to the daily cap. See [[Caches]].
 4. **Check in daily — and claim.** Opening the game records your login-streak day automatically; the day's reward then waits in the streak sheet until you tap **Claim** (the streak flame on the Board pulses with a CLAIM badge while it waits). Unclaimed rewards expire when the next streak day starts at 00:00 UTC — but the recorded day still counts, so forgetting to claim never breaks your streak.

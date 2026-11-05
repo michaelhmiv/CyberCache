@@ -326,7 +326,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     if ((playerState.consumables['NanoSwarm'] ?? 0) > 0) {
       survivalStore.startNanoSwarm(30); // 30 ticks × 10 HP = 300 HP
     }
-    startAction(buildRoamingLootActivity(target, activityWeapon), makeRunEvent('ROAMING AREA', `Hunter is roaming ${target.name}.`, 'patrol', 'run_started'));
+    return startAction(buildRoamingLootActivity(target, activityWeapon), makeRunEvent('ROAMING AREA', `Hunter is roaming ${target.name}.`, 'patrol', 'run_started'));
   }, [activityWeapon, idle, selectedArea, startAction]);
 
   const startPrep = useCallback((boss?: BossDef) => {
@@ -568,9 +568,18 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
           <button type="button" onClick={() => startRoam()} className="bl-primary relative mt-3 w-full py-3 text-sm font-black">
             Start Roam
           </button>
-          <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary relative mt-2 min-h-[44px] w-full px-3 py-2 text-[11px] font-black text-amber">
-            Change Area
-          </button>
+          {/* Owner rework 2026-11-04: the Switch Action door
+              lives in the workspace now — its swap-arrow chip
+              left the stage (Stop took the corner), but the
+              sheet it opens is still Salvage's door from Home,
+              so the opener rides beside Change Area here and
+              in the roaming panel. */}
+          <div className="relative mt-2 flex gap-2">
+            <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary min-h-[44px] flex-1 px-3 py-2 text-[11px] font-black text-amber">
+              Change Area
+            </button>
+            <button type="button" onClick={() => setShowSwitch(true)} aria-label="Switch Action" className="bl-secondary flex h-11 w-11 shrink-0 items-center justify-center text-amber"><PxIcon name="swap" size={17} /></button>
+          </div>
         </div>
       );
     }
@@ -591,9 +600,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
                 </div>
               </div>
             </div>
-            <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
-              Change Area
-            </button>
+            <div className="flex shrink-0 items-start gap-1.5">
+              <button type="button" onClick={() => setShowAreaSelect(true)} className="bl-secondary px-2 py-1 text-[9px] font-black text-amber">
+                Change Area
+              </button>
+              <button type="button" onClick={() => setShowSwitch(true)} aria-label="Switch Action" className="bl-secondary flex h-11 w-11 items-center justify-center text-amber"><PxIcon name="swap" size={17} /></button>
+            </div>
           </div>
           <div className="relative mt-2 grid grid-cols-4 gap-1.5 text-[9px]">
             <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
@@ -658,12 +670,12 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   }, []);
 
   // Mode rail (redesign Wave C, DESIGN.md §2/§4): the stage's
-  // six stops — Area · Roam · Boss · Endless · Extract · Craft.
+  // five stops — Roam · Boss · Endless · Extract · Craft.
   // Endless / Extract / Craft were promoted here from the mode
   // sheet (2 taps → 1); the sheet (switchActions below) keeps
   // every path it had, Salvage included — the rail ADDS the
   // first-class doors, it does not remove the sheet's.
-  const railActiveStop: Exclude<HomeModeRailStop, 'area'> | null =
+  const railActiveStop: HomeModeRailStop | null =
     isRoaming ? 'roam'
     : (isBossPrep || isBossFight || isBossResolved) ? 'boss'
     : (currentKind === 'endless_run' || showEndless) ? 'endless'
@@ -673,14 +685,29 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
   const handleRailSelect = useCallback((stop: HomeModeRailStop) => {
     switch (stop) {
-      case 'area': setShowAreaSelect(true); break;
-      case 'roam': startRoam(); break;
+      // Roam is the area door (owner ruling, 2026-11-04 — the
+      // rail's separate Area stop is gone). Entering roam from
+      // any other activity starts the roam in the current/last
+      // area AND auto-opens the area picker, so switching in
+      // always surfaces the location options; tapping Roam
+      // while already roaming opens the picker alone (picking
+      // switches the roam target; dismissing leaves the roam
+      // untouched). The picker opens AFTER the start settles:
+      // startAction closes every sheet as its last step, so an
+      // eager open here would be shut again by the start itself.
+      case 'roam':
+        if (isRoaming) {
+          setShowAreaSelect(true);
+        } else {
+          void startRoam().then(() => setShowAreaSelect(true));
+        }
+        break;
       case 'boss': setShowBossPicker(true); break;
       case 'endless': openEndless(); break;
       case 'extract': openExtraction(); break;
       case 'craft': startCrafting(); break;
     }
-  }, [startRoam, startCrafting, openEndless, openExtraction]);
+  }, [isRoaming, startRoam, startCrafting, openEndless, openExtraction]);
 
   const switchActions = [
     { label: 'Roam', detail: selectedArea.name, icon: <ActivityGlyph kind="roaming_loot" size={16} /> as React.ReactNode, run: () => startRoam() },
@@ -693,30 +720,26 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   ].slice(0, MAX_SWITCH_ROWS);
 
   // Action controls (owner rulings 2026-11-02; ICON-ONLY
-  // 2026-11-03): Switch / Stop float ON the stage as plates in
-  // the plates' language — the stage places them top-left, in
-  // the corner the removed area plate vacated. The dedicated row
-  // under the rail that used to carry them is deleted and its
-  // height reclaimed. Switch rides the stage in EVERY state: it
-  // is the one door to the Switch sheet, and through it to
-  // Salvage, which has no rail stop — hiding it at standby would
-  // bury a feature. Stop joins it while an action runs; at
-  // standby there is no Stop at all (it rendered disabled — a
+  // 2026-11-03; REWORKED by owner ruling 2026-11-04): Stop
+  // floats ON the stage as a plate in the plates' language —
+  // the stage places it top-left. Until this rework the corner
+  // carried two chips: the Switch Action door (whose §7 swap
+  // glyph is literally two opposing arrows) and Stop beside
+  // it. The owner ordered the "arrows" off the stage and Stop
+  // moved left into their place — so the stage now carries
+  // Stop alone, leftmost, while an action runs; at standby
+  // there is no Stop at all (it rendered disabled — a
   // permanent no-op chip on the art), so nothing functional
-  // leaves the idle stage. The 2026-11-03 ruling: the buttons
-  // are icon-only pixel glyphs (swap / stop from the §7 sheet)
-  // in 44px squares — the text made them way larger than they
-  // needed to be; the words live in the aria-labels, and the
-  // Switch sheet they open keeps its own title.
+  // leaves the idle stage. The Switch sheet did NOT die with
+  // its stage chip: it is still the door to Salvage, which has
+  // no rail stop, so its opener moved into the standby and
+  // roaming workspace panels (same aria-label, same sheet).
+  // Stop stays an icon-only pixel glyph (stop from the §7
+  // sheet) in a 44px square — the word lives in the aria-label.
   const actionRunning = currentKind !== 'idle_standby' && currentKind !== 'none';
-  const stageControls = (
-    <>
-      <button type="button" onClick={() => setShowSwitch(true)} aria-label="Switch Action" className="bl-secondary flex h-11 w-11 items-center justify-center text-amber shadow-[4px_4px_0_rgba(0,0,0,0.62)]"><PxIcon name="swap" size={17} /></button>
-      {actionRunning && (
-        <button type="button" onClick={stopAction} disabled={activity.pending} aria-label="Stop" className="bl-secondary flex h-11 w-11 items-center justify-center text-red shadow-[4px_4px_0_rgba(0,0,0,0.62)] disabled:opacity-50"><PxIcon name="stop" size={17} /></button>
-      )}
-    </>
-  );
+  const stageControls = actionRunning ? (
+    <button type="button" onClick={stopAction} disabled={activity.pending} aria-label="Stop" className="bl-secondary flex h-11 w-11 items-center justify-center text-red shadow-[4px_4px_0_rgba(0,0,0,0.62)] disabled:opacity-50"><PxIcon name="stop" size={17} /></button>
+  ) : null;
 
   return (
     <div className="bl-page relative overflow-hidden space-y-3 p-3 pb-20">
@@ -735,31 +758,33 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
 
       {/* §4: above the Stage sit only the Strip, the claim chips,
           and — since the owner's device ruling of 2026-11-04 — the
-          mode rail. The Switch/Stop controls float ON the stage now
-          (owner rulings 2026-11-02, icon-only 2026-11-03 — see
-          stageControls below); the dedicated controls row that
-          used to sit under the mode rail is gone, and the
-          claim-sync line moved down to the session feed it
-          describes. Home consolidation (2026-11-03): the research
-          chip and the course-complete card left this zone too —
-          the education track's state lives on Hunter → Research,
-          and a finished course now arrives as a Next Move below
-          the stage. The current-area bar that used to share this
-          row is gone (drift-fix F2), and the stage's own area
-          plate followed it (owner ruling 2026-11-02): the area
-          affordance is the mode rail's AREA stop plus the
-          workspace panels' Change Area buttons, and the stage's
-          top-left belongs to the Switch/Stop buttons. */}
+          mode rail. The Stop control floats ON the stage (owner
+          rulings 2026-11-02, icon-only 2026-11-03, reworked
+          2026-11-04 — see stageControls below); the dedicated
+          controls row that used to sit under the mode rail is
+          gone, and the claim-sync line moved down to the session
+          feed it describes. Home consolidation (2026-11-03): the
+          research chip and the course-complete card left this
+          zone too — the education track's state lives on
+          Hunter → Research, and a finished course now arrives as
+          a Next Move below the stage. The current-area bar that
+          used to share this row is gone (drift-fix F2), and the
+          stage's own area plate followed it (owner ruling
+          2026-11-02): the area affordance is the mode rail's
+          ROAM stop (Roam is the area door — owner ruling
+          2026-11-04) plus the workspace panels' Change Area
+          buttons, and the stage's top-left belongs to Stop
+          alone. */}
 
-      {/* 1. Mode rail (§2/§4) — the stage's six stops, ABOVE the
+      {/* 1. Mode rail (§2/§4) — the stage's five stops, ABOVE the
           diorama since the owner's device ruling of 2026-11-04:
           the mode vocabulary leads the screen, one tap from
           everything below it. This replaces the old compact
           action selector grid: Endless, Extract, and Craft are
-          first-class rail stops now (1 tap), and the Switch
-          Action sheet below keeps every path it had, Salvage
-          included. Same component, relocated — contents, order,
-          lit-state treatment, and tap behavior are unchanged. */}
+          first-class rail stops now (1 tap), Roam carries area
+          selection (the separate Area stop is gone, 2026-11-04),
+          and the Switch Action sheet below keeps every path it
+          had, Salvage included. */}
       <div className="relative">
         <HomeModeRail activeStop={railActiveStop} onSelect={handleRailSelect} />
       </div>
