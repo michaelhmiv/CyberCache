@@ -262,13 +262,20 @@ const WidePlate: React.FC<{
       data-found={found}
     >
       <Bolts />
-      <div className="relative flex h-[64px] w-[86px] shrink-0 items-center justify-center overflow-hidden" style={artWell(found)}>
+      <div className="relative flex h-[72px] w-[96px] shrink-0 items-center justify-center overflow-hidden" style={artWell(found)}>
         <EntryArt entry={entry} found={found} />
       </div>
       <div className="relative min-w-0 flex-1 py-0.5">
         <div
-          className="truncate text-[15px] font-black uppercase leading-tight tracking-wide"
-          style={{ color: found ? BONE : BONE_FAINT, fontFamily: PLATE_FONT }}
+          className="font-black uppercase leading-tight tracking-wide"
+          style={{
+            color: found ? BONE : BONE_FAINT,
+            fontFamily: PLATE_FONT,
+            // Fitted type, plate law: long names step down a size
+            // instead of truncating (the ellipsis is a backstop,
+            // never the design).
+            fontSize: found && entry.name.length > 14 ? 13 : 15,
+          }}
         >
           {found ? entry.name : 'Undiscovered'}
         </div>
@@ -322,8 +329,8 @@ const RackTile: React.FC<{
       data-found={found}
       aria-label={found ? entry.name : `Undiscovered ${makerName} frame`}
     >
-      <div className="relative flex h-[46px] items-center justify-center overflow-hidden" style={artWell(found)}>
-        <EntryArt entry={entry} found={found} weaponSize={62} />
+      <div className="relative flex h-[52px] items-center justify-center overflow-hidden" style={artWell(found)}>
+        <EntryArt entry={entry} found={found} weaponSize={86} />
       </div>
       <div
         className="mt-1.5 truncate text-center text-[11px] font-bold leading-tight"
