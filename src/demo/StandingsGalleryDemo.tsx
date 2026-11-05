@@ -22,10 +22,12 @@ import {
   EarningsRoom,
   GalleryMasthead,
   GallerySwitches,
-  METRIC_LABEL_OF,
-  PERIOD_LABEL_OF,
   RacesGallery,
 } from '@/components/leaderboard/StandingsGallery';
+import {
+  METRIC_LABEL_OF,
+  PERIOD_LABEL_OF,
+} from '@/components/leaderboard/standingsGalleryModel';
 import { usePlayerStore } from '@/store';
 import { xpToNextLevel } from '@/content/simulation';
 import type {
