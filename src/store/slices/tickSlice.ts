@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { GearItem } from '@/types/items';
 import type { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 
-export type TickEventTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level' | 'kill' | 'material' | 'essence' | 'fragment' | 'damage' | 'heal' | 'death' | 'consumable' | 'event' | 'event_major' | 'standing';
+export type TickEventTone = 'xp' | 'loot' | 'cash' | 'cache' | 'level' | 'kill' | 'material' | 'essence' | 'fragment' | 'damage' | 'heal' | 'death' | 'consumable' | 'event' | 'event_major' | 'standing' | 'auto_salvage';
 
 export type TickEvent = {
   id: string;
