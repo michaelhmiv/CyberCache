@@ -280,7 +280,12 @@ export const WardrobeConsolePage: React.FC<WardrobeConsolePageProps> = ({
               <span key={i} style={{ width: 1, height: i % 5 === 0 ? 9 : 5, backgroundColor: 'rgba(201,187,166,0.4)' }} />
             ))}
           </div>
-          <HunterPortrait look={look} weaponInput={FIXTURE_WEAPON_INPUT} className="h-[300px]" testId="wardrobe-rig-portrait" />
+          {/* The portrait box is widened and shifted left inside the
+              viewport so the measured composition — figure plus the
+              legendary's full barrel — fits the glass. */}
+          <div style={{ width: 'calc(100% + 48px)', marginLeft: -48 }}>
+            <HunterPortrait look={look} weaponInput={FIXTURE_WEAPON_INPUT} className="h-[264px]" testId="wardrobe-rig-portrait" />
+          </div>
         </div>
         <div className="mt-3 space-y-1.5">
           <Readout label="Worn set" value={wornSetLine} />
@@ -343,7 +348,7 @@ export const WardrobeConsolePage: React.FC<WardrobeConsolePageProps> = ({
                   </span>
                 </button>
                 <div className="flex items-center gap-2.5 pb-2 pl-[52px] pr-1">
-                  <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase" style={{ ...monoStyle, color: FAINT }}>
+                  <span className="min-w-0 flex-1 text-[11px] font-bold uppercase leading-snug" style={{ ...monoStyle, color: FAINT }}>
                     {worn
                       ? `${worn.name} · ${FINISH_LABELS[finishTierForQuality(worn.quality)]} · Q${worn.quality}${
                           worn.tintPaletteId ? ` · ${tintPaletteById(worn.tintPaletteId)?.name ?? ''} tint` : ''
@@ -420,7 +425,7 @@ export const WardrobeConsolePage: React.FC<WardrobeConsolePageProps> = ({
                                   <div className="truncate text-[13px] uppercase leading-snug" style={{ ...headStyle, color: INK }}>
                                     {p.name}
                                   </div>
-                                  <div className="truncate text-[11px] font-bold uppercase" style={{ ...monoStyle, color: FAINT }}>
+                                  <div className="text-[11px] font-bold uppercase leading-snug" style={{ ...monoStyle, color: FAINT }}>
                                     {skinSetById(p.setId)?.name ?? p.setId} · {FINISH_LABELS[finishTierForQuality(p.quality)]} · Q{p.quality}
                                     {tint ? ` · ${tint.name} tint` : ''}
                                     {locked ? ' · Locked' : ''}
