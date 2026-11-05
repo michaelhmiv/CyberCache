@@ -26,25 +26,31 @@
 --     their escrow returns to the seller's balance, so escrowed
 --     fragments convert too — nobody's listed value evaporates.
 --
--- FUNCTION PROVENANCE (chain heads in THIS branch, master e529b40):
+-- FUNCTION PROVENANCE (chain heads re-checked against the merged
+-- tree after the 2026-11-04/05 merge wave; see RECONCILIATION):
 --   cc_make_item                  <- 0037 (prior: 0031, 0004)
 --   cc_apply_chef_rewards         <- 0069 (prior: 0034, 0014, 0010, 0009, 0007)
 --   cc_settle_offline_roaming     <- 0069 (prior: 0034, 0015, 0012, 0010, 0009, 0007)
---   cc_record_login_streak_day    <- 0036 (sole definition)
+--   cc_record_login_streak_day    <- 0079 (prior: 0036)
 --   cc_contract_terms             <- 0042 (sole definition)
 --   cc_claim_contract_reward      <- 0042 (sole definition)
 --   cc_profile_snapshot           <- 0069 (prior: 0031, 0030, 0026, 0021, 0004)
 --   cc_compute_economy_metrics    <- 0074 (long chain; restated
 --                                    verbatim + the one new fold)
 --   cc_market_create_fragment     <- 0050 (sole definition) DROPPED
--- RECONCILIATION NOTE FOR THE APPLIER: if migrations 0079 (streak
--- true-claim, PR #386), 0080 (auto-salvage), or 0081 (pure player
--- market, PR #393) landed after this branch was cut, re-check the
--- chain heads above against the live catalog before applying — in
--- particular cc_record_login_streak_day, whose 0079 restatement
--- must keep its true-claim shape: the 0082 delta on that function
--- is only "no fragment credit, no streakFragmentScalar read,
--- claims record fragments_awarded 0".
+-- RECONCILIATION (2026-11-05, pre-apply provenance audit):
+-- migrations 0079 (streak true-claim, PR #386), 0080
+-- (auto-salvage), and 0081 (pure player market, PR #393) landed
+-- after this branch was cut, and every chain head above was
+-- re-checked against the merged tree. Only
+-- cc_record_login_streak_day's head had moved (0036 -> 0079);
+-- section 10 is now 0079's body verbatim apart from the fragment
+-- removal ("no fragment credit, no streakFragmentScalar read,
+-- claims record fragments_awarded 0"), so the true-claim shape —
+-- paid_at anchor, record-stores/claim-pays, no pay-at-record —
+-- is preserved and a streak day can never double-pay. 0080 and
+-- 0081 touch none of this migration's other functions; their
+-- provenance lines above stand as written.
 --
 -- The cache_token_parts COLUMN stays (zeroed): cc_accept_listing
 -- (0064) and the quick-buy fill still name it in branches that are
@@ -603,12 +609,25 @@ $$;
 
 
 -- ---------------------------------------------------------------------
--- 10. cc_record_login_streak_day restated from 0036: the ladder
---     pays credits + the day-7 key only. Claims record
+-- 10. cc_record_login_streak_day restated from 0079 (the live
+--     chain head): 0079's true-claim body VERBATIM — the record
+--     stores the lever-scaled reward on the claim row UNPAID,
+--     behind the paid_at anchor, and only
+--     cc_claim_login_streak_day (0079; NOT restated in this
+--     migration) ever pays it. The ONLY 0082 deltas are the
+--     fragment removal: no v_fragments declaration, no
+--     streakFragmentScalar read, and claims record
 --     fragments_awarded 0 (the column stays as history).
+--     An earlier draft of this section was mistakenly authored
+--     from the pre-0079 ancestor (0036): it restored
+--     pay-at-record and dropped the paid_at anchor, which over
+--     live 0079 would have paid every streak day twice. The
+--     pre-apply provenance audit caught it and this section was
+--     re-based onto 0079 before the migration ever applied.
 -- ---------------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION public.cc_record_login_streak_day(
+
+create or replace function public.cc_record_login_streak_day(
   p_player_id uuid,
   p_now timestamptz default now()
 )
@@ -628,7 +647,6 @@ declare
   v_tier integer;
   v_credits bigint;
   v_keys integer;
-  result jsonb;
 begin
   if p_player_id is null then raise exception 'Authentication required'; end if;
 
@@ -637,14 +655,16 @@ begin
   select * into p from public.profiles where id = p_player_id for update;
   if not found then raise exception 'Profile not found'; end if;
 
-  -- Exactly-once: today's claim row IS the idempotency anchor. A
-  -- replay returns the stored claim and grants nothing again.
+  -- The day is recorded exactly once: today's claim row IS the
+  -- record anchor. A replay returns the stored claim; whether its
+  -- reward is still claimable rides on paid_at.
   select * into c from public.login_streak_claims
   where player_id = p_player_id and claim_day = v_today;
   if found then
     return jsonb_build_object(
       'action_type', 'cc_login_streak_claim',
       'already_claimed', true,
+      'claimable', c.paid_at is null,
       'day', c.claim_day,
       'streak_length', c.streak_length,
       'cycle_day', c.cycle_day,
@@ -660,6 +680,7 @@ begin
 
   -- Streak arithmetic (mirrors loginStreakLengthAfter in the
   -- content module): yesterday extends, any older gap restarts.
+  -- Recorded days only — payment state never enters this math.
   if s.player_id is not null and s.last_claim_day = v_today - 1 then
     v_streak := s.current_streak + 1;
   else
@@ -674,18 +695,13 @@ begin
 
   -- Lever scalars (0018): the economy-critical magnitudes, read
   -- from economy_config with the content module's defaults and
-  -- clamped identically ([0, 3]) at this call site.
+  -- clamped identically ([0, 3]) at this call site. The amounts
+  -- are STORED on the claim row now and paid verbatim by the
+  -- claim — lever changes after the record never reprice a held
+  -- reward.
   v_credits := floor(d.credits * greatest(0, least(3,
     public.cc_economy_config_number('streakCreditScalar', 1))))::bigint;
-  -- 0082: the ladder pays no fragments (the currency is abolished;
-  -- the seeded definitions are zeroed below and claims record 0).
   v_keys := d.cache_keys;
-
-  update public.profiles
-  set credits = credits + v_credits,
-      cache_tokens = cache_tokens + v_keys
-  where id = p_player_id
-  returning * into p;
 
   insert into public.login_streak_claims (
     player_id, claim_day, streak_length, cycle_day, tier,
@@ -709,9 +725,10 @@ begin
       last_tier = excluded.last_tier,
       updated_at = excluded.updated_at;
 
-  result := jsonb_build_object(
+  return jsonb_build_object(
     'action_type', 'cc_login_streak_claim',
     'already_claimed', false,
+    'claimable', true,
     'day', v_today,
     'streak_length', v_streak,
     'cycle_day', v_cycle_day,
@@ -721,12 +738,6 @@ begin
     'cache_keys_awarded', v_keys,
     'profile', public.cc_profile_snapshot(p)
   );
-
-  insert into public.verified_action_ledger(user_id, action_type, idempotency_key, result_payload)
-  values (p_player_id, 'cc_login_streak_claim',
-          'login-streak:' || p_player_id::text || ':' || v_today::text, result);
-
-  return result;
 end;
 $$;
 
