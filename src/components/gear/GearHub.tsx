@@ -4,7 +4,12 @@
  * Design rules:
  *   - Keep the main Gear tab dense: gear-kind rail, search, one compact toolbar, then items.
  *   - Move high-cardinality filters into a bottom sheet so the inventory stays readable.
- *   - Show type-specific decision stats on every row; inspect is for the full poster, not basic triage.
+ *   - GRID is the triage card face: type-specific decision stats + the
+ *     instance's real affixes. LIST is a true list (owner ruling
+ *     2026-11-04, DESIGN.md §3): ONE line per item — thumb with an
+ *     element corner badge, level, rarity-colored name, equipped/lock
+ *     markers, ONE headline stat per kind. Everything else is behind
+ *     inspect, which is one tap on the row.
  */
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
@@ -48,8 +53,10 @@ import {
   topActivityModule,
   sumNodeBoosts,
   gearCardSummary,
+  gearRowHeadline,
   type CardStat
 } from '@/lib/gear/gearCardSummary';
+import { ELEMENTS as ELEMENT_DEFS } from '@/constants/elements';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -164,6 +171,25 @@ const LOADOUT_LABELS: Record<LoadoutSlot, string> = {
   shield: 'Shield',
   classMod: 'Class Mod',
   relic: 'Relic',
+};
+
+/**
+ * Element → sheet glyph for the list row's thumbnail corner badge
+ * (owner ruling 2026-11-04: information rides badges and color
+ * wherever a badge says it as well as a word would — the element is
+ * never spelled out on the row). Picks are the sheet's plainest
+ * silhouettes, chosen to survive the 13px inline size on the badge's
+ * element-color field: flame / bolt / droplet / snow (snow is the
+ * sheet's own Cryo glyph, DESIGN.md §7) / ring-dot for Void, and a
+ * plain dot for Kinetic, the neutral element.
+ */
+const ELEMENT_GLYPHS: Partial<Record<Element, PxIconName>> = {
+  [Element.Kinetic]: 'dot',
+  [Element.Fire]: 'flame',
+  [Element.Shock]: 'bolt',
+  [Element.Corrosive]: 'drop',
+  [Element.Cryo]: 'snow',
+  [Element.Void]: 'ringDot',
 };
 
 const KIND_DEFS: Array<{ id: GearKind; label: string; short: string; icon: PxIconName }> = [
@@ -375,6 +401,24 @@ const GearCard = memo(({
     );
   }
 
+  // LIST — a true list (owner ruling 2026-11-04, DESIGN.md §3): ONE
+  // line per item on a 46px row. Identity rides the thumb + color +
+  // badges, not words: rarity is the name's color and the row's
+  // spine, the element is a corner badge on the thumb (element-color
+  // field, sheet glyph — never the element word). Text is only what
+  // earns it: level, the name, the equipped slot chip (a word-fact —
+  // a badge could say "equipped" but not "as Primary"), and ONE
+  // headline stat per kind. Affixes, maker, type, source, secondary
+  // stats and badges live behind inspect (one tap on the row); the
+  // GRID above keeps the full card face. Freeze discipline (perf
+  // audit 2026-11-02 + freeze investigation 2026-11-04): memoized,
+  // no `layout` prop, weapons compose at stage density here — the
+  // card-density list row was ~26 ms of compose per weapon.
+  const headline = gearRowHeadline(item, summary);
+  const elementName = itemElement(item);
+  const elementDef = elementName ? ELEMENT_DEFS[elementName as Element] : undefined;
+  const elementGlyph = elementName ? ELEMENT_GLYPHS[elementName as Element] : undefined;
+
   return (
     <motion.div
       whileTap={{ scale: 0.99 }}
@@ -384,59 +428,53 @@ const GearCard = memo(({
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') onTap(item);
       }}
-      className={`relative flex w-full items-start gap-2.5 rounded-xl border bg-surface p-2.5 text-left ${
+      data-testid="gear-list-row"
+      data-kind={kindOf(item)}
+      className={`relative flex min-h-[46px] w-full items-center gap-2 rounded-lg border bg-surface px-2 text-left ${
         selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
       }`}
       style={{ borderLeftColor: color, borderLeftWidth: 4 }}
     >
       {selectMode && (
-        <div className="mt-4 shrink-0">
+        <div className="shrink-0">
           {selected ? <CheckSquare size={16} className="text-amber" /> : <Square size={16} className="text-text-muted" />}
         </div>
       )}
 
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-bg">
-        <GearIllustration item={item} size={44} showBadges={false} />
+      <div className="relative flex w-12 shrink-0 items-center justify-center">
+        <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} />
+        {elementDef && elementGlyph && (
+          <span
+            className="absolute bottom-0 left-0 flex h-4 w-4 items-center justify-center border border-black/70"
+            style={{ backgroundColor: elementDef.color }}
+            title={elementDef.name}
+            data-element-badge={elementDef.id}
+          >
+            <PxIcon name={elementGlyph} size={13} className="text-[#171008]" />
+          </span>
+        )}
       </div>
 
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <div className="truncate text-xs font-black leading-tight" style={{ color }}>{item.name}</div>
-          {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
-          {item.isLocked && <Lock size={10} className="shrink-0 text-red" />}
-        </div>
+      <span className="w-10 shrink-0 text-[11px] font-black tabular-nums text-text-muted">Lv {item.level}</span>
 
-        <div className="truncate text-[11px] text-text-muted">{summary.meta.join(' · ')}</div>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        <span className="truncate text-[13px] font-black leading-tight" style={{ color }}>{item.name}</span>
+        {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
+        {item.isLocked && <Lock size={12} className="shrink-0 text-red" />}
+      </div>
 
-        <div className="flex flex-wrap gap-1">
-          {summary.primaryStats.map((stat) => <StatPill key={stat.label} stat={stat} />)}
-        </div>
-
-        <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-          {summary.secondaryStats.slice(0, 3).map((stat) => <StatPill key={stat.label} stat={stat} />)}
-        </div>
-
-        {summary.badges[0] && (
-          <div className="truncate text-[11px] font-bold text-amber">{summary.badges[0]}</div>
+      <div className="flex min-w-0 shrink items-baseline gap-1">
+        {headline.label && (
+          <span className="shrink-0 text-[11px] font-black uppercase tracking-wide text-text-muted">{headline.label}</span>
         )}
-
-        {affixTexts.length > 0 && (
-          <div className="space-y-0.5">
-            {affixTexts.slice(0, 2).map((text, i) => (
-              <div key={i} className="text-[11px] font-bold leading-snug text-text-secondary [overflow-wrap:anywhere]">{text}</div>
-            ))}
-            {affixTexts.length > 2 && (
-              <div className="text-[11px] font-bold text-text-muted">+{affixTexts.length - 2} more affixes — tap to inspect</div>
-            )}
-          </div>
-        )}
+        <span className={`min-w-0 truncate text-[13px] font-black tabular-nums ${headline.tone ?? 'text-text-primary'}`}>{headline.value}</span>
       </div>
 
       {!selectMode && (
         <button
           type="button"
           onClick={(event) => { event.stopPropagation(); onCompareStart(item.id); }}
-          className="mt-3 shrink-0 rounded-lg border border-border bg-surface p-1.5 text-text-muted"
+          className="shrink-0 rounded-lg border border-border bg-surface p-1.5 text-text-muted"
           aria-label={`Compare ${item.name}`}
         >
           <ArrowLeftRight size={13} />

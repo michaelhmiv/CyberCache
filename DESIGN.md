@@ -256,6 +256,18 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **§ Inventory** (section of the Loadout page; the Grid stop retired into
   it, 2026-11-03) — the item grid + salvage/recycle, its header and
   toolbar sticky at the page's scroll top.
+- **The Inventory LIST is a true list** (owner ruling 2026-11-04): ONE
+  line per item on a 46px row — the thumb (weapons composed at the §8
+  stage density, the detail-level-0 grid; other kinds at thumb
+  density), the element as a corner badge on the thumb (element-color
+  field, sheet glyph — never the element word), level, the name in
+  its rarity color, the equipped slot chip and lock glyph, and ONE
+  headline stat per kind (weapon DPS · shield HP · ordnance DMG ·
+  class-mod Boost · relic top affix). Rarity rides color (the name
+  and the row's spine), never the rarity word. Text is only what
+  earns it; affixes, maker, type, source and secondary stats live
+  behind inspect. The GRID keeps the full card face — stats, badges,
+  and the instance's real affix lines.
 - **Inspect sheet** — tap any item card: stats, compare, equip, reforge/reroll
   action row, and the ◦ deep link to Market → Shield Tech.
 - **§ Belt & Stacks** (section of the Loadout page; the Items stop retired

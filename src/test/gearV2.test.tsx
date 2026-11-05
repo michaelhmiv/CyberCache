@@ -172,7 +172,11 @@ describe('Gear v2 — real data on the card face', () => {
     useInventoryStore.setState({ items: [weapon] });
     render(<InventoryScreen onNavigate={vi.fn()} />);
     // The grid is the merged page's Inventory section — no stop
-    // switch stands between the player and the card.
+    // switch stands between the player and the card. The section
+    // opens in LIST view, which since the true-list ruling
+    // (2026-11-04) prints no affix lines — affixes live on the
+    // grid face and in inspect — so switch to Grid first.
+    fireEvent.click(await screen.findByRole('button', { name: 'Toggle inventory layout' }));
     expect(await screen.findByText('+12% Weapon Damage')).toBeTruthy();
     expect(screen.getByText('+8% Crit Chance')).toBeTruthy();
     expect(screen.getByText('+1 more affixes — tap to inspect')).toBeTruthy();
