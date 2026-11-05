@@ -168,9 +168,14 @@ export const ManualGalleryPage: React.FC<ManualGalleryPageProps> = ({
 
   // A room change starts at the room's top — the exhibition's
   // scroll container keeps its position across views otherwise.
+  // The contents rail likewise brings the current section's word
+  // into view, so the amber rule is always on screen.
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     rootRef.current?.scrollIntoView({ block: 'start' });
+    rootRef.current
+      ?.querySelector('[data-testid="room-contents-rail"] [data-current="true"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }, [view]);
 
   const openSection = (id: string) => setView({ kind: 'section', id });
@@ -499,6 +504,7 @@ export const ManualGalleryPage: React.FC<ManualGalleryPageProps> = ({
                   key={s.id}
                   type="button"
                   onClick={() => openSection(s.id)}
+                  data-current={current || undefined}
                   className="relative min-h-[44px] shrink-0 whitespace-nowrap text-[12px] font-bold uppercase tracking-[0.14em]"
                   style={{ color: current ? BONE : FAINT }}
                 >
