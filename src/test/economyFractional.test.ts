@@ -88,7 +88,7 @@ describe('fractional credits/XP — profile bank persistence (in-memory store)',
 
     await store.applyChefRewards(
       PLAYER,
-      { credits: 7, creditsRemainder: 0.5, scrap: 1, scrapRemainder: 0.25, xp: 12, xpRemainder: 0.5, fragments: 0, materials: {}, essences: {}, kills: 0 },
+      { credits: 7, creditsRemainder: 0.5, scrap: 1, scrapRemainder: 0.25, xp: 12, xpRemainder: 0.5, keys: 0, materials: {}, essences: {}, kills: 0 },
       2000,
       'dustwaste_frontier',
     );
@@ -99,7 +99,7 @@ describe('fractional credits/XP — profile bank persistence (in-memory store)',
 
     await store.applyChefRewards(
       PLAYER,
-      { credits: 8, scrap: 2, xp: 3, fragments: 0, materials: {}, essences: {}, kills: 0 },
+      { credits: 8, scrap: 2, xp: 3, keys: 0, materials: {}, essences: {}, kills: 0 },
       2010,
       'dustwaste_frontier',
     );

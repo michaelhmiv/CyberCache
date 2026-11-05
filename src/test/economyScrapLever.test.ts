@@ -345,7 +345,7 @@ describe('acceptance — the fuel-cell example (brief §4.3) in the TS twin', ()
     seed.profiles = [profile({ id: P, materials: { Scrap: 50, NitrocellGel: 5 } })];
     const bare = new InMemoryWriteStore(seed, { rng: () => 0.5 });
     await bare.enqueueCraftJob(P, nonce(), {
-      bench: 1, recipeId: 'recipe_fuel_cell', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_fuel_cell', units: 1,
     });
     // NB: the store clones its seed — read balances through it.
     expect(bare.seed.profiles[0].materials['Scrap']).toBe(44);
@@ -449,7 +449,6 @@ describe('client display resolution', () => {
       standingRanks: {},
       researchCompletedIds: new Set<string>(),
       activeJobs: [],
-      toolsOwned: {},
     };
     // At the literal 6 the player is short 2 Scrap; at the lever's 3
     // the same wallet crafts — the card must agree with the charge.
@@ -477,7 +476,6 @@ describe('client display resolution', () => {
       standingRanks: {},
       researchCompletedIds: new Set<string>(),
       activeJobs: [],
-      toolsOwned: {},
     };
     const alloy = getCraftRecipe('refine_refined_alloy')!;
     expect(recipePurpose(alloy, ctx).text).toContain('Turns 10 Scrap into');

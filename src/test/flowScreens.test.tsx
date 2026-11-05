@@ -173,7 +173,7 @@ const verifiedAccount: AccountState = {
 
 function seedStores() {
   useLoadoutStore.setState({
-    slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
+    slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null, vehicle: null },
     consumables: { PreFight: null, MidFight: null, Emergency: null },
   });
   usePlayerStore.setState({
@@ -184,7 +184,6 @@ function seedStores() {
     credits: 0,
     scrap: 0,
     cacheKeys: 0,
-    cacheKeyFragments: 0,
     currentZoneId: 'dustwaste_1',
     highestZoneId: 'dustwaste_1',
     offlineCapHours: 2,
@@ -224,7 +223,7 @@ describe('F5 — Action-tab salvage executes through the verified op', () => {
       cores_award: 0,
       bonus_material: null,
     } as never);
-    render(<ActionScreenContextual onNavigate={() => {}} />);
+    render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Switch Action' }));
     // The switch drawer's Salvage row (label + "N items" detail).
@@ -246,7 +245,7 @@ describe('F5 — Action-tab salvage executes through the verified op', () => {
 
   it('surfaces a recycle failure in the feed instead of swallowing it', async () => {
     vi.mocked(verifiedOps.recycleItem).mockRejectedValue(new Error('Item is equipped'));
-    render(<ActionScreenContextual onNavigate={() => {}} />);
+    render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Switch Action' }));
     const salvageRow = (await screen.findAllByRole('button')).find(
@@ -272,7 +271,7 @@ describe('F11 — dropped items are actionable from the loot feed', () => {
     useTickFeedStore.setState({
       events: [{ id: 'tick-1', at: Date.now(), tone: 'loot', label: 'Test Weapon', detail: 'world drop', gear: weapon }],
     });
-    render(<ActionScreenContextual onNavigate={() => {}} />);
+    render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
 
     const affordance = await screen.findByText(/Tap to inspect/);
     fireEvent.click(affordance.closest('button') ?? affordance);
@@ -298,7 +297,7 @@ describe('F7/F16 — Home stage errors stay put; boss picker opens in place', ()
         throw new Error('Activity service unavailable');
       }) as never,
     });
-    render(<ActionScreenContextual onNavigate={onNavigate} />);
+    render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={() => {}} />);
     fireEvent.click(screen.getByText('Start Roam'));
     expect(await screen.findByText('Activity service unavailable')).toBeInTheDocument();
     expect(onNavigate).not.toHaveBeenCalled();
@@ -308,7 +307,7 @@ describe('F7/F16 — Home stage errors stay put; boss picker opens in place', ()
     const onNavigate = vi.fn();
     const start = vi.fn(async () => IDLE_ACTIVITY);
     useActivityStore.setState({ start: start as never });
-    render(<ActionScreenContextual onNavigate={onNavigate} />);
+    render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={() => {}} />);
     fireEvent.click(screen.getByText('Start Roam'));
     await waitFor(() => expect(start).toHaveBeenCalledTimes(1));
     expect(onNavigate).not.toHaveBeenCalled();
@@ -336,7 +335,7 @@ describe('F7/F16 — Home stage errors stay put; boss picker opens in place', ()
     const onNavigate = vi.fn();
     const onOpenBossSelect = vi.fn();
     useActivityStore.setState({
-      current: { ...IDLE_ACTIVITY, kind: 'boss_fight' as const, status: 'active' as const },
+      current: { ...IDLE_ACTIVITY, kind: 'boss_fight' as const },
     });
     useBossStore.setState({ currentBossId: REGION_1_BOSSES[0].id });
     render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={onOpenBossSelect} />);
