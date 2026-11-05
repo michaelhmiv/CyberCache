@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight } from 'lucide-react';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
@@ -162,7 +163,7 @@ export const ConsumableLedger: React.FC<{
                 {focusedDef ? (
                   <div className="flex items-center gap-3">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-border bg-bg/80 text-2xl" style={{ color: accentToHex[focusedDef.visual.accent] ?? '#888' }}>
-                      <PxIcon name={focusedDef.visual.icon} size={26} />
+                      <PixelConsumable type={focusedDef.id} size={40} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-black text-text-primary">{focusedDef.name}</div>

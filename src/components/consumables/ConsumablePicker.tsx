@@ -7,6 +7,7 @@
  */
 import React, { useMemo } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { Search, ArrowUpDown, X } from 'lucide-react';
 import { usePlayerStore } from '@/store';
 import { CONSUMABLES } from '@/constants/consumables';
@@ -287,9 +288,7 @@ export const ConsumablePicker: React.FC<ConsumablePickerProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-lg font-black shrink-0" style={{ color: `var(--${def.visual.accent})` }}>
-                        <PxIcon name={def.visual.icon} size={17} />
-                      </span>
+                      <PixelConsumable type={def.id} size={24} density="thumb" className="shrink-0" />
                       <span className={`text-xs font-black truncate ${familyTone}`}>{def.name}</span>
                       <span className="text-[9px] text-text-muted shrink-0">
                         Lv.{def.quality.vendorQuality}% · ×{owned}
