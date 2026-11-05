@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ConsumablePicker } from '@/components/consumables/ConsumablePicker';
+import { ConsumableSlot } from '@/types/game';
 
 vi.mock('@/store', () => ({
   usePlayerStore: () => ({
@@ -20,7 +21,7 @@ describe('ConsumablePicker', () => {
   it('renders the slot label header and consumable names', () => {
     render(
       <ConsumablePicker
-        slot="PreFight"
+        slot={ConsumableSlot.PreFight}
         currentId="MedKit"
         onClose={() => {}}
         onEquip={async () => {}}
@@ -37,7 +38,7 @@ describe('ConsumablePicker', () => {
   it('renders a search input', () => {
     render(
       <ConsumablePicker
-        slot="MidFight"
+        slot={ConsumableSlot.MidFight}
         currentId={null}
         onClose={() => {}}
         onEquip={async () => {}}
@@ -51,7 +52,7 @@ describe('ConsumablePicker', () => {
   it('filters results by search term', () => {
     const { container } = render(
       <ConsumablePicker
-        slot="Emergency"
+        slot={ConsumableSlot.Emergency}
         currentId={null}
         onClose={() => {}}
         onEquip={async () => {}}
@@ -69,7 +70,7 @@ describe('ConsumablePicker', () => {
   it('shows unequip button when currentId is present', () => {
     render(
       <ConsumablePicker
-        slot="PreFight"
+        slot={ConsumableSlot.PreFight}
         currentId="MedKit"
         onClose={() => {}}
         onEquip={async () => {}}
@@ -82,7 +83,7 @@ describe('ConsumablePicker', () => {
   it('does not render boss-context sort when no bossContext provided', () => {
     render(
       <ConsumablePicker
-        slot="PreFight"
+        slot={ConsumableSlot.PreFight}
         currentId={null}
         onClose={() => {}}
         onEquip={async () => {}}
@@ -97,7 +98,7 @@ describe('ConsumablePicker', () => {
   it('renders boss-context sort option when bossContext is provided', () => {
     render(
       <ConsumablePicker
-        slot="MidFight"
+        slot={ConsumableSlot.MidFight}
         currentId={null}
         onClose={() => {}}
         onEquip={async () => {}}
