@@ -406,6 +406,16 @@ export interface ProfileLifetimePayload {
   };
 }
 
+/**
+ * A lifetime payload as it may actually arrive over the wire: any
+ * section — and any field within a section — may be absent when the
+ * responding Chef predates it. Consumers that fill defaults before
+ * reading (the profile record panels) take this shape as input.
+ */
+export type PartialProfileLifetimePayload = {
+  [K in keyof ProfileLifetimePayload]?: Partial<ProfileLifetimePayload[K]>;
+};
+
 export const fetchProfileLifetime = async (): Promise<ProfileLifetimePayload> =>
   apiRequest<ProfileLifetimePayload>('/profile/stats', { method: 'GET' });
 

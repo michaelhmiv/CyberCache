@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { MobileCard } from '@/components/layout/MobileCard';
-import { fetchProfileLifetime, type ProfileLifetimePayload } from '@/lib/api/verifiedOps';
+import { fetchProfileLifetime, type PartialProfileLifetimePayload, type ProfileLifetimePayload } from '@/lib/api/verifiedOps';
 import { NAMED_ELITES } from '@/content/collections';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
@@ -69,7 +69,7 @@ function sortedEntries(map: Record<string, number> | null | undefined): Array<[s
  * with its empty shape before anything reads it, so a missing map
  * or scalar degrades to that section's empty state.
  */
-function withLifetimeDefaults(data: ProfileLifetimePayload): ProfileLifetimePayload {
+function withLifetimeDefaults(data: PartialProfileLifetimePayload): ProfileLifetimePayload {
   return {
     kills: {
       roaming: 0, elites: 0, named_elites_downed: 0,

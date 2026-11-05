@@ -5,7 +5,7 @@ export type { PxIconName, PxIconSize };
 
 interface PxIconProps {
   name: PxIconName;
-  /** Token sizes only (v2 size ramp): 13 inline, 17 default, 26 rows, 40 display. */
+  /** Render size in px; the v2 ramp (13 inline, 17 default, 26 rows, 40 display) is preferred. */
   size?: PxIconSize;
   className?: string;
   style?: React.CSSProperties;

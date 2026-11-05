@@ -23,7 +23,7 @@
  * shown rather than estimated (the LifetimeStatsPanel discipline).
  */
 import React, { useEffect, useState } from 'react';
-import { fetchProfileLifetime, type ProfileLifetimePayload } from '@/lib/api/verifiedOps';
+import { fetchProfileLifetime, type PartialProfileLifetimePayload, type ProfileLifetimePayload } from '@/lib/api/verifiedOps';
 import type { PlayerPublicStats } from '@/lib/api/statsService';
 import type { ProgressionMetric } from '@/lib/api/progressionService';
 import type { LeaderboardMetric } from '@/lib/api/leaderboardService';
@@ -142,7 +142,7 @@ function sortedEntries(map: Record<string, number> | null | undefined): Array<[s
  * screen: older Chef builds omit whole blocks — every section is
  * filled with its empty shape before anything reads it.
  */
-function withLifetimeDefaults(data: ProfileLifetimePayload): ProfileLifetimePayload {
+function withLifetimeDefaults(data: PartialProfileLifetimePayload): ProfileLifetimePayload {
   return {
     kills: {
       roaming: 0, elites: 0, named_elites_downed: 0,
