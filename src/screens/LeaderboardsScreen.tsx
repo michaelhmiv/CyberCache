@@ -1,147 +1,70 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { listEntranceProps } from '@/lib/animation/uiMotion';
-import { PxIcon } from '@/components/pixelArt/PxIcon';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/auth/AuthProvider';
 import { ResourceBar } from '@/components/layout/ResourceBar';
-import { LeaderboardMetricPicker } from '@/components/leaderboard/LeaderboardMetricPicker';
-import { LeaderboardList } from '@/components/leaderboard/LeaderboardList';
 import {
   getLeaderboard,
+  getMyLeaderboardRank,
   getWeeklyLeaderboards,
   type LeaderboardEntry,
   type LeaderboardMetric,
   type LeaderboardPeriod,
+  type MyLeaderboardRank,
   type WeeklyLeaderboards,
-  type WeeklyRaceBoard,
 } from '@/lib/api/leaderboardService';
-import { MobileCard } from '@/components/layout/MobileCard';
 import { WeeklyEarningsPanel } from '@/components/leaderboard/WeeklyEarningsPanel';
+import {
+  BoardConsole,
+  ConsoleHead,
+  FinalsArchive,
+  RaceChannels,
+} from '@/components/leaderboard/StandingsConsole';
+import { METRIC_SHORT } from '@/components/leaderboard/standingsConsoleTokens';
 import { getPublicProfile, type PlayerPublicProfile } from '@/lib/api/publicProfileService';
 import { PublicProfilePanel } from '@/components/profile/PublicProfilePanel';
 import { PlayerProfileSheet } from '@/components/profile/PlayerProfileSheet';
-import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
-import { resolveLookView } from '@/lib/pixel/lookResolution';
 import { useHunterLooks } from '@/lib/pixel/useHunterLooks';
 
 interface LeaderboardsScreenProps {
   onNavigate?: (screen: string) => void;
 }
 
-const shortDay = (iso: string): string =>
-  new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const ALL_METRICS = Object.keys(METRIC_SHORT) as LeaderboardMetric[];
 
-const weekRangeLabel = (startIso: string, endsAtIso: string): string => {
-  const lastDay = new Date(Date.parse(endsAtIso) - 86_400_000).toISOString();
-  return `${shortDay(startIso)} – ${shortDay(lastDay)}`;
-};
+type MyRankMap = Partial<Record<LeaderboardMetric, MyLeaderboardRank | null>>;
 
-/**
- * One race's standings. Values render with tabular numerals and no
- * truncation (device-pass rule: numbers never ellipsize); only the
- * username may truncate. The caller's row is pinned below the top
- * entries when they rank outside them.
- */
-const WeeklyRaceStandings: React.FC<{
-  race: WeeklyRaceBoard;
-  myPlayerId?: string | null;
-  final?: boolean;
-  /** Entrance stagger slot (§10 list entrances). */
-  index?: number;
-  /** Every racer row is a door to that hunter's profile (0058). */
-  onSelectPlayer?: (playerId: string) => void;
-}> = ({ race, myPlayerId, final, index = 0, onSelectPlayer }) => {
-  const reduceMotion = useReducedMotion();
-  // Standings portraits (0053): every racer's worn look, batched.
-  const looks = useHunterLooks([
-    ...race.entries.map((e) => e.player_id),
-    ...(myPlayerId ? [myPlayerId] : []),
-  ]);
-  const inTop = race.entries.some((e) => e.player_id === myPlayerId);
-  const reward = final ? race.my_reward : null;
-  return (
-    <motion.div {...listEntranceProps(index, reduceMotion)} className="space-y-1">
-      <div className="flex items-baseline gap-2">
-        <div className="text-xs font-black uppercase tracking-wide text-text-primary">{race.label}</div>
-        <div className="ml-auto whitespace-nowrap text-[10px] text-text-muted">
-          {race.participant_count === 1 ? '1 racer' : `${race.participant_count} racers`}
-        </div>
-      </div>
-      <div className="text-[10px] text-text-muted">{race.blurb}</div>
-      {race.entries.length === 0 ? (
-        <div className="py-1 text-[11px] text-text-muted">
-          No qualifying runs yet{final ? '' : ' this week'}.
-        </div>
-      ) : (
-        <div>
-          {race.entries.map((entry) => (
-            <button
-              key={entry.player_id}
-              type="button"
-              data-testid={`standings-row-${entry.player_id}`}
-              aria-label={`Open ${entry.username ?? 'Hunter'}'s profile`}
-              onClick={() => onSelectPlayer?.(entry.player_id)}
-              className={`flex w-full items-center gap-2 py-1 text-left ${entry.player_id === myPlayerId ? 'bg-amber/10' : ''}`}
-            >
-              <span className="w-7 shrink-0 text-right text-xs font-black text-amber">#{entry.rank}</span>
-              {looks[entry.player_id] && (
-                <span className="w-7 shrink-0" data-testid={`standings-portrait-${entry.player_id}`}>
-                  <HunterPortrait look={resolveLookView(looks[entry.player_id])} className="h-9" />
-                </span>
-              )}
-              <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">
-                {entry.username ?? 'Hunter'}
-              </span>
-              <span className="whitespace-nowrap text-xs font-black tabular-nums text-text-primary">
-                {entry.value.toLocaleString('en-US')}
-              </span>
-              <span className="whitespace-nowrap text-[10px] text-text-muted">{race.unit}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {race.me && !inTop && myPlayerId && (
-        <button
-          type="button"
-          data-testid="standings-row-me"
-          aria-label="Open your public profile"
-          onClick={() => onSelectPlayer?.(myPlayerId)}
-          className="flex w-full items-center gap-2 border-t border-amber/40 bg-amber/10 px-1 py-1 text-left"
-        >
-          <span className="w-7 shrink-0 text-right text-xs font-black text-amber">#{race.me.rank}</span>
-          {looks[myPlayerId] && (
-            <span className="w-7 shrink-0" data-testid="standings-portrait-me">
-              <HunterPortrait look={resolveLookView(looks[myPlayerId])} className="h-9" />
-            </span>
-          )}
-          <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">You</span>
-          <span className="whitespace-nowrap text-xs font-black tabular-nums text-text-primary">
-            {race.me.value.toLocaleString('en-US')}
-          </span>
-          <span className="whitespace-nowrap text-[10px] text-text-muted">{race.unit}</span>
-        </button>
-      )}
-      {reward && (
-        <div className="border border-amber/50 bg-amber/10 px-2 py-1 text-[11px] font-bold text-text-primary">
-          You finished #{reward.rank}
-          {reward.cache_keys > 0 && <> — {reward.cache_keys} cache {reward.cache_keys === 1 ? 'key' : 'keys'} earned</>}
-          {reward.buff_bonus > 0 && (
-            <> · +{Math.round(reward.buff_bonus * 100)}% drop luck for {reward.buff_hours}h</>
-          )}
-        </div>
-      )}
-    </motion.div>
-  );
-};
+/** The viewer's own rank on every channel for one period — the
+ *  board selector bank's readouts, the pinned MY READING, and the
+ *  head bank's field size all fold from these real /leaderboard/me
+ *  reads. A channel the viewer has no standing on reads null. */
+function useMyRanks(period: LeaderboardPeriod, nonce: number): MyRankMap {
+  const [ranks, setRanks] = useState<MyRankMap>({});
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all(ALL_METRICS.map((m) => getMyLeaderboardRank(m, period)))
+      .then((results) => {
+        if (cancelled) return;
+        const next: MyRankMap = {};
+        ALL_METRICS.forEach((m, i) => {
+          next[m] = results[i];
+        });
+        setRanks(next);
+      })
+      .catch(() => {
+        // getMyLeaderboardRank already folds failures to null; a
+        // rejected batch simply leaves the readouts dark.
+        if (!cancelled) setRanks({});
+      });
+    return () => { cancelled = true; };
+  }, [period, nonce]);
+  return ranks;
+}
 
 /**
- * Weekly races (0035): the current week's live standings, the
- * caller's pinned rank, last week's finals + rewards, and the
- * caller's active drop-luck buff. Presentational — the fetch is
- * owned by WeeklySection below and shared with the earnings panel,
- * so the payload lands once for both.
+ * The race channels: the current week's numbered channels and last
+ * week's finals archive, both folding from the one weekly payload
+ * the board fetched. Looks for every racer are batched in one read.
  */
-const WeeklyRacesPanel: React.FC<{
+const RacesSection: React.FC<{
   data: WeeklyLeaderboards | null;
   loading: boolean;
   error: string | null;
@@ -149,139 +72,37 @@ const WeeklyRacesPanel: React.FC<{
   myPlayerId?: string | null;
   onSelectPlayer?: (playerId: string) => void;
 }> = ({ data, loading, error, onRetry, myPlayerId, onSelectPlayer }) => {
-  if (loading) {
-    return (
-      <MobileCard className="space-y-2" rarityColor="#FF9000">
-        <div className="h-4 w-1/3 animate-pulse rounded bg-bg" />
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-4 animate-pulse rounded bg-bg" />
-        ))}
-      </MobileCard>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="border-2 border-red/50 bg-red/10 p-4 text-center">
-        <div className="text-sm font-black text-red">Weekly races unavailable</div>
-        <div className="mt-1 text-xs text-text-muted">{error ?? 'Weekly races could not be loaded.'}</div>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="bl-primary mt-3 px-4 py-2 text-xs font-black"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  const prev = data.previous_week;
-  const prevPlaced = prev.races.some((r) => r.my_reward !== null || r.me !== null);
-
-  return (
-    <MobileCard className="space-y-4" rarityColor="#FF9000">
-      <div>
-        <div className="flex items-center gap-2">
-          <PxIcon name="flag" size={13} className="text-amber" />
-          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Weekly Races</div>
-          <div className="ml-auto whitespace-nowrap text-[10px] text-text-muted">
-            {weekRangeLabel(data.week.start, data.week.ends_at)}
-          </div>
-        </div>
-        <div className="mt-1 text-[10px] text-text-muted">
-          Top finishers win cache keys and drop luck when the week closes Monday 00:00 UTC.
-        </div>
-        {data.my_drop_buff && (
-          <div className="mt-2 border border-amber/50 bg-amber/10 px-2 py-1 text-[11px] font-bold text-text-primary">
-            Drop luck active: +{Math.round(data.my_drop_buff.bonus * 100)}% until {shortDay(data.my_drop_buff.expires_at)}
-          </div>
-        )}
-      </div>
-
-      {data.races.map((race, index) => (
-        <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} index={index} onSelectPlayer={onSelectPlayer} />
-      ))}
-
-      <div className="border-t border-border pt-3">
-        <div className="flex items-center gap-2">
-          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Last Week — Final</div>
-          <div className="ml-auto whitespace-nowrap text-[10px] text-text-muted">
-            {weekRangeLabel(prev.start, prev.ends_at)}
-          </div>
-        </div>
-        {!prev.settled && (
-          <div className="mt-1 text-[10px] text-text-muted">Rewards settle at the next daily heartbeat.</div>
-        )}
-        <div className="mt-2 space-y-4">
-          {prev.races.map((race, index) => (
-            <WeeklyRaceStandings key={race.id} race={race} myPlayerId={myPlayerId} final index={index} onSelectPlayer={onSelectPlayer} />
-          ))}
-        </div>
-        {prev.settled && !prevPlaced && (
-          <div className="mt-2 text-[11px] text-text-muted">You didn&apos;t place last week — this week is open.</div>
-        )}
-      </div>
-    </MobileCard>
-  );
-};
-
-/**
- * The weekly section: ONE fetch of the weekly payload feeding both
- * the "Your Weekly Earnings" panel (the Standings badge's
- * destination — the settled record sits at the very top of the
- * page, where the signal that brought the player here resolves)
- * and the races panel below it. Own error/retry state — a weekly
- * failure never takes the all-time board down with it.
- */
-const WeeklySection: React.FC<{
-  myPlayerId?: string | null;
-  focusEarningsNonce?: number;
-  onSelectPlayer?: (playerId: string) => void;
-}> = ({ myPlayerId, focusEarningsNonce = 0, onSelectPlayer }) => {
-  const [data, setData] = useState<WeeklyLeaderboards | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    getWeeklyLeaderboards()
-      .then((boards) => {
-        if (cancelled) return;
-        setData(boards);
-        setError(null);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Weekly races could not be loaded.');
-        setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [reloadKey]);
-
-  const retry = useCallback(() => setReloadKey((k) => k + 1), []);
+  // Standings portraits (0053): every racer's worn look, batched —
+  // one read for the current channels and the finals archive.
+  const lookIds = useMemo(() => {
+    if (!data) return myPlayerId ? [myPlayerId] : [];
+    const ids = new Set<string>();
+    for (const race of [...data.races, ...data.previous_week.races]) {
+      for (const e of race.entries) ids.add(e.player_id);
+    }
+    if (myPlayerId) ids.add(myPlayerId);
+    return [...ids];
+  }, [data, myPlayerId]);
+  const looks = useHunterLooks(lookIds);
 
   return (
     <>
-      <WeeklyEarningsPanel
+      <RaceChannels
         data={data}
         loading={loading}
         error={error}
-        onRetry={retry}
-        focusNonce={focusEarningsNonce}
+        onRetry={onRetry}
+        myPlayerId={myPlayerId}
+        looks={looks}
+        onSelectPlayer={onSelectPlayer}
       />
-      <div id="weekly-races-card" className="scroll-mt-2">
-        <WeeklyRacesPanel
-          data={data}
-          loading={loading}
-          error={error}
-          onRetry={retry}
-          myPlayerId={myPlayerId}
-          onSelectPlayer={onSelectPlayer}
-        />
-      </div>
+      <FinalsArchive
+        data={data}
+        loading={loading}
+        myPlayerId={myPlayerId}
+        looks={looks}
+        onSelectPlayer={onSelectPlayer}
+      />
     </>
   );
 };
@@ -293,8 +114,21 @@ const WeeklySection: React.FC<{
  * is no longer gated. Fetch failures land in a visible error state
  * with a retry; the pre-gate version chained `.then()` with no
  * `.catch`, so any failure left an eternal spinner.
+ *
+ * One weekly fetch feeds the console head, the settlement readout
+ * (the Standings badge's destination — the settled record sits at
+ * the top of the page, where the signal that brought the player
+ * here resolves), and the race channels; a weekly failure never
+ * takes the global board down with it.
+ *
+ * Presentation is the Instrument-panel register (owner pick B,
+ * 2026-11-05): squared rack panels, inset LCD readouts, LED deltas
+ * and segment meters against the leader.
  */
-const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarningsNonce = 0 }) => {
+const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number; bareHead?: boolean }> = ({
+  focusEarningsNonce = 0,
+  bareHead = false,
+}) => {
   const { user } = useAuth();
   const [metric, setMetric] = useState<LeaderboardMetric>('level');
   const [period, setPeriod] = useState<LeaderboardPeriod>('all_time');
@@ -305,6 +139,49 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<PlayerPublicProfile | null>(null);
   const [fullProfileOpen, setFullProfileOpen] = useState(false);
+
+  const [weekly, setWeekly] = useState<WeeklyLeaderboards | null>(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(true);
+  const [weeklyError, setWeeklyError] = useState<string | null>(null);
+  const [weeklyReloadKey, setWeeklyReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getWeeklyLeaderboards()
+      .then((boards) => {
+        if (cancelled) return;
+        setWeekly(boards);
+        setWeeklyError(null);
+        setWeeklyLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setWeeklyError(err instanceof Error ? err.message : 'Weekly races could not be loaded.');
+        setWeeklyLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [weeklyReloadKey]);
+
+  const retryWeekly = useCallback(() => setWeeklyReloadKey((k) => k + 1), []);
+
+  const myRanks = useMyRanks(period, reloadKey);
+  // "My best rk" is an all-time fact; when another period is
+  // selected the head bank reads a dedicated all-time pass.
+  const allTimeRanks = useMyRanks('all_time', reloadKey);
+  const headRanks = period === 'all_time' ? myRanks : allTimeRanks;
+  const bestRank = useMemo(() => {
+    const rs = ALL_METRICS.map((m) => headRanks[m]?.rank).filter(
+      (r): r is number => r != null,
+    );
+    return rs.length > 0 ? Math.min(...rs) : null;
+  }, [headRanks]);
+  const totalPlayers = useMemo(() => {
+    for (const m of ALL_METRICS) {
+      const tp = myRanks[m]?.total_players;
+      if (tp != null) return tp;
+    }
+    return null;
+  }, [myRanks]);
 
   const openPlayer = useCallback((playerId: string) => {
     setFullProfileOpen(false);
@@ -353,15 +230,36 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
 
   const retry = useCallback(() => setReloadKey((k) => k + 1), []);
 
+  // Board portraits: the visible rows' worn looks, batched.
+  const myId = user?.id;
+  const boardLookIds = useMemo(
+    () => [...new Set([...entries.slice(0, 50).map((e) => e.player_id), ...(myId ? [myId] : [])])],
+    [entries, myId],
+  );
+  const boardLooks = useHunterLooks(boardLookIds);
+
+  const myRankNumbers = useMemo(() => {
+    const out: Partial<Record<LeaderboardMetric, number | null>> = {};
+    for (const m of ALL_METRICS) out[m] = myRanks[m]?.rank ?? null;
+    return out;
+  }, [myRanks]);
+
   return (
     <>
-      <WeeklySection myPlayerId={user?.id} focusEarningsNonce={focusEarningsNonce} onSelectPlayer={openPlayer} />
+      <ConsoleHead
+        week={weekly?.week ?? null}
+        totalPlayers={totalPlayers}
+        bestRank={bestRank}
+        dropBuff={weekly?.my_drop_buff ?? null}
+        bare={bareHead}
+      />
 
-      <LeaderboardMetricPicker
-        metric={metric}
-        period={period}
-        onMetricChange={setMetric}
-        onPeriodChange={setPeriod}
+      <WeeklyEarningsPanel
+        data={weekly}
+        loading={weeklyLoading}
+        error={weeklyError}
+        onRetry={retryWeekly}
+        focusNonce={focusEarningsNonce}
       />
 
       {error ? (
@@ -371,14 +269,30 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
           <button type="button" onClick={retry} className="bl-primary mt-3 px-4 py-2 text-xs font-black">Retry</button>
         </div>
       ) : (
-        <LeaderboardList
-          entries={entries}
+        <BoardConsole
           metric={metric}
-          myPlayerId={user?.id}
+          period={period}
+          onMetricChange={setMetric}
+          onPeriodChange={setPeriod}
+          entries={entries}
           loading={loading}
+          myPlayerId={user?.id}
+          myRank={myRanks[metric] ?? null}
+          myRanks={myRankNumbers}
+          looks={boardLooks}
+          totalPlayers={totalPlayers}
           onRowClick={openPlayer}
         />
       )}
+
+      <RacesSection
+        data={weekly}
+        loading={weeklyLoading}
+        error={weeklyError}
+        onRetry={retryWeekly}
+        myPlayerId={user?.id}
+        onSelectPlayer={openPlayer}
+      />
 
       {selectedPlayerId && (
         <PublicProfilePanel
@@ -404,24 +318,19 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
 
 export const LeaderboardsScreen: React.FC<
   LeaderboardsScreenProps & { embedded?: boolean; focusEarningsNonce?: number }
-> = ({ embedded = false, focusEarningsNonce = 0 }) => {
+> = ({ embedded = false, focusEarningsNonce = 0, onNavigate }) => {
   if (embedded) {
     // Hunter → Standings stop: the Hunter screen owns the chrome
     // (resource strip, rail, stop title), so the board mounts bare.
     return (
       <div className="space-y-3">
-        <LeaderboardBoard focusEarningsNonce={focusEarningsNonce} />
+        <LeaderboardBoard focusEarningsNonce={focusEarningsNonce} bareHead />
       </div>
     );
   }
   return (
     <div className="bl-page space-y-3 p-4 pb-20">
       <ResourceBar onOpenSettings={() => onNavigate?.('settings')} />
-
-      <div className="flex items-center gap-2">
-        <PxIcon name="crown" size={17} className="text-amber" />
-        <div className="text-lg font-black uppercase tracking-wide text-text-primary">Leaderboards</div>
-      </div>
 
       {/* Guest-visibility law (2026-11-01): the boards render for
           every session with real data — guests included. The old
@@ -431,7 +340,7 @@ export const LeaderboardsScreen: React.FC<
           Hunter profile, and this screen is the standings for
           everyone. Appearing under a name still takes a username —
           that rule lives in the fold, not in a view lock. */}
-      <LeaderboardBoard />
+      <LeaderboardBoard focusEarningsNonce={focusEarningsNonce} />
     </div>
   );
 };
