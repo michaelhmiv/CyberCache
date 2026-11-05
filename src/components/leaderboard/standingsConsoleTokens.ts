@@ -10,6 +10,21 @@
  * the panel ground.
  */
 import type React from 'react';
+import type { LeaderboardMetric } from '@/lib/api/leaderboardService';
+
+/** Compact channel names for the selector bank (mono, 11px). */
+export const METRIC_SHORT: Record<LeaderboardMetric, string> = {
+  level: 'LV',
+  xp: 'XP',
+  net_worth: 'WORTH',
+  total_kills: 'KILLS',
+  kdr: 'K/D',
+  highest_boss_tier: 'BOSS',
+  total_mastery_xp: 'M-XP',
+  highest_mastery_level: 'M-LV',
+  legendary_items: 'LEGEND',
+  total_items: 'ITEMS',
+};
 
 export const INK = '#F5EFE6';
 export const MUT = '#C9BBA6';

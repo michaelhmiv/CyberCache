@@ -39,6 +39,7 @@ import {
   GOLD,
   GREEN,
   INK,
+  METRIC_SHORT,
   MUT,
   RED,
   STEEL_DARK,
@@ -52,20 +53,6 @@ const shortDay = (iso: string): string =>
 const weekRangeLabel = (startIso: string, endsAtIso: string): string => {
   const lastDay = new Date(Date.parse(endsAtIso) - 86_400_000).toISOString();
   return `${shortDay(startIso)} – ${shortDay(lastDay)}`;
-};
-
-/** Compact channel names for the selector bank (mono, 11px). */
-export const METRIC_SHORT: Record<LeaderboardMetric, string> = {
-  level: 'LV',
-  xp: 'XP',
-  net_worth: 'WORTH',
-  total_kills: 'KILLS',
-  kdr: 'K/D',
-  highest_boss_tier: 'BOSS',
-  total_mastery_xp: 'M-XP',
-  highest_mastery_level: 'M-LV',
-  legendary_items: 'LEGEND',
-  total_items: 'ITEMS',
 };
 
 const METRICS = Object.keys(METRIC_SHORT) as LeaderboardMetric[];
