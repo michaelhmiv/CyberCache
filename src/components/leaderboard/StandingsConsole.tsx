@@ -160,8 +160,8 @@ export const SettlementReadout: React.FC<{
     <div id="weekly-earnings-panel" data-testid="weekly-earnings-panel" className="scroll-mt-2">
       <Panel>
         <PanelLabel
-          label="Settlement readout — last week"
-          right={prev ? weekRangeLabel(prev.start, prev.ends_at).toUpperCase() : undefined}
+          label="Settlement readout"
+          right={prev ? `LAST WEEK · ${weekRangeLabel(prev.start, prev.ends_at).toUpperCase()}` : undefined}
         />
         {loading ? (
           <div className="space-y-2" data-testid="weekly-earnings-loading">
@@ -465,7 +465,7 @@ export const BoardConsole: React.FC<{
           borderBottom: `1px solid ${STEEL_DARK}`,
         }}
       >
-        <span>RK · HUNTER · Δ PRIOR</span>
+        <span>RK · HUNTER · Δ</span>
         <span>
           OUTPUT · {LEADERBOARD_METRIC_UNITS[metric].toUpperCase()} · VS LEADER
         </span>
@@ -495,25 +495,29 @@ export const BoardConsole: React.FC<{
       {myRank && !meInEntries && (
         <div
           data-testid="standings-board-my-reading"
-          className="mt-2 flex items-center gap-2 px-2 py-2"
+          className="mt-2 px-2 py-2"
           style={{
             border: `1px solid rgba(255,144,0,0.55)`,
             background: 'linear-gradient(180deg, #0A0703 0%, #070503 100%)',
             boxShadow: 'inset 0 2px 7px rgba(0,0,0,0.9)',
           }}
         >
-          <Led lit color={AMBER} size={8} />
-          <span style={{ ...monoStyle, fontSize: 11, color: '#FFB03A', letterSpacing: '0.1em' }}>MY READING</span>
-          <span className="font-bold" style={{ ...monoStyle, fontSize: 16, color: INK }}>
-            RK {myRank.rank}
-          </span>
-          <span className="font-bold" style={{ ...monoStyle, fontSize: 14, color: MUT }}>
-            {formatLeaderboardValue(metric, myRank.value)} {LEADERBOARD_METRIC_UNITS[metric]}
-          </span>
-          <span className="ml-auto">
-            <DeltaReadout trend={myRank.trend} hasPrior={myRank.previous_value != null} />
-          </span>
-          <span style={{ ...monoStyle, fontSize: 11, color: FAINT }}>OF {myRank.total_players}</span>
+          <div className="flex items-center gap-2">
+            <Led lit color={AMBER} size={8} />
+            <span style={{ ...monoStyle, fontSize: 11, color: '#FFB03A', letterSpacing: '0.1em' }}>MY READING</span>
+            <span className="ml-auto font-bold" style={{ ...monoStyle, fontSize: 19, color: INK }}>
+              RK {myRank.rank}
+              <span style={{ fontSize: 11, color: FAINT }}> OF {myRank.total_players}</span>
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="font-bold" style={{ ...monoStyle, fontSize: 14, color: MUT }}>
+              {formatLeaderboardValue(metric, myRank.value)} {LEADERBOARD_METRIC_UNITS[metric]}
+            </span>
+            <span className="ml-auto">
+              <DeltaReadout trend={myRank.trend} hasPrior={myRank.previous_value != null} />
+            </span>
+          </div>
         </div>
       )}
     </Panel>
