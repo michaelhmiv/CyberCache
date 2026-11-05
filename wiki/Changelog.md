@@ -131,9 +131,15 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 117 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 131 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-04** — 7 merges
+**2026-11-05** — 3 merges
+
+- #386 — Daily login streak: TRUE CLAIM — record holds, tap Claim pays (migration 0079)
+- #393 — Pure player market: Buy/Sell are solely player listings (supersedes #317)
+- #395 — Cache reveal: one page — stage stays, full stat deck below (no phase swap)
+
+**2026-11-04** — 18 merges
 
 - #372 — Econ 9: bench collapse + relic merger (migration 0073)
 - #373 — SB-3: dispatch Start from a build — prefill + flag report
@@ -142,6 +148,17 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #376 — Home rail swap: mode rail above the stage, belt in its vacated slot (owner ruling 2026-11-04)
 - #377 — Gear/DPS/Profile truth fix — one read model, one DPS, honest Profile
 - #378 — 0076: cc_record_kill_stats kill attribution reads the real weapon slots
+- #379 — Elemental Coating: crafting recipe (0077) + boss-sim break wiring
+- #380 — Wiring package: boss sim reads consumable defs + Grenade merge + Rush Ticket repair scope (migration 0077)
+- #382 — Consumable item art: real pixel sprites for all 43 types (runtime compositor)
+- #383 — Fix Gear tab freeze: compositor caches could never hit (compose ran before the cache lookup)
+- #384 — Home stage + mode rail rework: Roam is the area door, Stop takes the stage corner, one-stage law for Extract
+- #385 — feat(gear): true compact list view — one line per item, 46px rows (owner ruling 2026-11-04)
+- #387 — Gear doll fit: the hunter fills his stage (frame-fit, not armed-extent)
+- #388 — test(claim): pin route clock in amount-pinning claim tests; add deliberate hot-area payout pins
+- #389 — Crafting consolidation: the Workshop lives on Home (owner ruling 2026-11-04)
+- #390 — feat(strip+announce): pulse-on-increase + Sold / bench-ready announcement chips (eye-leading pass)
+- #392 — Auto-salvage: profile-owned rule, Chef claim-settlement enforcement (migration 0080)
 
 **2026-11-03** — 58 merges
 
