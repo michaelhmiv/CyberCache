@@ -354,11 +354,44 @@ function itemKind(payload: Record<string, unknown>): string {
   return 'gear';
 }
 
+/**
+ * The held (unpaid) offline settlement (migration 0083's
+ * offline_settlement_holds row): accumulated payable totals + item
+ * grants across every settled-but-unclaimed window. The row's
+ * existence is the claim's exactly-once anchor.
+ */
+export interface InMemoryOfflineHold {
+  holdId: string;
+  credits: number;
+  scrap: number;
+  xp: number;
+  cacheKeys: number;
+  kills: number;
+  ticks: number;
+  materials: Record<string, number>;
+  essences: Record<string, number>;
+  appliedConsumables: Record<string, number>;
+  items: Json[];
+  feedEvents: Json[];
+  itemNonces: string[];
+  elapsedMs: number;
+  capReached: boolean;
+  capHours: number | null;
+  areaId: string | null;
+  settleFrom: string;
+  lastSettledAt: string;
+  startTick: number;
+  endTick: number;
+  windows: number;
+}
+
 export class InMemoryChefGameplayStore implements ChefGameplayStore {
   readonly profiles = new Map<string, InMemoryProfile>();
   readonly items = new Map<string, InMemoryItem>();
   readonly activeActions = new Map<string, InMemoryActiveAction>();
   readonly ledger = new Map<string, Json>();
+  /** Offline holds (migration 0083), one per player. */
+  readonly offlineHolds = new Map<string, InMemoryOfflineHold>();
   /**
    * Boss victory timestamps (the store clock), one entry per freshly
    * applied victory — the in-memory mirror of the verified action
@@ -673,6 +706,59 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       action_skill_selection: p.action_skill_selection ?? null,
       boss_state: JSON.parse(JSON.stringify(p.boss_state)) as Json,
       last_idle_claim_at: p.last_idle_claim_at,
+      // 0083: the held (unpaid) offline settlement totals — the
+      // snapshot's offline_hold key (zeros object when no hold).
+      offline_hold: this.offlineHoldSnapshot(p.id),
+    };
+  }
+
+  /** cc_profile_snapshot's offline_hold block (0083 §5). */
+  private offlineHoldSnapshot(playerId: string): Json {
+    const hold = this.offlineHolds.get(playerId);
+    if (!hold) {
+      return {
+        credits: 0, scrap: 0, xp: 0, cache_keys: 0, kills: 0, ticks: 0,
+        materials: {}, essences: {}, item_count: 0, elapsed_ms: 0, area_id: null,
+      };
+    }
+    return {
+      credits: hold.credits,
+      scrap: hold.scrap,
+      xp: hold.xp,
+      cache_keys: hold.cacheKeys,
+      kills: hold.kills,
+      ticks: hold.ticks,
+      materials: { ...hold.materials },
+      essences: { ...hold.essences },
+      item_count: hold.items.length,
+      elapsed_ms: hold.elapsedMs,
+      area_id: hold.areaId,
+    };
+  }
+
+  /** The settle/claim results' 'hold' block (0083 §2/§3 shape). */
+  private offlineHoldBlock(hold: InMemoryOfflineHold): Json {
+    return {
+      hold_id: hold.holdId,
+      credits: hold.credits,
+      scrap: hold.scrap,
+      xp: hold.xp,
+      cache_keys: hold.cacheKeys,
+      kills: hold.kills,
+      ticks: hold.ticks,
+      materials: { ...hold.materials },
+      essences: { ...hold.essences },
+      applied_consumables: { ...hold.appliedConsumables },
+      items: [...hold.items],
+      item_count: hold.items.length,
+      feed_events: [...hold.feedEvents],
+      elapsed_ms: hold.elapsedMs,
+      cap_reached: hold.capReached,
+      cap_hours: hold.capHours,
+      area_id: hold.areaId,
+      start_tick: hold.startTick,
+      end_tick: hold.endTick,
+      windows: hold.windows,
     };
   }
 
@@ -3581,12 +3667,27 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     }
 
     const newTickCount = p.last_claimed_tick + ticksRequested;
-    const echo = this.applyRewardBundle(p, rewards);
-    // 0034: lifetime kill record (cc_record_kill_stats on the settled path).
-    this.recordKillStats(playerId, rewards.kills);
-    // 0042: contracts stat mirror (the SQL trigger's offline branch).
-    this.addContractStat(playerId, 'combat.roaming_kills', rewards.kills);
-    this.addContractStat(playerId, 'combat.idle_xp_claimed', rewards.xp);
+    // 0083 (hold-and-claim): the window is NOT paid here — the twin
+    // of the SQL restatement. The fractional remainders bank on the
+    // profile (bookkeeping); every payable amount accumulates into
+    // the hold below and lands at claimOfflineSettlement. The 0034
+    // kill record, the 0042 contract stats and the 0014 mastery
+    // grants all move to the claim with it (in SQL they ride the
+    // claim's ledger row). The echo is still this window's, for the
+    // result payload.
+    if (rewards.scrapRemainder != null) p.scrap_remainder = rewards.scrapRemainder;
+    if (rewards.creditsRemainder != null) p.credits_remainder = rewards.creditsRemainder;
+    if (rewards.xpRemainder != null) p.xp_remainder = rewards.xpRemainder;
+    if (rewards.keysRemainder != null) p.cache_key_remainder = rewards.keysRemainder;
+    const echo = {
+      credits_awarded: Math.trunc(rewards.credits),
+      scrap_awarded: Math.trunc(rewards.scrap),
+      xp_awarded: Math.trunc(rewards.xp),
+      cache_keys_awarded: Math.trunc(rewards.keys),
+      materials: rewards.materials,
+      essences: rewards.essences,
+      kills_recorded: Math.trunc(rewards.kills),
+    };
 
     // 0012: apply the engine's consumed set in the same settlement —
     // clamped to owned counts, with consumable_events rows, mirroring
@@ -3610,9 +3711,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         });
       }
       p.consumables = nextConsumables;
-      // 0042: contracts stat mirror (consumables.used, offline shape).
-      this.addContractStat(playerId, 'consumables.used',
-        Object.values(appliedConsumables).reduce((n, q) => n + q, 0));
+      // 0083: the consumables.used contract stat moves to the claim
+      // (the SQL trigger reads the claim ledger row's accumulated
+      // consumed_consumables); the burn itself stays here — it is a
+      // window cost, applied above with its audit rows.
     }
 
     p.last_claimed_tick = newTickCount;
@@ -3626,8 +3728,43 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       last_offline_settle_ticks: ticksRequested,
     };
 
+    // 0083: accumulate the window into the hold (one per player;
+    // settle_from / start_tick stay the FIRST window's).
+    let hold = this.offlineHolds.get(playerId);
+    if (!hold) {
+      hold = {
+        holdId: randomUUID(),
+        credits: 0, scrap: 0, xp: 0, cacheKeys: 0, kills: 0, ticks: 0,
+        materials: {}, essences: {}, appliedConsumables: {},
+        items: [], feedEvents: [], itemNonces: [],
+        elapsedMs: 0, capReached: false, capHours: null, areaId: null,
+        settleFrom: new Date(settleFrom).toISOString(),
+        lastSettledAt: nowTs.toISOString(),
+        startTick: newTickCount - ticksRequested, endTick: newTickCount,
+        windows: 0,
+      };
+      this.offlineHolds.set(playerId, hold);
+    }
+    hold.credits += Math.trunc(rewards.credits);
+    hold.scrap += Math.trunc(rewards.scrap);
+    hold.xp += Math.trunc(rewards.xp);
+    hold.cacheKeys += Math.trunc(rewards.keys);
+    hold.kills += Math.trunc(rewards.kills);
+    hold.ticks += ticksRequested;
+    for (const [k, v] of Object.entries(asRecord(rewards.materials))) hold.materials[k] = (hold.materials[k] ?? 0) + v;
+    for (const [k, v] of Object.entries(asRecord(rewards.essences))) hold.essences[k] = (hold.essences[k] ?? 0) + v;
+    for (const [k, v] of Object.entries(appliedConsumables)) hold.appliedConsumables[k] = (hold.appliedConsumables[k] ?? 0) + v;
+    hold.elapsedMs += elapsedMs;
+    hold.capReached = hold.capReached || capReached;
+    hold.capHours = effectiveCapHours;
+    hold.areaId = action.target_id;
+    hold.lastSettledAt = nowTs.toISOString();
+    hold.endTick = newTickCount;
+    hold.windows += 1;
+
     const result: Json = {
       settled: true,
+      held: true,
       atomic: true,
       area_id: action.target_id,
       settle_from: new Date(settleFrom).toISOString(),
@@ -3645,13 +3782,80 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       profile: this.snapshot(p),
       rewards: { ...echo, ticks: ticksRequested },
       consumed_consumables: appliedConsumables,
+      hold: this.offlineHoldBlock(hold),
     };
     this.ledger.set(nonceKey, result);
-    // 0014: mirror the trigger's cc_settle_offline_roaming branch —
-    // same roaming grants for the settled area, and the settlement's
-    // applied (clamped) consumed set feeds consumable mastery.
-    this.grantRoamingMastery(playerId, action.target_id, rewards.xp);
-    this.grantConsumedMastery(playerId, appliedConsumables);
+    // 0083: NO mastery grants here — the 0014 mirror rides the
+    // claim's ledger row, so the grants land in claimOfflineSettlement.
+    return result;
+  }
+
+  async holdOfflineItems(playerId: string, settlementNonce: string, items: Json, feedEvents: Json): Promise<Json> {
+    if (!settlementNonce || settlementNonce.trim().length < 8) {
+      throw new GameplayStoreError('settlement_nonce is required (min 8 chars)');
+    }
+    const hold = this.offlineHolds.get(playerId);
+    if (!hold) return { held_items: false, reason: 'no_hold' };
+    if (!hold.itemNonces.includes(settlementNonce)) {
+      hold.itemNonces.push(settlementNonce);
+      if (Array.isArray(items)) hold.items.push(...(items as Json[]));
+      if (Array.isArray(feedEvents)) hold.feedEvents.push(...(feedEvents as Json[]));
+    }
+    return { held_items: true, hold: this.offlineHoldBlock(hold) };
+  }
+
+  async claimOfflineSettlement(playerId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const hold = this.offlineHolds.get(playerId);
+    if (!hold) {
+      return { claimed: false, reason: 'nothing_held', profile: this.snapshot(p) };
+    }
+    // The payment (0083 §4's application block): the shared bundle
+    // applies XP through the curve (level-up cache-rank grants ride
+    // along), credits, the unified Scrap merge, materials/essences
+    // merges and whole keys onto cache_tokens.
+    const echo = this.applyRewardBundle(p, {
+      credits: hold.credits,
+      scrap: hold.scrap,
+      xp: hold.xp,
+      keys: hold.cacheKeys,
+      materials: hold.materials as Json,
+      essences: hold.essences as Json,
+      kills: hold.kills,
+    });
+    // 0034 + 0042 + 0014 mirrors — in SQL these ride the claim's
+    // ledger row (the triggers read action_type
+    // 'cc_settle_offline_roaming'), so they land here, fed the
+    // accumulated totals.
+    this.recordKillStats(playerId, hold.kills);
+    this.addContractStat(playerId, 'combat.roaming_kills', hold.kills);
+    this.addContractStat(playerId, 'combat.idle_xp_claimed', hold.xp);
+    this.addContractStat(playerId, 'consumables.used',
+      Object.values(hold.appliedConsumables).reduce((n, q) => n + q, 0));
+    this.grantRoamingMastery(playerId, hold.areaId, hold.xp);
+    this.grantConsumedMastery(playerId, hold.appliedConsumables);
+    // The anchor: the hold is consumed — a second claim pays nothing.
+    this.offlineHolds.delete(playerId);
+    const result: Json = {
+      claimed: true,
+      hold_id: hold.holdId,
+      area_id: hold.areaId,
+      settle_from: hold.settleFrom,
+      settled_at: hold.lastSettledAt,
+      elapsed_ms: hold.elapsedMs,
+      cap_reached: hold.capReached,
+      cap_hours: hold.capHours,
+      ticks_settled: hold.ticks,
+      start_tick: hold.startTick,
+      end_tick: hold.endTick,
+      windows: hold.windows,
+      profile: this.snapshot(p),
+      rewards: { ...echo, ticks: hold.ticks },
+      consumed_consumables: { ...hold.appliedConsumables },
+      items: [...hold.items],
+      feed_events: [...hold.feedEvents],
+    };
+    this.ledger.set(`${playerId}:offline_claim:${hold.holdId}`, result);
     return result;
   }
 

@@ -928,6 +928,25 @@ export interface ChefGameplayStore {
    * the stored value applies (legacy callers).
    */
   settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json>;
+  /**
+   * Offline hold-and-claim (migration 0083): append a settled
+   * window's item grants + feed events to the player's held
+   * settlement (cc_hold_offline_items). Idempotent per settlement
+   * nonce; the settle upserts the hold row on every settled window,
+   * so a missing hold means the window never settled.
+   */
+  holdOfflineItems(playerId: string, settlementNonce: string, items: Json, feedEvents: Json): Promise<Json>;
+  /**
+   * Offline hold-and-claim (migration 0083): pay the held settlement
+   * atomically and exactly once (cc_claim_offline_settlement). The
+   * hold row is the exactly-once anchor — a second claim returns
+   * { claimed: false, reason: 'nothing_held' } and pays nothing.
+   * The result is settle-shaped (rewards / items / feed events /
+   * profile) so the claim route runs the same post-steps the settle
+   * route used to run at settle time (item storage, discoveries,
+   * the 0080 auto-salvage pass, the standing drip).
+   */
+  claimOfflineSettlement(playerId: string): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
   /**
    * Auto-salvage settlement pass (migration 0080,
@@ -2220,6 +2239,19 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       // function's stored-preference fallback for legacy callers.
       capHours ?? null,
     ]);
+  }
+
+  holdOfflineItems(playerId: string, settlementNonce: string, items: Json, feedEvents: Json): Promise<Json> {
+    return this.callJson('select public.cc_hold_offline_items($1, $2, $3, $4) as result', [
+      playerId,
+      settlementNonce,
+      items,
+      feedEvents,
+    ]);
+  }
+
+  claimOfflineSettlement(playerId: string): Promise<Json> {
+    return this.callJson('select public.cc_claim_offline_settlement($1) as result', [playerId]);
   }
 
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json> {
