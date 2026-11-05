@@ -59,7 +59,7 @@ import {
   type WorkshopPlayerContext,
 } from '@/lib/workshop/readiness';
 import { GateLines, RecipeInspectSheet, SourceLine } from '@/components/workshop/RecipeDetail';
-import { isServiceLaneJob } from '@/components/workshop/RepairServiceSection';
+import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
 import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';

@@ -7,6 +7,7 @@ import { useActivityStore, useInventoryStore, useWorkshopStore } from '@/store';
 import { buildWorkshopServiceActivity } from '@/lib/activity/activityBuilders';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
 import { chipClip } from '@/lib/ui/clips';
+import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import type { WorkshopJobView } from '@/store/slices/workshopSlice';
 
 /**
@@ -30,9 +31,6 @@ import type { WorkshopJobView } from '@/store/slices/workshopSlice';
  * Display only: every number here is the server's workshop view;
  * the Chef remains the authority.
  */
-
-export const isServiceLaneJob = (job: WorkshopJobView): boolean =>
-  job.kind === 'repair' || job.kind === 'shieldtech';
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
