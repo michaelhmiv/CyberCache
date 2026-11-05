@@ -5,6 +5,7 @@ import App from './App.tsx';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
+import { CollectionsDossierDemo } from './demo/CollectionsDossierDemo';
 
 function renderErrorToRoot(error: unknown, source: string) {
   const root = document.getElementById('root');
@@ -34,15 +35,24 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
+// DESIGN PASS capture harness (prototype branch only): ?collections-dossier
+// renders the Collections dossier standalone with fixture data.
+const isCollectionsDossierDemo =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('collections-dossier');
+
 try {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <GlobalErrorBoundary>
-        <AuthProvider>
-          <AccountStorageBoundary>
-            <App />
-          </AccountStorageBoundary>
-        </AuthProvider>
+        {isCollectionsDossierDemo ? (
+          <CollectionsDossierDemo />
+        ) : (
+          <AuthProvider>
+            <AccountStorageBoundary>
+              <App />
+            </AccountStorageBoundary>
+          </AuthProvider>
+        )}
       </GlobalErrorBoundary>
     </StrictMode>,
   );
