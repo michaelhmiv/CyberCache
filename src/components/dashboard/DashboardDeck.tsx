@@ -73,7 +73,10 @@ const toneClass: Record<Tone, { text: string; border: string; bg: string; fill: 
   cyan: { text: 'text-cyan', border: 'border-cyan/45', bg: 'bg-cyan/10', fill: 'bg-cyan' },
 };
 
-const gainToneClass: Record<DisplayGainTone, { text: string; bg: string; border: string; fill: string }> = {
+// Partial by design: getGainToneClass falls back to the 'unknown'
+// entry for tones with no dedicated styling — today that includes
+// 'auto_salvage' (0080), which therefore renders in the neutral tone.
+const gainToneClass: Record<'unknown', { text: string; bg: string; border: string; fill: string }> & Partial<Record<DisplayGainTone, { text: string; bg: string; border: string; fill: string }>> = {
   xp: { text: 'text-green', bg: 'bg-green/10', border: 'border-green/70', fill: 'bg-green' },
   loot: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   cash: { text: 'text-cyan', bg: 'bg-cyan/10', border: 'border-cyan/70', fill: 'bg-cyan' },

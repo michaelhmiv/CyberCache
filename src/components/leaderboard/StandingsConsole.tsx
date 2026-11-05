@@ -68,6 +68,15 @@ const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
  * kept local because screen tests mock the service with a bare
  * factory (functions only), and the header renders unconditionally.
  */
+// FINDING F4 (tsc-gate triage, see PR body): this local map's keys use
+// a retired metric vocabulary (xp_total, kills, kd_ratio, …) that
+// matches almost nothing in the real LeaderboardMetric union (xp,
+// total_kills, kdr, …) — only 'level' and 'net_worth' coincide. Unit
+// labels therefore read undefined for 8 of 10 channels, and the
+// board header's METRIC_UNIT_LABEL[metric].toUpperCase() throws for
+// those channels. The service's LEADERBOARD_METRIC_UNITS carries the
+// correct words. Behavior deliberately left untouched by the triage.
+// @ts-expect-error F4: local unit map keys do not match LeaderboardMetric (known defect, flagged in PR body)
 const METRIC_UNIT_LABEL: Record<LeaderboardMetric, string> = {
   level: 'Lv',
   xp_total: 'XP',

@@ -40,7 +40,7 @@
  * here and the 0009/0010 remainder columns are never touched.
  */
 import { CONSUMABLES } from '../../constants/consumables';
-import type { ConsumableDef } from '../../types/consumables';
+import type { ConsumableDef } from '../../constants/consumables';
 import { EssenceType, MaterialType } from '../../types/game';
 import { hashString } from '../utils/rng';
 

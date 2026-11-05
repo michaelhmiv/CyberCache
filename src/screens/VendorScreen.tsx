@@ -10,7 +10,7 @@ import { ChipRail } from '@/components/common/ChipRail';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { useFilterSort } from '@/lib/hooks/useFilterSort';
 import { useNow } from '@/hooks/useNow';
-import type { ConsumableDef } from '@/types/consumables';
+import type { ConsumableDef } from '@/constants/consumables';
 import type { GearItem } from '@/types/items';
 import { chipClip } from '@/lib/ui/clips';
 import { gearCategoryFromPayload } from '@/lib/market/identityKey';

@@ -45,6 +45,13 @@ const objectValue = (value: unknown): Record<string, unknown> => (
 export function activityRowToState(row?: ActiveActionRow | null): ActiveActivity {
   if (!row) return IDLE_ACTIVITY;
 
+  // FINDING F5 (tsc-gate triage, see PR body): this mapper never sets
+  // bossPhase, so a hydrated activity carries bossPhase === undefined
+  // (not the DEFAULT_BOSS_PHASE 'prep' the type promises) until the
+  // slice sets it — the known "bossPhase never forwarded" gap. Filling
+  // it in would change what Home's stage renders for boss attempts,
+  // so the triage flags it instead of fixing it.
+  // @ts-expect-error F5: activityRowToState omits bossPhase (known defect, flagged in PR body)
   return {
     userId: row.user_id,
     kind: (row.active_action as ActivityKind | undefined) ?? 'idle_standby',

@@ -20,7 +20,7 @@
  *      the `mfgBonus` field on the parent module def.
  */
 
-import type { ActivityKind } from '@/types/activity';
+import type { ActivityKind, ActivityKindWithBossPrep } from '@/types/activity';
 import { Rarity, Manufacturer } from '@/types/game';
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -92,7 +92,9 @@ export const BASE_ACTIVITY_MODULE_CHANCE = 0.25;
 // Extraction (0033) is excluded by law: gear activity modules /
 // activity modifiers never apply to a pass — its yield reads the
 // gear factor, mastery, method, and hot-area terms only.
-export const ACTIVITY_MODULE_DEFS: Record<Exclude<ActivityKind, 'none' | 'boss_prep' | 'boss_fight' | 'extraction'>, ActivityModuleDef> = {
+// Partial: 'endless_run' (in the key union) has no module def — the
+// generator and stat metadata already read missing defs as none.
+export const ACTIVITY_MODULE_DEFS: Partial<Record<Exclude<ActivityKind, 'none' | 'boss_prep' | 'boss_fight' | 'extraction'>, ActivityModuleDef>> = {
 
   // ── Crafting Module ────────────────────────────────────────────
 
@@ -376,7 +378,7 @@ export const ACTIVITY_MODULE_DEFS: Record<Exclude<ActivityKind, 'none' | 'boss_p
  */
 export type GearSlot = 'weapon' | 'shield' | 'ordnance' | 'relic' | 'classMod';
 
-export const SLOT_ACTIVITY_WEIGHTS: Record<GearSlot, Partial<Record<ActivityKind, number>>> = {
+export const SLOT_ACTIVITY_WEIGHTS: Record<GearSlot, Partial<Record<ActivityKindWithBossPrep, number>>> = {
   weapon: {
     roaming_loot: 3.0,
     boss_fight: 2.0,

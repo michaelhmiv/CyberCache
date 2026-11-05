@@ -18,6 +18,13 @@ export function buildEffectSummary(
 ): string | null {
   if (!def) return null;
   const e: ConsumableRuntimeEffects = def.runtime.baseEffects ?? {};
+  // bossSlowMultiplier is declared on ConsumableEffectRules (the
+  // boss-path rules), not on ConsumableRuntimeEffects, and no def
+  // currently places it in runtime.baseEffects — so this reads
+  // undefined today. Kept as a widened read because baseEffects is an
+  // open record the runtime-effects builder copies verbatim: a def
+  // that adds the key would surface here with no further wiring.
+  const bossSlowMultiplier = (e as { bossSlowMultiplier?: number }).bossSlowMultiplier;
   const parts: string[] = [];
 
   // ─ Survival / heal / repair ─
@@ -52,8 +59,8 @@ export function buildEffectSummary(
   if (typeof e.mechanicMultiplier === 'number' && e.mechanicMultiplier !== 1) {
     parts.push(`${signedPct(e.mechanicMultiplier - 1)} Mech`);
   }
-  if (typeof e.bossSlowMultiplier === 'number' && e.bossSlowMultiplier !== 1) {
-    parts.push(`${signedPct(-(e.bossSlowMultiplier - 1))} Boss Spd`);
+  if (typeof bossSlowMultiplier === 'number' && bossSlowMultiplier !== 1) {
+    parts.push(`${signedPct(-(bossSlowMultiplier - 1))} Boss Spd`);
   }
   if (typeof e.incomingDpsMultiplier === 'number' && e.incomingDpsMultiplier !== 1) {
     parts.push(`${signedPct(-(e.incomingDpsMultiplier - 1))} Inc DPS`);

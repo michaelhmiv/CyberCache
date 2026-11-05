@@ -192,9 +192,12 @@ export function loadoutEffectiveDps(): number {
 
   return computeEffectiveDpsFromGear({
     weapons,
-    ordnance: loadout.getOrdnance(),
-    relic: loadout.getRelic(),
-    classMod: loadout.getClassMod(),
+    // The getters return undefined for an empty slot; the DPS input
+    // contract spells absence as null. The callee only truthiness-
+    // checks these fields, so the coalesce changes nothing.
+    ordnance: loadout.getOrdnance() ?? null,
+    relic: loadout.getRelic() ?? null,
+    classMod: loadout.getClassMod() ?? null,
     skillDpsMult,
     skillStatusChance: skillBonuses.statusChance || 0,
   });

@@ -10,6 +10,17 @@ export type ActivityKind =
   | 'endless_run'
   | 'extraction';
 
+/**
+ * ActivityKind plus the retired 'boss_prep' kind. Boss prep collapsed
+ * into 'boss_fight' (bossPhase 'prep'; see activityMigration.ts), so
+ * no live activity ever carries 'boss_prep' — but several static
+ * display tables (animation plans, workspace specs, module rating
+ * weights) still carry a boss_prep entry from before the collapse.
+ * Those tables are keyed by this union; lookups by a live ActivityKind
+ * behave exactly as they always have.
+ */
+export type ActivityKindWithBossPrep = ActivityKind | 'boss_prep';
+
 export type ActivityTargetType =
   | 'none'
   | 'roaming_area'
