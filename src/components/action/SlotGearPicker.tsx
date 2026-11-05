@@ -9,7 +9,7 @@ import React, { useMemo, useState } from 'react';
 import { Search, ArrowUpDown, X, LayoutGrid, List } from 'lucide-react';
 import { useInventoryStore } from '@/store';
 import { Element, Rarity, Manufacturer, WeaponType } from '@/types/game';
-import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
+import type { GearLoadoutSlot, LoadoutSlot } from '@/store/slices/loadoutSlice';
 import type { GearItem, Weapon } from '@/types/items';
 import { GearCompare } from '@/components/gear/GearCompare';
 import { gearCardSummary } from '@/lib/gear/gearCardSummary';
@@ -50,7 +50,7 @@ type SortKey =
 
 type SortSpec = { key: SortKey; label: string };
 
-const SLOT_SORT_SPECS: Record<LoadoutSlot, SortSpec[]> = {
+const SLOT_SORT_SPECS: Record<GearLoadoutSlot, SortSpec[]> = {
   primary: [
     { key: 'combatPower', label: 'DPS ↓' },
     { key: 'bossPower', label: 'Boss ↓' },
@@ -139,7 +139,9 @@ function itemSortValue(item: GearItem, key: SortKey): number {
 }
 
 function makeSortOptions(slot: LoadoutSlot): SortOption<GearItem>[] {
-  return (SLOT_SORT_SPECS[slot] ?? SLOT_SORT_SPECS.primary).map((spec) => ({
+  // Gear slots only in the map; any other slot falls back to the
+  // primary specs, exactly as an absent key did before the retype.
+  return (SLOT_SORT_SPECS[slot as GearLoadoutSlot] ?? SLOT_SORT_SPECS.primary).map((spec) => ({
     key: spec.key,
     label: spec.label,
     compare: (a, b) => {

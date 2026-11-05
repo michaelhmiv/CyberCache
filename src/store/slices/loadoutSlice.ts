@@ -14,6 +14,15 @@ export type LoadoutSlot =
   | 'relic'
   | 'vehicle';
 
+/**
+ * The seven GEAR slots. 'vehicle' is a loadout slot but not a gear
+ * slot: vehicles equip through the Garage and never appear in gear
+ * inventories, pickers, or slot maps. Gear-slot keyed maps and lists
+ * are typed with this so their missing vehicle entry is a type fact,
+ * not an oversight.
+ */
+export type GearLoadoutSlot = Exclude<LoadoutSlot, 'vehicle'>;
+
 export interface LoadoutConsumables {
   PreFight: string | null;
   MidFight: string | null;
