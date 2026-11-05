@@ -210,6 +210,12 @@ describe('crafting consolidation — the bench on Home', { timeout: 60_000 }, ()
     expect(banner.textContent).toContain('1 job waiting');
     expect(banner.textContent).toContain('jobs progress only while Crafting holds the action slot');
     expect(screen.getByTestId('craft-bench-state').textContent).toBe('Paused');
+    // The Workshop's own bench strip agrees with the banner — it
+    // used to print "Working · {job}" whenever any job existed,
+    // paused or not (the silent-zero-progress lie, in words).
+    const benchEl = screen.getByTestId('home-craft-bench');
+    expect(benchEl.textContent).toContain('Paused · Med Kit — progress waits on Crafting');
+    expect(benchEl.textContent).not.toContain('Working · Med Kit');
     // The remedy is in place — and using it is what switches.
     fireEvent.click(screen.getByTestId('craft-bench-work-button'));
     await waitFor(() => expect(startMock).toHaveBeenCalled());

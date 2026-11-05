@@ -665,7 +665,9 @@ export const WorkshopScreen: React.FC<{
             {benchJobs.length > 0
               ? stripRunningBenchJobs.length > 1
                 ? `Working · ${stripRunningBenchJobs.length} jobs running on the bench`
-                : `Working · ${stripRunningJob?.name ?? benchJobs[0]?.name ?? 'job running'}`
+                : stripRunningJob
+                  ? `Working · ${stripRunningJob.name}`
+                  : `Paused · ${benchJobs[0]?.name ?? 'job'} — progress waits on Crafting`
               : 'Idle · ready'}
           </div>
         </div>
