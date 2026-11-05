@@ -420,7 +420,7 @@ export const WardrobePanel: React.FC = () => {
                                     {p.name}
                                   </div>
                                   <div className="text-[11px] font-bold uppercase leading-snug" style={{ ...monoStyle, color: FAINT }}>
-                                    {skinSetById(p.setId)?.name ?? p.setId} · {finish} · Q{p.quality}
+                                    {skinSetById(p.setId)?.name ?? p.setId} · {finish} · {`Q${p.quality}`}
                                     {tint ? ` · ${tint.name} tint` : ''}
                                     {locked ? ' · Locked' : ''}
                                   </div>
