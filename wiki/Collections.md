@@ -44,12 +44,18 @@ delivery. There is nothing to turn in and nothing to forget to claim.
 
 Open Collections from the **Collections door on the Hunter tab's
 menu** to see the shelf family by family — or tap the **Collections
-tile on your Trophy Shelf** (Profile & Record stop), which opens the same shelf. Each family
-shows a found count. An entry you haven't earned yet shows only as a
-silhouette labeled **Undiscovered**, with a short note on how entries
-in its family are earned — its name (and, for a boss, what it drops)
-stays hidden until you log it. Your legendary core
-balance rides in the shelf's header.
+tile on your Trophy Shelf** (Profile & Record stop), which opens the same shelf. The shelf reads as an
+instrument cluster: a dial and readouts up top track your total
+logged count and completion, and each family is a channel with its
+own meter, found count, and a row per entry — lit and named once
+logged, dark until then. Tap any entry to open its readout card:
+status, family, the source that logged it, and the date. A logged
+entry's card also prints how that entry is acquired. An entry you
+haven't earned yet shows only as a silhouette labeled
+**Undiscovered** — on its row and on its card alike — with a short
+note on how entries in its family are earned; its name (and, for a
+boss, what it drops) stays hidden until you log it. Your legendary
+core balance rides in the shelf's header.
 
 ## Legendary cores: minted one way only
 
