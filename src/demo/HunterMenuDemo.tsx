@@ -13,7 +13,7 @@
  * service-backed panels render their real offline states.
  */
 import React, { useEffect, useState } from 'react';
-import { AuthProvider } from '@/auth/AuthProvider';
+import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { ProfileScreen } from '@/screens/ProfileScreen';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { usePlayerStore, useSkillStore, useInventoryStore, useSurvivalStore } from '@/store';
@@ -49,6 +49,7 @@ function seedFixture() {
   const level = 24;
   usePlayerStore.setState({
     name: 'Rook Sandoval',
+    profileLoaded: true,
     level,
     xp: Math.floor(xpToNextLevel(level) * 0.62),
     credits: 24100,
@@ -121,20 +122,29 @@ function seedFixture() {
 const VARIANTS = ['deck', 'strip', 'hub'] as const;
 type Variant = (typeof VARIANTS)[number];
 
-export const HunterMenuDemo: React.FC = () => {
+const DemoStage: React.FC = () => {
+  const { loading } = useAuth();
   const [variant, setVariant] = useState<Variant>(() => {
     const v = new URLSearchParams(window.location.search).get('variant');
     return (VARIANTS as readonly string[]).includes(v ?? '') ? (v as Variant) : 'hub';
   });
   const [seeded, setSeeded] = useState(false);
 
+  // The AuthProvider's boot resets every runtime store to initial
+  // state (its signed-out path) — seeding before that reset lands
+  // gets wiped. Seed only once auth has settled, then mount the
+  // screen: panels that self-load (Wardrobe) see loadState 'ready'
+  // and keep the fixture.
   useEffect(() => {
-    seedFixture();
-    setSeeded(true);
-  }, []);
+    if (loading || seeded) return;
+    const t = setTimeout(() => {
+      seedFixture();
+      setSeeded(true);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [loading, seeded]);
 
   return (
-    <AuthProvider>
       <div className="flex h-dvh flex-col bg-bg" data-testid={`hunter-demo-${variant}`}>
         {/* Capture switcher — scaffolding, not design. */}
         <div className="flex shrink-0 gap-1 border-b border-border bg-surface px-2 py-1">
@@ -162,6 +172,11 @@ export const HunterMenuDemo: React.FC = () => {
         </div>
         <BottomNav activeTab="hunter" onChange={() => {}} />
       </div>
-    </AuthProvider>
   );
 };
+
+export const HunterMenuDemo: React.FC = () => (
+  <AuthProvider>
+    <DemoStage />
+  </AuthProvider>
+);
