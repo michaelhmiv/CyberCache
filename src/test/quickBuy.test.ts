@@ -258,7 +258,7 @@ describe('quickBuy planner — sweep + default tab', () => {
 
   it('identity keys: commodities collapse, goods keep their id', () => {
     // Fragments are abolished (0082): no identity key exists for them.
-    expect(quickBuyIdentityKey({ kind: 'fragment', id: 'cache' })).toBeUndefined();
+    expect(quickBuyIdentityKey({ kind: 'fragment', id: 'cache' } as unknown as Parameters<typeof quickBuyIdentityKey>[0])).toBeUndefined();
     expect(quickBuyIdentityKey({ kind: 'core', id: 'legendary' })).toBe('core:legendary');
     expect(quickBuyIdentityKey({ kind: 'material', id: 'Scrap' })).toBe('mat:Scrap');
   });

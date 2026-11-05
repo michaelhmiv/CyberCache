@@ -705,7 +705,7 @@ describe('batch recipe gate — writes store', () => {
       last_settlement_nonce: null, offline_cap_hours: 0, vehicle_fuel: 0,
       workshop_benches: 1, workshop_tools: {},
       id: A,
-    } as ProfileRowData];
+    } as unknown as ProfileRowData];
     return s;
   }
 

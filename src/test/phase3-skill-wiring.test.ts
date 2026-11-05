@@ -112,10 +112,6 @@ describe('loadoutSurvivalStats — skill survival on max HP', () => {
 // ---------------------------------------------------------------------------
 
 describe('processRoamingClaim — skill economy merge', () => {
-  // Opaque stand-in for the server handler's data-client parameter
-  // (typed without importing the server stack's client package here).
-  const fakeSupabase = {} as Parameters<typeof processRoamingClaim>[1];
-
   it('applies skill offlineEarnings to credits', () => {
     const result = processRoamingClaim({
       playerId: 'test',
@@ -125,7 +121,7 @@ describe('processRoamingClaim — skill economy merge', () => {
       playerLevel: 10,
       idleMods: { offlineEarningsMod: 0, scrapYieldMod: 0, rareDropChanceMod: 0 },
       skillBonuses: { offlineEarnings: 0.5 },
-    }, fakeSupabase);
+    });
     // Fractional (migration 0010): 15/20 = 0.75/tick x 1.5 mult = 1.125;
     // 5 ticks = 5.625 -> pay 5, bank 0.625. (Pre-0010 rounding paid 10.)
     expect(result.rewards.creditsAwarded).toBe(5);
@@ -141,7 +137,7 @@ describe('processRoamingClaim — skill economy merge', () => {
       playerLevel: 10,
       idleMods: { offlineEarningsMod: 0.5, scrapYieldMod: 0, rareDropChanceMod: 0 },
       skillBonuses: { offlineEarnings: 0.5 },
-    }, fakeSupabase);
+    });
     // Client-supplied idleMods are NOT trusted server-side (the Chef
     // re-derives gear mods from equippedGear, absent here), so only the
     // skill 0.5 applies: same 1.125/tick as the previous test -> pay 5,
@@ -159,7 +155,7 @@ describe('processRoamingClaim — skill economy merge', () => {
       playerLevel: 10,
       idleMods: { offlineEarningsMod: 0, scrapYieldMod: 0, rareDropChanceMod: 0.1 },
       skillBonuses: { rareDropChance: 0.2 },
-    }, fakeSupabase);
+    });
     // Should not throw — threshold adjustment applied
     expect(result).toBeDefined();
     expect(result.rewards.ticks).toBeGreaterThanOrEqual(1);
