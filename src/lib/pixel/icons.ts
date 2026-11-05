@@ -114,6 +114,14 @@ export const PX_ICONS = {
   halfDisc: [[6,2,4,2],[4,3,2,2],[10,3,2,2],[3,5,2,6],[11,5,2,6],[4,11,2,2],[10,11,2,2],[6,12,4,2],[8,4,2,8],[10,5,1,6]],
   hatch: [[3,3,10,1],[3,12,10,1],[3,3,1,10],[12,3,1,10],[9,4,2,2],[7,6,2,2],[5,8,2,2],[10,9,2,2],[8,10,2,2]],
   hatchH: [[3,3,10,1],[3,12,10,1],[3,3,1,10],[12,3,1,10],[4,6,8,1],[4,9,8,1]],
+  // help added 2026-11-05: the no-paragraphs law's affordance glyph.
+  // Screens carry labels + controls only; explanations live behind a
+  // small ? beside the label (the HelpHint sheet). A plain question
+  // mark in the sheet's duotone hand: a 2px arc, the hook sweeping
+  // down to center, a short stem, and the dot. Drawn to read at the
+  // hint button's 13-15px, where 'info' (an i in a box) read as a
+  // spec tag, not a question the player can ask.
+  help: [[5,2,6,2],[3,4,2,2],[11,4,2,2],[10,6,3,2],[7,8,4,2],[7,10,2,2],[7,13,2,2]],
   hex: [[6,2,4,1],[4,3,2,2],[10,3,2,2],[3,5,1,6],[12,5,1,6],[4,11,2,2],[10,11,2,2],[6,13,4,1]],
   info: [[3,2,10,1],[3,13,10,1],[3,2,1,12],[12,2,1,12],[7,4,2,2],[7,7,2,5]],
   pause: [[4,3,3,10],[9,3,3,10]],
