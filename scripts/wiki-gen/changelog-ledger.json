@@ -10,12 +10,32 @@
           "title": "Daily login streak: TRUE CLAIM — record holds, tap Claim pays (migration 0079)"
         },
         {
+          "number": 391,
+          "title": "The Trade: equip comparison in the inspect sheet + class-mod truth fix"
+        },
+        {
           "number": 393,
           "title": "Pure player market: Buy/Sell are solely player listings (supersedes #317)"
         },
         {
+          "number": 394,
+          "title": "Market compact list rows — Buy/Sell one-line treatment (Gear list sibling)"
+        },
+        {
           "number": 395,
           "title": "Cache reveal: one page — stage stays, full stat deck below (no phase swap)"
+        },
+        {
+          "number": 396,
+          "title": "Changelog: 2026-11-05 entry (streak claim, pulse, pure market, one-page reveal)"
+        },
+        {
+          "number": 397,
+          "title": "Cache lane rebuild: daily budget dies, fragments abolished, keys are the only cache currency (migration 0082)"
+        },
+        {
+          "number": 398,
+          "title": "Fix combat-stats saves dying on fractional play seconds (bigint)"
         }
       ]
     },

@@ -5,6 +5,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 ## 2026-11-05 — What's yours, claimed by hand
 
 - **Your streak pays when you claim it** — the daily login streak no longer pays out on its own when you open the game. The day's reward waits on Home behind a real **Claim** button; tap it and the celebration shows what you actually got. Leave it unclaimed and the reward expires at the day rollover (00:00 UTC) — the streak day itself still counts either way.
+- **Offline earnings wait for you, too** — what your hunter earns while you're away is no longer paid out silently the moment you open the game. It is held, and Home's offline button shows the true held amount; tap it and the Return Sheet pays exactly what accumulated, exactly once. The math is unchanged — same windows, same caps — only the paying moved to your tap. Home's top also trades its repeated level block for two honest buttons: your cache keys ride on the cache button as a count bubble, and the level display becomes a real progress bar showing how far into the level you are.
 - **Numbers move where you can see them** — when a counted resource in the top bar rises — credits, scrap, keys — the counter pulses as it climbs, so gains never happen silently; drops stay quiet. Two things that used to happen without a word now announce themselves on Home: a **Sold** chip when one of your market listings sells, showing what you actually netted after the fee, and a **Bench ready** chip when a bench job finishes.
 - **The Workshop lives on Home** — crafting has moved in full to Home's Craft mode: recipes, the queue, collecting, banked bench time, and repair and service jobs all work there. Gear drops its Workshop stop for a slim bench status strip — running, queued, and ready counts — that taps through to the bench, and the Garage still starts repairs, with its status and a door to Home's bench alongside. The bench itself is untouched: same jobs, same timers, same payouts.
 - **Auto-salvage actually salvages now** — the Settings rule used to save politely and do nothing at all. It is now kept on your profile and enforced by the server, on roaming claims and offline settlements only: a drop at or under your rarity ceiling and quality cap is recycled the moment it lands, at exactly the manual salvage payout, Scavenger bonuses included. The ceiling stops at Epic — a Legendary can never be auto-salvaged at any layer — and boss loot, cache contents, market goods, and crafted items are never touched, nor was anything already in your bag. The Settings card also gains the On/Off and Scrap/Materials switches it always should have had.
@@ -131,13 +132,18 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 131 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 136 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-05** — 3 merges
+**2026-11-05** — 8 merges
 
 - #386 — Daily login streak: TRUE CLAIM — record holds, tap Claim pays (migration 0079)
+- #391 — The Trade: equip comparison in the inspect sheet + class-mod truth fix
 - #393 — Pure player market: Buy/Sell are solely player listings (supersedes #317)
+- #394 — Market compact list rows — Buy/Sell one-line treatment (Gear list sibling)
 - #395 — Cache reveal: one page — stage stays, full stat deck below (no phase swap)
+- #396 — Changelog: 2026-11-05 entry (streak claim, pulse, pure market, one-page reveal)
+- #397 — Cache lane rebuild: daily budget dies, fragments abolished, keys are the only cache currency (migration 0082)
+- #398 — Fix combat-stats saves dying on fractional play seconds (bigint)
 
 **2026-11-04** — 18 merges
 
