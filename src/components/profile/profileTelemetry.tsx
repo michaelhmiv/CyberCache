@@ -248,7 +248,7 @@ export const TmReadoutRow: React.FC<{
           {label}
         </span>
         {detail && (
-          <span className="block truncate text-[11px] leading-tight" style={{ ...tmMonoStyle, color: TM_FAINT }}>
+          <span className="block text-[11px] leading-tight [overflow-wrap:anywhere]" style={{ ...tmMonoStyle, color: TM_FAINT }}>
             {detail}
           </span>
         )}
