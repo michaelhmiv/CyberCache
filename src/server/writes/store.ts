@@ -108,6 +108,16 @@ export function writeError(message: string): WriteStoreError {
 export const NPC_VENDOR_WEAPON_REFUSAL =
   "Vendor weapons can't be listed on the player market — sell them back to the vendor or recycle them instead";
 
+/**
+ * Cache fragments are abolished (migration 0082): the SQL create
+ * function is dropped and no fragment listing can be created. Both
+ * write stores refuse with this exact message, routed through
+ * writeError() so the refusal carries the mapped 'validation' code
+ * and the sentence as the message.
+ */
+export const FRAGMENT_REFUSAL =
+  'Cache fragments no longer exist — cache keys are the only cache currency';
+
 /** True when an item is an NPC-vendor weapon (see the ruling above). */
 export function isNpcVendorWeapon(item: {
   kind?: string | null;
@@ -2048,16 +2058,9 @@ export class PgWriteStore implements WriteStore {
     // Cache fragments are abolished (migration 0082): the SQL
     // function is dropped and no fragment listing can be created.
     // Refuse here, before any SQL — the in-memory twin refuses
-    // identically.
+    // identically, through writeError() with the shared sentence.
     void playerId; void nonce; void quantity; void priceCredits;
-    // FINDING F2 (tsc-gate triage, see PR body): this passes the message
-    // as the WriteStoreError CODE (the constructor is (code, message)),
-    // so the API answers a fragment-listing attempt with the sentence
-    // as `error` and an empty `message` — the in-memory twin routes the
-    // same refusal through writeError() and gets a real code. Behavior
-    // deliberately left untouched by the triage.
-    // @ts-expect-error F2: WriteStoreError called with (message) instead of (code, message) — known defect, flagged in PR body
-    throw new WriteStoreError('Cache fragments no longer exist — cache keys are the only cache currency');
+    throw writeError(FRAGMENT_REFUSAL);
   }
   marketCreateCore(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
     return this.callJson('select public.cc_market_create_core($1, $2, $3, $4) as result', [playerId, nonce, quantity, priceCredits]);

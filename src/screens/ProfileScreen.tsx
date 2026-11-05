@@ -328,7 +328,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       initial={false}
       animate={{ opacity: stop === id ? 1 : 0, y: stop === id ? 0 : 6 }}
       transition={{ duration: reduceMotion ? 0 : 0.18 }}
-      className={stop === id ? 'space-y-4' : 'hidden'}
+      className={stop === id ? 'space-y-2' : 'hidden'}
       aria-hidden={stop !== id}
     >
       {children}
@@ -336,7 +336,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   );
 
   return (
-    <div className="bl-page space-y-4 p-4 pb-20">
+    <div className="bl-page space-y-2 p-4 pb-20">
       <ResourceBar onOpenSettings={() => onNavigate?.('settings')} />
 
       {stopSection('hub', (

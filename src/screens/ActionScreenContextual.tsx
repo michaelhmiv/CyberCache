@@ -757,7 +757,16 @@ export const ActionScreenContextual: React.FC<{
   ) : null;
 
   return (
-    <div className="bl-page relative overflow-hidden space-y-3 p-3 pb-20">
+    <div className="bl-page relative flex flex-col gap-3 overflow-hidden">
+      {/* Section-gap law (owner, 2026-11-05): this block is a
+          stack of Home sections (rail → stage → belt →
+          workspace → feed) on the ONE 8px section gap
+          (--cc-gap-md; gap-3 under .bl-page) — no nested page
+          padding of its own (the p-3/pb-20 it carried as a
+          once-standalone screen made its boundaries 30px and
+          18px against 6–12px everywhere else). Home's own
+          page pad frames the column; its pb-16 clears the
+          BottomNav. */}
       {/* Ambient glow blobs — matching Dashboard */}
       <div className="pointer-events-none absolute inset-0 opacity-70">
         <div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" />

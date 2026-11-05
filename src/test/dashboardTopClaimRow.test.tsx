@@ -22,13 +22,84 @@
  *  - DATA stays: the key bubble, the pending figure, the
  *    streak day numeral, the CLAIM / GUEST / count badges;
  *  - the old badge-corner padding reservations are gone, and
- *    each key's content row anchors to its bottom (mt-auto in
+ *    each key's content stage anchors to its bottom (mt-auto in
  *    a flex-col key) while the badge keeps the top corner —
  *    badge and content can never share a band at any width;
  *  - per-key min-width floors are sized from icon + data.
  *
  * On the #402 component every assertion below fails (wrap,
  * painted labels, reservations, pair span, no bottom anchor).
+ *
+ * DESIGN FIX (2026-11-05, later the same day): the owner
+ * rejected #403's LOOK — the fit was right and the design was
+ * wrong (15px glyphs rattling in wide label-era plates,
+ * floor-hugging, no rhythm). An impeccable layout + polish
+ * pass redesigned the row as one instrument rail, and the
+ * pins below moved ONLY where that composition legitimately
+ * changed, as recorded here:
+ *  - every key now takes an EQUAL flex share (the two-slab /
+ *    two-stub rhythm is gone), so the compact keys' floors
+ *    dropped to their cluster sizes (streak/contracts/weekly
+ *    60/56/56 → 52) and OFFLINE pending's floor is sized from
+ *    its new cluster (116 → 108);
+ *  - the content stage is a FIXED 33px band and the cluster
+ *    CENTERS in it on both axes (items-center +
+ *    justify-center pins added) — the mt-auto zone separation
+ *    from the badge band is unchanged;
+ *  - the icons stand at 26px (§7's door/row size) — a new pin
+ *    reads the rendered svg width so the glyphs can never
+ *    silently shrink back to label-era 15px.
+ *
+ * R2 AMENDMENT (owner feedback on the presented design-fix
+ * captures, 2026-11-05: "They don't need to be so tall and
+ * reduce the spacing"): the rail compacts and the pins move
+ * with it — key height 56 → 48px (tap floor 44), content
+ * stage 33 → 26px, icons 26 → 24px, row gap 8 → 6px, key
+ * padding 6 → 4px, cluster gap 6 → 4px. 24px is the minimum
+ * icon reduction the 48px key honestly allows (badge band +
+ * clear stage cap the stage at 26px); the svg-width pin
+ * moves to 24 so the glyphs still can never silently shrink
+ * back toward label-era sizes. Everything else — icon-only,
+ * one line, equal shares, data + badges, zone separation —
+ * is unchanged.
+ *
+ * R3 AMENDMENT (owner feedback on the presented r2 captures,
+ * 2026-11-05: "cut the button size in half, still too big" +
+ * the section-gap ruling): the rail of plates is replaced by
+ * content-sized CHIPS, and the pins move with the composition:
+ *  - the BUTTON is now a transparent 44px hit box (h-11,
+ *    min-w-[44px]) — no flex-1, no flex-col, no plate classes;
+ *    the painted chip inside it stands 28px tall (half the
+ *    r2 plate's footprint) with the icon + readout inline;
+ *  - the svg-width pin moves 24 → 20 — the largest glyph the
+ *    28px chip honestly holds with the corner tab clear; the
+ *    pin's purpose is unchanged (never back toward 15px);
+ *  - equal flex shares are gone by design: chips size to
+ *    their content and dock left on the row's 8px beat
+ *    (gap-3 = --cc-gap-md under .bl-page);
+ *  - the badge is a compact corner tab on the HIT BOX
+ *    (top-0/right-0 — see qcPapercuts' re-pinned Papercut 2);
+ *    no badge band is reserved anywhere, and OFFLINE pending
+ *    no longer carries a width floor: its chip widens with
+ *    its figure, the figure still at full size;
+ *  - the row's mb-3 is gone (Home's stack owns the section
+ *    boundary — the 8px section-gap law, probed in the
+ *    claim-row-look-captures spacing probe).
+ *
+ * R4 AMENDMENT (owner feedback on the presented r3 captures,
+ * 2026-11-05: "Space the cache etc buttons horizontal to
+ * fill that whole space"): the left dock is superseded — the
+ * row spreads its keys across the full column width
+ * (justify-between over the gap-3 floor): first key flush
+ * left, last key flush right, the leftover width landing as
+ * equal gaps between the keys in the four-key and five-key
+ * states alike. The hit boxes are flex items, so the
+ * distribution can never overlap them; the pixel proof (gap
+ * values per state, asserted equal within a state) is the
+ * claim-row-look geometry probe. The pins below move only
+ * here: the row carries justify-between in both states.
+ * Icon-only, one line, all data + badges, behavior/testids/
+ * destinations — unchanged, and pinned below as before.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -199,23 +270,39 @@ function standingWithWeeklyClaimable() {
   return { verified: true, standing: view, profile: null } as never;
 }
 
-function contentRowOf(button: HTMLElement) {
-  // The key's bottom-anchored content row (icon + data) — the
-  // last span child; badge and pulse spans render before it.
-  return button.querySelector(':scope > span:last-of-type') as HTMLElement;
+function chipOf(button: HTMLElement) {
+  // The painted chip — the button's data-chip span (the hit
+  // box's only painted child; badges render after it, at the
+  // button's own corner).
+  return button.querySelector(':scope > span[data-chip]') as HTMLElement;
 }
 
-function expectIconKey(button: HTMLElement, minWidthClass: string) {
-  expect(button.className).toContain('flex-col');
-  expect(button.className).toContain(minWidthClass);
+function expectIconKey(button: HTMLElement) {
+  // The button is the transparent HIT BOX (r3): 44px tall,
+  // at least 44px wide, no plate of its own — no flex-1 (the
+  // equal-share rail is gone), no flex-col (no badge band /
+  // content stage stack), never a wrap.
+  expect(button.className).toContain('h-11');
+  expect(button.className).toContain('min-h-[44px]');
+  expect(button.className).toContain('min-w-[44px]');
+  expect(button.className).not.toContain('flex-1');
+  expect(button.className).not.toContain('flex-col');
   expect(button.className).not.toContain('flex-wrap');
-  // The label-era badge reservations are reclaimed.
+  // The label-era badge reservations stay reclaimed.
   for (const reservation of ['pr-16', 'pr-12', 'pr-9']) {
     expect(button.className).not.toContain(reservation);
   }
-  // Two zones: badge at the top corner, content on the bottom
-  // baseline — they can never share a band.
-  expect(contentRowOf(button).className).toContain('mt-auto');
+  // The painted chip: 28px tall — half the r2 plate — with
+  // the icon + readout composed inline and centered (§6
+  // alignment law). The icon stands at 20px, the largest
+  // the chip honestly holds; the pin stands so the glyphs
+  // can never silently shrink back toward label-era sizes.
+  const chip = chipOf(button);
+  expect(chip).toBeTruthy();
+  expect(chip.className).toContain('h-[28px]');
+  expect(chip.className).toContain('items-center');
+  expect(chip.className).toContain('justify-center');
+  expect(button.querySelector('svg')?.getAttribute('width')).toBe('20');
 }
 
 beforeEach(() => {
@@ -250,8 +337,10 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(screen.getByTestId('top-contracts-button').textContent).toContain('GUEST');
 
     // One line: no wrap, and no pair group — the keys are the
-    // row's direct children.
+    // row's direct children. Spread to fill (r4): the row
+    // distributes the keys across the full column width.
     expect(row.className).not.toContain('flex-wrap');
+    expect(row.className).toContain('justify-between');
     const cacheButton = screen.getByTestId('top-cache-button');
     const offlineButton = screen.getByTestId('top-offline-button');
     const streakButton = screen.getByTestId('top-streak-button');
@@ -280,10 +369,10 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     // The quiet OFFLINE key is a bare icon.
     expect(offlineButton.textContent?.trim()).toBe('');
 
-    expectIconKey(cacheButton, 'min-w-[64px]');
-    expectIconKey(offlineButton, 'min-w-[44px]');
-    expectIconKey(streakButton, 'min-w-[60px]');
-    expectIconKey(contractsButton, 'min-w-[56px]');
+    expectIconKey(cacheButton);
+    expectIconKey(offlineButton);
+    expectIconKey(streakButton);
+    expectIconKey(contractsButton);
   });
 
   it('both badges + the weekly pill: five icon keys, one line', { timeout: 20_000 }, async () => {
@@ -297,9 +386,11 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(weekly.textContent).toContain('1');
     expect(weekly.textContent).not.toContain('Weekly');
     expect(weekly.getAttribute('aria-label')).toContain('Weekly claimables');
-    expectIconKey(weekly, 'min-w-[56px]');
+    expectIconKey(weekly);
     const row = screen.getByTestId('dashboard-top-bar');
     expect(row.className).not.toContain('flex-wrap');
+    // Spread to fill holds in the five-key state too (r4).
+    expect(row.className).toContain('justify-between');
     for (const id of ['top-cache-button', 'top-offline-button', 'top-streak-button', 'top-contracts-button']) {
       expect(screen.getByTestId(id)).toBeTruthy();
     }
@@ -341,11 +432,13 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(offlineButton.textContent).toContain('CLAIM');
     expect(offlineButton.textContent).not.toContain('Offline');
     expect(screen.getByTestId('top-offline-pending').textContent).toContain('4,321');
-    // The pending key widens for its figure (icon + the credits
-    // leg); the badge rides the top corner, the figure the
-    // bottom baseline — no reservation, no wrap.
-    expectIconKey(offlineButton, 'min-w-[116px]');
+    // The pending chip widens for its figure (icon + the
+    // credits leg, composed inline in the chip); the tab
+    // rides the hit box's top corner — no reservation, no
+    // width floor, no wrap (r3).
+    expectIconKey(offlineButton);
+    expect(chipOf(offlineButton).contains(screen.getByTestId('top-offline-pending'))).toBe(true);
     expect(screen.getByTestId('dashboard-top-bar').className).not.toContain('flex-wrap');
-    expect(screen.getByTestId('top-cache-button').className).toContain('min-w-[64px]');
+    expect(screen.getByTestId('top-cache-button').className).toContain('min-w-[44px]');
   });
 });

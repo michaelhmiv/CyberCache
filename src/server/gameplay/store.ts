@@ -80,14 +80,14 @@ export interface RoamingProfileRow {
   xp_remainder: number;
   /**
    * Banked fractional cache keys (migration 0082), 0 <= x < 1.
-   * Optional — FINDING F3 (tsc-gate triage, see PR body): the
-   * in-memory store carries this field, but the Pg store's
-   * getRoamingProfile SELECT does not fetch the column today, so Pg
-   * rows arrive without it and the claim route's keysRemainder reads
-   * undefined (the engine treats that as 0). Triage did not change
-   * the SELECT; flagged for an owner decision.
+   * Required: every store's getRoamingProfile must round-trip the
+   * bank — the claim route seeds the engine's keysRemainder from it
+   * and applyChefRewards persists the engine's banked remainder, so
+   * fractions sum across claims. (F3 fix: the Pg SELECT and the
+   * in-memory getter both dropped this field, restarting accrual
+   * from 0 on every claim.)
    */
-  cache_key_remainder?: number;
+  cache_key_remainder: number;
   /** Vehicle tank fuel units (migration 0021), profiles.vehicle_fuel. */
   vehicle_fuel: number;
   /** Cache Rank spends (migration 0031) — routes resolve the claim's Cache Rank bonuses from this, never from a client body. */
@@ -141,14 +141,14 @@ export interface SettlementProfileRow {
   xp_remainder: number;
   /**
    * Banked fractional cache keys (migration 0082), 0 <= x < 1.
-   * Optional — FINDING F3 (tsc-gate triage, see PR body): the
-   * in-memory store carries this field, but the Pg store's
-   * getSettlementProfile SELECT does not fetch the column today, so
-   * Pg rows arrive without it and the settle route's keysRemainder
-   * reads undefined (the engine treats that as 0). Triage did not
-   * change the SELECT; flagged for an owner decision.
+   * Required: every store's getSettlementProfile must round-trip
+   * the bank, exactly like getRoamingProfile — the settle route
+   * seeds the engine's keysRemainder from it and
+   * settleOfflineRoaming persists the banked remainder, so offline
+   * fractions sum across settlements. (F3 fix: see
+   * RoamingProfileRow.)
    */
-  cache_key_remainder?: number;
+  cache_key_remainder: number;
   /** Vehicle tank fuel units (migration 0021), profiles.vehicle_fuel. */
   vehicle_fuel: number;
   /** Cache Rank spends (migration 0031) — offline settlement resolves Cache Rank bonuses from this, never from a client body. */
@@ -1131,7 +1131,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel, cache_rank_spends from public.profiles where id = $1',
+      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -1141,6 +1141,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         scrap_remainder: num(row.scrap_remainder),
         credits_remainder: num(row.credits_remainder),
         xp_remainder: num(row.xp_remainder),
+        cache_key_remainder: num(row.cache_key_remainder),
         vehicle_fuel: num(row.vehicle_fuel),
         cache_rank_spends: json(row.cache_rank_spends),
       }),
@@ -1717,7 +1718,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, vehicle_fuel, cache_rank_spends from public.profiles where id = $1',
+      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -1733,6 +1734,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         scrap_remainder: num(row.scrap_remainder),
         credits_remainder: num(row.credits_remainder),
         xp_remainder: num(row.xp_remainder),
+        cache_key_remainder: num(row.cache_key_remainder),
         vehicle_fuel: num(row.vehicle_fuel),
         cache_rank_spends: json(row.cache_rank_spends),
       }),
