@@ -32,16 +32,18 @@ import {
   GOLD,
   headStyle,
   INK,
+  monoStyle,
+  MUT,
+  STEEL,
+  STEEL_DARK,
+} from './instrumentTokens';
+import {
   LcdWell,
   Led,
   LedMeter,
-  monoStyle,
-  MUT,
   Panel,
   PanelLabel,
   PushButton,
-  STEEL,
-  STEEL_DARK,
   TickGauge,
 } from './instrumentKit';
 
@@ -61,7 +63,7 @@ const ConsoleHead: React.FC<{ state: CacheRankStateView }> = ({ state }) => {
             color: GOLD,
           }}
         >
-          <PxIcon name="chevs" size={22} />
+          <PxIcon name="chevs" size={26} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="uppercase leading-none" style={{ ...headStyle, fontSize: 24, color: INK }}>
@@ -273,7 +275,7 @@ const ChannelStrip: React.FC<{
             color: track.color,
           }}
         >
-          <PxIcon name={track.icon} size={18} />
+          <PxIcon name={track.icon} size={17} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate uppercase leading-tight" style={{ ...headStyle, fontSize: 15, color: INK }}>
@@ -290,7 +292,7 @@ const ChannelStrip: React.FC<{
           className="shrink-0"
           style={{ color: FAINT, transform: expanded ? 'rotate(180deg)' : undefined, transition: 'transform 150ms' }}
         >
-          <PxIcon name="chevD" size={14} />
+          <PxIcon name="chevD" size={13} />
         </span>
       </button>
 

@@ -59,7 +59,7 @@ const Rail: React.FC<{ active: string }> = ({ active }) => {
               boxShadow: isActive ? 'inset 0 0 0 1px rgba(163,152,134,0.35)' : undefined,
             }}
           >
-            <PxIcon name={stop.icon} size={14} />
+            <PxIcon name={stop.icon} size={13} />
             {stop.label}
           </span>
         );
