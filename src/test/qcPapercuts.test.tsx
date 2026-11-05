@@ -243,39 +243,44 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
   // the NEW badge is ~36px wide at its right-1 inset, so the
   // streak pill's pr-10 reservation left ~zero air and the
   // label's last glyph tucked under the badge on Home —
-  // "DAY 1" rendered as "DAY ". Every badged pill must reserve
-  // its corner in padding (DESIGN.md §6: adapt the host, never
-  // shrink the type); jsdom has no layout, so the reservation
-  // is pinned as a class contract, with the 412×915 capture as
-  // the geometry proof.
-  it('the streak pill reserves its corner while the NEW badge is up — the Day label prints whole', async () => {
+  // "DAY 1" rendered as "DAY ". The label-era remedy was a
+  // padding reservation pinned as a class contract.
+  // ICON-ONLY SUPERSESSION (owner ruling, 2026-11-05): the row
+  // paints no labels at all, so there is no glyph to tuck. The
+  // guarantee is now structural: the badge keeps the top
+  // corner and the day numeral rides the key's BOTTOM baseline
+  // (mt-auto content row in a flex-col key) — the two zones can
+  // never share a band, so the papercut cannot recur at any
+  // width. jsdom has no layout, so the zones are pinned as a
+  // class contract, with the 412×915 capture as the geometry
+  // proof.
+  it('the streak key keeps its numeral clear of the NEW badge — separate zones, no reservation', async () => {
     mockStreak.mockResolvedValue(streakResult(false));
     render(<HomeScreen onNavigate={() => {}} />);
 
     const button = await screen.findByTestId('top-streak-button');
     await waitFor(() => expect(button.textContent).toContain('NEW'));
-    // The full label is present…
-    expect(button.textContent).toContain('Day 3');
-    // …and the pill carries the pr-12 corner reservation, the
-    // same reservation the level pill gives its AWAY badge —
-    // never the pr-10 that let the glyph tuck under the badge.
-    expect(button.className).toContain('pr-12');
+    // The day data prints whole — as the bare numeral (the
+    // word "Day" lives in the aria-label and the panel now)…
+    expect(button.textContent).toContain('3');
+    expect(button.textContent).not.toContain('Day');
+    // …on the bottom baseline, away from the badge's corner…
+    const contentRow = button.querySelector(':scope > span:last-of-type') as HTMLElement;
+    expect(contentRow.className).toContain('mt-auto');
+    // …and the label-era reservations are gone for good.
+    expect(button.className).not.toContain('pr-12');
     expect(button.className).not.toContain('pr-10');
   });
 
-  it('source: every badged claims-row pill reserves its badge corner in padding', () => {
+  it('source: the claims-row keys carry no badge-corner padding reservations', () => {
     const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
-    // Offline (the level pill's successor in the claim row,
-    // two-buttons package 2026-11-05): while a hold waits, the
-    // CLAIM badge's corner is reserved via pr-16 — the AWAY
-    // badge's reservation, carried to the new button.
-    expect(topBar).toContain("holdPending ? 'pr-16' : ''");
-    // Contracts: the claim-count badge reserves via pr-9; the
-    // GUEST word badge (assumption-gaps G10 — a word in the badge
-    // language, not a bare lock glyph) is wider and reserves pr-16.
-    expect(topBar).toContain("contractsPulsing ? 'pr-9' : contractsGuestLocked ? 'pr-16' : ''");
-    // Weekly: the count badge's corner is reserved outright.
-    expect(topBar).toContain('pl-2.5 pr-9');
+    // The reservations existed to keep a badge off a painted
+    // label; the icon-only row (owner ruling, 2026-11-05) has
+    // no labels, and the two-zone key makes them unnecessary.
+    // None of the label-era reservation expressions may return.
+    expect(topBar).not.toContain("holdPending ? 'pr-16' : ''");
+    expect(topBar).not.toContain("contractsPulsing ? 'pr-9' : contractsGuestLocked ? 'pr-16' : ''");
+    expect(topBar).not.toContain('pl-2.5 pr-9');
   });
 });
 

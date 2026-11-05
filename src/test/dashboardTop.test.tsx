@@ -246,10 +246,13 @@ describe('Dashboard top — first paint', () => {
     expect(screen.queryByTestId('offline-pending-pulse')).toBeNull();
     expect(offlineButton.textContent).not.toContain('CLAIM');
     expect(screen.queryByTestId('top-offline-pending')).toBeNull();
-    // Drift-fix F1: the claim row is one thin row of 40px pills
-    // (DESIGN.md §4 step 2) — unchanged by the package.
-    expect(cacheButton.className).toContain('min-h-[40px]');
-    expect(offlineButton.className).toContain('min-h-[40px]');
+    // Drift-fix F1: the claim row is one thin row of pills
+    // (DESIGN.md §4 step 2). Icon-only redo (owner ruling
+    // 2026-11-05): the keys stand at the 44px tap-target floor,
+    // which is also what keeps the corner-badge band and the
+    // bottom content band from ever sharing a band.
+    expect(cacheButton.className).toContain('min-h-[44px]');
+    expect(offlineButton.className).toContain('min-h-[44px]');
 
     // Document order: ResourceBar chips → top bar → the deck's
     // first panel (Launchers — Hunter Totals left the deck in
@@ -280,9 +283,11 @@ describe('Dashboard top — the check-in is not behind the tap', () => {
     // …no sheet was opened to make them happen…
     expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull();
     expect(screen.queryByText('Login Streak')).toBeNull();
-    // …and the icon already reflects the recorded day.
+    // …and the icon already reflects the recorded day — as the
+    // bare numeral (icon-only claim row, owner ruling
+    // 2026-11-05): the word lives in the aria-label below.
     await waitFor(() => {
-      expect(screen.getByTestId('top-streak-button').textContent).toContain('Day 3');
+      expect(screen.getByTestId('top-streak-button').textContent?.trim()).toBe('3');
     });
     expect(screen.getByTestId('top-streak-button').getAttribute('aria-label'))
       .toBe('Daily streak — day 3, today checked in');
