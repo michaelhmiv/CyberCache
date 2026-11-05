@@ -39,6 +39,7 @@ export interface TourStep {
 // One guided step per major gameplay phase. Each step names a real tab and
 // describes what the player should be looking at, so the manual is a real tour
 // rather than a static reference card.
+// eslint-disable-next-line react-refresh/only-export-components -- shared manual content, imported by the Hunter design-pass prototypes
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 'pick-turf',
@@ -108,6 +109,7 @@ export const TOUR_STEPS: TourStep[] = [
 // Section content reflects the post-PR-#52-to-#58 reality: single-tick loop,
 // per-area XP multiplier, new curve, server-minted rewards, build identity
 // from kill stats. The old "auto-salvage clutter" copy is gone.
+// eslint-disable-next-line react-refresh/only-export-components -- shared manual content, imported by the Hunter design-pass prototypes
 export const SECTIONS: HelpSection[] = [
   {
     id: 'start',
