@@ -189,7 +189,12 @@ Loadout page. Everything below is on it, in one scroll:
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
-protected from salvage), or salvage it.
+protected from salvage), or salvage it. The stat deck is one shared
+rendering everywhere it appears: the inspect sheet and the
+[[Caches|cache reveal]] print the same numbers the same way — DPS,
+every affix spelled out, and a legendary effect's name *and* what it
+does — so the deck you read at the reveal is the deck you inspect
+later, word for word.
 
 [[images/ui/gear-inspect.png]]
 
