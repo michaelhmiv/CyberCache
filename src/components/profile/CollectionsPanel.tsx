@@ -455,7 +455,7 @@ export const CollectionsPanel: React.FC<CollectionsPanelProps> = ({ payload, cor
         <div className="mt-3 flex items-end gap-4">
           <MasterDial pct={pct} />
           <div className="grid flex-1 grid-cols-2 gap-x-3 gap-y-3 pb-1">
-            <Readout label="Logged" value={`${foundTotal}/${COLLECTION_TOTAL}`} accent={SIGNAL} />
+            <Readout label="Logged" value={`${foundTotal} / ${COLLECTION_TOTAL}`} accent={SIGNAL} />
             <Readout label="Complete" value={`${pct}%`} accent={SIGNAL} />
             <Readout label="Open" value={`${COLLECTION_TOTAL - foundTotal}`} />
             <Readout label="Last log" value={formatLogDateShort(lastLogged)} small />
