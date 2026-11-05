@@ -5,7 +5,9 @@
  * contracts icon pop-ups — walked the way the device suites walk
  * shipped screens (real stores, mocked Chef transport):
  *
- *  - first paint: the level button (with its XP progress bar) and
+ *  - first paint: the CACHE + OFFLINE buttons (2026-11-05 — the
+ *    level pill retired; its XP readout lives on the Strip's Home
+ *    XP row, its level pop-up door on the Strip's LV segment) and
  *    both icons sit directly under the ResourceBar, before every
  *    scroll surface; the streak/contracts panels are NOT in the
  *    scroll anymore.
@@ -19,9 +21,17 @@
  *    the lock, never the pulse.
  *  - the offline recap (primer row included, PERM-01) renders
  *    as the RETURN SHEET (DESIGN.md §10) after a settlement: the
- *    level chip is its door while a settlement exists, the level
- *    pop-up holds level specifics only — and the recap is
- *    nowhere in the Dashboard scroll or App root anymore.
+ *    OFFLINE button is its door (and its claim, while a hold
+ *    waits — 0083), the level pop-up holds level specifics only
+ *    behind the Strip's LV door — and the recap is nowhere in
+ *    the Dashboard scroll or App root anymore.
+ *
+ * RE-PIN NOTE (2026-11-05, two-buttons + hold-and-claim): the
+ * four tests below that pinned the level pill / AWAY beacon /
+ * level-chip doors were re-pinned to the new anatomy with the
+ * same assertion strength — the beacon reads the server HOLD
+ * now (pulse + CLAIM + the pending figure), the level specifics
+ * open from the same store numbers through the Strip's LV door.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,6 +59,7 @@ vi.mock('@/lib/chef/chefClient', async (importOriginal) => ({
   getCacheRankState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   claimContract: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   rerollContract: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
+  claimOffline: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
 // The primer row may only appear when the OS permission is still
@@ -62,6 +73,7 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
 import { HomeScreen } from '@/screens/HomeScreen';
 import {
   claimContract,
+  claimOffline,
   getContractsState,
   getLoginStreakState,
 } from '@/lib/chef/chefClient';
@@ -76,6 +88,7 @@ import type { SettlementRecap } from '@/lib/activity/activitySettlement';
 const mockStreak = vi.mocked(getLoginStreakState);
 const mockContracts = vi.mocked(getContractsState);
 const mockClaim = vi.mocked(claimContract);
+const mockClaimOffline = vi.mocked(claimOffline);
 
 function streakResult(alreadyClaimed: boolean) {
   return {
@@ -187,6 +200,7 @@ beforeEach(() => {
   mockStreak.mockReset().mockRejectedValue(new Error('no chef in screen tests'));
   mockContracts.mockReset().mockRejectedValue(new Error('no chef in screen tests'));
   mockClaim.mockReset().mockRejectedValue(new Error('no chef in screen tests'));
+  mockClaimOffline.mockReset().mockRejectedValue(new Error('no chef in screen tests'));
   useLoginStreakStore.getState().reset();
   useContractsStore.getState().reset();
   useOfflineRecapStore.getState().reset();
@@ -201,24 +215,38 @@ afterEach(() => {
 });
 
 describe('Dashboard top — first paint', () => {
-  it('shows the level progress button and both icons under the ResourceBar, before the scroll surfaces', async () => {
+  it('shows the CACHE and OFFLINE buttons and both icons under the ResourceBar, before the scroll surfaces', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
 
     const topBar = await screen.findByTestId('dashboard-top-bar');
-    const levelButton = screen.getByTestId('top-level-button');
+    const cacheButton = screen.getByTestId('top-cache-button');
+    const offlineButton = screen.getByTestId('top-offline-button');
     expect(screen.getByTestId('top-streak-button')).toBeTruthy();
     expect(screen.getByTestId('top-contracts-button')).toBeTruthy();
 
-    // The level button carries the progress bar + the same numbers
-    // the old Level Strip showed (player store × xpToNextLevel).
+    // Two-buttons package (2026-11-05): the level pill is gone —
+    // no third print of the level/XP readout. The XP fraction the
+    // pill carried lives on the Strip's Home XP row now, reading
+    // the same store numbers × xpToNextLevel.
+    expect(screen.queryByTestId('top-level-button')).toBeNull();
     const needed = xpToNextLevel(5);
     const xp = Math.floor(needed / 2);
-    expect(levelButton.getAttribute('aria-label')).toContain(`${xp} of ${needed} XP`);
-    expect(levelButton.textContent).toContain(`${xp} / ${needed} XP`);
-    // Drift-fix F1: the claim row compressed from 52px stacked
-    // panels to one thin row of pills (DESIGN.md §4 step 2) — the
-    // level door is a 40px pill now, same sheet behind it.
-    expect(levelButton.className).toContain('min-h-[40px]');
+    expect(screen.getByTestId('resource-xp-fraction').textContent).toContain(`${xp} / ${needed} XP`);
+    // The Home Strip drops its cache segment: the key count
+    // prints once on Home — the CACHE button's bubble (the store
+    // holds the initial 3 keys in this harness).
+    expect(screen.queryByTestId('resource-chip-cacheKey')).toBeNull();
+    expect(screen.getByTestId('top-cache-key-count').textContent).toBe('3');
+    expect(cacheButton.getAttribute('aria-label')).toContain('3 cache keys');
+    // Nothing held: the OFFLINE button is quiet — no pulse, no
+    // CLAIM badge, no pending figure.
+    expect(screen.queryByTestId('offline-pending-pulse')).toBeNull();
+    expect(offlineButton.textContent).not.toContain('CLAIM');
+    expect(screen.queryByTestId('top-offline-pending')).toBeNull();
+    // Drift-fix F1: the claim row is one thin row of 40px pills
+    // (DESIGN.md §4 step 2) — unchanged by the package.
+    expect(cacheButton.className).toContain('min-h-[40px]');
+    expect(offlineButton.className).toContain('min-h-[40px]');
 
     // Document order: ResourceBar chips → top bar → the deck's
     // first panel (Launchers — Hunter Totals left the deck in
@@ -393,28 +421,34 @@ describe('Short-absence suppression — under 5 minutes never auto-presents (own
     expect(useOfflineRecapStore.getState().dismissed).toBe(false);
   });
 
-  it('a short absence shows NO beacon on Dashboard mount, and the summary stays reachable through the level chip (the Return Sheet)', async () => {
+  it('a short absence shows NO beacon on Dashboard mount, and the summary stays reachable through the OFFLINE button (the Return Sheet)', async () => {
     useOfflineRecapStore.getState().setSettlement(shortRoaming);
     render(<HomeScreen onNavigate={() => {}} />);
 
     // First paint settles with no auto-presentation of any kind.
+    // The beacon reads the server HOLD now (0083), not the recap:
+    // a dismissed short-absence recap with nothing held beacons
+    // nothing.
     await screen.findByTestId('dashboard-top-bar');
-    expect(screen.queryByTestId('level-away-pulse')).toBeNull();
-    expect(screen.getByTestId('top-level-button').textContent).not.toContain('AWAY');
-    expect(screen.getByTestId('top-level-button').getAttribute('aria-label'))
-      .not.toContain('While you were away');
+    expect(screen.queryByTestId('offline-pending-pulse')).toBeNull();
+    expect(screen.getByTestId('top-offline-button').textContent).not.toContain('CLAIM');
+    expect(screen.getByTestId('top-offline-button').getAttribute('aria-label'))
+      .toContain('nothing waiting');
 
-    // On demand it is all there, numbers unchanged.
-    fireEvent.click(screen.getByTestId('top-level-button'));
+    // On demand it is all there, numbers unchanged — the OFFLINE
+    // button is the Return Sheet's door.
+    fireEvent.click(screen.getByTestId('top-offline-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
     expect(screen.getByText('Away for')).toBeTruthy();
   });
 });
 
-describe('Dashboard top — level chip doors: specifics pop-up + the Return Sheet', () => {
+describe('Dashboard top — level doors: specifics pop-up + the Return Sheet', () => {
   it('opens level specifics from the same store numbers', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
-    fireEvent.click(screen.getByTestId('top-level-button'));
+    // The level pop-up's Home door is the Strip's LV segment now
+    // (2026-11-05) — the same sheet behind it.
+    fireEvent.click(screen.getByTestId('resource-chip-level'));
     expect(await screen.findByTestId('picker-sheet-overlay')).toBeTruthy();
     const needed = xpToNextLevel(5);
     const xp = Math.floor(needed / 2);
@@ -425,21 +459,76 @@ describe('Dashboard top — level chip doors: specifics pop-up + the Return Shee
     expect(screen.queryByText('While You Were Away')).toBeNull();
   });
 
-  it('an unacknowledged settlement beacons the level button and renders the recap (primer included) as the Return Sheet', async () => {
-    useOfflineRecapStore.getState().setSettlement(recap);
+  it('a held settlement beacons the OFFLINE button, and tapping it claims and lands the Return Sheet receipt (primer included)', async () => {
+    // The hold, as the profile snapshot syncs it (0083): 4,321
+    // credits waiting. The recap in the store is the HELD recap.
+    usePlayerStore.setState({
+      offlineHold: {
+        credits: 4321, scrap: 87, xp: 640, cacheKeys: 0, kills: 12, ticks: 120,
+        materials: {}, essences: {}, itemCount: 0, elapsedMs: 7_500_000, areaId: 'dustwaste',
+      },
+    });
+    useOfflineRecapStore.getState().setSettlement({ ...recap, held: true } as unknown as SettlementRecap);
+    // The claim pays the hold: balances move, the hold zeroes.
+    const needed = xpToNextLevel(5);
+    const xpNow = Math.floor(needed / 2);
+    mockClaimOffline.mockResolvedValue({
+      claimed: true,
+      areaId: 'dustwaste',
+      areaName: 'Dustwaste',
+      timeAway: '2h 5m',
+      elapsedMs: 7_500_000,
+      capReached: false,
+      capHours: 4,
+      ticksSettled: 120,
+      startTick: 0,
+      endTick: 120,
+      profile: {
+        id: 'user-1',
+        player_level: 5,
+        player_xp: xpNow,
+        credits: 9321,
+        scrap: 587,
+        cache_tokens: 3,
+        materials: {},
+        essences: {},
+        consumables: {},
+        offline_hold: {
+          credits: 0, scrap: 0, xp: 0, cache_keys: 0, kills: 0, ticks: 0,
+          materials: {}, essences: {}, item_count: 0, elapsed_ms: 0, area_id: null,
+        },
+      },
+      rewards: {
+        creditsAwarded: 4321, scrapAwarded: 87, xpAwarded: 640, cacheKeysAwarded: 0,
+        materials: {}, essences: {}, killsRecorded: 12, ticks: 120,
+      },
+      items: [],
+      feedEvents: [],
+    } as never);
     render(<HomeScreen onNavigate={() => {}} />);
 
-    // Beacon on first paint: pulse + AWAY badge + label — and the
-    // recap is NOT in the Dashboard scroll.
-    await waitFor(() => expect(screen.getByTestId('level-away-pulse')).toBeTruthy());
-    const levelButton = screen.getByTestId('top-level-button');
-    expect(levelButton.textContent).toContain('AWAY');
-    expect(levelButton.getAttribute('aria-label')).toContain('While you were away rewards are waiting');
+    // Beacon on first paint: pulse + CLAIM badge + the true
+    // pending figure + label — and the recap is NOT in the
+    // Dashboard scroll.
+    await waitFor(() => expect(screen.getByTestId('offline-pending-pulse')).toBeTruthy());
+    const offlineButton = screen.getByTestId('top-offline-button');
+    expect(offlineButton.textContent).toContain('CLAIM');
+    // The button's pending figure equals the server-held figure.
+    expect(screen.getByTestId('top-offline-pending').textContent).toContain('4,321');
+    expect(offlineButton.getAttribute('aria-label')).toContain('waiting');
+    expect(offlineButton.getAttribute('aria-label')).toContain('4,321 credits');
     expect(screen.queryByText('While You Were Away')).toBeNull();
     expect(screen.queryByTestId('offline-recap-reopen')).toBeNull();
 
-    fireEvent.click(levelButton);
+    // Tapping CLAIMS: the claim fires once, the wallet answers
+    // (credits 5,000 → 9,321), the hold zeroes, and the Return
+    // Sheet lands as the RECEIPT — no held note, Collect is back.
+    fireEvent.click(offlineButton);
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
+    expect(mockClaimOffline).toHaveBeenCalledTimes(1);
+    expect(usePlayerStore.getState().credits).toBe(9321);
+    expect(usePlayerStore.getState().offlineHold.credits).toBe(0);
+    expect(screen.queryByTestId('return-held-note')).toBeNull();
     expect(screen.getByText('Away for')).toBeTruthy();
     // PERM-01: the primer row rides inside the recap, in the sheet.
     expect(await screen.findByTestId('push-primer')).toBeTruthy();
@@ -447,19 +536,73 @@ describe('Dashboard top — level chip doors: specifics pop-up + the Return Shee
     // headline numbers (this settlement carries credits).
     expect(screen.getByTestId('return-totals-row')).toBeTruthy();
 
-    // "Collect" acknowledges: sheet closes, beacon stops, the recap
-    // store keeps the settlement (re-readable next open). Scoped
-    // to the sheet — the settlement also waits as the Next Move
-    // card, whose Collect opens this same sheet.
+    // "Collect" acknowledges: sheet closes, the recap store keeps
+    // the receipt (re-readable next open), and the button stays
+    // quiet — the money landed, nothing is held.
     fireEvent.click(within(screen.getByTestId('picker-sheet-body')).getByRole('button', { name: 'Collect' }));
     await waitFor(() => expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull());
     expect(useOfflineRecapStore.getState().dismissed).toBe(true);
     expect(useOfflineRecapStore.getState().lastSettlement?.rewards.creditsAwarded).toBe(4321);
-    expect(screen.queryByTestId('level-away-pulse')).toBeNull();
+    expect(screen.queryByTestId('offline-pending-pulse')).toBeNull();
 
-    // Re-opening through the level chip re-reads the same recap
-    // (the Return Sheet is the recap's only home now).
-    fireEvent.click(screen.getByTestId('top-level-button'));
+    // Re-opening through the OFFLINE button re-reads the same
+    // receipt (the Return Sheet is the recap's only home now).
+    fireEvent.click(screen.getByTestId('top-offline-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
+  });
+
+  it('the Return Sheet opened on a held recap shows WAITING and its Claim button pays in place', async () => {
+    usePlayerStore.setState({
+      offlineHold: {
+        credits: 4321, scrap: 87, xp: 640, cacheKeys: 0, kills: 12, ticks: 120,
+        materials: {}, essences: {}, itemCount: 0, elapsedMs: 7_500_000, areaId: 'dustwaste',
+      },
+    });
+    useOfflineRecapStore.getState().setSettlement({ ...recap, held: true } as unknown as SettlementRecap);
+    mockClaimOffline.mockResolvedValue({
+      claimed: true,
+      areaId: 'dustwaste',
+      areaName: 'Dustwaste',
+      timeAway: '2h 5m',
+      elapsedMs: 7_500_000,
+      capReached: false,
+      capHours: 4,
+      ticksSettled: 120,
+      startTick: 0,
+      endTick: 120,
+      profile: {
+        id: 'user-1', player_level: 5, player_xp: 0, credits: 9321, scrap: 587,
+        cache_tokens: 3, materials: {}, essences: {}, consumables: {},
+        offline_hold: {
+          credits: 0, scrap: 0, xp: 0, cache_keys: 0, kills: 0, ticks: 0,
+          materials: {}, essences: {}, item_count: 0, elapsed_ms: 0, area_id: null,
+        },
+      },
+      rewards: {
+        creditsAwarded: 4321, scrapAwarded: 87, xpAwarded: 640, cacheKeysAwarded: 0,
+        materials: {}, essences: {}, killsRecorded: 12, ticks: 120,
+      },
+      items: [],
+      feedEvents: [],
+    } as never);
+    render(<HomeScreen onNavigate={() => {}} />);
+
+    // Open the sheet through the level pop-up's door row (the path
+    // that does NOT claim first): the recap reads as WAITING —
+    // held language, a Claim button, no Collect.
+    fireEvent.click(screen.getByTestId('resource-chip-level'));
+    expect(await screen.findByText('While You Were Away')).toBeTruthy();
+    fireEvent.click(screen.getByText('While You Were Away'));
+    expect(await screen.findByTestId('return-held-note')).toBeTruthy();
+    expect(screen.getByTestId('return-held-note').textContent).toContain('not in your wallet yet');
+    expect(screen.queryByRole('button', { name: 'Collect' })).toBeNull();
+
+    // The sheet's Claim pays in place: the card flips to the
+    // receipt (held note gone, Collect back), the hold zeroes.
+    fireEvent.click(screen.getByTestId('return-claim-button'));
+    await waitFor(() => expect(screen.queryByTestId('return-held-note')).toBeNull());
+    expect(mockClaimOffline).toHaveBeenCalledTimes(1);
+    expect(usePlayerStore.getState().offlineHold.credits).toBe(0);
+    expect(within(screen.getByTestId('picker-sheet-body')).getByRole('button', { name: 'Collect' })).toBeTruthy();
   });
 });

@@ -507,7 +507,12 @@ describe('migration 0080 — SQL contract', () => {
   it('settlement hooks exist only in the roaming-claim and offline routes', () => {
     const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8');
     expect(read('src/server/routes/roamingHandler.ts')).toContain('applyAutoSalvage(');
-    expect(read('src/server/routes/settleOffline.ts')).toContain('applyAutoSalvage(');
+    // 0083 re-pin: the offline lane's pass moved from the settle
+    // route to the CLAIM route — the settlement pays nothing now,
+    // so the pass runs where the drops land (the claim). The
+    // settle route must NOT call it anymore.
+    expect(read('src/server/routes/claimOffline.ts')).toContain('applyAutoSalvage(');
+    expect(read('src/server/routes/settleOffline.ts')).not.toContain('applyAutoSalvage(');
     // No other route file may call the pass — boss, cache, market and
     // craft settlements stay outside the rule's reach by construction.
     for (const p of [
