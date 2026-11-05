@@ -44,7 +44,7 @@ const TOUR_STEPS: TourStep[] = [
     id: 'pick-turf',
     title: '1. Pick an area',
     body:
-      'Open Home. The Choose Area panel lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Start with Dustwaste Frontier at Level 1; the system gates higher areas behind your Hunter level.',
+      'Open Home. The Choose Area panel lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Every area is open from Level 1 — nothing is gated. Start with Dustwaste Frontier while you gear up; later areas hit harder and pay better, and the danger rating is a warning, never a wall.',
     target: { tab: 'home', label: 'Home', icon: 'home' },
     spotlight: 'Choose Area panel',
     cta: 'Go to Home',
@@ -53,7 +53,7 @@ const TOUR_STEPS: TourStep[] = [
     id: 'start-roam',
     title: '2. Start a roam',
     body:
-      'On Home, tap an area, then Start Roam on the stage. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses are triggered by the Boss prep door on the same stage — the stage is the passive roaming loop and the boss door in one place.',
+      'On Home, tap an area, then Start Roam on the stage. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses are never triggered by roaming — a boss attempt is deliberate: open Boss Prep from the same stage, read the intel, and launch the attempt yourself when you are ready.',
     target: { tab: 'home', label: 'Home', icon: 'crosshair' },
     spotlight: 'Roaming activity card',
     cta: 'Open Home',
