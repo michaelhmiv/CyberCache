@@ -3,8 +3,8 @@
  * tests, plus the FCM sender port with an injected fetcher.
  *
  * Covered: job-secret auth (missing/wrong → 401, player JWT not accepted),
- * heartbeat + prune idempotency and window semantics, NPC seed end-state
- * (run twice → exactly one batch of active listings), push-test auth
+ * heartbeat + prune idempotency and window semantics, the ABSENCE of
+ * the NPC market seed job (pure player market, 2026-11-04), push-test auth
  * (no JWT → 401), push no-op when FCM is unconfigured (503, nothing sent
  * or logged), push delivery to the caller's devices only with per-device
  * notification events, and the June no-devices 404 shape.
@@ -24,7 +24,6 @@ import {
   parseFirebaseAdminConfig,
   type FetchFn,
 } from '../server/jobs/fcm';
-import { NPC_MARKET_USER_ID } from '../server/lib/npcMarket';
 import { issueAccessToken } from '../server/auth/tokens';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
@@ -137,7 +136,7 @@ const jobHeaders = { 'x-chef-job-secret': JOB_SECRET };
 describe('job route auth', () => {
   it('rejects missing and wrong job secrets with 401 on every job route', async () => {
     const h = await makeServer();
-    for (const path of ['/api/jobs/daily-heartbeat', '/api/jobs/prune-snapshots', '/api/jobs/seed-npc-market']) {
+    for (const path of ['/api/jobs/daily-heartbeat', '/api/jobs/prune-snapshots']) {
       const missing = await call(h, path, {}, {});
       expect(missing.status).toBe(401);
       expect(missing.json.error).toBe('unauthorized');
@@ -217,34 +216,13 @@ describe('prune snapshots job', () => {
   });
 });
 
-describe('NPC market seed job', () => {
-  it('seeds the requested batch under the NPC account', async () => {
+describe('NPC market seed job — removed (pure player market, 2026-11-04)', () => {
+  it('the seed route is not mounted: a valid job secret gets a 404 and nothing is seeded', async () => {
     const h = await makeServer();
     const res = await call(h, '/api/jobs/seed-npc-market', jobHeaders, { count: 5, level: 10 });
-    expect(res.status).toBe(200);
-    expect(res.json).toMatchObject({ ok: true, job: 'seed-npc-market', seeded: 5, level: 10 });
-    const active = h.seed.listings.filter((l) => l.status === 'active');
-    expect(active).toHaveLength(5);
-    expect(active.every((l) => l.seller_user_id === NPC_MARKET_USER_ID)).toBe(true);
-    expect(h.seed.items).toHaveLength(5);
-    expect(active.every((l) => l.price_credits >= 100)).toBe(true);
-  });
-
-  it('is safe to run twice: the second run replaces, not duplicates, the stock', async () => {
-    const h = await makeServer();
-    await call(h, '/api/jobs/seed-npc-market', jobHeaders, { count: 4, level: 10 });
-    const res = await call(h, '/api/jobs/seed-npc-market', jobHeaders, { count: 6, level: 20 });
-    expect(res.json.seeded).toBe(6);
-    const active = h.seed.listings.filter((l) => l.status === 'active');
-    expect(active).toHaveLength(6);
-    expect(h.seed.listings.filter((l) => l.status === 'cancelled')).toHaveLength(4);
-  });
-
-  it('clamps count and level to the June ranges', async () => {
-    const h = await makeServer();
-    const res = await call(h, '/api/jobs/seed-npc-market', jobHeaders, { count: 500, level: 0 });
-    expect(res.json.seeded).toBe(50);
-    expect(res.json.level).toBe(1);
+    expect(res.status).toBe(404);
+    expect(h.seed.listings).toHaveLength(0);
+    expect(h.seed.items).toHaveLength(0);
   });
 });
 

@@ -13,7 +13,7 @@
  *      mirror of cc_accept_listing): balances, system-wide credit
  *      destruction, nonce replay, skill wiring, the
  *      bought-and-relisted Manipulator denial, class mod derivation,
- *      and the NPC exemption.
+ *      the NPC accept refusal, and the vendor-supply fee exemption.
  *   3. Source pins on db/migrations/0017_market_sale_fee.sql so the
  *      SQL completion path cannot drift from the TS owner silently.
  *      (The SQL function itself is exercised against embedded
@@ -58,6 +58,8 @@ const ITEM_NPC = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5';
 const ITEM_NPC2 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa6';
 const LISTING_NPC = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1';
 const LISTING_NPC2 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2';
+const ITEM_RESALE = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa7';
+const LISTING_RESALE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3';
 
 function profile(overrides: Partial<ProfileRowData> & { id: string }): ProfileRowData {
   return {
@@ -114,6 +116,14 @@ function baseSeed(): WriteSeed {
       id: ITEM_NPC2, owner_user_id: NPC_NOPROFILE, runtime_state: 'listed', supply_mode: 'npc_market',
       payload: { weaponType: 'Pistol', sourceTag: 'Marketplace' },
     }),
+    // A hunter's own vendor-origin shield, re-listed: the item's
+    // supply_mode is npc_market but the SELLER is a player, so this
+    // is a player listing (2026-11-04) — and the supply-based fee
+    // exemption is exactly what governs its sale.
+    item({
+      id: ITEM_RESALE, owner_user_id: S, kind: 'shield', runtime_state: 'listed', supply_mode: 'npc_market',
+      payload: { hp: 200, sourceTag: 'NPC Vendor' },
+    }),
   ];
   s.listings = [
     {
@@ -122,7 +132,11 @@ function baseSeed(): WriteSeed {
     },
     {
       id: LISTING_NPC2, seller_user_id: NPC_NOPROFILE, item_instance_id: ITEM_NPC2, price_credits: 1000,
-      status: 'active', listed_at: '2026-10-29T11:00:00.000Z', sold_at: null,
+      status: 'active', listed_at: '2026-10-29T11:00:00.000Z', sold_at: null, seller_type: 'npc',
+    },
+    {
+      id: LISTING_RESALE, seller_user_id: S, item_instance_id: ITEM_RESALE, price_credits: 1000,
+      status: 'active', listed_at: '2026-10-29T11:00:00.000Z', sold_at: null, seller_type: 'player',
     },
   ];
   return s;
@@ -353,25 +367,43 @@ describe('market fee — shipped path', () => {
     expect(creditsOf(h, C2)).toBe(90_000);
   });
 
-  it('NPC-seeded listing: purchase completes, NPC paid in full, no fee', async () => {
+  it('NPC-seeded listing: accept is refused, nothing moves (pure player market, 2026-11-04)', async () => {
+    const bBefore = creditsOf(h, B);
     const bought = await post(h, '/api/ops/market-accept', h.tokens[B], {
       nonce: nonce(), listing_id: LISTING_NPC,
     });
-    expect(bought.status).toBe(200);
-    expect(bought.json.market_fee).toMatchObject({ fee_credits: 0, seller_proceeds: 1000 });
-    expect(creditsOf(h, NPC)).toBe(1000);
+    expect(bought.status).toBe(400);
+    expect(bought.json.message).toContain('NPC listings are not part of the player market');
+    expect(creditsOf(h, B)).toBe(bBefore);
+    expect(creditsOf(h, NPC)).toBe(0);
+    const listing = h.store.seed.listings.find((l) => l.id === LISTING_NPC);
+    expect(listing?.status).toBe('active');
+    expect(h.store.seed.items.find((i) => i.id === ITEM_NPC)?.owner_user_id).toBe(NPC);
   });
 
-  it('NPC listing whose seller has no profile still completes', async () => {
+  it('NPC listing stamped npc under a profile-less seller is refused too', async () => {
     const bBefore = creditsOf(h, B);
     const bought = await post(h, '/api/ops/market-accept', h.tokens[B], {
       nonce: nonce(), listing_id: LISTING_NPC2,
     });
-    expect(bought.status).toBe(200);
-    expect(bought.json.market_fee).toMatchObject({ fee_credits: 0 });
-    expect(creditsOf(h, B)).toBe(bBefore - 1000);
+    expect(bought.status).toBe(400);
+    expect(bought.json.message).toContain('NPC listings are not part of the player market');
+    expect(creditsOf(h, B)).toBe(bBefore);
     const moved = h.store.seed.items.find((i) => i.id === ITEM_NPC2);
-    expect(moved?.owner_user_id).toBe(B);
+    expect(moved?.owner_user_id).toBe(NPC_NOPROFILE);
+  });
+
+  it('player resale of vendor-origin gear completes fee-free (the supply exemption is the seller’s)', async () => {
+    // The item is npc_market supply but the seller is a hunter: a
+    // player sale, settled in full — no fee (the 0017/0064 supply
+    // exemption), no refusal.
+    const bought = await post(h, '/api/ops/market-accept', h.tokens[B], {
+      nonce: nonce(), listing_id: LISTING_RESALE,
+    });
+    expect(bought.status).toBe(200);
+    expect(bought.json.market_fee).toMatchObject({ fee_credits: 0, seller_proceeds: 1000 });
+    expect(creditsOf(h, S)).toBe(1000);
+    expect(h.store.seed.items.find((i) => i.id === ITEM_RESALE)?.owner_user_id).toBe(B);
   });
 });
 

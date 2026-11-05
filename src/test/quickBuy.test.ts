@@ -236,6 +236,18 @@ describe('quickBuy planner — sweep + default tab', () => {
     expect(big.total).toBe(40);
   });
 
+  it('never plans a fill from an NPC listing (pure player market, 2026-11-04)', () => {
+    // A legacy seeded stack row must not be quoted or filled even if
+    // it is the cheapest supply on the lane.
+    const plan = planMarketSweep([
+      row({ id: 'npc-cheap', sellerUserId: '00000000-0000-0000-0000-000000000000', sellerKind: 'npc', quantity: 100, priceCredits: 100, listedAt: '2026-11-04T06:00:00.000Z' }),
+      row({ id: 'player', sellerUserId: S2, quantity: 3, priceCredits: 60, listedAt: '2026-11-04T07:00:00.000Z' }),
+    ], 10, B);
+    expect(plan.supplyQty).toBe(3);
+    expect(plan.fills.map((f) => f.listingId)).toEqual(['player']);
+    expect(plan.total).toBe(60);
+  });
+
   it('identity keys: commodities collapse, goods keep their id', () => {
     expect(quickBuyIdentityKey({ kind: 'fragment', id: 'cache' })).toBe('frag:cache');
     expect(quickBuyIdentityKey({ kind: 'core', id: 'legendary' })).toBe('core:legendary');
