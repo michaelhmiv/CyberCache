@@ -309,7 +309,7 @@ describe('cosmetic crafting — writes twin', () => {
     const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date(nowMs) });
 
     await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: 'tint_craft', units: 1, consumableEfficiencyBonus: 0,
+      bench: 2, recipeId: 'tint_craft', units: 1,
     })).rejects.toThrow(/tint/i);
 
     const recipe = getCraftRecipe(skinPartCatalog('dread-arm-upper-n')!.recipeId)!;
@@ -317,7 +317,7 @@ describe('cosmetic crafting — writes twin', () => {
     // stack (the seed's legacy scrap field folded into it).
     const scrapBefore = store.seed.profiles.find((p) => p.id === A)!.materials['Scrap'] ?? 0;
     const job = await store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: recipe.id, units: 1, consumableEfficiencyBonus: 0,
+      bench: 2, recipeId: recipe.id, units: 1,
     }) as Json;
     expect((job as { job?: Json }).job).toBeTruthy();
     expect(store.seed.profiles.find((p) => p.id === A)!.materials['Scrap'] ?? 0)
@@ -336,7 +336,7 @@ describe('cosmetic crafting — writes twin', () => {
     const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date('2026-10-29T12:00:00.000Z') });
     const recipe = getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!;
     await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 3, recipeId: recipe.id, units: 2, consumableEfficiencyBonus: 0,
+      bench: 3, recipeId: recipe.id, units: 2,
     })).rejects.toThrow(/at most|units/i);
   });
 });
@@ -359,10 +359,10 @@ describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
     const dread = getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!;
     const bulwark = getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!;
     await store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: dread.id, units: 1, consumableEfficiencyBonus: 0,
+      bench: 2, recipeId: dread.id, units: 1,
     });
     await store.enqueueCraftJob(A, nonce(), {
-      bench: 3, recipeId: bulwark.id, units: 1, consumableEfficiencyBonus: 0,
+      bench: 3, recipeId: bulwark.id, units: 1,
     });
   });
 
@@ -370,7 +370,7 @@ describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
     const store = new InMemoryWriteStore(levelOneSeed(3), { now });
     const head = getCraftRecipe(skinPartCatalog('mfr-head-redline')!.recipeId)!;
     await store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: head.id, units: 1, consumableEfficiencyBonus: 0,
+      bench: 2, recipeId: head.id, units: 1,
     });
   });
 
@@ -381,7 +381,7 @@ describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
     // higher'. Post-collapse the former bench-2 cosmetic runs on
     // the single bench.
     await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: dread.id, units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: dread.id, units: 1,
     })).resolves.toBeTruthy();
   });
 });

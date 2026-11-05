@@ -198,7 +198,7 @@ describe('scrap merge — gameplay twin settles on the stack', () => {
     const p = store.seedProfile({ id: A, scrap: 100 });
     const result = (await store.applyChefRewards(
       A,
-      { credits: 0, scrap: 40, xp: 0, fragments: 0, materials: {}, essences: {}, kills: 0 },
+      { credits: 0, scrap: 40, xp: 0, keys: 0, materials: {}, essences: {}, kills: 0 },
       10,
       'dustwaste',
     )) as { profile?: { scrap?: number } };
@@ -294,11 +294,11 @@ describe('scrap merge — writes twin settles on the stack', () => {
     // (unstarted — a cancel refunds unstarted units in full, the
     // generic material schedule Scrap now rides like any input).
     await store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: recipe.id, units: 1, consumableEfficiencyBonus: 0,
+      bench: 2, recipeId: recipe.id, units: 1,
     });
     expect(stackOf(store, A)).toBe(100_000 - cost);
     const queued = (await store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: recipe.id, units: 1, consumableEfficiencyBonus: 0,
+      bench: 2, recipeId: recipe.id, units: 1,
     })) as { job?: { id?: string } };
     expect(stackOf(store, A)).toBe(100_000 - 2 * cost);
     const queuedId = queued.job?.id;
@@ -313,7 +313,7 @@ describe('scrap merge — writes twin settles on the stack', () => {
     const store = new InMemoryWriteStore(seed);
     const recipe = getCraftRecipe(skinPartCatalog('dread-arm-upper-n')!.recipeId)!;
     await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 2, recipeId: recipe.id, units: 1, consumableEfficiencyBonus: 0,
+      bench: 2, recipeId: recipe.id, units: 1,
     })).rejects.toThrow('Insufficient material Scrap');
   });
 

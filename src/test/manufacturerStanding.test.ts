@@ -822,7 +822,7 @@ describe('standing craft gate — writes store', () => {
     const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date('2026-11-01T12:00:00.000Z') });
     let attemptSeq = 0;
     const attempt = () => store.enqueueCraftJob(A, `craft-nonce-${++attemptSeq}-standing`, {
-      bench: 1, recipeId: 'recipe_redline_standing', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_redline_standing', units: 1,
     });
     await expect(attempt()).rejects.toThrow('standing_required');
     // Rank 1 is not enough — the gate is rank 2 exactly.

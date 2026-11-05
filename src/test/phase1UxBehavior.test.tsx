@@ -123,7 +123,7 @@ function makeShield(id: string, name: string): Shield {
 
 const EMPTY_SLOTS = {
   primary: null, secondary: null, heavy: null,
-  ordnance: null, shield: null, classMod: null, relic: null,
+  ordnance: null, shield: null, classMod: null, relic: null, vehicle: null,
 } as const;
 
 function seedStores() {

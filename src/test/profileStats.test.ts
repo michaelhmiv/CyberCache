@@ -308,7 +308,7 @@ describe('GET /api/profile/stats — JWT identity only', () => {
 // ─── The 0034 kill record — gameplay twin choke point ──────────────
 
 const rewards = (kills: number): ChefRewardsInput => ({
-  credits: 0, scrap: 0, xp: 0, fragments: 0,
+  credits: 0, scrap: 0, xp: 0, keys: 0,
   materials: {} as ChefRewardsInput['materials'], essences: {} as ChefRewardsInput['essences'], kills,
 });
 
