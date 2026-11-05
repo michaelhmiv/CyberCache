@@ -26,22 +26,23 @@
  *    The longest streak is kept forever (login_streak_state +
  *    max(streak_length) over the claims — the profile fold's
  *    record, in its own style).
- *  - THE LADDER REPEATS IN TIERS. Days 1–6 escalate credits into
- *    credits + cache fragments; day 7 adds a cache KEY. After day 7
- *    the cycle repeats at the next tier (×1.5 per tier step),
- *    capped at tier 5 (×3). The key never scales: one per completed
- *    cycle, a ceiling by construction (≤1 key/week/player), and it
- *    is metered as its own source — not a leaderboard key, not
- *    cache-lane (ad) issuance.
+ *  - THE LADDER REPEATS IN TIERS. Days 1–6 pay escalating credits;
+ *    day 7 adds a cache KEY. After day 7 the cycle repeats at the
+ *    next tier (×1.5 per tier step), capped at tier 5 (×3). The key
+ *    never scales: one per completed cycle, a ceiling by
+ *    construction (≤1 key/week/player), and it is metered as its
+ *    own source — not a leaderboard key, not cache-lane (ad)
+ *    issuance. (The ladder paid cache fragments on days 3–7 until
+ *    migration 0082 abolished the fragment currency; every ladder
+ *    day already carried credits, so no day went empty and no
+ *    replacement denomination was added.)
  *  - SIZING IS DELIBERATELY SMALL. Baseline roaming pays
  *    ~15 credits/minute (area idleCreditsPerMinute), so a tier-1
  *    week (1,900 credits) is ≈2 hours of baseline roaming spread
- *    across 7 days, and the 9 tier-1 fragments ≈1 hour of roaming
- *    fragment drops (0.008/tick) — a real welcome-back nudge for a
- *    returning player, small change for an established one. The
- *    credit/fragment magnitudes are economy levers
- *    (streakCreditScalar / streakFragmentScalar); the ladder shape
- *    and the key are content, not levers.
+ *    across 7 days — a real welcome-back nudge for a returning
+ *    player, small change for an established one. The credit
+ *    magnitudes are an economy lever (streakCreditScalar); the
+ *    ladder shape and the key are content, not levers.
  *  - GUESTS EARN IDENTICALLY. Guest accounts are full accounts in
  *    this game (guest start stays); grants key on the profile row,
  *    never on account state — same posture as Cache Rank.
@@ -63,23 +64,21 @@ export interface LoginStreakReward {
   cycleDay: number;
   tier: number;
   credits: number;
-  fragments: number;
   cacheKeys: number;
 }
 
-/** Tier-1 ladder, cycle days 1–7 (credits, fragments, cache keys). */
+/** Tier-1 ladder, cycle days 1–7 (credits, cache keys). */
 const LOGIN_STREAK_TIER_ONE: ReadonlyArray<{
   credits: number;
-  fragments: number;
   cacheKeys: number;
 }> = [
-  { credits: 100, fragments: 0, cacheKeys: 0 },
-  { credits: 150, fragments: 0, cacheKeys: 0 },
-  { credits: 200, fragments: 1, cacheKeys: 0 },
-  { credits: 250, fragments: 1, cacheKeys: 0 },
-  { credits: 300, fragments: 2, cacheKeys: 0 },
-  { credits: 400, fragments: 2, cacheKeys: 0 },
-  { credits: 500, fragments: 3, cacheKeys: 1 },
+  { credits: 100, cacheKeys: 0 },
+  { credits: 150, cacheKeys: 0 },
+  { credits: 200, cacheKeys: 0 },
+  { credits: 250, cacheKeys: 0 },
+  { credits: 300, cacheKeys: 0 },
+  { credits: 400, cacheKeys: 0 },
+  { credits: 500, cacheKeys: 1 },
 ];
 
 /** Tier scaling: tier 1 ×1, tier 2 ×1.5, … tier 5 ×3. */
@@ -98,7 +97,6 @@ export function loginStreakReward(cycleDay: number, tier: number): LoginStreakRe
     cycleDay: day,
     tier: t,
     credits: Math.floor(base.credits * mult),
-    fragments: Math.floor(base.fragments * mult),
     cacheKeys: base.cacheKeys,
   };
 }
@@ -175,13 +173,10 @@ export function loginStreakLengthAfter(
 export interface LoginStreakLeverValues {
   /** Scalar on every ladder credit amount (floored after scaling). */
   streakCreditScalar: number;
-  /** Scalar on every ladder fragment amount (floored after scaling). */
-  streakFragmentScalar: number;
 }
 
 export const LOGIN_STREAK_LEVER_DEFAULTS: LoginStreakLeverValues = {
   streakCreditScalar: 1,
-  streakFragmentScalar: 1,
 };
 
 /** Hard clamps per lever — the SQL call site clamps identically. */
@@ -190,7 +185,6 @@ export const LOGIN_STREAK_LEVER_CLAMPS: Record<
   { min: number; max: number; integer?: boolean }
 > = {
   streakCreditScalar: { min: 0, max: 3 },
-  streakFragmentScalar: { min: 0, max: 3 },
 };
 
 function clampLever(key: keyof LoginStreakLeverValues, value: number): number {
@@ -229,7 +223,6 @@ export function loginStreakGrantFor(
   return {
     ...base,
     credits: Math.floor(base.credits * levers.streakCreditScalar),
-    fragments: Math.floor(base.fragments * levers.streakFragmentScalar),
   };
 }
 
@@ -242,6 +235,11 @@ export interface LoginStreakClaim {
   cycleDay: number;
   tier: number;
   creditsAwarded: number;
+  /**
+   * Historical stored fact: claims recorded before migration 0082
+   * paid cache fragments and carry the amount; every claim since
+   * records 0 (the currency is abolished — nothing renders it).
+   */
   fragmentsAwarded: number;
   cacheKeysAwarded: number;
 }
@@ -322,7 +320,6 @@ export function loginStreakStateView(
       cycleDay: claim.cycleDay,
       tier: claim.tier,
       credits: claim.creditsAwarded,
-      fragments: claim.fragmentsAwarded,
       cacheKeys: claim.cacheKeysAwarded,
     };
     ladderStates = Array.from({ length: LOGIN_STREAK_CYCLE_DAYS }, (_, i) =>
@@ -363,13 +360,12 @@ export function loginStreakStateView(
   };
 }
 
-/** Compact one-line reward label for the panel ("200 credits · 1 fragment · cache key").
+/** Compact one-line reward label for the panel ("200 credits · cache key").
  *  Audit COPY-02: first-run copy spells the units out — new players
- *  have never seen "cr"/"frag" defined anywhere. */
+ *  have never seen "cr" defined anywhere. */
 export function formatLoginStreakReward(reward: LoginStreakReward): string {
   const parts: string[] = [];
   if (reward.credits > 0) parts.push(`${reward.credits} ${reward.credits === 1 ? 'credit' : 'credits'}`);
-  if (reward.fragments > 0) parts.push(`${reward.fragments} ${reward.fragments === 1 ? 'fragment' : 'fragments'}`);
   if (reward.cacheKeys > 0) parts.push(reward.cacheKeys === 1 ? 'cache key' : `${reward.cacheKeys} cache keys`);
   return parts.length > 0 ? parts.join(' · ') : '—';
 }

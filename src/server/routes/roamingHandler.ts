@@ -205,6 +205,7 @@ export function createClaimHandler(
         scrapRemainder: profile.scrap_remainder,
         creditsRemainder: profile.credits_remainder,
         xpRemainder: profile.xp_remainder,
+        keysRemainder: profile.cache_key_remainder,
         consumableInventory,
         consumableQualityProfile,
         roamingConsumableState: body.roamingConsumableState,
@@ -219,7 +220,7 @@ export function createClaimHandler(
           : null,
         economy: economyValues
           ? {
-              fragmentChance: economyValues.fragmentChance,
+              cacheKeyChance: economyValues.cacheKeyChance,
               roamingLegendaryScalar: economyValues.roamingLegendaryScalar,
               vehicleYieldScalar: economyValues.vehicleYieldScalar,
               eventChanceBase: economyValues.eventChanceBase,
@@ -255,7 +256,8 @@ export function createClaimHandler(
             creditsRemainder: result.rewards.creditsRemainder,
             xpRemainder: result.rewards.xpRemainder,
             xp: result.rewards.xpAwarded,
-            fragments: result.rewards.cacheFragmentsAwarded,
+            keys: result.rewards.cacheKeysAwarded,
+            keysRemainder: result.rewards.cacheKeyRemainder,
             materials: result.rewards.materials as Json,
             essences: result.rewards.essences as Json,
             kills: result.rewards.killsRecorded,

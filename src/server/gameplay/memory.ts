@@ -223,6 +223,8 @@ export interface InMemoryProfile {
   xp_remainder: number;
   cache_tokens: number;
   cache_token_parts: number;
+  /** Banked fractional cache-key remainder (migration 0082), 0 <= x < 1. */
+  cache_key_remainder: number;
   /** Vehicle tank fuel units (migration 0021). */
   vehicle_fuel: number;
   /** Legendary core balance (migration 0026). */
@@ -469,7 +471,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
    */
   readonly contractInstances: Array<ContractInstanceRecord & { user_id: string; band: string }> = [];
   /** Contract set bonuses (0042): `${playerId}:${kind}:${periodKey}` → the paid bonus. */
-  readonly contractSetBonuses = new Map<string, { credits: number; fragments: number; cacheKeys: number }>();
+  readonly contractSetBonuses = new Map<string, { credits: number; cacheKeys: number }>();
   /**
    * Standing stat counters the contracts evaluator diffs (0042):
    * `${playerId}:${statKey}` → value. Fed by hooks at this twin's
@@ -580,6 +582,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       xp_remainder: 0,
       cache_tokens: 0,
       cache_token_parts: 0,
+      cache_key_remainder: 0,
       vehicle_fuel: 0,
       legendary_cores: 0,
       cache_rank_tokens: 0,
@@ -648,7 +651,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       credits: p.credits,
       scrap: p.materials['Scrap'] ?? 0,
       cache_tokens: p.cache_tokens,
-      cache_token_parts: p.cache_token_parts,
+      cache_key_remainder: p.cache_key_remainder ?? 0,
       legendary_cores: p.legendary_cores ?? 0,
       cache_rank_tokens: p.cache_rank_tokens ?? 0,
       cache_rank_grant_level: p.cache_rank_grant_level ?? 0,
@@ -675,7 +678,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   /**
    * The reward application shared by cc_apply_chef_rewards and
    * cc_settle_offline_roaming: XP curve, raw credit/scrap adds,
-   * material/essence merges, and the 5-fragments-to-1-token roll-up.
+   * material/essence merges, and the cache-key add (0082 — whole
+   * keys land on cache_tokens; the fractional remainder banks).
    * Returns the SQL functions' rewards echo.
    */
   private applyRewardBundle(p: InMemoryProfile, rewards: ChefRewardsInput): Json {
@@ -690,19 +694,13 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (rewards.xpRemainder != null) p.xp_remainder = rewards.xpRemainder;
     for (const [k, v] of Object.entries(asRecord(rewards.materials))) p.materials[k] = (p.materials[k] ?? 0) + v;
     for (const [k, v] of Object.entries(asRecord(rewards.essences))) p.essences[k] = (p.essences[k] ?? 0) + v;
-    let parts = p.cache_token_parts + Math.trunc(rewards.fragments);
-    let tokens = p.cache_tokens;
-    while (parts >= 5) {
-      parts -= 5;
-      tokens += 1;
-    }
-    p.cache_token_parts = parts;
-    p.cache_tokens = tokens;
+    p.cache_tokens += Math.trunc(rewards.keys);
+    if (rewards.keysRemainder != null) p.cache_key_remainder = rewards.keysRemainder;
     return {
       credits_awarded: Math.trunc(rewards.credits),
       scrap_awarded: Math.trunc(rewards.scrap),
       xp_awarded: Math.trunc(rewards.xp),
-      cache_fragments_awarded: Math.trunc(rewards.fragments),
+      cache_keys_awarded: Math.trunc(rewards.keys),
       materials: rewards.materials,
       essences: rewards.essences,
       kills_recorded: Math.trunc(rewards.kills),
@@ -953,7 +951,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const position = loginStreakPositionFor(streakLength);
     const grant = loginStreakGrantFor(position.cycleDay, position.tier, this.loginStreakLevers());
     p.credits += grant.credits;
-    p.cache_token_parts = (p.cache_token_parts ?? 0) + grant.fragments;
     p.cache_tokens += grant.cacheKeys;
     const claim = {
       day: today,
@@ -961,7 +958,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       cycle_day: position.cycleDay,
       tier: position.tier,
       credits_awarded: grant.credits,
-      fragments_awarded: grant.fragments,
+      // 0082: fragments abolished — new claims record 0 (the column
+      // survives as history for pre-0082 claims).
+      fragments_awarded: 0,
       cache_keys_awarded: grant.cacheKeys,
     };
     this.loginStreakClaims.set(claimKey, claim);
@@ -979,7 +978,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       cycle_day: position.cycleDay,
       tier: position.tier,
       credits_awarded: grant.credits,
-      fragments_awarded: grant.fragments,
+      fragments_awarded: 0,
       cache_keys_awarded: grant.cacheKeys,
       profile: this.snapshot(p),
     };
@@ -1755,7 +1754,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (progress < inst.target) throw new GameplayStoreError('Contract not complete');
 
     p.credits += inst.reward.credits;
-    p.cache_token_parts += inst.reward.fragments;
     inst.status = 'claimed';
     inst.claimedAt = this.now().toISOString();
 
@@ -1768,9 +1766,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         inst.periodKind, contractBandById(inst.band as ContractBandId), this.contractsLevers());
       this.contractSetBonuses.set(bonusKey, bonus);
       p.credits += bonus.credits;
-      p.cache_token_parts += bonus.fragments;
       p.cache_tokens += bonus.cacheKeys;
-      setBonus = { credits: bonus.credits, fragments: bonus.fragments, cache_keys: bonus.cacheKeys } as Json;
+      setBonus = { credits: bonus.credits, cache_keys: bonus.cacheKeys } as Json;
     }
 
     const result = {
@@ -1780,7 +1777,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       period_kind: inst.periodKind,
       period_key: inst.periodKey,
       credits_awarded: inst.reward.credits,
-      fragments_awarded: inst.reward.fragments,
       set_bonus: setBonus,
       profile: this.snapshot(p),
     } as Json;

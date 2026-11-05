@@ -213,12 +213,11 @@ export function racesForWeek(weekKey: string): LeaderboardRaceDef[] {
 // Rewards — paid once, at settlement, from the settled standings.
 //
 // Cache keys: the podium pays 3 / 2 / 1 keys. Sizing against the
-// shipped cache economy: since migration 0037 every cache opening
-// — free, key-paid, or ad-attested — draws on one daily budget
-// (cacheBoxDailyCap, default 10), so keys from ANY source only
-// ever buy ad-free openings inside that budget, and a week of
-// races mints at most RACES_PER_WEEK × (3 + 2 + 1) = 24 keys
-// across the ENTIRE player base — a stock any single active
+// shipped cache economy: since migration 0082 every cache opening
+// is paid — 1 key or one rewarded-ad attestation, no daily budget
+// — so keys from ANY source buy ad-free openings outright, and a
+// week of races mints at most RACES_PER_WEEK × (3 + 2 + 1) = 24
+// keys across the ENTIRE player base — a stock any single active
 // player burns through in ~2-3 days of key-paid openings. Keys
 // are metered as their own source (cache_keys_from_leaderboards,
 // migration 0035), never folded into the openings meters

@@ -348,7 +348,10 @@ export interface ChefRewardsInput {
   /** New banked fractional XP to persist (migration 0010); omit/null leaves the bank untouched. */
   xpRemainder?: number | null;
   xp: number;
-  fragments: number;
+  /** Whole cache keys the claim pays (0082 — replaces the fragment count). */
+  keys: number;
+  /** New banked fractional key remainder to persist (migration 0082); omit/null leaves the bank untouched. */
+  keysRemainder?: number | null;
   materials: Json;
   essences: Json;
   kills: number;
@@ -1258,7 +1261,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
             : contractBandForLevel(profile.player_level).id) as ContractSetFacts['band'],
           instances: current.map((row) => {
             const params = json(row.params) as { bossId?: string } | null;
-            const reward = json(row.reward) as { credits?: number; fragments?: number } | null;
+            const reward = json(row.reward) as { credits?: number } | null;
             const baseline = json(row.baseline) as Record<string, number> | null;
             return {
               id: String(row.id ?? ''),
@@ -1272,7 +1275,6 @@ export class PgChefGameplayStore implements ChefGameplayStore {
               baseline: baseline && typeof baseline === 'object' ? baseline : {},
               reward: {
                 credits: num(reward?.credits),
-                fragments: num(reward?.fragments),
               },
               status: (String(row.status) === 'claimed'
                 ? 'claimed'
@@ -1952,13 +1954,13 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json> {
     return this.callJson(
-      'select public.cc_apply_chef_rewards($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) as result',
+      'select public.cc_apply_chef_rewards($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) as result',
       [
         playerId,
         rewards.credits,
         rewards.scrap,
         rewards.xp,
-        rewards.fragments,
+        rewards.keys,
         rewards.materials,
         rewards.essences,
         rewards.kills,
@@ -1967,6 +1969,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         rewards.scrapRemainder ?? null,
         rewards.creditsRemainder ?? null,
         rewards.xpRemainder ?? null,
+        rewards.keysRemainder ?? null,
       ],
     );
   }
@@ -2163,19 +2166,20 @@ export class PgChefGameplayStore implements ChefGameplayStore {
   }
 
   settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json> {
-    return this.callJson('select public.cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) as result', [
+    return this.callJson('select public.cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) as result', [
       playerId,
       settlementNonce,
       rewards.credits,
       rewards.scrap,
       rewards.xp,
-      rewards.fragments,
+      rewards.keys,
       rewards.materials,
       rewards.essences,
       rewards.kills,
       rewards.scrapRemainder ?? null,
       rewards.creditsRemainder ?? null,
       rewards.xpRemainder ?? null,
+      rewards.keysRemainder ?? null,
       // 0012: the engine's consumed set, applied atomically inside the
       // settlement (offline claims used to grant consumable benefits
       // without ever decrementing inventory).

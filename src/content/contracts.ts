@@ -41,19 +41,20 @@
  *  - KEYS LIVE ONLY IN THE WEEKLY FULL-SET BONUS (Q5 default):
  *    clearing all weeklies pays 1 cache key (lever
  *    contractWeeklyKeys) + one weekly contract's credits. Clearing
- *    all dailies pays +2 fragment parts. One key per week per
+ *    all dailies pays a small credit bonus. One key per week per
  *    player, maximum, from this whole system.
  *  - GUESTS SEE THE BOARD (Q6 default); claims are refused
  *    server-side (contracts mint rewards; guests keep the vendor
  *    on-ramp) with the standard account explanation.
- *  - FRAGMENTS: combat- and boss-family dailies pay 1 cache
- *    fragment part; Breakdown's daily pays 1 part too — the
- *    brief's own G-3 example prices it ("Breakdown: salvage 6
- *    items — pays 220 cr + 1 fragment" at B2, and 220 cr IS the
- *    B2 daily reward), so the template carries the part
- *    explicitly. Every weekly pays 3 parts. (The brief's §2.6
- *    drip estimate is approximate; the explicit per-template
- *    rules and its concrete example govern.)
+ *  - NO FRAGMENT PAYS (migration 0082). Contracts used to pay
+ *    cache fragment parts (1 on combat/boss dailies, 3 per
+ *    weekly, +2 on the daily full-set bonus); the fragment
+ *    currency is abolished, so those legs are REMOVED from
+ *    individual contracts (their credits are untouched). The
+ *    daily full-set bonus paid ONLY fragments, so — applying the
+ *    owner's streak rule that a slot which would go empty folds
+ *    into credits — it now pays credits at the game's own value
+ *    model (2 parts × 15 cr = 30 cr, contractRewardScalar-applied).
  *
  * Generation is computed-on-read (the game's seeded law — hot
  * area, vendor rotation): no cron issues contracts. The draw
@@ -168,8 +169,6 @@ export interface ContractTemplate {
    * ~1.6× the daily.
    */
   targetByBand?: Record<ContractBandId, { daily?: number; weekly?: number }>;
-  /** Fragment parts the DAILY contract pays (weeklies pay 3). */
-  fragmentPartsDaily: number;
   paramKind: 'none' | 'boss';
   /** Plural unit for the G-3 progress line ("Salvages 4 / 6"). */
   unitLabel: string;
@@ -177,40 +176,44 @@ export interface ContractTemplate {
 
 export const CONTRACT_TEMPLATES: ContractTemplate[] = [
   // Combat family.
-  { id: 'field_work', name: 'Field Work', family: 'combat', kind: 'kills', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 200, baseTargetWeekly: 1200, fragmentPartsDaily: 1, paramKind: 'none', unitLabel: 'kills' },
-  { id: 'elite_hunt', name: 'Elite Hunt', family: 'combat', kind: 'elites', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1, baseTargetWeekly: 4, fragmentPartsDaily: 1, paramKind: 'none', unitLabel: 'elites downed' },
-  { id: 'surge_watch', name: 'Surge Watch', family: 'combat', kind: 'events', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 100, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'events triggered' },
-  { id: 'long_haul', name: 'Long Haul', family: 'combat', kind: 'roaming_xp', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1000, baseTargetWeekly: 8000, fragmentPartsDaily: 1, paramKind: 'none', unitLabel: 'roaming XP' },
-  { id: 'gauntlet', name: 'Gauntlet', family: 'combat', kind: 'endless_depth', cadences: ['daily', 'weekly'], minBand: 'B1', targetByBand: { B1: { daily: 2, weekly: 3 }, B2: { daily: 3, weekly: 5 }, B3: { daily: 5, weekly: 8 }, B4: { daily: 4, weekly: 6 }, B5: { daily: 3, weekly: 5 } }, fragmentPartsDaily: 1, paramKind: 'none', unitLabel: 'depth reached' },
-  { id: 'gauntlet_regular', name: 'Gauntlet Regular', family: 'combat', kind: 'endless_runs', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 3, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'endless runs' },
+  { id: 'field_work', name: 'Field Work', family: 'combat', kind: 'kills', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 200, baseTargetWeekly: 1200, paramKind: 'none', unitLabel: 'kills' },
+  { id: 'elite_hunt', name: 'Elite Hunt', family: 'combat', kind: 'elites', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1, baseTargetWeekly: 4, paramKind: 'none', unitLabel: 'elites downed' },
+  { id: 'surge_watch', name: 'Surge Watch', family: 'combat', kind: 'events', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 100, paramKind: 'none', unitLabel: 'events triggered' },
+  { id: 'long_haul', name: 'Long Haul', family: 'combat', kind: 'roaming_xp', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1000, baseTargetWeekly: 8000, paramKind: 'none', unitLabel: 'roaming XP' },
+  { id: 'gauntlet', name: 'Gauntlet', family: 'combat', kind: 'endless_depth', cadences: ['daily', 'weekly'], minBand: 'B1', targetByBand: { B1: { daily: 2, weekly: 3 }, B2: { daily: 3, weekly: 5 }, B3: { daily: 5, weekly: 8 }, B4: { daily: 4, weekly: 6 }, B5: { daily: 3, weekly: 5 } }, paramKind: 'none', unitLabel: 'depth reached' },
+  { id: 'gauntlet_regular', name: 'Gauntlet Regular', family: 'combat', kind: 'endless_runs', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 3, paramKind: 'none', unitLabel: 'endless runs' },
   // Boss family.
-  { id: 'boss_contract', name: 'Boss Contract', family: 'boss', kind: 'boss_victories', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1, baseTargetWeekly: 3, fragmentPartsDaily: 1, paramKind: 'none', unitLabel: 'bosses defeated' },
-  { id: 'named_bounty', name: 'Named Bounty', family: 'boss', kind: 'specific_boss', cadences: ['weekly'], minBand: 'B3', baseTargetWeekly: 1, fragmentPartsDaily: 0, paramKind: 'boss', unitLabel: 'bounty kills' },
+  { id: 'boss_contract', name: 'Boss Contract', family: 'boss', kind: 'boss_victories', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1, baseTargetWeekly: 3, paramKind: 'none', unitLabel: 'bosses defeated' },
+  { id: 'named_bounty', name: 'Named Bounty', family: 'boss', kind: 'specific_boss', cadences: ['weekly'], minBand: 'B3', baseTargetWeekly: 1, paramKind: 'boss', unitLabel: 'bounty kills' },
   // Craft family.
-  { id: 'production_order', name: 'Production Order', family: 'craft', kind: 'crafts', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 4, baseTargetWeekly: 24, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'craft units' },
-  { id: 'fine_work', name: 'Fine Work', family: 'craft', kind: 'consumables_crafted', cadences: ['daily'], minBand: 'B1', baseTargetDaily: 4, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'consumables crafted' },
-  { id: 'refinery_shift', name: 'Refinery Shift', family: 'craft', kind: 'refines', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 8, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'refine units' },
-  { id: 'perfectionist', name: 'Perfectionist', family: 'craft', kind: 'reforges', cadences: ['weekly'], minBand: 'B3', baseTargetWeekly: 3, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'reforges' },
+  { id: 'production_order', name: 'Production Order', family: 'craft', kind: 'crafts', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 4, baseTargetWeekly: 24, paramKind: 'none', unitLabel: 'craft units' },
+  { id: 'fine_work', name: 'Fine Work', family: 'craft', kind: 'consumables_crafted', cadences: ['daily'], minBand: 'B1', baseTargetDaily: 4, paramKind: 'none', unitLabel: 'consumables crafted' },
+  { id: 'refinery_shift', name: 'Refinery Shift', family: 'craft', kind: 'refines', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 8, paramKind: 'none', unitLabel: 'refine units' },
+  { id: 'perfectionist', name: 'Perfectionist', family: 'craft', kind: 'reforges', cadences: ['weekly'], minBand: 'B3', baseTargetWeekly: 3, paramKind: 'none', unitLabel: 'reforges' },
   // Service family.
-  { id: 'service_record', name: 'Service Record', family: 'service', kind: 'points_restored', cadences: ['weekly'], minBand: 'B2', baseTargetWeekly: 150, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'condition points restored' },
+  { id: 'service_record', name: 'Service Record', family: 'service', kind: 'points_restored', cadences: ['weekly'], minBand: 'B2', baseTargetWeekly: 150, paramKind: 'none', unitLabel: 'condition points restored' },
   // Market family.
-  { id: 'shopfront', name: 'Shopfront', family: 'market', kind: 'seller_sales', cadences: ['daily', 'weekly'], minBand: 'B2', baseTargetDaily: 1, baseTargetWeekly: 4, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'sales completed' },
-  { id: 'open_for_business', name: 'Open for Business', family: 'market', kind: 'listings', cadences: ['daily'], minBand: 'B1', baseTargetDaily: 2, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'listings posted' },
-  { id: 'supply_run', name: 'Supply Run', family: 'market', kind: 'vendor_buys', cadences: ['daily'], minBand: 'B1', baseTargetDaily: 3, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'vendor purchases' },
+  { id: 'shopfront', name: 'Shopfront', family: 'market', kind: 'seller_sales', cadences: ['daily', 'weekly'], minBand: 'B2', baseTargetDaily: 1, baseTargetWeekly: 4, paramKind: 'none', unitLabel: 'sales completed' },
+  { id: 'open_for_business', name: 'Open for Business', family: 'market', kind: 'listings', cadences: ['daily'], minBand: 'B1', baseTargetDaily: 2, paramKind: 'none', unitLabel: 'listings posted' },
+  { id: 'supply_run', name: 'Supply Run', family: 'market', kind: 'vendor_buys', cadences: ['daily'], minBand: 'B1', baseTargetDaily: 3, paramKind: 'none', unitLabel: 'vendor purchases' },
   // Meta family.
-  { id: 'breakdown', name: 'Breakdown', family: 'meta', kind: 'salvages', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 6, baseTargetWeekly: 36, fragmentPartsDaily: 1, paramKind: 'none', unitLabel: 'salvages' },
-  { id: 'cache_work', name: 'Cache Work', family: 'meta', kind: 'cache_opens', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1, baseTargetWeekly: 3, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'caches opened' },
-  { id: 'field_kit', name: 'Field Kit', family: 'meta', kind: 'consumables_used', cadences: ['daily'], minBand: 'B1', baseTargetDaily: 5, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'consumables used' },
-  { id: 'archivist', name: 'Archivist', family: 'meta', kind: 'discoveries', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 3, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'new discoveries' },
-  { id: 'gathering_order', name: 'Gathering Order', family: 'meta', kind: 'extraction_units', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 40, baseTargetWeekly: 240, fragmentPartsDaily: 0, paramKind: 'none', unitLabel: 'units gathered' },
+  { id: 'breakdown', name: 'Breakdown', family: 'meta', kind: 'salvages', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 6, baseTargetWeekly: 36, paramKind: 'none', unitLabel: 'salvages' },
+  { id: 'cache_work', name: 'Cache Work', family: 'meta', kind: 'cache_opens', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1, baseTargetWeekly: 3, paramKind: 'none', unitLabel: 'caches opened' },
+  { id: 'field_kit', name: 'Field Kit', family: 'meta', kind: 'consumables_used', cadences: ['daily'], minBand: 'B1', baseTargetDaily: 5, paramKind: 'none', unitLabel: 'consumables used' },
+  { id: 'archivist', name: 'Archivist', family: 'meta', kind: 'discoveries', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 3, paramKind: 'none', unitLabel: 'new discoveries' },
+  { id: 'gathering_order', name: 'Gathering Order', family: 'meta', kind: 'extraction_units', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 40, baseTargetWeekly: 240, paramKind: 'none', unitLabel: 'units gathered' },
 ];
 
 export const CONTRACT_TEMPLATE_BY_ID = new Map(CONTRACT_TEMPLATES.map((t) => [t.id, t]));
 
-/** Fragment parts every weekly contract pays (brief §2.6). */
-export const CONTRACT_WEEKLY_FRAGMENT_PARTS = 3;
-/** Fragment parts the daily full-set bonus pays (brief §2.6). */
-export const CONTRACT_DAILY_SET_BONUS_PARTS = 2;
+/**
+ * Credits the daily full-set bonus pays (migration 0082). It used
+ * to pay 2 cache fragment parts and nothing else; with fragments
+ * abolished, the owner's streak fold rule (a slot that would go
+ * empty folds into credits) prices it at the game's value model:
+ * 2 parts × 15 cr (EVENT_VALUE_MODEL) = 30 cr, scalar-applied.
+ */
+export const CONTRACT_DAILY_SET_BONUS_CREDITS = 30;
 /** Family spread cap inside one set (brief §2.2). */
 export const CONTRACT_FAMILY_CAP = 2;
 
@@ -472,7 +475,6 @@ export function contractTargetFor(
 
 export interface ContractReward {
   credits: number;
-  fragments: number;
 }
 
 /** The frozen reward for a drawn template at issuance. */
@@ -485,13 +487,11 @@ export function contractRewardFor(
   const credits = Math.round(
     (kind === 'daily' ? band.dailyCredits : band.weeklyCredits) * levers.contractRewardScalar,
   );
-  const parts = kind === 'daily' ? template.fragmentPartsDaily : CONTRACT_WEEKLY_FRAGMENT_PARTS;
-  return { credits, fragments: Math.floor(parts * levers.contractRewardScalar) };
+  return { credits };
 }
 
 export interface ContractSetBonus {
   credits: number;
-  fragments: number;
   cacheKeys: number;
 }
 
@@ -503,14 +503,12 @@ export function contractSetBonusFor(
 ): ContractSetBonus {
   if (kind === 'daily') {
     return {
-      credits: 0,
-      fragments: Math.floor(CONTRACT_DAILY_SET_BONUS_PARTS * levers.contractRewardScalar),
+      credits: Math.floor(CONTRACT_DAILY_SET_BONUS_CREDITS * levers.contractRewardScalar),
       cacheKeys: 0,
     };
   }
   return {
     credits: Math.round(band.weeklyCredits * levers.contractRewardScalar),
-    fragments: 0,
     cacheKeys: levers.contractWeeklyKeys,
   };
 }
@@ -634,11 +632,10 @@ export function contractObjectiveText(
   }
 }
 
-/** Compact reward label ("220 cr + 1 fragment" / "900 cr + key"). */
+/** Compact reward label ("220 cr" / "900 cr + key"). */
 export function formatContractReward(reward: ContractReward & { cacheKeys?: number }): string {
   const parts: string[] = [];
   if (reward.credits > 0) parts.push(`${reward.credits} cr`);
-  if (reward.fragments > 0) parts.push(reward.fragments === 1 ? '1 fragment' : `${reward.fragments} fragments`);
   if ((reward.cacheKeys ?? 0) > 0) {
     parts.push(reward.cacheKeys === 1 ? 'cache key' : `${reward.cacheKeys} cache keys`);
   }
@@ -659,7 +656,7 @@ export interface ContractInstanceView {
   complete: boolean;
   status: 'active' | 'claimed' | 'expired';
   reward: ContractReward;
-  /** G-3 line: "Salvages 4 / 6 — pays 220 cr + 1 fragment · claim by 00:00 UTC". */
+  /** G-3 line: "Salvages 4 / 6 — pays 220 cr · claim by 00:00 UTC". */
   progressLine: string;
   claimByLabel: string;
 }
@@ -731,8 +728,8 @@ function contractSetView(
   const bonus = contractSetBonusFor(kind, band, levers);
   const claimedCount = facts.instances.filter((i) => i.status === 'claimed').length;
   const setBonusLine = kind === 'daily'
-    ? `Clear all ${facts.instances.length} today: +${bonus.fragments} fragments`
-    : `Clear all ${facts.instances.length} this week: ${formatContractReward({ credits: bonus.credits, fragments: 0, cacheKeys: bonus.cacheKeys })}`;
+    ? `Clear all ${facts.instances.length} today: +${bonus.credits} credits`
+    : `Clear all ${facts.instances.length} this week: ${formatContractReward({ credits: bonus.credits, cacheKeys: bonus.cacheKeys })}`;
   return {
     periodKind: kind,
     periodKey,

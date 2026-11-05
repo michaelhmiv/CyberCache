@@ -58,10 +58,7 @@ import {
   weekWindow,
 } from '../../content/leaderboards';
 import {
-  cacheLaneUtcDay,
   cacheLaneView,
-  resolveCacheLaneLevers,
-  type CacheBoxPaymentCounts,
   type CacheLaneView,
 } from '../../content/cacheLane';
 import {
@@ -97,6 +94,8 @@ export interface ProfileRowData {
   scrap: number;
   cache_tokens: number;
   cache_token_parts: number;
+  /** Banked fractional cache-key remainder (migration 0082); rows predating it read undefined. */
+  cache_key_remainder?: number;
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
@@ -1704,22 +1703,11 @@ export class InMemoryReadStore implements ReadStore {
   async getCacheLane(playerId: string, now: Date): Promise<CacheLaneView | null> {
     const profile = this.seed.profiles.find((p) => p.id === playerId);
     if (!profile) return null;
-    const day = cacheLaneUtcDay(now);
-    const byPayment: CacheBoxPaymentCounts = { free: 0, ad: 0, key: 0 };
-    for (const row of this.seed.cacheBoxOpenings ?? []) {
-      if (row.user_id === playerId && row.open_day === day) {
-        if (row.payment === 'free' || row.payment === 'ad' || row.payment === 'key') {
-          byPayment[row.payment] += 1;
-        }
-      }
-    }
-    // The twin serves the shipped default cap; the Pg store reads
-    // the live cacheBoxDailyCap lever (0018) — the same split the
-    // other levered reads use.
-    return cacheLaneView(
-      { day, keys: profile.cache_tokens, byPayment },
-      resolveCacheLaneLevers(),
-    );
+    // Cache lane rebuilt (0082): the view is the key stock + the
+    // rule. No day, no count, no cap — `now` is accepted for
+    // signature compatibility with the read-store interface only.
+    void now;
+    return cacheLaneView({ keys: profile.cache_tokens });
   }
 
   async getActivityLog(playerId: string, query: ActivityLogQuery): Promise<ActivityLogPage | null> {
@@ -2293,39 +2281,8 @@ export class PgReadStore implements ReadStore {
       [playerId],
     );
     if (!rows.length) return null;
-    const day = cacheLaneUtcDay(now);
-    const { rows: openingRows } = await this.db.query(
-      `select payment, count(*)::integer as n
-         from public.cache_box_openings
-        where player_id = $1 and open_day = $2::date
-        group by payment`,
-      [playerId, day],
-    );
-    const byPayment: CacheBoxPaymentCounts = { free: 0, ad: 0, key: 0 };
-    for (const row of openingRows as Row[]) {
-      const payment = String(row.payment);
-      if (payment === 'free' || payment === 'ad' || payment === 'key') {
-        byPayment[payment] = num(row.n);
-      }
-    }
-    // The cap is the cacheBoxDailyCap lever (0018): the stored value
-    // when present; the content resolver applies default + clamps,
-    // identical to cc_make_item's cc_economy_config_number read.
-    const { rows: configRows } = await this.db.query(
-      "select value from public.economy_config where key = 'cacheBoxDailyCap'",
-    );
-    let capRaw: number | undefined;
-    if (configRows.length) {
-      const parsed = Number((configRows[0] as Row).value);
-      if (Number.isFinite(parsed)) capRaw = parsed;
-    }
-    const levers = resolveCacheLaneLevers(
-      capRaw !== undefined ? { cacheBoxDailyCap: capRaw } : undefined,
-    );
-    return cacheLaneView(
-      { day, keys: num((rows[0] as Row).cache_tokens), byPayment },
-      levers,
-    );
+    void now;
+    return cacheLaneView({ keys: num((rows[0] as Row).cache_tokens) });
   }
 
   async getActivityLog(playerId: string, query: ActivityLogQuery): Promise<ActivityLogPage | null> {

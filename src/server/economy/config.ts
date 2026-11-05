@@ -11,7 +11,7 @@
  *   - a key with no row resolves to its code default — the defaults
  *     below ARE today's shipped constants (pinned against their
  *     owners by tests: marketFee.ts MARKET_FEE_RATE, chef.ts
- *     FRAGMENT_CHANCE / BOSS_DEDICATED_DROP_CHANCE, bossFees.ts
+ *     KEY_CHANCE / BOSS_DEDICATED_DROP_CHANCE, bossFees.ts
  *     REMATCH_FEE_MAX_MULTIPLIER);
  *   - a stored value that fails validation (wrong type, out of
  *     range — only possible via direct SQL) is ignored, never
@@ -35,8 +35,12 @@ export interface EconomyConfigValues {
   marketFeeRate: number;
   /** Probability that a boss victory's first loot roll is a dedicated drop. */
   bossDedicatedChance: number;
-  /** Per-tick chance a roaming tick pays cache fragments (before mods). */
-  fragmentChance: number;
+  /**
+   * Per-tick chance a roaming tick pays toward a whole cache key
+   * (before mods), settled fractionally with a banked remainder
+   * (migration 0082 — fragments are abolished; roaming pays keys).
+   */
+  cacheKeyChance: number;
   /** Cap on the boss rematch fee escalation multiplier. */
   rematchEscalationCap: number;
   /** Multiplier on the Legendary weight of area drop tables at claim time. */
@@ -229,20 +233,17 @@ export interface EconomyConfigValues {
   // cc_economy_config_number with identical clamps).
   /** Scalar on every login-streak ladder credit amount. */
   streakCreditScalar: number;
-  /** Scalar on every login-streak ladder fragment amount. */
-  streakFragmentScalar: number;
-  // Cache box lane (0037) — content owner: src/content/cacheLane.ts
-  // (CACHE_LANE_LEVER_DEFAULTS / CACHE_LANE_LEVER_CLAMPS, pinned
-  // against these literals by tests; cc_make_item reads it via
-  // cc_economy_config_number with the identical clamp).
-  /** Total cache boxes openable per UTC day, free box included. */
-  cacheBoxDailyCap: number;
+  // Cache box lane (0037, rebuilt 0082) — content owner:
+  // src/content/cacheLane.ts. The daily-cap lever died with the
+  // daily budget model in the 0082 rebuild: openings are uncapped
+  // and every one is paid (1 key or one ad attestation), so the
+  // lane has no lever left.
   // Contracts board (0042) — content owner: src/content/contracts.ts
   // (CONTRACT_LEVER_DEFAULTS / CONTRACT_LEVER_CLAMPS, pinned against
   // these literals by tests; cc_issue_contracts / cc_claim_contract_reward
   // / cc_reroll_contract read them via cc_economy_config_number with
   // identical clamps).
-  /** Scalar on every contract credit/fragment reward, priced at issuance. */
+  /** Scalar on every contract credit reward, priced at issuance. */
   contractRewardScalar: number;
   /** Scalar on every contract target, priced at issuance. */
   contractTargetScalar: number;
@@ -290,7 +291,7 @@ export type EconomyConfigKey = keyof EconomyConfigValues;
 export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   marketFeeRate: 0.05,
   bossDedicatedChance: 0.1,
-  fragmentChance: 0.008,
+  cacheKeyChance: 0.00012,
   rematchEscalationCap: 8,
   roamingLegendaryScalar: 1.0,
   vendorBuybackRate: 0.4,
@@ -374,8 +375,6 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   extractGearFactorFloor: 0.4,
   extractMasteryYieldPerLevel: 0.005,
   streakCreditScalar: 1,
-  streakFragmentScalar: 1,
-  cacheBoxDailyCap: 10,
   contractRewardScalar: 1,
   contractTargetScalar: 1,
   contractDailyCount: 3,
@@ -412,9 +411,9 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
     key: 'bossDedicatedChance', min: 0, max: 1, integer: false,
     defaultOwner: 'src/server/chef.ts BOSS_DEDICATED_DROP_CHANCE',
   },
-  fragmentChance: {
-    key: 'fragmentChance', min: 0, max: 1, integer: false,
-    defaultOwner: 'src/server/chef.ts FRAGMENT_CHANCE',
+  cacheKeyChance: {
+    key: 'cacheKeyChance', min: 0, max: 1, integer: false,
+    defaultOwner: 'src/server/chef.ts KEY_CHANCE',
   },
   rematchEscalationCap: {
     key: 'rematchEscalationCap', min: 1, max: 64, integer: true,
@@ -747,14 +746,6 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   streakCreditScalar: {
     key: 'streakCreditScalar', min: 0, max: 3, integer: false,
     defaultOwner: 'src/content/loginStreak.ts LOGIN_STREAK_LEVER_DEFAULTS',
-  },
-  streakFragmentScalar: {
-    key: 'streakFragmentScalar', min: 0, max: 3, integer: false,
-    defaultOwner: 'src/content/loginStreak.ts LOGIN_STREAK_LEVER_DEFAULTS',
-  },
-  cacheBoxDailyCap: {
-    key: 'cacheBoxDailyCap', min: 1, max: 30, integer: true,
-    defaultOwner: 'src/content/cacheLane.ts CACHE_LANE_LEVER_DEFAULTS',
   },
   contractRewardScalar: {
     key: 'contractRewardScalar', min: 0, max: 2, integer: false,

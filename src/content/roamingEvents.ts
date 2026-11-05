@@ -1,6 +1,6 @@
 import { Rarity } from '../types/game';
 import type { RoamingAreaDef } from '../constants/roamingAreas';
-import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from './roamingRates';
+import { CACHE_KEY_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from './roamingRates';
 
 /**
  * Roaming variance — the event system (roaming-variance brief, Part 2).
@@ -16,7 +16,7 @@ import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '.
  *
  * Design law (brief §2.1): events are variance, not a faucet upgrade.
  * The whole system is budgeted at ≤ +8% expected value per tick over
- * plain ticks, funded mostly in kind (materials, fragments, rolls
+ * plain ticks, funded mostly in kind (materials, key finds, rolls
  * against the existing rarity table) and balanced by hazard events
  * with real downside. `expectedValueCredits` on each def is the
  * design estimate under EVENT_VALUE_MODEL; realized EV is measured
@@ -90,7 +90,7 @@ export const EVENT_VALUE_MODEL = {
   scrap: 0.5,
   material: 10,
   essence: 20,
-  fragment: 15,
+  key: 75,
   gearRoll: 30,
   gearRollQuality: 45,
 } as const;
@@ -100,9 +100,9 @@ export function plainTickValue(area: RoamingAreaDef): number {
   const credits = (area.idleCreditsPerMinute || 15) / 20;
   const scrap = ((area.idleScrapPerMinute || 3) / 20) * EVENT_VALUE_MODEL.scrap;
   const materials = MATERIAL_FIND_CHANCE * 12; // × blended find value
-  const fragments = CACHE_FRAGMENT_CHANCE * EVENT_VALUE_MODEL.fragment;
+  const keys = CACHE_KEY_CHANCE * EVENT_VALUE_MODEL.key;
   const gear = GEAR_DROP_CHANCE * EVENT_VALUE_MODEL.gearRoll;
-  return credits + scrap + materials + fragments + gear;
+  return credits + scrap + materials + keys + gear;
 }
 
 /** Expected event EV added per tick in an area at the base fire rate. */
@@ -120,8 +120,6 @@ export function eventValuePerTick(area: RoamingAreaDef, chance: number = EVENT_C
 export const ELITE_HP_MULTIPLIER = 3;
 /** Guaranteed gear roll on an escalated elite kill floors at this rarity. */
 export const ELITE_RARITY_FLOOR: Rarity = Rarity.Epic;
-/** Bonus cache fragments on an escalated elite kill. */
-export const ELITE_FRAGMENT_BONUS = 1;
 /**
  * The kill cycle rotates the roster in order, so the elite is every
  * 4th target — far more often than the ~1-in-29 weighted picks the
@@ -199,7 +197,7 @@ export const SIGNATURE_MATERIAL_FIND_CHANCE = 0.1;
 const ev = (def: RoamingEventDef): RoamingEventDef => def;
 
 export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
-  // ── Dustwaste Frontier — salvage & fragments ──
+  // ── Dustwaste Frontier — salvage & storms ──
   ev({
     id: 'dustwaste_buried_cache', areaId: 'dustwaste_frontier', name: 'Buried Cache', family: 'find',
     weight: 2, propId: 'prop-buried-cache', expectedValueCredits: 37.5,
@@ -222,7 +220,7 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'dustwaste_silt_storm', areaId: 'dustwaste_frontier', name: 'Silt Storm Front', family: 'hazard',
     weight: 2, propId: 'prop-storm-front', expectedValueCredits: -32,
-    blurb: 'A silt storm front rolls in — brutal going, but the fragments shake loose.',
+    blurb: 'A silt storm front rolls in — brutal going, but buried things shake loose.',
     resolution: { kind: 'stormWindow' },
   }),
   ev({
@@ -386,7 +384,7 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'throwtech_minefield_sweep', areaId: 'throwtech_dumpnet', name: 'Minefield Sweep', family: 'hazard',
     weight: 2, propId: 'prop-minefield', expectedValueCredits: -18,
-    blurb: 'The shortcut crosses a live minefield. The fragments beyond it are real.',
+    blurb: 'The shortcut crosses a live minefield. What lies beyond it is worth the risk.',
     resolution: { kind: 'minefield' },
   }),
 

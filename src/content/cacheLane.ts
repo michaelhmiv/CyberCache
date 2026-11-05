@@ -1,206 +1,120 @@
 /**
- * Cache box lane (migration 0037) — the monetization lane for Data
- * Caches, kept visibly distinct from loot drops.
+ * Cache box lane (migration 0037, rebuilt by 0082) — the
+ * monetization lane for Data Caches, kept visibly distinct from
+ * loot drops.
  *
- * Michael's law for this lane:
+ * Michael's law for this lane (owner ruling 2026-11-04, which
+ * REBUILDS the lane and supersedes the 0037 budget model):
  *  - CACHE BOX ≠ LOOT DROP. Drops are earned gameplay (roaming,
  *    bosses, endless); cache boxes are the ad lane. The words are
  *    never swapped on any surface.
- *  - 1 FREE box daily + watch-ad boxes up to 10/day TOTAL (the cap
- *    counts every opening of the day, the free one included).
+ *  - NO DAILY LIMITS. There is no daily cap, no daily budget, and
+ *    no free daily box. The 0037 concepts (cacheBoxDailyCap, the
+ *    free-first slot, "openings today", the 00:00 UTC budget
+ *    reset) are gone from the server, the client, and the copy.
+ *  - SCARCITY IS SUPPLY. What makes a box rare is how rarely keys
+ *    exist, not a quota on opening them. Roaming pays WHOLE KEYS
+ *    directly at a hard-cut rate (see CACHE_KEY_CHANCE in
+ *    roamingRates.ts), settled through the same silent fractional-
+ *    remainder bookkeeping the other claim currencies use — the
+ *    remainder is bookkeeping, never a visible currency.
+ *  - FRAGMENTS ARE ABOLISHED (same ruling). The old cache-fragment
+ *    currency (profiles.cache_token_parts, the 5:1 auto-conversion)
+ *    is gone: nothing pays fragments, nothing displays them, and
+ *    stranded balances converted to keys at 5:1 floor in migration
+ *    0082. Keys are the ONLY cache currency. The flat sources —
+ *    login streak day 7, the weekly contracts set bonus, weekly
+ *    leaderboard podiums, the jackpot legendary's guaranteed key —
+ *    are the primary way keys appear.
+ *  - EVERY OPENING IS PAID, player's choice per opening: 1 cache
+ *    key OR one rewarded-ad attestation. Uncapped — a player may
+ *    open as many boxes as they can pay for. Keys stay a stock
+ *    (profiles.cache_tokens). Existing key stockpiles are
+ *    grandfathered — no clawback; with no cap they are simply
+ *    spendable.
  *  - Always optional, never restricting gameplay; NO ADS ON THE
  *    PLAY SCREEN, EVER — the ad offer lives only on the cache
  *    surface (ChestScreen).
  *  - No server-side ad verification (SSV): ad completions are
- *    client-attested; the hard daily cap is the abuse control.
+ *    client-attested. The 0037 abuse control was the daily cap;
+ *    with the cap gone the control is that an opening must be
+ *    paid — by key or by ad — every single time, and the nonce
+ *    ledger makes each opening exactly-once (replays grant
+ *    nothing).
  *
- * THE KEYS ↔ BUDGET MODEL (the reconciliation this slice ships):
- * there is ONE daily budget of box openings. Every opening consumes
- * one budget slot, however it is paid:
- *  - the day's FIRST opening is FREE (no key, no ad) — the server
- *    resolves it as free even if the caller asked to pay, so the
- *    free slot can never be wasted or sold back;
- *  - openings 2..cap are paid per opening, player's choice on the
- *    cache surface: 1 cache key OR one watch-ad attestation;
- *  - keys (fragments, weekly leaderboards 0035, login streak 0036)
- *    stay a stock that buys ad-free openings INSIDE the budget —
- *    they never buy an opening past the cap (the same rule the
- *    approved slot-machine defaults state: key prizes are charged
- *    against the 10/day cache budget);
- *  - the retired rewarded-key claim (cc_claim_rewarded_cache_key,
- *    3 keys/day + 5-minute cooldown) is gone: ads no longer mint
- *    keys, they attest openings directly.
- *
- * The cap is a live lever (cacheBoxDailyCap, economy_config 0018)
- * with the shipped default 10; the free count (1) is a rule, not a
- * lever. Both twins (SQL cc_make_item / in-memory writes) resolve
- * payment through these same rules — resolveCacheBoxPayment below
- * is the TS statement of the SQL logic.
+ * Both twins (SQL cc_make_item / in-memory writes) resolve payment
+ * through these same rules — resolveCacheBoxPayment below is the
+ * TS statement of the SQL logic.
  */
 
 // ─── Constants ───────────────────────────────────────────────────────
 
-/** Shipped default for the daily box budget (the lever's default). */
-export const CACHE_BOX_DAILY_CAP_DEFAULT = 10;
+/** The ways an opening is paid for. There is no free opening. */
+export type CacheBoxPayment = 'ad' | 'key';
 
-/** Free boxes per UTC day — a rule of the lane, never levered. */
-export const CACHE_BOX_FREE_PER_DAY = 1;
-
-/** The ways an opening is paid for. */
-export type CacheBoxPayment = 'free' | 'ad' | 'key';
-
-export const CACHE_BOX_PAYMENTS: readonly CacheBoxPayment[] = ['free', 'ad', 'key'];
+export const CACHE_BOX_PAYMENTS: readonly CacheBoxPayment[] = ['ad', 'key'];
 
 /** Player-facing rule line for the cache surface. */
 export const CACHE_LANE_RULE =
-  'One free cache box every day. Open more with a cache key or a short ad — up to 10 boxes a day in total. The budget resets at 00:00 UTC.';
+  'Every cache box costs 1 cache key or one short ad — no daily limit. Keys are rare: roaming drops one now and then, and the login streak, contracts, and leaderboards pay them too.';
 
-// ─── UTC day helpers (the codebase's UTC-day convention) ────────────
+// ─── UTC day helper (the codebase's UTC-day convention) ────────────
 
-/** UTC day (YYYY-MM-DD) of a Date. */
+/**
+ * UTC day (YYYY-MM-DD) of a Date. The lane itself keeps no daily
+ * state anymore; this still stamps the cache_box_openings audit
+ * record (one row per opening, written by both write twins).
+ */
 export function cacheLaneUtcDay(now: Date): string {
   return now.toISOString().slice(0, 10);
 }
 
-/** ISO instant the budget for `day` (YYYY-MM-DD) resets: the next UTC midnight. */
-export function cacheLaneResetsAt(day: string): string {
-  const d = new Date(`${day}T00:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString();
-}
-
-// ─── Levers ──────────────────────────────────────────────────────────
-
-/**
- * Lever values for the lane. Defaults and hard clamps live HERE
- * (content) and the economy-config registry mirrors them, pinned
- * equal by tests; the SQL call site reads the value through
- * cc_economy_config_number with the identical clamp.
- */
-export interface CacheLaneLeverValues {
-  /** Total cache boxes openable per UTC day, free included. */
-  cacheBoxDailyCap: number;
-}
-
-export const CACHE_LANE_LEVER_DEFAULTS: CacheLaneLeverValues = {
-  cacheBoxDailyCap: CACHE_BOX_DAILY_CAP_DEFAULT,
-};
-
-/** Hard clamps per lever — the SQL call site clamps identically. */
-export const CACHE_LANE_LEVER_CLAMPS: Record<
-  keyof CacheLaneLeverValues,
-  { min: number; max: number; integer?: boolean }
-> = {
-  cacheBoxDailyCap: { min: 1, max: 30, integer: true },
-};
-
-function clampLever(key: keyof CacheLaneLeverValues, value: number): number {
-  const clamp = CACHE_LANE_LEVER_CLAMPS[key];
-  const clamped = Math.min(clamp.max, Math.max(clamp.min, value));
-  return clamp.integer ? Math.trunc(clamped) : clamped;
-}
-
-/** Merge raw lever values over the shipped defaults, clamped. */
-export function resolveCacheLaneLevers(
-  partial?: Partial<CacheLaneLeverValues> | null,
-): CacheLaneLeverValues {
-  const values: CacheLaneLeverValues = { ...CACHE_LANE_LEVER_DEFAULTS };
-  if (!partial) return values;
-  for (const key of Object.keys(CACHE_LANE_LEVER_DEFAULTS) as Array<keyof CacheLaneLeverValues>) {
-    const raw = partial[key];
-    if (typeof raw === 'number' && Number.isFinite(raw)) {
-      values[key] = clampLever(key, raw);
-    }
-  }
-  return values;
-}
-
 // ─── Facts + view ────────────────────────────────────────────────────
 
-/** Per-payment opening counts for one UTC day. */
-export interface CacheBoxPaymentCounts {
-  free: number;
-  ad: number;
-  key: number;
-}
-
-/** Server facts the lane view derives from (one player's UTC day). */
+/** Server facts the lane view derives from (one player). */
 export interface CacheLaneFacts {
-  /** UTC day (YYYY-MM-DD) the counts belong to. */
-  day: string;
   /** The player's cache key stock (profiles.cache_tokens). */
   keys: number;
-  /** Openings already recorded today, by payment. */
-  byPayment: CacheBoxPaymentCounts;
 }
 
-export function cacheBoxOpenedTotal(byPayment: CacheBoxPaymentCounts): number {
-  return byPayment.free + byPayment.ad + byPayment.key;
-}
-
-/** The player-facing lane state, derived from facts + levers. */
+/** The player-facing lane state, derived from facts. */
 export interface CacheLaneView {
-  day: string;
-  /** Effective daily cap (lever-resolved). */
-  cap: number;
-  freePerDay: number;
-  openedToday: number;
-  remaining: number;
-  /** True while the day's free opening is still unclaimed. */
-  freeAvailable: boolean;
   /** The player's cache key stock. */
   keys: number;
-  byPayment: CacheBoxPaymentCounts;
-  /** ISO instant the budget resets (next UTC midnight). */
-  resetsAt: string;
   rule: string;
 }
 
 /**
  * Derive the lane view from server facts. Pure: the read route and
  * both write twins share this derivation, so no path can show a
- * different budget.
+ * different lane.
  */
-export function cacheLaneView(facts: CacheLaneFacts, levers: CacheLaneLeverValues): CacheLaneView {
-  const cap = Math.max(1, Math.trunc(levers.cacheBoxDailyCap) || CACHE_BOX_DAILY_CAP_DEFAULT);
-  const openedToday = cacheBoxOpenedTotal(facts.byPayment);
+export function cacheLaneView(facts: CacheLaneFacts): CacheLaneView {
   return {
-    day: facts.day,
-    cap,
-    freePerDay: CACHE_BOX_FREE_PER_DAY,
-    openedToday,
-    remaining: Math.max(0, cap - openedToday),
-    freeAvailable: facts.byPayment.free < CACHE_BOX_FREE_PER_DAY,
     keys: Math.max(0, Math.trunc(facts.keys) || 0),
-    byPayment: { ...facts.byPayment },
-    resetsAt: cacheLaneResetsAt(facts.day),
     rule: CACHE_LANE_RULE,
   };
 }
 
-// ─── Payment resolution (free-first ordering) ────────────────────────
+// ─── Payment resolution ──────────────────────────────────────────────
 
 /**
- * Resolve how the NEXT opening is paid, given what the player asked
- * for and today's counts. The server owns the free slot: while a
- * free opening remains, ANY request resolves to 'free' (a key or an
- * ad is never consumed for it). Once the free slot is used:
+ * Resolve how an opening is paid, given what the player asked for.
+ * The request arrives normalized (trimmed, lowercased) by the write
+ * paths:
  *  - 'ad' resolves to 'ad' (the call itself is the attestation;
  *    the caller must still supply an ad unit id — enforced by the
  *    write paths, not here);
- *  - 'key' resolves to 'key';
- *  - 'free' can no longer resolve (returns null — the write paths
- *    raise the "free box already used" error);
- *  - anything else returns null.
- * A request made with the budget exhausted also returns null; the
- * write paths check the cap first and raise the cap error, so this
- * helper only decides payment for an opening that may proceed.
+ *  - 'key' resolves to 'key' (the write paths check + debit the
+ *    stock);
+ *  - anything else — including 'free', which no longer exists —
+ *    returns null; the write paths raise the "Unknown cache box
+ *    payment" error.
+ * There is deliberately no count, day, or budget input: nothing
+ * about yesterday or earlier today can change how the next
+ * opening is paid.
  */
-export function resolveCacheBoxPayment(
-  requested: string,
-  byPayment: CacheBoxPaymentCounts,
-): CacheBoxPayment | null {
-  if (byPayment.free < CACHE_BOX_FREE_PER_DAY) return 'free';
+export function resolveCacheBoxPayment(requested: string): CacheBoxPayment | null {
   if (requested === 'ad') return 'ad';
   if (requested === 'key') return 'key';
   return null;
