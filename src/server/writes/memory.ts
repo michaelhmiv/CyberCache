@@ -28,8 +28,6 @@ import {
 import {
   CORE_DISPLAY_NAME,
   CORE_IDENTITY_KEY,
-  FRAGMENT_DISPLAY_NAME,
-  FRAGMENT_IDENTITY_KEY,
   MARKET_ESSENCE_IDS,
   consumableDisplayName,
   consumableIdentityKey,
