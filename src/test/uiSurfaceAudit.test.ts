@@ -18,17 +18,24 @@ describe('ui surface audit', () => {
 
   it('adds an explicit Home area switch affordance', () => {
     // Wave C: the deck's Choose Area panel is gone — the stage's
-    // mode rail carries the area stop now (DESIGN.md §2/§4), and
-    // the stage's slim area plate is the second door (drift-fix
-    // F2; the CurrentAreaChip before it). Both open the one area
-    // picker.
+    // mode rail carried the area stop (DESIGN.md §2/§4), and the
+    // stage's slim area plate was the second door (drift-fix F2;
+    // the CurrentAreaChip before it). Owner ruling 2026-11-04:
+    // the rail's separate Area stop is GONE — Roam IS the area
+    // door (entering roam auto-opens the one area picker;
+    // tapping Roam while roaming opens it alone), and the
+    // workspace panels' Change Area buttons are the second door.
     const rail = readSource('src/components/action/HomeModeRail.tsx');
     const actionScreen = readSource('src/screens/ActionScreenContextual.tsx');
     expect(actionScreen).toContain('<HomeModeRail');
     expect(rail).toContain('mode-rail-');
-    // Phase 1 vocabulary freeze: areas are "Areas", not "Turf".
-    // Audit NAV-01: the one area-switch label is "Change area".
-    expect(rail).toContain("ariaLabel: 'Change area'");
+    // No Area stop remains on the rail…
+    expect(rail).not.toContain("stop: 'area'");
+    expect(rail).not.toContain("'Change area'");
+    // …and the Roam stop's accessible name carries the area choice.
+    expect(rail).toContain('choose the area');
+    // The rail handler wires Roam to the picker (owner model).
+    expect(actionScreen).toContain('setShowAreaSelect(true)');
   });
 
   it('audit NAV-01: one start verb for roaming, one area-switch label', () => {
@@ -53,9 +60,13 @@ describe('ui surface audit', () => {
     expect(actionScreen).toContain('Change Area');
     expect(actionScreen).not.toContain("'Switch Area'");
     // Wave C: the deck's "Tap to change area" panel is gone; the
-    // frozen label rides the mode rail's Area stop instead.
+    // frozen label rode the mode rail's Area stop until the
+    // owner ruling of 2026-11-04 removed that stop — the label
+    // now lives on the workspace panels' Change Area buttons
+    // (asserted just above), and the rail carries no area label
+    // of its own: Roam is the area door.
     const rail = readSource('src/components/action/HomeModeRail.tsx');
-    expect(rail).toContain("'Change area'");
+    expect(rail).not.toContain("'Change area'");
     expect(rail).not.toContain('Switch area');
     expect(dashboard).not.toContain('Tap to switch area');
   });
