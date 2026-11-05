@@ -79,6 +79,28 @@ describe('Chef route auth request scope', () => {
     );
   });
 
+  it('reports the verifier reason as the 401 detail (F6)', () => {
+    // Before the F6 fix this read `verified.error` — a field VerifyResult
+    // does not carry — so detail was always undefined at runtime.
+    try {
+      getAuthenticatedChefPlayer(config, reqWith('not-a-token'));
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(ChefRouteError);
+      expect((err as ChefRouteError).status).toBe(401);
+      expect((err as ChefRouteError).detail).toBe('malformed');
+    }
+    const foreign = issueAccessToken('a-different-secret-that-is-long-enough', A, false);
+    try {
+      getAuthenticatedChefPlayer(config, reqWith(foreign));
+      expect.unreachable();
+    } catch (err) {
+      expect(err).toBeInstanceOf(ChefRouteError);
+      expect((err as ChefRouteError).status).toBe(401);
+      expect((err as ChefRouteError).detail).toBe('bad_signature');
+    }
+  });
+
   it('rejects a claimed playerId that disagrees with the token (403)', () => {
     const token = issueAccessToken(SECRET, A, false);
     expect(() => getAuthenticatedChefPlayer(config, reqWith(token), undefined, B)).toThrowError(
