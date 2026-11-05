@@ -71,6 +71,7 @@ import {
   vehicleDecayPerTick,
   vehicleMaterialBonusChance,
   vehicleClassTierIndex,
+  type VehicleRateInput,
 } from '../lib/vehicles/vehicles';
 import type { Vehicle } from '../types/items';
 
@@ -435,7 +436,7 @@ export interface CourierProjection {
  * `vehicle` needs only the class id + affixes the formulas read.
  */
 export function courierProjection(
-  vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>,
+  vehicle: VehicleRateInput,
   conditionAtDeparture: number,
   area: RoamingAreaDef,
   durationHours: number,
@@ -489,7 +490,7 @@ export function dispatchFuelShortfallCells(fuelUnits: number, fuelAvailable: num
 export function courierPayoutLines(
   area: RoamingAreaDef,
   durationHours: number,
-  vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>,
+  vehicle: VehicleRateInput,
   levers: DispatchLeverValues,
   seed: string,
 ): DispatchPayoutLines & { cargoBonusUnits: number } {

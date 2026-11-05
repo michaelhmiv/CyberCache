@@ -42,6 +42,12 @@ export function getAuthenticatedChefPlayer(
 
   const verified = verifyAccessToken(config.jwtSecret, token);
   if (!verified.ok) {
+    // FINDING F6 (tsc-gate triage, see PR body): VerifyResult carries
+    // `reason`, not `error` — this read has always evaluated to
+    // undefined, so the 401's detail is empty today. Switching to
+    // verified.reason would change the error payload, so the triage
+    // flags it instead of fixing it.
+    // @ts-expect-error F6: VerifyResult has no 'error' property (known defect, flagged in PR body)
     throw new ChefRouteError(401, 'Authentication required', verified.error);
   }
 

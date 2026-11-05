@@ -103,7 +103,7 @@ export function validateMechanicsFoundation(): MechanicsValidationReport {
     checkCount += check(consumableIds.has(recipe.consumableType), issues, 'missing_recipe_consumable_reference', path, `Recipe references missing consumable '${recipe.consumableType}'.`);
     checkCount += check(recipe.craftTimeMs > 0, issues, 'invalid_craft_time', path, 'Recipe craftTimeMs must be positive.');
     checkCount += check(recipe.outputCount > 0, issues, 'invalid_output_count', path, 'Recipe outputCount must be positive.');
-    checkCount += check(recipe.requiresLevel >= 1, issues, 'invalid_required_level', path, 'Recipe requiresLevel must be at least 1.');
+    checkCount += check((recipe.requiresLevel ?? 0) >= 1, issues, 'invalid_required_level', path, 'Recipe requiresLevel must be at least 1.');
     checkCount += check(Object.keys(recipe.materials).length > 0, issues, 'recipe_without_materials', path, 'Recipe requires at least one material.');
     for (const [materialId, amount] of Object.entries(recipe.materials)) {
       checkCount += check(amount > 0, issues, 'invalid_recipe_material_amount', `${path}.materials.${materialId}`, 'Recipe material amount must be positive.');

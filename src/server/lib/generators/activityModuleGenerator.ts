@@ -127,10 +127,13 @@ function computeSubStat(
   def: SubStatDef,
   ctx: ActivityModuleContext,
   quality: number,
+  // Passed in by generateActivityModule, which has already returned
+  // null for kinds with no module def — re-deriving it here lost that
+  // guard at the type level (the defs table is Partial by design).
+  moduleDef: ActivityModuleDef,
 ): number {
   const ls = levelScalar(ctx.itemLevel, def.levelGrowth);
   const rm = RARITY_MULT[ctx.itemRarity];
-  const moduleDef = ACTIVITY_MODULE_DEFS[ctx.activityKind as keyof typeof ACTIVITY_MODULE_DEFS];
   const mm = mfgModifier(def.key, ctx.manufacturer, moduleDef);
   const vr = varianceRoll(ctx.rng);
 
@@ -202,7 +205,7 @@ export function generateActivityModule(ctx: ActivityModuleContext): Affix | null
   // Compute sub-stat values
   const subStats: Record<string, number> = {};
   for (const def of eligibleStats) {
-    subStats[def.key] = computeSubStat(def, ctx, quality);
+    subStats[def.key] = computeSubStat(def, ctx, quality, moduleDef);
   }
 
   const affix: Affix = {

@@ -202,7 +202,7 @@ export interface ConsumableMarketConfig {
 }
 
 export interface ConsumableDef {
-  id: string;
+  id: ConsumableType;
   name: string;
   family: ConsumableFamily;
   shortDescription: string;

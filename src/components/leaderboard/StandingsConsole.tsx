@@ -76,9 +76,9 @@ const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
 // board header's METRIC_UNIT_LABEL[metric].toUpperCase() throws for
 // those channels. The service's LEADERBOARD_METRIC_UNITS carries the
 // correct words. Behavior deliberately left untouched by the triage.
-// @ts-expect-error F4: local unit map keys do not match LeaderboardMetric (known defect, flagged in PR body)
 const METRIC_UNIT_LABEL: Record<LeaderboardMetric, string> = {
   level: 'Lv',
+  // @ts-expect-error F4: local unit map keys do not match LeaderboardMetric (known defect, flagged in PR body)
   xp_total: 'XP',
   net_worth: 'credits',
   kills: 'kills',

@@ -44,7 +44,7 @@ export type ExtractionConfig = AuthConfig & {
 async function extractionLevers(config: ExtractionConfig): Promise<ExtractionLeverValues> {
   if (!config.economyConfig) return resolveExtractionLevers();
   const values = await config.economyConfig.snapshot();
-  return resolveExtractionLevers(values);
+  return resolveExtractionLevers(values as unknown as Record<string, unknown>);
 }
 
 function nowOf(config: ExtractionConfig): Date {

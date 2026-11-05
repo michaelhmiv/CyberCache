@@ -30,7 +30,7 @@ export const StatDetailPanel: React.FC<StatDetailPanelProps> = ({
   color = '#FF9000',
   onViewLeaderboard,
 }) => {
-  const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
+  const [snapshots, setSnapshots] = useState<PlayerProgressionSnapshot[]>([]);
   const [rank, setRank] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,7 +51,9 @@ export const StatDetailPanel: React.FC<StatDetailPanelProps> = ({
 
   const values = useMemo(() => {
     return snapshots.map((s) => {
-      const v = s[metric];
+      // metric is a free-form key from the panel's caller; snapshots
+      // are wire records, so the read goes through a record view.
+      const v = (s as unknown as Record<string, unknown>)[metric];
       return typeof v === 'number' ? v : 0;
     });
   }, [snapshots, metric]);

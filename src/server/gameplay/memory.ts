@@ -200,6 +200,11 @@ import {
   REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
   REPAIR_WORK_RATE_BASE_DEFAULT,
 } from '../../content/repair';
+import {
+  SHIELD_TECH_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
+  SHIELD_TECH_MASTERY_SPEED_PER_LEVEL_DEFAULT,
+  SHIELD_TECH_WORK_RATE_BASE_DEFAULT,
+} from '../../content/shieldTech';
 
 /** A consumable batch row in this double (owner-attributed). */
 export interface InMemoryConsumableBatch extends ConsumableBatchRow {
@@ -1167,7 +1172,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const enrollment = this.researchEnrollments.get(playerId);
     const completions = this.researchCompletions.get(playerId);
     return {
-      workshopBenches: p.workshop_benches,
+      // Benches live in the workshopBenches map (the profile record
+      // carries no such field — the store projects it this way in
+      // every other view); reading it off the profile yielded
+      // undefined despite the number type.
+      workshopBenches: this.workshopBenches.get(playerId) ?? 1,
       credits: p.credits,
       completed: completions
         ? [...completions.entries()]
@@ -1899,7 +1908,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     inst.status = 'claimed';
     inst.claimedAt = this.now().toISOString();
 
-    let setBonus: Json = null;
+    let setBonus: Json | null = null;
     const bonusKey = `${playerId}:${inst.periodKind}:${inst.periodKey}`;
     const { current } = this.currentContractInstances(playerId, inst.periodKind, inst.periodKey);
     if (current.length > 0 && current.every((i) => i.status === 'claimed')
@@ -2534,6 +2543,26 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         if (!item || item.owner_user_id !== id || item.kind !== 'cosmetic') return;
         item.payload = { ...item.payload, tintPaletteId: paletteId };
       },
+      // Shield-tech jobs (0084): the writes twin's adapter pair,
+      // previously missing here — the CraftAdapter contract requires
+      // them and the craft engine calls them for shield jobs, so the
+      // memory-backed shield-tech path would have thrown.
+      shieldInfo: (id, itemId) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== id) return null;
+        return {
+          kind: item.kind,
+          runtimeState: item.runtime_state,
+          isLocked: item.is_locked,
+          rarity: item.rarity ?? null,
+          payload: (item.payload ?? {}) as Record<string, unknown>,
+        };
+      },
+      applyShieldPayload: (id, itemId, payload) => {
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== id || item.kind !== 'shield') return;
+        item.payload = payload;
+      },
       vehicleInfo: (id, itemId) => {
         const item = this.items.get(itemId);
         if (!item || item.owner_user_id !== id) return null;
@@ -2560,6 +2589,12 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         repairWorkRateBase: REPAIR_WORK_RATE_BASE_DEFAULT,
         repairMasterySpeedPerLevel: REPAIR_MASTERY_SPEED_PER_LEVEL_DEFAULT,
         repairMasteryEfficiencyPerLevel: REPAIR_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
+        // The Pg twin supplies these from economy config (defaults
+        // 500 / 0.02 / 0.02); this literal previously omitted them,
+        // leaving shield-tech craft math reading undefined levers.
+        shieldTechWorkRateBase: SHIELD_TECH_WORK_RATE_BASE_DEFAULT,
+        shieldTechMasterySpeedPerLevel: SHIELD_TECH_MASTERY_SPEED_PER_LEVEL_DEFAULT,
+        shieldTechMasteryEfficiencyPerLevel: SHIELD_TECH_MASTERY_EFFICIENCY_PER_LEVEL_DEFAULT,
       }),
     };
     const settled = settleCraftJobsCore(adapter, playerId, { maxAdvanceMs: Math.max(0, capMs) });
@@ -2634,6 +2669,12 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
           cacheRankSpends: sanitizeCacheRankSpends(p.cache_rank_spends),
           deathState: (p.death_state ?? {}) as Record<string, unknown>,
           offlineCapHours: p.offline_cap_hours,
+          // Derived from the player's own completion records, the
+          // writes twin's researchBonusesFor pattern — previously
+          // omitted, so the engine's ?? 0 always applied here.
+          researchOfflineCapHours: computeResearchBonuses(
+            this.researchCompletions.get(id) ? [...this.researchCompletions.get(id)!.keys()] : [],
+          ).offlineCapBonus,
           verified:
             (p as Record<string, unknown>).account_type === undefined
               ? true
@@ -3289,7 +3330,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
 
     // A still-active run is carried out first: abandoned at the death
     // fraction (the cc_start_endless_run ordering — settle, then open).
-    let abandonedSettlement: Json = null;
+    let abandonedSettlement: Json | null = null;
     if (existing) {
       const payout = this.settleEndlessEscrow(p, existing, 'abandoned', input.deathPayoutFraction);
       abandonedSettlement = {

@@ -118,7 +118,7 @@ function caller(config: AuthConfig, req: Request, res: Response): string | null 
 }
 
 function targetPlayer(req: Request, res: Response): string | null {
-  const playerId = req.params.playerId;
+  const playerId = typeof req.params.playerId === 'string' ? req.params.playerId : '';
   if (!UUID_RE.test(playerId)) {
     validation(res, 'A valid player id is required');
     return null;

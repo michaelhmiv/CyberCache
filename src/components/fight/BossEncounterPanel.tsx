@@ -388,7 +388,24 @@ export const BossEncounterPanel: React.FC<{
       return;
     }
 
-    const initialTimeline = buildInitialTimeline(outcome, boss.health, player.level, shield?.hp ?? 0);
+    // Present the Chef's already-decided outcome through the
+    // timeline's shape (the EndlessPanel adaptation pattern): the
+    // timeline reads only result.victory / result.bossHpRemaining,
+    // and the result card below reads its own synced state.
+    const fightOutcome: FightOutcome = {
+      result: {
+        victory: outcome.result.victory,
+        winChance: outcome.result.winChance,
+        bossHpRemaining: outcome.result.bossHpRemaining,
+        phaseFailed: outcome.result.phaseFailed,
+      },
+      creditsDelta: outcome.creditsDelta,
+      bonusLootRolls: 0,
+      consumedConsumables: outcome.consumedConsumables,
+      loot: [],
+      extraLoot: outcome.extraLoot,
+    };
+    const initialTimeline = buildInitialTimeline(fightOutcome, boss.health, player.level, shield?.hp ?? 0);
     setFightTimeline(initialTimeline);
     const cancel = { cancelled: false };
     animationCancelRef.current = cancel;

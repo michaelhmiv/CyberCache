@@ -190,7 +190,10 @@ interface Ctx {
   /** Bottom inner row of the barrel tube per column (spine current). */
   tubeBottom: Map<number, number>;
   anchors: Partial<Record<string, CardAnchor>>;
-  variant: (slot: PixelPartSlot, variants?: number) => number;
+  // The card's variant vocabulary adds 'Stock' (the furniture pass)
+  // to the item part slots: partVariant finds no Stock part and falls
+  // to its deterministic per-type default, which is the intent.
+  variant: (slot: PixelPartSlot | 'Stock', variants?: number) => number;
 }
 
 const isWood = (m: Manufacturer) => m === Manufacturer.Ironwood;
@@ -1197,7 +1200,16 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
   const L = CARD_LAYOUTS[input.weaponType];
   const mfrStyle = MANUFACTURER_WEAPON_STYLES[input.manufacturer];
   const elVisual = input.element ? getElementVisual(input.element) : null;
-  const frame = RARITY_FRAME_STYLES[input.rarity];
+  // PixelWeaponInput.rarity is deliberately loose (Rarity | string —
+  // payload-shaped inputs); real inputs always carry a Rarity and the
+  // frame read is unguarded, exactly as this cast keeps it.
+  const frame = RARITY_FRAME_STYLES[input.rarity as Rarity];
+  // RarityFrameStyle carries no accentColor (in type or data), so
+  // this reads undefined — as it always has: for non-element weapons
+  // the accent shade simply has no rarity color to take. Kept as a
+  // widened read so adding the field to the frame styles lights it
+  // up with no further wiring.
+  const frameAccent = (frame as { accentColor?: string }).accentColor;
 
   const colors: Partial<Record<CardShade, string>> = {
     K: '#0B0B0E',
@@ -1211,7 +1223,7 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
     T: '#9AA3B2',
     G: '#FFEA3A',
     E: elVisual ? elVisual.color : frame.color,
-    e: elVisual ? elVisual.accentColor : frame.accentColor,
+    e: elVisual ? elVisual.accentColor : frameAccent,
     c: elVisual ? hexLerp(elVisual.color, '#0B0B0E', 0.55) : mfrStyle.dark,
     v: '#5A4028',
     w: '#8A6136',
@@ -1219,7 +1231,7 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
     b: '#C9A227',
     g: frame.color,
   };
-  if (input.rarity === Rarity.Epic) colors.e = frame.accentColor;
+  if (input.rarity === Rarity.Epic) colors.e = frameAccent;
   if (input.rarity === Rarity.Uncommon) colors.g = '#7CFC00';
 
   // Theme palette overrides (bone over wood, etc.).
@@ -1241,7 +1253,7 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
     muzzleX: L.bodyX + L.bodyLen + L.barrelLen,
     tubeBottom: new Map(),
     anchors: {},
-    variant: (slot, variants) => partVariant(input, slot, variants),
+    variant: (slot, variants) => partVariant(input, slot as PixelPartSlot, variants),
   };
 
   stockAndGrip(ctx);

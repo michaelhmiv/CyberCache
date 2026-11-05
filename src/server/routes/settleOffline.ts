@@ -252,7 +252,7 @@ export function createSettleOfflineHandler(
         return;
       }
 
-      const area = await import('../../constants/roamingAreas').then((m) => m.getRoamingArea(activeAction.target_id));
+      const area = await import('../../constants/roamingAreas').then((m) => m.getRoamingArea(activeAction.target_id ?? undefined));
 
       // No area level gate (owner ruling 2026-11-02): a hunter parked
       // in any area settles. What replaced the gate is the overmatched

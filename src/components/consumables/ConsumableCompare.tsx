@@ -41,8 +41,8 @@ export const ConsumableCompare: React.FC<ConsumableCompareProps> = ({
   const cur = getConsumableRuntimeEffects(currentId, currentQuality);
   const cand = getConsumableRuntimeEffects(candidateId, candidateQuality);
   const keys = Array.from(
-    new Set([...Object.keys(cur), ...Object.keys(cand)]) as Array<keyof ConsumableRuntimeEffects>,
-  );
+    new Set([...Object.keys(cur), ...Object.keys(cand)]),
+  ) as Array<keyof ConsumableRuntimeEffects>;
 
   const deltas: Array<{ key: string; label: string; delta: string; better: boolean | null }> = [];
 

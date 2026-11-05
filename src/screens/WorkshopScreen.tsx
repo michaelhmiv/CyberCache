@@ -825,6 +825,12 @@ export const WorkshopScreen: React.FC<{
           workspace's banner + the job cards' state labels. */}
       {!embedded && (
       <div className="relative overflow-hidden rounded-lg border-2 border-border">
+        {/* FINDING F7 (tsc-gate triage, see PR body): this stage passes
+            no progress/causeLabel, so the scene's cause bar receives
+            undefined (its width computes to NaN% and is dropped by
+            CSS). What the bench bar should name — the running job's
+            progress — is a product call, so the triage flags it. */}
+        {/* @ts-expect-error F7: bench stage passes no progress/causeLabel (known defect, flagged in PR body) */}
         <CraftingBenchScene benchSpriteId={stageBench.spriteId} unarmed={!hunterWeapon} />
         <div className="absolute left-2 top-2 flex gap-1.5">
           <span className="px-2 py-1 text-[11px] font-black border bg-bg/80 text-text-secondary border-border" style={chipClip}>

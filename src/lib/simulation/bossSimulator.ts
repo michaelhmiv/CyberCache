@@ -263,7 +263,7 @@ function getRelevantConsumables(input: BossSimulationInput, selectedDefs: Consum
   } satisfies Record<BossPhaseType, string[]>;
 
   return selectedDefs
-    .filter((def) => def.counterTags.some((tag) => input.boss.tags.includes(tag) || tagToPhase[phaseType].includes(tag)))
+    .filter((def) => def.counterTags.some((tag) => (input.boss.tags as readonly string[]).includes(tag) || tagToPhase[phaseType].includes(tag)))
     .map((def) => `${def.name} x${input.consumables[def.id] || 1}`);
 }
 
@@ -344,7 +344,7 @@ function getConsumablesAtRisk(input: BossSimulationInput, selectedDefs: Consumab
     .filter((def) => {
       const relevantToRisk = Array.from(riskyPhaseTypes).some((phaseType) => {
         if (!phaseType) return false;
-        return def.counterTags.some((tag) => tagToPhase[phaseType].includes(tag) || input.boss.tags.includes(tag));
+        return def.counterTags.some((tag) => tagToPhase[phaseType].includes(tag) || (input.boss.tags as readonly string[]).includes(tag));
       });
       return relevantToRisk || def.consumePolicy === 'onAttempt' || def.consumePolicy === 'onDefeat';
     })

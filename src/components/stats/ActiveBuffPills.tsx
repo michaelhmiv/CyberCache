@@ -171,7 +171,7 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
           const def = id ? CONSUMABLES[id] : null;
           const accent = def ? accentClass[def.visual.accent] : '#888';
           const stockCount = id ? (inventory[id] ?? 0) : 0;
-          const isActive = activeConsumableIds.has(id ?? '');
+          const isActive = id ? activeConsumableIds.has(id as ConsumableType) : false;
           const slotNumber = SLOT_ORDER.indexOf(slot) + 1;
 
           return (

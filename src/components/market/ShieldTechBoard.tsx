@@ -269,7 +269,7 @@ export const ShieldTechBoard: React.FC<{
     [loadout.slots],
   );
   const myShields = useMemo(
-    () => inventory.filter((i) => isShieldItem(i) && !i.isLocked && !equippedIds.has(i.id)),
+    () => inventory.filter((i): i is Shield => isShieldItem(i) && !i.isLocked && !equippedIds.has(i.id)),
     [inventory, equippedIds],
   );
   const postShield = myShields.find((s) => s.id === effectivePostShieldId) ?? myShields[0];
