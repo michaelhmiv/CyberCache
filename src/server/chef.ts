@@ -53,7 +53,6 @@ import { RARITIES } from '../constants/rarities';
 import { CONSUMABLES } from '../constants/consumables';
 import {
   ELITE_ESCALATION_CHANCE,
-  ELITE_FRAGMENT_BONUS,
   ELITE_HP_MULTIPLIER,
   ELITE_RARITY_FLOOR,
   EVENT_CHANCE_BASE,
@@ -64,7 +63,7 @@ import {
   signatureMaterialForArea,
   type RoamingEventDef,
 } from '../content/roamingEvents';
-import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '../content/roamingRates';
+import { CACHE_KEY_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '../content/roamingRates';
 import { HOT_AREA_DANGER_MULTIPLIER, HOT_AREA_MATERIAL_BONUS, HOT_AREA_YIELD_BONUS } from '../content/hotArea';
 import {
   endlessEncounterForDepth,
@@ -226,6 +225,13 @@ export interface ClaimRequest {
   creditsRemainder?: number;
   /** Banked fractional XP from the profile (migration 0010); routes set it, never the client. */
   xpRemainder?: number;
+  /**
+   * Banked fractional cache-key remainder from the profile
+   * (migration 0082); routes set it, never the client. Roaming pays
+   * whole keys directly at CACHE_KEY_CHANCE — the fraction is
+   * silent settlement bookkeeping, never a visible currency.
+   */
+  keysRemainder?: number;
   /** Consumable inventory count map (server-authoritative, read from DB by claim route). */
   consumableInventory?: Record<string, number>;
   /**
@@ -245,12 +251,12 @@ export interface ClaimRequest {
    * Live economy levers (economy observability slice, 0018): resolved
    * by the claim routes from the EconomyConfig accessor — never from
    * the client body — and applied over the shipped constants below.
-   * Absent fields fall back to FRAGMENT_CHANCE and a 1.0 scalar, so
+   * Absent fields fall back to KEY_CHANCE and a 1.0 scalar, so
    * direct engine calls (tests, determinism pins) are unchanged.
    */
   economy?: {
-    /** Per-tick cache fragment chance before activity mods. */
-    fragmentChance?: number;
+    /** Per-tick cache key chance before activity mods (0082). */
+    cacheKeyChance?: number;
     /** Multiplier on the Legendary weight of area drop tables. */
     roamingLegendaryScalar?: number;
     /** Multiplier on the equipped vehicle's yield bonus (vehicleYieldScalar lever). */
@@ -318,7 +324,10 @@ export interface ClaimResult {
     xpAwarded: number;
     /** Fractional XP left banked on the profile after this claim (0 <= x < 1). */
     xpRemainder: number;
-    cacheFragmentsAwarded: number;
+    /** Whole cache keys this claim pays (fractional accrual floored + event/jackpot wholes). */
+    cacheKeysAwarded: number;
+    /** Fractional key remainder left banked on the profile after this claim (0 <= x < 1). */
+    cacheKeyRemainder: number;
     materials: Record<string, number>;
     essences: Record<string, number>;
     killsRecorded: number;
@@ -500,7 +509,7 @@ const TICK_MS = 3000;
 // Chest odds (the 60/32/8 displayed to players) are a separate table
 // and do not move.
 const GEAR_THRESHOLD = GEAR_DROP_CHANCE;
-export const FRAGMENT_CHANCE = CACHE_FRAGMENT_CHANCE;
+export const KEY_CHANCE = CACHE_KEY_CHANCE;
 const MATERIAL_CHANCE = MATERIAL_FIND_CHANCE;
 
 function clampChance(value: number): number {
@@ -520,9 +529,10 @@ function bossAttemptId(playerId: string, bossId: string, nonce: number): string 
  *   1. Seeds the deterministic RNG from (playerId, areaId, tickCount)
  *   2. For each tick, rolls the cumulative probability:
  *      - gear (22%): generates the actual item using the TypeScript generators
- *      - fragment (3%): awards cache key fragments
  *      - material/essence (8%): awards materials/essences
- *      - kill (67%): awards base credits/XP/scrap
+ *      - kill (rest): awards base credits/XP/scrap
+ *      Cache keys accrue fractionally per tick alongside (0082) —
+ *      they are not a roll band.
  *   3. Returns complete results for Supabase persistence
  *
  * The client NEVER generates items. The client sends a claim, the Chef
@@ -652,7 +662,7 @@ export function processRoamingClaim(
   }
   const activityXpMult = 1 + (effectiveActivityMods.xpBoostMod ?? 0) + gearXpBoostMod + (skillBonuses.xpBoostMod ?? 0);
   const activityRareDropBonus = effectiveActivityMods.rareDropChanceMod ?? 0;
-  const activityFragmentBonus = effectiveActivityMods.cacheFragmentChance ?? 0;
+  const activityKeyBonus = effectiveActivityMods.cacheKeyChance ?? 0;
   const activityMaterialBonus = effectiveActivityMods.materialFindChance ?? 0;
 
   // Salvage Rights (legendary): +50% scrap while the primary weapon
@@ -689,7 +699,12 @@ export function processRoamingClaim(
   let scrapFraction = Math.min(Math.max(request.scrapRemainder ?? 0, 0), 0.999999);
   // Fractional XP accumulator, seeded from the profile bank (0010).
   let xpFraction = Math.min(Math.max(request.xpRemainder ?? 0, 0), 0.999999);
-  let fragmentsAwarded = 0;
+  // Cache keys (0082): whole keys accrue fractionally per tick into
+  // keysFraction (seeded from the profile bank, migration 0082) and
+  // floor out at claim end like the other claim currencies; discrete
+  // whole-key pays (the kill-cycle jackpot) land in keysAwarded.
+  let keysFraction = Math.min(Math.max(request.keysRemainder ?? 0, 0), 0.999999);
+  let keysAwarded = 0;
   let killsRecorded = 0;
   const materials: Record<string, number> = {};
   const essences: Record<string, number> = {};
@@ -749,7 +764,7 @@ export function processRoamingClaim(
 
   // Death-loop trickle guard (owner ruling 2026-11-02): the presence
   // trickle — per-tick credit/scrap/XP accrual and the per-tick loot
-  // roll (gear / fragments / field-sweep materials) — pays only while
+  // roll (gear / field-sweep materials) — pays only while
   // the hunter has killed at least one hostile since their last
   // death. Entering a claim already dead starts disarmed; entering
   // alive with no flag starts armed (fresh life). Kills re-arm (see
@@ -1106,8 +1121,8 @@ export function processRoamingClaim(
   };
 
   // Kill payouts keyed to the event state: escalated elites pay the
-  // floored drop + fragment bonus; bounty targets pay their contract;
-  // a weakpoint kill arms the next-drop quality boost.
+  // floored drop; bounty targets pay their contract; a weakpoint
+  // kill arms the next-drop quality boost.
   const onTargetKilled = (
     killed: (typeof roster)[number],
     dropRng: () => number,
@@ -1118,7 +1133,6 @@ export function processRoamingClaim(
     if (evEliteEncounter && killed.id === evEliteEncounter.targetId) {
       evEliteEncounter = null;
       eliteKills += 1;
-      fragmentsAwarded += ELITE_FRAGMENT_BONUS;
       const drop = rollGearDrop(dropRng, tickNumber, { rarityFloor: ELITE_RARITY_FLOOR });
       if (drop) {
         // AL-1 (0070): the kill caused this drop — 'killed' is literal here.
@@ -1137,7 +1151,7 @@ export function processRoamingClaim(
         at,
         tone: 'event_major',
         label: `Elite down — ${killed.name}`,
-        detail: `${killed.name} eliminated. +${ELITE_FRAGMENT_BONUS} cache fragment and a guaranteed ${ELITE_RARITY_FLOOR}-or-better drop.`,
+        detail: `${killed.name} eliminated. A guaranteed ${ELITE_RARITY_FLOOR}-or-better drop.`,
         areaId,
         eventId: 'elite_kill',
         family: 'fight',
@@ -1295,7 +1309,6 @@ export function processRoamingClaim(
           generatedItems.push(gear);
           pushGearFeed(gear, def.name);
         }
-        if (eventRng() < 0.5) fragmentsAwarded += 1;
         break;
       }
       case 'salvageFind': {
@@ -1343,7 +1356,7 @@ export function processRoamingClaim(
       }
       case 'stormWindow':
         evStormTicks = 10;
-        pushEventFeed(`${def.blurb} Enemy pressure +50% and fragment finds double for 10 ticks.`);
+        pushEventFeed(`${def.blurb} Enemy pressure +50% and key finds double for 10 ticks.`);
         break;
       case 'aidObjective': {
         const aidId = Object.keys(consumableInventory).find(
@@ -1460,8 +1473,6 @@ export function processRoamingClaim(
             generatedItems.push(gear);
             pushGearFeed(gear, 'signal trap spoils');
           }
-        } else {
-          fragmentsAwarded += 1;
         }
         break;
       }
@@ -1487,7 +1498,6 @@ export function processRoamingClaim(
       case 'minefield':
         pushEventFeed(def.blurb);
         applyEventDamage(8, def.name, def.id, tickIdx);
-        if (!survDead) fragmentsAwarded += 2;
         break;
       default:
         break;
@@ -1610,15 +1620,20 @@ export function processRoamingClaim(
         * tickVehicleFactor * (1 + tickVehicleScanner)
       + consumableMods.bonusLootChance
     );
-    const fragmentChance = Math.max(
+    // Cache keys are NOT a roll band (0082): the per-tick key chance
+    // accrues fractionally into the claim's key bank below — a band
+    // on the cumulative roll would pay whole keys at band frequency,
+    // which is orders of magnitude more generous than the ruled
+    // rate. The band the fragments used to occupy folds into the
+    // material band (material threshold now starts at the gear edge).
+    const keyChance = Math.max(
       0,
-      (request.economy?.fragmentChance ?? FRAGMENT_CHANCE) * (1 + activityFragmentBonus)
+      (request.economy?.cacheKeyChance ?? KEY_CHANCE) * (1 + activityKeyBonus)
         * tickVehicleFactor * (1 + tickVehicleScanner),
     );
     const materialChance = Math.max(0, MATERIAL_CHANCE * (1 + activityMaterialBonus) * tickVehicleFactor * hotMaterialMult);
     const gearThreshold = gearChance;
-    const fragmentThreshold = Math.min(0.99, gearThreshold + fragmentChance);
-    const materialThreshold = Math.min(0.99, fragmentThreshold + materialChance);
+    const materialThreshold = Math.min(0.99, gearThreshold + materialChance);
 
     // Death-loop trickle guard: this tick's presence rewards — the
     // loot roll below and the base accrual after it — pay only while
@@ -1633,7 +1648,6 @@ export function processRoamingClaim(
     const trickleSnapshot = {
       generatedItems: generatedItems.length,
       feedEvents: feedEvents.length,
-      fragmentsAwarded,
       killsRecorded,
       materials: { ...materials },
       essences: { ...essences },
@@ -1691,20 +1705,6 @@ export function processRoamingClaim(
           }
         }
       }
-    } else if (roll < fragmentThreshold) {
-      // Silt Storm window (event): fragment finds double while it lasts.
-      const fragGain = evStormTicks > 0 ? 2 : 1;
-      fragmentsAwarded += fragGain;
-      feedEvents.push({
-        at: now - (ticks - 1 - tickIdx) * TICK_MS,
-        tone: 'fragment',
-        label: `+${fragGain} cache fragment${fragGain > 1 ? 's' : ''}`,
-        detail: evStormTicks > 0
-          ? 'The storm shakes loose a doubled fragment find.'
-          : `${area.enemyType} patrol yielded a cache key fragment.`,
-        areaId,
-        value: fragGain,
-      });
     } else if (roll < materialThreshold) {
       let find = rollAreaMaterialFind(area, rng);
       if (find && find.kind === 'material') {
@@ -1770,7 +1770,6 @@ export function processRoamingClaim(
     if (!trickleLive) {
       generatedItems.length = trickleSnapshot.generatedItems;
       feedEvents.length = trickleSnapshot.feedEvents;
-      fragmentsAwarded = trickleSnapshot.fragmentsAwarded;
       killsRecorded = trickleSnapshot.killsRecorded;
       for (const key of Object.keys(materials)) delete materials[key];
       Object.assign(materials, trickleSnapshot.materials);
@@ -1786,6 +1785,11 @@ export function processRoamingClaim(
       creditsFraction += tickCredits;
       scrapFraction += tickScrap * consumableMods.scrapYieldMultiplier;
       xpFraction += tickXp * consumableMods.xpMultiplier;
+      // Cache keys (0082): the per-tick key chance accrues into the
+      // fractional key bank — the Silt Storm window doubles it, as
+      // it doubled fragment finds before. Whole keys floor out at
+      // claim end; the remainder banks silently on the profile.
+      keysFraction += keyChance * (evStormTicks > 0 ? 2 : 1);
     }
 
     // --- Kill cycle simulation (player → monster damage) ---
@@ -1842,18 +1846,21 @@ export function processRoamingClaim(
             });
 
             // Jackpot (legendary): every 150th kill with this weapon as
-            // primary drops a Cache Key fragment. kcTotalKills is the
-            // server-advanced kill-cycle counter returned to the client
-            // each claim, so the every-150th cadence survives across
-            // claims. The fragment flows through the normal rewards
-            // bundle into cc_apply_chef_rewards.
+            // primary drops a whole Cache Key (0082 — it paid a
+            // fragment before fragments were abolished; the owner's
+            // conversion ruling keeps the jackpot's key GUARANTEED
+            // and whole). kcTotalKills is the server-advanced
+            // kill-cycle counter returned to the client each claim,
+            // so the every-150th cadence survives across claims. The
+            // key flows through the normal rewards bundle into
+            // cc_apply_chef_rewards.
             if (hasJackpot(primaryWeapon) && kcTotalKills % 150 === 0) {
-              fragmentsAwarded++;
+              keysAwarded++;
               feedEvents.push({
                 at: now - (ticks - 1 - tickIdx) * TICK_MS,
                 tone: 'fragment',
-                label: '+1 cache fragment',
-                detail: `Jackpot! Kill #${kcTotalKills} with ${primaryWeapon?.name ?? 'your weapon'} dropped a cache key fragment.`,
+                label: '+1 cache key',
+                detail: `Jackpot! Kill #${kcTotalKills} with ${primaryWeapon?.name ?? 'your weapon'} dropped a cache key.`,
                 areaId,
                 value: 1,
               });
@@ -1985,7 +1992,7 @@ export function processRoamingClaim(
           // downed the hunter, the burst is simultaneous with the
           // break. A nova kill advances the cycle exactly like a
           // weapon kill (counters, rotation, feed), except the
-          // weapon-bound Jackpot fragment never keys off it.
+          // weapon-bound Jackpot key never keys off it.
           if (hit.novaDamage && hit.novaDamage > 0) {
             feedEvents.push({
               at: now - (ticks - 1 - tickIdx) * TICK_MS,
@@ -2047,12 +2054,11 @@ export function processRoamingClaim(
         streakNow.kills += kcMonstersKilled - tickStartKills;
         if (streakNow.kills >= 5) {
           xpFraction += 25;
-          fragmentsAwarded += 2;
           feedEvents.push({
             at: now - (ticks - 1 - tickIdx) * TICK_MS,
             tone: 'event',
             label: 'Streak complete',
-            detail: 'Five kills without a scratch — the Streak Run pays +25 XP and +2 cache fragments.',
+            detail: 'Five kills without a scratch — the Streak Run pays +25 XP.',
             areaId,
             eventId: 'streak_complete',
             family: 'objective',
@@ -2171,6 +2177,8 @@ export function processRoamingClaim(
   const creditsBanked = Math.max(0, Math.round((creditsFraction - creditsPaid) * 1e6) / 1e6);
   const xpPaid = Math.floor(xpFraction + 1e-9);
   const xpBanked = Math.max(0, Math.round((xpFraction - xpPaid) * 1e6) / 1e6);
+  const keysPaid = Math.floor(keysFraction + 1e-9);
+  const keysBanked = Math.max(0, Math.round((keysFraction - keysPaid) * 1e6) / 1e6);
 
   return {
     actionType: 'cc_claim_roaming_rewards',
@@ -2183,7 +2191,8 @@ export function processRoamingClaim(
       scrapRemainder: scrapBanked,
       xpAwarded: xpPaid,
       xpRemainder: xpBanked,
-      cacheFragmentsAwarded: fragmentsAwarded,
+      cacheKeysAwarded: keysAwarded + keysPaid,
+      cacheKeyRemainder: keysBanked,
       materials,
       essences,
       killsRecorded,

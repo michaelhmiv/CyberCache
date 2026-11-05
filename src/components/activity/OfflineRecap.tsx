@@ -351,7 +351,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
     s.rewards.creditsAwarded > 0 ||
     s.rewards.scrapAwarded > 0 ||
     s.rewards.xpAwarded > 0 ||
-    s.rewards.cacheFragmentsAwarded > 0 ||
+    s.rewards.cacheKeysAwarded > 0 ||
     Object.keys(s.rewards.materials).length > 0 ||
     Object.keys(s.rewards.essences).length > 0 ||
     (s.autoSalvage != null && s.autoSalvage.salvaged_count > 0) ||
@@ -432,8 +432,8 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
           ...(s.rewards.xpAwarded > 0
             ? [{ label: 'XP', value: `+${formatNumber(s.rewards.xpAwarded)}` }]
             : []),
-          ...(s.rewards.cacheFragmentsAwarded > 0
-            ? [{ label: 'Key Fragments', value: `+${s.rewards.cacheFragmentsAwarded}` }]
+          ...(s.rewards.cacheKeysAwarded > 0
+            ? [{ label: 'Cache Keys', value: `+${s.rewards.cacheKeysAwarded}` }]
             : []),
         ]}
       />
@@ -466,11 +466,11 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
               accent="text-purple-400"
             />
           )}
-          {s.rewards.cacheFragmentsAwarded > 0 && (
+          {s.rewards.cacheKeysAwarded > 0 && (
             <RewardRow
-              icon={<PixelWalletIcon id="cacheFragment" size={17} />}
-              label="Key Fragments"
-              value={`+${s.rewards.cacheFragmentsAwarded}`}
+              icon={<PixelWalletIcon id="cacheKey" size={17} />}
+              label="Cache Keys"
+              value={`+${s.rewards.cacheKeysAwarded}`}
               accent="text-cyan-400"
             />
           )}

@@ -119,10 +119,12 @@ export function materialIdentityKey(materialId: string): string {
 }
 
 /**
- * Sellable resources (0050): cache fragments, legendary cores, and
- * essences join the market as quantity commodities. Fragments and
- * cores are single fungible commodities (one identity each); each
- * essence type is its own commodity, mirroring materials.
+ * Sellable resources (0050): legendary cores and essences join the
+ * market as quantity commodities. Cores are a single fungible
+ * commodity (one identity); each essence type is its own commodity,
+ * mirroring materials. (Cache fragments traded here until 0082
+ * abolished them; the fragment identity key below survives only so
+ * historical listing rows still resolve.)
  */
 export const FRAGMENT_IDENTITY_KEY = 'frag:cache';
 

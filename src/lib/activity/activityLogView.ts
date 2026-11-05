@@ -230,6 +230,7 @@ export function earningsLine(earnings: ActivityEarnings | undefined): string {
   if (earnings.scrap) parts.push(`${signed(earnings.scrap)} scrap`);
   if (earnings.xp) parts.push(`+${fmtNum(earnings.xp)} XP`);
   if (earnings.fragments) parts.push(`+${fmtNum(earnings.fragments)} fragments`);
+  if (earnings.cacheKeys) parts.push(`+${fmtNum(earnings.cacheKeys)} cache key${earnings.cacheKeys === 1 ? '' : 's'}`);
   parts.push(...materialParts(earnings.materials, '+'));
   parts.push(...materialParts(earnings.essences, '+'));
   return parts.join(' · ');

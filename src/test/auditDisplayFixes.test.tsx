@@ -184,7 +184,7 @@ function seedStores() {
     consumables: { PreFight: null, MidFight: null, Emergency: null },
   });
   usePlayerStore.setState({
-    level: 30, credits: 100_000, scrap: 500, cacheKeys: 3, cacheKeyFragments: 0,
+    level: 30, credits: 100_000, scrap: 500, cacheKeys: 3,
     legendaryCores: 0, profileLoaded: true,
   });
   useSkillStore.setState({ spent: {}, classModBoosts: { nodeBoosts: {} } });
@@ -207,12 +207,14 @@ afterEach(() => {
   cleanup();
 });
 
-/** Drive a free cache open through the reveal to the item card.
+/** Drive a key-paid cache open (0082: the free daily box is
+ * abolished; the seeded hunter holds 3 keys) through the reveal
+ * to the item card.
  *  (The card button's accessible name is "Equip" — the pixel icon is
  *  aria-hidden, so queries anchor on the /Equip$/ suffix.) */
 async function openCacheToCard() {
   render(<ChestScreen />);
-  fireEvent.click(await screen.findByRole('button', { name: 'OPEN FREE CACHE' }));
+  fireEvent.click(await screen.findByRole('button', { name: /OPEN WITH KEY/ }));
   fireEvent.click(await screen.findByTestId('loot-moment-stub'));
   return screen.findByRole('button', { name: /Equip$/ });
 }
@@ -220,7 +222,7 @@ async function openCacheToCard() {
 function armMakeItem() {
   mockMakeItem.mockResolvedValue({
     item: { id: 'cache-w1', is_locked: false, payload: { ...makeWeapon('cache-w1', 'Cache Reaver') } },
-    cache_lane: { day: '2026-11-01', by_payment: { free: 1, ad: 0, key: 0 } },
+    cache_lane: { keys: 2, rule: 'Every cache box costs 1 cache key or one short ad — no daily limit.' },
     profile: { cache_tokens: 3 },
   } as never);
 }

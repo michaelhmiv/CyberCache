@@ -314,7 +314,7 @@ export const ACTIVITY_MODULE_DEFS: Record<Exclude<ActivityKind, 'none' | 'boss_p
         displayFormat: '+{v}% XP',
       },
       {
-        key: 'cacheFragmentChance', label: 'Cache Fragments', baseValue: 0.04,
+        key: 'cacheKeyChance', label: 'Cache Keys', baseValue: 0.04,
         levelGrowth: LEVEL_GROWTH_RATE * 0.5, rarityMin: Rarity.Epic,
         displayFormat: '+{v}% Fragments',
       },
@@ -325,7 +325,7 @@ export const ACTIVITY_MODULE_DEFS: Record<Exclude<ActivityKind, 'none' | 'boss_p
       [Manufacturer.BlastForge]: { stat: 'scrapYieldMod', mult: 1.25 },
       [Manufacturer.Prismatek]: { stat: 'materialFindChance', mult: 1.2 },
       [Manufacturer.ThrowTech]: { stat: 'xpBoostMod', mult: 1.15 },
-      [Manufacturer.HelixWorks]: { stat: 'cacheFragmentChance', mult: 1.15 },
+      [Manufacturer.HelixWorks]: { stat: 'cacheKeyChance', mult: 1.15 },
     },
   },
 

@@ -85,16 +85,16 @@ function Harness() {
 const LADDER = [
   { cycleDay: 1, credits: 100, fragments: 0, cacheKeys: 0, state: 'earned' },
   { cycleDay: 2, credits: 150, fragments: 0, cacheKeys: 0, state: 'earned' },
-  { cycleDay: 3, credits: 200, fragments: 1, cacheKeys: 0, state: 'today' },
-  { cycleDay: 4, credits: 250, fragments: 1, cacheKeys: 0, state: 'upcoming' },
-  { cycleDay: 5, credits: 300, fragments: 2, cacheKeys: 0, state: 'upcoming' },
-  { cycleDay: 6, credits: 400, fragments: 2, cacheKeys: 0, state: 'upcoming' },
-  { cycleDay: 7, credits: 500, fragments: 3, cacheKeys: 1, state: 'upcoming' },
+  { cycleDay: 3, credits: 200, fragments: 0, cacheKeys: 0, state: 'today' },
+  { cycleDay: 4, credits: 250, fragments: 0, cacheKeys: 0, state: 'upcoming' },
+  { cycleDay: 5, credits: 300, fragments: 0, cacheKeys: 0, state: 'upcoming' },
+  { cycleDay: 6, credits: 400, fragments: 0, cacheKeys: 0, state: 'upcoming' },
+  { cycleDay: 7, credits: 500, fragments: 0, cacheKeys: 1, state: 'upcoming' },
 ];
 
 const MISS_RULE = 'Miss a day and the streak restarts at Day 1 — your longest streak is kept on your profile.';
 
-/** Day 3 recorded, reward HELD (0079): 200 credits + 1 fragment wait on the claim. */
+/** Day 3 recorded, reward HELD (0079): 200 credits wait on the claim (0082: no fragment leg). */
 function claimableDay3() {
   return {
     verified: true,
@@ -105,8 +105,8 @@ function claimableDay3() {
       cycleDay: 3,
       todayState: 'earned',
       todayClaimable: true,
-      todayReward: { credits: 200, fragments: 1, cacheKeys: 0 },
-      nextReward: { credits: 250, fragments: 1, cacheKeys: 0 },
+      todayReward: { credits: 200, fragments: 0, cacheKeys: 0 },
+      nextReward: { credits: 250, fragments: 0, cacheKeys: 0 },
       nextStreakLength: 4,
       ladder: LADDER,
       missRule: MISS_RULE,
@@ -118,7 +118,7 @@ function claimableDay3() {
       cycleDay: 3,
       tier: 1,
       creditsAwarded: 200,
-      fragmentsAwarded: 1,
+      fragmentsAwarded: 0,
       cacheKeysAwarded: 0,
     },
     profile: null,
@@ -136,8 +136,8 @@ function claimedDay3() {
       cycleDay: 3,
       todayState: 'earned',
       todayClaimable: false,
-      todayReward: { credits: 200, fragments: 1, cacheKeys: 0 },
-      nextReward: { credits: 250, fragments: 1, cacheKeys: 0 },
+      todayReward: { credits: 200, fragments: 0, cacheKeys: 0 },
+      nextReward: { credits: 250, fragments: 0, cacheKeys: 0 },
       nextStreakLength: 4,
       ladder: LADDER,
       missRule: MISS_RULE,
@@ -149,7 +149,7 @@ function claimedDay3() {
       cycleDay: 3,
       tier: 1,
       creditsAwarded: 200,
-      fragmentsAwarded: 1,
+      fragmentsAwarded: 0,
       cacheKeysAwarded: 0,
     },
     profile: null,
@@ -168,8 +168,8 @@ function claimableDay4() {
       cycleDay: 4,
       todayState: 'earned',
       todayClaimable: true,
-      todayReward: { credits: 250, fragments: 1, cacheKeys: 0 },
-      nextReward: { credits: 300, fragments: 2, cacheKeys: 0 },
+      todayReward: { credits: 250, fragments: 0, cacheKeys: 0 },
+      nextReward: { credits: 300, fragments: 0, cacheKeys: 0 },
       nextStreakLength: 5,
       ladder: LADDER.map((d) => ({
         ...d,
@@ -184,7 +184,7 @@ function claimableDay4() {
       cycleDay: 4,
       tier: 1,
       creditsAwarded: 250,
-      fragmentsAwarded: 1,
+      fragmentsAwarded: 0,
       cacheKeysAwarded: 0,
     },
     profile: null,
@@ -231,7 +231,9 @@ describe('Streak true claim — claimable', () => {
     const rows = screen.getByTestId('streak-claim-rows');
     expect(rows.textContent).toContain('+200');
     expect(rows.textContent).toContain('Credits');
-    expect(rows.textContent).toContain('+1');
+    // 0082: the ladder's fragment leg is abolished — no fragment
+    // row exists to show; the credits stand alone, face-up.
+    expect(rows.textContent).not.toContain('Fragment');
     expect(rows.textContent).not.toContain('Banked');
     // The one primary action, and the honest expiry terms.
     expect(screen.getByTestId('streak-claim-button').textContent).toContain('Claim Day 3 reward');
@@ -344,7 +346,7 @@ describe('Streak true claim — expiry across the rollover', () => {
       ...(claimableDay4() as unknown as Record<string, unknown>),
       granted: {
         alreadyClaimed: false, claimable: false, streakLength: 4, cycleDay: 4, tier: 1,
-        creditsAwarded: 250, fragmentsAwarded: 1, cacheKeysAwarded: 0,
+        creditsAwarded: 250, fragmentsAwarded: 0, cacheKeysAwarded: 0,
       },
     } as never);
     await act(async () => { await useLoginStreakStore.getState().claim(); });

@@ -106,7 +106,7 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 // Section content reflects the post-PR-#52-to-#58 reality: single-tick loop,
-// per-area XP multiplier, new curve, server-minted fragments, build identity
+// per-area XP multiplier, new curve, server-minted rewards, build identity
 // from kill stats. The old "auto-salvage clutter" copy is gone.
 const SECTIONS: HelpSection[] = [
   {
@@ -131,7 +131,7 @@ const SECTIONS: HelpSection[] = [
       { term: 'Rarity & roll quality', body: 'Every weapon has a rarity (Common → Legendary) and a roll quality band. Higher bands boost base stats. God rolls start at 96+.' },
       { term: 'DPS modifier chain', body: 'A weapon\'s effective DPS is raw damage × signature × manufacturer × affixes × legendary effect × element matchup × boss resistance. The gear inspector shows "vs standard target"; the dashboard chip shows the dynamic DPS against the selected boss.' },
       { term: 'Lock before salvage', body: 'Use the lock badge on any gear card to protect it from auto-salvage. Locked items survive cleanup passes and are excluded from the vendor list.' },
-      { term: 'Server-minted drops', body: 'Credits, scrap, XP, fragments, materials, and essences are all server-minted. Your client rolls gear drops for immediate visual feedback, and the server reconciles economy stats every 3s.' },
+      { term: 'Server-minted drops', body: 'Credits, scrap, XP, cache keys, materials, and essences are all server-minted. Your client rolls gear drops for immediate visual feedback, and the server reconciles economy stats every 3s.' },
       { term: 'Per-area XP', body: 'Each area has its own idle XP multiplier (1.0 → 2.4). Home shows the multiplier on the area card; high-danger areas reward more XP per tick, not just better loot.' },
     ],
   },
@@ -162,13 +162,13 @@ const SECTIONS: HelpSection[] = [
   {
     id: 'economy',
     title: 'Economy',
-    blurb: 'Credits, scrap, fragments, materials, essences.',
+    blurb: 'Credits, scrap, cache keys, materials, essences.',
     icon: 'chart',
     color: '#22C55E',
     items: [
       { term: 'Credits', body: 'Earned passively while roaming, plus boss wins and vendor sales. Used for vendor purchases and some workshop recipes.' },
       { term: 'Scrap & materials', body: 'Salvage gear to get Scrap + materials. Materials are area-biased: each roaming area prefers different material kinds. Use the Workshop to convert them into combat utility.' },
-      { term: 'Cache Keys & Fragments', body: 'Five fragments convert into one Cache Key. Fragments drop on roam ticks (small chance) and are server-minted. Keys open Data Caches for high-rarity gear.' },
+      { term: 'Cache Keys', body: 'Keys open Data Caches for high-rarity gear. Every opening costs one key or one watched ad — no daily limit. Keys are rare: roaming drops a whole key now and then, and the login streak, contracts, and leaderboards pay them too.' },
     ],
   },
   {
@@ -205,7 +205,7 @@ const SECTIONS: HelpSection[] = [
       { term: 'Element over rarity', body: 'A Common weapon with the right element is better than a Legendary with the wrong one. Match first, rarify later.' },
       { term: 'DPS label', body: 'The gear inspector\'s "vs standard target" DPS is a baseline. Your effective DPS in any fight depends on the boss\'s weakness / resistance profile.' },
       { term: 'Build Identity lag', body: 'Build Identity only updates after you rack enough kills for a stable winner in `killsByWeaponType`. If it shows "No data yet", patrol an area for a few minutes.' },
-      { term: 'Offline catchup', body: 'Roaming ticks claim rewards on a 3s cadence. Coming back from a long break shows a single summary card (kills, XP, fragments), not a per-tick animation replay.' },
+      { term: 'Offline catchup', body: 'Roaming ticks claim rewards on a 3s cadence. Coming back from a long break shows a single summary card (kills, XP, credits), not a per-tick animation replay.' },
     ],
   },
 ];

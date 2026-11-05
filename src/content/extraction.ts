@@ -28,7 +28,7 @@
  *    draws in a signature material's HOME area substitute the Tier-2
  *    signature at `extractSignatureChance` (the roaming rule, on
  *    extraction's own lever). Finds are materials + essences ONLY:
- *    no gear, no legendaries, no credits, no scrap, no fragments,
+ *    no gear, no legendaries, no credits, no scrap, no keys,
  *    no cores, no events/elites. Vehicles do NOT apply in v1.
  *  - THE GEAR FACTOR. Yield scales with how safely the hunter can
  *    work the site: `gearFactor = clamp(pool / (pool +

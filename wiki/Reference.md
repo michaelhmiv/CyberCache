@@ -260,7 +260,7 @@ Baseline rates are the area design rates before gear, skills, vehicles, and the 
 
 | Area | Danger | Enemies | Credits/min | Scrap/min | XP/tick | Material bias | Signature loot | Influence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Dustwaste Frontier** | Low | Raiders, scrap drones, and scavengers | 15 | 3 | 1 | Scrap, Ballistic Parts | Balanced gear, early salvage, cache fragments | Mixed |
+| **Dustwaste Frontier** | Low | Raiders, scrap drones, and scavengers | 15 | 3 | 1 | Scrap, Ballistic Parts | Balanced gear, early salvage | Mixed |
 | **Redline Circuit** | Medium | Fast raiders, pursuit drones, and overheating runners | 18 | 3 | 1.2 | Scrap, Ballistic Parts | SMGs, pistols, attack speed, reload and ramp affixes | Redline |
 | **Ironwood Bastion** | Medium/High | Marksmen, armored captains, and sentry posts | 17 | 4 | 1.4 | Ballistic Parts, Tech | Snipers, pistols, crit rolls, weakpoint and boss-damage flavor | Ironwood |
 | **BlastForge Yards** | Medium/High | Armored machines, refinery bots, and demolition crews | 16 | 5 | 1.65 | Scrap, Ballistic Parts, Reactive Components | Launchers, shotguns, armor break, stagger and explosive flavor | BlastForge |

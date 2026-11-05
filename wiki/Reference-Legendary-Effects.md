@@ -63,7 +63,7 @@ rather than inventing stats for it.
 | <img src="images/weapons/legendary/molten-core.png" alt="Molten Core" width="240"> | **Molten Core** | Fire DoT stacks up to 5 times. Each stack reduces boss healing by an additional 10%. | Sniper | Boss Drop + Cache-Forged | 7 | Simulated proxy |
 | <img src="images/weapons/legendary/cryo-stasis.png" alt="Cryo Stasis" width="240"> | **Cryo Stasis** | Cryo procs have a 20% chance to trigger a mini-stagger, interrupting the boss for +5% DPS window. | Beam | Boss Drop + Cache-Forged | 7 | Simulated proxy |
 | <img src="images/weapons/legendary/void-bargain.png" alt="Void Bargain" width="240"> | **Void Bargain** | +40% Void damage, but every hit has a 5% chance to deal 10% damage to your own shield. | Pistol | Boss Drop + Cache-Forged | 7 | Partial |
-| <img src="images/weapons/legendary/jackpot.png" alt="Jackpot" width="240"> | **Jackpot** | Every 150th enemy killed by this weapon drops a Cache Key fragment. | SMG | Boss Drop + Cache-Forged | 7 | Fully live |
+| <img src="images/weapons/legendary/jackpot.png" alt="Jackpot" width="240"> | **Jackpot** | Every 150th enemy killed by this weapon drops a whole Cache Key. | SMG | Boss Drop + Cache-Forged | 7 | Fully live |
 | <img src="images/weapons/legendary/emberfall.png" alt="Emberfall" width="240"> | **Emberfall** | Name-keyed proof art — no legendary effect carries this sprite. A weapon literally named Emberfall renders this art; it never rolls from an effect. | Sniper (as depicted) | — | — | Name-keyed art only |
 <!-- /wiki-gen:legendary-effects -->
 

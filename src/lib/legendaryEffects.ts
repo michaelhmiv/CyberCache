@@ -235,7 +235,7 @@ export function applyLegendaryEffects(
       // ELSEWHERE: implemented in the Chef roaming claim
       // (processRoamingClaim in src/server/chef.ts) — every 150th
       // kill-cycle kill while this weapon is the primary awards a real
-      // Cache Key fragment. Detected there via hasJackpot(). No combat
+      // whole Cache Key. Detected there via hasJackpot(). No combat
       // effect, correctly: no sim output here.
       break;
 
@@ -304,7 +304,7 @@ export function hasSecondOpinion(weapon: Weapon | null): boolean {
 
 /**
  * Jackpot — every 150th enemy killed while this weapon is the primary
- * drops a Cache Key fragment. Consumed by processRoamingClaim in
+ * drops a whole Cache Key. Consumed by processRoamingClaim in
  * src/server/chef.ts (kill-cycle kills).
  */
 export function hasJackpot(weapon: Weapon | null): boolean {

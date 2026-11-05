@@ -58,8 +58,7 @@ Targets below are the **base targets** (what B2 asks); other bands multiply them
 ## Rewards — and what contracts never pay
 
 - **Credits**, per contract, by band (the table above).
-- **Cache-key fragment parts.** Combat- and boss-family dailies — and Breakdown — pay **1 fragment part** on top of the credits. **Every weekly contract pays 3 fragment parts.**
-- **Full-set bonuses.** Clear all 3 dailies: **+2 fragment parts**. Clear all 5 weeklies: **1 cache key plus one weekly contract's credits**. Cache keys live only in that weekly bonus — one key per week per player is the maximum this whole system can mint (see [[Caches]]).
+- **Full-set bonuses.** Clear all 3 dailies: a **30-credit bonus**. Clear all 5 weeklies: **1 cache key plus one weekly contract's credits**. Cache keys live only in that weekly bonus — one key per week per player is the maximum this whole system can mint (see [[Caches]]). (Contracts once paid cache-key fragment parts as well; fragments were retired as a currency and those legs are gone — the daily set bonus, which paid only fragments, now pays their credit value instead.)
 - **Contracts never pay legendary cores.** Salvaging is the only core mint in the game — no contract, bonus, or reroll changes that. Contracts also never pay legendaries, gear, or XP: they redirect play, they are not a fourth occupation.
 
 **Claiming is the reward beat.** Completing a contract does not pay it — *claiming* does, and the card states its claim-by deadline from the moment it is issued. An unclaimed contract whose window closes **expires unpaid**. Guests can view the board; claiming requires an account.

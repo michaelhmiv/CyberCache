@@ -2,7 +2,7 @@
  * ResourceBar — THE STRIP (DESIGN.md §1; drift-fix F1, 2026-11-02).
  *
  * One single-row resource bar on every tab: credits · scrap ·
- * keys/fragments · cores · loot, the XP bar fused as a hairline on
+ * keys · cores · loot, the XP bar fused as a hairline on
  * the bottom edge, the level chip at the right, and the settings
  * gear as the Strip's one allowed resident beside the wallet
  * (DESIGN.md §1; Settings' canonical home stays Hunter → Account).
@@ -45,25 +45,25 @@
  * bl-page hosts are pixel-unchanged by the pin.
  *
  * Every segment carries an aria-label naming the resource and
- * its full state ("Keys — 15 keys, 3 of 5 fragments"), so the
+ * its full state ("Keys — 15 keys"), so the
  * resource names are always present even where the mock language
  * lets the icon speak alone. Audit DISP-01's labeled-micro rule
  * is honored in that pairing: each micro sits directly after the
  * value it qualifies, on the same baseline, named in its label.
  *
- * Assumption-gaps G4 (2026-11-02): the two fraction micros'
- * denominators are taught at the counters' destination
- * surfaces, NOT on the Strip. Visible FRAGS / SLOTS labels were
- * measured in this slice (fresh-guest fixture, 412×915): the
- * row's scrollWidth grew 384 → 455 against a 382 clientWidth,
- * pushing the LV segment — the row's closer — off-screen at
- * rest, the exact failure the F3 pass fixed. The one-line law
- * (§5/§6) leaves no honest room, so the teaching lives where
- * the counts are spent: the cache lane prints "5 fragments =
- * 1 Cache Key" under its {n} / 5 bar (ChestScreen), and the
- * Loadout header prints "{n}/7 Gear slots" over the seven-slot
- * constellation (ActionLoadout). The aria-labels above carry
- * the same names for non-sighted players.
+ * Assumption-gaps G4 (2026-11-02): the SLOTS fraction micro's
+ * denominator is taught at the counter's destination surface,
+ * NOT on the Strip. A visible SLOTS label was measured in this
+ * slice (fresh-guest fixture, 412×915): the row's scrollWidth
+ * grew 384 → 455 against a 382 clientWidth, pushing the LV
+ * segment — the row's closer — off-screen at rest, the exact
+ * failure the F3 pass fixed. The one-line law (§5/§6) leaves no
+ * honest room, so the teaching lives where the count is spent:
+ * the Loadout header prints "{n}/7 Gear slots" over the
+ * seven-slot constellation (ActionLoadout). The aria-labels
+ * above carry the same names for non-sighted players.
+ * (0082 retired the FRAGS micro with the fragment currency
+ * itself: the keys chip now prints the whole-key count alone.)
  *
  * Audit UX-04: until the first server profile lands
  * (playerSlice.profileLoaded), the bar renders a skeleton strip
@@ -117,7 +117,7 @@ interface SegmentProps {
   value: string | number;
   /** Visible text label (only SCRAP in the mock language). */
   label?: string;
-  /** Secondary count riding the value (fragments, equipped). */
+  /** Secondary count riding the value (equipped slots). */
   micro?: string;
   /** Full spoken state for the segment (names the resource and
    *  what the micro counts, in words). */
@@ -340,8 +340,9 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
   // value the Strip prints and fires a pulse when one RISES
   // between authoritative syncs. Decreases and same-value syncs
   // stay silent by the tracker's construction; the first loaded
-  // balance is the baseline. Fragments ride the key segment
-  // through the composite count (keys × 1000 + fragments).
+  // balance is the baseline. (Master's pulse pass rode fragments
+  // through a keys×1000+fragments composite; 0082 abolished the
+  // fragment currency, so the key segment pulses on whole keys.)
   const pulseTrackerRef = useRef<StripPulseTracker | null>(null);
   if (pulseTrackerRef.current === null) pulseTrackerRef.current = createStripPulseTracker();
   const [pulses, setPulses] = useState<StripPulseMap>({});
@@ -356,7 +357,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
       {
         credits: player.credits,
         scrap: player.scrap,
-        cacheKey: player.cacheKeys * 1000 + player.cacheKeyFragments,
+        cacheKey: player.cacheKeys,
         legendaryCore: player.legendaryCores,
         loot: lootCount,
         level: player.level,
@@ -372,7 +373,6 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     player.credits,
     player.scrap,
     player.cacheKeys,
-    player.cacheKeyFragments,
     player.legendaryCores,
     player.level,
     lootCount,
@@ -438,8 +438,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
         <Segment
           resourceId="cacheKey"
           value={player.cacheKeys}
-          micro={`${player.cacheKeyFragments}/5`}
-          ariaText={`Keys — ${player.cacheKeys} keys, ${player.cacheKeyFragments} of 5 fragments`}
+          ariaText={`Keys — ${player.cacheKeys} keys`}
           pulse={pulses.cacheKey}
         />
         <Segment

@@ -213,9 +213,9 @@ describe('Streak poster plate — the fresh-grant celebration', () => {
     const rows = screen.getByTestId('streak-reward-rows');
     expect(rows.textContent).toContain('+200');
     expect(rows.textContent).toContain('Credits');
-    expect(rows.textContent).toContain('+1');
-    expect(rows.textContent).toContain('Cache fragments');
-    expect(screen.getAllByText('Banked').length).toBe(2);
+    // Fragments are abolished (0082): the day-3 grant is credits only.
+    expect(rows.textContent).not.toContain('fragment');
+    expect(screen.getAllByText('Banked').length).toBe(1);
     // The announcement glow rides the medal; the CTA is the
     // acknowledgement and claims nothing.
     expect(screen.getByTestId('streak-medal-glow')).toBeTruthy();
@@ -228,13 +228,12 @@ describe('Streak poster plate — the fresh-grant celebration', () => {
       expect(ladder.textContent).toContain(label);
     }
     expect(screen.getByText('500 cr')).toBeTruthy();
-    expect(screen.getByText('3 frag')).toBeTruthy();
     expect(screen.getByText('KEY')).toBeTruthy();
-    for (const line of [screen.getByText('500 cr'), screen.getByText('3 frag'), screen.getByText('KEY')]) {
+    for (const line of [screen.getByText('500 cr'), screen.getByText('KEY')]) {
       expect(line.className).toContain('text-[11px]');
     }
     // Next + the rules, in words, boundary stated.
-    expect(panel.textContent).toContain('Streak day 4 — 250 credits · 1 fragment');
+    expect(panel.textContent).toContain('Streak day 4 — 250 credits');
     expect(panel.textContent).toContain('A new streak day starts at 00:00 UTC.');
   }, 20000);
 
@@ -247,7 +246,7 @@ describe('Streak poster plate — the fresh-grant celebration', () => {
     expect(screen.getByText('Cycle complete')).toBeTruthy();
     const rows = screen.getByTestId('streak-reward-rows');
     expect(rows.textContent).toContain('+500');
-    expect(rows.textContent).toContain('+3');
+    expect(rows.textContent).not.toContain('fragment');
     expect(rows.textContent).toContain('+1');
     expect(rows.textContent).toContain('Cache key');
     expect(screen.getByText('Cycle prize')).toBeTruthy();
@@ -280,8 +279,8 @@ describe('Streak poster plate — acknowledgement (D1/D2)', () => {
     expect(screen.queryByTestId('streak-reward-rows')).toBeNull();
     expect(screen.queryByTestId('streak-medal-glow')).toBeNull();
     expect(screen.getByText('Banked today')).toBeTruthy();
-    expect(reopened.textContent).toContain('Banked +200 credits · +1 fragment');
-    expect(reopened.textContent).toContain('Day 4 — +250 credits · +1 fragment');
+    expect(reopened.textContent).toContain('Banked +200 credits');
+    expect(reopened.textContent).toContain('Day 4 — +250 credits');
     fireEvent.click(screen.getByTestId('streak-done-button'));
     await waitFor(() => expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull());
 
@@ -310,7 +309,7 @@ describe('Streak poster plate — already claimed is silent', () => {
     const panel = await openStreakSheet();
     expect(screen.queryByTestId('streak-reward-rows')).toBeNull();
     expect(screen.queryByTestId('streak-medal-glow')).toBeNull();
-    expect(panel.textContent).toContain('Banked +200 credits · +1 fragment');
+    expect(panel.textContent).toContain('Banked +200 credits');
     expect(screen.getByText('+200').className).toContain('text-green');
     expect(screen.getByText(/Daily check-in · Day 3 claimed today/)).toBeTruthy();
   }, 20000);

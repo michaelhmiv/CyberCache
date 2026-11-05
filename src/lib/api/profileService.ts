@@ -18,7 +18,6 @@ export interface ProfileRow {
   credits: number;
   scrap: number;
   cache_tokens: number;
-  cache_token_parts: number;
   /** Legendary core balance (migration 0026). */
   legendary_cores?: number;
   materials: Record<string, number>;

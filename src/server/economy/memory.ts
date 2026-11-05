@@ -510,6 +510,10 @@ export class InMemoryEconomyStore implements EconomyStore {
         ['cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards'],
         (p) => num(dig(p, 'rewards', 'cache_fragments_awarded')),
       ),
+      cacheKeysFromRoaming: sumBy(
+        ['cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards'],
+        (p) => num(dig(p, 'rewards', 'cache_keys_awarded')),
+      ),
       craftJobsCompleted: 0,
       craftUnitsCompleted: 0,
       craftXpAwarded: 0,

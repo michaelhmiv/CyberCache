@@ -199,7 +199,7 @@ export const LEGENDARY_EFFECTS: LegendaryEffectDef[] = [
   {
     id: 'jackpot',
     name: 'Jackpot',
-    description: 'Every 150th enemy killed by this weapon drops a Cache Key fragment.',
+    description: 'Every 150th enemy killed by this weapon drops a whole Cache Key.',
     eligibleSources: [DropSource.BossDrop, DropSource.CacheForged],
     minBossTier: 7,
     weaponType: WeaponType.SMG,

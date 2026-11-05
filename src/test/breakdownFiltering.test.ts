@@ -34,7 +34,7 @@ describe('getBreakdownMetricKeys', () => {
     expect(keys).toContain('scrap');
     expect(keys).toContain('creditsPerKill');
     expect(keys).toContain('rareDropChanceMod');
-    expect(keys).toContain('cacheFragmentChance');
+    expect(keys).toContain('cacheKeyChance');
     // Should NOT include crafting stats
     expect(keys).not.toContain('craftingSpeed');
   });

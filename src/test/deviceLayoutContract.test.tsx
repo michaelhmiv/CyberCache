@@ -148,29 +148,31 @@ describe('layout contract — ResourceBar at phone width', () => {
     }
   });
 
-  it('shows the mock labels and the secondary counts (fragments, equipped)', () => {
+  it('shows the mock labels and the secondary count (equipped)', () => {
     render(<ResourceBar />);
     // The mock language labels SCRAP visibly (its icon is the
     // least distinct) and closes the row with LV + the level.
     expect(screen.getByText('Scrap')).toBeTruthy();
     expect(screen.getByText('LV')).toBeTruthy();
-    // The two counts Michael's screenshot truncated ("15 1/7 …")
-    // ride their values as micros on the same baseline.
-    expect(screen.getByText('3/5')).toBeTruthy();
+    // The equipped count Michael's screenshot truncated ("15 1/7 …")
+    // rides its value as a micro on the same baseline. The keys
+    // chip's old fragment micro ("3/5") is GONE — fragments are
+    // abolished (0082); keys are the only cache currency and the
+    // chip shows the key count alone.
+    expect(screen.queryByText('3/5')).toBeNull();
     expect(screen.getByText('1/7')).toBeTruthy();
-    // Assumption-gaps G4: the denominators are taught at the
-    // counters' destination surfaces, not on the Strip — the
-    // cache lane prints "5 fragments = 1 Cache Key" under its
-    // fragment bar, and the Loadout header prints "{n}/7 Gear
-    // slots". Visible labels on the Strip itself were measured
-    // NOT to fit at 412px (they pushed the LV segment off-screen
-    // at rest), so the micros stay bare here and the aria-labels
-    // below carry the names in words.
+    // Assumption-gaps G4: the denominator is taught at the
+    // counter's destination surface, not on the Strip — the
+    // Loadout header prints "{n}/7 Gear slots". Visible labels on
+    // the Strip itself were measured NOT to fit at 412px (they
+    // pushed the LV segment off-screen at rest), so the micro
+    // stays bare here and the aria-labels below carry the names
+    // in words.
     // Audit DISP-01: every count is NAMED — each segment's
     // aria-label states the resource and what its micro counts,
     // in words, so no quantity on the bar is unlabeled.
     expect(screen.getByTestId('resource-chip-cacheKey').getAttribute('aria-label'))
-      .toContain('3 of 5 fragments');
+      .toContain('Keys — 15 keys');
     expect(screen.getByTestId('resource-chip-loot').getAttribute('aria-label'))
       .toContain('1 of 7 gear slots equipped');
     expect(screen.getByTestId('resource-chip-credits').getAttribute('aria-label'))

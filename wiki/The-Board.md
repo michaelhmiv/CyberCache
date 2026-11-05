@@ -16,7 +16,7 @@ Six chips, always on display:
 | --- | --- |
 | **Credits** | Your spendable credits |
 | **Scrap** | Salvage material for crafting, repairs, and reforging |
-| **Keys** | Cache keys — with your key fragments riding alongside as progress toward the next key (shown as fragments out of 5) |
+| **Keys** | Cache keys — the count is the whole story (keys are the only cache currency) |
 | **Cores** | Legendary cores, earned by salvaging Legendaries — see [[Collections]] |
 | **Loot** | How many items you hold, with your equipped count alongside (equipped out of 7 gear slots) |
 | **Level** | Your hunter level |
@@ -57,7 +57,7 @@ Attached to the stage's foot — below the art, never over it — is the **hero 
 
 While a fight runs, each fighter's health rides on their own side of the stage, never across their face: your hunter's **HP plate** sits at his lower body — his current and maximum health, with the bar — and the enemy's **HP plate** (its name and health bar) floats translucent over the enemy's lower body at the same height, so the two read as a matched pair. A boss's HP plate anchors under the boss on the ground line, and its name rides that plate the same way.
 
-Finds on the stage rise as what they actually are: a gear drop gets its rarity beam and item card; a cache-key fragment rises as the blue key shard; materials and essences rise as their own icons; a kill pays out with a scrap rise. The big cache crate never celebrates an ordinary roaming tick — roaming grants fragments, materials, and the base payout, while cache boxes and completed keys come from the cache lane and fragment settlement (five fragments make a key). See [[Caches]].
+Finds on the stage rise as what they actually are: a gear drop gets its rarity beam and item card; a cache key rises as the blue key shard; materials and essences rise as their own icons; a kill pays out with a scrap rise. The big cache crate never celebrates an ordinary roaming tick — roaming grants materials, the base payout, and now and then a whole cache key, while cache boxes themselves are opened on the cache lane. See [[Caches]].
 
 The weapon in your hunter's hands is always the exact weapon you have equipped — its type, make, and rolled parts, drawn by the same renderer that draws its card — held at the grip, with nothing else underneath it. The same hunter, with the same rule, steps into the boss arena: what you see on the Board is what you fight with. Equip nothing and the hands are empty.
 

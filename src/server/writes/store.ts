@@ -2039,7 +2039,12 @@ export class PgWriteStore implements WriteStore {
     return this.callJson('select public.cc_market_create_material($1, $2, $3, $4, $5) as result', [playerId, nonce, materialId, quantity, priceCredits]);
   }
   marketCreateFragment(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
-    return this.callJson('select public.cc_market_create_fragment($1, $2, $3, $4) as result', [playerId, nonce, quantity, priceCredits]);
+    // Cache fragments are abolished (migration 0082): the SQL
+    // function is dropped and no fragment listing can be created.
+    // Refuse here, before any SQL — the in-memory twin refuses
+    // identically.
+    void playerId; void nonce; void quantity; void priceCredits;
+    throw new WriteStoreError('Cache fragments no longer exist — cache keys are the only cache currency');
   }
   marketCreateCore(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
     return this.callJson('select public.cc_market_create_core($1, $2, $3, $4) as result', [playerId, nonce, quantity, priceCredits]);

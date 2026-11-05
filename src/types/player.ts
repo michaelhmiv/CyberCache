@@ -21,7 +21,6 @@ export interface PlayerProfile {
   credits: number;
   scrap: number;
   cacheKeys: number;
-  cacheKeyFragments: number;
   /** Legendary core balance (0026) — server-owned, synced from the profile snapshot. */
   legendaryCores: number;
   /** Cache Rank token balance (0031) — server-owned, synced from the profile snapshot. */

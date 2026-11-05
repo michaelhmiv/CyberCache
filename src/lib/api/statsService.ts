@@ -14,7 +14,6 @@ export interface PlayerPublicStats {
   credits: number;
   scrap: number;
   cache_tokens: number;
-  cache_token_parts: number;
   total_kills: number;
   total_deaths: number;
   kill_death_ratio: number;

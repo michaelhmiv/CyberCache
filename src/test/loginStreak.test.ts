@@ -1,11 +1,15 @@
 /**
- * Daily login streak (migration 0036) — the escalating daily-return
- * ladder: credits → fragments across days 1–6, a cache key on day 7,
- * then the cycle repeats at a higher tier (×1.5/step, cap tier 5).
+ * Daily login streak (migration 0036; fragment leg abolished by
+ * migration 0082, owner ruling 2026-11-04) — the escalating
+ * daily-return ladder: credits across days 1–7, a cache key on
+ * day 7, then the cycle repeats at a higher tier (×1.5/step, cap
+ * tier 5). The ladder once also paid cache fragments on days 3–7;
+ * fragments are abolished as a currency, so those legs are gone
+ * (every day still pays credits, so no day went empty).
  *
  * Laws under test:
- *  - THE LADDER: tier-1 week pays exactly 1,900 credits / 9
- *    fragments / 1 key; the key is 1 at EVERY tier (never scaled);
+ *  - THE LADDER: tier-1 week pays exactly 1,900 credits / 1 key;
+ *    the key is 1 at EVERY tier (never scaled);
  *    amounts are non-decreasing across the days of a cycle and
  *    across tiers. Sizing reference: baseline roaming pays
  *    ~15 credits/minute, so a tier-1 week ≈ 2 hours of roaming
@@ -25,13 +29,13 @@
  *  - SERVER-ANCHORED: the day comes from the server's clock; the
  *    routes are body-less — identity from the JWT only. Guests
  *    earn identically (grants key on the profile row).
- *  - LEVERS: streakCreditScalar / streakFragmentScalar are
- *    economy-config keys, defaults pinned to the content defaults,
- *    hard-clamped [0, 3] in the resolver, the config registry, and
- *    the SQL call site.
- *  - METERS: streak payments fold from cc_login_streak_claim
- *    ledger rows into credits_minted_login_streak (inside the
- *    minted total), cache_fragments_from_login_streak, and
+ *  - LEVERS: streakCreditScalar is an economy-config key, default
+ *    pinned to the content default, hard-clamped [0, 3] in the
+ *    resolver, the config registry, and the SQL call site. (The
+ *    streakFragmentScalar lever died with fragments in 0082.)
+ *  - METERS: streak grants fold from cc_login_streak_claim ledger
+ *    rows into credits_minted_login_streak (inside the minted
+ *    total), cache_fragments_from_login_streak, and
  *    cache_keys_from_login_streak — distinct from leaderboard
  *    keys and ad-lane issuance. Since 0079 the ledger row is
  *    written at CLAIM time, so the meters move at claim, not at
@@ -87,23 +91,23 @@ type Json = Record<string, unknown>;
 // ---------------------------------------------------------------------------
 
 describe('login streak content — the ladder', () => {
-  it('tier 1 pays the shipped ladder; the week totals 1,900 cr / 9 frag / 1 key', () => {
+  it('tier 1 pays the shipped ladder; the week totals 1,900 cr / 1 key', () => {
     const week = Array.from({ length: 7 }, (_, i) => loginStreakReward(i + 1, 1));
     expect(week.map((r) => r.credits)).toEqual([100, 150, 200, 250, 300, 400, 500]);
-    expect(week.map((r) => r.fragments)).toEqual([0, 0, 1, 1, 2, 2, 3]);
     expect(week.map((r) => r.cacheKeys)).toEqual([0, 0, 0, 0, 0, 0, 1]);
     expect(week.reduce((a, r) => a + r.credits, 0)).toBe(1900);
-    expect(week.reduce((a, r) => a + r.fragments, 0)).toBe(9);
     expect(week.reduce((a, r) => a + r.cacheKeys, 0)).toBe(1);
+    // Fragments are abolished: no ladder row carries a fragment leg.
+    for (const r of LOGIN_STREAK_REWARD_TABLE) {
+      expect(r).not.toHaveProperty('fragments');
+    }
   });
 
   it('tiers scale ×1.5 per step to the tier-5 ceiling (×3); the key never scales', () => {
     expect([1, 2, 3, 4, 5].map(loginStreakTierMultiplier)).toEqual([1, 1.5, 2, 2.5, 3]);
     expect(loginStreakReward(1, 2).credits).toBe(150);
     expect(loginStreakReward(7, 2).credits).toBe(750);
-    expect(loginStreakReward(7, 2).fragments).toBe(4); // floor(3 × 1.5)
     expect(loginStreakReward(7, 5).credits).toBe(1500);
-    expect(loginStreakReward(7, 5).fragments).toBe(9);
     for (let tier = 1; tier <= LOGIN_STREAK_TIER_CEILING; tier += 1) {
       expect(loginStreakReward(7, tier).cacheKeys).toBe(1);
       expect(loginStreakReward(6, tier).cacheKeys).toBe(0);
@@ -172,41 +176,35 @@ describe('login streak content — position + streak arithmetic', () => {
 describe('login streak levers', () => {
   it('config defaults are pinned to the content defaults; clamps are [0, 3]', () => {
     expect(ECONOMY_CONFIG_DEFAULTS.streakCreditScalar).toBe(LOGIN_STREAK_LEVER_DEFAULTS.streakCreditScalar);
-    expect(ECONOMY_CONFIG_DEFAULTS.streakFragmentScalar).toBe(LOGIN_STREAK_LEVER_DEFAULTS.streakFragmentScalar);
     expect(ECONOMY_CONFIG_KEYS.streakCreditScalar.min).toBe(LOGIN_STREAK_LEVER_CLAMPS.streakCreditScalar.min);
     expect(ECONOMY_CONFIG_KEYS.streakCreditScalar.max).toBe(LOGIN_STREAK_LEVER_CLAMPS.streakCreditScalar.max);
-    expect(ECONOMY_CONFIG_KEYS.streakFragmentScalar.min).toBe(LOGIN_STREAK_LEVER_CLAMPS.streakFragmentScalar.min);
-    expect(ECONOMY_CONFIG_KEYS.streakFragmentScalar.max).toBe(LOGIN_STREAK_LEVER_CLAMPS.streakFragmentScalar.max);
     expect(validateEconomyConfigValue('streakCreditScalar', 2)).toBe(2);
     expect(validateEconomyConfigValue('streakCreditScalar', 3.5)).toBeNull();
-    expect(validateEconomyConfigValue('streakFragmentScalar', -0.1)).toBeNull();
-    expect(validateEconomyConfigValue('streakFragmentScalar', 'x')).toBeNull();
+    // The fragment scalar is retired with the currency (0082).
+    expect(ECONOMY_CONFIG_KEYS.streakFragmentScalar).toBeUndefined();
   });
 
   it('resolve clamps into the band and drops non-numbers', () => {
-    expect(resolveLoginStreakLevers()).toEqual({ streakCreditScalar: 1, streakFragmentScalar: 1 });
+    expect(resolveLoginStreakLevers()).toEqual({ streakCreditScalar: 1 });
     expect(resolveLoginStreakLevers({ streakCreditScalar: 99 })).toEqual({
       streakCreditScalar: 3,
-      streakFragmentScalar: 1,
     });
-    expect(resolveLoginStreakLevers({ streakFragmentScalar: -2 })).toEqual({
-      streakCreditScalar: 1,
-      streakFragmentScalar: 0,
+    expect(resolveLoginStreakLevers({ streakCreditScalar: -2 })).toEqual({
+      streakCreditScalar: 0,
     });
     expect(resolveLoginStreakLevers({ streakCreditScalar: Number.NaN })).toEqual({
       streakCreditScalar: 1,
-      streakFragmentScalar: 1,
     });
   });
 
-  it('grantFor scales and floors credits/fragments; the key is never scaled', () => {
-    const levers = resolveLoginStreakLevers({ streakCreditScalar: 0.5, streakFragmentScalar: 2 });
+  it('grantFor scales and floors credits; the key is never scaled', () => {
+    const levers = resolveLoginStreakLevers({ streakCreditScalar: 0.5 });
     expect(loginStreakGrantFor(3, 1, levers)).toEqual({
-      cycleDay: 3, tier: 1, credits: 100, fragments: 2, cacheKeys: 0,
+      cycleDay: 3, tier: 1, credits: 100, cacheKeys: 0,
     });
-    const zeroed = resolveLoginStreakLevers({ streakCreditScalar: 0, streakFragmentScalar: 0 });
+    const zeroed = resolveLoginStreakLevers({ streakCreditScalar: 0 });
     expect(loginStreakGrantFor(7, 3, zeroed)).toEqual({
-      cycleDay: 7, tier: 3, credits: 0, fragments: 0, cacheKeys: 1,
+      cycleDay: 7, tier: 3, credits: 0, cacheKeys: 1,
     });
   });
 });
@@ -338,7 +336,7 @@ describe('login streak state view', () => {
     expect(view.ladder[0].credits).toBe(150);
     expect(view.ladder[6].credits).toBe(750);
     expect(view.ladder.map((d) => d.state)[0]).toBe('today');
-    expect(formatLoginStreakReward(view.ladder[6])).toBe('750 credits · 4 fragments · cache key');
+    expect(formatLoginStreakReward(view.ladder[6])).toBe('750 credits · cache key');
   });
 });
 
@@ -430,9 +428,10 @@ describe('login streak record + claim — in-memory gameplay store', () => {
     expect(claims[7].tier).toBe(2);
     expect(claims[7].credits_awarded).toBe(150);
     const profile = store.profiles.get(A);
-    // Tier-1 week (1,900 cr / 9 frag / 1 key) + tier-2 days 1–2 (150 + 225 cr).
+    // Tier-1 week (1,900 cr / 1 key) + tier-2 days 1–2 (150 + 225 cr).
+    // Fragments are abolished (0082): the parts balance never moves.
     expect(profile?.credits).toBe(2275);
-    expect(profile?.cache_token_parts).toBe(9);
+    expect(profile?.cache_token_parts).toBe(0);
     expect(profile?.cache_tokens).toBe(1);
     const facts = await store.getLoginStreakFacts(A);
     expect(facts?.longest_streak).toBe(9);
@@ -718,10 +717,15 @@ describe('migration 0036 textual pins', () => {
     expect(end).toBeGreaterThan(start);
     const tuples = [...sql.slice(start, end).matchAll(/\((\d+), (\d+), (\d+), (\d+), (\d+)\)/g)]
       .map((m) => m.slice(1).map(Number));
+    // Parity on the surviving legs (cycle day, tier, credits, key).
+    // The 4th column is 0036's historical fragment seed — migration
+    // 0082 zeroes the live definitions table, so it is pinned here
+    // only as the record of what 0036 shipped (tier-1 week: 9).
     const expected = LOGIN_STREAK_REWARD_TABLE.map((r) => [
-      r.cycleDay, r.tier, r.credits, r.fragments, r.cacheKeys,
+      r.cycleDay, r.tier, r.credits, r.cacheKeys,
     ]);
-    expect(tuples).toEqual(expected);
+    expect(tuples.map((t) => [t[0], t[1], t[2], t[4]])).toEqual(expected);
+    expect(tuples.filter((t) => t[1] === 1).reduce((a, t) => a + t[3], 0)).toBe(9);
   });
 
   it('the grant reads the lever scalars in SQL and writes the ledger row', () => {

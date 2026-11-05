@@ -7,7 +7,9 @@
  *     global RARITIES table untouched).
  *  2. BOSS_DEDICATED_DROP_CHANCE 0.25 → 0.10.
  *  3. Dedicated drops generate at max(boss.level, playerLevel).
- *  4. FRAGMENT_CHANCE 0.03 → 0.008 per tick.
+ *  4. The cache faucet: FRAGMENT_CHANCE 0.03 → 0.008 per tick,
+ *     then fragments abolished (0082, 2026-11-04) — roaming pays
+ *     whole keys directly at KEY_CHANCE 0.00012 per tick.
  *  5. Offline cap earned by Research (+ Scavenger keystone offlineCapBonus).
  *  6. Rematch fee escalation ×2 per victory today (UTC), capped ×8.
  *  7. Boss XP multiplier ×20 → ×50.
@@ -28,7 +30,7 @@ import { DropSource, Element, Manufacturer, Rarity, RiskSetting, WeaponType } fr
 import type { Weapon } from '@/types/items';
 import {
   BOSS_DEDICATED_DROP_CHANCE,
-  FRAGMENT_CHANCE,
+  KEY_CHANCE,
   processBossAttempt,
   processRoamingClaim,
   type BossAttemptChefResult,
@@ -257,27 +259,28 @@ describe('tuning items 2/3/7 — dedicated chance, dedicated level, boss XP', ()
 });
 
 // ---------------------------------------------------------------------
-// Item 4 — fragment faucet
+// Item 4 — the cache faucet (fragments → whole keys, migration 0082)
 // ---------------------------------------------------------------------
-describe('tuning item 4 — fragment faucet 0.03 → 0.008 per tick', () => {
+describe('tuning item 4 — cache faucet: whole keys at 0.00012 per tick', () => {
   it('pins the constant', () => {
-    expect(FRAGMENT_CHANCE).toBe(0.008);
+    expect(KEY_CHANCE).toBe(0.00012);
   });
 
-  it('a long seeded roam mints fragments at the new rate, far below the old', () => {
-    // 200 claims × 100 ticks = 20,000 ticks, each claim independently
-    // seeded by its absolute tick window. Expected fragments at the new
-    // rate: 20,000 × 0.008 = 160 (σ ≈ 12.6). The band is ±~5σ and its
-    // ceiling sits far under the old rate's expectation (~600).
+  it('a long roam accrues whole keys through the silent remainder, exactly', () => {
+    // The faucet's history: 0.03 fragments/tick → 0.008 fragments/tick
+    // → whole keys directly at 0.00012/tick (owner ruling 2026-11-04:
+    // fragments were filler — one sink, no decision). Accrual is
+    // deterministic multiplication, not a roll: 200 claims × 100
+    // ticks × 0.00012 = 2.4 keys of accrual, so exactly 2 whole keys
+    // pay out and 0.4 stays banked in the remainder the caller
+    // threads through (the routes persist it on the profile).
     //
-    // The event base chance is levered to 0 for this measurement: the
-    // roaming-variance overhaul added a SECOND, brief-mandated fragment
-    // faucet (Buried Cache bonus fragments, storm doubling, elite +1)
-    // whose rate is budgeted and measured separately in
-    // roamingVariance.test.ts. This test's subject is the base faucet
-    // constant alone, and the shipped lever is the honest way to scope
-    // the measurement to it.
-    let fragments = 0;
+    // The event base chance is levered to 0 for this measurement:
+    // events carry their own key legs (jackpot), budgeted and
+    // measured separately in roamingVariance.test.ts. This test's
+    // subject is the base faucet constant alone.
+    let keys = 0;
+    let remainder = 0;
     for (let i = 0; i < 200; i++) {
       const result = processRoamingClaim({
         playerId: PLAYER,
@@ -288,11 +291,13 @@ describe('tuning item 4 — fragment faucet 0.03 → 0.008 per tick', () => {
         maxTicks: Infinity,
         survival: { currentHp: 100000, maxHp: 100000, shieldHp: 0, mitigation: 0 },
         economy: { eventChanceBase: 0 },
+        keysRemainder: remainder,
       });
-      fragments += result.rewards.cacheFragmentsAwarded;
+      keys += result.rewards.cacheKeysAwarded;
+      remainder = result.rewards.cacheKeyRemainder;
     }
-    expect(fragments).toBeGreaterThan(95);
-    expect(fragments).toBeLessThan(230);
+    expect(keys).toBe(2);
+    expect(remainder).toBeCloseTo(0.4, 6);
   });
 });
 

@@ -257,7 +257,8 @@ describe('quickBuy planner — sweep + default tab', () => {
   });
 
   it('identity keys: commodities collapse, goods keep their id', () => {
-    expect(quickBuyIdentityKey({ kind: 'fragment', id: 'cache' })).toBe('frag:cache');
+    // Fragments are abolished (0082): no identity key exists for them.
+    expect(quickBuyIdentityKey({ kind: 'fragment', id: 'cache' })).toBeUndefined();
     expect(quickBuyIdentityKey({ kind: 'core', id: 'legendary' })).toBe('core:legendary');
     expect(quickBuyIdentityKey({ kind: 'material', id: 'Scrap' })).toBe('mat:Scrap');
   });
@@ -340,8 +341,9 @@ describe('quickBuy — write paths', () => {
     const scrapOffer = vendorOfferFor('Scrap', key);
     expect(sq.vendor?.unitPrice ?? null).toBe(scrapOffer?.unitPrice ?? null);
 
+    // The fragment good is abolished (0082): the quote refuses it.
     const frag = await quote(h, h.tokens[B], 'fragment', 'cache', 5);
-    expect((frag.json as unknown as QuickBuyQuote).vendor).toBeNull();
+    expect(frag.status).toBe(400);
   });
 
   it('guest: the quote is fully visible; the fill refuses with the sign-in remedy', async () => {
@@ -425,59 +427,42 @@ describe('quickBuy — write paths', () => {
     expect(listingOf(L_DEAR)?.quantity).toBe(1);
   });
 
-  it('Quick-Buy never sources the NPC fragment stack, however cheap (pure player market, 2026-11-04)', async () => {
-    // The quote for 5 fragments prices off the PLAYER stack only:
-    // 5 @ 10cr = 50, never the NPC stack's 5 @ 5cr.
-    const res = await quote(h, h.tokens[B], 'fragment', 'cache', 5);
-    const q = res.json as unknown as QuickBuyQuote;
-    expect(q.market.total).toBe(50);
-    expect(q.market.fills.map((f) => f.listingId)).toEqual([L_FRAG]);
-    // A fill attempted at the NPC-implied price requotes and moves
-    // nothing — the server re-plans player-only at fill time too.
+  it('fill: the fragment good is refused — no fill, no conversion, nothing moves (0082)', async () => {
+    // A legacy NPC fragment stack still sits in the seed (a pre-0082
+    // artifact row; migration 0082 cancels live ones). Quick-Buy no
+    // longer knows the good, so the fill refuses before any charge.
     const bankBefore = creditsOf(NPCBACK);
     const bBefore = creditsOf(B);
-    const filled = await fill(h, h.tokens[B], {
-      source: 'market', kind: 'fragment', id: 'cache', quantity: 5, quotedTotal: 25,
-    });
-    expect(filled.json.status).toBe('requote');
-    expect(creditsOf(B)).toBe(bBefore);
-    expect(creditsOf(NPCBACK)).toBe(bankBefore);
-    expect(listingOf(L_FRAG_NPC)?.quantity).toBe(10);
-    expect(listingOf(L_FRAG_NPC)?.status).toBe('active');
-  });
-
-  it('fill: fragment stack — split charge, 5:1 conversion, seller paid net of the 5% fee', async () => {
-    const s2Before = creditsOf(S2);
     const res = await fill(h, h.tokens[B], {
       source: 'market', kind: 'fragment', id: 'cache', quantity: 5, quotedTotal: 50,
     });
-    expect(res.json.status).toBe('filled');
-    expect(res.json.total_charged).toBe(50);
-    expect(profileOf(B)?.cache_tokens).toBe(1);
+    expect(res.status).toBe(400);
+    expect(creditsOf(B)).toBe(bBefore);
+    expect(profileOf(B)?.cache_tokens).toBe(0);
     expect(profileOf(B)?.cache_token_parts).toBe(0);
-    expect(listingOf(L_FRAG)?.quantity).toBe(5);
-    expect(listingOf(L_FRAG)?.price_credits).toBe(50);
-    // Player sale: floor(50 × 0.05) = 2 destroyed, seller nets 48.
-    expect(creditsOf(S2)).toBe(s2Before + 48);
+    expect(listingOf(L_FRAG)?.quantity).toBe(10);
+    expect(creditsOf(NPCBACK)).toBe(bankBefore);
   });
 
   it('insufficient credits: requote names the gap via the fresh quote; nothing moves', async () => {
-    const buyer = profileOf(B)!;
-    const saved = buyer.credits;
-    buyer.credits = 5;
+    // Isolated server: the shared one's stacks are mid-sweep by now.
+    const h2 = await makeServer();
     try {
-      const res = await fill(h, h.tokens[B], {
-        source: 'market', kind: 'fragment', id: 'cache', quantity: 5, quotedTotal: 50,
+      const buyer = h2.store.seed.profiles.find((p) => p.id === B)!;
+      buyer.credits = 5;
+      const res = await fill(h2, h2.tokens[B], {
+        source: 'market', kind: 'material', id: 'Scrap', quantity: 5, quotedTotal: 55,
       });
       expect(res.json.status).toBe('requote');
       expect(res.json.reason).toBe('insufficient_credits');
       const fresh = res.json.quote as QuickBuyQuote;
       expect(fresh.balance).toBe(5);
-      expect(fresh.market.total).toBe(50);
-      expect(listingOf(L_FRAG)?.quantity).toBe(5);
-      expect(profileOf(B)?.cache_tokens).toBe(1);
+      expect(fresh.market.total).toBe(55);
+      const l = h2.store.seed.listings.find((x) => x.id === L_CHEAP);
+      expect(l?.quantity).toBe(4);
+      expect(buyer.materials.Scrap ?? 0).toBe(0);
     } finally {
-      buyer.credits = saved;
+      await h2.close();
     }
   });
 

@@ -18,7 +18,7 @@ Every roaming area, pictured in its own backdrop painting — the art the Action
 Open scrapland routes where new runners learn the roaming loop.
 
 - **Danger:** Low · **Enemies:** Raiders, scrap drones, and scavengers
-- **Signature materials:** Scrap, Ballistic Parts · **Signature loot:** Balanced gear, early salvage, cache fragments
+- **Signature materials:** Scrap, Ballistic Parts · **Signature loot:** Balanced gear, early salvage
 - **Influence:** Mixed · **Named elite:** Silt Marshal
 - Need general early loot? Stay in Dustwaste Frontier.
 

@@ -165,7 +165,7 @@ export interface ChefClaimResult {
     creditsAwarded: number;
     scrapAwarded: number;
     xpAwarded: number;
-    cacheFragmentsAwarded: number;
+    cacheKeysAwarded: number;
     materials: Record<string, number>;
     essences: Record<string, number>;
     killsRecorded: number;
@@ -546,7 +546,7 @@ export interface OfflineSettlementResult {
     creditsAwarded: number;
     scrapAwarded: number;
     xpAwarded: number;
-    cacheFragmentsAwarded: number;
+    cacheKeysAwarded: number;
     materials: Record<string, number>;
     essences: Record<string, number>;
     killsRecorded: number;
@@ -942,6 +942,12 @@ export interface ChefLoginStreakResult {
     cycleDay: number | null;
     tier: number | null;
     creditsAwarded: number;
+    /**
+     * Stored fact only (0082): claims recorded before the
+     * fragment currency was abolished carry their amount; every
+     * claim since records 0. Nothing renders it — it rides the
+     * wire so the claim-identity key can name the full reward.
+     */
     fragmentsAwarded: number;
     cacheKeysAwarded: number;
   };
@@ -991,8 +997,7 @@ export interface ChefClaimContractResult extends ChefContractsResult {
     instanceId: string;
     templateId: string | null;
     creditsAwarded: number;
-    fragmentsAwarded: number;
-    setBonus: { credits: number; fragments: number; cache_keys: number } | null;
+    setBonus: { credits: number; cache_keys: number } | null;
   };
 }
 

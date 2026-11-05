@@ -28,8 +28,6 @@ import {
 import {
   CORE_DISPLAY_NAME,
   CORE_IDENTITY_KEY,
-  FRAGMENT_DISPLAY_NAME,
-  FRAGMENT_IDENTITY_KEY,
   MARKET_ESSENCE_IDS,
   consumableDisplayName,
   consumableIdentityKey,
@@ -129,9 +127,6 @@ import {
   cacheLaneUtcDay,
   cacheLaneView,
   resolveCacheBoxPayment,
-  resolveCacheLaneLevers,
-  type CacheBoxPaymentCounts,
-  type CacheLaneLeverValues,
 } from '../../content/cacheLane.js';
 import {
   applyReforgeToItem,
@@ -323,13 +318,6 @@ export interface InMemoryWriteOptions {
    * the mirror.
    */
   cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>;
-  /**
-   * Live cache-lane lever values (economy_config, 0037) — the daily
-   * box cap — resolved per cache opening, clamped by
-   * resolveCacheLaneLevers. The mirror of cc_make_item reading the
-   * table through cc_economy_config_number.
-   */
-  cacheLaneLeverProvider?: () => Partial<CacheLaneLeverValues>;
 }
 
 function clone<T>(value: T): T {
@@ -352,7 +340,6 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly shieldTechLeverProvider: () => Partial<ShieldTechLeverValues>;
   private readonly reforgeLeverProvider: () => Partial<ReforgeLeverValues>;
   private readonly cacheRankLeverProvider: () => Partial<CacheRankLeverValues>;
-  private readonly cacheLaneLeverProvider: () => Partial<CacheLaneLeverValues>;
   private craftViews = new Map<string, CraftProfileView>();
   /** Cache Rank grant log (0031 mirror of the cc_cache_rank_grant ledger rows) for test introspection. */
   readonly cacheRankGrantLog: Array<{ playerId: string; fromLevel: number; toLevel: number; tokens: number }> = [];
@@ -382,7 +369,6 @@ export class InMemoryWriteStore implements WriteStore {
     this.shieldTechLeverProvider = opts.shieldTechLeverProvider ?? (() => ({}));
     this.reforgeLeverProvider = opts.reforgeLeverProvider ?? (() => ({}));
     this.cacheRankLeverProvider = opts.cacheRankLeverProvider ?? (() => ({}));
-    this.cacheLaneLeverProvider = opts.cacheLaneLeverProvider ?? (() => ({}));
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) {
       // Econ 5 (0069): a seed's legacy `scrap` amount folds into the
@@ -607,7 +593,7 @@ export class InMemoryWriteStore implements WriteStore {
       credits: p.credits,
       scrap: p.materials?.['Scrap'] ?? 0,
       cache_tokens: p.cache_tokens,
-      cache_token_parts: p.cache_token_parts,
+      cache_key_remainder: p.cache_key_remainder ?? 0,
       legendary_cores: p.legendary_cores ?? 0,
       cache_rank_tokens: p.cache_rank_tokens ?? 0,
       cache_rank_grant_level: p.cache_rank_grant_level ?? 0,
@@ -851,29 +837,15 @@ export class InMemoryWriteStore implements WriteStore {
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
-    // Cache box lane (0037): the daily budget gate + free-first
-    // payment resolution — the mirror of cc_make_item's SQL (content
-    // owner: src/content/cacheLane.ts). Counted from the openings
-    // record inside this op; the nonce-prior return above means a
-    // replay records nothing and grants nothing.
-    const levers = resolveCacheLaneLevers(this.cacheLaneLeverProvider());
-    const openDay = cacheLaneUtcDay(this.nowFn());
-    const byPayment: CacheBoxPaymentCounts = { free: 0, ad: 0, key: 0 };
-    for (const row of this.seed.cacheBoxOpenings) {
-      if (row.user_id === playerId && row.open_day === openDay) {
-        if (row.payment === 'free' || row.payment === 'ad' || row.payment === 'key') {
-          byPayment[row.payment] += 1;
-        }
-      }
-    }
-    const openedToday = byPayment.free + byPayment.ad + byPayment.key;
-    if (openedToday >= levers.cacheBoxDailyCap) throw writeError('Daily cache box limit reached');
+    // Cache box lane (0037, rebuilt 0082): every opening is paid —
+    // 1 cache key or one rewarded-ad attestation, uncapped. No day,
+    // no count, no budget anywhere in the resolution — the mirror
+    // of cc_make_item's SQL (content owner: src/content/cacheLane.ts).
+    // The nonce-prior return above means a replay records nothing
+    // and grants nothing.
     const requested = (payment ?? '').trim().toLowerCase() || 'key';
-    const resolved = resolveCacheBoxPayment(requested, byPayment);
-    if (!resolved) {
-      if (requested === 'free') throw writeError('Free cache box already used today');
-      throw writeError('Unknown cache box payment');
-    }
+    const resolved = resolveCacheBoxPayment(requested);
+    if (!resolved) throw writeError('Unknown cache box payment');
     const cleanAdUnit = (adUnitId ?? '').trim();
     if (resolved === 'ad' && !cleanAdUnit) throw writeError('ad_unit_id is required');
     if (resolved === 'key' && p.cache_tokens < 1) throw writeError('Not enough tokens');
@@ -940,18 +912,19 @@ export class InMemoryWriteStore implements WriteStore {
     };
     this.insertItem(item);
     this.recalcNetWorth(playerId);
-    // Record the opening (0037): the budget's audit row, after the
+    // Record the opening (0037): the lane's audit row, after the
     // draw — a replay never reaches here (nonce-prior return above).
+    // The day stamp is audit history only; nothing reads it back
+    // into a budget (0082).
     this.seed.cacheBoxOpenings.push({
       user_id: playerId,
-      open_day: openDay,
+      open_day: cacheLaneUtcDay(this.nowFn()),
       payment: resolved,
       ad_unit_id: resolved === 'ad' ? cleanAdUnit : null,
       item_id: item.id,
       opened_at: now,
     });
-    byPayment[resolved] += 1;
-    const lane = cacheLaneView({ day: openDay, keys: p.cache_tokens, byPayment }, levers);
+    const lane = cacheLaneView({ keys: p.cache_tokens });
     const result: Json = {
       action_type: 'cc_make_item',
       profile: this.profileSnapshot(p),
@@ -960,13 +933,8 @@ export class InMemoryWriteStore implements WriteStore {
       item: this.itemJson(item),
       payment: resolved,
       cache_lane: {
-        day: lane.day,
-        cap: lane.cap,
-        free_per_day: lane.freePerDay,
-        opened_today: lane.openedToday,
-        remaining: lane.remaining,
-        free_available: lane.freeAvailable,
-        by_payment: lane.byPayment,
+        keys: lane.keys,
+        rule: lane.rule,
       },
     };
     return this.record(playerId, 'cc_make_item', key, result);
@@ -1925,7 +1893,7 @@ export class InMemoryWriteStore implements WriteStore {
           credits: null,
           scrap: null,
           cache_tokens: null,
-          cache_token_parts: null,
+          cache_key_remainder: null,
           materials: null,
           essences: null,
           consumables: null,
@@ -4224,20 +4192,15 @@ export class InMemoryWriteStore implements WriteStore {
     const creditMult = typeof payload.credit_mult === 'number' ? payload.credit_mult : null;
     const xpAward = xpMult === null ? 1 : Math.max(1, Math.round(Math.max(10, p.player_level * 15) * xpMult));
     const creditAward = creditMult === null ? 0 : Math.max(0, Math.round(Math.max(50, p.player_level * 25) * creditMult));
-    const partAward = Math.max(0, Math.floor(Number(payload.fragment_reward ?? 0) || 0));
+    // Cache fragments abolished (0082): the legacy odds payloads'
+    // fragment_reward is zeroed by the migration; the leg pays
+    // nothing and the old 5:1 roll-up is gone.
+    const partAward = 0;
     const next = applyXp(p.player_level, p.player_xp, xpAward);
     p.player_level = next.player_level;
     p.player_xp = next.player_xp;
     this.applyCacheRankGrant(p);
     p.credits += creditAward;
-    let parts = p.cache_token_parts + partAward;
-    let tokens = p.cache_tokens;
-    while (parts >= 5) {
-      parts -= 5;
-      tokens += 1;
-    }
-    p.cache_token_parts = parts;
-    p.cache_tokens = tokens;
     p.boss_state = { ...p.boss_state, last_target_id: cleanTarget, last_draw: draw as unknown as Json };
     this.touch(p);
     const result: Json = {
@@ -4466,50 +4429,15 @@ export class InMemoryWriteStore implements WriteStore {
   }
 
   /**
-   * cc_market_create_fragment (0050): escrow cache fragments (key
-   * shards) into a listing. The escrow LEAVES profiles.cache_token_parts
-   * at list time, so the 5→1 auto-conversion inside the reward appliers
-   * only ever sees the unescrowed balance — a listing's escrow can
-   * never be converted out from under it.
+   * cc_market_create_fragment (0050) is RETIRED (migration 0082):
+   * cache fragments are abolished, the SQL function is dropped, and
+   * no fragment listing can be created. Historical fragment
+   * listings were cancelled by the migration with their escrow
+   * returned to the sellers' balances before conversion.
    */
   async marketCreateFragment(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
-    const key = this.cleanNonce(nonce);
-    const price = Math.floor(priceCredits);
-    if (!Number.isFinite(price) || price <= 0) throw writeError('price_credits must be positive');
-    const qty = Math.floor(quantity);
-    if (!Number.isFinite(qty) || qty <= 0) throw writeError('quantity must be positive');
-    this.requireEconomy(playerId);
-    const prior = this.prior(playerId, key);
-    if (prior) return prior;
-    const p = this.profileOrNull(playerId);
-    if (!p || (p.cache_token_parts ?? 0) < qty) throw writeError('Insufficient fragment quantity');
-    p.cache_token_parts -= qty;
-    this.touch(p);
-    const listing: WriteListingData = {
-      id: this.uuid(),
-      seller_user_id: playerId,
-      item_instance_id: null,
-      price_credits: price,
-      status: 'active',
-      listed_at: this.nowIso(),
-      sold_at: null,
-      listing_kind: 'fragment',
-      quantity: qty,
-      identity_key: FRAGMENT_IDENTITY_KEY,
-      category: 'fragment',
-      display_name: FRAGMENT_DISPLAY_NAME,
-      seller_type: 'player',
-    };
-    this.insertListing(listing);
-    this.recalcNetWorth(playerId);
-    const result: Json = {
-      action_type: 'cc_market_create',
-      profile: this.profileSnapshot(p),
-      listing: this.listingJson(listing),
-      item: null,
-      delivery: { kind: 'fragment', quantity: qty },
-    };
-    return this.record(playerId, 'cc_market_create', key, result);
+    void playerId; void nonce; void quantity; void priceCredits;
+    throw writeError('Cache fragments no longer exist — cache keys are the only cache currency');
   }
 
   /** cc_market_create_core (0050): escrow legendary cores into a listing. */

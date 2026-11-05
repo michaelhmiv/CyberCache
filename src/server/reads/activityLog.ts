@@ -82,7 +82,10 @@ export interface ActivityEarnings {
   credits?: number;
   scrap?: number;
   xp?: number;
+  /** Historical only: pre-0082 claims paid cache fragments. */
   fragments?: number;
+  /** Whole cache keys paid (0082+ claim payloads). */
+  cacheKeys?: number;
   materials?: Record<string, number>;
   essences?: Record<string, number>;
 }
@@ -360,10 +363,15 @@ function earningsFromRewards(rewards: Record<string, unknown>): ActivityEarnings
   const scrap = num(rewards.scrap ?? rewards.scrap_awarded);
   const xp = num(rewards.xp ?? rewards.xp_awarded);
   const fragments = num(rewards.fragments ?? rewards.cache_fragments_awarded);
+  const cacheKeys = num(rewards.keys ?? rewards.cache_keys_awarded);
   if (credits !== 0) out.credits = credits;
   if (scrap !== 0) out.scrap = scrap;
   if (xp !== 0) out.xp = xp;
+  // Pre-0082 claim payloads paid fragments; the fold keeps reading
+  // them so historical records stay truthful. New payloads pay
+  // whole cache keys instead.
   if (fragments !== 0) out.fragments = fragments;
+  if (cacheKeys !== 0) out.cacheKeys = cacheKeys;
   const materials = rec(rewards.materials);
   const essences = rec(rewards.essences);
   const matOut: Record<string, number> = {};
@@ -381,6 +389,7 @@ function earningsLabel(earnings: ActivityEarnings): string {
   if (earnings.scrap) parts.push(`${earnings.scrap > 0 ? '+' : ''}${earnings.scrap} scrap`);
   if (earnings.xp) parts.push(`+${earnings.xp} XP`);
   if (earnings.fragments) parts.push(`+${earnings.fragments} fragments`);
+  if (earnings.cacheKeys) parts.push(`+${earnings.cacheKeys} cache key${earnings.cacheKeys === 1 ? '' : 's'}`);
   return parts.join(' · ');
 }
 

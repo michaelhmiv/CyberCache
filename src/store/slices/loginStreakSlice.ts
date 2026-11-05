@@ -185,7 +185,6 @@ export function loginStreakGrantKey(
     granted.cycleDay ?? 0,
     granted.tier ?? 0,
     granted.creditsAwarded,
-    granted.fragmentsAwarded,
     granted.cacheKeysAwarded,
   ].join(':');
 }
