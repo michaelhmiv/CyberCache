@@ -89,7 +89,7 @@ export const FieldManualConsole: React.FC<FieldManualConsoleProps> = ({
       }}
     >
       <span
-        className="ck-num flex h-[38px] w-[46px] shrink-0 items-center justify-center text-[14px] font-bold"
+        className="ck-num flex h-[38px] w-[44px] shrink-0 items-center justify-center text-[14px] font-bold"
         style={{
           color: CK.bone,
           background: CK.lcd,
@@ -99,16 +99,16 @@ export const FieldManualConsole: React.FC<FieldManualConsoleProps> = ({
         {pad2(ci + 1)}
       </span>
       <span
-        className="flex h-[38px] w-[38px] shrink-0 items-center justify-center"
+        className="flex h-[38px] w-[36px] shrink-0 items-center justify-center"
         style={{ color: CK.boneDim, boxShadow: `inset 0 0 0 1px ${CK.bezel}`, background: 'rgba(0,0,0,0.35)' }}
       >
         <PxIcon name={s.icon} size={17} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14px] font-bold uppercase leading-tight tracking-[0.06em]" style={{ color: CK.bone }}>
+        <span className="block text-[14px] font-bold uppercase leading-tight tracking-[0.06em]" style={{ color: CK.bone }}>
           {s.title}
         </span>
-        <span className="mt-0.5 block truncate text-[12px] leading-tight" style={{ color: CK.boneDim }}>
+        <span className="mt-0.5 block text-[12px] leading-snug" style={{ color: CK.boneDim }}>
           {s.blurb}
         </span>
       </span>
@@ -306,7 +306,6 @@ export const FieldManualConsole: React.FC<FieldManualConsoleProps> = ({
                   className="min-w-0 flex-1 bg-transparent text-[13px] outline-none"
                   style={{ color: CK.bone, caretColor: CK.amber }}
                 />
-                {query === '' && <span aria-hidden className="ck-caret block h-[18px] w-[8px] shrink-0" style={{ background: CK.amber }} />}
                 {query !== '' && (
                   <button
                     type="button"

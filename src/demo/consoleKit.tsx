@@ -23,10 +23,8 @@ const SCANLINES =
 /** One-time keyframes for the console (lamp pulse, caret blink). */
 export const ConsoleStyles: React.FC = () => (
   <style>{`
-    @keyframes ck-lamp-pulse { 0%, 58% { opacity: 1; } 59%, 100% { opacity: 0.3; } }
-    @keyframes ck-caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+    @keyframes ck-lamp-pulse { 0%, 58% { opacity: 1; } 59%, 100% { opacity: 0.5; } }
     .ck-lamp-live { animation: ck-lamp-pulse 1.15s steps(1) infinite; }
-    .ck-caret { animation: ck-caret 1.06s steps(1) infinite; }
     .ck-num { font-variant-numeric: tabular-nums; }
   `}</style>
 );
