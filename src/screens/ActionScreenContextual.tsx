@@ -50,7 +50,7 @@ import { trackScreen } from '@/lib/analytics/analytics';
 import { salvageYieldFromRecycleResult } from '@/lib/gear/salvageAward';
 import { getVisualAsset } from '@/constants/visualAssets';
 import { salvageScrap } from '@/lib/skills/salvageBonuses';
-import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '@/content/roamingRates';
+import { GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '@/content/roamingRates';
 import { isClassMod, isOrdnance, isRelic, isShield, isWeapon } from '@/lib/gear/gearCardSummary';
 import { canStartCraft } from '@/lib/craftingEngine';
 import type { WorkshopJobView } from '@/store/slices/workshopSlice';
@@ -621,8 +621,8 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
               <div className="font-black text-amber">{Math.round(GEAR_DROP_CHANCE * 100)}%/tick</div>
             </div>
             <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Frag</div>
-              <div className="font-black text-cyan">{Math.round(CACHE_FRAGMENT_CHANCE * 100)}%/tick</div>
+              <div className="text-text-muted">Cache Key</div>
+              <div className="font-black text-cyan">~1 per 7h</div>
             </div>
           </div>
           <div className="relative mt-2 pt-2 border-t border-border/40 text-[9px] text-text-muted">
@@ -856,7 +856,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Credits</span><div className="font-black text-cyan">+{creditsPerTick}/tick</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Scrap</span><div className="font-black text-green">+{scrapPerTick}/tick</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Gear</span><div className="font-black text-amber">{Math.round(GEAR_DROP_CHANCE * 100)}%/tick</div></div>
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Cache Frag</span><div className="font-black text-cyan">{Math.round(CACHE_FRAGMENT_CHANCE * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Cache Key</span><div className="font-black text-cyan">~1 per 7h</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Materials</span><div className="font-black text-green">{Math.round(MATERIAL_FIND_CHANCE * 100)}%/tick</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Enemy</span><div className="font-black text-text-primary">{selectedArea.enemyType.split(' ')[0]}</div></div>
             </div>
