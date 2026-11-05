@@ -49,7 +49,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
             level pop-up's door, and a real XP row (fraction + bar)
             replaces the hairline. The level door travels as an
             event — DashboardTopBar owns the sheets. */}
-        <div className="mb-2">
+        <div>
           <ResourceBar
             variant="home"
             onOpenSettings={() => onNavigate('settings')}

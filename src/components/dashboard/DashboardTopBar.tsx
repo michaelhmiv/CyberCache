@@ -144,20 +144,29 @@ function PulseGlow({ color, testId }: { color: string; testId: string }) {
 }
 
 function CornerBadge({ text, icon, color }: { text?: string; icon?: PxIconName; color: string }) {
-  // Fully INSIDE the button's top-right corner (QC papercut): the
-  // badge used to protrude (-top-1.5 -right-1.5) and every host
-  // button clips at its own box — Tailwind overflow-hidden plus
-  // .bl-panel's overflow:hidden + clip-path — so the protruding
-  // half was sliced off at the button's top edge. The bl-panel
-  // clip-path keeps the top-right corner square, so an inset
-  // badge there renders whole.
+  // Fully INSIDE its host's top-right corner (QC papercut): the
+  // badge used to protrude (-top-1.5 -right-1.5) and its host
+  // button clipped at its own box — Tailwind overflow-hidden
+  // plus .bl-panel's overflow:hidden + clip-path — so the
+  // protruding half was sliced off at the button's top edge.
+  // R3 (owner feedback, 2026-11-05): the badge is now a compact
+  // corner TAB in the weekly count tab's manner — the label
+  // hugged at px-1 py-px (~40×13px for CLAIM, not the old
+  // 44px-wide band) — and its host is the key's transparent
+  // HIT BOX (the 44px button, which carries no overflow or
+  // clip of its own), so the papercut's guarantee survives the
+  // move: the tab renders whole, never clipped, never at a
+  // negative offset. The painted chip rides centered in the
+  // hit box, 8px below its top, so the tab straddles the
+  // chip's top-right corner while the glyphs — centered in
+  // the chip — stay clear beneath it (the geometry probe
+  // measures the clearance; qcPapercuts re-pins the position).
   // Size (owner ruling, 2026-11-02): the label renders at the
-  // DESIGN.md §5 floor — 11px, never below. The badge got BIGGER;
-  // the floor did not move. Padding and the icon grow with it so
-  // the pill keeps its proportions.
+  // DESIGN.md §5 floor — 11px, never below. The badge got
+  // SMALLER around the label; the floor did not move.
   return (
     <span
-      className="absolute right-1 top-1 z-10 px-1.5 py-0.5 text-[11px] font-black leading-none text-black"
+      className="absolute right-0 top-0 z-10 px-1 py-px text-[11px] font-black leading-none text-black"
       style={{ backgroundColor: color }}
     >
       {icon ? <PxIcon name={icon} size={15} /> : text}
@@ -471,24 +480,51 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           lead the eye to the money waiting). The widest state
           (pending hold + both word badges + weekly) sums
           ≈352px of the 386px row. Never wrap, never shrink
-          the type. */}
-      <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-1.5">
+          the type.
+          R3 AMENDMENT (owner feedback on the presented r2
+          captures, 2026-11-05: "cut the button size in half,
+          still too big" + the section-gap ruling below): the
+          rail of plates is GONE. Each key is now a content-
+          sized CHIP — 28px tall, ~48–57px wide, icon + its
+          readout composed inline — roughly half the 92×48
+          plate it replaces. What halves is the PAINT: the
+          button itself stays a 44px-tall transparent hit box
+          (h-11, min 44px wide) with the chip centered inside
+          it, so the keys stay thumb-true while they read at
+          half size. The row no longer stretches edge-to-edge:
+          the chips dock at the column's left edge — the edge
+          every other Home section starts from — on the same
+          8px beat as everything else (gap-3 renders
+          --cc-gap-md under .bl-page). The badges shrink to
+          compact corner tabs (see CornerBadge): with no badge
+          band to reserve, nothing forces the keys tall again.
+          Icons stand at 20px — the largest the 28px chip
+          honestly holds with the tab clear above them.
+          SECTION-GAP LAW (same owner direction): ONE vertical
+          gap — 8px, the system's --cc-gap-md — at every
+          distinct-section boundary on Home (Strip → this row
+          → mode rail → stage → belt → workspace → feed →
+          deck). This row's mb-3 and the chips' mb-3 are gone:
+          Home's stack owns the boundary, and the spacing
+          probe (claim-row-look-captures) measures every
+          boundary and asserts the one value. */}
+      <div data-testid="dashboard-top-bar" className="flex items-center gap-3">
         {/* CACHE — the key count's one print on Home (the Strip's
             cache segment leaves Home in this package), as a
-            bubble attached to the key icon in the centered
-            cluster on the button that spends them. */}
+            bubble attached to the key icon in the chip on the
+            button that spends them. */}
         <button
           type="button"
           data-testid="top-cache-button"
           aria-label={`Cache — ${cacheKeys} cache keys held. Opens the cache chest.`}
           onClick={() => onNavigate?.('chest')}
-          className="bl-panel relative flex h-[48px] min-h-[44px] min-w-[64px] flex-1 flex-col overflow-hidden px-1"
+          className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
-          <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
-            <PxIcon name="key" size={24} className="text-[#3FD6E8]" />
+          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+            <PxIcon name="key" size={20} className="text-[#3FD6E8]" />
             <span
               data-testid="top-cache-key-count"
-              className="shrink-0 bg-amber px-1.5 py-0.5 text-[12px] font-black leading-none tabular-nums text-black"
+              className="shrink-0 bg-amber px-1 py-px text-[12px] font-black leading-none tabular-nums text-black"
             >
               {cacheKeys}
             </span>
@@ -508,12 +544,11 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           aria-busy={claiming || undefined}
           disabled={claiming}
           onClick={() => void handleOfflineTap()}
-          className={`bl-panel relative flex h-[48px] min-h-[44px] flex-1 flex-col overflow-hidden px-1 ${holdPending ? 'min-w-[108px]' : 'min-w-[44px]'}`}
+          className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
-          {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
-          {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
-          <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
-            <PxIcon name="clock" size={24} className="text-[#F2C063]" />
+          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+            {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
+            <PxIcon name="clock" size={20} className="text-[#F2C063]" />
             {holdPending && (
               <span
                 data-testid="top-offline-pending"
@@ -524,40 +559,40 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
               </span>
             )}
           </span>
+          {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
         </button>
 
         {/* Daily streak — icon + day numeral + pop-up door. The
             numeral is data (the current streak), not a label:
             it stays under the icon-only law. The CLAIM / NEW
-            badge rides the top corner; the cluster centers on
-            the content stage below the badge band, so the two
+            tab rides the hit box's top corner; the cluster
+            rides centered in the chip below it, so the two
             never meet. */}
         <button
           type="button"
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className="bl-panel relative flex h-[48px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1"
+          className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
-          {streakClaimable ? (
-            <>
+          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+            {streakClaimable ? (
               <PulseGlow color="#FF8A00" testId="streak-claim-pulse" />
-              <CornerBadge text="CLAIM" color="#FF8A00" />
-            </>
-          ) : streakAnnouncement && !streakJustClaimed ? (
-            <>
+            ) : streakAnnouncement && !streakJustClaimed ? (
               <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />
-              <CornerBadge text="NEW" color={STREAK_ACCENT} />
-            </>
-          ) : null}
-          <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
-            <PxIcon name="flame" size={24} className="text-[#FF8A3D]" />
+            ) : null}
+            <PxIcon name="flame" size={20} className="text-[#FF8A3D]" />
             {streakDay !== null && (
               <span className="whitespace-nowrap text-[13px] font-black leading-none tabular-nums text-text-secondary">
                 {streakDay}
               </span>
             )}
           </span>
+          {streakClaimable ? (
+            <CornerBadge text="CLAIM" color="#FF8A00" />
+          ) : streakAnnouncement && !streakJustClaimed ? (
+            <CornerBadge text="NEW" color={STREAK_ACCENT} />
+          ) : null}
         </button>
 
         {/* Contracts — icon + pop-up door. Badges: the claimable
@@ -570,14 +605,14 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="top-contracts-button"
           aria-label={contractsLabel}
           onClick={() => setSheet('contracts')}
-          className="bl-panel relative flex h-[48px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1"
+          className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
-          {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
+          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+            {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
+            <PxIcon name="orders" size={20} className="text-[#5EE8A0]" />
+          </span>
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
           {contractsGuestLocked && <CornerBadge text="GUEST" color="#8A847C" />}
-          <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
-            <PxIcon name="orders" size={24} className="text-[#5EE8A0]" />
-          </span>
         </button>
 
         {/* Weekly claimables — icon + count badge; renders only
@@ -589,13 +624,13 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             data-testid="top-weekly-button"
             aria-label={weeklyLabel}
             onClick={() => setSheet('weekly')}
-            className="bl-panel relative flex h-[48px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1"
+            className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
           >
-            <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
-            <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
-            <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
-              <PxIcon name="crate" size={24} className="text-[#7DD0F0]" />
+            <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+              <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
+              <PxIcon name="crate" size={20} className="text-[#7DD0F0]" />
             </span>
+            <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
           </button>
         )}
       </div>
@@ -616,7 +651,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
               : `Sold — ${soldAnnouncement.count} items, +${soldAnnouncement.totalProceeds.toLocaleString()} credits. Opens your market trade history.`
           }
           onClick={openSold}
-          className="bl-panel relative mb-3 flex min-h-[40px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
+          className="bl-panel relative flex min-h-[40px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
         >
           <ClaimPulse color={SOLD_ACCENT} testId="announce-sold-pulse" />
           <PxIcon name="coin" size={15} />
@@ -649,7 +684,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
               : `Bench ready — ${benchAnnouncement.count} jobs finished. Opens the Workshop.`
           }
           onClick={openBench}
-          className="bl-panel relative mb-3 flex min-h-[40px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
+          className="bl-panel relative flex min-h-[40px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
         >
           <ClaimPulse color={BENCH_ACCENT} testId="announce-bench-pulse" />
           <PxIcon name="anvil" size={15} />
@@ -678,7 +713,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="announce-points-chip"
           aria-label={`Skill points — ${unspentSkillPoints} unspent. Opens Hunter, Skill Trees.`}
           onClick={openSkillPoints}
-          className="bl-panel relative mb-3 flex min-h-[44px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
+          className="bl-panel relative flex min-h-[44px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
         >
           <ClaimPulse color="#FF9000" testId="announce-points-pulse" />
           <PxIcon name="nodes" size={15} />

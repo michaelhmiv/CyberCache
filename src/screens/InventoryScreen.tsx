@@ -144,7 +144,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
   };
 
   return (
-    <div className="bl-page space-y-4 pb-20">
+    <div className="bl-page space-y-2 pb-20">
       <div className="px-4 pt-3">
         <ResourceBar onOpenSettings={() => onNavigate('settings')} />
       </div>
@@ -156,7 +156,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
           former Items stop), then the Workshop status strip at the
           foot. Gear holds what the player owns; the bench itself
           lives on Home. */}
-      <div className="space-y-4">
+      <div className="space-y-2">
         <div id="gear-loadout-section">
           <SyncedLoadoutScreen
             pickerRequest={pickerRequest}
