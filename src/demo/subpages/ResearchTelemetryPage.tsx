@@ -504,14 +504,14 @@ const FacultyModule: React.FC<{
       header={
         <>
           <Lamp color={faculty.color} lit={anySignal} />
-          <span className="text-[11px] font-bold tracking-[0.14em]" style={{ ...MONO, color: faculty.color }}>
+          <span className="shrink-0 whitespace-nowrap text-[11px] font-bold tracking-[0.14em]" style={{ ...MONO, color: faculty.color }}>
             {CHANNEL(channelIndex)}
           </span>
           <span className="text-[19px] uppercase leading-none" style={{ ...titleStyle, color: INK }}>
             {faculty.name}
           </span>
           <span className="flex-1" />
-          <span className="text-right text-[11px] font-bold leading-tight tracking-[0.08em]" style={MONO}>
+          <span className="shrink-0 whitespace-nowrap text-right text-[11px] font-bold leading-tight tracking-[0.08em]" style={MONO}>
             <span style={{ color: INK }}>LOGGED {done}/3</span>
             <br />
             <span style={{ color: INK_FAINT }}>SUNK {sunk.toLocaleString()} CR</span>
