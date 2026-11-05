@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
-import { Element, Rarity } from '@/types/game';
+import { DropSource, Element, Rarity } from '@/types/game';
 import type { Shield } from '@/types/items';
 import type { ShieldBehaviorId } from '@/lib/combat/shieldBehaviors';
 import { PixelGear } from '@/components/pixelArt/PixelGear';
@@ -53,7 +53,7 @@ const makeShield = (over: Partial<Shield> = {}): Shield => ({
   mitigation: 0.2,
   element: Element.Fire,
   affixes: [],
-  sourceTag: 'World Drop',
+  sourceTag: DropSource.WorldDrop,
   isLocked: false,
   pixelSeed: 67890,
   behavior: 'nova',

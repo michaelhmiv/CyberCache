@@ -243,7 +243,7 @@ describe('service-board parity — repair board browse + requirements', () => {
     expect(req.blockers).toEqual([]);
     // MECH: mastery Lv 1 → efficiency 1.0, rate 20 pts/h.
     // 60 points ÷ 30 per 100% Patch Kit = 2 kits; 60 ÷ 20 = 3h.
-    const patch = (req.kitOptions as Job[]).find((o) => o.kitType === 'PatchKit')!;
+    const patch = (req.kitOptions as unknown as Job[]).find((o) => o.kitType === 'PatchKit')!;
     expect(patch.onHand).toBe(6);
     expect(patch.estimatedKits).toBe(2);
     expect(patch.coversTarget).toBe(true);
@@ -253,7 +253,7 @@ describe('service-board parity — repair board browse + requirements', () => {
   it('kit estimates walk the reader batches worst-first, not best-first', async () => {
     const view = await getBoard('repair', h.tokens[RINGER]);
     const req = jobById(view, J4).requirements;
-    const patch = (req.kitOptions as Job[]).find((o) => o.kitType === 'PatchKit')!;
+    const patch = (req.kitOptions as unknown as Job[]).find((o) => o.kitType === 'PatchKit')!;
     expect(patch.onHand).toBe(2);
     // Worst-first: 100% kit yields 30 (< 40), then the 150% kit
     // yields 45 → 2 kits. Best-first would claim 1 (45 ≥ 40).
@@ -266,7 +266,7 @@ describe('service-board parity — repair board browse + requirements', () => {
     const req = jobById(view, J1).requirements;
     expect(req.canTake).toBe(false);
     expect(req.blockers).toContain('no_supply');
-    const patch = (req.kitOptions as Job[]).find((o) => o.kitType === 'PatchKit')!;
+    const patch = (req.kitOptions as unknown as Job[]).find((o) => o.kitType === 'PatchKit')!;
     expect(patch.onHand).toBe(0);
     expect(patch.estimatedKits).toBeNull();
     expect(patch.coversTarget).toBe(false);

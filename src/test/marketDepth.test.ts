@@ -178,7 +178,7 @@ describe('listingQuery — the browse fold', () => {
     sellerId: S, sellerType: 'player', kind: 'gear', category: 'weapon',
     displayName: 'Item', weaponType: 'Pistol', element: 'Fire', rarity: 'Rare',
     itemLevel: 5, price: 1000, quantity: 1, unitPrice: 1000, qualityPercent: null,
-    consumableType: null, materialId: null, identityKey: 'k', listedAt: 1000,
+    consumableType: null, materialId: null, essenceId: null, partId: null, tintPaletteId: null, identityKey: 'k', listedAt: 1000,
     ...over,
   });
   const rows = [

@@ -23,7 +23,6 @@ const makeMonster = (overrides: Partial<MonsterDef> = {}): MonsterDef => ({
   hp: 100,
   accuracy: 0.90,
   element: null as unknown as Element,
-  tier: 1,
   unlockLevel: 1,
   ...overrides,
 });
