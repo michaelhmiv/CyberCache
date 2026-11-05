@@ -40,7 +40,16 @@ function useMyRanks(period: LeaderboardPeriod, nonce: number): MyRankMap {
   const [ranks, setRanks] = useState<MyRankMap>({});
   useEffect(() => {
     let cancelled = false;
-    Promise.all(ALL_METRICS.map((m) => getMyLeaderboardRank(m, period)))
+    Promise.all(ALL_METRICS.map(async (m) => {
+      // The service folds failures to null; the try also covers a
+      // synchronously-throwing transport (and bare-factory mocks in
+      // screen tests, which lack this export entirely).
+      try {
+        return await getMyLeaderboardRank(m, period);
+      } catch {
+        return null;
+      }
+    }))
       .then((results) => {
         if (cancelled) return;
         const next: MyRankMap = {};

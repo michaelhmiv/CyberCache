@@ -20,7 +20,6 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
 import { resolveLookView } from '@/lib/pixel/lookResolution';
 import {
-  LEADERBOARD_METRIC_UNITS,
   formatLeaderboardValue,
   type LeaderboardEntry,
   type LeaderboardMetric,
@@ -63,6 +62,25 @@ const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
 
 /** Trend as an instrument delta: LED state + signed percent of the
  *  real previous_value/trend payload fields. Never a rank delta. */
+/**
+ * The channel unit words, printed beside values and in the board's
+ * column header. Mirrors LEADERBOARD_METRIC_UNITS in the service —
+ * kept local because screen tests mock the service with a bare
+ * factory (functions only), and the header renders unconditionally.
+ */
+const METRIC_UNIT_LABEL: Record<LeaderboardMetric, string> = {
+  level: 'Lv',
+  xp_total: 'XP',
+  net_worth: 'credits',
+  kills: 'kills',
+  kd_ratio: 'K/D',
+  boss_kills: 'boss kills',
+  mastery_xp_total: 'mastery XP',
+  mastery_level_total: 'mastery Lv',
+  legendary_drops: 'legendaries',
+  items_found: 'items',
+};
+
 const DeltaReadout: React.FC<{ trend: number; hasPrior: boolean }> = ({ trend, hasPrior }) => {
   if (!hasPrior) {
     return (
@@ -190,7 +208,7 @@ const BoardRow: React.FC<{
       <span className="flex shrink-0 flex-col items-end gap-1">
         <span className="font-bold leading-none" style={{ ...monoStyle, fontSize: 16, color: INK }}>
           {formatLeaderboardValue(metric, entry.value)}{' '}
-          <span style={{ fontSize: 11, color: FAINT }}>{LEADERBOARD_METRIC_UNITS[metric]}</span>
+          <span style={{ fontSize: 11, color: FAINT }}>{METRIC_UNIT_LABEL[metric]}</span>
         </span>
         <LedMeter
           ratio={ratio}
@@ -320,7 +338,7 @@ export const BoardConsole: React.FC<{
       >
         <span>RK · HUNTER · Δ</span>
         <span>
-          OUTPUT · {LEADERBOARD_METRIC_UNITS[metric].toUpperCase()} · VS LEADER
+          OUTPUT · {METRIC_UNIT_LABEL[metric].toUpperCase()} · VS LEADER
         </span>
       </div>
       <div>
@@ -375,7 +393,7 @@ export const BoardConsole: React.FC<{
           </div>
           <div className="mt-1 flex items-center gap-2">
             <span className="font-bold" style={{ ...monoStyle, fontSize: 14, color: MUT }}>
-              {formatLeaderboardValue(metric, myRank.value)} {LEADERBOARD_METRIC_UNITS[metric]}
+              {formatLeaderboardValue(metric, myRank.value)} {METRIC_UNIT_LABEL[metric]}
             </span>
             <span className="ml-auto">
               <DeltaReadout trend={myRank.trend} hasPrior={myRank.previous_value != null} />
@@ -502,7 +520,7 @@ const RaceChannel: React.FC<{
           )}
           {reward.buff_bonus > 0 && (
             <span className="font-bold" style={{ ...monoStyle, fontSize: 12, color: GREEN }}>
-              +{Math.round(reward.buff_bonus * 100)}% DROP LUCK · {reward.buff_hours}H
+              +{Math.round(reward.buff_bonus * 100)}% DROP LUCK · {`${reward.buff_hours}H`}
             </span>
           )}
         </div>
@@ -529,7 +547,7 @@ export const RaceChannels: React.FC<{
   <div id="weekly-races-card" className="scroll-mt-2">
     <Panel>
       <PanelLabel
-        label="Weekly race channels"
+        label="Weekly Races"
         right={data ? weekRangeLabel(data.week.start, data.week.ends_at).toUpperCase() : undefined}
       />
       {loading ? (
