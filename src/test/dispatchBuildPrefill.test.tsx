@@ -92,6 +92,7 @@ import { DispatchPanel } from '@/components/dispatch/DispatchPanel';
 import { computeBuildPrefill } from '@/lib/dispatch/buildPrefill';
 import {
   useLoadoutPresetsStore,
+  DEFAULT_BUILD_ICON,
   type LoadoutPreset,
 } from '@/store/slices/loadoutPresetsSlice';
 import type {
@@ -159,6 +160,7 @@ function build(partial: Partial<LoadoutPreset> & { slots: Record<LoadoutSlot, st
     createdAt: 1,
     updatedAt: 1,
     ...partial,
+    icon: partial.icon ?? DEFAULT_BUILD_ICON,
   };
 }
 

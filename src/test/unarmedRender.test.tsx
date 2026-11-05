@@ -5,7 +5,8 @@ import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
 import { composePartSet } from '@/lib/pixel/partsCompositor';
 import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import { headPartForVariant, hunterPartSet } from '@/lib/pixel/headParts';
-import { blit, newCanvas, type RgbaImage } from '@/lib/pixel/sceneRenderer';
+import { blit, newCanvas } from '@/lib/pixel/sceneRenderer';
+import type { RgbaImage } from '@/lib/pixel/pngCodec';
 import { PARTS_FEET_X, SKELETON } from '@/lib/pixel/parts';
 import { decodePng } from '@/lib/pixel/pngCodec';
 import sprites from '@/assets/pixel/manifest.json';
@@ -164,11 +165,11 @@ const TEST_WEAPON: Weapon = {
     { slot: 'Chamber', modifier: { fireRate: 0.98 } },
   ],
   pixelSeed: 42,
-} as Weapon;
+} as unknown as Weapon;
 
 describe('LiveTurfDiorama — unarmed hunter + slot audit', () => {
   it('roaming with NO weapon: part set unarmed, no held weapon, and every empty slot renders absent', () => {
-    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} activityKind="roaming_loot" reducedMotion />);
+    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} playerLevel={5} equippedCount={0} activityKind="roaming_loot" />);
     const hunter = screen.getByTestId('pixel-hunter');
     expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
     expect(hunter.getAttribute('data-armed')).toBe('false');
@@ -182,7 +183,7 @@ describe('LiveTurfDiorama — unarmed hunter + slot audit', () => {
   });
 
   it('roaming WITH a weapon: same part set, armed, compositor weapon (equipped path unchanged)', () => {
-    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={TEST_WEAPON} activityKind="roaming_loot" reducedMotion />);
+    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={TEST_WEAPON} playerLevel={5} equippedCount={1} activityKind="roaming_loot" />);
     const hunter = screen.getByTestId('pixel-hunter');
     expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
     expect(hunter.getAttribute('data-armed')).toBe('true');
@@ -190,7 +191,7 @@ describe('LiveTurfDiorama — unarmed hunter + slot audit', () => {
   });
 
   it('idle with NO weapon: the relaxed part set instead of any baked-gun sprite', () => {
-    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} activityKind="idle_standby" reducedMotion />);
+    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} playerLevel={5} equippedCount={0} activityKind="idle_standby" />);
     const hunter = screen.getByTestId('pixel-hunter');
     expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
     expect(hunter.getAttribute('data-armed')).toBe('false');
@@ -199,7 +200,7 @@ describe('LiveTurfDiorama — unarmed hunter + slot audit', () => {
   });
 
   it('idle WITH a weapon: part set + the equipped weapon (no whole-sprite path)', () => {
-    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={TEST_WEAPON} activityKind="idle_standby" reducedMotion />);
+    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={TEST_WEAPON} playerLevel={5} equippedCount={1} activityKind="idle_standby" />);
     const hunter = screen.getByTestId('pixel-hunter');
     expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
     expect(hunter.getAttribute('data-armed')).toBe('true');

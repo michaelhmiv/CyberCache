@@ -5,11 +5,11 @@ import { useIdleStore } from '@/store/slices/idleSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { useMarketStore } from '@/store/slices/marketSlice';
-import { usePlayerStore } from '@/store/slices/playerSlice';
+import { usePlayerStore, type PlayerState } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useKillCycleStore } from '@/store/slices/killCycleSlice';
-import { useWorkshopStore } from '@/store/slices/workshopSlice';
+import { useWorkshopStore, type WorkshopState } from '@/store/slices/workshopSlice';
 import { useLoadoutPresetsStore } from '@/store/slices/loadoutPresetsSlice';
 import { RiskSetting, DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { GearItem, Weapon } from '@/types/items';
@@ -77,7 +77,7 @@ describe('runtime display snapshots are not economy authority', () => {
       consumables: { MedKit: 1 },
       materials: { Scrap: 3 },
       essences: { VoidEssence: 4 },
-    });
+    } as unknown as Partial<PlayerState>);
     useInventoryStore.setState({ items: [serverItem] });
     useBossStore.setState({
       unlockedBossIds: ['dune_tyrant'],
@@ -86,7 +86,7 @@ describe('runtime display snapshots are not economy authority', () => {
       attemptHistory: [{ bossId: 'server_boss', victory: true } as never],
     });
     useSkillStore.setState({ spent: { server_skill: 1 } });
-    useWorkshopStore.setState({ unlockedBenchCount: 1, activeQueues: [] });
+    useWorkshopStore.setState({ unlockedBenchCount: 1, activeQueues: [] } as unknown as Partial<WorkshopState>);
     useMarketStore.setState({
       listings: [{ id: 'server-listing', itemSnapshot: serverItem } as never],
       history: [{ id: 'server-history' } as never],
@@ -161,7 +161,7 @@ describe('runtime display snapshots are not economy authority', () => {
     expect(useBossStore.getState().pityCounters).toEqual({ dune_tyrant: 2 });
     expect(useBossStore.getState().attemptHistory).toHaveLength(1);
     expect(useSkillStore.getState().spent).toEqual({ server_skill: 1 });
-    expect(useWorkshopStore.getState().unlockedBenchCount).toBe(1);
+    expect((useWorkshopStore.getState() as unknown as { unlockedBenchCount: number }).unlockedBenchCount).toBe(1);
     expect(useMarketStore.getState().listings.map((listing) => listing.id)).toEqual(['server-listing']);
     expect(useMarketStore.getState().history.map((entry) => entry.id)).toEqual(['server-history']);
 

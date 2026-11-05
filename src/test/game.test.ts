@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { simulateBoss } from '../lib/simulation/bossSimulator';
 import { BossDef } from '../types/boss';
 import { Weapon, Shield } from '../types/items';
-import { RiskSetting, Element } from '../types/game';
+import { DropSource, Manufacturer, Rarity, RiskSetting, Element, WeaponType } from '../types/game';
 import { REGION_1_BOSSES } from '../constants/bosses';
 import { DUSTWASTE_ZONES } from '../constants/zones';
 
@@ -29,6 +29,8 @@ const testBoss: BossDef = {
   entryCost: 0,
   rematchCost: 100,
   dropTable: [],
+  tags: [],
+  phases: [],
   dedicatedDrops: [],
 };
 
@@ -36,9 +38,9 @@ const testWeapon: Weapon = {
   id: 'test_primary',
   name: 'Test Pistol',
   level: 5,
-  rarity: 'Common',
-  weaponType: 'Pistol',
-  manufacturer: 'Redline',
+  rarity: Rarity.Common,
+  weaponType: WeaponType.Pistol,
+  manufacturer: Manufacturer.Redline,
   element: Element.Kinetic,
   rollQuality: 50,
   baseDamage: 20,
@@ -56,7 +58,7 @@ const testWeapon: Weapon = {
   scrapYieldMod: 0,
   parts: [],
   affixes: [],
-  sourceTag: 'World Drop',
+  sourceTag: DropSource.WorldDrop,
   isLocked: false,
   pixelSeed: 12345,
   combatPower: 100,
@@ -69,13 +71,13 @@ const testShield: Shield = {
   id: 'test_shield',
   name: 'Test Shield',
   level: 5,
-  rarity: 'Common',
+  rarity: Rarity.Common,
   hp: 200,
   rechargeRate: 5,
   mitigation: 0.2,
   element: Element.Kinetic,
   affixes: [],
-  sourceTag: 'World Drop',
+  sourceTag: DropSource.WorldDrop,
   isLocked: false,
   pixelSeed: 67890,
 };
@@ -236,8 +238,8 @@ describe('Loadout Slot Validity', () => {
   it('should only allow weapons in weapon slots', () => {
     // Weapon slots (primary, secondary): items with 'weaponType'
     const isValidForWeaponSlot = (item: Record<string, unknown>) => 'weaponType' in item;
-    expect(isValidForWeaponSlot(testWeapon)).toBe(true);
-    expect(isValidForWeaponSlot(testShield)).toBe(false);
+    expect(isValidForWeaponSlot(testWeapon as unknown as Record<string, unknown>)).toBe(true);
+    expect(isValidForWeaponSlot(testShield as unknown as Record<string, unknown>)).toBe(false);
   });
 
   it('should only allow Launcher/Shotgun in heavy slot', () => {
@@ -249,7 +251,7 @@ describe('Loadout Slot Validity', () => {
     const launcher = { ...testWeapon, weaponType: 'Launcher' };
     const shotgun = { ...testWeapon, weaponType: 'Shotgun' };
 
-    expect(isValidForHeavy(pistol)).toBe(false);
+    expect(isValidForHeavy(pistol as unknown as Record<string, unknown>)).toBe(false);
     expect(isValidForHeavy(launcher)).toBe(true);
     expect(isValidForHeavy(shotgun)).toBe(true);
   });

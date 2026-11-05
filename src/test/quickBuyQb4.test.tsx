@@ -126,7 +126,7 @@ const cosmeticsView: CosmeticsStateView = {
     id: 'part-1', partId: 'rustbucket_chest', slot: 'chest', setId: 'rustbucket',
     tier: 'crafted', name: 'Rustbucket Chestplate', quality: 72,
     tintPaletteId: null, runtimeState: 'available',
-  } as CosmeticsStateView['parts'][number]],
+  } as unknown as CosmeticsStateView['parts'][number]],
   wearableVariantIds: [],
 };
 

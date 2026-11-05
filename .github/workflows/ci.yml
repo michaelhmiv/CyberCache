@@ -85,8 +85,8 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: TypeScript (noEmit)
-        run: npx tsc --noEmit
+      - name: TypeScript (typecheck)
+        run: npm run typecheck
 
       - name: Architecture guard
         run: bash scripts/guard-architecture.sh

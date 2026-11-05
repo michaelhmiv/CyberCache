@@ -36,7 +36,7 @@ describe('Dashboard weapon logic', () => {
       ],
     });
     useLoadoutStore.setState({
-      slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
+      slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null, vehicle: null },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
 
@@ -56,7 +56,7 @@ describe('Dashboard weapon logic', () => {
     } as unknown as Weapon;
     useInventoryStore.setState({ items: [equipped] });
     useLoadoutStore.setState({
-      slots: { primary: 'w2', secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
+      slots: { primary: 'w2', secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null, vehicle: null },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
 

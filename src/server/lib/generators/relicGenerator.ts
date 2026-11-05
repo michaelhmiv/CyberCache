@@ -1,5 +1,5 @@
 import { Rarity, Manufacturer, DropSource } from '@/types/game';
-import { Relic, Affix } from '@/types/items';
+import { type Relic, type Affix } from '@/types/items';
 import { RARITIES } from '@/constants/rarities';
 import { createRNG, seededInt, seededRandom, pickWeighted, hashString } from '@/lib/utils/rng';
 import { generateItemId } from '@/lib/utils/id';

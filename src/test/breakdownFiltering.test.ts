@@ -65,7 +65,7 @@ describe('getBreakdownMetricKeys', () => {
   it('all activity key sets are <= 14 metrics (no scrollbar)', () => {
     const allKinds = Object.keys(BREAKDOWN_METRIC_KEYS) as Array<keyof typeof BREAKDOWN_METRIC_KEYS>;
     for (const kind of allKinds) {
-      const keys = BREAKDOWN_METRIC_KEYS[kind];
+      const keys = BREAKDOWN_METRIC_KEYS[kind] ?? [];
       expect(keys.length).toBeLessThanOrEqual(14);
     }
   });

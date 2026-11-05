@@ -212,6 +212,10 @@ interface PgMetricsRow {
   cache_keys_from_ads: number;
   cache_opens: number;
   cache_fragments_awarded: string;
+  cache_keys_from_roaming?: number;
+  cache_boxes_opened_free?: number;
+  cache_boxes_opened_ad?: number;
+  cache_boxes_opened_key?: number;
   craft_jobs_completed?: number;
   craft_units_completed?: number;
   craft_xp_awarded?: string;
@@ -257,6 +261,8 @@ interface PgMetricsRow {
   action_skill_fires_fixer?: number;
   cache_rank_tokens_granted?: number;
   cache_rank_tokens_spent?: number;
+  credits_minted_dispatch?: string;
+  credits_minted_courier?: string;
   credits_destroyed_dispatch_rerolls?: string;
   scrap_minted_salvage?: string;
   scrap_minted_roaming?: string;

@@ -131,7 +131,6 @@ describe('bossSimulator — chain-vs-sim parity', () => {
     const chainDps = computeWeaponDps({
       weapon: primary,
       bossWeaknesses: boss.weaknesses,
-      bossResistance: 1,
       legendaryDamageMult: 1,
     });
     // Assert within 1% of the chain × Pistol ammoEfficiency. The ammo
@@ -197,9 +196,9 @@ describe('bossSimulator — chain-vs-sim parity', () => {
     const simDps = sim.dpsScore * boss.health / 30;
     // Chain's value for the same loadout. All Kinetic-vs-Fire means
     // no match (1.0×), so each weapon's chainDps = 10.
-    const chainPrimary = computeWeaponDps({ weapon: primary, bossWeaknesses: boss.weaknesses, bossResistance: 1, legendaryDamageMult: 1 });
-    const chainSecondary = computeWeaponDps({ weapon: secondary, bossWeaknesses: boss.weaknesses, bossResistance: 1, legendaryDamageMult: 1 });
-    const chainHeavy = computeWeaponDps({ weapon: heavy, bossWeaknesses: boss.weaknesses, bossResistance: 1, legendaryDamageMult: 1 });
+    const chainPrimary = computeWeaponDps({ weapon: primary, bossWeaknesses: boss.weaknesses, legendaryDamageMult: 1 });
+    const chainSecondary = computeWeaponDps({ weapon: secondary, bossWeaknesses: boss.weaknesses, legendaryDamageMult: 1 });
+    const chainHeavy = computeWeaponDps({ weapon: heavy, bossWeaknesses: boss.weaknesses, legendaryDamageMult: 1 });
     // Per-slot modifiers: primary * ammoEfficiency, secondary * secContrib,
     // heavy * 0.5. (Secondary does NOT get ammoEfficiency in the current sim.)
     // Pistol cycle: 10s mag + 2s reload. In 30s: 20s full + 4s reload + 6s partial = 26s full + 4s reload.
@@ -230,7 +229,6 @@ describe('bossSimulator — chain-vs-sim parity', () => {
     const fromSimContext = computeWeaponDps({
       weapon,
       bossWeaknesses: [],
-      bossResistance: 1,
       legendaryDamageMult: 1,
     });
     expect(fromSimContext).toBe(standardDps);

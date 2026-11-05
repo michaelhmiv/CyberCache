@@ -25,7 +25,7 @@ import type { PlayerProfile } from '@/types/player';
 
 const player: PlayerProfile = {
   id: 'test-player', name: 'Test Hunter', level: 10, xp: 0, credits: 0, scrap: 0,
-  cacheKeys: 0, cacheKeyFragments: 0, legendaryCores: 0,
+  cacheKeys: 0, legendaryCores: 0, cacheRankTokens: 0, cacheRankSpends: {}, vehicleFuel: 0,
   currentZoneId: 'zone-1', highestZoneId: 'zone-1', offlineCapHours: 8,
   lastClaimTime: 0, deathFeeInsurance: false, consumables: {}, consumableBatches: [],
   materials: {}, essences: {}, workshopQueues: [], lastWorkshopTick: 0, lastClaimedTick: 0,
@@ -167,7 +167,7 @@ describe('buildSwapComparison', () => {
 
   it('XP moves price from the snapshot when an affix changes them', () => {
     const worn = weapon('worn-gun', {
-      affixes: [{ id: 'a1', category: 'suffix', stat: 'xpBoostMod', value: 0.1, displayText: '+10% XP Gain' }],
+      affixes: [{ id: 'a1', category: 'idle', stat: 'xpBoostMod', value: 0.1, displayText: '+10% XP Gain' }],
     });
     const candidate = weapon('candidate-gun');
     const trade = tradeFor(state({ weapons: [worn] }), 'primary', candidate, worn);

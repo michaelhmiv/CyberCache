@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { BossAttemptResult } from '../../types/boss';
 import { RiskSetting } from '../../types/game';
+import type { LoadoutConsumables } from './loadoutSlice';
 
 export type BossFightStatus = 'idle' | 'active' | 'victory' | 'defeat';
 
@@ -45,7 +46,7 @@ export interface BossState extends BossFightState {
   resetPity: (id: string) => void;
   addAttempt: (result: BossAttemptResult) => void;
   setConsumablePrep: (type: string, count: number) => void;
-  seedPrepFromBelt: (belt: Record<string, string | null>, owned: Record<string, number>) => void;
+  seedPrepFromBelt: (belt: LoadoutConsumables, owned: Record<string, number>) => void;
   setRisk: (risk: RiskSetting) => void;
   clearPrep: () => void;
   // PR 6 — live fight mutations

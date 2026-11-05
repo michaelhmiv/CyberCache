@@ -539,6 +539,8 @@ const ENGINE_LEVERS: CraftLeverValues = {
   gearTemperBaseChance: 0.05, refineBaseYield: 0.8,
   repairWorkRateBase: 20, repairMasterySpeedPerLevel: 0.02,
   repairMasteryEfficiencyPerLevel: 0.02,
+  shieldTechWorkRateBase: 500, shieldTechMasterySpeedPerLevel: 0.02,
+  shieldTechMasteryEfficiencyPerLevel: 0.02,
 };
 
 function engineHarness(opts: {
@@ -584,6 +586,11 @@ function engineHarness(opts: {
     },
     vehicleInfo: () => null,
     restoreVehicle: () => null,
+    shieldInfo: () => null,
+    applyShieldPayload: () => {},
+    insertCosmeticItem: () => 'engine-cosmetic-1',
+    cosmeticInfo: () => null,
+    applyCosmeticTint: () => {},
     levers: () => ({ ...ENGINE_LEVERS, ...(opts.levers ?? {}) }),
   };
   const enqueueInput = (over: Record<string, unknown> = {}) => ({

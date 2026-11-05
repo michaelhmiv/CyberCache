@@ -139,10 +139,13 @@ export function useOfflineResumeSettlement() {
 
       if (isDebugSettlement) {
         if (result) {
+          // Debug print only; the tick fields exist on the roaming
+          // recap member and read undefined for craft/extraction.
+          const roaming = 'ticksSettled' in result ? result : undefined;
           console.log('[useOfflineResumeSettlement] settlement complete', {
-            ticksSettled: result.ticksSettled,
-            timeAway: result.timeAway,
-            rewards: result.rewards,
+            ticksSettled: roaming?.ticksSettled,
+            timeAway: roaming?.timeAway,
+            rewards: roaming?.rewards,
           });
         } else {
           console.log('[useOfflineResumeSettlement] settlement returned null (no-op)');

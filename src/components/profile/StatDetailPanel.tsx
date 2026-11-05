@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { Sparkline } from '@/components/progression/Sparkline';
-import { getMyProgressionSnapshots, type ProgressionMetric } from '@/lib/api/progressionService';
+import { getMyProgressionSnapshots, type PlayerProgressionSnapshot, type ProgressionMetric } from '@/lib/api/progressionService';
 import { getMyLeaderboardRank, type LeaderboardMetric } from '@/lib/api/leaderboardService';
 
 const panelClip = { clipPath: 'polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)' };
@@ -30,7 +30,7 @@ export const StatDetailPanel: React.FC<StatDetailPanelProps> = ({
   color = '#FF9000',
   onViewLeaderboard,
 }) => {
-  const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
+  const [snapshots, setSnapshots] = useState<PlayerProgressionSnapshot[]>([]);
   const [rank, setRank] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,7 +51,9 @@ export const StatDetailPanel: React.FC<StatDetailPanelProps> = ({
 
   const values = useMemo(() => {
     return snapshots.map((s) => {
-      const v = s[metric];
+      // metric is a free-form key from the panel's caller; snapshots
+      // are wire records, so the read goes through a record view.
+      const v = (s as unknown as Record<string, unknown>)[metric];
       return typeof v === 'number' ? v : 0;
     });
   }, [snapshots, metric]);

@@ -53,7 +53,7 @@ export const MaterialUsageSheet: React.FC<{
                 <div className="text-[9px] uppercase tracking-wide text-text-muted">
                   {recipe.category} · needs {materialId === 'Scrap' ? resolvedScrapCost(recipe, recipeScrapCosts) : recipe.inputs[materialId]} × {label} ·{' '}
                   {recipe.kind === 'refine'
-                    ? `refines to ${getVisualAsset('material', recipe.outputMaterial).label}`
+                    ? `refines to ${getVisualAsset('material', recipe.outputMaterial ?? '').label}`
                     : recipe.kind === 'gear'
                       ? recipe.namedRelic
                         ? 'named relic'

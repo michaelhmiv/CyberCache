@@ -43,7 +43,7 @@ describe('danger input chain', () => {
 
   it('the repaired starter in the primary slot prices real DPS and Dustwaste is not lethal', () => {
     const row = {
-      item_id: 'starter-row',
+      id: 'starter-row',
       payload: buildStarterWeaponPayload('starter-row'),
       runtime_state: 'equipped',
     };

@@ -23,10 +23,11 @@
  * shown rather than estimated (the LifetimeStatsPanel discipline).
  */
 import React, { useEffect, useState } from 'react';
-import { fetchProfileLifetime, type ProfileLifetimePayload } from '@/lib/api/verifiedOps';
+import { fetchProfileLifetime, type PartialProfileLifetimePayload, type ProfileLifetimePayload } from '@/lib/api/verifiedOps';
 import type { PlayerPublicStats } from '@/lib/api/statsService';
 import type { ProgressionMetric } from '@/lib/api/progressionService';
 import type { LeaderboardMetric } from '@/lib/api/leaderboardService';
+import type { DeathLogEntry } from '@/store/slices/survivalSlice';
 import { NAMED_ELITES, COLLECTION_TOTAL } from '@/content/collections';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
@@ -98,7 +99,7 @@ export interface ProfileRecordTelemetryProps {
   stats: PlayerPublicStats | null;
   kdText: string;
   kdRatio: number | null;
-  deathLog: Array<{ monsterName: string; areaId: string; at: string }>;
+  deathLog: DeathLogEntry[];
   /** Collection facts the old Collection Patch card derived from the live inventory. */
   totalItemsFallback: number;
   weaponsCountFallback: number;
@@ -142,7 +143,7 @@ function sortedEntries(map: Record<string, number> | null | undefined): Array<[s
  * screen: older Chef builds omit whole blocks — every section is
  * filled with its empty shape before anything reads it.
  */
-function withLifetimeDefaults(data: ProfileLifetimePayload): ProfileLifetimePayload {
+function withLifetimeDefaults(data: PartialProfileLifetimePayload): ProfileLifetimePayload {
   return {
     kills: {
       roaming: 0, elites: 0, named_elites_downed: 0,
@@ -191,7 +192,7 @@ const channelTotal = (entries: Array<[string, number]>): number => entries.reduc
 
 const hours = (seconds: number): string => `${Math.round((seconds ?? 0) / 3600)} H`;
 
-const daysAgo = (iso: string): string => {
+const daysAgo = (iso: string | number): string => {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
   const days = Math.max(0, Math.floor((Date.now() - then) / 86_400_000));

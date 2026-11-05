@@ -33,11 +33,12 @@ vi.mock('@/store/combatStatsSupabaseSync', () => ({
 const resetStores = () => {
   usePlayerStore.setState(usePlayerStore.getInitialState(), true);
   useInventoryStore.setState(useInventoryStore.getInitialState(), true);
-  useSurvivalStore.setState({ currentHp: 700, maxHp: 700, isDead: false, shieldHp: 0 }, true);
+  useSurvivalStore.setState({ currentHp: 700, maxHp: 700, isDead: false, shieldHp: 0 } as unknown as Parameters<typeof useSurvivalStore.setState>[0], true);
   useTickFeedStore.setState({ events: [] });
   useActivityStore.setState({
     current: {
       kind: 'roaming_loot',
+      bossPhase: 'prep',
       targetType: 'roaming_area',
       targetId: 'dustwaste_frontier',
       targetLabel: 'Dustwaste Frontier',
@@ -138,6 +139,7 @@ describe('Active roaming — ticker is single source of truth', () => {
     useActivityStore.setState({
       current: {
         kind: 'idle_standby',
+        bossPhase: 'prep',
         targetType: null,
         targetId: null,
         targetLabel: null,

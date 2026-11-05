@@ -151,7 +151,7 @@ describe('class-mod marriage — registration + dispatch', () => {
     // relic form is keyed to it.
     const relic: Relic = {
       id: 'test_relic', name: 'Echo Stone', level: 5, rarity: Rarity.Rare,
-      affixes: [], sourceTag: 'World Drop', isLocked: false,
+      affixes: [], sourceTag: DropSource.WorldDrop, isLocked: false,
     };
     const { container } = render(<GearIllustration item={relic} size="card" showBadges={false} />);
     expect(container.querySelector('svg')).toBeNull();

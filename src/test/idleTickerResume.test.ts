@@ -106,7 +106,7 @@ describe('idleTickerSlice — foreground resume', () => {
     mockSubmitClaim.mockResolvedValue(landedWithEvents());
     useSurvivalStore.setState({ currentHp: 700, maxHp: 700, shieldHp: 0, isDead: false });
     useLoadoutStore.setState({
-      slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
+      slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null, vehicle: null },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
     usePlayerStore.setState({ id: 'player_1', level: 10, lastClaimedTick: 0, credits: 500 });

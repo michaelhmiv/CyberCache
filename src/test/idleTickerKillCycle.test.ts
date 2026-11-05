@@ -79,7 +79,7 @@ const emptyClaimResult = (): ChefClaimResult => ({
     creditsAwarded: 0,
     scrapAwarded: 0,
     xpAwarded: 0,
-    cacheFragmentsAwarded: 0,
+    cacheKeysAwarded: 0,
     materials: {},
     essences: {},
     killsRecorded: 0,
@@ -114,7 +114,7 @@ const resetStores = () => {
     targetSpawnedAt: null,
   });
   useLoadoutStore.setState({
-    slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
+    slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null, vehicle: null },
     consumables: { PreFight: null, MidFight: null, Emergency: null },
   });
   usePlayerStore.setState({ id: 'player_1', level: 1, consumables: {}, xp: 0 });

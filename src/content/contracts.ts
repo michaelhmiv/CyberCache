@@ -479,7 +479,7 @@ export interface ContractReward {
 
 /** The frozen reward for a drawn template at issuance. */
 export function contractRewardFor(
-  template: ContractTemplate,
+  _template: ContractTemplate,
   kind: ContractPeriodKind,
   band: ContractBand,
   levers: ContractLeverValues,

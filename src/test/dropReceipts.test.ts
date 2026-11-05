@@ -322,7 +322,7 @@ describe('AL-1 drop receipts', () => {
       expect(res.status).toBe(200);
       if (res.json.victory === true) {
         winningNonce = nonce;
-        winningItems = (res.json.items ?? []) as Array<Record<string, unknown>>;
+        winningItems = (res.json.items ?? []) as unknown as Array<Record<string, unknown>>;
       }
     }
     expect(winningNonce).toBeGreaterThan(0);
@@ -383,7 +383,7 @@ describe('AL-1 drop receipts', () => {
         skillBonuses: {},
       });
       if (outcome.result.victory && outcome.items.length > 0) {
-        stamped = outcome.items as Array<Record<string, unknown>>;
+        stamped = outcome.items as unknown as unknown as Array<Record<string, unknown>>;
       }
     }
     expect(stamped.length).toBeGreaterThan(0);
@@ -474,8 +474,8 @@ describe('AL-1 drop receipts', () => {
       source: 'roam',
       maxTicks: 400,
     });
-    const first = await processRoamingClaim(request(400), undefined);
-    const second = await processRoamingClaim(request(400), undefined);
+    const first = await processRoamingClaim(request(400));
+    const second = await processRoamingClaim(request(400));
     // Everything except the receipt fields themselves is the outcome:
     // rewards, item kinds, rarities, stats, values. Storage identity
     // (id) and the presentation seed (pixelSeed) are randomUUID-derived
@@ -498,7 +498,7 @@ describe('AL-1 drop receipts', () => {
       xp: r.rewards.xpAwarded,
       kills: r.rewards.killsRecorded,
       items: r.items.map((item) => {
-        const { foundVia, foundContext, foundEnemy, dropOdds, ...identity } = item as Record<
+        const { foundVia, foundContext, foundEnemy, dropOdds, ...identity } = item as unknown as Record<
           string,
           unknown
         >;
@@ -512,7 +512,7 @@ describe('AL-1 drop receipts', () => {
     expect(outcome(second)).toEqual(outcome(first));
     // And the fat claim really did stamp its drops (400 ticks).
     expect(first.items.length).toBeGreaterThan(5);
-    for (const item of first.items as Array<Record<string, unknown>>) {
+    for (const item of first.items as unknown as Array<Record<string, unknown>>) {
       expect(['roam', 'event']).toContain(item.foundVia);
       expect(item.dropOdds).toBeDefined();
     }

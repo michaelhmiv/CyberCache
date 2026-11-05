@@ -95,7 +95,7 @@ describe('mechanics foundation validation', () => {
   });
 
   it('keeps crafting recipes linked to defined consumables', () => {
-    const consumableIds = new Set(Object.values(CONSUMABLES).map((item) => item.id));
+    const consumableIds = new Set<string>(Object.values(CONSUMABLES).map((item) => item.id));
     expect(uniqueCount(CRAFTING_RECIPES.map((recipe) => recipe.id))).toBe(CRAFTING_RECIPES.length);
 
     for (const recipe of CRAFTING_RECIPES) {

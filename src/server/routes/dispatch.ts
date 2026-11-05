@@ -54,7 +54,7 @@ export type DispatchConfig = AuthConfig & {
 async function dispatchLevers(config: DispatchConfig): Promise<DispatchLeverValues> {
   if (!config.economyConfig) return resolveDispatchLevers();
   const values = await config.economyConfig.snapshot();
-  return resolveDispatchLevers(values);
+  return resolveDispatchLevers(values as unknown as Record<string, unknown>);
 }
 
 function nowOf(config: DispatchConfig): Date {

@@ -63,7 +63,10 @@ export const GEAR_CARD_PLATES: Record<GearKindId, { width: number; height: numbe
 export const GEAR_THUMB_DIVISOR = 4;
 
 export type GearShade =
-  | 'K' | 'k' | 'D' | 'd' | 'P' | 'p' | 'L' | 'W' | 'T' | 'E' | 'e' | 'c' | 'F' | 'f';
+  | 'K' | 'k' | 'D' | 'd' | 'P' | 'p' | 'L' | 'W' | 'T' | 'E' | 'e' | 'c' | 'F' | 'f'
+  // '.' is the empty/erase cell (grids initialize to it; set(x, y, '.')
+  // punches a cell back out — edge chips bite silhouettes with it).
+  | '.';
 
 export interface GearRender {
   width: number;

@@ -14,7 +14,7 @@
  */
 
 import type { GearItem } from '@/types/items';
-import type { ActivityKind } from '@/types/activity';
+import type { ActivityKindWithBossPrep } from '@/types/activity';
 
 /**
  * Flat modifier record. Keys are sub-stat names from the module definitions
@@ -39,7 +39,7 @@ export interface ActivityModifiers {
  */
 export function sumActivityModifier(
   gear: GearItem[],
-  activity: ActivityKind,
+  activity: ActivityKindWithBossPrep,
 ): ActivityModifiers {
   const mods: ActivityModifiers = {};
 
@@ -74,17 +74,17 @@ export function sumActivityModifier(
  * Sum activity modifiers for ALL activity kinds at once.
  * Used by the Action tab to show which activities are boosted.
  *
- * Returns a Map of ActivityKind → ActivityModifiers. Activities with no
+ * Returns a Map of ActivityKindWithBossPrep → ActivityModifiers. Activities with no
  * contributions still get an entry (empty object).
  */
 export function sumAllActivityModifiers(
   gear: GearItem[],
-): Map<ActivityKind, ActivityModifiers> {
-  const activities: ActivityKind[] = [
+): Map<ActivityKindWithBossPrep, ActivityModifiers> {
+  const activities: ActivityKindWithBossPrep[] = [
     'crafting', 'salvaging', 'market_listing', 'workshop_service',
     'roaming_loot', 'idle_standby', 'boss_prep', 'boss_fight',
   ];
-  const result = new Map<ActivityKind, ActivityModifiers>();
+  const result = new Map<ActivityKindWithBossPrep, ActivityModifiers>();
   for (const act of activities) {
     result.set(act, sumActivityModifier(gear, act));
   }

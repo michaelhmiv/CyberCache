@@ -309,7 +309,7 @@ export function applyRuntimeDisplaySnapshot(snapshot: RuntimeStoreSnapshot): voi
         isDead: typeof survival.isDead === 'boolean' ? survival.isDead : state.isDead,
         lastKilledBy: survival.lastKilledBy === null
           ? null
-          : objectValue<SurvivalSnapshot['deathLog'][number]>(survival.lastKilledBy) ?? state.lastKilledBy,
+          : (objectValue<SurvivalSnapshot['deathLog'][number]>(survival.lastKilledBy) as SurvivalSnapshot['lastKilledBy']) ?? state.lastKilledBy,
         deathLog: arrayValue<SurvivalSnapshot['deathLog'][number]>(survival.deathLog) ?? state.deathLog,
         resurrectionStartedAt: typeof survival.resurrectionStartedAt === 'number' || survival.resurrectionStartedAt === null
           ? survival.resurrectionStartedAt : state.resurrectionStartedAt,

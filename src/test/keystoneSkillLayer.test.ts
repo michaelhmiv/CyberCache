@@ -471,8 +471,6 @@ describe('Procedural Loads (statusChance small node)', () => {
 // ---------------------------------------------------------------------------
 
 describe('Chef roaming claim — Scavenger Quantity (lootQuantity)', () => {
-  const fakeSupabase = {} as Parameters<typeof processRoamingClaim>[1];
-
   function claim(skillBonuses: Record<string, number>) {
     return processRoamingClaim(
       {
@@ -484,7 +482,6 @@ describe('Chef roaming claim — Scavenger Quantity (lootQuantity)', () => {
         idleMods: { offlineEarningsMod: 0, scrapYieldMod: 0, rareDropChanceMod: 0 },
         skillBonuses,
       },
-      fakeSupabase,
     );
   }
 

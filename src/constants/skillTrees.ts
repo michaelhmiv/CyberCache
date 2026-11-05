@@ -1,5 +1,5 @@
 import { SkillTreeType } from '../types/game';
-import { SkillNode } from '../types/skill';
+import { type SkillNode } from '../types/skill';
 
 export const SKILL_NODES: SkillNode[] = [
   // ========== GUNSLINGER TREE ==========

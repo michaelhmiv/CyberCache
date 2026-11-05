@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.server.json",
     "golden:update": "tsx --tsconfig tsconfig.app.json scripts/render-overhaul-samples.ts --baselines",
     "wiki:gen": "tsx --tsconfig tsconfig.app.json scripts/wiki-gen/generate-all.ts",
     "wiki:gen:check": "tsx --tsconfig tsconfig.app.json scripts/wiki-gen/generate-all.ts --check",

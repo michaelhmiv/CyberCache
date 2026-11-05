@@ -93,7 +93,7 @@ function makeRelic(over: Partial<Relic> = {}): Relic {
   return {
     id: 'r-1', name: 'Echo Stone', level: 5, rarity: Rarity.Rare,
     affixes: [
-      { id: 'ra1', category: 'economy', stat: 'xpBoostMod', value: 0.2, displayText: '+20% XP Gain' },
+      { id: 'ra1', category: 'idle', stat: 'xpBoostMod', value: 0.2, displayText: '+20% XP Gain' },
     ],
     sourceTag: DropSource.WorldDrop, isLocked: false,
     ...over,

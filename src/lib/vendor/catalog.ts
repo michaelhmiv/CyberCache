@@ -40,7 +40,7 @@
  * here and the 0009/0010 remainder columns are never touched.
  */
 import { CONSUMABLES } from '../../constants/consumables';
-import type { ConsumableDef } from '../../types/consumables';
+import type { ConsumableDef } from '../../constants/consumables';
 import { EssenceType, MaterialType } from '../../types/game';
 import { hashString } from '../utils/rng';
 
@@ -94,7 +94,7 @@ export const VENDOR_MATERIALS: VendorMaterialEntry[] = [
 ];
 
 const MATERIAL_BY_ID = new Map(VENDOR_MATERIALS.map((m) => [m.id, m]));
-const CONSUMABLE_BY_ID = new Map(Object.values(CONSUMABLES).map((c) => [c.id, c]));
+const CONSUMABLE_BY_ID = new Map<string, ConsumableDef>(Object.values(CONSUMABLES).map((c) => [c.id, c]));
 
 /** The staple consumable defs — always stocked, flat 100% quality. */
 export const VENDOR_STAPLE_DEFS: ConsumableDef[] = Object.values(CONSUMABLES).filter(
@@ -112,8 +112,8 @@ export const VENDOR_ROTATION_DEFS: ConsumableDef[] = Object.values(CONSUMABLES).
   (c) => !c.market.vendorStocked && c.market.playerMarketAllowed && !c.market.vendorExcluded,
 );
 
-const STAPLE_IDS = new Set(VENDOR_STAPLE_DEFS.map((c) => c.id));
-const ROTATION_IDS = new Set(VENDOR_ROTATION_DEFS.map((c) => c.id));
+const STAPLE_IDS = new Set<string>(VENDOR_STAPLE_DEFS.map((c) => c.id));
+const ROTATION_IDS = new Set<string>(VENDOR_ROTATION_DEFS.map((c) => c.id));
 
 /** UTC date key (YYYY-MM-DD) — the rotation seed domain. */
 export function vendorDateKey(date: Date): string {

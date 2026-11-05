@@ -93,7 +93,7 @@ export function GearTradeTape({ candidate, boss }: { candidate: GearItem; boss?:
   // Buff expiries are the only clock-driven input; key the memo on
   // their values so the state hook's 1-second tick does not
   // recompute the trade while the sheet sits open.
-  const buffKey = state.activeBuffs.map((buff) => buff.expiresAt).join(',');
+  const buffKey = (state.activeBuffs ?? []).map((buff) => buff.expiresAt).join(',');
 
   const trade = useMemo((): { comparison: SwapComparison; currentItem: GearItem | undefined } | null => {
     const resolved = resolveTradeSlot(state, candidate);

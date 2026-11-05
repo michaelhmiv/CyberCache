@@ -171,8 +171,8 @@ export const CharacterStatBarBody = memo(function CharacterStatBarBody({
             tabIndex={0}
             aria-label={`Clear activity override (currently viewing ${effectiveKind}) and follow current activity`}
             data-testid="hud-activity-override"
-            onClick={(e) => { e.stopPropagation(); onChangeOverride(null); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onChangeOverride(null); } }}
+            onClick={(e) => { e.stopPropagation(); onChangeOverride?.(null); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onChangeOverride?.(null); } }}
             className={`flex cursor-pointer items-center gap-1 text-amber ${embedded ? 'text-[11px] normal-case tracking-normal' : ''}`}
           >
             <span>viewing: {effectiveKind}</span>

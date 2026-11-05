@@ -57,7 +57,7 @@ import { useLoadoutPresetsStore, resolveBuildIcon } from '@/store/slices/loadout
 import { SKILL_NODES } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import type { GearItem, Weapon, Shield as ShieldItem, ClassMod, Relic, Ordnance } from '@/types/items';
-import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
+import type { GearLoadoutSlot, LoadoutSlot } from '@/store/slices/loadoutSlice';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 
@@ -200,7 +200,7 @@ const SlotChip: React.FC<{
 // these components only render it. Every block is the slot's picker
 // door — the same tap the constellation chips carried.
 
-const BLOCK_ICONS: Record<LoadoutSlot, PxIconName> = {
+const BLOCK_ICONS: Record<GearLoadoutSlot, PxIconName> = {
   primary: 'rings',
   secondary: 'rings',
   heavy: 'rings',

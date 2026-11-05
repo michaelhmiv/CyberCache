@@ -75,7 +75,7 @@ describe('syncRuntimeItemsForUser', () => {
     ]);
     useInventoryStore.setState({ items: [] });
     useLoadoutStore.setState({
-      slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null },
+      slots: { primary: null, secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null, vehicle: null },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
   });

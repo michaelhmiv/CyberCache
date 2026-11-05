@@ -41,6 +41,7 @@ import {
 } from '@/store';
 import { RESURRECTION_FREE_TIMER_MS, resurrectionCostForArea } from '@/lib/combat/resurrectionCost';
 import { resurrectViaChef, type ChefResurrectResult } from '@/lib/chef/chefClient';
+import type { ActiveActivity } from '@/types/activity';
 
 const mockResurrect = vi.mocked(resurrectViaChef);
 const PLAYER_ID = '11111111-1111-4111-8111-111111111111';
@@ -82,7 +83,10 @@ function resetStores() {
     consumables: { MedKit: 5, ShieldCell: 2 },
   });
   useActivityStore.setState({
-    current: { targetId: 'dustwaste_frontier', targetLabel: 'Dustwaste Frontier' },
+    // A deliberately partial activity stub: the overlay reads only
+    // targetId/targetLabel here, and the store really holds just
+    // these two fields for this test.
+    current: { targetId: 'dustwaste_frontier', targetLabel: 'Dustwaste Frontier' } as unknown as ActiveActivity,
   });
   useKillCycleStore.setState({});
   mockResurrect.mockReset();

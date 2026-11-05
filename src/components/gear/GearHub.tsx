@@ -41,7 +41,7 @@ import { formatRpcError } from '@/lib/api/rpcError';
 import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 import type { GearItem } from '@/types/items';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
-import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
+import type { GearLoadoutSlot, LoadoutSlot } from '@/store/slices/loadoutSlice';
 import {
   isWeapon,
   isShield,
@@ -163,7 +163,7 @@ const SORTS_BY_KIND: Record<GearKind, SortOption[]> = {
   ],
 };
 
-const LOADOUT_LABELS: Record<LoadoutSlot, string> = {
+const LOADOUT_LABELS: Record<GearLoadoutSlot, string> = {
   primary: 'Primary',
   secondary: 'Secondary',
   heavy: 'Heavy',
@@ -360,7 +360,7 @@ const GearCard = memo(({
           {selectMode ? (
             selected ? <CheckSquare size={14} className="text-amber" /> : <Square size={14} className="text-text-muted" />
           ) : equippedSlot ? (
-            <span className="rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>
+            <span className="rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot as GearLoadoutSlot]}</span>
           ) : <span />}
           {item.isLocked && <Lock size={10} className="text-red" />}
         </div>
@@ -437,7 +437,7 @@ const GearCard = memo(({
         {item.isLocked && <Lock size={12} className="shrink-0 text-red" />}
       </div>
 
-      {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot]}</span>}
+      {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot as GearLoadoutSlot]}</span>}
 
       <div className="flex min-w-0 max-w-[38%] shrink items-baseline gap-1">
         {headline.label && (

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '../../types/items';
+import { type GearItem, type Weapon, type Shield, type ClassMod, type Relic, type Ordnance } from '../../types/items';
 import { useInventoryStore } from './inventorySlice';
 import { useSkillStore } from './skillSlice';
 import { useVehicleStore, type VehicleDisplay } from './vehicleSlice';
@@ -13,6 +13,15 @@ export type LoadoutSlot =
   | 'classMod'
   | 'relic'
   | 'vehicle';
+
+/**
+ * The seven GEAR slots. 'vehicle' is a loadout slot but not a gear
+ * slot: vehicles equip through the Garage and never appear in gear
+ * inventories, pickers, or slot maps. Gear-slot keyed maps and lists
+ * are typed with this so their missing vehicle entry is a type fact,
+ * not an oversight.
+ */
+export type GearLoadoutSlot = Exclude<LoadoutSlot, 'vehicle'>;
 
 export interface LoadoutConsumables {
   PreFight: string | null;

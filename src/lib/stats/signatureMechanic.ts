@@ -45,8 +45,8 @@ const NEUTRAL: SignatureMechanicResult = { dpsMult: 1, statusMult: 1, armorBreak
  */
 export function applySignatureMechanic(
   weapon: Weapon | null,
-  fullDuration: number,
-  reloadDuration: number,
+  _fullDuration: number,
+  _reloadDuration: number,
   fightDuration: number,
 ): SignatureMechanicResult {
   if (!weapon) return NEUTRAL;

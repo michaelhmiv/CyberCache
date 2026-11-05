@@ -124,7 +124,7 @@ describe('BossEncounterPanel — shipped boss flow', () => {
     vi.clearAllMocks();
     usePlayerStore.setState({ id: 'test-player', level: 20, credits: 10000, consumables: { MedKit: 5, AmmoPack: 2 } });
     useInventoryStore.setState({ items: [primaryWeapon] });
-    useLoadoutStore.setState({ slots: { primary: primaryWeapon.id, secondary: null, heavy: null, shield: null, ordnance: null, classMod: null, relic: null } });
+    useLoadoutStore.setState({ slots: { primary: primaryWeapon.id, secondary: null, heavy: null, shield: null, ordnance: null, classMod: null, relic: null, vehicle: null } });
     useBossStore.setState({
       currentBossId: boss.id,
       unlockedBossIds: [boss.id],
@@ -134,7 +134,8 @@ describe('BossEncounterPanel — shipped boss flow', () => {
       selectedRisk: RiskSetting.Balanced,
       attemptHistory: [],
     });
-    useActivityStore.setState({ current: buildBossFightActivity(boss, primaryWeapon, 'prep'), pending: false });
+    const builtActivity = buildBossFightActivity(boss, primaryWeapon, 'prep');
+    useActivityStore.setState({ current: { ...builtActivity, bossPhase: 'prep', targetType: builtActivity.targetType ?? null, targetId: builtActivity.targetId ?? null, targetLabel: builtActivity.targetLabel ?? null, sceneKey: builtActivity.sceneKey ?? null, notes: builtActivity.notes ?? null, activityPayload: builtActivity.activityPayload ?? {}, publicPayload: builtActivity.publicPayload ?? {}, publicVisible: builtActivity.publicVisible ?? true, startedAt: null, completesAt: null, lastHeartbeatAt: null, schemaVersion: 1, updatedAt: null }, pending: false });
   });
 
   it('sends exactly the prepared set + risk in ONE attempt and surfaces the Chef outcome + loot moment', async () => {
