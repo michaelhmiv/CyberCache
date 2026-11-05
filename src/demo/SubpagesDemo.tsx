@@ -25,6 +25,7 @@ import {
 } from '@/content/cacheRank';
 import { xpToNextLevel } from '@/content/simulation';
 import { CacheRankGalleryPage } from './subpages/CacheRankGalleryPage';
+import './fonts.css';
 
 const STOPS: Array<{ id: string; label: string; icon: PxIconName }> = [
   { id: 'profile', label: 'Profile', icon: 'person' },
