@@ -12,7 +12,7 @@ The Activity Log is your hunter's whole record — every drop, trade, craft, and
 - **[[Caches]]** — the item, the outcome, and the draw exactly as rolled
 - **[[Crafting|Crafts]]** — recipe, units, bench, XP, and what came off the bench
 - **[[The Market|Market trades]]** — price, fee, and who was on the other side
-- **Earnings claims** — credits, scrap, XP, fragments, materials, and essences, with the amounts up front
+- **Earnings claims** — credits, scrap, XP, cache keys, materials, and essences, with the amounts up front
 - **[[Dispatch]] settlements, [[Endless Mode|Endless]] runs, salvage payouts, and system events** like resurrections
 
 ## Receipts and odds

@@ -66,7 +66,7 @@ Every course — duration, fee, prerequisites, and exactly what it unlocks — i
 
 ## Contracts board
 
-Separate from Dispatch (the names are close; the systems are not), the **Contracts Board** posts rotating work orders — kills, boss victories, crafts, sales, extractions, and more — that progress from what you actually do while you play. Contracts are never an action and never occupy the slot: a **daily set of 3** (the same for every player in your level band) and a **weekly set of 5** (seeded per player), each paying credits and cache-key fragments on claim — and never XP, gear, or legendary cores.
+Separate from Dispatch (the names are close; the systems are not), the **Contracts Board** posts rotating work orders — kills, boss victories, crafts, sales, extractions, and more — that progress from what you actually do while you play. Contracts are never an action and never occupy the slot: a **daily set of 3** (the same for every player in your level band) and a **weekly set of 5** (seeded per player), each paying credits on claim (the weekly set bonus pays a cache key) — and never XP, gear, or legendary cores.
 
 The full board — bands, every contract type and its targets, reward and reroll rules — lives on the [[Contracts]] page.
 

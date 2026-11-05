@@ -56,20 +56,15 @@ Five kinds of things trade on the Market:
   too: the salvage currency is a material, so the stock you earn from
   roaming and salvage is the same stack you can list — or buy when a
   build leaves you short.
-- **Resources** — cache fragments, legendary cores, and essences, listed
-  by quantity like materials. Fragments and cores each trade as a single
-  commodity; each of the five essence types trades as its own commodity.
+- **Resources** — legendary cores and essences, listed by quantity
+  like materials. Cores trade as a single commodity; each of the five
+  essence types trades as its own commodity. (Cache fragments traded
+  here once; fragments were retired as a currency and can no longer
+  be listed or bought.)
 - **Skin parts** — crafted [[Skins and Cosmetics]] pieces, listed one by
   one like gear. The card shows the part worn, its finish, and its tint.
   Listing a part you are wearing takes it off your hunter in the same
   motion; locked parts and parts mid-tint can't be listed.
-
-One fragment rule worth knowing: fragments listed for sale sit in escrow
-and do **not** count toward the 5-fragments-to-1-key conversion while
-they're listed — the conversion only ever applies to fragments actually
-in your balance. Cancel the listing and they come back as fragments;
-buying fragments settles them into your balance, where they convert as
-usual.
 
 ## The player-market rule
 
@@ -115,7 +110,7 @@ listing; anything above Common is always a player's listing.
 
 1. Open the **Sell** stop. It shows everything you own that can be listed:
    gear, consumable batches, material stacks, and resource stacks
-   (fragments, cores, and essences).
+   (cores and essences).
 2. Pick the item or stack, set the quantity (for stacks), and set your
    price.
 3. Before you confirm, the form shows recent-sales guidance for that exact

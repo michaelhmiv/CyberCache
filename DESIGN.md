@@ -20,7 +20,7 @@ The product direction behind this system lives in `PRODUCT.md`.
 Every screen in the game is assembled from the same four parts. This grammar replaces
 the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
 
-- **The Strip** — one single-row resource bar: credits · scrap · keys/fragments ·
+- **The Strip** — one single-row resource bar: credits · scrap · keys ·
   cores · loot, with the XP bar fused as a hairline on its bottom edge and the level
   chip at its right. The wallet prints exactly once anywhere in the app. One resident
   besides the wallet is allowed: the settings gear icon at the Strip's right edge
@@ -531,7 +531,7 @@ that hand does not ship.
 | `coin` | Credits |
 | `scrap` | Scrap |
 | `key` | Cache keys |
-| `frag` | Cache key fragment |
+| `frag` | Cache key shard (loot-moment visual only — fragments are no longer a currency, 0082) |
 | `core` | Legendary cores |
 | `loot` | Loot / cache count |
 | `cog` | Settings (the Strip's gear shortcut) |
@@ -552,7 +552,7 @@ that hand does not ship.
 | `orders` | Contracts |
 | `crate` | Parts Crate |
 | `signal` | Dispatch |
-| `gift` | Free Box (daily cache) |
+| `gift` | Cache box (the daily free box was abolished, 0082 — every opening is key- or ad-paid) |
 
 *Gear & Market*
 

@@ -85,8 +85,10 @@ it trades on the player market:
   only doors — and scrap's faucets and sinks are metered daily
   alongside credits, so its supply is tuned on real numbers. See
   [[Collections]] and [[Crafting]].
-- **Cache fragments and keys** — 5 fragments make a key, and openings
-  share a daily budget of 10. See [[Caches]].
+- **Cache keys** — the only cache currency: roaming drops one now
+  and then, and the streak, contracts, and leaderboards pay them too.
+  Every cache opening costs a key or a watched ad — no daily budget.
+  See [[Caches]].
 - **Legendary cores** — minted only by salvaging Legendary gear, spent
   on top-end crafting and reforge. See [[Collections]].
 - **Materials and essences** — the crafting supply chain; see

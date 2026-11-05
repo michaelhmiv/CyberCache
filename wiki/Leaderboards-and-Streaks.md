@@ -56,17 +56,17 @@ Rewards follow a **7-day ladder**. At tier 1 it pays:
 | --- | --- |
 | 1 | 100 credits |
 | 2 | 150 credits |
-| 3 | 200 credits · 1 key fragment |
-| 4 | 250 credits · 1 key fragment |
-| 5 | 300 credits · 2 key fragments |
-| 6 | 400 credits · 2 key fragments |
-| 7 | 500 credits · 3 key fragments · **1 cache key** |
+| 3 | 200 credits |
+| 4 | 250 credits |
+| 5 | 300 credits |
+| 6 | 400 credits |
+| 7 | 500 credits · **1 cache key** |
 
-A full tier-1 week totals 1,900 credits, 9 key fragments, and 1 cache key.
+A full tier-1 week totals 1,900 credits and 1 cache key. (The ladder once paid key fragments on days 3–7 too; fragments were retired as a currency, and every day still pays its credits.)
 
 ### Tiers: the ladder repeats, richer
 
-Finishing day 7 doesn't end the streak — the next 7 days repeat the ladder at the **next tier**. Each tier step adds half again to the credit and fragment amounts:
+Finishing day 7 doesn't end the streak — the next 7 days repeat the ladder at the **next tier**. Each tier step adds half again to the credit amounts:
 
 - Tier 1 pays ×1, tier 2 ×1.5, tier 3 ×2, tier 4 ×2.5, and **tier 5 caps the ladder at ×3**. A streak longer than 35 days keeps cycling at tier 5.
 - The **cache key never scales**: every completed cycle pays exactly one key, at every tier.
