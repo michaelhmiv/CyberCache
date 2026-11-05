@@ -59,11 +59,9 @@ vi.mock('@/lib/api/verifiedOps', () => ({
 }));
 
 vi.mock('@/lib/api/cacheLaneService', () => ({
-  fetchCacheLane: vi.fn(async () => ({
-    day: '2026-11-01', cap: 10, freePerDay: 1, openedToday: 0, remaining: 10,
-    freeAvailable: true, keys: 3, byPayment: { free: 0, ad: 0, key: 0 },
-    resetsAt: Date.now() + 3_600_000, rule: '',
-  })),
+  // The post-0082 lane read: key stock + the rule line. No day,
+  // no cap, no free box — every opening is paid (0082).
+  fetchCacheLane: vi.fn(async () => ({ keys: 3, rule: '' })),
 }));
 
 vi.mock('@/lib/ads/rewardedCacheAd', () => ({
@@ -172,23 +170,20 @@ afterEach(() => {
 });
 
 function armMakeItem(weapon: Weapon) {
-  // The lane snapshot after one free open: no free box left, 9 of
-  // the day's 10 remaining, keys in hand — so Open Another (key
-  // path) is genuinely on offer, as on device.
+  // The lane view after one key open: one key spent, two left in
+  // the lane read — and the player store still holds keys, so Open
+  // Another is genuinely on offer, as on device.
   mockMakeItem.mockResolvedValue({
     item: { id: weapon.id, is_locked: false, payload: { ...weapon } },
-    cache_lane: {
-      day: '2026-11-01', remaining: 9, opened_today: 1, free_available: false,
-      by_payment: { free: 1, ad: 0, key: 0 },
-    },
+    cache_lane: { keys: 2, rule: '' },
     profile: { cache_tokens: 3 },
   } as never);
 }
 
-/** Open a free cache and complete the (stubbed) loot moment. */
+/** Open a cache with a key and complete the (stubbed) loot moment. */
 async function openCacheToDeck() {
   render(<ChestScreen />);
-  fireEvent.click(await screen.findByRole('button', { name: 'OPEN FREE CACHE' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'OPEN WITH KEY (3)' }));
   fireEvent.click(await screen.findByTestId('loot-moment-stub'));
   return screen.findByTestId('cache-reveal-deck');
 }
@@ -203,7 +198,7 @@ describe('cache reveal — one page, no phase swap', () => {
       ],
     }));
     render(<ChestScreen />);
-    fireEvent.click(await screen.findByRole('button', { name: 'OPEN FREE CACHE' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'OPEN WITH KEY (3)' }));
 
     // During the moment: stage present, no deck yet.
     expect(await screen.findByTestId('loot-moment-stub')).toBeTruthy();
