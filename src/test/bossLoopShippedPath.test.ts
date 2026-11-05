@@ -291,7 +291,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     expect(res.json.victory).toBe(false);
     expect(res.json.entryFee).toBe(200);
     expect(res.json.pityIncremented).toBe(true);
-    expect(res.json.result.creditsLost).toBe(450);
+    expect(res.json.result!.creditsLost).toBe(450);
 
     const profile = store.profiles.get(A)!;
     expect(profile.credits).toBe(10000 - 450);
