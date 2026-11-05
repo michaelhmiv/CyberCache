@@ -43,24 +43,26 @@ import {
 import { useWorkshopStore } from '@/store/slices/workshopSlice';
 import { recipeCostLine } from '@/lib/workshop/recipeCosts';
 import {
-  AMBER,
   BayButton,
+  LcdWell,
+  Led,
+  LedMeter,
+  Panel,
+  PanelLabel,
+  PushButton,
+  Readout,
+} from './wardrobeConsoleKit';
+import {
+  AMBER,
   FAINT,
   GOLD,
   GREEN,
   headStyle,
   INK,
-  LcdWell,
-  Led,
-  LedMeter,
   monoStyle,
   MUT,
-  Panel,
-  PanelLabel,
-  PushButton,
-  Readout,
   STEEL_DARK,
-} from './wardrobeConsoleKit';
+} from './wardrobeConsoleTokens';
 
 const SLOT_LABELS: Record<CosmeticSlot, string> = {
   head: 'Head',
@@ -503,11 +505,15 @@ export const WardrobePanel: React.FC = () => {
                       className="flex items-baseline justify-between gap-3 py-1"
                       style={i > 0 ? { borderTop: '1px solid rgba(58,52,43,0.4)' } : undefined}
                     >
-                      <span className="min-w-0 text-[12px] font-semibold leading-snug" style={{ color: MUT }}>
+                      <span className="min-w-0 flex-1 text-[12px] font-semibold leading-snug" style={{ color: MUT }}>
                         {p.name}
                         <span style={{ ...monoStyle, color: FAINT }}> · {SLOT_LABELS[p.slot]}</span>
                       </span>
-                      <span className="shrink-0 text-right text-[11px]" style={{ ...monoStyle, color: FAINT }}>
+                      {/* Real cost lines run long (three inputs +
+                          duration): the readout wraps inside its
+                          own column — data wraps, never truncates,
+                          and never paints over the part name. */}
+                      <span className="max-w-[58%] text-right text-[11px] leading-snug" style={{ ...monoStyle, color: FAINT }}>
                         {recipeCostLine(p.recipeId, recipeScrapCosts)}
                       </span>
                     </div>
