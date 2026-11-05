@@ -14,7 +14,7 @@
  */
 
 import type { GearItem } from '@/types/items';
-import type { ActivityKind, ActivityKindWithBossPrep } from '@/types/activity';
+import type { ActivityKindWithBossPrep } from '@/types/activity';
 
 /**
  * Flat modifier record. Keys are sub-stat names from the module definitions
@@ -74,7 +74,7 @@ export function sumActivityModifier(
  * Sum activity modifiers for ALL activity kinds at once.
  * Used by the Action tab to show which activities are boosted.
  *
- * Returns a Map of ActivityKind → ActivityModifiers. Activities with no
+ * Returns a Map of ActivityKindWithBossPrep → ActivityModifiers. Activities with no
  * contributions still get an entry (empty object).
  */
 export function sumAllActivityModifiers(

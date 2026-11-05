@@ -1,4 +1,4 @@
-import { ConsumableLoadout, ConsumableSlot, ConsumableType } from '../types/game';
+import { type ConsumableLoadout, ConsumableSlot, ConsumableType } from '../types/game';
 import type { PxIconName } from '@/lib/pixel/icons';
 
 export type ConsumableFamily = 'survival' | 'ammo' | 'ordnance' | 'tactical' | 'economy' | 'corrupted';

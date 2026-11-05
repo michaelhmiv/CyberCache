@@ -1,5 +1,5 @@
 import { Rarity, Manufacturer, DropSource, SkillTreeType } from '@/types/game';
-import { ClassMod, Affix } from '@/types/items';
+import { type ClassMod, type Affix } from '@/types/items';
 import { RARITIES } from '@/constants/rarities';
 import { createRNG, seededInt, seededRandom, pickWeighted, hashString } from '@/lib/utils/rng';
 import { generateItemId } from '@/lib/utils/id';

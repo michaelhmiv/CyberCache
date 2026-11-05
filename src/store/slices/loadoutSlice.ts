@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '../../types/items';
+import { type GearItem, type Weapon, type Shield, type ClassMod, type Relic, type Ordnance } from '../../types/items';
 import { useInventoryStore } from './inventorySlice';
 import { useSkillStore } from './skillSlice';
 import { useVehicleStore, type VehicleDisplay } from './vehicleSlice';

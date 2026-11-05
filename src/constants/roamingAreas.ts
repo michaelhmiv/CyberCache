@@ -1,5 +1,5 @@
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '../types/game';
-import { GenerateWeaponOptions } from '@/types/generator';
+import { type GenerateWeaponOptions } from '@/types/generator';
 import { ESSENCE_GUEST_WEIGHT, ESSENCE_HOME_WEIGHT, ESSENCE_HOMES, MATERIAL_FIND_WEIGHT } from '../content/roamingEvents';
 
 export type ManufacturerInfluence = Manufacturer | 'Mixed';

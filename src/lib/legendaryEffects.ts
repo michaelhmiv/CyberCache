@@ -1,4 +1,4 @@
-import { Weapon } from '../types/items';
+import { type Weapon } from '../types/items';
 import { LEGENDARY_EFFECTS } from '../constants/legendaryEffects';
 
 /**

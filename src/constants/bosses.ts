@@ -1,4 +1,4 @@
-import { BossDef } from '../types/boss';
+import { type BossDef } from '../types/boss';
 import { Element } from '../types/game';
 
 export const REGION_1_BOSSES: BossDef[] = [

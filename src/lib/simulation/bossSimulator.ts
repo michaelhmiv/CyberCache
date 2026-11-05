@@ -1,8 +1,8 @@
-import { BossDef, BossAttemptResult, BossPhase, BossPrepAnalysis, PhaseAnalysis } from '../../types/boss';
-import { Weapon, Shield, Ordnance, ClassMod, Relic } from '../../types/items';
+import { type BossDef, type BossAttemptResult, type BossPhase, type BossPrepAnalysis, type PhaseAnalysis } from '../../types/boss';
+import { type Weapon, type Shield, type Ordnance, type ClassMod, type Relic } from '../../types/items';
 import { Element, Manufacturer, RiskSetting, WeaponType } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
-import { CONSUMABLES, ConsumableDef, getConsumableRuntimeEffects } from '../../constants/consumables';
+import { CONSUMABLES, type ConsumableDef, getConsumableRuntimeEffects } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 import { computeWeaponDps } from '../stats/dpsChain';
 import { computeHunterMaxHp } from '../combat/damageContract';

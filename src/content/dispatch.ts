@@ -73,7 +73,6 @@ import {
   vehicleClassTierIndex,
   type VehicleRateInput,
 } from '../lib/vehicles/vehicles';
-import type { Vehicle } from '../types/items';
 
 // ─── Levers ──────────────────────────────────────────────────────────
 
