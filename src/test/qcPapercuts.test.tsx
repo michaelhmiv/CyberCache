@@ -288,7 +288,11 @@ describe('Papercut 1 — Market Buy search names the right noun', () => {
 });
 
 describe('Papercut 3 — Collections family header owns its lines', () => {
-  const collections = readSource('src/screens/CollectionsScreen.tsx');
+  // The family header moved from CollectionsScreen into
+  // CollectionsPanel with the Register-B (Instrument Panel) build;
+  // the guarantee travels with it: blurb stacked under the title,
+  // counter shrink-0 + nowrap so it can never wrap.
+  const collections = readSource('src/components/profile/CollectionsPanel.tsx');
 
   it('title and blurb are stacked blocks, not one inline run', () => {
     expect(collections).toContain('mt-1 text-[11px] leading-snug text-text-muted">{FAMILY_BLURBS[family]}');
@@ -296,7 +300,7 @@ describe('Papercut 3 — Collections family header owns its lines', () => {
   });
 
   it('the family counter can never wrap', () => {
-    expect(collections).toContain('shrink-0 whitespace-nowrap text-xs font-black text-text-secondary');
+    expect(collections).toContain('shrink-0 whitespace-nowrap font-mono text-[13px] font-bold tabular-nums text-text-primary');
   });
 });
 

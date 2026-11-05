@@ -510,13 +510,13 @@ export const CollectionsPanel: React.FC<CollectionsPanelProps> = ({ payload, cor
                 </span>
                 <h3 className="bl-title text-[21px] leading-none text-text-primary">{FAMILY_LABELS[family]}</h3>
               </div>
-              <span className="font-mono text-[13px] font-bold tabular-nums text-text-primary">
+              <span className="shrink-0 whitespace-nowrap font-mono text-[13px] font-bold tabular-nums text-text-primary">
                 {found}
                 <span className="text-text-muted"> / {total}</span>
                 <span className="ml-2 text-text-secondary">{total ? Math.round((found / total) * 100) : 0}%</span>
               </span>
             </div>
-            <div className="mt-1 px-1 text-[11px] leading-snug text-text-muted">{FAMILY_BLURBS[family]}</div>
+            <div className="px-1 mt-1 text-[11px] leading-snug text-text-muted">{FAMILY_BLURBS[family]}</div>
             <div className="mt-2 px-1">
               <SegmentedMeter value={found} max={total} color={hue} height={9} />
             </div>
