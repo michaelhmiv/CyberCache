@@ -1,4 +1,5 @@
 import { useBossStore } from '@/store';
+import { pct, signedPct } from '@/lib/gear/statFormat';
 import { computeLoadoutDps, computeStandardDps } from '@/lib/stats/dpsChain';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { LEGENDARY_EFFECTS, legendaryEffectName } from '@/constants/legendaryEffects';
