@@ -113,11 +113,7 @@ listing.)
 
    [[images/ui/market-row.png]]
 
-<<<<<<< HEAD
-   *One Buy row up close: a Common launcher from NPC Vendor stock, its damage headline, and its price. A hunter's listing names the hunter instead.*
-=======
    *One Buy row up close: its damage readouts and its price, with the seller's hunter name on the row.*
->>>>>>> origin/master
 
 ## Selling
 
