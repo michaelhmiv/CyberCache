@@ -327,3 +327,57 @@ describe('wiring — mechanic and crit reads', () => {
     expect(gateOpen.dpsScore).toBeGreaterThan(gateClosed.dpsScore);
   });
 });
+
+describe('wiring — ElementalCoating fold pin (#379 reader folded into the generic loop)', () => {
+  // PR #379 shipped ElementalCoating with its own special-case reader
+  // in the sim; the wiring package folded it into the generic
+  // def-driven break loop. These pins prove the fold preserved #379's
+  // behavior EXACTLY ONCE: the coating is one def in the loop, priced
+  // per type (never per unit, never squared by a leftover special
+  // case), with crafted quality scaling the def's 1.08 base.
+  const shieldBoss = { armor: 0 };
+  const armorBoss = { shield: 0 };
+
+  it('Q100 coating multiplies the shield break score by exactly the def’s 1.08', () => {
+    const bare = simWith({}, { boss: shieldBoss });
+    const coated = simWith(
+      { ElementalCoating: 1 },
+      { boss: shieldBoss, consumableQuality: { ElementalCoating: 100 } },
+    );
+    expect(bare.breakScore).toBeGreaterThan(0);
+    expect(bare.breakScore).toBeLessThan(1); // the multiplier is not capped away
+    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.08, 6);
+  });
+
+  it('Q100 coating multiplies the armor break score by exactly the def’s 1.08', () => {
+    const bare = simWith({}, { boss: armorBoss });
+    const coated = simWith(
+      { ElementalCoating: 1 },
+      { boss: armorBoss, consumableQuality: { ElementalCoating: 100 } },
+    );
+    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.08, 6);
+  });
+
+  it('a 150-quality batch multiplies by 1.12 — the fold keeps #379’s quality scaling', () => {
+    const bare = simWith({}, { boss: shieldBoss });
+    const coated = simWith(
+      { ElementalCoating: 1 },
+      { boss: shieldBoss, consumableQuality: { ElementalCoating: 150 } },
+    );
+    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.12, 6);
+  });
+
+  it('two units price identically to one — per type, exactly once (a leftover special case would square it to ×1.1664)', () => {
+    const bare = simWith({}, { boss: shieldBoss });
+    const one = simWith(
+      { ElementalCoating: 1 },
+      { boss: shieldBoss, consumableQuality: { ElementalCoating: 100 } },
+    );
+    const two = simWith(
+      { ElementalCoating: 2 },
+      { boss: shieldBoss, consumableQuality: { ElementalCoating: 100 } },
+    );
+    expect(two.breakScore).toBeCloseTo(one.breakScore, 10);
+    expect(two.breakScore / bare.breakScore).toBeCloseTo(1.08, 6);
+  });
+});
