@@ -29,27 +29,21 @@ import {
   type ResearchCourseView,
   type ResearchStateView,
 } from '@/content/research';
+import { CheckStrip, DoubleRule, EndorseStamp, FormLine, InkStamp, PaperSheet, RecordNo } from './paperKit';
 import {
   AMBER,
-  CheckStrip,
   clerkDate,
   clerkDay,
   DANGER_INK,
   displayStyle,
-  DoubleRule,
-  EndorseStamp,
-  FormLine,
   INK,
   INK_FAINT,
   INK_MUTED,
-  InkStamp,
   monoStyle,
-  PaperSheet,
-  RecordNo,
   RULE,
   RULE_HARD,
   STAMP_RED,
-} from './paperKit';
+} from './paperTokens';
 
 const SCHEDULE_LETTER: Record<string, string> = {
   fabrication: 'A',

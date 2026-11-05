@@ -26,7 +26,7 @@ import {
   type ResearchFacts,
 } from '@/content/research';
 import { ResearchDossierPage } from './research-paperwork/ResearchDossierPage';
-import { INK, INK_FAINT } from './research-paperwork/paperKit';
+import { INK, INK_FAINT } from './research-paperwork/paperTokens';
 
 const STOPS: Array<{ id: string; label: string; icon: PxIconName }> = [
   { id: 'profile', label: 'Profile', icon: 'person' },
