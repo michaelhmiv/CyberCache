@@ -339,7 +339,7 @@ const DropVisualIcon: React.FC<{ tone: string; label: string; x: number; y: numb
   }
 
   if (tone === 'fragment') {
-    // Key shard for cache fragments
+    // Key shard for cache keys
     const sil = pickSil('cacheFragment');
     return (
       <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
