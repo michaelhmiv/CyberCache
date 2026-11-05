@@ -11,6 +11,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The market is players only** — the seeded NPC stock is gone from Buy and Sell for good: every listing in the lane is another player's, the seed that stocked it is removed, and accepts of NPC listings are refused outright. When the seed retired, the live shelf held eleven seeded listings and no player ones; the lane now shows the market exactly as it is. Seller labels follow the seller, so a player re-listing gear they bought from the vendor reads as a player listing, as it should. The vendor's own shop is unchanged.
 - **The cache reveal is one page** — opening a cache no longer cuts away to a second screen. The reveal moment plays exactly as it did, and as it settles, the full stat deck docks below it on the same page: DPS, every affix written out rather than counted, a legendary effect's name and its description, class-mod bonuses by skill name — the same deck the Gear inspect sheet shows, drawn from the same source, so the two can never disagree. Open Another and Collect sit below the deck.
 - **Under the hood** — a set of roaming-claim tests that quietly depended on the calendar (they broke the day the hot area rotated) now pin their clock; claim payouts themselves were verified correct throughout and did not change.
+- **Papercut pass** — the Field Manual's tour tells the truth now: every roaming area is open from Level 1 (the danger rating is a warning, never a wall), and boss attempts are deliberate — you open Boss Prep and launch them yourself, roaming never triggers one. The cache reveal card and the stat deck print crit the same way, from one formatter, so the same weapon can no longer read 10.3% in one place and 10% in another. Standings rows label what they count (kills, credits, K/D at two decimals) and the selected board reads as selected. A boss-verify request with a missing difficulty stance is refused cleanly instead of erroring, and the vendor answers "Not offered by the vendor today" — its stock rotates daily — instead of claiming an item doesn't exist. Ironwood finally gets its "an" wherever copy names a maker.
 
 ## 2026-11-04 — Your hunter fills his stage
 
@@ -131,13 +132,18 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 131 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 136 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-05** — 3 merges
+**2026-11-05** — 8 merges
 
 - #386 — Daily login streak: TRUE CLAIM — record holds, tap Claim pays (migration 0079)
+- #391 — The Trade: equip comparison in the inspect sheet + class-mod truth fix
 - #393 — Pure player market: Buy/Sell are solely player listings (supersedes #317)
+- #394 — Market compact list rows — Buy/Sell one-line treatment (Gear list sibling)
 - #395 — Cache reveal: one page — stage stays, full stat deck below (no phase swap)
+- #396 — Changelog: 2026-11-05 entry (streak claim, pulse, pure market, one-page reveal)
+- #397 — Cache lane rebuild: daily budget dies, fragments abolished, keys are the only cache currency (migration 0082)
+- #398 — Fix combat-stats saves dying on fractional play seconds (bigint)
 
 **2026-11-04** — 18 merges
 
