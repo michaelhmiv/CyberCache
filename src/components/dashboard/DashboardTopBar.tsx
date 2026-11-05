@@ -1,14 +1,24 @@
 /**
- * Dashboard Top Bar — level progress + streak/contracts icon
- * pop-ups (owner's device feedback, 2026-11-01).
+ * Dashboard Top Bar — the claim row + streak/contracts icon
+ * pop-ups (owner's device feedback, 2026-11-01; the two-buttons
+ * package, owner direction 2026-11-05).
  *
  * The top row of the home screen, directly under the ResourceBar
  * so it is on first paint without scrolling:
  *
- *  - LEVEL button (flex-1): the level badge, a live XP progress
- *    bar (the shipped xpToNextLevel curve read from the player
- *    store — the same numbers the old in-scroll Level Strip
- *    showed; no second XP truth), tappable → the level pop-up.
+ *  - CACHE + OFFLINE buttons (flex-1 pair, 2026-11-05): they
+ *    replaced the LEVEL pill, whose LV badge + second XP bar +
+ *    readout duplicated the Strip above it. CACHE carries the
+ *    key-count bubble (the Strip's cache segment leaves Home —
+ *    the count prints once) and opens the cache chest. OFFLINE
+ *    shows the true pending held amount from the profile
+ *    snapshot's offline_hold (server truth, synced into the
+ *    player store — never client-computed earnings); while a
+ *    hold waits it is a real claimable (pulse + CLAIM badge)
+ *    and tapping CLAIMS the held settlement (migration 0083's
+ *    hold-and-claim, the streak's 0079 model), landing on the
+ *    Return Sheet as the receipt. With nothing held it is the
+ *    Return Sheet's quiet door.
  *  - STREAK icon button: opens the login-streak pop-up (the real
  *    LoginStreakPanel). While today's recorded reward is unpaid
  *    (0079, the true claim) the chip is a real claimable — pulse
@@ -40,18 +50,20 @@
  *
  * The RETURN SHEET (DESIGN.md §10) presents the offline-return
  * recap: totals row, the absence's best drop as a poster card
- * on the loot ladder's timings, one Collect button, the push
- * primer in the footer once. The LEVEL chip is its door —
- * while a settlement exists (acknowledged or not), tapping the
- * level button opens the Return Sheet; the level pop-up itself
- * holds level specifics ONLY, with a door row back to the recap
- * while one exists. While a settlement is unacknowledged the
- * level button carries the away beacon (pulse + "AWAY" badge);
- * the animation is never the only signal — every animated state
- * is paired with badge text and an accessible label that
- * carries the same information. The <5-minute suppression and
- * all settlement logic live in the recap slice, untouched by
- * this presentation.
+ * on the loot ladder's timings, one primary button, the push
+ * primer in the footer once. The OFFLINE button is its door —
+ * while a hold waits, the sheet shows the held amounts as
+ * WAITING and its primary button is the Claim; after claiming
+ * it is the receipt with Collect (acknowledge). The away
+ * beacon moved with the door: the OFFLINE button pulses with
+ * its CLAIM badge exactly while the server holds unpaid
+ * earnings — the animation is never the only signal (badge
+ * text + the pending figure + the accessible label carry the
+ * same information). The level pop-up holds level specifics
+ * ONLY; its doors are the Strip's LV segment (Home variant)
+ * and this sheet's "Level details" row. The <5-minute
+ * suppression and all settlement logic live in the recap
+ * slice, untouched by this presentation.
  *
  * Pop-ups are the shipped PickerSheet (SheetPortal to
  * document.body — sheets never render inside transformed or
@@ -80,6 +92,8 @@ import { LoginStreakPanel } from './LoginStreakPanel';
 import { ContractsPanel } from './ContractsPanel';
 import { WeeklyClaimablesList } from './WeeklyClaimables';
 import { useMarketStore, usePlayerStore } from '@/store';
+import { hasPayableOfflineHold } from '@/store/slices/playerSlice';
+import { claimOfflineEarnings } from '@/lib/activity/activitySettlement';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import {
   loginStreakAnnouncement,
@@ -165,6 +179,8 @@ interface DashboardTopBarProps {
 export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) => {
   const level = usePlayerStore((s) => s.level);
   const xp = usePlayerStore((s) => s.xp);
+  const cacheKeys = usePlayerStore((s) => s.cacheKeys);
+  const offlineHold = usePlayerStore((s) => s.offlineHold);
   const streakResult = useLoginStreakStore((s) => s.result);
   const streakResultDay = useLoginStreakStore((s) => s.resultDay);
   const streakSeenGrantKey = useLoginStreakStore((s) => s.seenGrantKey);
@@ -177,7 +193,6 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
   const standingView = useStandingStore((s) => s.view);
   const loadStanding = useStandingStore((s) => s.load);
   const lastSettlement = useOfflineRecapStore((s) => s.lastSettlement);
-  const recapDismissed = useOfflineRecapStore((s) => s.dismissed);
   const soldAnnouncement = useAnnouncementsStore((s) => s.sold);
   const benchAnnouncement = useAnnouncementsStore((s) => s.bench);
   const checkSales = useAnnouncementsStore((s) => s.checkSales);
@@ -231,11 +246,43 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
     onNavigate?.('workshop');
   };
 
+  // The level pop-up's Home door: the Strip's LV segment (Home
+  // variant) dispatches this event; the sheets live here.
+  useEffect(() => {
+    const openLevel = () => setSheet('level');
+    window.addEventListener('cybercache:open-level-sheet', openLevel);
+    return () => window.removeEventListener('cybercache:open-level-sheet', openLevel);
+  }, []);
+
   const xpNeeded = xpToNextLevel(level);
   const xpProgress = xpNeeded > 0 ? Math.min(100, Math.round((xp / xpNeeded) * 100)) : 100;
   const xpRemaining = Math.max(0, xpNeeded - xp);
 
-  const awayPending = Boolean(lastSettlement) && !recapDismissed;
+  // The OFFLINE button's truth (0083): the held settlement synced
+  // from the profile snapshot — pending exactly while the server
+  // holds something a claim would pay. The old away beacon read
+  // the recap's dismissed flag; the beacon now reads the money.
+  const holdPending = hasPayableOfflineHold(offlineHold);
+  const [claiming, setClaiming] = useState(false);
+  const handleOfflineTap = async () => {
+    if (!holdPending) {
+      // The Return Sheet's door (recap or its empty state).
+      setSheet('return');
+      return;
+    }
+    if (claiming) return;
+    setClaiming(true);
+    try {
+      await claimOfflineEarnings({});
+    } finally {
+      setClaiming(false);
+    }
+    // The claim wrote the receipt into the recap store — the
+    // Return Sheet is the landing moment. (A claim that found
+    // nothing held still synced the profile: the button has
+    // already quieted, and the sheet shows the latest recap.)
+    setSheet('return');
+  };
 
   const granted = streakResult?.granted;
   // The announcement (D1/D2): a fresh grant pulses only while
@@ -277,10 +324,30 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
       ? `Weekly claimables — ${weeklyCount} ready at the Rep Desk`
       : 'Weekly claimables';
 
-  const levelLabel =
-    `Level ${level} progress — ${xp} of ${xpNeeded} XP, ` +
-    `${xpRemaining} XP to level ${level + 1}` +
-    (awayPending ? '. While you were away rewards are waiting.' : '');
+  // The OFFLINE button's spoken state: the held parts enumerated
+  // while pending (the figure on the button is the credits leg);
+  // the quiet state names its door.
+  const offlineLabel = holdPending
+    ? `Offline earnings waiting — ` +
+      [
+        offlineHold.credits > 0 ? `${offlineHold.credits.toLocaleString()} credits` : null,
+        offlineHold.scrap > 0 ? `${offlineHold.scrap.toLocaleString()} scrap` : null,
+        offlineHold.xp > 0 ? `${offlineHold.xp.toLocaleString()} XP` : null,
+        offlineHold.cacheKeys > 0 ? `${offlineHold.cacheKeys} cache keys` : null,
+        offlineHold.itemCount > 0
+          ? `${offlineHold.itemCount} item${offlineHold.itemCount === 1 ? '' : 's'}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(', ') +
+      '. Tap to claim.'
+    : 'Offline earnings — nothing waiting. Opens your return summary.';
+  const offlineFigure =
+    offlineHold.credits > 0
+      ? `+${offlineHold.credits.toLocaleString()} cr`
+      : offlineHold.itemCount > 0
+        ? `${offlineHold.itemCount} item${offlineHold.itemCount === 1 ? '' : 's'}`
+        : 'Ready';
   const streakLabel = streakResult
     ? `Daily streak — day ${streakDay ?? 0}` +
       (streakClaimable
@@ -315,52 +382,71 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
 
   return (
     <>
-      {/* The claim row (drift-fix F1): the same four doors as
-          before, compressed from 52px stacked panels to one thin
-          row of pills (DESIGN.md §4 step 2 — claim chips sit
-          directly under the Strip). Every door, badge, pulse, and
-          sheet is unchanged; badges keep their inset corner, and
-          a pill carrying one reserves that corner in its padding
+      {/* The claim row (drift-fix F1; the two-buttons package,
+          2026-11-05): one thin row of pills directly under the
+          Strip (DESIGN.md §4 step 2). The level pill is retired —
+          its LV badge + second XP bar duplicated the Strip; the
+          level pop-up's doors are the Strip's LV segment and the
+          Return Sheet's door row. In its footprint: CACHE and
+          OFFLINE. Badges keep their inset corner, and a pill
+          carrying one reserves that corner in its padding
           (DESIGN.md §6: adapt the host, never shrink the type). */}
       <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-2">
-        {/* Level — LV chip + slim progress + readout on one line;
-            the pill is the Return Sheet's door while a settlement
-            exists (DESIGN.md §3/§10), and the level pop-up's door
-            otherwise. The XP truth is the same curve the Strip's
-            fused hairline reads. */}
-        <button
-          type="button"
-          data-testid="top-level-button"
-          aria-label={levelLabel}
-          onClick={() => setSheet(lastSettlement ? 'return' : 'level')}
-          className="bl-panel relative flex min-h-[40px] min-w-0 flex-1 items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
-        >
-          {awayPending && <PulseGlow color="#F2C063" testId="level-away-pulse" />}
-          {awayPending && <CornerBadge text="AWAY" color="#F2C063" />}
-          <span
-            className="flex shrink-0 items-center gap-1 border-2 border-black/60 bg-amber px-1.5 py-0.5"
-            aria-hidden
+        <span className="flex min-w-0 flex-1 items-stretch gap-2">
+          {/* CACHE — the key count's one print on Home (the Strip's
+              cache segment leaves Home in this package), as a
+              bubble on the button that spends them. */}
+          <button
+            type="button"
+            data-testid="top-cache-button"
+            aria-label={`Cache — ${cacheKeys} cache keys held. Opens the cache chest.`}
+            onClick={() => onNavigate?.('chest')}
+            className="bl-panel relative flex min-h-[40px] min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5"
           >
-            <span className="text-[11px] font-black tracking-widest text-black/70">LV</span>
-            <span className="text-[13px] font-black leading-none text-black">{level}</span>
-          </span>
-          {/* While the AWAY badge is up, the progress block reserves
-              the badge's corner (DESIGN.md §6) so the XP readout
-              never tucks under the enlarged badge. */}
-          <span className={`flex min-w-0 flex-1 items-center gap-2 ${awayPending ? 'pr-12' : ''}`}>
-            <span className="block h-1.5 min-w-[12px] flex-1 overflow-hidden border border-black/50 bg-black/40">
-              <motion.span
-                className="block h-full bg-amber"
-                initial={false}
-                animate={{ width: `${xpProgress}%` }}
-                transition={{ type: 'spring', damping: 20 }}
-              />
+            <PxIcon name="key" size={15} />
+            <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
+              Cache
             </span>
-            <span className="shrink-0 whitespace-nowrap text-[11px] font-bold tabular-nums text-text-muted">
-              {xp} / {xpNeeded} XP
+            <span
+              data-testid="top-cache-key-count"
+              className="ml-auto shrink-0 bg-amber px-1.5 py-0.5 text-[11px] font-black leading-none tabular-nums text-black"
+            >
+              {cacheKeys}
             </span>
-          </span>
-        </button>
+          </button>
+
+          {/* OFFLINE — the held settlement's door and claim. While
+              the server holds unpaid earnings the button is a real
+              claimable (pulse + CLAIM badge + the pending figure,
+              the credits leg of the hold); tapping claims and
+              lands on the Return Sheet receipt. Quiet — plain
+              door to the Return Sheet — when nothing is held. */}
+          <button
+            type="button"
+            data-testid="top-offline-button"
+            aria-label={offlineLabel}
+            aria-busy={claiming || undefined}
+            disabled={claiming}
+            onClick={() => void handleOfflineTap()}
+            className={`bl-panel relative flex min-h-[40px] min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${holdPending ? 'pr-16' : ''}`}
+          >
+            {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
+            {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
+            <PxIcon name="clock" size={15} />
+            <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
+              Offline
+            </span>
+            {holdPending && (
+              <span
+                data-testid="top-offline-pending"
+                className="ml-auto shrink-0 whitespace-nowrap text-[13px] font-black tabular-nums"
+                style={{ color: GAIN_GREEN }}
+              >
+                {claiming ? 'Claiming…' : offlineFigure}
+              </span>
+            )}
+          </button>
+        </span>
 
         {/* Daily streak — icon + pop-up door. While the NEW badge
             is up, the pill reserves its corner (pr-12): the badge
@@ -563,15 +649,27 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
         </PickerSheet>
       )}
 
-      {sheet === 'return' && lastSettlement && (
+      {sheet === 'return' && (
         <PickerSheet title="Return" onClose={() => setSheet(null)}>
           <div className="space-y-3 p-3">
             {/* The Return Sheet body (§10): totals row, best drop
                 as a poster card on the loot ladder's timings, one
-                Collect button, the push primer in the footer
-                once — all inside OfflineRecapCard. Collect
-                acknowledges (stops the beacon) and closes. */}
-            <OfflineRecapCard onDone={() => setSheet(null)} />
+                primary button (Claim while held, Collect on the
+                receipt), the push primer in the footer once — all
+                inside OfflineRecapCard. With no settlement on
+                record the sheet says so plainly: the OFFLINE
+                button is this sheet's door in every state. */}
+            {lastSettlement ? (
+              <OfflineRecapCard onDone={() => setSheet(null)} />
+            ) : (
+              <MobileCard className="p-4">
+                <p className="text-sm font-bold text-text-primary">Nothing held right now</p>
+                <p className="mt-1 text-xs leading-relaxed text-text-muted">
+                  Your hunter keeps roaming while you're away. Whatever the next stretch
+                  earns is held here — claim it when you get back.
+                </p>
+              </MobileCard>
+            )}
             <button
               type="button"
               onClick={() => setSheet('level')}

@@ -214,8 +214,11 @@ export async function settleActiveActivityRewards(
 export async function claimOfflineEarnings(
   options: { userId?: string | null; saveSnapshot?: boolean } = {},
 ): Promise<SettlementRecap | null> {
+  // No userId gate: the claim's identity is the session JWT (the
+  // server derives the player from it, never from a body) — the id
+  // here only targets the runtime snapshot save, which falls back
+  // to the sync module's active user when omitted.
   const userId = options.userId;
-  if (!userId) return null;
 
   try {
     const { claimOffline } = await import('@/lib/chef/chefClient');
@@ -255,7 +258,8 @@ export async function claimOfflineEarnings(
     }
 
     if (options.saveSnapshot !== false) {
-      await saveCurrentRuntimeStores(userId);
+      if (userId) await saveCurrentRuntimeStores(userId);
+      else await saveCurrentRuntimeStores();
     }
 
     // The receipt, in the recap's own shape (held: false — paid).

@@ -81,8 +81,16 @@
  * offer used to live on the Keys chip's plus button — it moved to
  * the cache surface (ChestScreen) with the cache box lane: no ads
  * on the play screen, ever. The level segment is likewise
- * display-only, exactly as the old LEVEL chip was; the tappable
- * level door lives in Home's claim row (DashboardTopBar).
+ * display-only on every tab — EXCEPT Home (see the home variant).
+ *
+ * HOME VARIANT (owner direction 2026-11-05, the two-buttons
+ * package): on Home the Strip drops its cache segment (keys live
+ * on the claim row's CACHE button, one print of the count per
+ * surface), the LV segment becomes the level pop-up's door (the
+ * claim row's level pill is retired — its XP readout duplicated
+ * this bar), and the fused hairline is replaced by a real XP row:
+ * the current/needed fraction plus a visible progress bar. Every
+ * other tab renders the shipped Strip byte-identically.
  *
  * All icons are §7 pixel drawings via PixelWalletIcon (the
  * visualAssets registry carries their tints); the settings gear
@@ -244,9 +252,18 @@ interface ResourceBarProps {
   /** Opens Settings — the Strip's gear resident (DESIGN.md §1).
    *  When omitted, no gear renders. */
   onOpenSettings?: () => void;
+  /**
+   * 'home' renders the Home variant (2026-11-05): no cache segment,
+   * a tappable LV door, and the XP row instead of the hairline.
+   * Every other surface keeps the default 'strip'.
+   */
+  variant?: 'strip' | 'home';
+  /** Home variant only: the LV segment's tap (the level pop-up's door). */
+  onLevelPress?: () => void;
 }
 
-export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpenSettings }) => {
+export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpenSettings, variant = 'strip', onLevelPress }) => {
+  const isHome = variant === 'home';
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
@@ -406,11 +423,18 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
         <div data-testid="resource-bar-strip" className="flex items-center gap-1.5 overflow-hidden px-2 py-1">
           <SkeletonSegment resourceId="credits" />
           <SkeletonSegment resourceId="scrap" />
-          <SkeletonSegment resourceId="cacheKey" />
+          {!isHome && <SkeletonSegment resourceId="cacheKey" />}
           <SkeletonSegment resourceId="legendaryCore" />
           <SkeletonSegment resourceId="loot" />
           {rightEnd(<SkeletonSegment resourceId="level" />)}
         </div>
+        {isHome && (
+          <div aria-hidden className="flex items-center gap-2 px-2 pb-1.5">
+            <span className="h-[11px] w-5 animate-pulse bg-surface-raised" />
+            <span className="h-[6px] flex-1 animate-pulse bg-surface-raised" />
+            <span className="h-[11px] w-16 animate-pulse bg-surface-raised" />
+          </div>
+        )}
       </div>
     );
   }
@@ -435,12 +459,17 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
           ariaText={`Scrap — ${player.scrap}`}
           pulse={pulses.scrap}
         />
-        <Segment
-          resourceId="cacheKey"
-          value={player.cacheKeys}
-          ariaText={`Keys — ${player.cacheKeys} keys`}
-          pulse={pulses.cacheKey}
-        />
+        {/* Home variant: the cache segment leaves the Strip — the
+            key count prints once on Home, on the claim row's CACHE
+            button (2026-11-05). Every other tab keeps it here. */}
+        {!isHome && (
+          <Segment
+            resourceId="cacheKey"
+            value={player.cacheKeys}
+            ariaText={`Keys — ${player.cacheKeys} keys`}
+            pulse={pulses.cacheKey}
+          />
+        )}
         <Segment
           resourceId="legendaryCore"
           value={player.legendaryCores}
@@ -455,32 +484,86 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
           pulse={pulses.loot}
         />
         {rightEnd(
-          <span
-            data-testid="resource-chip-level"
-            role="img"
-            aria-label={`Level — ${player.level}`}
-            className="flex shrink-0 items-center gap-1 whitespace-nowrap"
-          >
-            <span className="whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-amber">
-              LV
+          isHome && onLevelPress ? (
+            // Home variant: the LV segment is the level pop-up's
+            // door (the claim row's level pill retired 2026-11-05 —
+            // its readout duplicated this bar; the door moved to
+            // the level display itself).
+            <button
+              type="button"
+              data-testid="resource-chip-level"
+              aria-label={`Level ${player.level} — open level details`}
+              onClick={onLevelPress}
+              className="flex shrink-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+            >
+              <span className="whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-amber">
+                LV
+              </span>
+              <ValueDigits testId="resource-value-level" pulse={pulses.level}>
+                {player.level}
+              </ValueDigits>
+            </button>
+          ) : (
+            <span
+              data-testid="resource-chip-level"
+              role="img"
+              aria-label={`Level — ${player.level}`}
+              className="flex shrink-0 items-center gap-1 whitespace-nowrap"
+            >
+              <span className="whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-amber">
+                LV
+              </span>
+              <ValueDigits testId="resource-value-level" pulse={pulses.level}>
+                {player.level}
+              </ValueDigits>
             </span>
-            <ValueDigits testId="resource-value-level" pulse={pulses.level}>
-              {player.level}
-            </ValueDigits>
-          </span>,
+          ),
         )}
       </div>
-      {/* The fused XP hairline: a faint full-width track with the
-          amber fill riding the Strip's bottom edge. It tracks the
-          bar's own width, not the scrolling row above it. */}
-      <div aria-hidden className="absolute inset-x-0 bottom-0 h-[3px] bg-white/10">
-        <motion.div
-          className="h-full bg-amber"
-          initial={false}
-          animate={{ width: `${xpProgress}%` }}
-          transition={{ type: 'spring', damping: 20 }}
-        />
-      </div>
+      {isHome ? (
+        // Home variant: the real XP row — the current/needed
+        // fraction as text PLUS a visible progress bar (the claim
+        // row's retired pill carried the only readable XP numbers;
+        // they live here now, on the bar that owns the wallet).
+        <div data-testid="resource-xp-row" className="flex items-center gap-2 px-2 pb-1.5">
+          <span className="whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-muted">
+            XP
+          </span>
+          <div
+            role="progressbar"
+            aria-label={`Experience — ${player.xp} of ${xpNeeded} XP to next level`}
+            aria-valuemin={0}
+            aria-valuemax={xpNeeded}
+            aria-valuenow={player.xp}
+            className="h-[6px] min-w-[24px] flex-1 overflow-hidden border border-black/50 bg-black/40"
+          >
+            <motion.div
+              className="h-full bg-amber"
+              initial={false}
+              animate={{ width: `${xpProgress}%` }}
+              transition={{ type: 'spring', damping: 20 }}
+            />
+          </div>
+          <span
+            data-testid="resource-xp-fraction"
+            className="shrink-0 whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-text-primary"
+          >
+            {player.xp.toLocaleString()} / {xpNeeded.toLocaleString()} XP
+          </span>
+        </div>
+      ) : (
+        // The fused XP hairline: a faint full-width track with the
+        // amber fill riding the Strip's bottom edge. It tracks the
+        // bar's own width, not the scrolling row above it.
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-[3px] bg-white/10">
+          <motion.div
+            className="h-full bg-amber"
+            initial={false}
+            animate={{ width: `${xpProgress}%` }}
+            transition={{ type: 'spring', damping: 20 }}
+          />
+        </div>
+      )}
     </div>
   );
 };

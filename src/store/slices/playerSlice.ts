@@ -36,13 +36,19 @@ export const EMPTY_OFFLINE_HOLD: OfflineHoldState = {
   areaId: null,
 };
 
-/** True when the hold carries anything a claim would actually pay. */
+/**
+ * True when the hold carries anything a claim would actually pay —
+ * kills included: a tiny window can bank its credit/XP fractions as
+ * remainders and leave only kills payable, and the claim is what
+ * records them (0034's kill record rides the claim).
+ */
 export function hasPayableOfflineHold(hold: OfflineHoldState): boolean {
   return (
     hold.credits > 0 ||
     hold.scrap > 0 ||
     hold.xp > 0 ||
     hold.cacheKeys > 0 ||
+    hold.kills > 0 ||
     hold.itemCount > 0 ||
     Object.values(hold.materials).some((n) => n > 0) ||
     Object.values(hold.essences).some((n) => n > 0)
