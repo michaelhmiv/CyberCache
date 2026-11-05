@@ -109,7 +109,21 @@ export function buildSwapComparison(
     if (!cur) continue;
     if (RATIO_METRIC_KEYS.has(cand.key)) {
       const staged = stageStatDelta(cur.value, cand.value);
-      if (!staged) continue;
+      if (!staged) {
+        // Zero base (empty slot — the build has none of this yet):
+        // a percentage of zero is meaningless, but the gain is
+        // real. The hero carries the value; the delta says "New".
+        if (cur.value === 0 && cand.value > 0) {
+          gains.push({
+            kind: 'metric',
+            label: cand.key === 'dps' ? (currentInput.boss ? 'Eff. DPS' : 'DPS') : cand.label,
+            hero: cand.key === 'health' ? formatWhole(cand.value) : cand.display,
+            delta: 'New',
+            tone: 'gain',
+          });
+        }
+        continue;
+      }
       const line: TradeMetricLine = {
         kind: 'metric',
         // The summary names its dps metric 'Base DPS' / 'Effective

@@ -178,6 +178,27 @@ describe('buildSwapComparison', () => {
     expect(trade.losses.some((l) => l.kind === 'note' && l.text === '+10% XP Gain')).toBe(true);
   });
 
+  it('empty slot: a first weapon prices as a pure gain, hero from the post-equip summary', () => {
+    const candidate = weapon('first-gun', { baseDamage: 80 });
+    const s = state({ weapons: [] });
+    const currentInput = assembleStatSummaryInput(s);
+    const candidateInput = assembleStatSummaryInput(s, { slot: 'primary', item: candidate });
+    const trade = buildSwapComparison(currentInput, candidateInput, {
+      currentItem: undefined,
+      candidateItem: candidate,
+      spent: s.spent,
+      currentQualified: qualifiedActionSkillTrees(s.spent, s.classModBoosts),
+      candidateQualified: qualifiedActionSkillTrees(s.spent, s.classModBoosts),
+    });
+    const postSwapSummary = buildCharacterStatSummary(candidateInput);
+    const dpsLine = metricLine(trade.gains, 'DPS');
+    expect(dpsLine).toBeDefined();
+    expect(dpsLine?.hero).toBe(postSwapSummary.all.find((m) => m.key === 'dps')?.display);
+    expect(dpsLine?.delta).toBe('New');
+    expect(trade.losses).toHaveLength(0);
+    expect(trade.hasBuildChange).toBe(true);
+  });
+
   it('boss context: the trade DPS hero follows the boss carried by the inputs', () => {
     // A REAL boss def (Heap Guard, weak to Shock): the candidate
     // differs ONLY by element, so standard DPS is identical on both
