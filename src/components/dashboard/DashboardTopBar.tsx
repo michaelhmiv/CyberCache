@@ -71,6 +71,7 @@ import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import {
   loginStreakAnnouncement,
   loginStreakClaimable,
+  loginStreakClaimKey,
   useLoginStreakStore,
 } from '@/store/slices/loginStreakSlice';
 import { countClaimableContracts, useContractsStore } from '@/store/slices/contractsSlice';
@@ -138,6 +139,8 @@ export const DashboardTopBar: React.FC = () => {
   const streakResult = useLoginStreakStore((s) => s.result);
   const streakResultDay = useLoginStreakStore((s) => s.resultDay);
   const streakSeenGrantKey = useLoginStreakStore((s) => s.seenGrantKey);
+  const streakLastClaimedKey = useLoginStreakStore((s) => s.lastClaimedGrantKey);
+  const streakSeenClaimKey = useLoginStreakStore((s) => s.seenClaimKey);
   const loadStreak = useLoginStreakStore((s) => s.load);
   const revalidateStreak = useLoginStreakStore((s) => s.revalidate);
   const contractsResult = useContractsStore((s) => s.result);
@@ -189,6 +192,18 @@ export const DashboardTopBar: React.FC = () => {
   // CLAIM badge, §9's language used truthfully on this chip)
   // until the claim lands.
   const streakClaimable = loginStreakClaimable(streakResult);
+  // Just claimed (0079): this session's claim landed and the
+  // landing is unacknowledged — the panel's own derivation.
+  // The chip goes plain (the prototype's claimed frame): the
+  // legacy NEW announcement must not re-fire for money the
+  // player just took by hand, and the sheet speaks of the
+  // claim, not of an arrival.
+  const streakClaimKey = loginStreakClaimKey(streakResult, streakResultDay);
+  const streakJustClaimed =
+    !streakClaimable &&
+    streakClaimKey !== null &&
+    streakLastClaimedKey === streakClaimKey &&
+    streakSeenClaimKey !== streakClaimKey;
   const streakDay = streakResult?.loginStreak.currentStreak ?? null;
 
   const board = contractsResult?.contracts ?? null;
@@ -211,20 +226,26 @@ export const DashboardTopBar: React.FC = () => {
     ? `Daily streak — day ${streakDay ?? 0}` +
       (streakClaimable
         ? `, day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward ready to claim`
-        : streakAnnouncement
-          ? `, new grant banked for day ${granted?.streakLength}`
-          : ', today checked in')
+        : streakJustClaimed
+          ? `, day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward claimed just now`
+          : streakAnnouncement
+            ? `, new grant banked for day ${granted?.streakLength}`
+            : ', today checked in')
     : 'Daily streak';
   // The sheet's subtitle speaks the same tense as the panel: an
   // unpaid reward speaks in the present (it is ready, not
-  // banked); a paid day speaks in the past tense.
+  // banked); a paid day speaks in the past tense — and a reward
+  // the player just claimed by hand was never "granted on
+  // arrival" (0079): it says claimed, just now.
   const streakSubtitle = !streakResult
     ? 'Daily check-in rewards'
     : streakClaimable
       ? `Daily check-in · Day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward ready to claim`
-      : granted && !granted.alreadyClaimed
-        ? `Daily check-in · Day ${granted.cycleDay ?? streakResult.loginStreak.cycleDay} granted on arrival`
-        : `Daily check-in · Day ${streakResult.loginStreak.cycleDay} claimed today`;
+      : streakJustClaimed
+        ? `Daily check-in · Day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} claimed just now`
+        : granted && !granted.alreadyClaimed
+          ? `Daily check-in · Day ${granted.cycleDay ?? streakResult.loginStreak.cycleDay} granted on arrival`
+          : `Daily check-in · Day ${streakResult.loginStreak.cycleDay} claimed today`;
   const contractsLabel = !board
     ? 'Contracts'
     : contractsGuestLocked
@@ -294,14 +315,14 @@ export const DashboardTopBar: React.FC = () => {
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakClaimable ? 'pr-16' : streakAnnouncement ? 'pr-12' : ''}`}
+          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakClaimable ? 'pr-16' : streakAnnouncement && !streakJustClaimed ? 'pr-12' : ''}`}
         >
           {streakClaimable ? (
             <>
               <PulseGlow color="#FF8A00" testId="streak-claim-pulse" />
               <CornerBadge text="CLAIM" color="#FF8A00" />
             </>
-          ) : streakAnnouncement ? (
+          ) : streakAnnouncement && !streakJustClaimed ? (
             <>
               <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />
               <CornerBadge text="NEW" color={STREAK_ACCENT} />

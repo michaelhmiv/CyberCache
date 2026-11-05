@@ -277,8 +277,14 @@ describe('Streak true claim — posting → landing → banked', () => {
     expect(rows.textContent).toContain('+200');
     expect(screen.getAllByText('Banked').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('streak-claim-button')).toBeNull();
-    // The chip's claimable signal dies with the payment.
+    // The chip's claimable signal dies with the payment — and
+    // the legacy NEW announcement does not re-fire for money
+    // the player just took by hand (the prototype's claimed
+    // frame wears a plain chip); the sheet's subtitle speaks
+    // of the claim, never of an arrival.
     expect(screen.queryByTestId('streak-claim-pulse')).toBeNull();
+    expect(screen.getByTestId('top-streak-button').textContent).not.toContain('NEW');
+    expect(screen.getByText(/Daily check-in · Day 3 claimed just now/)).toBeTruthy();
 
     // Acknowledge → reopen → the quiet banked sheet.
     fireEvent.click(screen.getByTestId('streak-done-button'));
