@@ -724,6 +724,7 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
             >
               <PixelPartsActor
                 set={hunterPartSet(headVariantPreference())}
+                fitMode="doll"
                 xPct={50}
                 heightPct={96}
                 groundY={0.97}
@@ -778,6 +779,7 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
               >
                 <PixelPartsActor
                   set={hunterPartSet(headVariantPreference())}
+                  fitMode="doll"
                   xPct={50}
                   heightPct={91}
                   groundY={0.97}
