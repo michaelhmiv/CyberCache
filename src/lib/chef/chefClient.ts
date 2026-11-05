@@ -521,6 +521,16 @@ export interface OfflineSettlementRequest {
 
 export interface OfflineSettlementResult {
   settled: true;
+  /**
+   * Hold-and-claim (migration 0083): a roaming settlement is HELD,
+   * not paid — `held` is true and the amounts across this result
+   * (rewards / items / feedEvents) are the ACCUMULATED held totals
+   * the claim will pay. The profile snapshot's `offline_hold` key
+   * carries the same totals for the Home OFFLINE button.
+   */
+  held?: boolean;
+  /** The accumulated hold block (0083), raw server shape. */
+  hold?: Record<string, unknown> | null;
   areaId: string;
   areaName: string;
   /** Human-readable time away (e.g. "2h 34m"). */
@@ -645,6 +655,48 @@ export async function settleOffline(
   }
 
   return response.json() as Promise<OfflineSettlementResult | OfflineCraftSettlementResult | OfflineExtractionSettlementResult | OfflineSettlementNoOp>;
+}
+
+/**
+ * The offline claim's receipt (0083): settle-shaped, with the paid
+ * totals, the KEPT items (post auto-salvage) and the post-claim
+ * profile snapshot. `claimed: false` means nothing was held.
+ */
+export interface OfflineClaimResult {
+  claimed: boolean;
+  reason?: string;
+  areaId?: string;
+  areaName?: string;
+  timeAway?: string;
+  elapsedMs?: number;
+  capReached?: boolean;
+  capHours?: number;
+  ticksSettled?: number;
+  startTick?: number;
+  endTick?: number;
+  windows?: number;
+  profile?: Record<string, unknown>;
+  rewards?: OfflineSettlementResult['rewards'];
+  items?: GearItem[];
+  feedEvents?: ChefClaimResult['feedEvents'];
+  consumedConsumables?: Record<string, number>;
+  autoSalvage?: AutoSalvageSummary;
+  standing?: OfflineSettlementResult['standing'];
+}
+
+/**
+ * The offline claim (0083): POST /api/claim-offline, JWT identity
+ * only, no body — the server pays the held settlement exactly once
+ * (the hold row is the anchor; a replay returns claimed: false and
+ * pays nothing). The Return Sheet's Claim button and the Home
+ * OFFLINE button both land here.
+ */
+export async function claimOffline(): Promise<OfflineClaimResult> {
+  return endlessFetch<OfflineClaimResult>(
+    '/claim-offline',
+    { method: 'POST' },
+    'Chef offline claim failed',
+  );
 }
 
 /**

@@ -8,14 +8,25 @@
  * (db/migrations/0007_chef_gameplay_appliers.sql), which recomputes
  * elapsed time and ticks from database state — the route's own
  * elapsed/tick computation below only sizes the engine simulation,
- * exactly as in June. Request and response contracts are unchanged.
+ * exactly as in June.
+ *
+ * HOLD-AND-CLAIM (migration 0083, owner decision 2026-11-05): the
+ * roaming branch no longer pays. The atomic settle computes the
+ * window and HOLDS it (currencies, materials, essences, kills — the
+ * consumable burn and vehicle outcome still land here: they are
+ * window costs); this route appends the window's item grants + feed
+ * events to the hold and answers with the ACCUMULATED held totals.
+ * Item storage, discoveries, the 0080 auto-salvage pass and the 0043
+ * standing drip moved to POST /api/claim-offline, which pays the
+ * hold exactly once. The crafting and extraction branches below are
+ * unchanged — their outputs already land in pending machinery.
  */
 import type { Request, Response } from 'express';
 import { processRoamingClaim, type ClaimRequest } from '../chef';
 import type { AuthConfig } from '../auth/routes';
 import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, Json } from '../gameplay/store';
-import { equippedWeaponManufacturer, skillBonusesFromRecords } from '../gameplay/serverLoadout';
+import { skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { ABSOLUTE_OFFLINE_CAP_HOURS, effectiveOfflineCapHours } from '../../content/offlineCap';
 import { mergeResearchBonuses } from '../../content/research';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
@@ -23,7 +34,6 @@ import { HOT_AREA_MATERIAL_BONUS, isHotArea } from '../../content/hotArea';
 import { resolveExtractionLevers } from '../../content/extraction';
 import { cacheRankBonuses } from '../../content/cacheRank';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
-import { recordItemDiscoveries } from './roamingHandler';
 import { eliteDiscovery } from '../../content/collections';
 import { IMMEDIATE_DEATH_TICKS, assessAreaDanger } from '../../lib/combat/areaDanger';
 import { computeHunterMaxHp } from '../../lib/combat/damageContract';
@@ -440,6 +450,10 @@ export function createSettleOfflineHandler(
         const zeroCappedMs = Number(zeroSettlement.capped_ms ?? capMs);
         res.json({
           settled: true,
+          // 0083: the zero window is held like any other (an all-zero
+          // hold — nothing payable, the recap acknowledges it).
+          held: true,
+          hold: zeroSettlement.hold ?? null,
           overmatched: true,
           areaId: area.id,
           areaName: area.name,
@@ -592,64 +606,29 @@ export function createSettleOfflineHandler(
         }
       }
 
-      if (result.items.length > 0) {
-        try {
-          await store.storeChefItems(playerId, result.items);
-          await recordItemDiscoveries(store, playerId, result.items, 'offline_drop');
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error('[chef] settlement store items failed:', message);
+      // Hold the window's item grants + feed events (0083): the
+      // drops are NOT stored yet — item storage, discoveries and the
+      // 0080 auto-salvage pass all run at CLAIM time now (see
+      // claimOffline.ts), because the settlement itself pays nothing.
+      // The settle upserted the hold row atomically, so this append
+      // always has a home; it is idempotent per settlement nonce, and
+      // a failure is logged, never retried (the nonce forbids a
+      // second settlement) — the window's currencies stay held and
+      // claimable regardless.
+      let holdBlock = (settlement.hold ?? null) as Record<string, unknown> | null;
+      try {
+        const heldItems = (await store.holdOfflineItems(
+          playerId,
+          body.settlementNonce,
+          result.items as unknown as Json,
+          result.feedEvents as unknown as Json,
+        )) as Record<string, unknown> | null;
+        if (heldItems && heldItems.held_items && heldItems.hold) {
+          holdBlock = heldItems.hold as Record<string, unknown>;
         }
-      }
-
-      // Auto-salvage (migration 0080): the profile's Auto-Salvage
-      // Rule applies to the drops THIS settlement just stored, same
-      // as a foreground claim — each matching item is recycled
-      // through cc_recycle_item, the response's item list keeps only
-      // the unsalvaged drops, the profile becomes the post-salvage
-      // snapshot, and one auto_salvage feed event per salvaged drop
-      // rides the settlement's feed. Same treatment as the steps
-      // above: the settlement is already applied atomically, so a
-      // failure is logged, never retried (the nonce forbids a
-      // second settlement), and the items simply stay in the bag.
-      let autoSalvageBlock: Record<string, unknown> | null = null;
-      let responseItems = result.items;
-      let responseProfile: unknown = settlement.profile ?? {};
-      if (result.items.length > 0) {
-        try {
-          const salvage = (await store.applyAutoSalvage(
-            playerId,
-            body.settlementNonce,
-            'offline',
-            result.items.map((item) => String((item as { id?: unknown }).id ?? '')),
-          )) as Record<string, unknown>;
-          const salvaged = Array.isArray(salvage.items) ? (salvage.items as Array<Record<string, unknown>>) : [];
-          if (Number(salvage.salvaged_count ?? 0) > 0) {
-            const { profile: salvageProfile, ...summary } = salvage;
-            autoSalvageBlock = summary;
-            if (salvageProfile) responseProfile = salvageProfile;
-            const salvagedIds = new Set(salvaged.map((entry) => String(entry.id ?? '')));
-            responseItems = result.items.filter(
-              (item) => !salvagedIds.has(String((item as { id?: unknown }).id ?? '')),
-            );
-            for (const entry of salvaged) {
-              result.feedEvents.push({
-                at: Date.now(),
-                tone: 'auto_salvage',
-                label: `Auto-salvaged ${String(entry.name || 'item')}`,
-                detail:
-                  typeof entry.converted_material === 'string'
-                    ? `Broken down into ${entry.converted_material} while you were away — your Auto-Salvage Rules.`
-                    : `+${Number(entry.scrap_award ?? 0)} scrap while you were away — your Auto-Salvage Rules.`,
-                value: Number(entry.scrap_award ?? 0),
-                areaId: area.id,
-              });
-            }
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error('[chef] settlement auto-salvage failed:', message);
-        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[chef] settlement hold items failed:', message);
       }
 
       // Roaming-event telemetry (0023): same treatment as the vehicle
@@ -681,56 +660,49 @@ export function createSettleOfflineHandler(
         }
       }
 
-      // Manufacturer Standing (0043): the use drip on the settled
-      // kills — the brief's Q4 default pays the drip on offline
-      // settlement too, from the same server-derived primary weapon.
-      // Same treatment as telemetry: the settlement is applied
-      // atomically and the nonce forbids a second one, so a failure
-      // is logged, never retried, and never fails the response. A
-      // replayed settlement returns above and never reaches this —
-      // the drip pays exactly once per settlement.
-      let standingBlock: Record<string, unknown> | null = null;
-      const dripManufacturer = equippedWeaponManufacturer(equippedGear);
-      if (dripManufacturer && result.rewards.killsRecorded > 0) {
-        try {
-          const fact = (await store.accrueManufacturerStanding(
-            playerId,
-            dripManufacturer,
-            result.rewards.killsRecorded,
-          )) as Record<string, unknown>;
-          standingBlock = {
-            manufacturer: String(fact.manufacturer ?? dripManufacturer),
-            points: Number(fact.points ?? 0),
-            capRemaining: Number(fact.cap_remaining ?? 0),
-            balance: Number(fact.balance ?? 0),
-            rank: Number(fact.rank ?? 0),
-          };
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error('[chef] settlement standing accrual failed:', message);
-        }
-      }
+      // Manufacturer Standing (0043) moved to the claim with the
+      // payment (0083): the drip pays on the HELD kills when the
+      // player claims — see claimOffline.ts. Roaming telemetry above
+      // stays here: it records that the window happened (0023), not
+      // that anything was paid.
 
+      // The response reports the ACCUMULATED hold (0083): the recap
+      // and the Home OFFLINE button show what claiming will pay, not
+      // just this window. Amounts come from the hold block the atomic
+      // settle + items append returned; the window's own engine
+      // result is the fallback if the hold read failed above.
+      const holdTicks = Number(holdBlock?.ticks ?? settlement.ticks_settled ?? result.rewards.ticks);
+      const holdElapsedMs = Number(holdBlock?.elapsed_ms ?? atomicElapsedMs);
       res.json({
         settled: true,
+        held: true,
+        hold: holdBlock,
         areaId: area.id,
         areaName: area.name,
-        timeAway: formatTimeAway(atomicElapsedMs),
-        elapsedMs: atomicElapsedMs,
+        timeAway: formatTimeAway(holdElapsedMs),
+        elapsedMs: holdElapsedMs,
         cappedMs: atomicCapMs,
-        capReached,
-        capHours: Number(settlement.cap_hours ?? capHours),
-        ticksSettled: Number(settlement.ticks_settled ?? result.rewards.ticks),
-        startTick: Number(settlement.start_tick ?? profile.last_claimed_tick ?? 0),
-        endTick: Number(settlement.end_tick ?? 0),
-        profile: responseProfile,
-        rewards: result.rewards,
+        capReached: Boolean(holdBlock?.cap_reached ?? capReached),
+        capHours: Number(holdBlock?.cap_hours ?? settlement.cap_hours ?? capHours),
+        ticksSettled: holdTicks,
+        startTick: Number(holdBlock?.start_tick ?? settlement.start_tick ?? profile.last_claimed_tick ?? 0),
+        endTick: Number(holdBlock?.end_tick ?? settlement.end_tick ?? 0),
+        profile: settlement.profile ?? {},
+        rewards: {
+          ...result.rewards,
+          ticks: holdTicks,
+          creditsAwarded: Number(holdBlock?.credits ?? result.rewards.creditsAwarded),
+          scrapAwarded: Number(holdBlock?.scrap ?? result.rewards.scrapAwarded),
+          xpAwarded: Number(holdBlock?.xp ?? result.rewards.xpAwarded),
+          cacheKeysAwarded: Number(holdBlock?.cache_keys ?? result.rewards.cacheKeysAwarded),
+          materials: (holdBlock?.materials as Record<string, number>) ?? result.rewards.materials,
+          essences: (holdBlock?.essences as Record<string, number>) ?? result.rewards.essences,
+          killsRecorded: Number(holdBlock?.kills ?? result.rewards.killsRecorded),
+        },
         vehicle: result.vehicle,
-        items: responseItems,
-        feedEvents: result.feedEvents,
-        consumedConsumables: result.consumedConsumables,
-        ...(autoSalvageBlock ? { autoSalvage: autoSalvageBlock } : {}),
-        ...(standingBlock ? { standing: standingBlock } : {}),
+        items: (holdBlock?.items as unknown[]) ?? result.items,
+        feedEvents: (holdBlock?.feed_events as unknown[]) ?? result.feedEvents,
+        consumedConsumables: (holdBlock?.applied_consumables as Record<string, number>) ?? result.consumedConsumables,
         idempotent: false,
       });
     } catch (err) {
