@@ -5,6 +5,7 @@ import App from './App.tsx';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
+import { StandingsPaperDemo } from './demo/StandingsPaperDemo';
 
 function renderErrorToRoot(error: unknown, source: string) {
   const root = document.getElementById('root');
@@ -34,8 +35,22 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
+// PROTOTYPE (design/hunter-subpages-standings-d): /standings-paper-demo
+// mounts the Standings paperwork fixture harness instead of the app —
+// fixture payloads, no Chef session. This branch dies with the
+// prototype; it is never a shipped route.
+const isStandingsPaperDemo =
+  typeof window !== 'undefined' && window.location.pathname.startsWith('/standings-paper-demo');
+
 try {
   createRoot(document.getElementById('root')!).render(
+    isStandingsPaperDemo ? (
+      <StrictMode>
+        <GlobalErrorBoundary>
+          <StandingsPaperDemo />
+        </GlobalErrorBoundary>
+      </StrictMode>
+    ) : (
     <StrictMode>
       <GlobalErrorBoundary>
         <AuthProvider>
@@ -44,7 +59,8 @@ try {
           </AccountStorageBoundary>
         </AuthProvider>
       </GlobalErrorBoundary>
-    </StrictMode>,
+    </StrictMode>
+    ),
   );
 } catch (error) {
   console.error('[createRoot] failed to render:', error);
