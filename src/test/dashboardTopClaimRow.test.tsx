@@ -85,6 +85,19 @@
  *  - the row's mb-3 is gone (Home's stack owns the section
  *    boundary — the 8px section-gap law, probed in the
  *    claim-row-look-captures spacing probe).
+ *
+ * R4 AMENDMENT (owner feedback on the presented r3 captures,
+ * 2026-11-05: "Space the cache etc buttons horizontal to
+ * fill that whole space"): the left dock is superseded — the
+ * row spreads its keys across the full column width
+ * (justify-between over the gap-3 floor): first key flush
+ * left, last key flush right, the leftover width landing as
+ * equal gaps between the keys in the four-key and five-key
+ * states alike. The hit boxes are flex items, so the
+ * distribution can never overlap them; the pixel proof (gap
+ * values per state, asserted equal within a state) is the
+ * claim-row-look geometry probe. The pins below move only
+ * here: the row carries justify-between in both states.
  * Icon-only, one line, all data + badges, behavior/testids/
  * destinations — unchanged, and pinned below as before.
  */
@@ -324,8 +337,10 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(screen.getByTestId('top-contracts-button').textContent).toContain('GUEST');
 
     // One line: no wrap, and no pair group — the keys are the
-    // row's direct children.
+    // row's direct children. Spread to fill (r4): the row
+    // distributes the keys across the full column width.
     expect(row.className).not.toContain('flex-wrap');
+    expect(row.className).toContain('justify-between');
     const cacheButton = screen.getByTestId('top-cache-button');
     const offlineButton = screen.getByTestId('top-offline-button');
     const streakButton = screen.getByTestId('top-streak-button');
@@ -374,6 +389,8 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expectIconKey(weekly);
     const row = screen.getByTestId('dashboard-top-bar');
     expect(row.className).not.toContain('flex-wrap');
+    // Spread to fill holds in the five-key state too (r4).
+    expect(row.className).toContain('justify-between');
     for (const id of ['top-cache-button', 'top-offline-button', 'top-streak-button', 'top-contracts-button']) {
       expect(screen.getByTestId(id)).toBeTruthy();
     }

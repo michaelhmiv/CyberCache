@@ -508,8 +508,29 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           deck). This row's mb-3 and the chips' mb-3 are gone:
           Home's stack owns the boundary, and the spacing
           probe (claim-row-look-captures) measures every
-          boundary and asserts the one value. */}
-      <div data-testid="dashboard-top-bar" className="flex items-center gap-3">
+          boundary and asserts the one value.
+          R4 AMENDMENT (owner feedback on the presented r3
+          captures, 2026-11-05: "Space the cache etc buttons
+          horizontal to fill that whole space"): the left dock
+          is gone. The row now spreads its hit boxes across
+          the full column width — justify-between over the
+          gap-3 floor: the first key sits flush at the
+          column's left edge, the last flush at its right
+          edge, and the leftover width lands as EQUAL gaps
+          between the keys, in the four-key everyday state
+          and the five-key weekly state alike (the geometry
+          probe reports every inter-key gap per state and
+          asserts the equality). gap-3 stays as the minimum
+          beat: the distribution adds on top of it, and the
+          tightest honest state (weekly + a pending figure)
+          still clears it by a wide margin. The hit boxes are
+          flex items, so space-between can never overlap
+          them — distribution only ever widens the gaps.
+          Everything r3 settled is untouched: the paint (28px
+          chips in 44px hit boxes, corner tabs, 20px icons),
+          icon-only, one line, all data, and the vertical
+          section-gap law. */}
+      <div data-testid="dashboard-top-bar" className="flex items-center justify-between gap-3">
         {/* CACHE — the key count's one print on Home (the Strip's
             cache segment leaves Home in this package), as a
             bubble attached to the key icon in the chip on the
