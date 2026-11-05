@@ -163,7 +163,10 @@ const ReadingRoom: React.FC<{ row: LedgerRow; onClose: () => void }> = ({ row, o
           {found ? entry.hint : LEDGER_UNDISCOVERED_TEASERS[entry.family]}
         </p>
 
-        <div className="mt-14 border-t border-border-light/50 pt-6">
+        {/* The provenance is the room's colophon — it anchors the
+            foot of the page, however much air the piece leaves. */}
+        <div className="min-h-14 flex-1" />
+        <div className="border-t border-border-light/50 pt-6">
           {found ? (
             <>
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
@@ -200,7 +203,7 @@ export const CollectionsLedger: React.FC<{ payload: CollectionsPayload }> = ({ p
     <div className="h-full overflow-y-auto bg-bg text-text-primary">
       <div className="mx-auto w-full max-w-[480px] px-7 pb-20">
         <header className="pt-16">
-          <h1 style={DISPLAY} className="text-[76px] leading-[0.95] text-text-primary">
+          <h1 style={DISPLAY} className="text-[64px] leading-[0.95] text-text-primary">
             Collections
           </h1>
           <p className="mt-6 max-w-[36ch] text-[15px] leading-relaxed text-text-secondary">
@@ -225,7 +228,7 @@ export const CollectionsLedger: React.FC<{ payload: CollectionsPayload }> = ({ p
 
         {chapters.map((chapter) => (
           <section key={chapter.family} className="mt-20 border-t border-border-light/50 pt-12">
-            <h2 style={DISPLAY} className="text-[44px] leading-none text-text-primary">
+            <h2 style={DISPLAY} className="text-[40px] leading-none text-text-primary">
               {chapter.label}
             </h2>
             <p className="mt-3 text-[13px] text-text-muted">
