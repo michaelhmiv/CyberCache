@@ -171,7 +171,7 @@ function levelOneSeed(benches: number): WriteSeed {
     last_settlement_nonce: null, offline_cap_hours: 0, vehicle_fuel: 0,
     workshop_benches: benches, workshop_tools: {},
     id: A,
-  } as ProfileRowData];
+  } as unknown as ProfileRowData];
   return s;
 }
 
@@ -180,7 +180,7 @@ describe('consumable crafting after gate-removal step 2 (0057)', () => {
     const store = new InMemoryWriteStore(levelOneSeed(3), { now });
     store.grantStandingRank(A, 'Redline', 2);
     const job = await store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: 'recipe_redline_standing', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_redline_standing', units: 1,
     }) as Json;
     expect((job.job as Json).recipe_id ?? (job.job as Json).recipeId).toBe('recipe_redline_standing');
   });
@@ -193,7 +193,7 @@ describe('consumable crafting after gate-removal step 2 (0057)', () => {
       ['recipe_adrenaline', 1],
     ] as const) {
       const job = await store.enqueueCraftJob(A, nonce(), {
-        bench, recipeId, units: 1, consumableEfficiencyBonus: 0,
+        bench, recipeId, units: 1,
       }) as Json;
       expect((job.job as Json).recipe_id ?? (job.job as Json).recipeId).toBe(recipeId);
     }
@@ -203,7 +203,7 @@ describe('consumable crafting after gate-removal step 2 (0057)', () => {
     const store = new InMemoryWriteStore(levelOneSeed(3), { now });
     store.completeResearchCourse(A, 'production_systems');
     const job = await store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: 'recipe_shield_cell_batch', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_shield_cell_batch', units: 1,
     }) as Json;
     expect((job.job as Json).recipe_id ?? (job.job as Json).recipeId).toBe('recipe_shield_cell_batch');
   });
@@ -211,14 +211,14 @@ describe('consumable crafting after gate-removal step 2 (0057)', () => {
   it('without Standing, the tonic refusal is standing_required — the level never speaks', async () => {
     const store = new InMemoryWriteStore(levelOneSeed(3), { now });
     await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: 'recipe_redline_standing', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_redline_standing', units: 1,
     })).rejects.toThrow('standing_required');
   });
 
   it('without the Research course, the batch refusal is research_required', async () => {
     const store = new InMemoryWriteStore(levelOneSeed(3), { now });
     await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: 'recipe_shield_cell_batch', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_shield_cell_batch', units: 1,
     })).rejects.toThrow('research_required');
   });
 
@@ -228,7 +228,7 @@ describe('consumable crafting after gate-removal step 2 (0057)', () => {
     // 'Bench not unlocked' on bench 2. Post-collapse the recipe
     // runs on the single bench everyone owns.
     await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: 'recipe_calibration_core', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_calibration_core', units: 1,
     })).resolves.toBeTruthy();
   });
 });

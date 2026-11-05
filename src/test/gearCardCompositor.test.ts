@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Element, Rarity } from '@/types/game';
+import { DropSource, Element, Rarity } from '@/types/game';
 import type { Shield } from '@/types/items';
 import {
   BESPOKE_GEAR_SPRITES,
@@ -206,7 +206,7 @@ describe('gear core — default input derivation', () => {
         { id: 'a1', category: 'combat', stat: 'maxHp', value: 10, displayText: '+10 HP' },
         { id: 'a2', category: 'combat', stat: 'mitigation', value: 2, displayText: '+2% mitigation' },
       ],
-      sourceTag: 'World Drop', isLocked: false, pixelSeed: 67890,
+      sourceTag: DropSource.WorldDrop, isLocked: false, pixelSeed: 67890,
     };
     const input = defaultGearInput(shield, fixtureBlockGrammar);
     expect(input).toEqual({
