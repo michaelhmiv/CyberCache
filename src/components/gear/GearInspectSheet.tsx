@@ -12,15 +12,11 @@ import { getVisualAsset } from '@/constants/visualAssets';
 import { useBossStore, useInventoryStore, useLoadoutStore, useMarketStore, useSkillStore } from '@/store';
 import { computeLoadoutDps } from '@/lib/stats/dpsChain';
 import { REGION_1_BOSSES } from '@/constants/bosses';
-// The stat deck rendering (statRows, StatLine, affix/part/legendary
-// lines) lives in ONE shared source — itemStatDeck — so this sheet
-// and the cache reveal page can never disagree about an item's
-// numbers. Do not re-inline copies here.
+// The stat deck lives in ONE shared source — data in
+// src/lib/gear/itemStatDeck.ts, rendering in ./itemStatDeck.tsx —
+// so this sheet and the cache reveal page can never disagree about
+// an item's numbers. Do not re-inline copies here.
 import {
-  AffixLine,
-  LegendaryEffectBlock,
-  PartLine,
-  StatLine,
   affixesOf,
   isClassMod,
   isWeapon,
@@ -29,6 +25,12 @@ import {
   skillNodeName,
   slashClip,
   statRows,
+} from '@/lib/gear/itemStatDeck';
+import {
+  AffixLine,
+  LegendaryEffectBlock,
+  PartLine,
+  StatLine,
 } from './itemStatDeck';
 import type { GearItem } from '@/types/items';
 import type { Listing } from '@/types/market';
