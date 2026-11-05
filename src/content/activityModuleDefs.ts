@@ -316,7 +316,7 @@ export const ACTIVITY_MODULE_DEFS: Record<Exclude<ActivityKind, 'none' | 'boss_p
       {
         key: 'cacheKeyChance', label: 'Cache Keys', baseValue: 0.04,
         levelGrowth: LEVEL_GROWTH_RATE * 0.5, rarityMin: Rarity.Epic,
-        displayFormat: '+{v}% Fragments',
+        displayFormat: '+{v}% Cache Keys',
       },
     ],
     mfgBonus: {

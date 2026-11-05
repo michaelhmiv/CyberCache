@@ -41,9 +41,16 @@ export const LeaderboardMetricPicker: React.FC<LeaderboardMetricPickerProps> = (
             key={m.value}
             onClick={() => onMetricChange(m.value)}
             className={`shrink-0 rounded px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition-colors ${
-              metric === m.value ? 'text-text-primary' : 'text-text-muted hover:text-text-primary'
+              metric === m.value ? '' : 'text-text-muted hover:text-text-primary'
             }`}
-            style={{ backgroundColor: metric === m.value ? `${m.color}40` : 'rgba(0,0,0,0.3)' }}
+            style={{
+              backgroundColor: metric === m.value ? `${m.color}55` : 'rgba(0,0,0,0.3)',
+              // The active board must read as SELECTED at a glance
+              // (papercut): the metric's own color as text + a ring in
+              // the same color, not just a faint tint behind white text.
+              color: metric === m.value ? m.color : undefined,
+              boxShadow: metric === m.value ? `inset 0 0 0 1.5px ${m.color}` : undefined,
+            }}
           >
             {m.label}
           </button>

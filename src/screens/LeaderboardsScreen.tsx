@@ -373,6 +373,7 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number }> = ({ focusEarn
       ) : (
         <LeaderboardList
           entries={entries}
+          metric={metric}
           myPlayerId={user?.id}
           loading={loading}
           onRowClick={openPlayer}

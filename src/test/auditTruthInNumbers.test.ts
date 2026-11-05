@@ -42,6 +42,7 @@ import { buildBossFightActivity } from '@/lib/activity/activityBuilders';
 import { migrateActivityForBossCollapse } from '@/lib/activity/activityMigration';
 import { isBossPhase } from '@/types/activity';
 import { lootStatLine, weaponStatFigures } from '@/lib/pixel/lootMoment';
+import { pct as deckPct } from '@/lib/gear/itemStatDeck';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SECRET = 'test-secret-at-least-32-chars-long!!';
@@ -480,9 +481,18 @@ describe('DISP-03 — loot celebration renders the card figures', () => {
     critChance,
   });
 
-  it('matches both walk openings exactly (1.47/6.7% and 1.18/9.5%)', () => {
-    expect(lootStatLine(walkWeapon(1.47, 0.067))).toBe('Dmg 500 · Spd 1.47 · Crit 6.7%');
-    expect(lootStatLine(walkWeapon(1.18, 0.095))).toBe('Dmg 500 · Spd 1.18 · Crit 9.5%');
-    expect(weaponStatFigures(walkWeapon(1.47, 0.067))).toEqual({ dmg: '500', spd: '1.47', crit: '6.7%' });
+  it('matches both walk openings exactly (1.47/7% and 1.18/10%)', () => {
+    expect(lootStatLine(walkWeapon(1.47, 0.067))).toBe('Dmg 500 · Spd 1.47 · Crit 7%');
+    expect(lootStatLine(walkWeapon(1.18, 0.095))).toBe('Dmg 500 · Spd 1.18 · Crit 10%');
+    expect(weaponStatFigures(walkWeapon(1.47, 0.067))).toEqual({ dmg: '500', spd: '1.47', crit: '7%' });
+  });
+
+  it('crit agrees with the shared stat deck formatter exactly (papercut: 10.3% card vs 10% deck)', () => {
+    // The reveal card and the stat deck print the same item's crit from
+    // one formatter (statFormat.pct, re-exported by itemStatDeck) — a
+    // fractional chance must read identically on both surfaces.
+    const fractional = walkWeapon(1.5, 0.103);
+    expect(weaponStatFigures(fractional).crit).toBe(deckPct(fractional.critChance));
+    expect(weaponStatFigures(fractional).crit).toBe('10%');
   });
 });

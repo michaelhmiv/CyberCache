@@ -504,6 +504,35 @@ describe('action skills over HTTP (boss attempts)', () => {
     expect(h.store.profiles.get(A)?.action_skill_charge).toBe(100);
   });
 
+  it('a missing or invalid risk is a clean 400, never a 500 (papercut)', async () => {
+    // Regression: getBossRiskModifiers has no default arm, so an
+    // unvalidated risk used to reach the simulator as undefined and
+    // throw on its fields — the route answered 500. The route now
+    // validates risk like every other intent field, before any
+    // profile read or attempt resolution.
+    const h = await makeServer();
+    h.store.seedProfile({
+      id: A, player_level: 40, credits: 5000,
+      skill_spends: { gs_keystone: 1 },
+      action_skill_charge: 66, action_skill_selection: 'Gunslinger',
+      boss_state: bossState(),
+    });
+    seedGear(h.store, A, 40, 1);
+    const missing = await post(h, '/api/verify-boss', {
+      bossId: 'dune_tyrant', attemptNonce: nextBossNonce(), consumables: {},
+    }, h.tokenA);
+    expect(missing.status).toBe(400);
+    expect(missing.json.error).toBe('Invalid risk setting');
+    const bogus = await post(h, '/api/verify-boss', {
+      bossId: 'dune_tyrant', attemptNonce: nextBossNonce(), consumables: {}, risk: 'Reckless',
+    }, h.tokenA);
+    expect(bogus.status).toBe(400);
+    expect(bogus.json.error).toBe('Invalid risk setting');
+    // Nothing resolved: no charge accrued, no credits moved.
+    expect(h.store.profiles.get(A)?.action_skill_charge).toBe(66);
+    expect(h.store.profiles.get(A)?.credits).toBe(5000);
+  });
+
   it('firing spends the pool inside the attempt resolution; a replay never double-fires', async () => {
     const h = await makeServer();
     h.store.seedProfile({

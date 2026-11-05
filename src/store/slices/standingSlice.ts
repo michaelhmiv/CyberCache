@@ -36,6 +36,7 @@ import {
   standingOrder,
 } from '@/lib/chef/chefClient';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
+import { withArticle } from '@/lib/utils/articles';
 import type {
   StandingManufacturerView,
   StandingStateView,
@@ -87,7 +88,7 @@ export function weeklyClaimables(view: StandingStateView | null): WeeklyClaimabl
         kind: 'order',
         offerKey: null,
         priceCredits: m.order.priceCredits,
-        detail: `Signature Order — a ${m.name} weapon at your level, Rare–Epic · weekly`,
+        detail: `Signature Order — ${withArticle(m.name)} weapon at your level, Rare–Epic · weekly`,
       });
     }
   }

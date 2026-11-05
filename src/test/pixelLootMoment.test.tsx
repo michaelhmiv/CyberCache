@@ -108,7 +108,7 @@ describe('LootMoment — full mode (stage surface)', () => {
     expect(hero.textContent).toContain('DAMAGE');
     expect(hero.textContent).toContain('2,847');
     expect(hero.textContent).toContain('6.20');
-    expect(hero.textContent).toContain('15.0%');
+    expect(hero.textContent).toContain('15%');
     expect(hero.textContent).toContain('62');
     expect(hero.textContent).toContain('STRONG');
     // No legendary surplus for a Rare.

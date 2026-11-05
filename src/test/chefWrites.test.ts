@@ -314,7 +314,7 @@ describe('cache draws, vendor, crafting, consumables', () => {
 
     const unknown = await post(h, '/api/ops/vendor-buy', h.tokenA, { nonce: nonce(), item_key: 'nope', quantity: 1 });
     expect(unknown.status).toBe(400);
-    expect(unknown.json.message).toBe('Unknown vendor item');
+    expect(unknown.json.message).toBe('Not offered by the vendor today');
   });
 
   it('crafting consumes materials and fails cleanly without them', async () => {

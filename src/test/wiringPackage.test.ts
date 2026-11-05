@@ -102,7 +102,7 @@ describe('grenade merge — the shipped buy path yields sim-counted units', () =
     const batch = store.seed.consumableBatches.find((b) => b.consumable_type === 'OrdnanceCharge');
     expect(batch?.quantity).toBe(2);
 
-    await expect(store.vendorBuy(BUYER, nonce(), 'Grenade', 1)).rejects.toThrow(/Unknown vendor item/);
+    await expect(store.vendorBuy(BUYER, nonce(), 'Grenade', 1)).rejects.toThrow(/Not offered by the vendor today/);
   });
 
   it('vendor-bought Ordnance Charge units are counted by the boss sim as ordnance uses', async () => {

@@ -1,4 +1,5 @@
 import { useBossStore } from '@/store';
+import { pct, signedPct } from '@/lib/gear/statFormat';
 import { computeLoadoutDps, computeStandardDps } from '@/lib/stats/dpsChain';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { LEGENDARY_EFFECTS, legendaryEffectName } from '@/constants/legendaryEffects';
@@ -31,8 +32,10 @@ export const isOrdnance = (item: GearItem): item is Ordnance => 'damage' in item
 export const isRelic = (item: GearItem): item is Relic => 'affixes' in item && !isWeapon(item) && !isShield(item) && !isClassMod(item) && !isOrdnance(item);
 export const affixesOf = (item: GearItem): Affix[] => ('affixes' in item && Array.isArray(item.affixes) ? item.affixes : []);
 export const kindOf = (item: GearItem) => (isWeapon(item) ? 'Weapon' : isShield(item) ? 'Shield' : isClassMod(item) ? 'Class Mod' : isOrdnance(item) ? 'Ordnance' : 'Relic');
-export const pct = (value: number) => `${Math.round(value * 100)}%`;
-export const signedPct = (value: number) => `${value >= 0 ? '+' : ''}${Math.round(value * 100)}%`;
+// The percent formatters live in statFormat.ts (shared with the
+// loot-moment card); re-exported here so this module stays the
+// deck's one import surface.
+export { pct, signedPct } from './statFormat';
 
 /**
  * Player-facing labels for weapon-part modifier keys (QC 2026-11-02,

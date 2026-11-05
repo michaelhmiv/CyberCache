@@ -167,7 +167,7 @@ describe('lootCardData — card derivation from real item data', () => {
     expect(card.name).toBe('Volt Carbine');
     expect(card.stamp).toBe('RARE SMG');
     expect(card.kindLabel).toBe('SMG');
-    expect(card.statLine).toBe('Dmg 2,847 · Spd 6.20 · Crit 15.0%');
+    expect(card.statLine).toBe('Dmg 2,847 · Spd 6.20 · Crit 15%');
     expect(card.isWeapon).toBe(true);
     expect(card.flavor).toBeUndefined(); // flavor is a legendary-only line
   });
@@ -215,7 +215,7 @@ describe('lootDeckData — the reveal deck derivation', () => {
     expect(deck.hero).toEqual({ label: 'DAMAGE', value: '2,847' });
     expect(deck.supports).toEqual([
       { label: 'SPD', value: '6.20' },
-      { label: 'CRIT', value: '15.0%' },
+      { label: 'CRIT', value: '15%' },
     ]);
     expect(deck.quality).toEqual({ value: 62, label: 'STRONG' });
     expect(deck.effect).toBeNull();
