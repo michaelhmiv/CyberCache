@@ -5,6 +5,7 @@ import App from './App.tsx';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
+import ProfileGalleryDemo from './demo/ProfileGalleryDemo';
 
 function renderErrorToRoot(error: unknown, source: string) {
   const root = document.getElementById('root');
@@ -34,7 +35,15 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
-try {
+if (window.location.pathname.includes('profile-demo')) {
+  // Prototype harness (Profile variant C design pass) — renders the
+  // gallery demo standalone, without the auth bootstrap or the Chef.
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ProfileGalleryDemo />
+    </StrictMode>,
+  );
+} else try {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <GlobalErrorBoundary>
