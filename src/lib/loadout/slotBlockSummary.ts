@@ -40,7 +40,7 @@ import {
 import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
 import { ELEMENTS } from '@/constants/elements';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
-import type { GearLoadoutSlot, LoadoutSlot } from '@/store/slices/loadoutSlice';
+import type { GearLoadoutSlot } from '@/store/slices/loadoutSlice';
 
 export const SLOT_BLOCK_LABELS: Record<GearLoadoutSlot, string> = {
   primary: 'Primary',
