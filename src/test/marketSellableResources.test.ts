@@ -184,60 +184,20 @@ describe('sellable resources — write paths', () => {
   const profileOf = (id: string) => h.store.seed.profiles.find((p) => p.id === id);
   const creditsOf = (id: string) => profileOf(id)?.credits ?? 0;
 
-  it('fragments: escrow at list, delivery converts for the buyer, 5% fee burned', async () => {
+  it('fragments: the listing op refuses — the currency no longer exists (0082)', async () => {
+    // The seller still holds a legacy parts balance (seeded 4); the
+    // op refuses before any escrow, for every account state.
     const created = await post(h, '/api/ops/market-create-fragment', h.tokens[S], {
       nonce: nonce(), quantity: 4, price_credits: 2000,
     });
-    expect(created.status).toBe(200);
-    const listing = created.json.listing as Record<string, unknown>;
-    expect(listing.listing_kind).toBe('fragment');
-    expect(listing.identity_key).toBe('frag:cache');
-    expect(listing.category).toBe('fragment');
-    expect(listing.display_name).toBe('Cache Fragment');
-    expect(listing.quantity).toBe(4);
-    // Escrow left the balance at list time.
-    expect(profileOf(S)?.cache_token_parts).toBe(0);
-
-    const accepted = await post(h, '/api/ops/market-accept', h.tokens[B], {
-      nonce: nonce(), listing_id: listing.id,
-    });
-    expect(accepted.status).toBe(200);
-    expect(accepted.json.delivery).toMatchObject({ kind: 'fragment', quantity: 4 });
-    // 5% of 2000 = 100 destroyed; seller proceeds 1900.
-    expect(accepted.json.market_fee.fee_credits).toBe(100);
-    expect(creditsOf(S)).toBe(1900);
-    expect(creditsOf(B)).toBe(100_000 - 2000);
-    // Buyer held 3 parts + 1 key; delivered 4 shards settle like a
-    // reward application: 3 + 4 = 7 -> 2 parts and one more key.
-    expect(profileOf(B)?.cache_token_parts).toBe(2);
-    expect(profileOf(B)?.cache_tokens).toBe(2);
-  });
-
-  it('THE FRAGMENT PIN: escrow is conversion-exempt; cancel restores raw', async () => {
-    // Fresh seller balance for the pin: exactly 4 fragments, 0 keys.
-    const seller = profileOf(S)!;
-    seller.cache_token_parts = 4;
-    seller.cache_tokens = 0;
-    const created = await post(h, '/api/ops/market-create-fragment', h.tokens[S], {
-      nonce: nonce(), quantity: 4, price_credits: 1000,
-    });
-    expect(created.status).toBe(200);
-    // All 4 shards are escrowed: the unescrowed balance is 0, so the
-    // 5->1 conversion inside the reward appliers has nothing to see.
-    expect(profileOf(S)?.cache_token_parts).toBe(0);
-    // The seller earns 1 more fragment (a roaming reward landing):
-    // balance 1 — no conversion may fire against the escrowed 4.
-    seller.cache_token_parts = (seller.cache_token_parts ?? 0) + 1;
-    expect(profileOf(S)?.cache_token_parts).toBe(1);
-    expect(profileOf(S)?.cache_tokens).toBe(0);
-    // Cancel returns the escrow RAW: balance 5, still 0 keys — the
-    // conversion fires on the next reward application, not at cancel.
-    const cancelled = await post(h, '/api/ops/market-cancel', h.tokens[S], {
-      nonce: nonce(), listing_id: (created.json.listing as Record<string, unknown>).id,
-    });
-    expect(cancelled.status).toBe(200);
-    expect(profileOf(S)?.cache_token_parts).toBe(5);
-    expect(profileOf(S)?.cache_tokens).toBe(0);
+    expect(created.status).toBe(400);
+    expect(String(created.json.message)).toContain('Cache fragments no longer exist');
+    expect(profileOf(S)?.cache_token_parts).toBe(4);
+    expect(h.store.seed.listings.filter((l) => l.listing_kind === 'fragment')).toHaveLength(0);
+    // The store twin refuses with the same message the dropped SQL
+    // function's replacement carries (both twins, one vocabulary).
+    await expect(h.store.marketCreateFragment(S, nonce(), 1, 100))
+      .rejects.toThrow('Cache fragments no longer exist — cache keys are the only cache currency');
   });
 
   it('cores: escrow at list, delivered at buy, 5% fee burned', async () => {
@@ -337,11 +297,13 @@ describe('sellable resources — write paths', () => {
     expect(profileOf(S)?.essences?.IgnitionFluid).toBe(2);
   });
 
-  it('guest lock: guests cannot list any of the three families', async () => {
+  it('guest lock: guests cannot list either surviving family', async () => {
+    // The fragment family is gone entirely (0082): its op refuses
+    // with 400 for guests and verified accounts alike.
     const frag = await post(h, '/api/ops/market-create-fragment', h.tokens[G], {
       nonce: nonce(), quantity: 1, price_credits: 100,
     });
-    expect(frag.status).toBe(403);
+    expect(frag.status).toBe(400);
     const core = await post(h, '/api/ops/market-create-core', h.tokens[G], {
       nonce: nonce(), quantity: 1, price_credits: 100,
     });

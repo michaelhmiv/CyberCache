@@ -150,30 +150,33 @@ describe('contracts content — taxonomy and bands', () => {
     expect(contractTargetFor(fieldWork, 'daily', b2, hard)).toBe(400);
   });
 
-  it('rewards: band credits, combat dailies +1 part, weeklies 3 parts, never cores/gear/XP', () => {
+  it('rewards: band credits only (fragments abolished by 0082), never cores/gear/XP', () => {
     const b2 = CONTRACT_BANDS[1];
     const fieldWork = CONTRACT_TEMPLATE_BY_ID.get('field_work')!;
-    expect(contractRewardFor(fieldWork, 'daily', b2, LEVERS)).toEqual({ credits: 220, fragments: 1 });
-    expect(contractRewardFor(fieldWork, 'weekly', b2, LEVERS)).toEqual({ credits: 900, fragments: 3 });
+    expect(contractRewardFor(fieldWork, 'daily', b2, LEVERS)).toEqual({ credits: 220 });
+    expect(contractRewardFor(fieldWork, 'weekly', b2, LEVERS)).toEqual({ credits: 900 });
     const production = CONTRACT_TEMPLATE_BY_ID.get('production_order')!;
-    expect(contractRewardFor(production, 'daily', b2, LEVERS)).toEqual({ credits: 220, fragments: 0 });
-    // The brief's own G-3 example prices Breakdown at B2 with a fragment.
+    expect(contractRewardFor(production, 'daily', b2, LEVERS)).toEqual({ credits: 220 });
+    // The brief's own G-3 example prices Breakdown at B2.
     const breakdown = CONTRACT_TEMPLATE_BY_ID.get('breakdown')!;
-    expect(contractRewardFor(breakdown, 'daily', b2, LEVERS)).toEqual({ credits: 220, fragments: 1 });
+    expect(contractRewardFor(breakdown, 'daily', b2, LEVERS)).toEqual({ credits: 220 });
     // The reward shape has no other fields — structurally no cores, gear, or XP.
     for (const template of CONTRACT_TEMPLATES) {
       for (const kind of ['daily', 'weekly'] as const) {
         if (!template.cadences.includes(kind)) continue;
         expect(Object.keys(contractRewardFor(template, kind, b2, LEVERS)).sort())
-          .toEqual(['credits', 'fragments']);
+          .toEqual(['credits']);
       }
     }
   });
 
-  it('full-set bonuses: daily +2 parts; weekly 1 key + one weekly of credits', () => {
+  it('full-set bonuses: daily pays the 30 cr fragment fold; weekly 1 key + one weekly of credits', () => {
     const b2 = CONTRACT_BANDS[1];
-    expect(contractSetBonusFor('daily', b2, LEVERS)).toEqual({ credits: 0, fragments: 2, cacheKeys: 0 });
-    expect(contractSetBonusFor('weekly', b2, LEVERS)).toEqual({ credits: 900, fragments: 0, cacheKeys: 1 });
+    // The daily bonus paid ONLY fragments (+2 parts), so under the
+    // owner's fold rule it pays their credit value instead:
+    // 2 parts × 15 cr = 30 cr at scalar 1 (migration 0082).
+    expect(contractSetBonusFor('daily', b2, LEVERS)).toEqual({ credits: 30, cacheKeys: 0 });
+    expect(contractSetBonusFor('weekly', b2, LEVERS)).toEqual({ credits: 900, cacheKeys: 1 });
     const noKeys = resolveContractLevers({ contractWeeklyKeys: 0 });
     expect(contractSetBonusFor('weekly', b2, noKeys).cacheKeys).toBe(0);
   });
@@ -274,7 +277,7 @@ describe('contracts evaluator — progress from facts only', () => {
   function instance(partial: Partial<ContractInstanceRecord>): ContractInstanceRecord {
     return {
       id: 'inst', periodKind: 'daily', periodKey: '2026-11-02', slot: 0, generation: 0,
-      templateId: 'field_work', params: {}, target: 200, baseline: {}, reward: { credits: 220, fragments: 1 },
+      templateId: 'field_work', params: {}, target: 200, baseline: {}, reward: { credits: 220 },
       status: 'active', issuedAt: '2026-11-02T00:00:00.000Z', claimedAt: null,
       ...partial,
     };
@@ -312,7 +315,7 @@ describe('contracts evaluator — progress from facts only', () => {
       rerollsUsed: 0,
       setBonusClaimed: false,
       instances: [{
-        ...instance({ templateId: 'breakdown', target: 6, reward: { credits: 220, fragments: 1 } }),
+        ...instance({ templateId: 'breakdown', target: 6, reward: { credits: 220 } }),
         progress: 4,
       }],
     };
@@ -321,7 +324,7 @@ describe('contracts evaluator — progress from facts only', () => {
       LEVERS, new Date('2026-11-02T12:00:00.000Z'), () => undefined,
     );
     expect(view.daily.contracts[0].progressLine)
-      .toBe('Salvages 4 / 6 — pays 220 cr + 1 fragment · claim by 00:00 UTC');
+      .toBe('Salvages 4 / 6 — pays 220 cr · claim by 00:00 UTC');
     expect(view.daily.contracts[0].title).toBe('Breakdown: salvage 6 items');
   });
 });
@@ -453,9 +456,11 @@ describe('contracts — in-memory gameplay store', () => {
     const beforeParts = store.profiles.get(A)!.cache_token_parts;
     const claimed = await store.claimContractReward(A, 'claim-nonce-0001', inst!.id) as Json;
     expect(claimed.credits_awarded).toBe(inst!.reward.credits);
-    expect(claimed.fragments_awarded).toBe(inst!.reward.fragments);
+    // Fragments are abolished (0082): the claim result carries no
+    // fragment field at all and the parts balance never moves.
+    expect(claimed).not.toHaveProperty('fragments_awarded');
     expect(store.profiles.get(A)!.credits).toBe(beforeCredits + inst!.reward.credits);
-    expect(store.profiles.get(A)!.cache_token_parts).toBe(beforeParts + inst!.reward.fragments);
+    expect(store.profiles.get(A)!.cache_token_parts).toBe(beforeParts);
     const replay = await store.claimContractReward(A, 'claim-nonce-0001', inst!.id) as Json;
     expect(replay).toEqual(claimed);
     expect(store.profiles.get(A)!.credits).toBe(beforeCredits + inst!.reward.credits);
@@ -490,7 +495,7 @@ describe('contracts — in-memory gameplay store', () => {
       .rejects.toThrow('expired');
   });
 
-  it('the daily full-set bonus pays +2 parts once, in the completing claim', async () => {
+  it('the daily full-set bonus pays its 30 cr fold once, in the completing claim', async () => {
     const dayKey = findStatBackedDaily();
     const { store } = makeStore(`${dayKey}T08:00:00.000Z`, { contractDailyCount: 1 });
     seedVerified(store, A);
@@ -499,10 +504,11 @@ describe('contracts — in-memory gameplay store', () => {
     expect(facts!.daily.instances).toHaveLength(1);
     const inst = facts!.daily.instances[0];
     driveContractComplete(store, A, inst);
+    const beforeCredits = store.profiles.get(A)!.credits;
     const claimed = await store.claimContractReward(A, 'claim-nonce-2001', inst.id) as Json;
-    expect(claimed.set_bonus).toEqual({ credits: 0, fragments: 2, cache_keys: 0 });
-    expect(store.profiles.get(A)!.cache_token_parts)
-      .toBe(inst.reward.fragments + 2);
+    expect(claimed.set_bonus).toEqual({ credits: 30, cache_keys: 0 });
+    expect(store.profiles.get(A)!.credits).toBe(beforeCredits + inst.reward.credits + 30);
+    expect(store.profiles.get(A)!.cache_token_parts).toBe(0);
     const after = await store.getContractsFacts(A);
     expect(after!.daily.setBonusClaimed).toBe(true);
   });
@@ -528,7 +534,7 @@ describe('contracts — in-memory gameplay store', () => {
     const inst = facts!.weekly.instances[0];
     driveContractComplete(store, A, inst);
     const claimed = await store.claimContractReward(A, 'claim-nonce-3001', inst.id) as Json;
-    expect(claimed.set_bonus).toEqual({ credits: 900, fragments: 0, cache_keys: 1 });
+    expect(claimed.set_bonus).toEqual({ credits: 900, cache_keys: 1 });
     expect(store.profiles.get(A)!.cache_tokens).toBe(1);
     expect(store.profiles.get(A)!.credits).toBe(inst.reward.credits + 900);
   });
@@ -773,10 +779,13 @@ describe('migration 0042 textual pins', () => {
       expect(head[6]).toBe(String(CONTRACT_BANDS.find((b) => b.id === t.minBand)!.index));
       expect(head[7]).toBe(t.baseTargetDaily == null ? 'null' : String(t.baseTargetDaily));
       expect(head[8]).toBe(t.baseTargetWeekly == null ? 'null' : String(t.baseTargetWeekly));
-      // Fragment parts ride the tail (after the target_by_band jsonb).
+      // The tail carries 0042's fragment_parts_daily column (after
+      // the target_by_band jsonb). The content field is abolished
+      // (0082 zeroes the live definitions column), so only the
+      // column's shape is pinned here, not per-template values.
       if (!t.targetByBand) {
         const tail = row.split(',').slice(-2).map((s) => s.trim());
-        expect(tail[0]).toBe(String(t.fragmentPartsDaily));
+        expect(tail[0]).toMatch(/^\d+$/);
         expect(tail[1]).toBe(`'${t.paramKind}'`);
       }
     }

@@ -3,7 +3,7 @@
  *
  * Covered:
  *  1. Lever defaults pinned to the shipped constants they mirror
- *     (MARKET_FEE_RATE, FRAGMENT_CHANCE, BOSS_DEDICATED_DROP_CHANCE,
+ *     (MARKET_FEE_RATE, KEY_CHANCE, BOSS_DEDICATED_DROP_CHANCE,
  *     REMATCH_FEE_MAX_MULTIPLIER) + per-key validation ranges.
  *  2. EconomyConfig accessor: ≤60s cache, invalid stored values
  *     dropped, read failure → defaults / last good (never a crash).
@@ -43,7 +43,7 @@ import { emptyWriteSeed, type WriteItemData, type WriteSeed } from '../server/wr
 import type { ProfileRowData } from '../server/reads/store';
 import { issueAccessToken } from '../server/auth/tokens';
 import { MARKET_FEE_RATE } from '../lib/market/marketFee';
-import { BOSS_DEDICATED_DROP_CHANCE, FRAGMENT_CHANCE } from '../server/chef';
+import { BOSS_DEDICATED_DROP_CHANCE, KEY_CHANCE } from '../server/chef';
 import { REMATCH_FEE_MAX_MULTIPLIER, escalatedBossFee } from '../lib/bossFees';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
@@ -101,8 +101,8 @@ describe('economy config defaults + validation', () => {
   it('pins every default to the shipped constant it mirrors', () => {
     expect(ECONOMY_CONFIG_DEFAULTS.marketFeeRate).toBe(MARKET_FEE_RATE);
     expect(MARKET_FEE_RATE).toBe(0.05);
-    expect(ECONOMY_CONFIG_DEFAULTS.fragmentChance).toBe(FRAGMENT_CHANCE);
-    expect(FRAGMENT_CHANCE).toBe(0.008);
+    expect(ECONOMY_CONFIG_DEFAULTS.cacheKeyChance).toBe(KEY_CHANCE);
+    expect(KEY_CHANCE).toBe(0.00012);
     expect(ECONOMY_CONFIG_DEFAULTS.bossDedicatedChance).toBe(BOSS_DEDICATED_DROP_CHANCE);
     expect(BOSS_DEDICATED_DROP_CHANCE).toBe(0.1);
     expect(ECONOMY_CONFIG_DEFAULTS.rematchEscalationCap).toBe(REMATCH_FEE_MAX_MULTIPLIER);
@@ -135,9 +135,9 @@ describe('economy config defaults + validation', () => {
     expect(resolveEconomyConfigValues(null)).toEqual(ECONOMY_CONFIG_DEFAULTS);
     expect(resolveEconomyConfigValues({ marketFeeRate: 7 })).toEqual(ECONOMY_CONFIG_DEFAULTS);
     expect(resolveEconomyConfigValues({ unknownKey: 1 })).toEqual(ECONOMY_CONFIG_DEFAULTS);
-    const resolved = resolveEconomyConfigValues({ marketFeeRate: 0.2, fragmentChance: 0 });
+    const resolved = resolveEconomyConfigValues({ marketFeeRate: 0.2, cacheKeyChance: 0 });
     expect(resolved.marketFeeRate).toBe(0.2);
-    expect(resolved.fragmentChance).toBe(0);
+    expect(resolved.cacheKeyChance).toBe(0);
     expect(resolved.bossDedicatedChance).toBe(0.1);
   });
 });
@@ -185,14 +185,14 @@ describe('EconomyConfig accessor', () => {
     const flaky: EconomyConfigSource = {
       async loadConfigValues() {
         if (fail) throw new Error('db down');
-        return { fragmentChance: 0.5 };
+        return { cacheKeyChance: 0.5 };
       },
     };
     const config = new EconomyConfig(flaky, () => now);
-    expect((await config.snapshot()).fragmentChance).toBe(0.5);
+    expect((await config.snapshot()).cacheKeyChance).toBe(0.5);
     fail = true;
     now += 61_000;
-    expect((await config.snapshot()).fragmentChance).toBe(0.5);
+    expect((await config.snapshot()).cacheKeyChance).toBe(0.5);
   });
 
   it('no source at all resolves to the defaults', async () => {
@@ -585,7 +585,7 @@ describe('economy admin — shipped path', () => {
       { key: 'roamingLegendaryScalar', value: 6 },
       { key: 'rematchEscalationCap', value: 0 },
       { key: 'rematchEscalationCap', value: 2.5 },
-      { key: 'fragmentChance' }, // missing value
+      { key: 'cacheKeyChance' }, // missing value
     ];
     for (const payload of bad) {
       const res = await call(h.base, 'POST', '/api/admin/economy/config', { 'x-chef-job-secret': JOB_SECRET }, payload);
