@@ -522,25 +522,25 @@ const paintVial: Painter = (cv, R, A, variant, icon, rng) => {
   }
   if (variant === 'oil') {
     // Sight Oil: dark glass, dropper cap, a drawn sample in the neck.
-    bottleBase(cv, 8, 15, 9);
-    cv.rect(9, 11, 7, 9, 'd'); // dark glass over the lit shoulders
-    cv.rect(9, 11, 1, 8, 'P');
-    cv.rect(11, 6, 1, 5, 'K'); // dropper tube
-    cv.rect(9, 16, 7, 4, 'a');
-    cv.set(11, 18, A.hot); cv.set(12, 19, A.base); // the oil, pooled
-    cv.set(11, 12, A.hot); cv.set(11, 13, A.base); cv.set(12, 13, A.base); // one drawn droplet (the waves motif muddies the narrow face)
+    bottleBase(cv, 7, 16, 9);
+    cv.rect(8, 11, 9, 9, 'd'); // dark glass over the lit shoulders
+    cv.rect(8, 11, 1, 8, 'P');
+    cv.rect(12, 6, 1, 5, 'K'); // dropper tube
+    cv.rect(8, 16, 9, 4, 'a');
+    cv.set(12, 18, A.hot); cv.set(13, 19, A.base); // the oil, pooled
+    cv.set(12, 12, A.hot); cv.set(12, 13, A.base); cv.set(13, 13, A.base); // one drawn droplet (the waves motif muddies the narrow face)
     return;
   }
   // Standard bottle (field / master / fallback): liquid-forward.
-  bottleBase(cv, 7, 16, 9);
-  liquid(cv, 7, 16, 14, A, rng);
-  paintMotif(cv, icon, 11, 12, A);
+  bottleBase(cv, 6, 17, 9);
+  liquid(cv, 6, 17, 14, A, rng);
+  paintMotif(cv, icon, 12, 12, A);
   if (variant === 'field') {
     for (let i = 0; i < 6; i++) cv.over(8 + i, 10 + i, 'd'); // field strap, diagonal
   }
   if (variant === 'master') {
     cv.rect(10, 5, 4, 1, 'B'); // brass collar under the cap
-    cv.rect(7, 19, 10, 1, 'B');
+    cv.rect(6, 19, 12, 1, 'B');
   }
 };
 
@@ -596,7 +596,7 @@ const paintSwarm: Painter = (cv, R, A) => {
 
 const paintSyringe: Painter = (cv, R, A, variant, icon) => {
   const slim = variant !== 'stim';
-  const x0 = slim ? 10 : 9; const x1 = slim ? 13 : 14;
+  const x0 = slim ? 9 : 8; const x1 = slim ? 14 : 15;
   cv.rect(x0 - 1, 2, x1 - x0 + 3, 2, 'P'); // thumb plate
   cv.rect(Math.round((x0 + x1) / 2), 4, 1, 3, 'd'); // plunger rod
   cv.rect(x0, 7, x1 - x0 + 1, 2, 'd'); // flange
@@ -605,7 +605,7 @@ const paintSyringe: Painter = (cv, R, A, variant, icon) => {
   cv.rect(x0 + 1, 12, x1 - x0 - 1, 1, A.hot);
   cv.rect(x0, 9, 1, 9, 'p');
   cv.rect(11, 18, 2, 1, 'd'); // hub
-  cv.set(11, 19, 'K'); cv.set(11, 20, 'K'); // needle
+  cv.set(12, 19, 'K'); cv.set(12, 20, 'K'); // needle
   paintMotif(cv, icon, 11, 10, A);
   if (variant === 'overcharge') {
     cv.set(x0 + 1, 14, 'K'); cv.set(x0 + 2, 15, 'K'); cv.set(x0 + 1, 16, 'K'); // barrel crack
@@ -680,9 +680,13 @@ const paintGrenade: Painter = (cv, R, A, variant, icon) => {
     cv.ellipseRing(18, 4, 1.6, 1.6, 1, 'K'); // pin ring
   }
   const big = variant === 'forge';
-  cv.ellipse(12, 14, big ? 7 : 6, big ? 6.6 : 6, 'P');
-  cv.ellipse(9, 11, 1.6, 2.4, 'p'); // body light
-  cv.rect(6, 13, 13, 2, 'd'); // equator band
+  // Body fills the grid like the STUFF objects do — the first
+  // capture pass showed a rx-6 body reading as a small pot at
+  // 26px mounts while the Scrap sprite beside it filled its row.
+  cv.ellipse(12, 14, big ? 8.4 : 7.6, big ? 7.4 : 6.8, 'P');
+  cv.ellipse(8, 11, 1.8, 2.6, 'p'); // body light
+  cv.rect(4, 13, 17, 2, 'a'); // equator band in the contents shade — the identity color carries at small sizes
+  cv.rect(4, 13, 17, 1, 'd');
   if (variant === 'emp') {
     cv.rect(9, 5, 7, 3, 'd'); // flat top housing
     cv.rect(10, 8, 5, 2, A.base);
@@ -694,9 +698,10 @@ const paintGrenade: Painter = (cv, R, A, variant, icon) => {
   }
   if (variant === 'phase') {
     // The ghost: the same body, twice-struck, offset in deep shade.
-    cv.ellipse(15, 12, 5.4, 5.4, 'D');
-    cv.ellipse(12, 14, 6, 6, 'P');
-    cv.rect(6, 13, 13, 2, 'd');
+    cv.ellipse(15, 12, 6.8, 6.2, 'D');
+    cv.ellipse(12, 14, 7.6, 6.8, 'P');
+    cv.rect(4, 13, 17, 2, 'a');
+    cv.rect(4, 13, 17, 1, 'd');
   }
   paintMotif(cv, icon, 12, 17, A);
 };
