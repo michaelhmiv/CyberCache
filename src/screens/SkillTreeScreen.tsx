@@ -443,7 +443,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                             </div>
                             {isMaxed && <Lock size={11} className="shrink-0 text-green" />}
                           </div>
-                          <div className="mt-1 text-[11px] leading-snug text-text-muted">{node.description}</div>
+                          <div className="mt-1 pr-8 text-[11px] leading-snug text-text-muted">{node.description}</div>
                           <div className="absolute bottom-1 right-2 text-[11px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
                             {isPending ? '…' : `${currentPoints}/${node.maxPoints}`}
                           </div>
