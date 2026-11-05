@@ -40,6 +40,35 @@ import { hexLerp } from './weaponCardCompositor';
  * below exists to pin the variants where two defs declare the
  * same visual and the objects still must not be twins.
  *
+ * PASS 2 — THE COLORWAY (owner direction 2026-11-04: the vendor
+ * examples "look pretty similar"; sprites must separate "not
+ * only in shape, but also in color and texture"). The pass-1
+ * body derivation — accent lerped 45% toward warm gray — drained
+ * the saturation §8 demands ("identity comes from silhouette +
+ * SATURATED colorway") and collapsed every warm accent into the
+ * same brass-brown: 16 of 43 renders shared dominant hue 37°,
+ * and the six loose-rounds ammos were 56–61% brass casing with
+ * the element surviving only in the tips. So the table now pins
+ * an explicit COLORWAY per item, defensible from the def's
+ * element/family semantics:
+ *   BODY    — the casing as a deliberate material (olive frag
+ *             steel, survey-pale instrument housing, hazard-
+ *             yellow fuel drum, parchment contract card), never
+ *             a desaturated echo of the contents hue.
+ *   CASING  — the rounds' metal is per-item (the M/m ramp):
+ *             brass belongs to Armor-Piercing alone; the
+ *             elemental rounds wear their element as metal —
+ *             burn-copper, steel-blue, acid-olive, frost-pale,
+ *             void-black — so the Borderlands element code is
+ *             the DOMINANT read, not a tip tint.
+ *   EXTRAS  — up to three raw hexes (X/Y/Z shades) for the one
+ *             genuinely multi-hue item (Prism Coating's flecks).
+ * Same-hue families that remain (the amber market goods, the
+ * red stims) separate on VALUE and TEXTURE instead — pale vs
+ * charcoal housings, strapped vs glossy vs matte finishes —
+ * and the test suite pins the separation so a future item
+ * cannot silently re-collide (see consumableArt.test.ts).
+ *
  * THE PIXEL DENSITY LAW (DESIGN.md §8) binds everything here:
  * texel = 4; authored AT the grid (24×24 object, 12×12 thumb —
  * the STUFF grids); five-tone ramp per hue; warm near-black
@@ -57,9 +86,19 @@ export interface ConsumableArtRow {
   /** Shape variant inside the chassis — the distinguisher where
    *  two defs declare identical visuals (PatchKit vs FieldPatchKit). */
   variant: string;
-  /** Casing/body color override (the med kits' bone white). The
-   *  contents color always comes from the def's accent. */
+  /** The COLORWAY's body: the casing as a deliberate material
+   *  (pass 2). The contents color always comes from the def's
+   *  accent; the body never derives from it by default anymore —
+   *  a warm-gray lerp of the accent is what made 16 sprites read
+   *  as the same brass-brown object. */
   body?: string;
+  /** The COLORWAY's metal for the rounds painters (the M/m ramp):
+   *  the cartridge casing as element-colored metal. Defaults to
+   *  brass — which, after pass 2, only Armor-Piercing keeps. */
+  casing?: string;
+  /** Up to three raw accent hexes (the X/Y/Z shades) for the one
+   *  multi-hue item in the set — Prism Coating's flecks. */
+  extras?: readonly [string, string, string];
 }
 
 /** Accent → contents hex (the ConsumableLedger's table, promoted
@@ -76,58 +115,89 @@ const T = ConsumableType;
  * def's silhouette except where the silhouette lies about the
  * object (the coatings are applicator jars, not loose rounds;
  * the patch kits are salve tins and field bottles, not vials of
- * potion). Variants separate every declared-visual twin.
+ * potion). Variants separate every declared-visual twin; the
+ * pass-2 colorway (body / casing / extras — see the header note)
+ * separates every item on color and texture as well.
  */
 export const CONSUMABLE_ART: Readonly<Record<string, ConsumableArtRow>> = {
   // — survival —
+  // Bone case + green lid band and cross (painter): medical green
+  // is the identity, the bone is just the box it ships in.
   [T.MedKit]: { chassis: 'vial', variant: 'kit', body: '#CFC9B8' },
+  // The refined kit is the same box gone premium: brighter stock,
+  // brass lid band and base — value + metal separate the twins.
   [T.MedKitRefined]: { chassis: 'vial', variant: 'kitPro', body: '#E9E3D0' },
-  [T.ShieldCell]: { chassis: 'cell', variant: 'cell' },
-  [T.NanoSwarm]: { chassis: 'swarm', variant: 'swarm' },
-  [T.AdrenalineShot]: { chassis: 'syringe', variant: 'stim' },
+  [T.ShieldCell]: { chassis: 'cell', variant: 'cell', body: '#4E6E73' },
+  // The swarm's bots are graphite tech; the green lives in their
+  // cores, not in a green wash over the whole cluster.
+  [T.NanoSwarm]: { chassis: 'swarm', variant: 'swarm', body: '#3C4147' },
+  [T.AdrenalineShot]: { chassis: 'syringe', variant: 'stim', body: '#6E3B34' },
   // — ammo —
-  [T.AmmoPack]: { chassis: 'magazine', variant: 'mag' },
-  [T.HighCapacityAmmoPack]: { chassis: 'magazine', variant: 'magPro' },
-  [T.ArmorPiercingAmmo]: { chassis: 'rounds', variant: 'row' },
-  [T.IncendiaryAmmo]: { chassis: 'rounds', variant: 'row' },
-  [T.ShockAmmo]: { chassis: 'rounds', variant: 'row' },
-  [T.CorrosiveAmmo]: { chassis: 'rounds', variant: 'row' },
-  [T.CryoAmmo]: { chassis: 'rounds', variant: 'row' },
-  [T.ElementalCoating]: { chassis: 'rounds', variant: 'coat' },
-  [T.PrismCoating]: { chassis: 'rounds', variant: 'coatPrism' },
+  [T.AmmoPack]: { chassis: 'magazine', variant: 'mag', body: '#43484E' },
+  [T.HighCapacityAmmoPack]: { chassis: 'magazine', variant: 'magPro', body: '#7E3538' },
+  // AP keeps the brass — dark steel penetrator tips over honest
+  // brass casings. It is the ONLY brass-cased round after pass 2.
+  [T.ArmorPiercingAmmo]: { chassis: 'rounds', variant: 'ap', casing: '#C9962E' },
+  // Incendiary wears burn-copper: the whole cartridge is the
+  // fire color, flame-flicker tips on top (painter).
+  [T.IncendiaryAmmo]: { chassis: 'rounds', variant: 'flame', casing: '#C05A1E' },
+  [T.ShockAmmo]: { chassis: 'rounds', variant: 'row', casing: '#7E97A8' },
+  [T.CorrosiveAmmo]: { chassis: 'rounds', variant: 'acid', casing: '#77873A' },
+  [T.CryoAmmo]: { chassis: 'rounds', variant: 'frost', casing: '#B9CDD4' },
+  // The coatings: deep violet pot vs pale iridescent pot.
+  [T.ElementalCoating]: { chassis: 'rounds', variant: 'coat', body: '#4A3560' },
+  [T.PrismCoating]: {
+    chassis: 'rounds', variant: 'coatPrism', body: '#A99BC0',
+    extras: ['#59E3FF', '#FF6AD5', '#B6F34C'],
+  },
   // — ordnance —
-  [T.Grenade]: { chassis: 'grenade', variant: 'charge' },
-  [T.OrdnanceCharge]: { chassis: 'grenade', variant: 'chargePro' },
-  [T.EMPCharge]: { chassis: 'grenade', variant: 'emp' },
-  [T.CorrosiveCharge]: { chassis: 'grenade', variant: 'acid' },
-  [T.PhaseShiftGrenade]: { chassis: 'grenade', variant: 'phase' },
-  [T.MagnetizedPayload]: { chassis: 'grenade', variant: 'magnet' },
-  [T.ForgeheartCharge]: { chassis: 'grenade', variant: 'forge' },
+  // The plain frag goes olive-drab — standard-issue steel — so
+  // the brass demo charge below owns the warm metal read.
+  [T.Grenade]: { chassis: 'grenade', variant: 'charge', body: '#5A6142' },
+  [T.OrdnanceCharge]: { chassis: 'grenade', variant: 'chargePro', body: '#B97A28' },
+  [T.EMPCharge]: { chassis: 'grenade', variant: 'emp', body: '#3E4A52' },
+  [T.CorrosiveCharge]: { chassis: 'grenade', variant: 'acid', body: '#46603A' },
+  [T.PhaseShiftGrenade]: { chassis: 'grenade', variant: 'phase', body: '#4B3866' },
+  [T.MagnetizedPayload]: { chassis: 'grenade', variant: 'magnet', body: '#5B6B7A' },
+  // Forgeheart is charcoal with the forge showing through the
+  // cracks (painter) — its orange is a glow, not a paint job.
+  [T.ForgeheartCharge]: { chassis: 'grenade', variant: 'forge', body: '#33302E' },
   // — tactical —
-  [T.TargetPainter]: { chassis: 'scanner', variant: 'painter' },
-  [T.BossScanner]: { chassis: 'scanner', variant: 'scanner' },
-  [T.Jammer]: { chassis: 'scanner', variant: 'jammer' },
-  [T.SignalScrambler]: { chassis: 'scanner', variant: 'scrambler' },
-  [T.ThrowTechDecoyKit]: { chassis: 'beacon', variant: 'decoy' },
-  [T.HeartwoodSightOil]: { chassis: 'vial', variant: 'oil' },
+  [T.TargetPainter]: { chassis: 'scanner', variant: 'painter', body: '#53383A' },
+  // The two cyan scanners split on value: the boss scanner is a
+  // pale survey instrument, the jammer a charcoal stealth box.
+  [T.BossScanner]: { chassis: 'scanner', variant: 'scanner', body: '#B9C4C6' },
+  [T.Jammer]: { chassis: 'scanner', variant: 'jammer', body: '#2F363B' },
+  [T.SignalScrambler]: { chassis: 'scanner', variant: 'scrambler', body: '#3A5A8C' },
+  [T.ThrowTechDecoyKit]: { chassis: 'beacon', variant: 'decoy', body: '#3A3F45' },
+  [T.HeartwoodSightOil]: { chassis: 'vial', variant: 'oil', body: '#3E4A38' },
   // — economy —
-  [T.LootBeacon]: { chassis: 'beacon', variant: 'dish' },
-  [T.LuckBooster]: { chassis: 'beacon', variant: 'star' },
-  [T.InsuranceToken]: { chassis: 'contract', variant: 'token' },
-  [T.SalvageContract]: { chassis: 'contract', variant: 'form' },
-  [T.DataSkimmer]: { chassis: 'scanner', variant: 'skimmer' },
-  [T.WorkshopRushTicket]: { chassis: 'ticket', variant: 'ticket' },
-  [T.HelixCalibrationKit]: { chassis: 'ticket', variant: 'calib' },
-  [T.GenericFuelCell]: { chassis: 'cell', variant: 'drum' },
-  [T.FuelCell]: { chassis: 'cell', variant: 'cellPro' },
-  [T.PatchKit]: { chassis: 'vial', variant: 'tin' },
-  [T.FieldPatchKit]: { chassis: 'vial', variant: 'field' },
-  [T.MasterPatchKit]: { chassis: 'vial', variant: 'master' },
-  [T.CalibrationCore]: { chassis: 'cell', variant: 'core' },
+  // The amber market goods stand on charcoal: the amber element
+  // (dish, star) is the read, not an amber wash over the stand.
+  [T.LootBeacon]: { chassis: 'beacon', variant: 'dish', body: '#3A3630' },
+  [T.LuckBooster]: { chassis: 'beacon', variant: 'star', body: '#3A3630' },
+  [T.InsuranceToken]: { chassis: 'contract', variant: 'token', body: '#D8C9A3' },
+  [T.SalvageContract]: { chassis: 'contract', variant: 'form', body: '#CFC8B4' },
+  [T.DataSkimmer]: { chassis: 'scanner', variant: 'skimmer', body: '#41474E' },
+  // The two blue tickets split on value: rush is saturated card
+  // stock, the calibration card is clinical pale.
+  [T.WorkshopRushTicket]: { chassis: 'ticket', variant: 'ticket', body: '#3E6FB4' },
+  [T.HelixCalibrationKit]: { chassis: 'ticket', variant: 'calib', body: '#D8DDE2' },
+  // Fuel is a hazard-yellow drum in the real world; the crafted
+  // cell is the pale premium canister beside it.
+  [T.GenericFuelCell]: { chassis: 'cell', variant: 'drum', body: '#D9A514' },
+  [T.FuelCell]: { chassis: 'cell', variant: 'cellPro', body: '#9AA0A3' },
+  // The patch family: rust salve tin / worn field glass / dark
+  // premium glass with brass — three browns no longer, three
+  // values and three finishes.
+  [T.PatchKit]: { chassis: 'vial', variant: 'tin', body: '#8A3B22' },
+  [T.FieldPatchKit]: { chassis: 'vial', variant: 'field', body: '#7A5A38' },
+  [T.MasterPatchKit]: { chassis: 'vial', variant: 'master', body: '#3E2C1E' },
+  [T.CalibrationCore]: { chassis: 'cell', variant: 'core', body: '#546E73' },
   // — corrupted —
-  [T.VoidAmmo]: { chassis: 'rounds', variant: 'row' },
-  [T.OverchargeStim]: { chassis: 'syringe', variant: 'overcharge' },
-  [T.RedlineTonic]: { chassis: 'syringe', variant: 'tonic' },
+  [T.VoidAmmo]: { chassis: 'rounds', variant: 'row', casing: '#3A2E4A' },
+  [T.OverchargeStim]: { chassis: 'syringe', variant: 'overcharge', body: '#3A3044' },
+  [T.RedlineTonic]: { chassis: 'syringe', variant: 'tonic', body: '#33383E' },
 };
 
 /** The art row for a consumable type id. Falls back to the def's
@@ -147,8 +217,10 @@ export function consumableArtRow(id: string): ConsumableArtRow {
 
 /** Shade alphabet: D/d/P/p/L = body ramp deep→hot, A/a/E = contents
  *  ramp dark/base/lite, K = warm near-black outline, S = ground
- *  shadow, W = hard white, B/b = brass (rounds casings, market trim). */
-export type ConsShade = 'K' | 'S' | 'W' | 'D' | 'd' | 'P' | 'p' | 'L' | 'A' | 'a' | 'E' | 'B' | 'b';
+ *  shadow, W = hard white, B/b = brass (market trim, premium
+ *  fittings), M/m = casing metal ramp (the rounds' per-item
+ *  colorway metal, pass 2), X/Y/Z = raw extra hexes (Prism flecks). */
+export type ConsShade = 'K' | 'S' | 'W' | 'D' | 'd' | 'P' | 'p' | 'L' | 'A' | 'a' | 'E' | 'B' | 'b' | 'M' | 'm' | 'X' | 'Y' | 'Z';
 
 interface Ramp { deep: string; shade: string; base: string; lite: string; hot: string }
 
@@ -506,15 +578,27 @@ const paintVial: Painter = (cv, R, A, variant, icon, rng) => {
     cv.rect(5, y0 + 2, 14, 20 - y0 - 1, 'P');
     cv.rect(5, 20, 14, 1, 'd');
     cv.rect(6, y0 + 3, 1, 8, 'p');
-    paintMotif(cv, 'cross', 11, y0 + 6, A);
+    // Pass 2: the pass-1 kits were two pale boxes with a 13-texel
+    // cross — near-colorless (6% saturated texels). The identity
+    // band under the lid + a full-size cross make medical green
+    // the read; the refined kit wears the band in brass instead.
+    cv.rect(6, y0 + 1, 12, 1, variant === 'kit' ? 'a' : 'B');
+    {
+      const cy = y0 + 6;
+      for (let d = -3; d <= 3; d++) { cv.set(11, cy + d, A.base); cv.set(11 + d, cy, A.base); }
+      cv.set(11, cy, A.hot);
+    }
     cv.set(7, y0 + 1, 'L'); cv.set(16, y0 + 1, 'L'); // latches
     if (variant === 'kitPro') { cv.rect(5, 19, 14, 1, 'B'); cv.set(12, y0 + 6, A.hot); }
     return;
   }
   if (variant === 'tin') {
-    // Patch Kit: a flat salve tin, lid seam across the top.
+    // Patch Kit: a flat salve tin, lid seam across the top, the
+    // contents stripe under the seam (pass 2 — the tin's cross
+    // alone was 6% of the render and the rust read as gold bars).
     cv.rect(5, 13, 14, 2, 'd');
     cv.rect(5, 13, 14, 1, 'p');
+    cv.rect(5, 14, 14, 1, 'a');
     cv.rect(5, 15, 14, 6, 'P');
     cv.rect(5, 19, 14, 1, 'd');
     paintMotif(cv, 'cross', 11, 17, A);
@@ -540,6 +624,7 @@ const paintVial: Painter = (cv, R, A, variant, icon, rng) => {
   }
   if (variant === 'master') {
     cv.rect(10, 5, 4, 1, 'B'); // brass collar under the cap
+    cv.rect(6, 15, 12, 1, 'B'); // brass label strap over the glass
     cv.rect(6, 19, 12, 1, 'B');
   }
 };
@@ -564,6 +649,9 @@ const paintCell: Painter = (cv, R, A, variant, icon, _rng) => {
     cv.ellipseRing(12, 11, 5.6, 5.6, 2, 'P');
     cv.ellipseRing(12, 11, 5.6, 5.6, 1, 'd');
     cv.set(6, 8, 'L'); cv.set(18, 8, 'L'); cv.set(6, 14, 'L'); cv.set(18, 14, 'L'); // housing bolts
+    // Pass 2: the pass-1 core was a gray ring with a 6%-of-render
+    // diamond — a halo of hot contents light makes the core glow.
+    cv.ellipseRing(12, 11, 2.9, 2.9, 1, 'E');
     paintMotif(cv, 'diamondIn', 12, 11, A);
     return;
   }
@@ -629,10 +717,13 @@ const paintMagazine: Painter = (cv, R, A, variant) => {
   cv.rect(8, 11, 8, 5, 'a'); // witness window
   for (const wy of [12, 13, 15]) cv.rect(9, wy, 6, 1, A.base); // rounds inside
   cv.rect(6, 19, 11, 2, 'd'); // baseplate
-  if (pro) for (const y of [9, 17]) cv.rect(7, y, 10, 1, 'd'); // slat bands
+  if (pro) {
+    for (const y of [9, 17]) cv.rect(7, y, 10, 1, 'd'); // slat bands
+    cv.rect(7, 18, 10, 1, 'a'); // contents stripe over the baseplate
+  }
 };
 
-const paintRounds: Painter = (cv, R, A, variant, _icon, _rng) => {
+const paintRounds: Painter = (cv, R, A, variant, _icon, rng) => {
   if (variant === 'coat' || variant === 'coatPrism') {
     // The coatings: an applicator jar — squat pot, wide lid, the
     // dip brush resting against it, sheen pooled on the face.
@@ -645,29 +736,61 @@ const paintRounds: Painter = (cv, R, A, variant, _icon, _rng) => {
     cv.set(10, 15, A.base); cv.set(11, 16, A.base); // sheen drips on the face
     // brush: handle up-right, loaded tip at the lid line
     cv.set(16, 6, 'd'); cv.set(15, 7, 'd'); cv.set(15, 8, 'd'); cv.set(14, 9, 'd'); cv.set(14, 10, A.hot);
+    if (variant === 'coat') {
+      // Elemental: the pool is unsettled — a hot swirl turning
+      // through the base coat (texture split from Prism's flecks).
+      cv.set(11, 18, A.hot); cv.set(12, 18, A.hot); cv.set(13, 19, A.hot);
+      cv.set(14, 18, 'E'); cv.set(10, 19, 'E');
+    }
     if (variant === 'coatPrism') {
-      // Prismatic flecks — the one multi-hue item in the family.
-      cv.set(10, 18, 'W'); cv.set(13, 19, 'B'); cv.set(15, 18, 'E');
-      cv.set(12, 17, 'W'); cv.set(16, 19, 'W');
+      // Prismatic flecks — the one multi-hue item in the family,
+      // in its own raw hexes (X/Y/Z): cyan, magenta, lime, white.
+      cv.set(10, 18, 'X'); cv.set(13, 19, 'Y'); cv.set(15, 18, 'Z');
+      cv.set(12, 17, 'W'); cv.set(16, 19, 'X'); cv.set(11, 19, 'Y');
+      cv.set(14, 17, 'Z'); cv.set(9, 18, 'W'); cv.set(15, 15, 'X');
     }
     return;
   }
-  // Loose rounds: four standing cartridges, brass below, the
-  // element carried in the tips and the band.
-  for (const x of [4, 9, 14, 19]) {
-    cv.set(x + 1, 6, A.hot); // tip point
-    cv.rect(x + 1, 7, 2, 2, A.base);
-    cv.rect(x, 9, 4, 2, A.base); // shoulder
+  // Loose rounds: four standing cartridges. Pass 2 — the CASING
+  // is the element's metal (M/m ramp, per-item colorway), so the
+  // Borderlands element code is the body of the object, not a
+  // tint on the tip of a brass tube.
+  [4, 9, 14, 19].forEach((x, i) => {
+    if (variant === 'ap') {
+      // Armor-Piercing: dark steel penetrator tips — the one
+      // round whose tip is NOT its element color, over brass.
+      cv.set(x + 1, 6, 'K');
+      cv.rect(x + 1, 7, 2, 2, 'd');
+      cv.rect(x, 9, 4, 2, 'a'); // shoulder in the contents dark
+    } else {
+      cv.set(x + 1, 6, A.hot); // tip point
+      cv.rect(x + 1, 7, 2, 2, A.base);
+      cv.rect(x, 9, 4, 2, A.base); // shoulder
+      if (variant === 'flame') {
+        // Incendiary: the tips are lit — flicker texels licking
+        // off alternating cartridges.
+        if (i % 2 === 0) { cv.set(x + 1, 5, 'E'); cv.set(x + 2, 5, A.base); }
+        else { cv.set(x + 1, 5, A.base); cv.set(x, 5, 'E'); }
+      }
+    }
     cv.rect(x, 11, 4, 1, 'a'); // band
-    cv.rect(x, 12, 4, 8, 'B'); // brass casing
-    cv.rect(x, 12, 1, 8, 'b');
-    cv.rect(x, 19, 4, 1, 'b');
+    cv.rect(x, 12, 4, 8, 'M'); // casing in the colorway metal
+    cv.rect(x, 12, 1, 8, 'm');
+    cv.rect(x, 19, 4, 1, 'm');
+    if (variant === 'acid') {
+      // Corrosive: the casings themselves are pitted by the fill.
+      for (let k = 0; k < 3; k++) cv.set(x + rint(rng, 1, 3), rint(rng, 13, 18), 'a');
+    }
+    if (variant === 'frost') {
+      // Cryo: frost dusting settles on the casing tops.
+      cv.set(x + 1, 12, 'W'); cv.set(x + 3, 13, 'W'); cv.set(x + 2, 12, 'E');
+    }
     cv.set(x + 1, 20, 'K'); // primer
-  }
+  });
   cv.rect(3, 20, 20, 1, 'd'); // the tray line they stand on
 };
 
-const paintGrenade: Painter = (cv, R, A, variant, icon) => {
+const paintGrenade: Painter = (cv, R, A, variant, icon, rng) => {
   if (variant === 'magnet') {
     // Magnetized Payload: the horseshoe rides on top of the body.
     cv.rect(8, 3, 3, 5, A.base); cv.rect(14, 3, 3, 5, A.base);
@@ -685,28 +808,43 @@ const paintGrenade: Painter = (cv, R, A, variant, icon) => {
   // 26px mounts while the Scrap sprite beside it filled its row.
   cv.ellipse(12, 14, big ? 8.4 : 7.6, big ? 7.4 : 6.8, 'P');
   cv.ellipse(8, 11, 1.8, 2.6, 'p'); // body light
-  cv.rect(4, 13, 17, 2, 'a'); // equator band in the contents shade — the identity color carries at small sizes
-  cv.rect(4, 13, 17, 1, 'd');
+  // Equator band in the contents colors — bright over dark, so
+  // the identity hue reads as a stripe, not a shadow (pass 2).
+  cv.rect(4, 13, 17, 1, A.base);
+  cv.rect(4, 14, 17, 1, 'a');
   if (variant === 'emp') {
     cv.rect(9, 5, 7, 3, 'd'); // flat top housing
     cv.rect(10, 8, 5, 2, A.base);
     cv.set(12, 9, A.hot);
+    cv.rect(6, 11, 13, 1, 'a'); cv.set(12, 11, 'E'); // charge seam glowing through the shell
   }
   if (variant === 'acid') {
     cv.set(11, 8, A.base); cv.set(11, 9, A.base); cv.set(10, 10, A.hot); // corrosive weep
     cv.set(8, 16, 'a'); cv.set(15, 17, 'a'); cv.set(9, 18, 'a'); // pitting
   }
+  if (variant === 'forge') {
+    // Molten cracks: the forge shows through the charcoal shell
+    // in short jagged seams of contents color, hot at the core.
+    for (let c = 0; c < 4; c++) {
+      let x = rint(rng, 7, 16); let y = rint(rng, 9, 12);
+      const len = rint(rng, 2, 4);
+      for (let k = 0; k < len; k++) {
+        if (cv.get(x, y) === 'P') cv.set(x, y, k === 1 ? 'E' : A.base);
+        x += rng() < 0.5 ? 0 : 1; y += 1;
+      }
+    }
+  }
   if (variant === 'phase') {
     // The ghost: the same body, twice-struck, offset in deep shade.
     cv.ellipse(15, 12, 6.8, 6.2, 'D');
     cv.ellipse(12, 14, 7.6, 6.8, 'P');
-    cv.rect(4, 13, 17, 2, 'a');
-    cv.rect(4, 13, 17, 1, 'd');
+    cv.rect(4, 13, 17, 1, A.base);
+    cv.rect(4, 14, 17, 1, 'a');
   }
   paintMotif(cv, icon, 12, 17, A);
 };
 
-const paintScanner: Painter = (cv, R, A, variant, icon) => {
+const paintScanner: Painter = (cv, R, A, variant, icon, rng) => {
   const twin = variant === 'jammer';
   cv.rect(15, 3, 2, 5, 'd'); cv.set(15, 2, A.hot); // antenna
   if (twin) { cv.rect(8, 4, 2, 4, 'd'); cv.set(8, 3, A.hot); }
@@ -714,6 +852,18 @@ const paintScanner: Painter = (cv, R, A, variant, icon) => {
   cv.rect(7, 7, 11, 1, 'p');
   cv.rect(9, 9, 7, 6, 'a'); // screen, dark glass
   paintMotif(cv, icon, 12, 12, A);
+  if (variant === 'scanner') {
+    // The boss scanner's screen is LIT — hot glass edges on the
+    // pale survey housing (texture split from the jammer below).
+    for (const y of [10, 11, 12, 13]) { cv.set(9, y, 'E'); cv.set(15, y, 'E'); }
+  }
+  if (twin) {
+    // The jammer's screen is static — interference scatter over
+    // the waves, matte and broken where the scanner is clean.
+    for (let k = 0; k < 12; k++) {
+      cv.set(rint(rng, 10, 14), rint(rng, 10, 13), choice(rng, [A.base, 'a', 'E'] as const));
+    }
+  }
   cv.rect(8, 17, 1, 3, 'd'); cv.rect(10, 17, 1, 3, 'd'); cv.rect(12, 17, 1, 3, 'd'); // grip ridges
   cv.rect(15, 17, 2, 2, A.base); // trigger cell
   if (variant === 'scrambler') {
@@ -736,10 +886,15 @@ const paintBeacon: Painter = (cv, R, A, variant, _icon) => {
     paintMotif(cv, 'star', 12, 8, A);
   } else { // decoy — a holo pawn over its projector
     cv.poly([[9, 19], [16, 19], [14, 15], [11, 15]], 'P'); // projector cone base
-    cv.ellipse(12, 8, 2.2, 2.6, A.base); // head (broken rows read as holo scanlines)
+    cv.ellipse(12, 8, 2.2, 2.6, A.base); // head
     cv.rect(10, 11, 5, 1, A.base);
     cv.rect(9, 13, 7, 1, A.hot); // shoulders
     cv.set(12, 8, A.hot);
+    // Holo scanlines: alternate rows of the projection fall dark
+    // (pass 2 texture — the pawn is light, not a solid object).
+    for (const y of [7, 9, 11]) {
+      for (let x = 9; x <= 15; x++) if (cv.get(x, y) === A.base) cv.set(x, y, 'a');
+    }
   }
 };
 
@@ -807,6 +962,9 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
     if (variant === 'kit' || variant === 'kitPro' || variant === 'tin') {
       cv.rect(2, 4, 8, 2, 'd');
       cv.rect(2, 6, 8, 5, 'P');
+      // The identity band survives at thumb size (brass on the
+      // refined kit, contents-dark on the base kit and the tin).
+      cv.rect(2, 6, 8, 1, variant === 'kitPro' ? 'B' : 'a');
       cv.set(6, 7, A.base); cv.set(6, 8, A.base); cv.set(5, 8, A.base); cv.set(7, 8, A.base); cv.set(6, 9, A.hot);
       return;
     }
@@ -861,13 +1019,13 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
     for (const x of [3, 6, 9]) {
       cv.set(x, 2, A.hot);
       cv.rect(x, 3, 2, 2, A.base);
-      cv.rect(x - 1, 5, 3, 6, 'B');
+      cv.rect(x - 1, 5, 3, 6, 'M'); // casing metal, as the object grid
     }
   },
   grenade: (cv, R, A) => {
     cv.rect(5, 2, 3, 2, 'd');
     cv.ellipse(6, 7, 3.4, 3.2, 'P');
-    cv.rect(3, 6, 7, 1, 'd');
+    cv.rect(3, 6, 7, 1, 'a'); // contents band — identity at thumb size too
     cv.set(6, 8, A.hot);
   },
   scanner: (cv, R, A) => {
@@ -914,13 +1072,17 @@ export function composeConsumable(id: string, density: ConsumableDensity = 'obje
   const def = CONSUMABLES[id];
   const row = consumableArtRow(id);
   const accentHex = CONSUMABLE_ACCENT_HEX[def?.visual.accent ?? 'amber'] ?? '#FFB300';
-  const bodyHex = row.body ?? hexLerp(accentHex, '#4A443C', 0.45);
+  // Pass 2: the body is the row's pinned colorway material. The
+  // fallback derivation survives only for unlisted future types,
+  // and even it no longer drains the accent halfway to gray.
+  const bodyHex = row.body ?? hexLerp(accentHex, '#4A443C', 0.30);
   const frame: ConsFrame = def?.visual.frame ?? 'standard';
   const icon = def?.visual.icon ?? 'dot';
 
   const body = ramp(bodyHex);
   const contents = ramp(accentHex);
   const brass = ramp(BRASS);
+  const casing = ramp(row.casing ?? BRASS);
   const colors: Partial<Record<ConsShade, string>> = {
     K: '#1A110A',
     S: '#0805026E',
@@ -928,6 +1090,8 @@ export function composeConsumable(id: string, density: ConsumableDensity = 'obje
     D: body.deep, d: body.shade, P: body.base, p: body.lite, L: body.hot,
     A: contents.base, a: hexLerp(accentHex, '#000000', 0.30), E: contents.lite,
     B: brass.base, b: brass.shade,
+    M: casing.base, m: casing.shade,
+    X: row.extras?.[0], Y: row.extras?.[1], Z: row.extras?.[2],
   };
 
   const grid = density === 'object' ? 24 : 12;
