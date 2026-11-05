@@ -6,7 +6,7 @@
  * mounts). This branch dies with the prototype.
  *
  * Content is NOT fixture-copied: the page imports the shipped
- * manual's SECTIONS / TOUR_STEPS from HelpScreen, so the five
+ * manual's SECTIONS / TOUR_STEPS from helpContent, so the five
  * variants are judged on composition over identical words. The one
  * fixture fact is the reader: hunter "Rook Sandoval", Level 24 —
  * the same identity as every other variant — with the orientation

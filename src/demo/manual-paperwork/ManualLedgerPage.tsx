@@ -17,14 +17,14 @@
  * sheet stamped FILED.
  *
  * Content is the shipped manual verbatim — SECTIONS / TOUR_STEPS
- * are imported from HelpScreen; this pass designs the CONTAINER
+ * are imported from helpContent; this pass designs the CONTAINER
  * only. The incumbent's per-section decorative colors are dropped:
  * in this office color is stamp ink and amber action, never a
  * section's paint — and never a colored side bar.
  */
 import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { SECTIONS, TOUR_STEPS, type HelpSection } from '@/screens/HelpScreen';
+import { SECTIONS, TOUR_STEPS, type HelpSection } from '@/screens/helpContent';
 import { DoubleRule, EndorseStamp, FormLine, InkStamp, PaperSheet, RecordNo } from './paperKit';
 import { AMBER, INK, INK_FAINT, INK_MUTED, RULE, RULE_HARD, STAMP_RED, displayStyle, monoStyle } from './paperTokens';
 
