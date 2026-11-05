@@ -58,7 +58,7 @@ const SNIPER: Weapon = {
   baseStats: { baseDamage: 50, critChance: 12, fireRate: 1.1, handling: 60, magazineSize: 8, reloadTime: 1.8 },
   parts: PARTS_A,
   pixelSeed: 42,
-} as Weapon;
+} as unknown as Weapon;
 
 /** The Split doll's real geometry (ActionLoadout). */
 const DOLL = { containerW: 152, containerH: 257, heightPct: 91, xPct: 50, groundY: 0.97 };

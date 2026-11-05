@@ -115,7 +115,7 @@ const baseJob = {
   xpAwarded: 0,
   gearRarity: null,
   catalystMaterialId: null,
-  outputs: [],
+  outputs: [] as Record<string, unknown>[],
   createdAtMs: 0,
   completedAtMs: null,
   repairItemId: null,
@@ -160,7 +160,7 @@ const shieldtechJob: WorkshopJobView = {
   shieldtechPointsApplied: 40,
 };
 
-const startMock = vi.fn(async () => ({} as never));
+const startMock = vi.fn(async (_input: unknown) => ({} as never));
 const cancelMock = vi.fn(async () => true);
 
 function seedStores(jobs: WorkshopJobView[], kind: string) {

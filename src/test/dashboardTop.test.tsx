@@ -76,6 +76,7 @@ import {
   claimOffline,
   getContractsState,
   getLoginStreakState,
+  type OfflineSettlementResult,
 } from '@/lib/chef/chefClient';
 import { usePlayerStore, useSkillStore } from '@/store';
 import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
@@ -335,7 +336,7 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
     mockContracts.mockResolvedValue(boardResult(true, [contractView('c-1', true)]));
     mockClaim.mockResolvedValue({
       verified: true,
-      contracts: boardResult(true, [contractView('c-1', true, 'claimed')]).contracts,
+      contracts: (boardResult(true, [contractView('c-1', true, 'claimed')]) as unknown as { contracts: unknown }).contracts,
       profile: null,
       claimed: { instanceId: 'c-1', templateId: 'salvage_run', creditsAwarded: 220, fragmentsAwarded: 1, setBonus: null },
     } as never);
@@ -407,7 +408,7 @@ describe('Short-absence suppression — under 5 minutes never auto-presents (own
     store.setSettlement(shortRoaming);
     expect(useOfflineRecapStore.getState().dismissed).toBe(true);
     // Tucked, not dropped: the summary itself is stored whole.
-    expect(useOfflineRecapStore.getState().lastSettlement?.rewards.creditsAwarded).toBe(4321);
+    expect((useOfflineRecapStore.getState().lastSettlement as OfflineSettlementResult | null)?.rewards.creditsAwarded).toBe(4321);
 
     store.setSettlement(craftingRecap(60_000));
     expect(useOfflineRecapStore.getState().dismissed).toBe(true);
@@ -550,7 +551,7 @@ describe('Dashboard top — level doors: specifics pop-up + the Return Sheet', (
     fireEvent.click(within(screen.getByTestId('picker-sheet-body')).getByRole('button', { name: 'Collect' }));
     await waitFor(() => expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull());
     expect(useOfflineRecapStore.getState().dismissed).toBe(true);
-    expect(useOfflineRecapStore.getState().lastSettlement?.rewards.creditsAwarded).toBe(4321);
+    expect((useOfflineRecapStore.getState().lastSettlement as OfflineSettlementResult | null)?.rewards.creditsAwarded).toBe(4321);
     expect(screen.queryByTestId('offline-pending-pulse')).toBeNull();
 
     // Re-opening through the OFFLINE button re-reads the same

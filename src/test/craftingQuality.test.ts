@@ -158,7 +158,7 @@ function weapon(): Weapon {
     statusChance: 0, statusDamage: 0, bossDamageMod: 0.2, waveDamageMod: 0,
     shieldDamageMod: 1, armorDamageMod: 1, offlineEarningsMod: 0, rareDropChanceMod: 0,
     scrapYieldMod: 0, parts: [], affixes: [], sourceTag: DropSource.WorldDrop,
-    isLocked: false, pixelSeed: 1, combatPower: 0, bossPower: 0,
+    isLocked: false, pixelSeed: 1, combatPower: 0, bossPower: 0, farmPower: 0, economyScore: 0,
   } as Weapon;
 }
 
@@ -247,8 +247,8 @@ describe('offline craft settlement honors the AFK cap (flag F5)', () => {
       escrow_inputs: { Scrap: 45, ReactiveComponents: 24 }, escrow_catalyst: {},
       rush_ticket_quality: null, rush_ticket_origin: null,
       snapshot: {
-        toolId: null, toolQualityMultiplier: null, toolDurationMultiplier: null,
-        toolRefineYieldBonus: null, toolBonusUnitChance: null, skillDurationMultiplier: 1,
+        toolId: null, toolQualityMultiplier: 1, toolDurationMultiplier: 1,
+        toolRefineYieldBonus: 0, toolBonusUnitChance: 0, skillDurationMultiplier: 1,
         rushReduction: 0, craftTimeScalar: 1, catalystMaterialId: null, gearRarity: null,
       },
       xp_awarded: 0, outputs: [], tool_charged: false,
