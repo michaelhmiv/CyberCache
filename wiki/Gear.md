@@ -159,12 +159,13 @@ Loadout page. Everything below is on it, in one scroll:
   so on. Rarity and element are read by color — the name's color
   is the rarity, the icon's tint is the element — never spelled
   out in the line. Tap any block to open the **slot picker** for
-  that slot. Your vehicle slot lives here too: its status line —
-  equipped vehicle, yield, fuel, condition — heads the **Garage
-  section**, which expands in place right under the doll zone
-  with everything vehicle: equip, refuel, and repair (see
-  [[Vehicles and the Garage]]). (Your credits, scrap, keys, and
-  item count print once, in the strip at the top of the tab.)
+  that slot. Your vehicle slot lives here too: it is the
+  **button** in the panel's top-right corner — equipped vehicle,
+  yield, tank, condition — and it opens the **Garage**, which
+  expands in place under the panel with everything vehicle:
+  equip, refuel, and repair (see [[Vehicles and the Garage]]).
+  (Your credits, scrap, keys, and item count print once, in the
+  strip at the top of the tab.)
 - **Inventory** — everything you own, with salvage/recycle. Its
   header and toolbar stick to the top while you scroll. Two views:
   the **Grid** shows each item as a card — headline stats and the
@@ -180,7 +181,11 @@ Loadout page. Everything below is on it, in one scroll:
   its inspect sheet, one tap away.
 - **Belt & Stacks** — your belt, plus every stack you carry:
   consumable batches with their quality % printed, materials,
-  and essences.
+  and essences. (Up in the Loadout panel, the belt's three slots
+  print under a **Consumable Belt** label with a **?** beside it —
+  the ? carries the belt's explanation: slots load at the Loadout
+  Bench, all owned consumables auto-activate while roaming, and
+  changes verify server-side with no Save button.)
 - **The Workshop status strip** — at the page's foot, printing the
   bench at a glance (jobs running / queued / ready, and whether
   Craft holds your action slot); it opens the **Workshop** on the
