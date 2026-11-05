@@ -50,8 +50,11 @@ const MASTERIES = {
   'crafting.cosmetics': { level: 2, xp: 0 },
 };
 
-const MEDKIT = ALL_CRAFT_RECIPES.find((r) => r.id === 'recipe_medkit');
-if (!MEDKIT) throw new Error('recipe_medkit missing from the catalog');
+const MEDKIT = (() => {
+  const found = ALL_CRAFT_RECIPES.find((r) => r.id === 'recipe_medkit');
+  if (!found) throw new Error('recipe_medkit missing from the catalog');
+  return found;
+})();
 
 /** A Med Kit job, 1 of 4 units done and halfway through the second. */
 function runningJob(overrides: Partial<WorkshopJobView> = {}): WorkshopJobView {
