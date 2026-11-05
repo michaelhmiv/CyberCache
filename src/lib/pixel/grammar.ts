@@ -13,8 +13,10 @@
  *  G-6 Result flash   — success/failure reads in the same two beats.
  */
 export const GRAMMAR = {
-  /** G-1: beam widths per celebration tier (px at stage scale). */
-  beamWidthPx: { standard: 54, high: 84, legendary: 120 },
+  /** G-1: beam widths per celebration tier (px at stage scale).
+   *  `low` is the thin accent shaft (e.g. the cache-rank emblem's
+   *  hanging beam) — a step below `standard` on the same ladder. */
+  beamWidthPx: { low: 36, standard: 54, high: 84, legendary: 120 },
   /** G-2: the one card geometry. */
   card: { widthPx: 118, borderPx: 2, risePx: 30 },
   /** G-3: progress bar height + the cause label sits above-left. */

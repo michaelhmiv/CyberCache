@@ -639,13 +639,12 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     fillRect(img, 158, 40, 284, 2, hexToRgb('#f2c063'), 255);
     fillRect(img, 158, 206, 284, 2, [58, 42, 30], 255);
     // Token emblem: nested amber squares (the diamond read) + beam.
-    // FINDING F8 (tsc-gate triage, see PR body): GRAMMAR.beamWidthPx
-    // has no 'low' tier (only standard/high/legendary), so this beam
-    // width is undefined — drawBeam fills NaN widths and the beam
-    // renders as nothing; the pinned golden therefore shows a
-    // beam-less board. Adding a low tier (and re-pinning) or using
-    // 'standard' changes the pinned image, so the triage flags it.
-    // @ts-expect-error F8: GRAMMAR.beamWidthPx has no 'low' tier (known defect, flagged in PR body)
+    // The beam is the grammar's `low` tier — the thin accent shaft
+    // the scene header describes ("hangs over the board under a thin
+    // beam"). The tier was missing from GRAMMAR until the F8 fix, so
+    // this draw silently rendered nothing and the golden pinned a
+    // beam-less board; goldenImages.test.ts now asserts the shaft
+    // actually paints.
     drawBeam(img, 300, 40, GRAMMAR.beamWidthPx.low, '#F2C063');
     for (const [half, color] of [[13, '#8a6a24'], [10, '#f2c063'], [5, '#ffe1a1']] as const) {
       fillRect(img, 300 - half, 62 - half, half * 2, half * 2, hexToRgb(color), 255);
