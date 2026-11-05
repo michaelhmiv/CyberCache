@@ -51,7 +51,7 @@ describe('recordKillStats weapon attribution (gameplay twin)', () => {
     });
     await store.applyChefRewards(
       A,
-      { credits: 0, scrap: 0, xp: 0, fragments: 0, materials: {}, essences: {}, kills: 5 },
+      { credits: 0, scrap: 0, xp: 0, keys: 0, materials: {}, essences: {}, kills: 5 },
       1,
       'dustwaste_frontier',
     );
@@ -72,7 +72,7 @@ describe('recordKillStats weapon attribution (gameplay twin)', () => {
     });
     await store.applyChefRewards(
       A,
-      { credits: 0, scrap: 0, xp: 0, fragments: 0, materials: {}, essences: {}, kills: 3 },
+      { credits: 0, scrap: 0, xp: 0, keys: 0, materials: {}, essences: {}, kills: 3 },
       1,
       'dustwaste_frontier',
     );
@@ -88,7 +88,7 @@ describe('recordKillStats weapon attribution (gameplay twin)', () => {
     });
     await store.applyChefRewards(
       A,
-      { credits: 0, scrap: 0, xp: 0, fragments: 0, materials: {}, essences: {}, kills: 2 },
+      { credits: 0, scrap: 0, xp: 0, keys: 0, materials: {}, essences: {}, kills: 2 },
       2,
       'dustwaste_frontier',
     );
@@ -100,7 +100,7 @@ describe('recordKillStats weapon attribution (gameplay twin)', () => {
     store.seedProfile({ id: A, player_level: 1, credits: 0, scrap: 0 });
     await store.applyChefRewards(
       A,
-      { credits: 0, scrap: 0, xp: 0, fragments: 0, materials: {}, essences: {}, kills: 4 },
+      { credits: 0, scrap: 0, xp: 0, keys: 0, materials: {}, essences: {}, kills: 4 },
       1,
       'dustwaste_frontier',
     );

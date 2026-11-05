@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { blit, newCanvas, type RgbaImage } from '@/lib/pixel/sceneRenderer';
+import { blit, newCanvas } from '@/lib/pixel/sceneRenderer';
+import type { RgbaImage } from '@/lib/pixel/pngCodec';
 import {
   PART_POSES,
   PART_SLOTS,

@@ -76,7 +76,7 @@ vi.mock('framer-motion', async (importOriginal) => {
 // deviceFeedbackR2.test.tsx.
 globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: IntersectionObserverCallback) {
   return {
-    observe: (target: Element) => callback([{ isIntersecting: false, target } as IntersectionObserverEntry], {} as IntersectionObserver),
+    observe: (target: Element) => callback([{ isIntersecting: false, target } as unknown as IntersectionObserverEntry], {} as IntersectionObserver),
     unobserve: () => undefined,
     disconnect: () => undefined,
   };
