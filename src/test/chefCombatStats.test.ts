@@ -110,4 +110,39 @@ describe('/api/stats/combat', () => {
     const asA = await call('GET', '/api/stats/combat', harness.tokenA);
     expect(asA.json).toMatchObject({ user_id: A, total_kills: 42 });
   });
+
+  it('accepts the real client payload: fractional play seconds from heartbeat accrual', async () => {
+    // Regression pin (production, 2026-11-05): the foreground
+    // heartbeat accrues active playtime as fractional wall-clock
+    // seconds and the sync shipped the float verbatim. Postgres
+    // rejected it (`invalid input syntax for type bigint: "3.184"`)
+    // and, the save being one whole-row upsert, EVERY combat stat
+    // save failed — kills, deaths, streaks, playtime all froze.
+    // The payload below is the client's real wire shape, float
+    // values taken from the captured production warnings.
+    const put = await call('PUT', '/api/stats/combat', harness.tokenA, {
+      ...rowFor(A),
+      total_kills: 43,
+      active_play_seconds: 3.184,
+      idle_play_seconds: 114.001,
+    });
+    expect(put.status).toBe(200);
+
+    const res = await call('GET', '/api/stats/combat', harness.tokenA);
+    expect(res.status).toBe(200);
+    // The integer-typed columns read back whole; every other field
+    // of the row survives the same save.
+    expect(res.json.active_play_seconds).toBe(3);
+    expect(res.json.idle_play_seconds).toBe(114);
+    expect(Number.isInteger(res.json.active_play_seconds)).toBe(true);
+    expect(Number.isInteger(res.json.idle_play_seconds)).toBe(true);
+    expect(res.json).toMatchObject({
+      user_id: A,
+      total_kills: 43,
+      total_deaths: 3,
+      longest_kill_streak: 9,
+      highest_boss_tier: 2,
+      kills_by_area: { dustwaste_frontier: 40 },
+    });
+  });
 });
