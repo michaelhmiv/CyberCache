@@ -7,7 +7,8 @@ interface TestItem {
   name: string;
   rarity: string;
   element: string;
-  power: number;
+  power?: number;
+  price?: number;
 }
 
 function makeItems(): TestItem[] {

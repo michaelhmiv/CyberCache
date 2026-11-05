@@ -107,9 +107,10 @@ describe('the primer ask (requestPushNotifications)', () => {
     expect(cap.request).toHaveBeenCalledTimes(1);
     expect(cap.register).toHaveBeenCalled();
     // The registration listener forwards the device token.
-    const registrationCall = cap.addListener.mock.calls.find(([event]) => event === 'registration');
+    const registrationCall = (cap.addListener.mock.calls as unknown as Array<[string, (token: { value: string }) => Promise<void>]>)
+      .find(([event]) => event === 'registration');
     expect(registrationCall).toBeDefined();
-    const listener = registrationCall![1] as (token: { value: string }) => Promise<void>;
+    const listener = registrationCall![1];
     await listener({ value: 'device-token-1' });
     expect(verifiedOps.registerPushDevice).toHaveBeenCalledWith({
       token: 'device-token-1',

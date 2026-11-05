@@ -58,8 +58,8 @@ function quoteFixture(over: Partial<QuickBuyQuote> = {}): QuickBuyQuote {
       total: 55,
       worstUnitPrice: 15,
       fills: [
-        { listingId: 'l1', sellerKind: 'player', takeQty: 4, unitPrice: 10, charge: 40 },
-        { listingId: 'l2', sellerKind: 'player', takeQty: 1, unitPrice: 15, charge: 15 },
+        { listingId: 'l1', sellerKind: 'player', takeQty: 4, unitPrice: 10, charge: 40, qualityPercent: null },
+        { listingId: 'l2', sellerKind: 'player', takeQty: 1, unitPrice: 15, charge: 15, qualityPercent: null },
       ],
       listings: [
         { id: 'l1', sellerUserId: 's1', sellerKind: 'player', quantity: 4, priceCredits: 40, qualityPercent: null, listedAt: '2026-11-04T07:00:00.000Z' },
@@ -135,7 +135,7 @@ describe('QuickBuySheet — pricing inside the sheet', () => {
       vendor: null,
       market: {
         supplyQty: 3, fillableQty: 3, partial: true, total: 30, worstUnitPrice: 10,
-        fills: [{ listingId: 'l1', sellerKind: 'player', takeQty: 3, unitPrice: 10, charge: 30 }],
+        fills: [{ listingId: 'l1', sellerKind: 'player', takeQty: 3, unitPrice: 10, charge: 30, qualityPercent: null }],
         listings: [
           { id: 'l1', sellerUserId: 's1', sellerKind: 'player', quantity: 3, priceCredits: 30, qualityPercent: null, listedAt: '2026-11-04T07:00:00.000Z' },
         ],

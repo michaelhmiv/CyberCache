@@ -229,7 +229,7 @@ function patchKitQuote(): QuickBuyQuote {
       partial: false,
       total: 300,
       worstUnitPrice: 150,
-      fills: [{ listingId: 'l1', sellerKind: 'player', takeQty: 2, unitPrice: 150, charge: 300 }],
+      fills: [{ listingId: 'l1', sellerKind: 'player', takeQty: 2, unitPrice: 150, charge: 300, qualityPercent: 100 }],
       listings: [
         { id: 'l1', sellerUserId: 's1', sellerKind: 'player', quantity: 5, priceCredits: 750, qualityPercent: 100, listedAt: '2026-11-04T07:00:00.000Z' },
       ],

@@ -46,7 +46,7 @@ import {
   rebasedShieldPayload,
 } from '../content/shieldTech';
 import { SHIELD_BEHAVIOR_WEIGHTS } from '../lib/combat/shieldBehaviors';
-import type { Rarity } from '../types/game';
+import { Rarity } from '../types/game';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
 const T0 = new Date('2026-11-01T12:00:00.000Z').getTime();
@@ -244,9 +244,9 @@ describe('legality — the generation rule IS the service rule (R8)', () => {
       }
     }
     // The one banned cell in the matrix, named outright:
-    expect(isLegalShieldTechTarget('Legendary', 'standard')).toBe(false);
-    expect(legalShieldTechTargets('Legendary', 'nova')).not.toContain('standard');
-    expect(legalShieldTechTargets('Common', 'nova')).toContain('standard');
+    expect(isLegalShieldTechTarget(Rarity.Legendary, 'standard')).toBe(false);
+    expect(legalShieldTechTargets(Rarity.Legendary, 'nova')).not.toContain('standard');
+    expect(legalShieldTechTargets(Rarity.Common, 'nova')).toContain('standard');
   });
 
   it('rebased payloads un-bake and re-bake the Turtle transform exactly', () => {
@@ -396,7 +396,7 @@ describe('shield-tech board — escrow lifecycle through the shipped routes', ()
     const view0 = await board(h.tokens[TECH]);
     const jobId = (view0.json.work as Array<Record<string, unknown>>)[0].id as string;
     const techCreditsBefore = prof(TECH).credits;
-    const discoveriesBefore = h.store.seed.discoveries?.length ?? 0;
+    const discoveriesBefore = (h.store.seed as unknown as { discoveries?: unknown[] }).discoveries?.length ?? 0;
     advance(4 * HOUR); // the remaining 2,000 points
     const view = await board(h.tokens[TECH]);
     const job = (view.json.work as Array<Record<string, unknown>>).find((j) => j.id === jobId)!;
@@ -415,7 +415,7 @@ describe('shield-tech board — escrow lifecycle through the shipped routes', ()
     expect(item(SH_NOVA).is_locked).toBe(false);
     const mastery = h.store.seed.masteries.find((m) => m.user_id === TECH && m.mastery_id === 'services.shield_tech');
     expect(mastery?.mastery_xp).toBe(300); // ceil(3000 / 10)
-    expect(h.store.seed.discoveries?.length ?? 0).toBe(discoveriesBefore);
+    expect((h.store.seed as unknown as { discoveries?: unknown[] }).discoveries?.length ?? 0).toBe(discoveriesBefore);
     // Board stats: the completed job prices the Rare band median.
     const stats = view.json.stats as Record<string, unknown>;
     expect(stats.myJobsCompleted).toBe(1);

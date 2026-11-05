@@ -74,6 +74,8 @@ const gainToneClass: Record<DisplayTone, { text: string; bg: string; border: str
   consumable: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   event: { text: 'text-cyan', bg: 'bg-cyan/10', border: 'border-cyan/70', fill: 'bg-cyan' },
   event_major: { text: 'text-purple', bg: 'bg-purple/15', border: 'border-purple/80', fill: 'bg-purple' },
+  standing: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
+  auto_salvage: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   unknown: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
 };
 
