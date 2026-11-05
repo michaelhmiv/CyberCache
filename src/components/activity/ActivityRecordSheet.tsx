@@ -281,6 +281,9 @@ function kindSections(record: ActivityRecord): ReactNode {
       return record.salvage ? (
         <Section title="What It Paid" icon="recycle">
           <FactRows rows={[
+            ...(record.salvage.auto
+              ? [{ label: 'How', value: 'Auto-salvage — your rule' } as FactRow]
+              : []),
             { label: 'Scrap', value: `+${fmtNum(record.salvage.scrapAward)}`, tone: 'text-[#7CFC00]' },
             ...(record.salvage.coresAward > 0
               ? [{ label: 'Legendary cores', value: `+${record.salvage.coresAward}`, tone: 'text-[#FFEA3A]' } as FactRow]

@@ -12,7 +12,6 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import path from 'node:path';
 import { mountActionSkillRoutes, mountCacheRankRoutes, mountChefHealthRoute, mountContractsRoutes, mountCosmeticsRoutes, mountDispatchRoutes, mountExtractionRoutes, mountGameplayRoutes, mountLoginStreakRoutes, mountResearchRoutes, mountStandingRoutes } from './gameplay/routes';
 import { PgChefGameplayStore } from './gameplay/store';
-import { mountMarketSeedRoutes } from './routes/marketSeedRoute';
 import { mountAuthRoutes } from './auth/routes';
 import { PgAuthStore } from './auth/store';
 import { mountReadRoutes } from './reads/routes';
@@ -186,12 +185,11 @@ if (chefJwtSecret && databaseUrl) {
           ? '[chef-jobs] job routes + push test mounted (Route B B5)'
           : '[chef-jobs] push test mounted; job routes disabled (CHEF_JOB_SECRET not set)',
       );
-      mountMarketSeedRoutes(app, jobStore);
     })
     .catch((err) => console.error('[chef-auth] failed to initialize pg pool', err));
 } else {
   console.log('[chef-auth] disabled (CHEF_JWT_SECRET / DATABASE_URL not both set)');
-  console.log('[chef] gameplay + market seed routes disabled (Route B not configured)');
+  console.log('[chef] gameplay routes disabled (Route B not configured)');
 }
 
 // Static files — the React SPA

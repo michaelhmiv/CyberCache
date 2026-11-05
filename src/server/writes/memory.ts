@@ -224,6 +224,9 @@ import {
   type WriteListingData,
   type WriteSeed,
   type WriteStore,
+  type AutoSalvageRuleData,
+  AUTO_SALVAGE_CEILINGS,
+  autoSalvageRuleFromProfile,
 } from './store.js';
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -1208,13 +1211,16 @@ export class InMemoryWriteStore implements WriteStore {
     }
 
     // Market leg: plan over the good's open stacks, cheapest unit
-    // first, own listings excluded (the shared sweep order).
+    // first, own listings excluded (the shared sweep order). NPC
+    // listings are never supply (pure player market, 2026-11-04).
     const candidates = [...this.listings.values()]
       .filter(
         (listing) =>
           listing.status === 'active' &&
           (listing.listing_kind ?? 'gear') === good.kind &&
           listing.seller_user_id !== playerId &&
+          listing.seller_type !== 'npc' &&
+          listing.seller_user_id !== NIL_UUID &&
           this.quickBuyListingMatches(listing, good),
       )
       .sort((a, b) => compareQuickBuyRows(this.quickBuyRow(a), this.quickBuyRow(b)));
@@ -4327,7 +4333,10 @@ export class InMemoryWriteStore implements WriteStore {
       element: typeof payload.element === 'string' ? payload.element : null,
       rarity: item.rarity ?? (typeof payload.rarity === 'string' ? payload.rarity : null),
       item_level: item.item_level ?? (typeof payload.level === 'number' ? payload.level : 1),
-      seller_type: item.supply_mode === 'npc_market' ? 'npc' : 'player',
+      // seller_type describes the seller, and the seller here is the
+      // authenticated player (pure player market, 2026-11-04) — the
+      // item's supply_mode is provenance, never seller identity.
+      seller_type: 'player',
     };
     this.insertListing(listing);
     item.runtime_state = 'listed';
@@ -4665,6 +4674,14 @@ export class InMemoryWriteStore implements WriteStore {
     const buyer = this.profile(playerId);
     const listing = this.listings.get(listingId);
     if (!listing || listing.status !== 'active') throw writeError('Active listing not found');
+    // Pure player market (2026-11-04): an NPC listing can never be
+    // accepted, whatever state the row is in — the twin of the
+    // cc_accept_listing guard in migration 0081. Defense in depth
+    // behind the browse exclusion and the migration's retirement of
+    // the seeded rows.
+    if (listing.seller_type === 'npc' || listing.seller_user_id === NIL_UUID) {
+      throw writeError('NPC listings are not part of the player market');
+    }
     if (listing.seller_user_id === playerId) throw writeError('Cannot accept own listing');
     if (buyer.credits < listing.price_credits) throw writeError('Insufficient credits');
     buyer.credits -= listing.price_credits;
@@ -5067,6 +5084,39 @@ export class InMemoryWriteStore implements WriteStore {
     p.offline_cap_hours = capHours === null ? 0 : Math.trunc(capHours);
     this.touch(p);
     return { ok: true, offlineCapHours: capHours === null ? null : Math.trunc(capHours) };
+  }
+
+  /** The Auto-Salvage Rule (0080): the profile record's own fields, defaults filling pre-0080 gaps. */
+  async getAutoSalvageRule(playerId: string): Promise<AutoSalvageRuleData | null> {
+    const p = this.profileOrNull(playerId);
+    if (!p) return null;
+    return autoSalvageRuleFromProfile(p);
+  }
+
+  /** cc_set_auto_salvage_rule (0080): validation as data, messages mirroring the RPC verbatim. */
+  async setAutoSalvageRule(playerId: string, rule: AutoSalvageRuleData): Promise<{ ok: boolean; error?: string; autoSalvage?: AutoSalvageRuleData }> {
+    if (!AUTO_SALVAGE_CEILINGS.includes(rule.maxRarity)) {
+      return { ok: false, error: 'Max rarity must be Common, Uncommon, Rare, or Epic — legendaries are never auto-salvaged.' };
+    }
+    if (!Number.isFinite(rule.maxQuality) || Math.trunc(rule.maxQuality) < 0 || Math.trunc(rule.maxQuality) > 100) {
+      return { ok: false, error: 'Max roll quality must be between 0 and 100.' };
+    }
+    const p = this.profileOrNull(playerId);
+    if (!p) return { ok: false, error: 'Profile not found.' };
+    p.auto_salvage_enabled = rule.enabled !== false;
+    p.auto_salvage_max_rarity = rule.maxRarity;
+    p.auto_salvage_max_quality = Math.trunc(rule.maxQuality);
+    p.auto_salvage_to_materials = rule.toMaterials === true;
+    this.touch(p);
+    return {
+      ok: true,
+      autoSalvage: {
+        enabled: p.auto_salvage_enabled,
+        maxRarity: p.auto_salvage_max_rarity,
+        maxQuality: p.auto_salvage_max_quality,
+        toMaterials: p.auto_salvage_to_materials,
+      },
+    };
   }
 
   async markReminderSeen(playerId: string): Promise<ProfileRowData> {

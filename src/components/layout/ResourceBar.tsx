@@ -70,6 +70,13 @@
  * with the same geometry — never the store's placeholder numbers,
  * which read as a fresh account's false zeros.
  *
+ * Eye-leading (2026-11-04): every counted value on the bar
+ * pulses when it RISES — gain-green flash + pop + its own tint's
+ * glow, tiered full/micro with a 900ms coalesce, silent on
+ * decreases (the engine is src/lib/ui/stripPulse.ts; DESIGN.md
+ * §10). The layout is untouched by the beat: it rides the
+ * existing digits, transform + color + shadow only.
+ *
  * Placement law (0037): this bar is display-only. The rewarded-ad
  * offer used to live on the Keys chip's plus button — it moved to
  * the cache surface (ChestScreen) with the cache box lane: no ads
@@ -86,6 +93,14 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { compactResourceValue } from '@/lib/ui/formatValue';
+import {
+  createStripPulseTracker,
+  GAIN_GREEN,
+  STRIP_INK,
+  type StripPulseMap,
+  type StripPulseTracker,
+  type ValuePulse,
+} from '@/lib/ui/stripPulse';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import {
@@ -109,9 +124,84 @@ interface SegmentProps {
   ariaText: string;
   /** True while the wallet tick is counting this value up. */
   ticking?: boolean;
+  /** The latest increase pulse for this segment, if one fired. */
+  pulse?: ValuePulse;
 }
 
-const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, ariaText, ticking }) => (
+/**
+ * A Strip value's digits, with the pulse beat when one fires
+ * (eye-leading pass, DESIGN.md §10). The beat HOLDS its peak for
+ * the first ~30% before decaying — a pure ease-out spends the
+ * pop in ~150ms, faster than an eye can be led (measured on the
+ * design prototype; the hold is the fix). Full ≈ 0.6s, micro ≈
+ * 0.4s; the reduced-motion variant keeps the hold in the tint
+ * alone (no scale, nothing travels). Without a pulse this is
+ * exactly the shipped static span — the layout never changes.
+ */
+const ValueDigits: React.FC<{
+  testId: string;
+  pulse?: ValuePulse;
+  children: React.ReactNode;
+}> = ({ testId, pulse, children }) => {
+  if (!pulse) {
+    return (
+      <span
+        data-testid={testId}
+        className="whitespace-nowrap text-[13px] font-black tabular-nums leading-none text-text-primary"
+      >
+        {children}
+      </span>
+    );
+  }
+  const full = pulse.tier === 'full';
+  const peakScale = full ? 1.22 : 1.1;
+  return (
+    <span className="relative inline-flex">
+      <motion.span
+        key={`glow-${pulse.token}`}
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        initial={{
+          opacity: full ? 0.9 : 0.45,
+          boxShadow: `0 0 12px ${pulse.tint}`,
+        }}
+        animate={{
+          opacity: [full ? 0.9 : 0.45, full ? 0.9 : 0.45, 0],
+          boxShadow: [
+            `0 0 12px ${pulse.tint}`,
+            `0 0 12px ${pulse.tint}`,
+            `0 0 0 ${pulse.tint}`,
+          ],
+        }}
+        transition={{ duration: full ? 0.7 : 0.45, times: [0, 0.3, 1], ease: 'easeOut' }}
+      />
+      <motion.span
+        key={pulse.token}
+        data-testid={testId}
+        data-pulse={pulse.tier}
+        className="relative whitespace-nowrap text-[13px] font-black tabular-nums leading-none"
+        style={{ transformOrigin: 'left center' }}
+        initial={
+          pulse.still ? { color: GAIN_GREEN } : { scale: peakScale, color: GAIN_GREEN }
+        }
+        animate={
+          pulse.still
+            ? { color: [GAIN_GREEN, GAIN_GREEN, STRIP_INK] }
+            : { scale: [peakScale, peakScale, 1], color: [GAIN_GREEN, GAIN_GREEN, STRIP_INK] }
+        }
+        transition={{
+          duration: pulse.still ? 0.5 : full ? 0.6 : 0.4,
+          times: [0, 0.32, 1],
+          ease: 'easeOut',
+        }}
+      >
+        {children}
+      </motion.span>
+    </span>
+  );
+};
+
+const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, ariaText, ticking, pulse }) => (
   <span
     data-testid={`resource-chip-${resourceId}`}
     data-ticking={ticking ? 'true' : undefined}
@@ -120,12 +210,9 @@ const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, aria
     className="flex shrink-0 items-center gap-1 whitespace-nowrap"
   >
     <PixelWalletIcon id={resourceId} size={13} className="shrink-0" />
-    <span
-      data-testid={`resource-value-${resourceId}`}
-      className="whitespace-nowrap text-[13px] font-black tabular-nums leading-none text-text-primary"
-    >
+    <ValueDigits testId={`resource-value-${resourceId}`} pulse={pulse}>
       {value}
-    </span>
+    </ValueDigits>
     {micro && (
       <span className="whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-text-muted">
         {micro}
@@ -208,6 +295,11 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     if (
       !key ||
       awarded <= 0 ||
+      // True claim (0079): a held, unpaid reward never ticks the
+      // wallet — the count-up belongs to money that moved. When
+      // the claim lands, its profile sync raises the balance and
+      // the pulse-on-increase answers it.
+      streakResult.granted.claimable ||
       !loginStreakAnnouncement(streakResult, streakResultDay, streakSeenGrantKey) ||
       useLoginStreakStore.getState().tickedGrantKey === key
     ) {
@@ -242,6 +334,49 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
       setTickDisplay(null);
     };
   }, [streakResult, streakResultDay, streakSeenGrantKey, markWalletTicked, player.profileLoaded]);
+
+  // ── Pulse-on-increase (eye-leading pass, DESIGN.md §10) ─────
+  // The tracker (src/lib/ui/stripPulse.ts) watches every counted
+  // value the Strip prints and fires a pulse when one RISES
+  // between authoritative syncs. Decreases and same-value syncs
+  // stay silent by the tracker's construction; the first loaded
+  // balance is the baseline. Fragments ride the key segment
+  // through the composite count (keys × 1000 + fragments).
+  const pulseTrackerRef = useRef<StripPulseTracker | null>(null);
+  if (pulseTrackerRef.current === null) pulseTrackerRef.current = createStripPulseTracker();
+  const [pulses, setPulses] = useState<StripPulseMap>({});
+  const lootCount = inventory.items.length;
+
+  useEffect(() => {
+    if (!player.profileLoaded) {
+      pulseTrackerRef.current?.reset();
+      return;
+    }
+    const fired = pulseTrackerRef.current?.observe(
+      {
+        credits: player.credits,
+        scrap: player.scrap,
+        cacheKey: player.cacheKeys * 1000 + player.cacheKeyFragments,
+        legendaryCore: player.legendaryCores,
+        loot: lootCount,
+        level: player.level,
+      },
+      performance.now(),
+      reduceMotionRef.current,
+    );
+    if (fired && Object.keys(fired).length > 0) {
+      setPulses((p) => ({ ...p, ...fired }));
+    }
+  }, [
+    player.profileLoaded,
+    player.credits,
+    player.scrap,
+    player.cacheKeys,
+    player.cacheKeyFragments,
+    player.legendaryCores,
+    player.level,
+    lootCount,
+  ]);
 
   const gear = onOpenSettings ? (
     <button
@@ -291,29 +426,34 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
           value={compactResourceValue(tickDisplay ?? player.credits)}
           ariaText={`Credits — ${player.credits}`}
           ticking={tickDisplay !== null}
+          pulse={pulses.credits}
         />
         <Segment
           resourceId="scrap"
           value={compactResourceValue(player.scrap)}
           label="Scrap"
           ariaText={`Scrap — ${player.scrap}`}
+          pulse={pulses.scrap}
         />
         <Segment
           resourceId="cacheKey"
           value={player.cacheKeys}
           micro={`${player.cacheKeyFragments}/5`}
           ariaText={`Keys — ${player.cacheKeys} keys, ${player.cacheKeyFragments} of 5 fragments`}
+          pulse={pulses.cacheKey}
         />
         <Segment
           resourceId="legendaryCore"
           value={player.legendaryCores}
           ariaText={`Cores — ${player.legendaryCores} legendary cores`}
+          pulse={pulses.legendaryCore}
         />
         <Segment
           resourceId="loot"
           value={inventory.items.length}
           micro={`${equippedCount}/7`}
           ariaText={`Loot — ${inventory.items.length} items, ${equippedCount} of 7 gear slots equipped`}
+          pulse={pulses.loot}
         />
         {rightEnd(
           <span
@@ -325,12 +465,9 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
             <span className="whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-amber">
               LV
             </span>
-            <span
-              data-testid="resource-value-level"
-              className="whitespace-nowrap text-[13px] font-black tabular-nums leading-none text-text-primary"
-            >
+            <ValueDigits testId="resource-value-level" pulse={pulses.level}>
               {player.level}
-            </span>
+            </ValueDigits>
           </span>,
         )}
       </div>

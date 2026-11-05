@@ -240,10 +240,12 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the banner
 
   it('a garage intent opens the gear home on Loadout with the Garage expanded inside it (owner ruling 2026-11-02)', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'loadout', expandVehicle: true, seq: 7 }} />);
-    // The Loadout stop is mounted and lit, and the Garage panel is
-    // already expanded within it — no stop switch, no scroll hunt.
+    // The Loadout page is mounted, and the Garage panel is
+    // already expanded within it — no stop switch, no scroll
+    // hunt. (Crafting consolidation, 2026-11-04: the rail and
+    // its stops are retired — the page is the only stop now.)
     expect(await screen.findByTestId('garage-panel')).toBeTruthy();
-    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByTestId('gear-rail')).toBeNull();
     expect(screen.queryByTestId('gear-stop-garage')).toBeNull();
     // The Loadout composition is present too (F5 landmark: the
     // panel header's "Tap a slot to equip" hint).
@@ -254,7 +256,7 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the banner
     render(<InventoryScreen onNavigate={vi.fn()} />);
     expect(await screen.findByText('Tap a slot to equip')).toBeTruthy();
     expect(screen.queryByTestId('garage-panel')).toBeNull();
-    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByTestId('gear-rail')).toBeNull();
   });
 
   it('the navigation threading is wired App → Inventory → expanded Garage section (structural pin)', () => {
@@ -263,8 +265,10 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the banner
     expect(app).toContain("screen === 'garage'");
     expect(app).toContain("setInventoryTabIntent({ tab: 'loadout', expandVehicle: true");
     const inventory = readSource('src/screens/InventoryScreen.tsx');
-    expect(inventory).toContain("tabIntent?.tab ?? 'loadout'");
-    expect(inventory).toContain('setActiveStop(tabIntent.tab)');
+    // Consolidation successor pins: with the stops retired, the
+    // intent's only job is the vehicle expansion signal itself.
+    expect(inventory).toContain('tabIntent?.expandVehicle ? tabIntent.seq : null');
+    expect(inventory).toContain('if (tabIntent.expandVehicle) setVehicleExpandSeq(tabIntent.seq)');
     expect(inventory).toContain('vehicleExpandSignal={vehicleExpandSeq}');
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     // Home consolidation (2026-11-03): the vehicle banner left

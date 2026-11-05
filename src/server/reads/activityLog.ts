@@ -26,6 +26,13 @@
  *    offline settler produced (the settlement summary, its kills
  *    lump, its earnings, and drops stamped foundVia 'offline')
  *    carries away: true.
+ *  - Auto-salvage (0080) rides the same ledger rows as a manual
+ *    recycle — cc_auto_salvage_claim_items recycles through
+ *    cc_recycle_item itself — told apart by the derived nonce
+ *    marker on the row ('autosalvage:<source>:<claim nonce>:<item
+ *    id>', carried here as the row's nonce): the record is labeled
+ *    as an auto-salvage, flagged salvage.auto, and marked away
+ *    when the source is the offline settlement.
  *  - Retention is the account's whole life (owner ruling): no time
  *    cutoff exists anywhere in this module. Pagination is a cursor
  *    over (at, id), newest first, so a veteran's history is walked
@@ -132,6 +139,8 @@ export interface ActivityRecord {
     direction: 'bought' | 'sold';
     priceCredits: number;
     feeCredits: number | null;
+    /** Sold records only: the credits the seller was actually credited (price − fee + any Silver Tongue uplift), from the accept rows' own market_fee block. Null when no accept row proves it. */
+    proceedsCredits?: number | null;
     counterpartyId: string | null;
     counterpartyName: string | null;
     listingId: string | null;
@@ -145,7 +154,7 @@ export interface ActivityRecord {
     capReached: boolean | null;
     ticks: number | null;
   };
-  salvage?: { scrapAward: number; coresAward: number };
+  salvage?: { scrapAward: number; coresAward: number; auto?: boolean };
   dispatch?: { family: string; payoutCredits: number; payoutFraction: number | null };
   endless?: { status: string; depthReached: number };
   system?: { subtype: string };
@@ -179,6 +188,8 @@ export interface ActivityLedgerRow {
   action_type: string;
   result_payload: Record<string, unknown>;
   created_at: string;
+  /** The row's idempotency key (verified_action_ledger.idempotency_key), when the store carries it. */
+  nonce?: string | null;
 }
 
 export interface ActivityItemRow {
@@ -244,8 +255,8 @@ export interface ActivityRawInput {
   cacheItemIds: ReadonlySet<string>;
   /** Hunter display names by user id, for market counterparties. */
   names: ReadonlyMap<string, string>;
-  /** Per sold listing, the facts that live only in the buyer's accept row: the fee and the buyer. */
-  saleFacts: ReadonlyMap<string, { feeCredits: number | null; buyerId: string | null }>;
+  /** Per sold listing, the facts that live only in the buyer's accept row: the fee, the buyer, and the proceeds the seller was actually credited (summed across partial-fill legs). */
+  saleFacts: ReadonlyMap<string, { feeCredits: number | null; buyerId: string | null; proceedsCredits: number | null }>;
 }
 
 export function emptyActivityInput(): ActivityRawInput {
@@ -508,14 +519,29 @@ export function buildActivityRecords(input: ActivityRawInput): ActivityRecord[] 
       }
       case 'cc_recycle_item': {
         const item = itemSummary(payload.item);
+        // Auto-salvage (0080): the settlement pass recycles through
+        // this same function under the derived nonce marker
+        // 'autosalvage:<source>:<claim nonce>:<item id>' — the
+        // marker is the only thing that tells a rule-driven salvage
+        // from a deliberate one, so the record names it and the
+        // offline source marks the record away-era.
+        const autoSource = typeof row.nonce === 'string' && row.nonce.startsWith('autosalvage:')
+          ? row.nonce.split(':')[1]
+          : null;
         records.push({
           id: `ledger:${row.id}`,
           kind: 'salvage',
           at,
-          away: false,
-          label: `Salvaged ${item?.name ?? 'item'}`,
+          away: autoSource === 'offline',
+          label: autoSource
+            ? `Auto-salvaged ${item?.name ?? 'item'}`
+            : `Salvaged ${item?.name ?? 'item'}`,
           ...(item ? { item } : {}),
-          salvage: { scrapAward: num(payload.scrap_award), coresAward: num(payload.cores_award) },
+          salvage: {
+            scrapAward: num(payload.scrap_award),
+            coresAward: num(payload.cores_award),
+            ...(autoSource ? { auto: true } : {}),
+          },
         });
         break;
       }
@@ -680,6 +706,7 @@ export function buildActivityRecords(input: ActivityRawInput): ActivityRecord[] 
         direction: 'sold',
         priceCredits: listing.price_credits,
         feeCredits: facts?.feeCredits ?? null,
+        proceedsCredits: facts?.proceedsCredits ?? null,
         counterpartyId: facts?.buyerId ?? null,
         counterpartyName: buyerName,
         listingId: listing.id,

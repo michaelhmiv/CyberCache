@@ -36,7 +36,7 @@ import {
   createStartDispatchHandler,
 } from '../routes/dispatch';
 import { createGetExtractionHandler, type ExtractionConfig } from '../routes/extraction';
-import { createGetLoginStreakHandler } from '../routes/loginStreak';
+import { createClaimLoginStreakHandler, createGetLoginStreakHandler } from '../routes/loginStreak';
 import { createClaimContractHandler, createGetContractsHandler, createRerollContractHandler } from '../routes/contracts';
 import {
   createCancelResearchHandler,
@@ -157,9 +157,10 @@ export function mountExtractionRoutes(
 }
 
 /**
- * Login streak routes (0036): the daily check-in state read
- * (observe-and-record) on the gameplay store. Mounted alongside
- * the cache rank routes in index.ts.
+ * Login streak routes (0036 + 0079): the daily check-in state
+ * read (observe-and-record) plus the true-claim payment, on the
+ * gameplay store. Mounted alongside the cache rank routes in
+ * index.ts.
  */
 export function mountLoginStreakRoutes(
   app: Express,
@@ -167,7 +168,8 @@ export function mountLoginStreakRoutes(
   config: GameplayRoutesConfig,
 ): void {
   app.get('/api/login-streak/me', createGetLoginStreakHandler(gameplayStore, config));
-  console.log('[chef] login streak routes mounted: GET /api/login-streak/me (0036)');
+  app.post('/api/login-streak/claim', createClaimLoginStreakHandler(gameplayStore, config));
+  console.log('[chef] login streak routes mounted: GET /api/login-streak/me, POST /api/login-streak/claim (0036 + 0079)');
 }
 
 /**

@@ -15,13 +15,14 @@
 import { create } from 'zustand';
 import { fetchWorkshopState, verifiedOps } from '@/lib/api/verifiedOps';
 import { trackCraftCompletions } from '@/lib/analytics/analytics';
+import { useAnnouncementsStore } from './announcementsSlice';
 import { humanizeWorkshopError, WORKSHOP_ERROR_FALLBACK } from '@/lib/workshop/errors';
 
 /** One job as the server presents it (craftJobView). */
 export interface WorkshopJobView {
   id: string;
   bench: number;
-  kind: 'consumable' | 'refine' | 'gear' | 'tool' | 'repair';
+  kind: 'consumable' | 'refine' | 'gear' | 'tool' | 'repair' | 'shieldtech';
   recipeId: string;
   name: string;
   state: 'running' | 'queued' | 'paused' | 'complete' | 'cancelled';
@@ -53,6 +54,11 @@ export interface WorkshopJobView {
   repairItemId: string | null;
   repairKitType: string | null;
   repairPointsRestored: number;
+  /** Shield-tech jobs only (0044): the shield + behavior flip and points applied. */
+  shieldtechItemId?: string | null;
+  shieldtechFromBehavior?: string | null;
+  shieldtechToBehavior?: string | null;
+  shieldtechPointsApplied?: number;
 }
 
 export interface WorkshopCompletionView extends Record<string, unknown> {
@@ -142,6 +148,11 @@ export const useWorkshopStore = create<WorkshopState>()((set, get) => ({
       // Analytics: this refresh is the one place new server views
       // land, so it is where craft completions are observed.
       trackCraftCompletions(view);
+      // Eye-leading (2026-11-04): the same observation feeds the
+      // bench-ready announcement — a completion the player isn't
+      // looking at becomes a chip in Home's claim row. The
+      // announcements store applies the in-view suppression.
+      useAnnouncementsStore.getState().observeWorkshop(view);
     } catch (err) {
       // A state READ failure is a load problem, not a refusal: the
       // humanizer's generic fallback would mislabel it, so it maps

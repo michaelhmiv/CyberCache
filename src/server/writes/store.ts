@@ -101,8 +101,9 @@ export function writeError(message: string): WriteStoreError {
  * from the NPC vendor (supply_mode 'npc_market') can never be listed
  * on the player market — it exits through vendor buyback or salvage.
  * Both write stores refuse with this exact message. Non-weapon
- * npc_market gear keeps the shipped behavior (it lists, stamped
- * seller_type 'npc', as market depth).
+ * npc_market gear lists normally, stamped seller_type 'player':
+ * seller_type describes the seller (2026-11-04), and a hunter
+ * re-selling vendor-origin gear is a player sale.
  */
 export const NPC_VENDOR_WEAPON_REFUSAL =
   "Vendor weapons can't be listed on the player market — sell them back to the vendor or recycle them instead";
@@ -374,6 +375,44 @@ export interface RuntimeSnapshotData {
  * PostgREST; the Chef route pair (GET/PUT /api/stats/combat) is its
  * transport swap, same pattern as the runtime snapshot routes.
  */
+/**
+ * The Auto-Salvage Rule (migration 0080) in wire/store shape. The
+ * rule lives on the profile row (profiles.auto_salvage_*); the
+ * defaults are the client's shipped defaults, applied wherever a
+ * pre-0080 record omits the fields.
+ */
+export interface AutoSalvageRuleData {
+  enabled: boolean;
+  maxRarity: string;
+  maxQuality: number;
+  toMaterials: boolean;
+}
+
+export const AUTO_SALVAGE_DEFAULT_RULE: AutoSalvageRuleData = {
+  enabled: true,
+  maxRarity: 'Common',
+  maxQuality: 20,
+  toMaterials: false,
+};
+
+/** Rarities the rule may name as its ceiling — Legendary is refused (0080 §2). */
+export const AUTO_SALVAGE_CEILINGS: readonly string[] = ['Common', 'Uncommon', 'Rare', 'Epic'];
+
+/** Read the rule off a profile-shaped record, defaults filling any pre-0080 gap. */
+export function autoSalvageRuleFromProfile(p: {
+  auto_salvage_enabled?: boolean;
+  auto_salvage_max_rarity?: string;
+  auto_salvage_max_quality?: number;
+  auto_salvage_to_materials?: boolean;
+}): AutoSalvageRuleData {
+  return {
+    enabled: p.auto_salvage_enabled !== false,
+    maxRarity: typeof p.auto_salvage_max_rarity === 'string' ? p.auto_salvage_max_rarity : AUTO_SALVAGE_DEFAULT_RULE.maxRarity,
+    maxQuality: typeof p.auto_salvage_max_quality === 'number' ? p.auto_salvage_max_quality : AUTO_SALVAGE_DEFAULT_RULE.maxQuality,
+    toMaterials: p.auto_salvage_to_materials === true,
+  };
+}
+
 export interface CombatStatsData {
   user_id: string;
   total_kills: number;
@@ -1103,6 +1142,20 @@ export interface WriteStore {
    * takes min(earned, limiter, 24h).
    */
   setOfflineCapLimiter(playerId: string, capHours: number | null): Promise<{ ok: boolean; error?: string; offlineCapHours?: number | null }>;
+  /**
+   * The player's Auto-Salvage Rule (migration 0080) — profile-owned
+   * (profiles.auto_salvage_*), read for the Settings card. Null when
+   * the profile does not exist.
+   */
+  getAutoSalvageRule(playerId: string): Promise<AutoSalvageRuleData | null>;
+  /**
+   * Set the Auto-Salvage Rule (migration 0080,
+   * cc_set_auto_salvage_rule). Validation reports as data, like the
+   * other profile writes: a Legendary ceiling is refused
+   * (legendaries are never auto-salvaged) and quality must be
+   * 0..100.
+   */
+  setAutoSalvageRule(playerId: string, rule: AutoSalvageRuleData): Promise<{ ok: boolean; error?: string; autoSalvage?: AutoSalvageRuleData }>;
   /**
    * Replace the player's Trophy Shelf pins (migration 0058,
    * profile_showcase_pins) — the whole list, in pin order; an
@@ -2053,6 +2106,43 @@ export class PgWriteStore implements WriteStore {
     const out: { ok: boolean; error?: string; offlineCapHours?: number | null } = { ok: result.ok === true };
     if (typeof result.error === 'string') out.error = result.error;
     if (out.ok) out.offlineCapHours = typeof result.offline_cap_hours === 'number' ? result.offline_cap_hours : null;
+    return out;
+  }
+
+  async getAutoSalvageRule(playerId: string): Promise<AutoSalvageRuleData | null> {
+    const { rows } = await this.pool.query(
+      `select auto_salvage_enabled, auto_salvage_max_rarity, auto_salvage_max_quality, auto_salvage_to_materials
+         from public.profiles where id = $1`,
+      [playerId],
+    );
+    if (!rows.length) return null;
+    return autoSalvageRuleFromProfile(rows[0] as Row);
+  }
+
+  async setAutoSalvageRule(playerId: string, rule: AutoSalvageRuleData): Promise<{ ok: boolean; error?: string; autoSalvage?: AutoSalvageRuleData }> {
+    // A missing/non-numeric quality can never reach the RPC as an
+    // integer — report it with the RPC's own validation message.
+    if (!Number.isFinite(rule.maxQuality)) {
+      return { ok: false, error: 'Max roll quality must be between 0 and 100.' };
+    }
+    const result = await this.callJson('select public.cc_set_auto_salvage_rule($1, $2, $3, $4, $5) as result', [
+      playerId,
+      rule.enabled,
+      rule.maxRarity,
+      Math.trunc(rule.maxQuality),
+      rule.toMaterials,
+    ]);
+    const out: { ok: boolean; error?: string; autoSalvage?: AutoSalvageRuleData } = { ok: result.ok === true };
+    if (typeof result.error === 'string') out.error = result.error;
+    if (out.ok) {
+      const saved = (result.auto_salvage ?? {}) as Record<string, unknown>;
+      out.autoSalvage = {
+        enabled: saved.enabled !== false,
+        maxRarity: typeof saved.max_rarity === 'string' ? saved.max_rarity : rule.maxRarity,
+        maxQuality: typeof saved.max_quality === 'number' ? saved.max_quality : rule.maxQuality,
+        toMaterials: saved.to_materials === true,
+      };
+    }
     return out;
   }
 

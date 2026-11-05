@@ -45,6 +45,7 @@ const feedDot = (tone?: string) => {
   if (tone === 'death') return 'bg-red';
   if (tone === 'damage') return 'bg-red';
   if (tone === 'heal') return 'bg-green';
+  if (tone === 'auto_salvage') return 'bg-amber';
   return 'bg-text-muted';
 };
 

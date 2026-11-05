@@ -19,6 +19,7 @@ import { useOfflineRecapStore } from './slices/offlineRecapSlice';
 import { useLoginStreakStore } from './slices/loginStreakSlice';
 import { useContractsStore } from './slices/contractsSlice';
 import { useCosmeticsStore } from './slices/cosmeticsSlice';
+import { useAnnouncementsStore } from './slices/announcementsSlice';
 export { combatStatsSelectors };
 
 export {
@@ -45,4 +46,5 @@ export {
   useLoginStreakStore,
   useContractsStore,
   useCosmeticsStore,
+  useAnnouncementsStore,
 };

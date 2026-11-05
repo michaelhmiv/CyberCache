@@ -7,12 +7,22 @@ dedicated crafter is a real playstyle: when the market is hungry for
 crafted goods, the hunter at the bench out-earns the hunter in the
 field.
 
+The bench lives on the **Home** tab: tap **Craft** on the mode rail
+and the whole Workshop opens as Home's Craft workspace — recipes,
+the job queue, the bench-time bank, and the Repairs & Service
+section. (Everything you *do* lives on Home; the [[Gear]] tab keeps
+what you *own*, with a status strip at its foot that reads the bench
+at a glance and doors back here.)
+
 ## The one rule: jobs run only while you craft
 
 Workshop jobs advance **only while crafting is your active action**.
 Queue a job, switch to roaming or a boss, and the job sits **paused** —
 it keeps its place and its escrowed inputs, but no progress is made
-until you come back to the bench. There is **one bench**: one job
+until you come back to the bench. Open the bench while something
+else holds the slot and it says so at the top — paused, why, and the
+**Work the Bench** button that switches you over; opening the bench
+to look never switches your action by itself. There is **one bench**: one job
 runs on it, with up to **5 more queued** behind it (a Fixer keystone
 queues more). Banked **bench time** widens it — while the bank
 lasts, **3 jobs run at once with 15 queued** (see *Bench time*
@@ -29,6 +39,18 @@ demand is real.
 
 **Everyone can craft, guests included.** Crafting carries no
 verified-account gate.
+
+## Repairs & service live at the bench too
+
+Vehicle repairs (started in the [[Vehicles and the Garage|Garage]])
+and shield recalibrations (started from a shield's inspect sheet)
+are timed jobs on the **service lane**: they progress only while
+**Workshop Service** is your active action, aimed at the job. They
+are managed in the Craft workspace's **Repairs & Service** section —
+progress, a **Work** button that aims the service action at the job,
+and cancel, which refunds every kit or core not yet applied, whole.
+Finished work lands on its own: condition restored, shield behavior
+flipped — there is nothing to claim.
 
 ## Finding what you can make
 
@@ -128,6 +150,12 @@ were retired: hunters who had bought one were refunded in full —
 Lab — and every recipe now runs on the one bench.) It runs **1 job
 at a time with 5 queued** behind it; a Fixer keystone raises the
 queue. The crusher and the furnace are stations on the same bench.
+
+When a job finishes while you are somewhere else in the game, Home
+announces it — a **Bench ready** chip under the claim chips, naming the
+job (or counting several). Tap it to come straight here and collect. If
+you are already watching the Workshop when the job lands, no announcement
+appears: you saw it happen.
 
 ## Bench time
 
@@ -273,7 +301,7 @@ mutually exclusive — a unit takes the core or the ingots, never both.
 
 ## Getting started
 
-Open **Gear → Workshop**, pick a recipe you have the inputs for, set
+Open **Home → Craft**, pick a recipe you have the inputs for, set
 crafting as your active action, and let the bench work. Roaming is
 the beginner's supply line: areas drop the base materials and
 essences their cards name. Salvage from the [[Gear]] tab pays **Scrap**

@@ -2,9 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence } from 'framer-motion';
 import {
-  Clock,
-} from 'lucide-react';
-import {
   useActivityStore,
   useBossStore,
   useCombatStatsStore,
@@ -35,14 +32,12 @@ import { HeroRundown } from '@/components/dashboard/HeroRundown';
 import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { REGION_1_BOSSES } from '@/constants/bosses';
-import { CRAFTING_RECIPES } from '@/constants/craftingRecipes';
 import {
   getRoamingArea,
   type RoamingAreaDef,
 } from '@/constants/roamingAreas';
 import {
   buildBossFightActivity,
-  buildCraftingActivity,
   buildRoamingLootActivity,
 } from '@/lib/activity/activityBuilders';
 import { verifiedOps } from '@/lib/api/verifiedOps';
@@ -52,8 +47,6 @@ import { getVisualAsset } from '@/constants/visualAssets';
 import { salvageScrap } from '@/lib/skills/salvageBonuses';
 import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '@/content/roamingRates';
 import { isClassMod, isOrdnance, isRelic, isShield, isWeapon } from '@/lib/gear/gearCardSummary';
-import { canStartCraft } from '@/lib/craftingEngine';
-import type { WorkshopJobView } from '@/store/slices/workshopSlice';
 import { makeRunEvent, type RunVisualEvent } from '@/lib/run/runEvents';
 import { useTickFeedStore } from '@/store/slices/tickSlice';
 
@@ -68,6 +61,7 @@ import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 import { ClaimSyncStatusLine } from '@/components/action/ClaimSyncStatusLine';
 import { HomeModeRail, type HomeModeRailStop } from '@/components/action/HomeModeRail';
 import { ConsumableBelt } from '@/components/dashboard/ConsumableBelt';
+import { HomeCraftBench } from '@/components/workshop/HomeCraftBench';
 
 const TICK_SECONDS = 3;
 const LOG_LIMIT = 10;
@@ -91,12 +85,7 @@ const idleEvent: RunVisualEvent = {
   eventType: 'idle',
 };
 
-const formatDuration = (ms: number) => {
-  const mins = Math.floor(ms / 60000);
-  if (mins >= 60) return `${Math.floor(mins / 60)}h ${mins % 60}m`;
-  if (mins >= 1) return `${mins}m`;
-  return `${Math.max(1, Math.ceil(ms / 1000))}s`;
-};
+
 
 const Section: React.FC<{ title: string; eyebrow?: string; children: React.ReactNode; icon?: React.ReactNode; action?: React.ReactNode }> = ({ title, eyebrow, children, icon, action }) => (
   <MobileCard className="relative overflow-hidden space-y-3 border-border/90 bg-surface/95">
@@ -140,22 +129,8 @@ type CommonPanelProps = {
   startPrep: (boss?: BossDef) => void;
   startBossFight: (boss?: BossDef) => void;
   openBoss: () => void;
-  startCrafting: () => void;
   startSalvage: (item?: GearItem) => void;
   onNavigate?: (screen: string) => void;
-};
-
-const CraftingPanel: React.FC<CommonPanelProps & { playerMaterials: Record<string, number>; playerEssences: Record<string, number>; benchesFree: number; jobs: WorkshopJobView[] }> = ({ playerLevel, playerMaterials, playerEssences, benchesFree, jobs, startCrafting, onNavigate }) => {
-  const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, playerMaterials, playerEssences, playerLevel) }));
-  const canNow = craftable.filter(({ check }) => check.can);
-  const activeJobs = jobs.filter((j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused');
-  return (
-    <div className="space-y-3">
-      <RewardIntelPanel title="Bench output forecast" eyebrow="crafting intel" stats={[{ label: 'Free', value: benchesFree, tone: benchesFree ? 'green' : 'red' }, { label: 'Jobs', value: activeJobs.length }, { label: 'Craftable', value: canNow.length, tone: 'amber' }, { label: 'Recipes', value: CRAFTING_RECIPES.length }, { label: 'Blocked', value: Math.max(0, CRAFTING_RECIPES.length - canNow.length), tone: 'red' }]}>Recipes are chosen in the Workshop — crafting has one home. Jobs are server state: they progress only while Crafting holds the action slot, and this page reads their settled status.</RewardIntelPanel>
-      {activeJobs.length > 0 && <Section title="Bench Jobs" eyebrow="machine deck" icon={<Clock size={15} />}><div className="space-y-2">{activeJobs.map((job) => <div key={job.id} className="border border-border bg-bg/70 p-2"><div className="flex justify-between gap-2 text-xs"><span className="font-black text-text-primary">Bench {job.bench}: {job.name}</span><span className="text-amber">{job.state === 'paused' ? 'Paused' : `${formatDuration(job.remainingMs)} left`}</span></div><div className="text-[10px] text-text-muted">{job.unitsCompleted}/{job.unitsTotal} units · {job.xpAwarded} XP banked{job.state === 'paused' ? ' · switch back to Crafting to resume' : ''}</div></div>)}</div></Section>}
-      <Section title="Recipe Control" eyebrow="workshop owns recipes" icon={<ActivityGlyph kind="crafting" />}><button type="button" onClick={() => onNavigate?.('workshop')} className="bl-primary w-full py-2 text-xs font-black">Open Workshop</button><button type="button" onClick={startCrafting} className="mt-2 bl-secondary w-full py-2 text-xs font-black text-amber">Set Crafting As Current Action</button></Section>
-    </div>
-  );
 };
 
 const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePicker: () => void }> = ({ items, startSalvage, onNavigate, onSalvagePicker }) => {
@@ -170,21 +145,18 @@ const SalvagePanel: React.FC<CommonPanelProps & { items: GearItem[]; onSalvagePi
 };
 
 
-const _IdlePanel: React.FC<Partial<CommonPanelProps>> = ({ startRoam, startPrep, startCrafting, startSalvage, onNavigate, selectedArea }) => (
-  <div className="space-y-3">
-    <Section title="Recommended Dispatch" eyebrow="no action active" icon={<ActivityGlyph kind="idle_standby" />}>
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => startRoam?.()} className="border-2 border-amber/40 bg-amber/10 p-3 text-left" style={panelClip}><ActivityGlyph kind="roaming_loot" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Start Roam</div><div className="text-[10px] text-text-muted">{selectedArea?.name ?? 'Default area'}</div></button>
-        <button type="button" onClick={() => startPrep?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="boss_fight" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Prep Boss</div><div className="text-[10px] text-text-muted">Check counters first</div></button>
-        <button type="button" onClick={() => startCrafting?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="crafting" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Craft</div><div className="text-[10px] text-text-muted">Recipes and benches</div></button>
-        <button type="button" onClick={() => startSalvage?.()} className="border-2 border-border bg-bg/70 p-3 text-left" style={panelClip}><ActivityGlyph kind="salvaging" size={17} /><div className="mt-2 text-sm font-black text-text-primary">Salvage</div><div className="text-[10px] text-text-muted">Break down low gear</div></button>
-      </div>
-      <button type="button" onClick={() => onNavigate?.('chest')} className="mt-3 bl-secondary w-full py-2 text-xs font-black text-amber">Open Caches</button>
-    </Section>
-  </div>
-);
-
-export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; onNavigate?: (screen: string) => void }> = ({ onOpenBossSelect, onNavigate }) => {
+export const ActionScreenContextual: React.FC<{
+  onOpenBossSelect: () => void;
+  onNavigate?: (screen: string) => void;
+  /**
+   * Craft-bench intent (crafting consolidation, 2026-11-04): every
+   * 'workshop' door in the app (the Gear status strip, the Garage
+   * remedy doors) routes through App's alias to Home with this
+   * seq-stamped intent, and the bench workspace opens on arrival —
+   * the same intent pattern the Gear tab's tabIntent uses.
+   */
+  craftBenchIntent?: { seq: number } | null;
+}> = ({ onOpenBossSelect, onNavigate, craftBenchIntent = null }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const bossStore = useBossStore();
@@ -205,6 +177,23 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
   const [showEndless, setShowEndless] = useState(false);
   const [showExtraction, setShowExtraction] = useState(false);
+  // The Craft bench as a view (consolidation, 2026-11-04): like the
+  // Endless/Extraction prep panels, the bench workspace can open
+  // WITHOUT claiming the action slot — looking at the bench never
+  // switches the action; its own Work the Bench control does.
+  const [showCraftBench, setShowCraftBench] = useState(false);
+  // A fresh craft intent re-applies even while Home is mounted
+  // (render-phase adjustment, the InventoryScreen tabIntent
+  // pattern): the intent lands in the same commit as the
+  // navigation that carried it.
+  const [appliedCraftIntentSeq, setAppliedCraftIntentSeq] = useState<number | null>(null);
+  if (craftBenchIntent && craftBenchIntent.seq !== appliedCraftIntentSeq) {
+    setAppliedCraftIntentSeq(craftBenchIntent.seq);
+    setShowCraftBench(true);
+    setShowEndless(false);
+    setShowExtraction(false);
+    setShowSwitch(false);
+  }
   const [feedActionBusy, setFeedActionBusy] = useState(false);
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
   const [salvagePendingIds, setSalvagePendingIds] = useState<ReadonlySet<string>>(new Set());
@@ -217,7 +206,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   const currentKind = activity.current.kind;
   // Craft jobs are server state (0024): refresh the workshop mirror
   // when this screen mounts and whenever the action slot changes, so
-  // the Crafting panel shows settled progress / paused reasons.
+  // the Craft workspace shows settled progress / paused reasons.
   const refreshWorkshop = workshop.refresh;
   useEffect(() => {
     void refreshWorkshop();
@@ -277,10 +266,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
   // genuinely nothing to show yet.
   const mergedFeed = [...tickDisplayEvents, ...feed.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT);
   const visualFeed = mergedFeed.length > 0 ? mergedFeed : feed;
-  const workshopJobs = workshop.server?.jobs ?? [];
-  const benchesFree = Math.max(0, (workshop.server?.benches ?? 1) - new Set(workshopJobs.filter((j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused').map((j) => j.bench)).size);
   const salvageCandidates = inventory.items.filter((item) => !item.isLocked).slice(0, 12);
-  const craftable = CRAFTING_RECIPES.map((recipe) => ({ recipe, check: canStartCraft(recipe.id, player.materials, player.essences, player.level) }));
 
   const pushEvents = useCallback((events: RunVisualEvent[]) => {
     setFeed((current) => [...events, ...current.filter((event) => event.id !== 'idle-loop-ready')].slice(0, LOG_LIMIT));
@@ -300,6 +286,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       // passes through.
       setShowEndless(false);
       setShowExtraction(false);
+      setShowCraftBench(false);
       setShowAreaSelect(false);
       setShowBossPicker(false);
       setShowSalvagePicker(false);
@@ -342,11 +329,6 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     bossStore.setCurrentBoss(target.id);
     startAction(buildBossFightActivity(target, activityWeapon, 'fight'), makeRunEvent('BOSS FIGHT', `Encounter started against ${target.name}.`, 'xp', 'boss_fight'));
   }, [activityWeapon, bossStore, prepBossTarget, startAction]);
-
-  const startCrafting = useCallback((recipe = craftable.find(({ check }) => check.can)?.recipe ?? CRAFTING_RECIPES[0]) => {
-    if (!recipe) return;
-    startAction(buildCraftingActivity(recipe, null), makeRunEvent('CRAFTING', `Bench focus set to ${recipe.name}.`, 'patrol', 'crafting'));
-  }, [craftable, startAction]);
 
   // Salvage (flow-fix F5): the Action tab used to stage a `salvaging`
   // activity that no server system consumed — the item was never
@@ -498,7 +480,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     gear: (event as { gear?: GearItem }).gear,
   }));
 
-  const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startCrafting, startSalvage, onNavigate };
+  const commonProps: CommonPanelProps = { playerLevel: player.level, selectedArea, setSelectedArea: idle.setSelectedRoamingArea, startRoam, startPrep, startBossFight, openBoss: onOpenBossSelect, startSalvage, onNavigate };
 
   const workspace = (() => {
     // Endless (0028): the Chamber owns the workspace while a run
@@ -514,6 +496,28 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     // claiming the site is the panel's own server call.
     if (currentKind === 'extraction' || showExtraction) {
       return <ExtractionPanel onLeave={() => setShowExtraction(false)} />;
+    }
+
+    // The Workshop (crafting consolidation, owner ruling
+    // 2026-11-04): Home's Craft workspace IS the bench — recipes,
+    // queue, bench-time bank, and the Repairs & Service section.
+    // It owns the workspace while Crafting or Workshop Service
+    // holds the slot, and opens as a view from the rail's Craft
+    // stop / a 'workshop' door without claiming the slot: the
+    // bench prints its paused truth and its own Work the Bench
+    // control claims the slot. No second animated scene — the
+    // main stage above carries the activity scene (one-stage law).
+    if (currentKind === 'crafting' || currentKind === 'workshop_service' || showCraftBench) {
+      return (
+        <HomeCraftBench
+          onNavigate={onNavigate}
+          onLeave={
+            showCraftBench && currentKind !== 'crafting' && currentKind !== 'workshop_service'
+              ? () => setShowCraftBench(false)
+              : undefined
+          }
+        />
+      );
     }
 
     // Idle/standby: the Roam panel (drift-fix F2, the approved
@@ -647,25 +651,36 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       return <BossEncounterPanel key={prepBossTarget.id} boss={prepBossTarget} onChangeBoss={() => setShowBossPicker(true)} onLeave={stopAction} />;
     }
 
-    if (currentKind === 'crafting') return <CraftingPanel {...commonProps} playerMaterials={player.materials} playerEssences={player.essences} benchesFree={benchesFree} jobs={workshopJobs} />;
     if (currentKind === 'salvaging') return <SalvagePanel {...commonProps} items={inventory.items} onSalvagePicker={() => setShowSalvagePicker(true)} />;
-    if (currentKind === 'workshop_service') return <Section title="Workshop relocated" eyebrow="gear owns benches" icon={<ActivityGlyph kind="workshop_service" />}><div className="space-y-2 text-xs text-text-muted"><div>Workshop now lives on the Gear tab.</div><button type="button" onClick={() => onNavigate?.('gear')} className="bl-primary w-full py-2 text-xs font-black">Open Gear</button></div></Section>;
     if (currentKind === 'market_listing') return <Section title="Market relocated" eyebrow="market owns listings" icon={<ActivityGlyph kind="market_listing" />}><div className="space-y-2 text-xs text-text-muted"><div>Trading now lives on the Market tab.</div><button type="button" onClick={() => onNavigate?.('market')} className="bl-primary w-full py-2 text-xs font-black">Open Market</button></div></Section>;
     return null; // fallback: no workspace panel needed
   })();
 
-  // The two prep panels are mutually exclusive (QC B2): opening one
-  // replaces the other, so the workspace and the rail's lit stop
+  // The view panels are mutually exclusive (QC B2): opening one
+  // replaces the others, so the workspace and the rail's lit stop
   // always agree on which mode is open.
   const openEndless = useCallback(() => {
     setShowExtraction(false);
+    setShowCraftBench(false);
     setShowEndless(true);
     setShowSwitch(false);
   }, []);
 
   const openExtraction = useCallback(() => {
     setShowEndless(false);
+    setShowCraftBench(false);
     setShowExtraction(true);
+    setShowSwitch(false);
+  }, []);
+
+  // The bench opens as a VIEW (consolidation, 2026-11-04): the
+  // action slot is untouched — the bench's own Work the Bench
+  // control is the switch, so a paused bench can be inspected
+  // (and its queue managed) without abandoning the current action.
+  const openCraftBench = useCallback(() => {
+    setShowEndless(false);
+    setShowExtraction(false);
+    setShowCraftBench(true);
     setShowSwitch(false);
   }, []);
 
@@ -680,7 +695,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     : (isBossPrep || isBossFight || isBossResolved) ? 'boss'
     : (currentKind === 'endless_run' || showEndless) ? 'endless'
     : (currentKind === 'extraction' || showExtraction) ? 'extract'
-    : currentKind === 'crafting' ? 'craft'
+    : (currentKind === 'crafting' || currentKind === 'workshop_service' || showCraftBench) ? 'craft'
     : null;
 
   const handleRailSelect = useCallback((stop: HomeModeRailStop) => {
@@ -705,9 +720,9 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
       case 'boss': setShowBossPicker(true); break;
       case 'endless': openEndless(); break;
       case 'extract': openExtraction(); break;
-      case 'craft': startCrafting(); break;
+      case 'craft': openCraftBench(); break;
     }
-  }, [isRoaming, startRoam, startCrafting, openEndless, openExtraction]);
+  }, [isRoaming, startRoam, openEndless, openExtraction, openCraftBench]);
 
   const switchActions = [
     { label: 'Roam', detail: selectedArea.name, icon: <ActivityGlyph kind="roaming_loot" size={16} /> as React.ReactNode, run: () => startRoam() },
@@ -715,7 +730,7 @@ export const ActionScreenContextual: React.FC<{ onOpenBossSelect: () => void; on
     { label: 'Boss Fight', detail: prepBossTarget?.name ?? 'Choose target', icon: <PxIcon name="crosshair" size={17} className="text-amber" /> as React.ReactNode, run: () => startBossFight() },
     { label: 'Endless', detail: 'Chaos Chamber', icon: <ActivityGlyph kind="endless_run" size={16} /> as React.ReactNode, run: openEndless },
     { label: 'Extract', detail: selectedArea.name, icon: <ActivityGlyph kind="extraction" size={16} /> as React.ReactNode, run: openExtraction },
-    { label: 'Craft', detail: `${CRAFTING_RECIPES.length} recipes`, icon: <ActivityGlyph kind="crafting" size={16} /> as React.ReactNode, run: () => startCrafting() },
+    { label: 'Craft', detail: 'The bench — recipes, queue, repairs', icon: <ActivityGlyph kind="crafting" size={16} /> as React.ReactNode, run: openCraftBench },
     { label: 'Salvage', detail: `${inventory.items.length} items`, icon: <ActivityGlyph kind="salvaging" size={16} /> as React.ReactNode, run: () => startSalvage() },
   ].slice(0, MAX_SWITCH_ROWS);
 

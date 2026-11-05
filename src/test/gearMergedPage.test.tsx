@@ -1,15 +1,17 @@
 /**
  * The merged Gear page (Exec C, "the Split" — owner layout,
- * 2026-11-03): the Gear tab's Loadout stop is ONE page — the Split
+ * 2026-11-03): the Gear tab's Loadout page is ONE page — the Split
  * doll zone (figure stage + gun rows + accessories band), the
- * Garage, § Inventory, § Belt & Stacks, and the Workshop door row
- * at the foot. The rail is Loadout · Workshop.
+ * Garage, § Inventory, § Belt & Stacks, and the Workshop status
+ * strip at the foot (the Workshop stop retired to Home's Craft
+ * workspace in the 2026-11-04 crafting consolidation; the strip
+ * is its glance + door).
  *
  * These tests pin the new structure the older suites don't reach:
  * the stage (Wardrobe door on it, DPS/HP plate at its foot, no
  * header readouts, no collapse toggle), the build-identity header,
  * the perk lines (owner ruling 2026-11-03: rarity/element by color,
- * never by word), and the Workshop door row's bench state.
+ * never by word), and the Workshop status strip's bench state.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -156,7 +158,7 @@ describe('the Split — figure stage, gun rows, accessories band', () => {
   });
 });
 
-describe('the merged page — sections and the Workshop door', () => {
+describe('the merged page — sections and the Workshop strip', () => {
   it('the stage Wardrobe door routes to the wardrobe navigation target', async () => {
     const onNavigate = vi.fn();
     render(<InventoryScreen onNavigate={onNavigate} />);
@@ -164,7 +166,7 @@ describe('the merged page — sections and the Workshop door', () => {
     expect(onNavigate).toHaveBeenCalledWith('wardrobe');
   });
 
-  it('the Workshop door row prints bench state and opens the Workshop stop', async () => {
+  it('the Workshop status strip prints the bench counts and doors to Home’s bench', async () => {
     useWorkshopStore.setState({
       server: {
         benches: 2,
@@ -181,14 +183,16 @@ describe('the merged page — sections and the Workshop door', () => {
         } as never],
       },
     });
-    render(<InventoryScreen onNavigate={vi.fn()} />);
-    const door = await screen.findByTestId('gear-workshop-door');
-    expect(door.textContent).toContain('Workshop');
-    expect(door.textContent).toContain('2 benches');
-    expect(door.textContent).toContain('1 job running');
+    const onNavigate = vi.fn();
+    render(<InventoryScreen onNavigate={onNavigate} />);
+    const strip = await screen.findByTestId('gear-workshop-strip');
+    expect(strip.textContent).toContain('Workshop');
+    expect(screen.getByTestId('gear-workshop-strip-counts').textContent).toContain('1 running · 0 queued · 0 ready');
+    // A job is on the bench while Craft doesn't hold the slot.
+    expect(screen.getByTestId('gear-workshop-strip-state').textContent).toBe('Bench paused');
 
-    fireEvent.click(door);
-    expect(await screen.findByText('Also at the bench', undefined, { timeout: 10_000 })).toBeTruthy();
-    expect(screen.getByTestId('gear-stop-workshop').getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(strip);
+    // The alias route: App lands this on Home with the bench open.
+    expect(onNavigate).toHaveBeenCalledWith('workshop');
   }, 30_000);
 });

@@ -21,12 +21,16 @@
  *     vehicle status line, revealing the tank panel, the vehicle
  *     cards, and the repair blocks; a deep-link signal opens it
  *     already expanded.
+ *  6. Crafting consolidation (owner ruling 2026-11-04): the rail
+ *     itself is retired — Gear is one Loadout page with no stops;
+ *     the Workshop lives on Home. The Garage fold (5) stands.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
 import { GaragePanel } from '@/components/gear/GaragePanel';
-import { GearRail } from '@/components/gear/GearRail';
 import { SyncedLoadoutScreen } from '@/screens/SyncedLoadoutScreen';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
@@ -224,14 +228,18 @@ describe('F5 successor — the Garage folds into Loadout (owner ruling 2026-11-0
     });
   };
 
-  it('the Gear rail carries no Garage stop', () => {
-    render(<GearRail activeStop="loadout" onSelect={() => undefined} />);
-    const rail = screen.getByTestId('gear-rail');
-    const stops = [...rail.querySelectorAll('[data-testid^="gear-stop-"]')].map((el) => el.getAttribute('data-testid'));
-    // Merged page (Exec C, 2026-11-03): Loadout · Workshop only —
-    // and still no Garage stop (the §11 F1 fold stands).
-    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-workshop']);
-    expect(screen.queryByTestId('gear-stop-garage')).toBeNull();
+  it('the Gear page carries no rail and no stops at all (crafting consolidation, 2026-11-04)', () => {
+    // Successor to "the Gear rail carries no Garage stop": the
+    // consolidation retired the rail itself — Gear is one Loadout
+    // page, the Workshop lives on Home, and the Garage still
+    // folds in under the vehicle line (never a stop). Structural
+    // pin over the page's source, the pattern phase1UxStructure
+    // uses: the rail component is gone and nothing renders stops.
+    const inventory = readFileSync(resolve(__dirname, '../screens/InventoryScreen.tsx'), 'utf8');
+    expect(inventory).not.toContain('GearRail');
+    expect(inventory).not.toContain('gear-stop-');
+    expect(inventory).not.toContain('gear-rail');
+    expect(existsSync(resolve(__dirname, '../components/gear/GearRail.tsx'))).toBe(false);
   });
 
   it('the Loadout vehicle section starts collapsed behind its status line, summary visible', () => {
