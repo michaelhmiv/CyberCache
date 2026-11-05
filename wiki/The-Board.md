@@ -25,11 +25,13 @@ The bar is display-only. There are no ads on this screen, ever. At the bar's rig
 
 A counted number never rises silently: when one of these values goes **up**, its digits flash green and pop, with a glow in that resource's own color behind them. A gain that matters gets the full beat (about half a second, the peak held so your eye can catch it); the small drip of roaming earnings gets a shorter, smaller one. Numbers going **down** — your own spending — never flash.
 
-## The top bar: level, streak, contracts, weekly
+## The top bar: progress, caches, offline, streak, contracts, weekly
 
-Directly under the resource bar sit the claim chips:
+Directly under the resource bar sit the progress display, two action buttons, and the claim chips:
 
-- **The level button** takes most of the row: an **LV badge** with your level and a live **XP progress bar** showing your XP into the level, how much the level needs, and how much remains. Tapping it opens the level sheet with the full breakdown — unless a while-you-were-away recap exists, in which case the same tap opens the **Return Sheet** (below) and the level sheet is one tap further, from the Return Sheet's footer.
+- **The XP display** takes most of the row: your level, a live **XP progress bar**, and the real fraction — how much XP you hold into the level against how much the level needs. Tapping it opens the level sheet, which holds level specifics only.
+- **The cache button** carries a bubble with the count of **cache keys** you hold. Tapping it goes to the **Chest** (below).
+- **The offline button** shows the amount your away earnings are holding (below). Tapping it opens the **Return Sheet** — and while a hold waits, that sheet's claim is what pays it.
 - **The streak flame** shows your current login-streak day. Tapping it opens the streak sheet with the 7-day ladder. While today's reward is waiting to be claimed, the flame pulses with a **CLAIM** badge — the day is recorded but the reward is not yet yours; open the sheet and tap **Claim** to bank it, and your balances in the Strip answer as it lands. Once claimed, the flame goes quiet — no pulse, no badge. Loading Home records the day by itself, but the reward always waits for your tap — and an unclaimed reward expires when the next streak day starts at 00:00 UTC, though the recorded day still counts toward your streak. See [[Leaderboards and Streaks]].
 - **The contracts icon** (the clipboard, labelled Orders) opens the contracts panel. When contracts are ready to claim, it pulses and carries a badge with the **claimable count** — visible without opening anything. Guests see a **GUEST** badge instead — the why prints on the pill itself: guests can read the board, but claiming rewards requires signing in. See [[Getting Started]].
 - **The weekly chip** (a crate, labelled Weekly) appears only while a weekly **Parts Crate** or **Signature Order** is claimable at the Rep Desk, and carries the claimable count. Tapping it opens the weekly claim sheet, where the offers can be claimed right there. See [[Manufacturer Standing]].
@@ -73,7 +75,7 @@ Directly under the stage — below the hero rundown at its foot — sits the **c
 
 ## When something is waiting
 
-Nothing on Home gathers your waits into one card — each wait lives at its own home, where you act on it. A finished craft reads on the **Workshop's** bench (Home → Craft), ready to collect — and if you were elsewhere when it finished, the **Bench ready** announcement under the claim chips says so (see the top bar, above). The free daily cache waits at the **Chest**. Claimable contracts and the weekly Rep Desk earnings announce on the claim chips under the Strip and claim from their sheets. A while-you-were-away settlement waits behind the level button (see below). A finished Research course reads completed on Hunter → Research.
+Nothing on Home gathers your waits into one card — each wait lives at its own home, where you act on it. A finished craft reads on the **Workshop's** bench (Home → Craft), ready to collect — and if you were elsewhere when it finished, the **Bench ready** announcement under the claim chips says so (see the top bar, above). Caches wait at the **Chest**, opened with a key or a rewarded ad — keys drip from roaming and land whole. Claimable contracts and the weekly Rep Desk earnings announce on the claim chips under the Strip and claim from their sheets. A while-you-were-away settlement waits behind the offline button (see below). A finished Research course reads completed on Hunter → Research.
 
 ## Event pop-ups
 
@@ -114,11 +116,11 @@ That is the whole deck. The doors that used to stack here moved to their canonic
 
 ## While you were away
 
-Your hunter keeps working while you're gone, up to your offline cap (see [[Progression]]). When you return, the earnings settle automatically and the **Return Sheet** waits behind the level button — tap it to read the recap. While an unread recap is waiting, the level button pulses and carries an **AWAY** badge.
+Your hunter keeps working while you're gone, up to your offline cap (see [[Progression]]). When you return, the window is computed and the earnings are **held** — nothing is paid until you claim it. The **offline button** in the top bar shows the true held amount, and tapping it opens the **Return Sheet**.
 
-The Return Sheet presents the absence in the loot language: a **totals row** with the headline earnings, the absence's **best drop as a poster card**, the itemised rewards below, and one **Collect** button. The primer about **notifications** rides the sheet's footer — a single row inside the recap is the one place the app will ever offer to turn push notifications on, at the moment you can see exactly what a notification would have told you. The level sheet itself now holds level specifics only; while a recap exists it carries a door back to the Return Sheet.
+The Return Sheet presents the absence in the loot language: a **totals row** with the headline earnings, the absence's **best drop as a poster card**, the itemised rewards below, and one **Claim** button — the tap that actually pays: credits, XP, keys, materials, and items land at that moment, exactly once. The primer about **notifications** rides the sheet's footer — a single row inside the recap is the one place the app will ever offer to turn push notifications on, at the moment you can see exactly what a notification would have told you. The level sheet itself holds level specifics only.
 
-One exception: if you were away **less than five minutes**, the recap never presents itself. The settlement still lands in full — it simply stays tucked behind the level button for you to read if you want it, instead of interrupting a quick check-in.
+One exception: if you were away **less than five minutes**, the recap never presents itself. The settlement still lands in full — it simply stays tucked behind the offline button for you to claim and read if you want it, instead of interrupting a quick check-in.
 
 ---
 
