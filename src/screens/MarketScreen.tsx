@@ -418,14 +418,17 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
 
   // Sell-segment deep link (eye-leading pass): the Sold
   // announcement chip opens the trade record itself, not just
-  // the Sell stop — consume the one-shot segment intent the
-  // same way the stop intent is consumed above.
+  // the Sell stop. Render-phase adjustment (the buy-browse
+  // pattern below), not an effect: sellSegment is local state,
+  // and the intent lands in the same commit as the stop switch
+  // that carried it; the seq guard keeps it one-shot.
   const sellSegmentIntent = useMarketStore((s) => s.sellSegmentIntent);
-  useEffect(() => {
-    if (!sellSegmentIntent) return;
+  const [appliedSegmentSeq, setAppliedSegmentSeq] = useState<number | null>(null);
+  if (sellSegmentIntent && sellSegmentIntent.seq !== appliedSegmentSeq) {
+    setAppliedSegmentSeq(sellSegmentIntent.seq);
     setSellSegment(sellSegmentIntent.segment);
     useMarketStore.getState().clearSellSegmentIntent();
-  }, [sellSegmentIntent]);
+  }
 
   // Reading your own trade record marks sales as seen: if the
   // player opens History themselves, a pending Sold announcement
