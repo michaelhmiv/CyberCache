@@ -858,7 +858,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, vehicle_fuel: p.vehicle_fuel, cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json };
+    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, cache_key_remainder: p.cache_key_remainder ?? 0, vehicle_fuel: p.vehicle_fuel, cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -936,6 +936,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       scrap_remainder: p.scrap_remainder,
       credits_remainder: p.credits_remainder,
       xp_remainder: p.xp_remainder,
+      cache_key_remainder: p.cache_key_remainder ?? 0,
       vehicle_fuel: p.vehicle_fuel,
       cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json,
     };
