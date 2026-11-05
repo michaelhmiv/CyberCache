@@ -440,9 +440,12 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           share at one height (56px), so the row has a single
           rhythm instead of two slabs and two stubs; the icons
           stand at 26px — §7's door/row size, the visual heroes
-          of their keys — tinted by role (the key in the Strip's
-          teal resource tint, §5; the flame in the streak
-          accent); and each key's cluster (icon + its one data
+          of their keys — each tinted in its own key's accent,
+          the color its CLAIM badge and pulse already speak (the
+          key in the Strip's teal resource tint, §5; the clock in
+          the offline gold; the flame in the streak accent; the
+          orders in the contracts green; the crate in the weekly
+          sky); and each key's cluster (icon + its one data
           readout) centers optically on the shared content stage
           (a fixed 33px band, mt-auto in the flex-col key,
           centered both axes), so icons share one center line
@@ -497,7 +500,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
           {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
           <span className="mt-auto flex h-[33px] items-center justify-center gap-1.5">
-            <PxIcon name="clock" size={26} />
+            <PxIcon name="clock" size={26} className="text-[#F2C063]" />
             {holdPending && (
               <span
                 data-testid="top-offline-pending"
@@ -560,7 +563,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
           {contractsGuestLocked && <CornerBadge text="GUEST" color="#8A847C" />}
           <span className="mt-auto flex h-[33px] items-center justify-center gap-1.5">
-            <PxIcon name="orders" size={26} />
+            <PxIcon name="orders" size={26} className="text-[#5EE8A0]" />
           </span>
         </button>
 
@@ -578,7 +581,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
             <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
             <span className="mt-auto flex h-[33px] items-center justify-center gap-1.5">
-              <PxIcon name="crate" size={26} />
+              <PxIcon name="crate" size={26} className="text-[#7DD0F0]" />
             </span>
           </button>
         )}
