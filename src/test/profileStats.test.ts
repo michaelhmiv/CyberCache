@@ -357,9 +357,14 @@ describe('kill record (0034 twin) — claim + offline settle appliers', () => {
       activity_payload: {},
     });
     await store.settleOfflineRoaming(A, 'offline-nonce-1', rewards(6));
+    // 0083 (hold-and-claim): the settle held the window — the
+    // kill record moves at CLAIM, not at settle.
+    expect(store.killStatsFor(A)).toEqual({});
+    await store.claimOfflineSettlement(A);
     expect(store.killStatsFor(A)).toEqual({ Pistol: 6 });
     now = new Date('2026-10-31T12:05:00.000Z');
     await store.settleOfflineRoaming(A, 'offline-nonce-1', rewards(6)); // replay
+    await store.claimOfflineSettlement(A); // claim replay: nothing held
     expect(store.killStatsFor(A)).toEqual({ Pistol: 6 });
   });
 

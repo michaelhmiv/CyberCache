@@ -319,6 +319,15 @@ describe('mastery alignment — offline settlement (HTTP)', () => {
 
     const xpAwarded = (res.json.rewards as { xpAwarded: number }).xpAwarded;
     expect(xpAwarded).toBeGreaterThan(0);
+    // 0083 (hold-and-claim): the settle held the window — the
+    // mastery grants ride the claim's ledger row, so nothing has
+    // been granted yet. The claim pays the same window, and the
+    // grants land with it, at the same amounts.
+    expect(masteryXp(store, 'locations.redline_circuit')).toBeUndefined();
+    const claimRes = await post(base, '/api/claim-offline', { playerId: A }, tokenA);
+    expect(claimRes.status).toBe(200);
+    expect(claimRes.json.claimed).toBe(true);
+    expect((claimRes.json.rewards as { xpAwarded: number }).xpAwarded).toBe(xpAwarded);
     expect(masteryXp(store, 'locations.redline_circuit')).toBe(Math.max(1, xpAwarded));
     expect(masteryXp(store, 'weapons.pistol')).toBe(xpAwarded);
     expect(masteryXp(store, 'locations.dustwaste')).toBeUndefined();

@@ -395,11 +395,22 @@ describe('cache rank grants — in-memory gameplay store (the trigger twin)', ()
     await store.grantCacheRankTokens(A);
     const settled = await store.settleOfflineRoaming(A, 'settle-nonce-0001', rewards(xpToNextLevel(9))) as Json;
     expect(settled.settled).not.toBe(false);
+    // 0083 (hold-and-claim): the settle computes the window and
+    // HELD it — no XP, no level, no grant has moved yet.
+    expect(settled.held).toBe(true);
+    expect(store.profiles.get(A)?.player_level).toBe(9);
+    expect(store.cacheRankGrantLog).toHaveLength(1);
+    // The claim pays the hold: the same XP lands, the same level
+    // crossing pays the same grant, exactly once.
+    const claimed = await store.claimOfflineSettlement(A) as Json;
+    expect(claimed.claimed).toBe(true);
     expect(store.profiles.get(A)?.player_level).toBe(10);
     expect(store.cacheRankGrantLog.at(-1)).toEqual(
       { playerId: A, fromLevel: 9, toLevel: 10, tokens: 6 });
     const grantsBefore = store.cacheRankGrantLog.length;
     await store.settleOfflineRoaming(A, 'settle-nonce-0001', rewards(xpToNextLevel(9)));
+    const reclaim = await store.claimOfflineSettlement(A) as Json;
+    expect(reclaim.claimed).toBe(false);
     expect(store.cacheRankGrantLog).toHaveLength(grantsBefore);
     expect(store.profiles.get(A)?.cache_rank_tokens).toBe(14);
   });

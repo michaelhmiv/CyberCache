@@ -243,6 +243,19 @@ describe('AL-1 drop receipts', () => {
     );
     expect(res.status).toBe(200);
     expect(res.json.settled).toBe(true);
+    // 0083 (hold-and-claim): the settle held the window — the
+    // drops are payloads in the hold, not stored items, until
+    // the claim stores them (receipts stamp at claim now).
+    expect(res.json.held).toBe(true);
+    expect(store.items.size).toBe(0);
+    const claimRes = await post(
+      base,
+      '/api/claim-offline',
+      { playerId: A },
+      token,
+    );
+    expect(claimRes.status).toBe(200);
+    expect(claimRes.json.claimed).toBe(true);
     expect(store.items.size).toBeGreaterThan(0);
 
     let offlineCount = 0;
