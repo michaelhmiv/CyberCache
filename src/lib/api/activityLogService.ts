@@ -123,7 +123,7 @@ export interface ActivityRecord {
     capReached: boolean | null;
     ticks: number | null;
   };
-  salvage?: { scrapAward: number; coresAward: number };
+  salvage?: { scrapAward: number; coresAward: number; auto?: boolean };
   dispatch?: { family: string; payoutCredits: number; payoutFraction: number | null };
   endless?: { status: string; depthReached: number };
   system?: { subtype: string };
