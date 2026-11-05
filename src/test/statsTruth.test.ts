@@ -408,6 +408,17 @@ describe('stats truth — offline settlement parity (HTTP)', () => {
     const rewardsA = resA.json.rewards as { creditsAwarded: number; scrapAwarded: number };
     expect(rewardsA.creditsAwarded).toBe(1012);
     expect(rewardsA.scrapAwarded).toBe(180);
+    // 0083 (hold-and-claim): the settle responses above report
+    // the HELD totals — the profiles are not paid until each
+    // player claims. The claim pays the held window exactly.
+    expect(store.profiles.get(A)!.credits).toBe(0);
+    expect(store.profiles.get(B)!.credits).toBe(0);
+    const claimA = await post(base, '/api/claim-offline', { playerId: A }, tokenA);
+    const claimB = await post(base, '/api/claim-offline', { playerId: B }, tokenB);
+    expect(claimA.status).toBe(200);
+    expect(claimB.status).toBe(200);
+    expect(claimA.json.claimed).toBe(true);
+    expect(claimB.json.claimed).toBe(true);
     expect(store.profiles.get(A)!.credits).toBe(1012);
     expect(store.profiles.get(B)!.credits).toBe(450);
   });
