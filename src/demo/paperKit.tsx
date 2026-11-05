@@ -40,7 +40,7 @@ export const Stamp: React.FC<{
         opacity: 0.94,
         transform: `rotate(${tilt}deg)`,
         '--stamp-tilt': `${tilt}deg`,
-        animation: strike ? 'stamp-strike 190ms cubic-bezier(0.2, 1.4, 0.4, 1) both' : undefined,
+        animation: strike ? 'stamp-strike 190ms cubic-bezier(0.16, 1, 0.3, 1) both' : undefined,
       } as React.CSSProperties
     }
   >

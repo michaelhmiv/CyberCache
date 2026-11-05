@@ -198,7 +198,7 @@ export const WardrobeLedger: React.FC<WardrobeLedgerProps> = ({
     <div className="px-4 pb-5 pt-4" style={STOCK} data-testid="wardrobe-ledger">
       {/* ── FORM HEAD ─────────────────────────────────────────── */}
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: PENCIL, fontFamily: MONO }}>
+        <span className="whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: PENCIL, fontFamily: MONO }}>
           Form W-10
         </span>
         <span className="text-right text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: PENCIL }}>
@@ -231,7 +231,7 @@ export const WardrobeLedger: React.FC<WardrobeLedgerProps> = ({
             ),
           )}
           <HunterPortrait look={look} weaponInput={FIXTURE_WEAPON_INPUT} className="h-[300px]" testId="wardrobe-ledger-portrait" />
-          <div className="absolute bottom-3 right-2">
+          <div className="absolute right-3 top-3">
             {previewPart ? (
               <Stamp key={`pv-${previewPart.id}`} text="Preview — Not Issued" ink={INK_CRIMSON} tilt={-7} size={13} strike />
             ) : (
@@ -252,7 +252,7 @@ export const WardrobeLedger: React.FC<WardrobeLedgerProps> = ({
       </div>
 
       {/* ── REGISTER OF MOUNTS ────────────────────────────────── */}
-      <LedgerHead title="Register of Mounts" note="Tap a line to open its file" className="mt-6" />
+      <LedgerHead title="Register of Mounts" note="Tap a line" className="mt-6" />
       <div className="mt-1 flex items-baseline gap-2 px-1 pb-1 pt-2">
         <span className="w-7 shrink-0 text-[11px] font-bold uppercase" style={{ color: PENCIL, fontFamily: MONO }}>№</span>
         <span className="min-w-0 flex-1 text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: PENCIL }}>
@@ -285,19 +285,17 @@ export const WardrobeLedger: React.FC<WardrobeLedgerProps> = ({
                   {String(i + 1).padStart(2, '0')}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline gap-2">
-                    <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: selected ? BONE : CLERK }}>
-                      {SLOT_LABELS[slot]}
-                    </span>
-                    <span className="min-w-0 truncate text-[13px] font-bold leading-snug" style={{ color: shown ? BONE : PENCIL }}>
-                      {shown ? shown.name : 'Standard Issue'}
-                    </span>
+                  <span className="block text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: selected ? BONE : CLERK }}>
+                    {SLOT_LABELS[slot]}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[13px] font-bold leading-snug" style={{ color: shown ? BONE : PENCIL }}>
+                    {shown ? shown.name : 'Standard Issue'}
                   </span>
                   <span className="mt-0.5 block truncate text-[11px] leading-snug" style={{ color: PENCIL, fontFamily: MONO }}>
                     {shown
                       ? `${FINISH_LABELS[finishTierForQuality(shown.quality)]} · Q${shown.quality}${shown.tintPaletteId ? ` · ${tintPaletteById(shown.tintPaletteId)?.name ?? ''} tint` : ''}${shown.runtimeState === 'locked' ? ' · in escrow' : ''}`
                       : owned.length > 0
-                        ? 'Filed below — open the slot file to issue'
+                        ? 'Filed in the slot file below'
                         : 'No part on file for this mount'}
                   </span>
                 </span>
@@ -441,12 +439,12 @@ export const WardrobeLedger: React.FC<WardrobeLedgerProps> = ({
       </div>
 
       {/* ── REQUISITION SCHEDULE — the unfilled catalog ───────── */}
-      <LedgerHead title="Requisition Schedule" note="Filled by the Workshop — Parts lane" className="mt-6" />
+      <LedgerHead title="Requisition Schedule" note="Workshop — Parts lane" className="mt-6" />
       <p className="mt-2.5 text-[11px] font-bold uppercase leading-relaxed tracking-[0.08em]" style={{ color: CLERK }}>
         The registry issues nothing it does not hold. A filled part is tradeable once it is off the subject.
       </p>
       {SKIN_SETS.map((set, si) => {
-        const rows = SKIN_PARTS.filter((p) => p.setId === set.id && !ownedPartIds.has(p.partId));
+        const rows = SKIN_PARTS.filter((p) => p.setId === set.id && !ownedPartIds.has(p.id));
         if (rows.length === 0) return null;
         return (
           <div key={set.id} className="mt-4">
@@ -461,14 +459,14 @@ export const WardrobeLedger: React.FC<WardrobeLedgerProps> = ({
             <HairRule className="mt-1.5" />
             {rows.map((p) => (
               <div key={p.id}>
-                <div className="flex items-baseline justify-between gap-3 px-1 py-[7px]">
-                  <span className="min-w-0 truncate text-[12px] font-semibold" style={{ color: CLERK }}>
+                <div className="px-1 py-[7px]">
+                  <div className="truncate text-[12px] font-semibold leading-snug" style={{ color: CLERK }}>
                     {p.name}
                     <span style={{ color: PENCIL }}> · {SLOT_LABELS[p.slot]}</span>
-                  </span>
-                  <span className="shrink-0 text-[11px]" style={{ color: PENCIL, fontFamily: MONO }}>
+                  </div>
+                  <div className="mt-0.5 truncate text-[11px] leading-snug" style={{ color: PENCIL, fontFamily: MONO }}>
                     {recipeCostLine(p.recipeId)}
-                  </span>
+                  </div>
                 </div>
                 <HairRule />
               </div>
