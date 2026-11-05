@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { BONE, BONE_FAINT, Bolts, PlateFootStrip, STEEL, plateShell } from '@/components/profile/HunterPlates';
+import { Bolts, PlateFootStrip } from '@/components/profile/HunterPlates';
+import { BONE, BONE_FAINT, STEEL, plateShell } from '@/components/profile/hunterPlateTheme';
 import { getMyMasterySummary, masteryLevelProgress, type MasterySummaryRow } from '@/lib/api/masteryService';
 
 /**

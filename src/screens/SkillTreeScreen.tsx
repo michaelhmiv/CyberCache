@@ -20,17 +20,16 @@ import {
   type ActionSkillStateView,
 } from '@/content/actionSkills';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
+import { Bolts, PlateFootStrip } from '@/components/profile/HunterPlates';
 import {
   AMBER,
   AMBER_GLOW,
   BONE,
   BONE_FAINT,
   BONE_MUTED,
-  Bolts,
-  PlateFootStrip,
   STEEL,
   plateShell,
-} from '@/components/profile/HunterPlates';
+} from '@/components/profile/hunterPlateTheme';
 
 /**
  * ActionSkillPicker — the ONE active signature choice (0030). The

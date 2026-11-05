@@ -17,23 +17,7 @@
 import React from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { bossArt } from '@/lib/pixel/bossIdentity';
-
-export const BONE = '#F5EFE6';
-export const BONE_MUTED = '#C9BBA6';
-export const BONE_FAINT = '#968A78';
-export const STEEL = '#6B6257';
-export const AMBER = '#FF9000';
-export const AMBER_GLOW = '#FFEA3A';
-
-export const PLATE_CLIP =
-  'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)';
-
-export const plateShell: React.CSSProperties = {
-  clipPath: PLATE_CLIP,
-  border: '2px solid #000',
-  background: 'linear-gradient(158deg, #1D1811 0%, #12100C 58%, #0C0A08 100%)',
-  boxShadow: '5px 5px 0 rgba(0,0,0,0.75), inset 0 0 0 1px rgba(163,152,134,0.28)',
-};
+import { AMBER, AMBER_GLOW, BONE, BONE_FAINT, BONE_MUTED, STEEL, plateShell } from './hunterPlateTheme';
 
 /** Machined corner bolts — 5px squares, black with a steel top edge. */
 export const Bolts: React.FC = () => (
