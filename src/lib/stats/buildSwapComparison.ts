@@ -29,6 +29,7 @@ import { buildCharacterStatSummary } from './characterStats';
 import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { stageStatDelta } from './heroRundown';
 import { formatSignedPct, formatWhole } from './formatStat';
+import { COMBAT_CORE_METRIC_KEYS } from '@/lib/hud/headlineMetrics';
 import { LEGENDARY_EFFECTS, legendaryEffectName } from '@/constants/legendaryEffects';
 import { SKILL_NODES } from '@/constants/skillTrees';
 import { ACTION_SKILL_DEFS } from '@/content/actionSkills';
@@ -71,8 +72,12 @@ export interface SwapComparisonFacts {
   candidateQualified: string[];
 }
 
-/** Metrics whose delta reads as a percentage OF the current value. */
-const RATIO_METRIC_KEYS = new Set(['health', 'dps', 'shieldBreak', 'armorBreak', 'ordnance']);
+/**
+ * Metrics whose delta reads as a percentage OF the current value:
+ * the combat core keys from the single registry (headlineMetrics)
+ * plus the two trade-local ratio metrics — armorBreak and ordnance.
+ */
+const RATIO_METRIC_KEYS: ReadonlySet<string> = new Set([...COMBAT_CORE_METRIC_KEYS, 'armorBreak', 'ordnance']);
 
 function metricKey(metric: StatMetric): string {
   return metric.sourceActivity ? `${metric.key}:${metric.sourceActivity}` : metric.key;
