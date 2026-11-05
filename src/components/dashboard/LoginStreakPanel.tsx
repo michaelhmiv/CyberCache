@@ -289,7 +289,7 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
           className="relative shrink-0 border-2 border-border-light bg-black/50 p-2"
           style={{ color: STREAK_ACCENT }}
         >
-          <PxIcon name="flame" size={40} />
+          <PxIcon name="calendar" size={40} />
           {(claimable || fresh) && <MedalGlow />}
         </div>
         <div className="min-w-0">
