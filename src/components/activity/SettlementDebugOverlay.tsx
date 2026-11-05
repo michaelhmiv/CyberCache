@@ -66,22 +66,27 @@ export function SettlementDebugOverlay() {
   // Render gate — only show the overlay when DEBUG is enabled
   if (!DEBUG) return null;
 
+  // Only the roaming recap member carries profile/tick fields; craft
+  // and extraction recaps read as absent here, exactly as before.
+  const roamingRecap =
+    lastSettlement && 'ticksSettled' in lastSettlement ? lastSettlement : undefined;
+
   const diag = {
     activeAction: activity.kind ?? 'unknown',
     lastHeartbeat: activity.lastHeartbeatAt ?? null,
     lastRoamingSettledAt:
-      (lastSettlement?.profile as Record<string, unknown> | undefined)
+      (roamingRecap?.profile as Record<string, unknown> | undefined)
         ?.last_roaming_settled_at as string ?? null,
     lastClaimedTick:
-      ((lastSettlement?.profile as Record<string, unknown> | undefined)
+      ((roamingRecap?.profile as Record<string, unknown> | undefined)
         ?.last_claimed_tick as number) ?? 0,
     lastSettlementResult: lastSettlement
-      ? `settled ${lastSettlement.ticksSettled}t`
+      ? `settled ${roamingRecap?.ticksSettled}t`
       : 'none',
     lastNoopReason: lastSettlement ? null : 'none',
     lastError: null,
-    settledTicks: lastSettlement?.ticksSettled ?? 0,
-    timeAway: lastSettlement?.timeAway ?? 'n/a',
+    settledTicks: roamingRecap?.ticksSettled ?? 0,
+    timeAway: roamingRecap?.timeAway ?? 'n/a',
     visibleSince,
   };
 

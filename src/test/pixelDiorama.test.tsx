@@ -41,7 +41,7 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
   it('renders the pixel stage for the converted dustwaste zone', () => {
     expect(DEFAULT_ROAMING_AREA_ID).toBe('dustwaste_frontier');
     const { container } = render(
-      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} activityKind="roaming_loot" reducedMotion />,
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} activityKind="roaming_loot" />,
     );
     expect(screen.getByTestId('pixel-diorama-stage')).toBeTruthy();
     expect(screen.getByTestId('pixel-hunter')).toBeTruthy();
@@ -64,7 +64,7 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
   it('renders the pixel stage for redline too (P4 wave 1 converted every zone)', () => {
     const area = getRoamingArea('redline_circuit');
     const { container } = render(
-      <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} activityKind="roaming_loot" reducedMotion />,
+      <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} activityKind="roaming_loot" />,
     );
     expect(screen.getByTestId('pixel-diorama-stage')).toBeTruthy();
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
@@ -73,7 +73,7 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
   it('keeps the vector scene as fallback for areas with no pixel background', () => {
     const area = { ...getRoamingArea('redline_circuit'), id: 'unconverted_test_zone' };
     const { container } = render(
-      <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} activityKind="roaming_loot" reducedMotion />,
+      <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} activityKind="roaming_loot" />,
     );
     expect(screen.queryByTestId('pixel-diorama-stage')).toBeNull();
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeTruthy();
@@ -85,7 +85,7 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
     useKillCycleStore.setState({ currentTargetId: 'dustwaste_raider', currentTargetHp: 30, currentTargetHpMax: 45 });
     useSurvivalStore.setState({ currentHp: 66, maxHp: 100 });
     render(
-      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="roaming_loot" reducedMotion />,
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="roaming_loot" />,
     );
     const plate = screen.getByTestId('primary-diorama-target-hp');
     // Owner ruling 2026-11-03: lifted off the ground line into the
@@ -112,7 +112,7 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
     // plate's ground-line anchor was owner-ruled to stay.
     useBossStore.setState({ activeBossId: 'dune_tyrant', activeBossHp: 500, activeBossMaxHp: 1000, activeStatus: 'active' });
     render(
-      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="boss_fight" bossPhase="fight" reducedMotion />,
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="boss_fight" bossPhase="fight" />,
     );
     const plate = screen.getByTestId('primary-diorama-boss-hp');
     expect(plate.style.top).toMatch(/^calc\(86(\.0+)?% \+ 2px\)$/);
@@ -123,7 +123,7 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
   it('hunter HP plate rides raised on the hunter column in combat, numbers whole; absent at camp', () => {
     useSurvivalStore.setState({ currentHp: 66, maxHp: 100 });
     const { unmount } = render(
-      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="roaming_loot" reducedMotion />,
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="roaming_loot" />,
     );
     const plate = screen.getByTestId('diorama-hunter-hp');
     expect(plate.textContent).toContain('66/100');
@@ -134,7 +134,7 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
     unmount();
     // Non-combat modes keep the art unobstructed.
     render(
-      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="crafting" reducedMotion />,
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="crafting" />,
     );
     expect(screen.queryByTestId('diorama-hunter-hp')).toBeNull();
   });
@@ -146,7 +146,7 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
         weapon={DIORAMA_WEAPON}
         equippedCount={4}
         activityKind="idle_standby"
-        reducedMotion
+
         stageControls={<button type="button">Switch Action</button>}
       />,
     );
@@ -159,7 +159,7 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
 
   it('extraction activity carries the extraction scene on the stage (one-stage law, 2026-11-04)', () => {
     render(
-      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="extraction" reducedMotion />,
+      <LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={DIORAMA_WEAPON} equippedCount={4} activityKind="extraction" />,
     );
     // The extraction set stands on the stage in the panel scene's
     // arrangement — stakes, rig, crates — not the camp crate and
