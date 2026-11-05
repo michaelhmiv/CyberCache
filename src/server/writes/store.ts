@@ -54,7 +54,7 @@ import {
   isReforgeableAffix,
   reforgeKindOf,
 } from '../../lib/gear/affixPools.js';
-import { createRNG, hashString } from '../../lib/utils/rng.js';
+import { createRNG } from '../../lib/utils/rng.js';
 
 export type Json = Record<string, unknown>;
 
@@ -901,6 +901,12 @@ export interface EnqueueRepairJobInput {
   itemId: string;
   kitType: string;
   units: number;
+  /** Workshop Rush Ticket repair scope (mirrors the craftEngine twin's
+   *  field of the same name): when true, one ticket is escrowed at
+   *  enqueue and its quality prices the duration reduction. The Pg
+   *  implementation below has always forwarded it to
+   *  cc_enqueue_repair_job; the interface simply never declared it. */
+  useRushTicket?: boolean;
 }
 
 /**
@@ -2044,6 +2050,13 @@ export class PgWriteStore implements WriteStore {
     // Refuse here, before any SQL — the in-memory twin refuses
     // identically.
     void playerId; void nonce; void quantity; void priceCredits;
+    // FINDING F2 (tsc-gate triage, see PR body): this passes the message
+    // as the WriteStoreError CODE (the constructor is (code, message)),
+    // so the API answers a fragment-listing attempt with the sentence
+    // as `error` and an empty `message` — the in-memory twin routes the
+    // same refusal through writeError() and gets a real code. Behavior
+    // deliberately left untouched by the triage.
+    // @ts-expect-error F2: WriteStoreError called with (message) instead of (code, message) — known defect, flagged in PR body
     throw new WriteStoreError('Cache fragments no longer exist — cache keys are the only cache currency');
   }
   marketCreateCore(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {

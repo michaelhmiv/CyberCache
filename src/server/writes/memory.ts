@@ -206,6 +206,7 @@ import {
   type CombatStatsData,
   type ConsumableBatchData,
   type EnqueueCraftJobInput,
+  type EnqueueRepairJobInput,
   type Json,
   type LedgerEntryData,
   type PushDeviceData,

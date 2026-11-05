@@ -78,6 +78,16 @@ export interface RoamingProfileRow {
   credits_remainder: number;
   /** Banked fractional XP (migration 0010), 0 <= x < 1. */
   xp_remainder: number;
+  /**
+   * Banked fractional cache keys (migration 0082), 0 <= x < 1.
+   * Optional — FINDING F3 (tsc-gate triage, see PR body): the
+   * in-memory store carries this field, but the Pg store's
+   * getRoamingProfile SELECT does not fetch the column today, so Pg
+   * rows arrive without it and the claim route's keysRemainder reads
+   * undefined (the engine treats that as 0). Triage did not change
+   * the SELECT; flagged for an owner decision.
+   */
+  cache_key_remainder?: number;
   /** Vehicle tank fuel units (migration 0021), profiles.vehicle_fuel. */
   vehicle_fuel: number;
   /** Cache Rank spends (migration 0031) — routes resolve the claim's Cache Rank bonuses from this, never from a client body. */
@@ -129,6 +139,16 @@ export interface SettlementProfileRow {
   credits_remainder: number;
   /** Banked fractional XP (migration 0010), 0 <= x < 1. */
   xp_remainder: number;
+  /**
+   * Banked fractional cache keys (migration 0082), 0 <= x < 1.
+   * Optional — FINDING F3 (tsc-gate triage, see PR body): the
+   * in-memory store carries this field, but the Pg store's
+   * getSettlementProfile SELECT does not fetch the column today, so
+   * Pg rows arrive without it and the settle route's keysRemainder
+   * reads undefined (the engine treats that as 0). Triage did not
+   * change the SELECT; flagged for an owner decision.
+   */
+  cache_key_remainder?: number;
   /** Vehicle tank fuel units (migration 0021), profiles.vehicle_fuel. */
   vehicle_fuel: number;
   /** Cache Rank spends (migration 0031) — offline settlement resolves Cache Rank bonuses from this, never from a client body. */
