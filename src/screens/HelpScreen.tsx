@@ -12,12 +12,12 @@ import { getNavSigil } from '@/constants/navSigils';
 
 type TabId = 'home' | 'gear' | 'market' | 'hunter';
 
-interface HelpItem {
+export interface HelpItem {
   term: string;
   body: string;
 }
 
-interface HelpSection {
+export interface HelpSection {
   id: string;
   title: string;
   blurb: string;
@@ -26,7 +26,7 @@ interface HelpSection {
   items: HelpItem[];
 }
 
-interface TourStep {
+export interface TourStep {
   id: string;
   title: string;
   body: string;
@@ -39,7 +39,7 @@ interface TourStep {
 // One guided step per major gameplay phase. Each step names a real tab and
 // describes what the player should be looking at, so the manual is a real tour
 // rather than a static reference card.
-const TOUR_STEPS: TourStep[] = [
+export const TOUR_STEPS: TourStep[] = [
   {
     id: 'pick-turf',
     title: '1. Pick an area',
@@ -108,7 +108,7 @@ const TOUR_STEPS: TourStep[] = [
 // Section content reflects the post-PR-#52-to-#58 reality: single-tick loop,
 // per-area XP multiplier, new curve, server-minted rewards, build identity
 // from kill stats. The old "auto-salvage clutter" copy is gone.
-const SECTIONS: HelpSection[] = [
+export const SECTIONS: HelpSection[] = [
   {
     id: 'start',
     title: 'Getting Started',

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { ManualLedgerDemo } from './demo/ManualLedgerDemo';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
@@ -34,15 +35,24 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
+// DESIGN PASS capture harness (prototype branch only): ?manual-ledger
+// renders the Field Manual paperwork ledger standalone with fixture data.
+const isManualLedgerDemo =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('manual-ledger');
+
 try {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <GlobalErrorBoundary>
-        <AuthProvider>
-          <AccountStorageBoundary>
-            <App />
-          </AccountStorageBoundary>
-        </AuthProvider>
+        {isManualLedgerDemo ? (
+          <ManualLedgerDemo />
+        ) : (
+          <AuthProvider>
+            <AccountStorageBoundary>
+              <App />
+            </AccountStorageBoundary>
+          </AuthProvider>
+        )}
       </GlobalErrorBoundary>
     </StrictMode>,
   );
