@@ -237,7 +237,8 @@ describe('quickBuy planner — sweep + default tab', () => {
   });
 
   it('identity keys: commodities collapse, goods keep their id', () => {
-    expect(quickBuyIdentityKey({ kind: 'fragment', id: 'cache' })).toBe('frag:cache');
+    // Fragments are abolished (0082): no identity key exists for them.
+    expect(quickBuyIdentityKey({ kind: 'fragment', id: 'cache' })).toBeUndefined();
     expect(quickBuyIdentityKey({ kind: 'core', id: 'legendary' })).toBe('core:legendary');
     expect(quickBuyIdentityKey({ kind: 'material', id: 'Scrap' })).toBe('mat:Scrap');
   });
@@ -320,8 +321,9 @@ describe('quickBuy — write paths', () => {
     const scrapOffer = vendorOfferFor('Scrap', key);
     expect(sq.vendor?.unitPrice ?? null).toBe(scrapOffer?.unitPrice ?? null);
 
+    // The fragment good is abolished (0082): the quote refuses it.
     const frag = await quote(h, h.tokens[B], 'fragment', 'cache', 5);
-    expect((frag.json as unknown as QuickBuyQuote).vendor).toBeNull();
+    expect(frag.status).toBe(400);
   });
 
   it('guest: the quote is fully visible; the fill refuses with the sign-in remedy', async () => {
@@ -405,37 +407,42 @@ describe('quickBuy — write paths', () => {
     expect(listingOf(L_DEAR)?.quantity).toBe(1);
   });
 
-  it('fill: NPC fragment stack — split charge, 5:1 conversion, full payout with no fee', async () => {
+  it('fill: the fragment good is refused — no fill, no conversion, nothing moves (0082)', async () => {
+    // A legacy NPC fragment stack still sits in the seed (a pre-0082
+    // artifact row; migration 0082 cancels live ones). Quick-Buy no
+    // longer knows the good, so the fill refuses before any charge.
     const bankBefore = creditsOf(NPCBACK);
+    const bBefore = creditsOf(B);
     const res = await fill(h, h.tokens[B], {
       source: 'market', kind: 'fragment', id: 'cache', quantity: 5, quotedTotal: 50,
     });
-    expect(res.json.status).toBe('filled');
-    expect(res.json.total_charged).toBe(50);
-    expect(profileOf(B)?.cache_tokens).toBe(1);
+    expect(res.status).toBe(400);
+    expect(creditsOf(B)).toBe(bBefore);
+    expect(profileOf(B)?.cache_tokens).toBe(0);
     expect(profileOf(B)?.cache_token_parts).toBe(0);
-    expect(listingOf(L_FRAG)?.quantity).toBe(5);
-    expect(listingOf(L_FRAG)?.price_credits).toBe(50);
-    expect(creditsOf(NPCBACK)).toBe(bankBefore + 50);
+    expect(listingOf(L_FRAG)?.quantity).toBe(10);
+    expect(creditsOf(NPCBACK)).toBe(bankBefore);
   });
 
   it('insufficient credits: requote names the gap via the fresh quote; nothing moves', async () => {
-    const buyer = profileOf(B)!;
-    const saved = buyer.credits;
-    buyer.credits = 5;
+    // Isolated server: the shared one's stacks are mid-sweep by now.
+    const h2 = await makeServer();
     try {
-      const res = await fill(h, h.tokens[B], {
-        source: 'market', kind: 'fragment', id: 'cache', quantity: 5, quotedTotal: 50,
+      const buyer = h2.store.seed.profiles.find((p) => p.id === B)!;
+      buyer.credits = 5;
+      const res = await fill(h2, h2.tokens[B], {
+        source: 'market', kind: 'material', id: 'Scrap', quantity: 5, quotedTotal: 55,
       });
       expect(res.json.status).toBe('requote');
       expect(res.json.reason).toBe('insufficient_credits');
       const fresh = res.json.quote as QuickBuyQuote;
       expect(fresh.balance).toBe(5);
-      expect(fresh.market.total).toBe(50);
-      expect(listingOf(L_FRAG)?.quantity).toBe(5);
-      expect(profileOf(B)?.cache_tokens).toBe(1);
+      expect(fresh.market.total).toBe(55);
+      const l = h2.store.seed.listings.find((x) => x.id === L_CHEAP);
+      expect(l?.quantity).toBe(4);
+      expect(buyer.materials.Scrap ?? 0).toBe(0);
     } finally {
-      buyer.credits = saved;
+      await h2.close();
     }
   });
 

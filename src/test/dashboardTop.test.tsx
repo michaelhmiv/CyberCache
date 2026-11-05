@@ -285,8 +285,8 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
     expect(screen.getByTestId('streak-panel')).toBeTruthy();
     expect(screen.getByText('Banked today')).toBeTruthy();
     const panelText = screen.getByTestId('streak-panel').textContent ?? '';
-    expect(panelText).toContain('Banked +200 credits · +1 fragment');
-    expect(panelText).toContain('Day 4 — +250 credits · +1 fragment');
+    expect(panelText).toContain('Banked +200 credits');
+    expect(panelText).toContain('Day 4 — +250 credits');
     // Fact-line amounts print in the gain green (the mock's
     // language), not the fact white.
     expect(screen.getByText('+200').className).toContain('text-green');
@@ -320,7 +320,7 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
     const claimButton = await within(screen.getByTestId('picker-sheet-body')).findByRole('button', { name: 'Claim' });
     fireEvent.click(claimButton);
     await waitFor(() => expect(mockClaim).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText(/Claimed: \+220 cr \+ \+1 fragment/)).toBeTruthy();
+    expect(await screen.findByText(/Claimed: \+220 cr/)).toBeTruthy();
 
     // The store-driven badge clears the moment the claim lands.
     await waitFor(() => {

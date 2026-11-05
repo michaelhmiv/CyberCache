@@ -17,8 +17,9 @@
  *    its TS mirrors award 4x scrap on recycle; the fee clause was
  *    removed from the effect description.
  *  - jackpot: the case body was a comment. Now every 150th kill-cycle
- *    kill with the weapon as primary awards a Cache Key fragment in
- *    the Chef roaming claim.
+ *    kill with the weapon as primary awards a cache reward in the
+ *    Chef roaming claim — originally a Cache Key fragment; since
+ *    fragments were abolished (0082) it pays a GUARANTEED whole key.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -223,11 +224,12 @@ describe('Jackpot — processRoamingClaim', () => {
     lastKilledMonsterId: null,
   };
 
-  it('awards exactly one extra Cache Key fragment on the 150th kill', () => {
+  it('awards exactly one extra whole Cache Key on the 150th kill', () => {
     // The fixture weapon one-shots tier-1 monsters: 20 ticks advance
     // the kill cycle well past 150 in both runs, crossing the 150th
-    // kill exactly once. Loot-roll fragment drops are seeded per tick
-    // and identical across the pair, so the difference isolates Jackpot.
+    // kill exactly once. The base key faucet accrues identically in
+    // both runs (20 ticks × 0.00012 floors to 0 whole keys), so the
+    // difference isolates Jackpot's guaranteed key.
     const baseline = processRoamingClaim(
       claimRequest({ ticks: 20, tickCount: 5000, equippedGear: [makeWeapon()], killCycle: killCycleAt149 }),
     );
@@ -241,7 +243,7 @@ describe('Jackpot — processRoamingClaim', () => {
     );
     expect(baseline.killCycle.totalKills).toBeGreaterThan(150);
     expect(withJackpot.killCycle.totalKills).toBe(baseline.killCycle.totalKills);
-    expect(withJackpot.rewards.cacheFragmentsAwarded - baseline.rewards.cacheFragmentsAwarded).toBe(1);
+    expect(withJackpot.rewards.cacheKeysAwarded - baseline.rewards.cacheKeysAwarded).toBe(1);
     const jackpotEvent = (withJackpot.feedEvents as Array<{ detail?: string }>).find((e) =>
       (e.detail ?? '').includes('Jackpot'),
     );
