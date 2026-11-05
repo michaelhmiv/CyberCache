@@ -28,7 +28,7 @@ const V2_SHEET = [
 
 /** Additions drawn for this purge, in the same discipline. */
 const ADDITIONS = [
-  'barEmpty', 'barFill', 'boot', 'bullseye', 'chart', 'chevL', 'chevU',
+  'barEmpty', 'barFill', 'boot', 'bullseye', 'calendar', 'chart', 'chevL', 'chevU',
   'chip', 'clock', 'crown', 'diamond', 'diamondFill', 'diamondIn', 'dot',
   'flag', 'halfDisc', 'hatch', 'hatchH', 'hex', 'info', 'pause', 'pawn', 'pencil',
   'plus', 'power', 'recycle', 'ring', 'ringDot', 'rings', 'search', 'star5',

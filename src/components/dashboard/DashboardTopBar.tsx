@@ -453,7 +453,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           tinted in its own key's accent,
           the color its CLAIM badge and pulse already speak (the
           key in the Strip's teal resource tint, §5; the clock in
-          the offline gold; the flame in the streak accent; the
+          the offline gold; the calendar in the streak accent; the
           orders in the contracts green; the crate in the weekly
           sky); and each key's cluster (icon + its one data
           readout) centers optically on the shared content stage
@@ -603,7 +603,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             ) : streakAnnouncement && !streakJustClaimed ? (
               <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />
             ) : null}
-            <PxIcon name="flame" size={20} className="text-[#FF8A3D]" />
+            <PxIcon name="calendar" size={20} className="text-[#FF8A3D]" />
             {streakDay !== null && (
               <span className="whitespace-nowrap text-[13px] font-black leading-none tabular-nums text-text-secondary">
                 {streakDay}

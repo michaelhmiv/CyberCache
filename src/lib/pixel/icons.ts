@@ -92,6 +92,14 @@ export const PX_ICONS = {
   barFill: [[2,6,12,4],[2,9,12,1,'s'],[3,7,3,1,'h']],
   boot: [[5,2,5,8],[5,9,10,4],[5,12,10,1,'s'],[12,9,3,3]],
   bullseye: [[6,2,4,2],[4,3,2,2],[10,3,2,2],[3,5,2,6],[11,5,2,6],[4,11,2,2],[10,11,2,2],[6,12,4,2],[7,7,2,2]],
+  // calendar added 2026-11-05: the daily streak gets its own glyph.
+  // 'flame' was shared four ways (streak, Fire element badge, hot-area
+  // marker, loadout presets); fire keeps the three jobs where fire IS
+  // the meaning, and the streak — a daily-login concept — takes a
+  // calendar page: two binder rings over a header band, a 3x2 day
+  // grid, and one highlighted cell for today. Reads instantly at the
+  // chip's 20px and carries the streak sheet's 40px hero slot.
+  calendar: [[4,1,2,3],[10,1,2,3],[2,3,12,3],[2,6,1,8],[13,6,1,8],[2,14,12,1],[4,7,2,2],[7,7,2,2],[10,7,2,2],[4,10,2,2],[7,10,2,2],[10,10,2,2],[4,10,2,2,'h']],
   chart: [[2,2,1,11],[2,13,12,1],[4,10,2,3],[7,8,2,2],[10,5,2,3],[13,3,1,2]],
   chevL: [[9,2,3,4],[6,6,3,4],[9,10,3,4]],
   chevU: [[2,10,4,2],[10,10,4,2],[4,8,4,2],[8,8,4,2],[6,6,4,2],[7,4,2,2]],
