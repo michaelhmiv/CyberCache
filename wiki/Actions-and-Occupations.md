@@ -25,7 +25,7 @@ Roaming is also where the open world can kill you — death and resurrection are
 
 ## Crafting
 
-Crafting turns materials into gear frames, consumables, refining output, and vehicle supplies through timed jobs at your workshop benches — and it only progresses **while crafting is your active action**. A job left mid-progress waits for you; it does not finish in the background while you roam.
+Crafting turns materials into gear frames, consumables, refining output, and vehicle supplies through timed jobs at the bench — the Workshop workspace on Home, behind the mode rail's **Craft** stop — and it only progresses **while crafting is your active action**. A job left mid-progress waits for you; it does not finish in the background while you roam. The service lane (**Workshop Service**) is the bench's other occupation: it works one repair or shield-tech job at a time, aimed at that job.
 
 Crafting pays player XP at **0.775× roaming's rate** — pegged to what an hour of roaming at your strongest area would pay, priced per completed unit. That is deliberately a little below roaming: a dedicated crafter trades a slice of XP rate for the value of what they make, and the good consumables in this game come from crafters, not shops.
 

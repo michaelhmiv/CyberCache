@@ -117,6 +117,18 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
 - **Claims never hide.** Claimable things live as chips directly under the Strip
   or as badged doors (see §9).
 
+### Do on Home, own in Gear (owner, 2026-11-04)
+
+Everything the player DOES lives on Home; everything the player OWNS
+lives in Gear. The crafting bench is the ruling case: the Workshop —
+recipes, the job queue, the bench-time bank, and the repair/service
+jobs — is Home's Craft workspace, because working the bench is an
+action, and the bench runs only while Craft holds the action slot.
+Gear keeps the owned side: loadout, inventory, belt & stacks, and the
+Garage (which starts repairs; managing them is the bench's service
+section on Home). A surface that makes the player travel to another
+tab to operate what they started is a defect against this principle.
+
 ### Every "no" carries its remedy (owner-approved 2026-11-02)
 
 When a surface refuses, locks, disables, or comes up empty, the same surface
@@ -169,7 +181,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 | Tab | Rail / composition | Holds |
 |---|---|---|
 | **Home** | Rail, then Stage: `Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The rail leads the screen (owner ruling 2026-11-04); the belt sits in the rail's vacated slot under the stage, and the lit mode's workspace under the belt; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. There is no Area stop (owner rework 2026-11-04): Roam is the area door — entering roam auto-opens the area picker, and tapping Roam while roaming opens it alone. |
-| **Gear** | Rail: `Loadout · Workshop` | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop door row at its foot; the bench keeps its own stop. |
+| **Gear** | No rail — one page | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop status strip at its foot (◦ door to the bench on Home — crafting consolidated onto Home, owner ruling 2026-11-04; the Workshop stop is retired). |
 | **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk` | Player market, NPC storefront, the two service boards as separate stops, and manufacturer standing at its own desk. |
 | **Hunter** | Rail: `Profile · Collections · Cache Rank · Research · Skill Trees · Standings · Account` | The hunter's record: profile + Trophy Shelf, collections and cores, ranks, courses, trees, the weekly races behind the Standings door, and account/settings/manual. |
 
@@ -205,9 +217,16 @@ replace the canonical one. (Tap depths are governed by §9.)
   ruling 2026-11-04) · Boss (select sheet → prep poster sheet) · Endless
   (rail stop) · Extract (rail stop; its scene rides the Stage while it is
   the active action — the workspace panel carries a still poster header
-  and its controls only, per the one-stage law, §1) · Craft (the action;
-  its panel prints an "Open Workshop" door to the Gear bench — the action is
-  **Craft** here, the bench is **Workshop** there; never label both "Crafting").
+  and its controls only, per the one-stage law, §1) · Craft (rail stop;
+  opens the **Workshop** workspace on Home — the whole bench: recipes, the job
+  queue, the bench-time bank, and a Repairs & Service section for the
+  service-lane jobs; owner consolidation ruling 2026-11-04. Opening the bench
+  never switches the action by itself: the workspace's own "Work the Bench"
+  control claims the slot, and while anything else holds the slot the bench
+  prints its paused state with the reason and that remedy in place. The
+  workspace adds no animated scene of its own — the main stage carries the
+  activity scene (one-stage law). The action is **Craft**, the bench is the
+  **Workshop**; never label both "Crafting").
 - **The hero rundown** is attached to the stage's foot (§1): the hunter's
   eight hero stats in two rows of four, each opening its source breakdown.
   The full all-metrics breakdown lives behind **Hunter → Profile's
@@ -273,8 +292,10 @@ replace the canonical one. (Tap depths are governed by §9.)
   three gun slots as full
   rows down the right column (Primary as a poster row), the four
   accessories as a 2×2 band beneath — then the Garage section, § Inventory,
-  § Belt & Stacks, and the Workshop door row at the foot (◦, printing
-  bench state; the bench's canonical home is the Workshop stop). Slot
+  § Belt & Stacks, and the Workshop status strip at the foot (◦, printing
+  the bench at a glance — jobs running / queued / ready, Craft active or
+  paused; the bench's canonical home is Home's Craft workspace since the
+  2026-11-04 consolidation). Slot
   blocks print the item's name in its rarity color — in full, wrapping
   when it needs the room (names never truncate on the gun rows) — and a
   PERK line —
@@ -305,7 +326,9 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **§ Belt & Stacks** (section of the Loadout page; the Items stop retired
   into it, 2026-11-03) — the belt slots + consumables/materials stacks,
   quality % printed.
-- **Workshop** — the bench: recipes + job queue.
+- **Workshop** — RETIRED as a Gear stop (owner consolidation ruling,
+  2026-11-04): the bench's canonical home is Home's Craft workspace (§3
+  Home). The Loadout page's foot keeps the ◦ status strip.
 - **Garage (vehicle section of the Loadout page)** — the page's vehicle
   slot expands in place into the full Garage: vehicles, fuel cells +
   refuel, condition + self-repair with patch kits. Not a rail stop (owner

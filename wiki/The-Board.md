@@ -73,7 +73,7 @@ Directly under the stage — below the hero rundown at its foot — sits the **c
 
 ## When something is waiting
 
-Nothing on Home gathers your waits into one card — each wait lives at its own home, where you act on it. A finished craft reads on the **Workshop's** benches, ready to collect — and if you were elsewhere when it finished, the **Bench ready** announcement under the claim chips says so (see the top bar, above). The free daily cache waits at the **Chest**. Claimable contracts and the weekly Rep Desk earnings announce on the claim chips under the Strip and claim from their sheets. A while-you-were-away settlement waits behind the level button (see below). A finished Research course reads completed on Hunter → Research.
+Nothing on Home gathers your waits into one card — each wait lives at its own home, where you act on it. A finished craft reads on the **Workshop's** bench (Home → Craft), ready to collect — and if you were elsewhere when it finished, the **Bench ready** announcement under the claim chips says so (see the top bar, above). The free daily cache waits at the **Chest**. Claimable contracts and the weekly Rep Desk earnings announce on the claim chips under the Strip and claim from their sheets. A while-you-were-away settlement waits behind the level button (see below). A finished Research course reads completed on Hunter → Research.
 
 ## Event pop-ups
 

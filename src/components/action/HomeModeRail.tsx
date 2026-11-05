@@ -45,7 +45,7 @@ const RAIL_STOPS: RailStopDef[] = [
   { stop: 'boss', label: 'Boss', icon: 'skull', ariaLabel: 'Boss — choose a boss to fight' },
   { stop: 'endless', label: 'Endless', icon: 'infinity', ariaLabel: 'Endless — open the endless descent' },
   { stop: 'extract', label: 'Extract', icon: 'pick', ariaLabel: 'Extract — open the extraction runs' },
-  { stop: 'craft', label: 'Craft', icon: 'hammer', ariaLabel: 'Craft — start a timed crafting job' },
+  { stop: 'craft', label: 'Craft', icon: 'hammer', ariaLabel: 'Craft — open the workshop bench: recipes, the job queue and repairs' },
 ];
 
 export interface HomeModeRailProps {

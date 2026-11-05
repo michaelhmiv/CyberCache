@@ -163,20 +163,29 @@ describe('Phase 1 structure — one boss picker, one area picker', () => {
 });
 
 describe('Phase 1 structure — one crafting home', () => {
-  it('the Action screen sends recipe choice to the Workshop instead of a private picker', () => {
+  it('the Action screen HOSTS the Workshop instead of a private picker or a door to one', () => {
     const action = readSource('src/screens/ActionScreenContextual.tsx');
     expect(action).not.toContain('showRecipePicker');
     expect(action).not.toContain('Choose Recipe');
-    expect(action).toContain("onNavigate?.('workshop')");
-    expect(action).toContain('Open Workshop');
+    // Crafting consolidation (2026-11-04): no "Open Workshop" door
+    // remains — the bench itself is Home's Craft workspace.
+    expect(action).not.toContain('Open Workshop');
+    expect(action).toContain('HomeCraftBench');
+    const bench = readSource('src/components/workshop/HomeCraftBench.tsx');
+    expect(bench).toContain('WorkshopScreen');
+    expect(bench).toContain('embedded');
   });
 
   it('the crafting home is labeled Workshop everywhere', () => {
     const inventory = readSource('src/screens/InventoryScreen.tsx');
-    expect(inventory).toContain("'Workshop'");
+    expect(inventory).toContain('Workshop');
     expect(inventory).not.toContain("'Bench'");
     const app = readSource('src/App.tsx');
     expect(app).not.toContain("'Workbench'");
+    // The 'workshop' route is an alias onto Home's bench intent,
+    // never a sub-screen of its own (consolidation, 2026-11-04).
+    expect(app).toContain("screen === 'workshop'");
+    expect(app).toContain('homeCraftIntent');
   });
 });
 

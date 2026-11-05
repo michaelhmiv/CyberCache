@@ -14,7 +14,6 @@ import { DeathOverlay } from './components/action/DeathOverlay';
 import { SharedDefsMount } from './components/gearArt/SharedDefs';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HelpScreen } from './screens/HelpScreen';
-import { WorkshopScreen } from './screens/WorkshopScreen';
 import { CollectionsScreen } from './screens/CollectionsScreen';
 import { DispatchScreen } from './screens/DispatchScreen';
 import { ActivityLogScreen } from './screens/ActivityLogScreen';
@@ -50,7 +49,7 @@ type TabId = 'home' | 'gear' | 'market' | 'hunter';
 // retired: the Hunter slice mounts its badged Standings door
 // against this sub-screen (handleNavigate('standings')). The
 // LeaderboardsScreen itself is unchanged.
-type SubScreen = 'chest' | 'settings' | 'help' | 'workshop' | 'collections' | 'dispatch' | 'standings' | 'activity-log' | null;
+type SubScreen = 'chest' | 'settings' | 'help' | 'collections' | 'dispatch' | 'standings' | 'activity-log' | null;
 const topLevelTabs: TabId[] = ['home', 'gear', 'market', 'hunter'];
 
 // Analytics screen names (the analytics module's documented table):
@@ -65,7 +64,6 @@ const SUB_SCREEN_NAMES: Record<NonNullable<SubScreen>, ScreenName> = {
   chest: 'Cache',
   settings: 'Settings',
   help: 'Help',
-  workshop: 'Workshop',
   collections: 'Collections',
   dispatch: 'Dispatch',
   standings: 'Standings',
@@ -112,6 +110,12 @@ function App() {
   // expanded: the owner overruled DESIGN.md §11 F1 on 2026-11-02
   // and the Garage folded into Loadout.
   const [inventoryTabIntent, setInventoryTabIntent] = useState<{ tab: 'loadout'; seq: number; expandVehicle?: boolean } | null>(null);
+  // Craft-bench intent (crafting consolidation, owner ruling
+  // 2026-11-04): the bench's canonical home is Home's Craft
+  // workspace, so every 'workshop' door lands on the Home tab with
+  // this seq-stamped intent and the stage opens the bench on
+  // arrival — the inventoryTabIntent pattern, one tab over.
+  const [homeCraftIntent, setHomeCraftIntent] = useState<{ seq: number } | null>(null);
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -161,6 +165,13 @@ function App() {
   useEffect(() => {
     if (inventoryTabIntent?.expandVehicle) trackScreen('Garage');
   }, [inventoryTabIntent]);
+
+  // The bench reports its own analytics name when a 'workshop'
+  // door lands the player on it (it is a workspace on Home now,
+  // not a sub-screen — the name survives the move).
+  useEffect(() => {
+    if (homeCraftIntent) trackScreen('Workshop');
+  }, [homeCraftIntent]);
 
   // account_type user property follows the loaded account (guests
   // and linked accounts alike — analytics is not a gate).
@@ -215,6 +226,17 @@ function App() {
     }
     setProfileFocus(null);
     setInventoryTabIntent(null);
+    if (screen === 'workshop') {
+      // Route alias (crafting consolidation, 2026-11-04): the
+      // Workshop is Home's Craft workspace — the Gear status
+      // strip, the Garage remedy doors, and every other
+      // onNavigate('workshop') caller lands on Home with the
+      // bench open. No dead doors.
+      setActiveTab('home');
+      setSubScreen(null);
+      setHomeCraftIntent({ seq: Date.now() });
+      return;
+    }
     if (screen === 'loadout' || screen === 'loot') {
       setActiveTab('gear');
       setSubScreen(null);
@@ -279,7 +301,6 @@ function App() {
           }}
         />
       ),
-      workshop: <WorkshopScreen onNavigate={handleNavigate} />,
       collections: <CollectionsScreen />,
       dispatch: <DispatchScreen />,
       standings: <LeaderboardsScreen onNavigate={handleNavigate} />,
@@ -287,9 +308,7 @@ function App() {
     };
     const title = subScreen === 'chest'
       ? 'Crack Cache'
-      : subScreen === 'workshop'
-        ? 'Workshop'
-        : subScreen === 'dispatch'
+      : subScreen === 'dispatch'
           ? 'Dispatch'
         : subScreen === 'collections'
           ? 'Collections'
@@ -350,7 +369,7 @@ function App() {
         renderSubScreen()
       ) : (
         <ScreenWrapper activeTab={activeTab}>
-          {activeTab === 'home' && <TabErrorBoundary surface="Home"><HomeScreen onNavigate={handleNavigate} onOpenBossSelect={() => setBossSelectOpen(true)} /></TabErrorBoundary>}
+          {activeTab === 'home' && <TabErrorBoundary surface="Home"><HomeScreen onNavigate={handleNavigate} onOpenBossSelect={() => setBossSelectOpen(true)} craftBenchIntent={homeCraftIntent} /></TabErrorBoundary>}
           {activeTab === 'gear' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} tabIntent={inventoryTabIntent} /></TabErrorBoundary>}
           {activeTab === 'market' && (
             <TabErrorBoundary surface="Market">
@@ -363,7 +382,7 @@ function App() {
         </ScreenWrapper>
       )}
 
-      <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); }} />
+      <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); setHomeCraftIntent(null); }} />
       {/* One document-level copy of the shared SVG surface filters;
           every gear illustration references them by ID (gear-grid
           perf audit, 2026-11-02 — they were duplicated per item). */}

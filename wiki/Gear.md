@@ -135,13 +135,12 @@ Legendary weapons can additionally carry one named
 
 ## The one gear home
 
-Everything gear lives on the **Gear tab**, as a rail of two stops:
-**Loadout** and **Workshop**. The Loadout stop is one merged page —
-everything below is on it, in one scroll:
+Everything gear lives on the **Gear tab**, as one merged page — the
+Loadout page. Everything below is on it, in one scroll:
 
 [[images/ui/gear-loadout.png]]
 
-*The Loadout stop on day one: your hunter on the doll stage, the three gun rows down the right, the accessory band beneath, and the inventory below.*
+*The Loadout page on day one: your hunter on the doll stage, the three gun rows down the right, the accessory band beneath, and the inventory below.*
 
 - **The doll zone** — the equip surface: your hunter stands on a
   compact stage wearing your actual equipped gear — your primary
@@ -182,9 +181,11 @@ everything below is on it, in one scroll:
 - **Belt & Stacks** — your belt, plus every stack you carry:
   consumable batches with their quality % printed, materials,
   and essences.
-- **The Workshop door** — at the page's foot, printing your bench
-  state (the one bench, jobs running); it opens the **Workshop**
-  stop, the crafting bench (see [[Crafting]]).
+- **The Workshop status strip** — at the page's foot, printing the
+  bench at a glance (jobs running / queued / ready, and whether
+  Craft holds your action slot); it opens the **Workshop** on the
+  Home tab's Craft workspace, where the bench lives (see
+  [[Crafting]]).
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
