@@ -22,6 +22,7 @@
  * them would sever name from stats; the record stays intact and
  * the well scrolls.
  */
+/* eslint-disable react-refresh/only-export-components -- prototype renderer: the two small components below are co-located with the render function deliberately; never shipped. */
 import React from 'react';
 import { CK } from './consoleTokens';
 import { resolveWikiPage, wikiImageUrl } from './wikiCorpus';

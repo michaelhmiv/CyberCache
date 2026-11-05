@@ -54,8 +54,6 @@ export const WikiManualScreen: React.FC<{ initialDoc?: string | null }> = ({ ini
   })).filter((g) => g.pages.length > 0);
   const visibleCount = visibleGroups.reduce((n, g) => n + g.pages.length, 0);
 
-  let channelSeq = 0;
-
   return (
     <div ref={rootRef} className="flex flex-col gap-3">
       <ConsoleStyles />
@@ -152,8 +150,7 @@ export const WikiManualScreen: React.FC<{ initialDoc?: string | null }> = ({ ini
                     <Readout>{`${group.pages.length} pages`}</Readout>
                   </div>
                   {group.pages.map((page) => {
-                    channelSeq += 1;
-                    const seq = channelSeq;
+                    const seq = (ORDER_INDEX.get(page.id) ?? 0) + 1;
                     return (
                       <button
                         key={page.id}
