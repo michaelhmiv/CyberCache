@@ -183,7 +183,37 @@ protected from salvage), or salvage it.
 
 *An inspect sheet: the item drawn at card size, its headline numbers and rolled stats, where it came from, and the actions you can take on it.*
 
-**Salvage** breaks an item down into **Scrap** — that is the guaranteed
+### The Trade: what a swap does to your build
+
+Under the stat poster, the inspect sheet prints **The Trade** — the
+item weighed against the piece it would replace. Two groups, and
+only the numbers that actually change: **You gain** and **You give
+up**, each line showing the value your hunter ends up with and the
+signed change beside it — DPS, HP, shield and armor break, rare
+find, offline earnings, scrap, XP, and the activity rates your
+skills feed (crafting and salvage speed, market bonuses, and the
+rest). The things no single number can carry print as their own
+lines: a legendary effect you'd gain or lose, **with what it does**;
+affixes gained and lost by name; a class mod's skill-node boosts by
+skill name; and an action skill a swap would qualify you for — or
+cost you. If a swap moves nothing, the sheet says so plainly: *No
+build change.* When you've picked a boss, the DPS line prices
+against that boss, like your Home rundown. The same Trade prints in
+the Market's inspect sheet, weighed against your equipped piece —
+it's the buy decision, answered before you spend.
+
+The slot picker and the Market's item rows carry the lighter half
+of the comparison: a compact strip of the item's own numbers against
+the equipped piece — weapon DPS first, relic affixes by name, class
+mod boosts by skill name — so you can scan a list fast, then open
+the inspect sheet for the full build trade before you commit.
+
+One honesty fix rides with this: your **class mod's skill boosts
+now count in every number the game shows you** — Home, Profile,
+boss prep, and The Trade all price the boosted skills, the same
+values the game has always paid out. If you wear a class mod, your
+skill-driven numbers on screen went up to meet the truth; nothing
+about payouts changed.
 payout, and the salvage result names exactly what you got. Salvaging a
 Legendary also pays out **legendary cores** — see [[Collections]] for
 the exact yield, because cores are the scarcest currency in the game.
