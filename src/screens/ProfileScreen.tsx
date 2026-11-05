@@ -57,6 +57,13 @@ interface ProfileScreenProps {
    * themselves instead of the top of the Profile stop.
    */
   focusSection?: 'skills' | 'research' | 'wardrobe' | null;
+  /**
+   * PROTOTYPE SEAM (design/hunter-subpages-profile-d, never merged):
+   * the fixture harness may hand the screen its /stats/me payload
+   * directly. Production callers never pass this; the live fetch
+   * below remains the only source when it is undefined.
+   */
+  fixtureStats?: PlayerPublicStats | null;
 }
 
 /**
@@ -106,13 +113,13 @@ const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; de
   </button>
 );
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusSection = null }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusSection = null, fixtureStats }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const skillStore = useSkillStore();
   const deathLog = useSurvivalStore((s) => s.deathLog);
   const { account, user, signOut, signInWithGoogle, actionLoading } = useAuth();
-  const [stats, setStats] = useState<PlayerPublicStats | null>(null);
+  const [stats, setStats] = useState<PlayerPublicStats | null>(fixtureStats ?? null);
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -179,10 +186,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    getMyStatsSummary().then((data) => {
-      if (cancelled) return;
-      setStats(data);
-    });
+    if (fixtureStats === undefined) {
+      getMyStatsSummary().then((data) => {
+        if (cancelled) return;
+        setStats(data);
+      });
+    }
     getMyProfileSummary().then((data) => {
       if (cancelled) return;
       setProfileSummary(data);
@@ -192,7 +201,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       setSnapshots(data);
     });
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, fixtureStats]);
 
   useEffect(() => {
     if (typeof getResearchState !== 'function') return;
