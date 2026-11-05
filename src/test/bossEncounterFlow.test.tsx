@@ -134,7 +134,8 @@ describe('BossEncounterPanel — shipped boss flow', () => {
       selectedRisk: RiskSetting.Balanced,
       attemptHistory: [],
     });
-    useActivityStore.setState({ current: { ...buildBossFightActivity(boss, primaryWeapon, 'prep'), bossPhase: 'prep', startedAt: null, completesAt: null, lastHeartbeatAt: null, schemaVersion: 1, updatedAt: null }, pending: false });
+    const builtActivity = buildBossFightActivity(boss, primaryWeapon, 'prep');
+    useActivityStore.setState({ current: { ...builtActivity, bossPhase: 'prep', targetType: builtActivity.targetType ?? null, targetId: builtActivity.targetId ?? null, targetLabel: builtActivity.targetLabel ?? null, sceneKey: builtActivity.sceneKey ?? null, notes: builtActivity.notes ?? null, activityPayload: builtActivity.activityPayload ?? {}, publicPayload: builtActivity.publicPayload ?? {}, publicVisible: builtActivity.publicVisible ?? true, startedAt: null, completesAt: null, lastHeartbeatAt: null, schemaVersion: 1, updatedAt: null }, pending: false });
   });
 
   it('sends exactly the prepared set + risk in ONE attempt and surfaces the Chef outcome + loot moment', async () => {

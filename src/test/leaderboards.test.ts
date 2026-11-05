@@ -40,11 +40,13 @@ import {
   weekKeyOf,
   weekKeyOffset,
   weekWindow,
+  type LeaderboardRaceId,
 } from '../content/leaderboards';
 import {
   computeRaceStandings,
   type WeeklyFoldInput,
   type WeeklyLedgerData,
+  type RaceStanding,
 } from '../server/leaderboards/fold';
 import {
   InMemoryLeaderboardStore,
@@ -234,11 +236,11 @@ describe('weekly leaderboards — fold', () => {
 
 describe('weekly leaderboards — reward planning', () => {
   it('qualification gates payment: below the race minimum pays nothing', () => {
-    const standings = new Map([
+    const standings = new Map<LeaderboardRaceId, RaceStanding[]>([
       ['roaming_kills', [
         { rank: 1, player_id: A, username: 'alpha', value: 24, reached_at: '2026-10-20T00:00:00.000Z' },
       ]],
-    ] as const);
+    ]);
     expect(planWeekRewardsFor(W1, new Map(standings), new Date('2026-10-27T06:00:00.000Z'))
       .filter((r) => r.raceId === 'roaming_kills')).toEqual([]);
     standings.set('roaming_kills', [

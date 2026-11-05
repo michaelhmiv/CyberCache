@@ -160,6 +160,7 @@ function lifetimePayload(): ProfileLifetimePayload {
           is_locked: false,
           runtime_state: 'inventory',
           equipped_slot: 'primary',
+          created_at: '2026-10-30T00:00:00.000Z',
           payload: {
             name: TROPHY_NAME,
             weaponType: 'Pistol',
@@ -189,7 +190,6 @@ function seedStores() {
     credits: 0,
     scrap: 0,
     cacheKeys: 0,
-    cacheKeyFragments: 0,
     legendaryCores: 0,
     currentZoneId: 'dustwaste_1',
     highestZoneId: 'dustwaste_1',
@@ -208,7 +208,7 @@ function seedStores() {
   useActivityStore.setState({ current: IDLE_ACTIVITY, hydrated: true, pending: false, error: null });
   useSurvivalStore.setState({
     deathLog: [
-      { monsterId: 'm-1', monsterName: 'Overclocked Wraith Matriarch', areaId: 'dustwaste_frontier', at: '2026-10-30T00:00:00.000Z' },
+      { monsterId: 'm-1', monsterName: 'Overclocked Wraith Matriarch', areaId: 'dustwaste_frontier', at: Date.parse('2026-10-30T00:00:00.000Z') },
     ],
   });
   hoisted.auth.account = verifiedAccount;

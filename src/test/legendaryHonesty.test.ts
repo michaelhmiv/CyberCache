@@ -346,6 +346,7 @@ describe('Second Opinion — processBossAttempt', () => {
       attempt: {},
       unlockedBossId: null,
       scrap: 88,
+      entryFee: 0,
     };
     const first = await store.applyChefBossAttempt(PLAYER, attempt);
     expect((first as { scrap_awarded?: number }).scrap_awarded).toBe(88);

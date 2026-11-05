@@ -1,16 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useInventoryStore } from '../store/slices/inventorySlice';
 import type { Weapon } from '../types/items';
+import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '../types/game';
 
 function makeWeapon(id: string): Weapon {
   return {
     id,
-    weaponType: 'Pistol',
+    weaponType: WeaponType.Pistol,
     name: id,
     level: 1,
-    rarity: 'Common',
-    element: 'Kinetic',
-    manufacturer: 'Redline',
+    rarity: Rarity.Common,
+    element: Element.Kinetic,
+    manufacturer: Manufacturer.Redline,
     rollQuality: 50,
     baseDamage: 10,
     attackSpeed: 1.0,
@@ -27,7 +28,7 @@ function makeWeapon(id: string): Weapon {
     scrapYieldMod: 0,
     parts: [],
     affixes: [],
-    sourceTag: 'RoamingDrop',
+    sourceTag: DropSource.WorldDrop,
     isLocked: false,
     pixelSeed: 0,
     combatPower: 5,

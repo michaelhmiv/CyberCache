@@ -829,7 +829,7 @@ describe('dispatch lock matrix (writes twin)', () => {
       verification_grace_expires_at: null, verification_reminder_last_seen_at: null,
       last_roaming_settled_at: null, last_settlement_nonce: null, offline_cap_hours: null,
       vehicle_fuel: 0, workshop_benches: 1, workshop_tools: {},
-    } as ProfileRowData];
+    } as unknown as ProfileRowData];
     const awayItem = {
       id: '99999999-9999-4999-8999-999999999999', owner_user_id: A, kind: 'weapon',
       static_item_id: null, item_level: 25, rarity: 'Uncommon', quality: null,
