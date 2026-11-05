@@ -1,5 +1,5 @@
 -- =====================================================================
--- 0083 — Vendor buy error copy: "Unknown vendor item" was a lie of
+-- 0084 — Vendor buy error copy: "Unknown vendor item" was a lie of
 -- omission (papercut batch, owner green-lit 2026-11-05).
 --
 -- cc_vendor_buy raises when cc_vendor_price returns null for the
@@ -10,6 +10,8 @@
 -- New copy: 'Not offered by the vendor today'. JS twin:
 -- MemoryJobStore.vendorBuy in src/server/writes/memory.ts carries
 -- the same string; both changed in the same PR.
+-- (Numbered 0084: 0083 is reserved by the authored-not-applied
+-- offline hold-and-claim migration in cybercache-prep/mig0083.)
 --
 -- FUNCTION PROVENANCE: cc_vendor_buy is restated VERBATIM from its
 -- chain head, db/migrations/0020_vendor_rotation_buyback.sql (the
