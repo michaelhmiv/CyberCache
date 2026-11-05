@@ -39,7 +39,12 @@ vi.mock('@/lib/api/verifiedOps', () => ({
   fetchCollections: vi.fn(),
 }));
 
-vi.mock('@/lib/api/leaderboardService', () => ({
+vi.mock('@/lib/api/leaderboardService', async (importOriginal) => ({
+  // Spread the real module first: pure helpers/data the components
+  // import (formatLeaderboardValue, LEADERBOARD_METRIC_UNITS) must
+  // stay real under this mock or the Standings board throws on the
+  // missing exports when the door opens it.
+  ...(await importOriginal<typeof import('@/lib/api/leaderboardService')>()),
   getLeaderboard: vi.fn(async () => []),
   getWeeklyLeaderboards: vi.fn(),
 }));

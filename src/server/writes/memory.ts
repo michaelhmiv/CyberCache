@@ -201,6 +201,7 @@ import {
   validateShowcasePins,
   validateUsername,
   writeError,
+  FRAGMENT_REFUSAL,
   NPC_VENDOR_WEAPON_REFUSAL,
   isNpcVendorWeapon,
   type ActiveActionData,
@@ -4448,7 +4449,7 @@ export class InMemoryWriteStore implements WriteStore {
    */
   async marketCreateFragment(playerId: string, nonce: string, quantity: number, priceCredits: number): Promise<Json> {
     void playerId; void nonce; void quantity; void priceCredits;
-    throw writeError('Cache fragments no longer exist — cache keys are the only cache currency');
+    throw writeError(FRAGMENT_REFUSAL);
   }
 
   /** cc_market_create_core (0050): escrow legendary cores into a listing. */
