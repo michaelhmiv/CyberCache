@@ -249,22 +249,16 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   // is armed or not, and equipping a weapon never resizes him.
   // Inert on stage surfaces: the default mode never enters here,
   // and the width-law effect above is untouched.
-  const [dollFit, setDollFit] = useState<DollActorFit | null>(null);
+  const [measuredDollFit, setMeasuredDollFit] = useState<DollActorFit | null>(null);
   useLayoutEffect(() => {
-    if (fitMode !== 'doll') {
-      setDollFit(null);
-      return;
-    }
+    if (fitMode !== 'doll') return;
     const parent = rootRef.current?.parentElement;
-    if (!parent) {
-      setDollFit(null);
-      return;
-    }
+    if (!parent) return;
     const measure = () => {
       const w = parent.clientWidth;
       const h = parent.clientHeight;
       if (!w || !h) {
-        setDollFit(null);
+        setMeasuredDollFit(null);
         return;
       }
       const fit = fitDollActorHeight({
@@ -274,7 +268,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
         groundY,
         feetX,
       });
-      setDollFit(fit.constrained ? fit : null);
+      setMeasuredDollFit(fit.constrained ? fit : null);
     };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
@@ -282,6 +276,10 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     observer.observe(parent);
     return () => observer.disconnect();
   }, [fitMode, heightPct, groundY, feetX]);
+  // The measured fit only exists in doll mode (the effect above
+  // never runs otherwise); deriving at render keeps the value
+  // honest if the mode prop ever changes on a mounted actor.
+  const dollFit = fitMode === 'doll' ? measuredDollFit : null;
 
   const parts = useMemo(
     () =>
