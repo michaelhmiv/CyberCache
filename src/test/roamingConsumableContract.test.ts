@@ -274,7 +274,10 @@ describe('migration 0012 — offline consumption applier', () => {
     // RE-PINNED by the pacing-baseline tuning pass: migration 0015
     // appended a fourteenth argument (_cap_hours, the server-derived
     // earned offline cap) to the same call — the consumed set remains
-    // the thirteenth.
-    expect(store).toContain('cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)');
+    // the thirteenth. RE-PINNED again by 0082 (cache lane rebuild):
+    // _keys_remainder takes the thirteenth slot (the retired
+    // _fragments slot's successor), so the consumed set is the
+    // fourteenth of fifteen and _cap_hours the fifteenth.
+    expect(store).toContain('cc_settle_offline_roaming($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)');
   });
 });

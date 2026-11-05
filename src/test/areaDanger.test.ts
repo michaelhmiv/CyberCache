@@ -193,7 +193,9 @@ describe('death-loop trickle guard — presence pays only after a kill since the
     expect(result.rewards.creditsAwarded).toBe(0);
     expect(result.rewards.scrapAwarded).toBe(0);
     expect(result.rewards.xpAwarded).toBe(0);
-    expect(result.rewards.cacheFragmentsAwarded).toBe(0);
+    // (0082: the fragment field is abolished — whole keys are the
+    // claim's cache currency now, and a dead claim pays none.)
+    expect(result.rewards.cacheKeysAwarded).toBe(0);
     expect(result.rewards.materials).toEqual({});
     expect(result.items).toEqual([]);
   });

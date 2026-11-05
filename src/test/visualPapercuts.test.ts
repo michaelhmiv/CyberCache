@@ -40,7 +40,7 @@ describe('W1 — material display names, never raw ids', () => {
 });
 
 describe('render fixes (source shape)', () => {
-  it('X1/D3/X4 — the Strip: key fragments never truncate, scrap is "scrap", level is not duplicated', () => {
+  it('X1/D3/X4 — the Strip: counts never truncate, scrap is "scrap", level is not duplicated', () => {
     const bar = read('../components/layout/ResourceBar.tsx');
     // Drift-fix F1 superseded the r2 chip grid with DESIGN.md §1's
     // Strip: ONE row, icon + value per resource. The X1 intent is
@@ -57,9 +57,11 @@ describe('render fixes (source shape)', () => {
     expect(bar).toContain('resource-bar-strip');
     expect(bar).toContain('overflow-x-auto');
     expect(bar).not.toContain('grid-cols-3');
-    expect(bar).toContain('micro={`${player.cacheKeyFragments}/5`}');
+    // 0082: the keys chip carries NO fragment micro — fragments are
+    // abolished and the key count stands alone.
+    expect(bar).not.toContain('cacheKeyFragments');
+    expect(bar).not.toContain('of 5 fragments');
     expect(bar).toContain('micro={`${equippedCount}/7`}');
-    expect(bar).toContain('of 5 fragments');
     expect(bar).toContain('of 7 gear slots equipped');
     expect(bar).toContain('resource-bar-loading');
     expect(bar).not.toContain('flex-[1.35]');

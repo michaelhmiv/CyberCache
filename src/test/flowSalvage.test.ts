@@ -9,7 +9,9 @@
  * - F10: the Action panel showed a stale 3%/tick fragment rate while
  *   the Chef ships 0.8%. Rates now derive from ONE owner module
  *   (src/content/roamingRates.ts) consumed by the Chef, the economy
- *   lever defaults, and the client panel.
+ *   lever defaults, and the client panel. (0082: the fragment rate is
+ *   retired — the panel shows the key faucet's ~1-per-7h figure and
+ *   the owner module ships CACHE_KEY_CHANCE.)
  * - F14: the consumable "belt" was display-only local state. It now
  *   seeds real boss prep (seedPrepFromBelt) when prep is empty.
  */
@@ -18,8 +20,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { salvageScrap } from '@/lib/skills/salvageBonuses';
-import { CACHE_FRAGMENT_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '@/content/roamingRates';
-import { FRAGMENT_CHANCE } from '@/server/chef';
+import { CACHE_KEY_CHANCE, GEAR_DROP_CHANCE, MATERIAL_FIND_CHANCE } from '@/content/roamingRates';
+import { KEY_CHANCE } from '@/server/chef';
 import { useBossStore } from '@/store';
 
 describe('salvageScrap — parity with SQL cc_salvage_scrap', () => {
@@ -37,12 +39,12 @@ describe('salvageScrap — parity with SQL cc_salvage_scrap', () => {
 describe('roaming rates — one owner (F10)', () => {
   it('pins the shipped rates', () => {
     expect(GEAR_DROP_CHANCE).toBe(0.22);
-    expect(CACHE_FRAGMENT_CHANCE).toBe(0.008);
+    expect(CACHE_KEY_CHANCE).toBe(0.00012);
     expect(MATERIAL_FIND_CHANCE).toBe(0.08);
   });
 
-  it('the Chef fragment chance IS the shared constant (no second copy)', () => {
-    expect(FRAGMENT_CHANCE).toBe(CACHE_FRAGMENT_CHANCE);
+  it('the Chef key chance IS the shared constant (no second copy)', () => {
+    expect(KEY_CHANCE).toBe(CACHE_KEY_CHANCE);
   });
 
   it('the Action screen derives from the owner and keeps no stale literals', () => {

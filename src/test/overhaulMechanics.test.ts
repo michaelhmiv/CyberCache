@@ -87,19 +87,35 @@ describe('roaming events — distribution + EV budget (§2.1/§2.2)', () => {
     }
   });
 
-  it('the combined fragment faucet (base + events) stays in its band', () => {
-    let fragments = 0;
+  it('the key faucet (base accrual + storm doubling) stays in its band', () => {
+    // Fragments are abolished (0082): the faucet pays whole keys at
+    // 0.00012/tick through the silent remainder. Accrual is
+    // deterministic per tick; the only event interaction left is
+    // storm doubling during a storm's window. Threading the
+    // remainder across claims, total accrual over 10,000 ticks is
+    // 1.2 keys base, plus at most one storm window (12 ticks) per
+    // claim of extra accrual (+0.29) — the band below brackets both.
+    let keysAwarded = 0;
+    let remainder = 0;
     let ticks = 0;
     for (let c = 0; c < 200; c++) {
-      const result = processRoamingClaim(claimRequest({ ticks: 50, tickCount: 20000 + c * 50 }));
-      fragments += result.rewards.cacheFragmentsAwarded;
+      const result = processRoamingClaim(claimRequest({ ticks: 50, tickCount: 20000 + c * 50, keysRemainder: remainder }));
+      keysAwarded += result.rewards.cacheKeysAwarded;
+      remainder = result.rewards.cacheKeyRemainder;
       ticks += 50;
     }
-    const perThousand = (fragments / ticks) * 1000;
-    // Base faucet is 8/1000 ticks; events add a second, budget-capped
-    // stream (cache finds + storm doubling) — total must stay < 2.5x.
-    expect(perThousand).toBeGreaterThan(3);
-    expect(perThousand).toBeLessThan(20);
+    const perThousand = ((keysAwarded + remainder) / ticks) * 1000;
+    // This harness's hunter dies mid-claim in most windows, and
+    // the death-loop guard stops accrual until the next kill — so
+    // the realized rate here sits BELOW the pure 0.12/1000 (the
+    // exact full-survival rate is pinned in tuningBaseline). What
+    // this test owns: events cannot inflate the faucet — storm
+    // doubling is the only interaction and it is window-bounded,
+    // so the realized rate can never approach the retired
+    // fragment-era band (3–20 per 1000), let alone exceed the
+    // pure rate's storm ceiling (~0.15).
+    expect(perThousand).toBeGreaterThan(0);
+    expect(perThousand).toBeLessThan(0.2);
   });
 
   it('pickRoamingEvent only returns the area table; peek is pure', () => {
