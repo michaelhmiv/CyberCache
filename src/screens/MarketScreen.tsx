@@ -1203,7 +1203,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 index={index}
                 reduceMotion={reduceMotion}
                 now={getNow()}
-                netLine={`You receive ${preview.sellerProceeds.toLocaleString()}cr after the ${preview.pctLabel}% market fee (−${preview.fee.toLocaleString()}cr)`}
+                netLine={`Net ${preview.sellerProceeds.toLocaleString()}cr after the ${preview.pctLabel}% fee`}
                 onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => setInspectItem(listing.itemSnapshot) : undefined}
                 onShowUsage={setUsageMaterialId}
                 action={(

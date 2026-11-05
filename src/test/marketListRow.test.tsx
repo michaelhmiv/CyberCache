@@ -93,7 +93,8 @@ globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: Inter
 }) as unknown as typeof IntersectionObserver;
 
 import { MarketScreen } from '@/screens/MarketScreen';
-import { ListingRow, GearCandidateRow, VehicleCandidateRow, listingAgeLabel } from '@/components/market/ListingRow';
+import { ListingRow, GearCandidateRow, VehicleCandidateRow } from '@/components/market/ListingRow';
+import { listingAgeLabel } from '@/lib/market/listingAge';
 import { priceRowHeadline } from '@/lib/gear/gearCardSummary';
 import { getVehicleClass } from '@/lib/vehicles/vehicles';
 import { fetchMarketListings, fetchMyMarketListings } from '@/lib/api/marketListings';
@@ -276,8 +277,10 @@ describe('compact market rows — Buy lane (rendered)', () => {
     // Element corner badge on the thumb; weapons compose at stage density.
     expect(gearRow.querySelector('[data-element-badge]')).not.toBeNull();
     expect(gearRow.querySelector('[data-density="stage"]')).not.toBeNull();
-    // Level column + rarity-colored name.
-    expect(within(gearRow).getByText('Lv 5')).toBeInTheDocument();
+    // NO level column on listing rows (capture-pass trade: price +
+    // action own the right side; the level lives in inspect and
+    // the lane's level filter/sort).
+    expect(within(gearRow).queryByText('Lv 5')).toBeNull();
     // PRICE IS THE HERO.
     expect(gearRow.textContent).toContain('12,500cr');
     // The item's own stat headline leads the fact line.
@@ -351,9 +354,10 @@ describe('compact market rows — Mine lane (rendered)', () => {
     expect(row.className).toContain('min-h-[46px]');
     expect(row.textContent).toContain('8,000cr');
     expect(row.textContent).toContain('Listed 3h');
-    expect(row.textContent).toContain('You receive');
-    expect(row.textContent).toContain('after the');
-    expect(row.textContent).toContain('market fee');
+    // The net amount leads the proceeds fact (the full fee sentence
+    // lives on the Sell form; the row is a glance surface).
+    expect(row.textContent).toContain('Net 7,600cr');
+    expect(row.textContent).toContain('after the 5% fee');
     expect(within(row).getByRole('button', { name: /Cancel Listing/ })).toBeInTheDocument();
   }, 30_000);
 });
@@ -455,7 +459,8 @@ describe('Sell-lane candidate identity rows (component)', () => {
 
   it('vehicle candidate: class + condition + first affix fact line, Yield headline', () => {
     render(<VehicleCandidateRow vehicle={vehicle} />);
-    expect(screen.getByText('Leviathan Rig')).toBeInTheDocument();
+    // Name + class line both read 'Leviathan Rig' for this fixture.
+    expect(screen.getAllByText('Leviathan Rig').length).toBeGreaterThanOrEqual(1);
     expect(document.body.textContent).toContain('Cond 55%');
     expect(document.body.textContent).toContain('Yield');
   });

@@ -100,13 +100,14 @@ listing; anything above Common is always a player's listing.
    (on weapon searches), the level range and price range, and the
    sort — newest, cheapest, most expensive, highest level, rarity,
    or name.
-3. Every row is one compact line: the item's art and level, its name
+3. Every row is one compact line: the item's art, its name
    in its rarity color, and under the name a fact line — the item's
    headline stat, its seller by their hunter name (NPC seed stock is
-   labelled NPC Vendor), the recent-sales median when real sales
-   exist, and how long ago it was listed. Listings never expire, so
-   age is the time fact a row can tell you. The price is the row's
-   big number at the right edge, with the Buy button beside it; tap
+   labelled NPC Vendor), and how long ago it was listed. Listings
+   never expire, so age is the time fact a row can tell you. The
+   price is the row's big number at the right edge — with the
+   recent-sales median printed under it when real sales exist — and
+   the Buy button beside it; tap
    the item itself for the full stat poster and its market history.
    Tap Buy and confirm. You pay exactly the
    listed price — the fee
@@ -150,7 +151,7 @@ Pricing on the Market is informed, not guessed. Listings and sell forms
 carry real sales data for the same kind of item:
 
 - on a listing row, the **median** recent unit price and the 7-day
-  **trend** print as text under the item's name,
+  **trend** print as text under the price,
 - a 7-day **trend** (up / down / flat, with the percentage move), comparing
   the last 7 days against the 7 days before that,
 - on the sell form, the full guidance line: median, last sale price,
