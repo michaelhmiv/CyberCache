@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { SyncedLoadoutScreen } from './SyncedLoadoutScreen';
 import { GearHub } from '@/components/gear/GearHub';
-import { GearRail, type GearStop } from '@/components/gear/GearRail';
 import { ConsumablesScreen } from './ConsumablesScreen';
-import { WorkshopScreen } from './WorkshopScreen';
-import { useMarketStore, useWorkshopStore } from '@/store';
+import { useActivityStore, useMarketStore, useWorkshopStore } from '@/store';
 import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
 
 /** Scroll a page section into view (guarded — some environments
@@ -26,88 +23,83 @@ interface InventoryScreenProps {
    * Stop intent from navigation (flow audit F2 + redesign Wave D):
    * loadout doors (Home deck "Loadout Bench", the Action stage's
    * Manage door, onNavigate('loadout')) carry { tab: 'loadout' } so
-   * the gear home opens ON the Loadout stop — the one equip surface.
+   * the gear home opens ON the Loadout page — the one equip surface.
    * Garage doors (the roaming banner's "Open Garage") carry
    * { tab: 'loadout', expandVehicle: true }: the owner overruled
    * §11 F1 on 2026-11-02 and the Garage folded into the Loadout
-   * stop, so the intent lands on Loadout with its vehicle section
-   * already expanded. Absent intent (the Gear bottom tab) opens on
-   * Loadout — the rail's first stop, the doll leads (DESIGN.md §2
-   * order).
+   * page, so the intent lands on Loadout with its vehicle section
+   * already expanded.
    */
   tabIntent?: { tab: 'loadout'; seq: number; expandVehicle?: boolean } | null;
 }
 
 /**
- * Bench-family doors on the Workshop stop. Crafting's bench lives
- * here (the crafting home is labeled 'Workshop' everywhere); reforge and salvage/recycle keep their canonical doors per
- * DESIGN.md §3 and the coverage audit (#21 inventory + salvage, #28
- * reforge on the inspect sheet's action row) — these rows are the
- * Workshop stop's signposts to them, so the bench family reads as
- * one place without moving a canonical door. Since the Exec C
- * merge (2026-11-03) the signposts land on the merged Loadout
- * page's Inventory section (INVENTORY.md W11 — the copy names the
- * section the player will actually see).
+ * The Workshop status strip at the foot of the Loadout page
+ * (crafting consolidation, owner ruling 2026-11-04).
+ *
+ * The bench's canonical home is Home's Craft workspace now — Gear
+ * is purely what the player OWNS. What remains here is a glance:
+ * the bench's counts (running / queued / ready) and whether Craft
+ * holds the action slot, on a ◦ secondary door (DESIGN.md §9) that
+ * lands on Home with the bench open. "Ready" counts the jobs in
+ * the server view's recent-completions window — craft outputs land
+ * in the player's bags automatically at completion; there is no
+ * claim step to queue for.
  */
-const BenchServiceDoors: React.FC<{ onGoInventory: () => void }> = ({ onGoInventory }) => (
-  <div className="mx-4 mt-3 border border-border bg-surface/80 p-3">
-    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">Also at the bench</div>
-    <div className="mt-2 space-y-1.5">
+const WorkshopStatusStrip: React.FC<{
+  running: number;
+  queued: number;
+  ready: number;
+  activityKind: string;
+  onOpen: () => void;
+}> = ({ running, queued, ready, activityKind, onOpen }) => {
+  const craftActive = activityKind === 'crafting';
+  const serviceActive = activityKind === 'workshop_service';
+  const hasCounts = running + queued + ready > 0;
+  const stateWord = craftActive
+    ? 'Craft active'
+    : serviceActive
+      ? 'Service active'
+      : running + queued > 0
+        ? 'Bench paused'
+        : 'Bench idle';
+  const stateTone = craftActive
+    ? 'border-green/50 bg-green/10 text-green'
+    : serviceActive
+      ? 'border-cyan/50 bg-cyan/10 text-cyan'
+      : running + queued > 0
+        ? 'border-red/50 bg-red/10 text-red'
+        : 'border-border bg-surface text-text-muted';
+  return (
+    <div className="px-4">
       <button
         type="button"
-        onClick={onGoInventory}
-        className="flex w-full items-center gap-2 text-left text-[11px] font-bold text-text-secondary transition-colors hover:text-amber"
+        onClick={onOpen}
+        data-testid="gear-workshop-strip"
+        className="flex w-full items-center gap-2.5 border border-border bg-surface/80 px-3 py-3 text-left transition-colors hover:border-amber/50"
       >
-        <PxIcon name="hammer" size={13} className="shrink-0 text-amber" />
-        <span className="flex-1">Reforge an affix — pick the item in Inventory on the Loadout page; the bench is on its inspect sheet.</span>
-        <PxIcon name="chevR" size={13} className="ml-auto shrink-0" />
-      </button>
-      <button
-        type="button"
-        onClick={onGoInventory}
-        className="flex w-full items-center gap-2 text-left text-[11px] font-bold text-text-secondary transition-colors hover:text-amber"
-      >
-        <PxIcon name="scrap" size={13} className="shrink-0 text-amber" />
-        <span className="flex-1">Salvage &amp; recycle — in Inventory on the Loadout page, one item or a whole selection at once.</span>
-        <PxIcon name="chevR" size={13} className="ml-auto shrink-0" />
+        <PxIcon name="anvil" size={26} className="shrink-0 text-amber" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-black text-text-primary">Workshop</span>
+          <span className="block text-[11px] font-bold text-text-muted" data-testid="gear-workshop-strip-counts">
+            {hasCounts
+              ? `${running} running · ${queued} queued · ${ready} ready — the bench lives on Home`
+              : 'No jobs on the bench — the bench lives on Home'}
+          </span>
+        </span>
+        <span
+          className={`shrink-0 border px-1.5 py-0.5 text-[11px] font-black ${stateTone}`}
+          data-testid="gear-workshop-strip-state"
+        >
+          {stateWord}
+        </span>
+        <PxIcon name="chevR" size={17} className="shrink-0 text-text-muted" />
       </button>
     </div>
-  </div>
-);
-
-/**
- * The Workshop door at the foot of the merged Loadout page
- * (INVENTORY.md W12): the bench state prints on the door itself —
- * benches owned and jobs running — and the tap lands on the
- * Workshop stop, the bench's canonical home.
- */
-const WorkshopDoorRow: React.FC<{
-  benchesOwned: number;
-  activeJobs: number;
-  onOpen: () => void;
-}> = ({ benchesOwned, activeJobs, onOpen }) => (
-  <div className="px-4">
-    <button
-      type="button"
-      onClick={onOpen}
-      data-testid="gear-workshop-door"
-      className="flex w-full items-center gap-2.5 border border-border bg-surface/80 px-3 py-3 text-left transition-colors hover:border-amber/50"
-    >
-      <PxIcon name="anvil" size={26} className="shrink-0 text-amber" />
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-black text-text-primary">Workshop</span>
-        <span className="block text-[11px] font-bold text-text-muted">
-          {benchesOwned} bench{benchesOwned === 1 ? '' : 'es'} ·{' '}
-          {activeJobs > 0 ? `${activeJobs} job${activeJobs === 1 ? '' : 's'} running` : 'benches idle'}
-        </span>
-      </span>
-      <PxIcon name="chevR" size={17} className="shrink-0 text-text-muted" />
-    </button>
-  </div>
-);
+  );
+};
 
 export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, tabIntent = null }) => {
-  const [activeStop, setActiveStop] = useState<GearStop>(() => tabIntent?.tab ?? 'loadout');
   // Garage deep-link: the seq of an intent that asked for the
   // vehicle section expanded (see VehicleGarageSection).
   const [vehicleExpandSeq, setVehicleExpandSeq] = useState<number | null>(
@@ -121,7 +113,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
   const [appliedIntentSeq, setAppliedIntentSeq] = useState<number | null>(tabIntent?.seq ?? null);
   if (tabIntent && tabIntent.seq !== appliedIntentSeq) {
     setAppliedIntentSeq(tabIntent.seq);
-    setActiveStop(tabIntent.tab);
     if (tabIntent.expandVehicle) setVehicleExpandSeq(tabIntent.seq);
   }
   // Gear-page equip door: the Inventory section's Equip action
@@ -129,34 +120,19 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
   // panel opens the Slot Picker (the one equip surface) on the
   // slot via the seq'd picker request.
   const [pickerRequest, setPickerRequest] = useState<{ slot: LoadoutSlot; seq: number } | null>(null);
-  // Anchor scrolls that must wait for a stop switch to mount their
-  // target (the Workshop stop's bench signposts land on the merged
-  // page's Inventory section). Fired from the AnimatePresence
-  // onExitComplete below — the exiting stop is gone and the new
-  // stop has mounted by then; no timer needed.
-  const [pendingAnchor, setPendingAnchor] = useState<string | null>(null);
-  const handleExitComplete = () => {
-    if (!pendingAnchor) return;
-    const id = pendingAnchor;
-    setPendingAnchor(null);
-    requestAnimationFrame(() => scrollToAnchor(id));
-  };
   // Narrow selectors (gear-grid perf audit, 2026-11-02): only the
-  // job list and bench count are read here — a whole-store
-  // subscription re-rendered the entire gear home (and its 132-card
-  // grid) on any workshop store write.
+  // job list, the completions window, and the current action kind
+  // are read here — a whole-store subscription re-rendered the
+  // entire gear home (and its 132-card grid) on any store write.
   const workshopJobs = useWorkshopStore((s) => s.server?.jobs);
-  const workshopBenches = useWorkshopStore((s) => s.server?.benches);
-  const reduceMotion = useReducedMotion();
+  const workshopCompletions = useWorkshopStore((s) => s.server?.recentCompletions);
+  const activityKind = useActivityStore((s) => s.current.kind);
 
-  const queueCount = (workshopJobs ?? []).filter(
-    (j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused',
+  const runningCount = (workshopJobs ?? []).filter((j) => j.state === 'running').length;
+  const queuedCount = (workshopJobs ?? []).filter(
+    (j) => j.state === 'queued' || j.state === 'paused',
   ).length;
-  const activeJobCount = (workshopJobs ?? []).filter((j) => j.state === 'running').length;
-
-  const goToStop = (stop: GearStop) => {
-    setActiveStop(stop);
-  };
+  const readyCount = new Set((workshopCompletions ?? []).map((c) => c.jobId)).size;
 
   const requestService = () => {
     useMarketStore.getState().setActiveTab('repair');
@@ -168,70 +144,47 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
       <div className="px-4 pt-3">
         <ResourceBar onOpenSettings={() => onNavigate('settings')} />
       </div>
-      <div className="px-4">
-        <GearRail activeStop={activeStop} onSelect={goToStop} workshopJobs={queueCount} />
-      </div>
 
-      <AnimatePresence mode="wait" initial={false} onExitComplete={handleExitComplete}>
-        <motion.div
-          key={activeStop}
-          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
-          transition={{ duration: reduceMotion ? 0 : 0.18 }}
-        >
-          {activeStop === 'loadout' && (
-            /* The merged Gear page (Exec C, 2026-11-03): ONE scroll —
-               the Split doll zone + Garage, then § Inventory (the
-               whole former Grid), then § Belt & Stacks (the whole
-               former Items stop), then the Workshop door row at the
-               foot. The rail keeps Loadout · Workshop; the page is
-               the Loadout stop. */
-            <div className="space-y-4">
-              <div id="gear-loadout-section">
-                <SyncedLoadoutScreen
-                  pickerRequest={pickerRequest}
-                  onOpenWardrobe={() => onNavigate('wardrobe')}
-                  vehicleExpandSignal={vehicleExpandSeq}
-                  onRequestService={requestService}
-                  onNavigate={onNavigate}
-                />
-              </div>
-              <section id="gear-inventory-section" aria-label="Inventory">
-                <GearHub
-                  onNavigate={onNavigate}
-                  onEquipRequest={(_item, slot) => {
-                    setPickerRequest({ slot, seq: Date.now() });
-                    // The picker opens on the doll zone — bring the
-                    // page back to it so closing the sheet lands on
-                    // the slot the item went into.
-                    scrollToAnchor('gear-loadout-section');
-                  }}
-                />
-              </section>
-              <section id="gear-belt-section" aria-label="Belt and stacks">
-                <ConsumablesScreen onNavigate={onNavigate} />
-              </section>
-              <WorkshopDoorRow
-                benchesOwned={workshopBenches ?? 1}
-                activeJobs={activeJobCount}
-                onOpen={() => goToStop('workshop')}
-              />
-            </div>
-          )}
-          {activeStop === 'workshop' && (
-            <div>
-              <BenchServiceDoors
-                onGoInventory={() => {
-                  goToStop('loadout');
-                  setPendingAnchor('gear-inventory-section');
-                }}
-              />
-              <WorkshopScreen onNavigate={onNavigate} />
-            </div>
-          )}
-        </motion.div>
-      </AnimatePresence>
+      {/* The merged Gear page (Exec C, 2026-11-03; Workshop stop
+          retired by the crafting consolidation, 2026-11-04): ONE
+          scroll — the Split doll zone + Garage, then § Inventory
+          (the whole former Grid), then § Belt & Stacks (the whole
+          former Items stop), then the Workshop status strip at the
+          foot. Gear holds what the player owns; the bench itself
+          lives on Home. */}
+      <div className="space-y-4">
+        <div id="gear-loadout-section">
+          <SyncedLoadoutScreen
+            pickerRequest={pickerRequest}
+            onOpenWardrobe={() => onNavigate('wardrobe')}
+            vehicleExpandSignal={vehicleExpandSeq}
+            onRequestService={requestService}
+            onNavigate={onNavigate}
+          />
+        </div>
+        <section id="gear-inventory-section" aria-label="Inventory">
+          <GearHub
+            onNavigate={onNavigate}
+            onEquipRequest={(_item, slot) => {
+              setPickerRequest({ slot, seq: Date.now() });
+              // The picker opens on the doll zone — bring the
+              // page back to it so closing the sheet lands on
+              // the slot the item went into.
+              scrollToAnchor('gear-loadout-section');
+            }}
+          />
+        </section>
+        <section id="gear-belt-section" aria-label="Belt and stacks">
+          <ConsumablesScreen onNavigate={onNavigate} />
+        </section>
+        <WorkshopStatusStrip
+          running={runningCount}
+          queued={queuedCount}
+          ready={readyCount}
+          activityKind={activityKind}
+          onOpen={() => onNavigate('workshop')}
+        />
+      </div>
     </div>
   );
 };

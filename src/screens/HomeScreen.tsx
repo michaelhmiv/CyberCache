@@ -8,6 +8,12 @@ interface HomeScreenProps {
   onNavigate: (screen: string) => void;
   /** Opens the App-level boss picker (flow-fix F16). */
   onOpenBossSelect?: () => void;
+  /**
+   * Craft-bench intent (crafting consolidation, 2026-11-04):
+   * App's 'workshop' alias lands here with a seq-stamped intent;
+   * the stage component opens the bench workspace on arrival.
+   */
+  craftBenchIntent?: { seq: number } | null;
 }
 
 /**
@@ -27,7 +33,7 @@ interface HomeScreenProps {
  * state — the mode rail, the belt, and the lit workspace all
  * render inside the stage component (ActionScreenContextual).
  */
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSelect }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSelect, craftBenchIntent = null }) => {
   return (
     <div className="bl-page relative overflow-hidden p-2 pb-16">
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
@@ -47,7 +53,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
         <DashboardTopBar onNavigate={onNavigate} />
         {/* The Stage block — mode rail, diorama, belt, lit workspace. */}
         <div className="scroll-mt-2">
-          <ActionScreenContextual onOpenBossSelect={() => onOpenBossSelect?.()} onNavigate={onNavigate} />
+          <ActionScreenContextual onOpenBossSelect={() => onOpenBossSelect?.()} onNavigate={onNavigate} craftBenchIntent={craftBenchIntent} />
         </div>
         {/* The deck — §4's fixed four blocks below the fold. */}
         <DashboardDeck onNavigate={onNavigate} />
