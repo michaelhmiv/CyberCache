@@ -333,7 +333,7 @@ describe('tuning item 5 — offline cap earned by Research (gate-removal step 6)
 
   function seedOfflinePlayer(
     store: InMemoryChefGameplayStore,
-    overrides: Parameters<InMemoryChefGameplayStore['seedProfile']>[0],
+    overrides: Omit<Parameters<InMemoryChefGameplayStore['seedProfile']>[0], 'id'>,
     awayHours: number,
   ) {
     const settleFromMs = Date.now() - (awayHours * 3600_000 + 1500);

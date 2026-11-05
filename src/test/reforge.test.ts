@@ -284,7 +284,7 @@ describe('applyReforgeToItem — invariants over generated corpora', () => {
 
         // Identity: everything but affixes + derived stats is untouched.
         expect(maskedIdentity(kind, next)).toEqual(maskedIdentity(kind, item));
-        expect(next.legendaryEffectId).toBe(item.legendaryEffectId);
+        expect((next as Weapon).legendaryEffectId).toBe((item as Weapon).legendaryEffectId);
         expect(next.rarity).toBe(item.rarity);
         expect(next.level).toBe(item.level);
         if (kind === 'weapon') expect((next as Weapon).rollQuality).toBe((item as Weapon).rollQuality);
@@ -613,7 +613,7 @@ describe('reforge op — shipped write paths', () => {
     expect(prof(P).legendary_cores).toBe(3);
     const after = payloadOf(WPN);
     expect(after.affixes[index]).toEqual(res.json.new_affix);
-    expect(after.legendaryEffectId).toBe('glass_sun');
+    expect((after as Weapon).legendaryEffectId).toBe('glass_sun');
     expect(after.rarity).toBe('Legendary');
     expect(after.level).toBe(50);
     expect((after as Weapon).rollQuality).toBe((before as Weapon).rollQuality);

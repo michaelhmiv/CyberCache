@@ -168,6 +168,8 @@ describe('DispatchPanel — courier fuel quick-buy mount', () => {
   function stateWith(offers: ChefDispatchState['offers']): ChefDispatchState {
     return {
       slots: 2, slotsUsed: 0, playerLevel: 20, vehicleFuel: 100,
+      credits: 0, boardIndex: 0, boardDay: '2026-11-04', rerollsUsed: 0,
+      rerollsRemaining: 0, rerollPrice: null, departedOfferIds: [],
       offers, missions: [], candidates: [vehicle],
     };
   }
