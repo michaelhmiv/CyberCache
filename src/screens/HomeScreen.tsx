@@ -44,7 +44,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
         {/* Claim row: level chip (the Return Sheet's door) +
             streak / contracts / weekly claim chips — first paint,
             no scroll, nothing else above the Stage (§4). */}
-        <DashboardTopBar />
+        <DashboardTopBar onNavigate={onNavigate} />
         {/* The Stage block — mode rail, diorama, belt, lit workspace. */}
         <div className="scroll-mt-2">
           <ActionScreenContextual onOpenBossSelect={() => onOpenBossSelect?.()} onNavigate={onNavigate} />

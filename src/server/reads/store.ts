@@ -1618,7 +1618,7 @@ function activityInputFromSeed(seed: ReadSeed, playerId: string): ActivityRawInp
     ? rich.filter((r) => r.action_type === 'cc_accept_listing' || r.action_type === 'cc_quickbuy_fill')
     : (seed.ledger ?? []).filter((r) => r.action_type === 'cc_accept_listing' || r.action_type === 'cc_quickbuy_fill');
   const purchasedItemIds = new Set<string>();
-  const saleFacts = new Map<string, { feeCredits: number | null; buyerId: string | null }>();
+  const saleFacts = new Map<string, { feeCredits: number | null; buyerId: string | null; proceedsCredits: number | null }>();
   for (const entry of acceptRows) {
     const payload = foldRecord(entry.result_payload);
     const listing = foldRecord(payload.listing);
@@ -1627,8 +1627,19 @@ function activityInputFromSeed(seed: ReadSeed, playerId: string): ActivityRawInp
       if (typeof itemId === 'string') purchasedItemIds.add(itemId);
     }
     if (typeof listing.id === 'string' && listing.seller_user_id === playerId) {
-      const fee = foldRecord(payload.market_fee).fee_credits;
-      saleFacts.set(listing.id, { feeCredits: typeof fee === 'number' ? fee : null, buyerId: entry.user_id });
+      // A listing can fill in several legs (partial takes); each
+      // leg's accept row carries its own market_fee block, so the
+      // listing-level fee and proceeds are the SUM across legs —
+      // the totals the sale actually charged and credited.
+      const feeBlock = foldRecord(payload.market_fee);
+      const fee = typeof feeBlock.fee_credits === 'number' ? feeBlock.fee_credits : null;
+      const proceeds = typeof feeBlock.seller_proceeds === 'number' ? feeBlock.seller_proceeds : null;
+      const prior = saleFacts.get(listing.id);
+      saleFacts.set(listing.id, {
+        feeCredits: fee === null ? (prior?.feeCredits ?? null) : (prior?.feeCredits ?? 0) + fee,
+        buyerId: entry.user_id,
+        proceedsCredits: proceeds === null ? (prior?.proceedsCredits ?? null) : (prior?.proceedsCredits ?? 0) + proceeds,
+      });
     }
   }
   const cacheItemIds = new Set<string>();
@@ -2433,11 +2444,12 @@ export class PgReadStore implements ReadStore {
 
       // The fee + buyer for each sold listing live only in the
       // buyer's accept row (the lifetime fold's seller-fee pattern).
-      const saleFacts = new Map<string, { feeCredits: number | null; buyerId: string | null }>();
+      const saleFacts = new Map<string, { feeCredits: number | null; buyerId: string | null; proceedsCredits: number | null }>();
       if (soldListings.length) {
         const { rows: factRows } = await this.db.query(
           `select result_payload->'listing'->>'id' as listing_id,
                   (result_payload->'market_fee'->>'fee_credits')::bigint as fee_credits,
+                  (result_payload->'market_fee'->>'seller_proceeds')::bigint as seller_proceeds,
                   user_id::text as buyer_id
              from public.verified_action_ledger
             where action_type = any($1::text[])
@@ -2446,9 +2458,15 @@ export class PgReadStore implements ReadStore {
         );
         for (const row of factRows as Row[]) {
           if (typeof row.listing_id !== 'string') continue;
+          // Partial fills write one accept row per leg; the
+          // listing-level fee/proceeds are the sums across legs.
+          const fee = row.fee_credits === null || row.fee_credits === undefined ? null : num(row.fee_credits);
+          const proceeds = row.seller_proceeds === null || row.seller_proceeds === undefined ? null : num(row.seller_proceeds);
+          const prior = saleFacts.get(row.listing_id);
           saleFacts.set(row.listing_id, {
-            feeCredits: row.fee_credits === null || row.fee_credits === undefined ? null : num(row.fee_credits),
-            buyerId: typeof row.buyer_id === 'string' ? row.buyer_id : null,
+            feeCredits: fee === null ? (prior?.feeCredits ?? null) : (prior?.feeCredits ?? 0) + fee,
+            buyerId: typeof row.buyer_id === 'string' ? row.buyer_id : prior?.buyerId ?? null,
+            proceedsCredits: proceeds === null ? (prior?.proceedsCredits ?? null) : (prior?.proceedsCredits ?? 0) + proceeds,
           });
         }
       }

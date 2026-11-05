@@ -23,6 +23,8 @@ Six chips, always on display:
 
 The bar is display-only. There are no ads on this screen, ever. At the bar's right edge sits a small **gear icon** — the shortcut to Settings (whose home is Hunter → Account).
 
+A counted number never rises silently: when one of these values goes **up**, its digits flash green and pop, with a glow in that resource's own color behind them. A gain that matters gets the full beat (about half a second, the peak held so your eye can catch it); the small drip of roaming earnings gets a shorter, smaller one. Numbers going **down** — your own spending — never flash.
+
 ## The top bar: level, streak, contracts, weekly
 
 Directly under the resource bar sit the claim chips:
@@ -31,6 +33,13 @@ Directly under the resource bar sit the claim chips:
 - **The streak flame** shows your current login-streak day. Tapping it opens the streak sheet with the 7-day ladder. When today's check-in has just paid out, the flame pulses with a **NEW** badge — an announcement that the reward already banked (watch your credits tick up in the Strip); opening the sheet and tapping **Back to the hunt** acknowledges it and clears the badge. You never need to tap it to check in: loading Home records the day by itself. See [[Leaderboards and Streaks]].
 - **The contracts icon** (the clipboard, labelled Orders) opens the contracts panel. When contracts are ready to claim, it pulses and carries a badge with the **claimable count** — visible without opening anything. Guests see a **GUEST** badge instead — the why prints on the pill itself: guests can read the board, but claiming rewards requires signing in. See [[Getting Started]].
 - **The weekly chip** (a crate, labelled Weekly) appears only while a weekly **Parts Crate** or **Signature Order** is claimable at the Rep Desk, and carries the claimable count. Tapping it opens the weekly claim sheet, where the offers can be claimed right there. See [[Manufacturer Standing]].
+
+Under the claim chips sits the **announcement line** — at most one announcement at a time, for earnings that happened somewhere else:
+
+- **Sold** — a listing of yours sold on the player market. The chip names the item and shows the credits you actually received (the price minus the sale fee, plus any proceeds bonus) — the same amount that just pulsed green in the resource bar. Tapping it opens your trade record (Market → Sell → History). If several listings sold, they gather into one chip with the total. Opening your trade history yourself clears the announcement too.
+- **Bench ready** — a Workshop job finished while you were elsewhere. Tapping it opens the Workshop. If you are already looking at the Workshop when a job finishes, there is no announcement — you can see it happen.
+
+Announcements stay until you tap them. Sale proceeds announce first when both are waiting.
 
 Claimable state is designed to be glanceable: if something is waiting for you, the top bar says so before you scroll anywhere.
 
@@ -64,7 +73,7 @@ Directly under the stage — below the hero rundown at its foot — sits the **c
 
 ## When something is waiting
 
-Nothing on Home gathers your waits into one card — each wait lives at its own home, where you act on it. A finished craft reads on the **Workshop's** benches, ready to collect. The free daily cache waits at the **Chest**. Claimable contracts and the weekly Rep Desk earnings announce on the claim chips under the Strip and claim from their sheets. A while-you-were-away settlement waits behind the level button (see below). A finished Research course reads completed on Hunter → Research.
+Nothing on Home gathers your waits into one card — each wait lives at its own home, where you act on it. A finished craft reads on the **Workshop's** benches, ready to collect — and if you were elsewhere when it finished, the **Bench ready** announcement under the claim chips says so (see the top bar, above). The free daily cache waits at the **Chest**. Claimable contracts and the weekly Rep Desk earnings announce on the claim chips under the Strip and claim from their sheets. A while-you-were-away settlement waits behind the level button (see below). A finished Research course reads completed on Hunter → Research.
 
 ## Event pop-ups
 

@@ -174,7 +174,9 @@ function seed(): ReadSeed {
       result_payload: {
         listing: { id: 'listing-sold', seller_user_id: A, price_credits: 7500, item_instance_id: 'item-sold' },
         item: { id: 'item-sold', kind: 'weapon', rarity: 'Rare', item_level: 18, payload: { id: 'item-sold', name: 'Sold Rifle' } },
-        market_fee: { fee_credits: 375 },
+        // The Chef's settlement at the base rate: fee = floor(7500 × 5%)
+        // = 375, so the seller was credited 7500 − 375 = 7125.
+        market_fee: { fee_credits: 375, seller_proceeds: 7125 },
       } },
     { id: 'L-vendorbuy', user_id: A, action_type: 'cc_vendor_buy', created_at: '2026-10-30T07:00:00.000Z',
       result_payload: { item_key: 'MedKit', kind: 'consumable', quantity: 2, unit_price: 250, total_price: 500 } },
@@ -213,7 +215,7 @@ interface Rec {
   boss?: { bossName: string | null; victory: boolean; dedicatedChance: number | null; dedicatedDropAwarded: boolean | null; dropLuckBonus: number | null; loot: Array<{ id: string; name: string }> } | null;
   cache?: { outcome: string | null; oddsTableVersion: number | null; payment: string | null } | null;
   craft?: { recipeName: string | null } | null;
-  market?: { direction: string; feeCredits: number | null; counterpartyName: string | null } | null;
+  market?: { direction: string; feeCredits: number | null; proceedsCredits?: number | null; counterpartyName: string | null } | null;
   settlement?: { capReached: boolean | null; ticks: number | null } | null;
 }
 interface Page { records: Rec[]; nextCursor: string | null }
@@ -347,6 +349,9 @@ describe('activity log read API (AL-2)', () => {
     expect(sold?.label).toContain('Sold');
     expect(sold?.market?.counterpartyName).toBe('Blaze');
     expect(sold?.market?.feeCredits).toBe(375);
+    // The credited amount rides along proven by the accept row:
+    // 7500 price − 375 fee (the 5% base settlement) = 7125.
+    expect(sold?.market?.proceedsCredits).toBe(7125);
     const bought = body.records.find((r) => r.id === 'ledger:L-accept1');
     expect(bought?.market?.counterpartyName).toBe('Blaze');
     expect(bought?.item?.name).toBe('Bought Blaster');
