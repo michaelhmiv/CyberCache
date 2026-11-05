@@ -25,7 +25,7 @@ import type { PlayerProfile } from '@/types/player';
 
 const player: PlayerProfile = {
   id: 'test-player', name: 'Test Hunter', level: 10, xp: 0, credits: 0, scrap: 0,
-  cacheKeys: 0, legendaryCores: 0,
+  cacheKeys: 0, legendaryCores: 0, cacheRankTokens: 0, cacheRankSpends: {}, vehicleFuel: 0,
   currentZoneId: 'zone-1', highestZoneId: 'zone-1', offlineCapHours: 8,
   lastClaimTime: 0, deathFeeInsurance: false, consumables: {}, consumableBatches: [],
   materials: {}, essences: {}, workshopQueues: [], lastWorkshopTick: 0, lastClaimedTick: 0,

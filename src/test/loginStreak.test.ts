@@ -181,7 +181,7 @@ describe('login streak levers', () => {
     expect(validateEconomyConfigValue('streakCreditScalar', 2)).toBe(2);
     expect(validateEconomyConfigValue('streakCreditScalar', 3.5)).toBeNull();
     // The fragment scalar is retired with the currency (0082).
-    expect(ECONOMY_CONFIG_KEYS.streakFragmentScalar).toBeUndefined();
+    expect((ECONOMY_CONFIG_KEYS as Record<string, unknown>).streakFragmentScalar).toBeUndefined();
   });
 
   it('resolve clamps into the band and drops non-numbers', () => {

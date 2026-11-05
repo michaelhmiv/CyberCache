@@ -66,7 +66,7 @@ const SNIPER: Weapon = {
   baseStats: { baseDamage: 50, critChance: 12, fireRate: 1.1, handling: 60, magazineSize: 8, reloadTime: 1.8 },
   parts: PARTS_A,
   pixelSeed: 42,
-} as Weapon;
+} as unknown as Weapon;
 
 const SHOTGUN: Weapon = {
   id: 'fit-shotgun',
@@ -79,7 +79,7 @@ const SHOTGUN: Weapon = {
   baseStats: { baseDamage: 34, critChance: 6, fireRate: 0.9, handling: 48, magazineSize: 6, reloadTime: 2.2 },
   parts: PARTS_B,
   pixelSeed: 777,
-} as Weapon;
+} as unknown as Weapon;
 
 const INPUTS: [string, PixelWeaponInput][] = [
   ['sniper', pixelWeaponInputFromWeapon(SNIPER)],

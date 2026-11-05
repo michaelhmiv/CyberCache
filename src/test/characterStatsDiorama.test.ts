@@ -53,6 +53,9 @@ function makePlayer(overrides: Partial<PlayerProfile> = {}): PlayerProfile {
     credits: 0,
     scrap: 0,
     cacheKeys: 0,
+    cacheRankTokens: 0,
+    cacheRankSpends: {},
+    vehicleFuel: 0,
     legendaryCores: 0,
     currentZoneId: 'dustwaste',
     highestZoneId: 'dustwaste',
@@ -60,10 +63,12 @@ function makePlayer(overrides: Partial<PlayerProfile> = {}): PlayerProfile {
     lastClaimTime: 0,
     deathFeeInsurance: false,
     consumables: {},
+    consumableBatches: [],
     materials: {},
     essences: {},
     workshopQueues: [],
     lastWorkshopTick: 0,
+    lastClaimedTick: 0,
     ...overrides,
   };
 }

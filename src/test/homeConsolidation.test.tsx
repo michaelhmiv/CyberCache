@@ -177,7 +177,6 @@ function seedStores() {
     credits: 0,
     scrap: 0,
     cacheKeys: 0,
-    cacheKeyFragments: 0,
     currentZoneId: 'dustwaste_1',
     highestZoneId: 'dustwaste_1',
     offlineCapHours: 2,

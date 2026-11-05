@@ -862,7 +862,7 @@ describe('cache rank consumers — writes store', () => {
         id: A, cache_tokens: 5,
         skill_spends: { scav_cache_1: 5 },
         cache_rank_spends: { cacheQuality: 10 },
-      } as Partial<ProfileRowData>)];
+      } as Partial<ProfileRowData> & { id: string })];
     }, () => 0.65);
     const rankedMade = await ranked.makeItem(A, writeNonce(), 'key', null) as Json;
     expect(rankedMade.cache_quality).toBeCloseTo(0.45, 10); // 0.25 skill + 0.20 rank
@@ -877,7 +877,7 @@ describe('cache rank consumers — writes store', () => {
         writeProfile({
           id: A, credits: 0, skill_spends: { scav_fee_1: 5 },
           cache_rank_spends: { marketProceeds: 10 },
-        } as Partial<ProfileRowData>),
+        } as Partial<ProfileRowData> & { id: string }),
         writeProfile({ id: B, credits: 100_000 }),
       ];
       s.items = [{
@@ -909,7 +909,7 @@ describe('cache rank consumers — writes store', () => {
     const LISTING = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd2';
     const store = makeWriteStore((s) => {
       s.profiles = [
-        writeProfile({ id: NPC, credits: 0, cache_rank_spends: { marketProceeds: 10 } } as Partial<ProfileRowData>),
+        writeProfile({ id: NPC, credits: 0, cache_rank_spends: { marketProceeds: 10 } } as Partial<ProfileRowData> & { id: string }),
         writeProfile({ id: B, credits: 100_000 }),
       ];
       s.items = [{
@@ -967,9 +967,9 @@ describe('cache rank consumers — craft engine XP', () => {
       profile: () => profileView,
       activeAction: () => ({ kind: 'crafting', lastHeartbeatMs: now }),
       jobs: () => jobs,
-      addJob: (j) => { jobs.push(j); },
+      addJob: (j: CraftJobRecord) => { jobs.push(j); },
       masteryLevel: () => 1,
-      skillBonus: (_id, key) => computeSkillBonuses({})[key] ?? 0,
+      skillBonus: (_id: string, key: string) => computeSkillBonuses({})[key as keyof ReturnType<typeof computeSkillBonuses>] ?? 0,
       addMasteryXp: () => {},
       addStat: () => {},
       addBatch: () => {},

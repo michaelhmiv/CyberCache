@@ -209,7 +209,8 @@ describe('BossEncounterPanel — truth in numbers', () => {
       selectedRisk: RiskSetting.Balanced,
       attemptHistory: [],
     });
-    useActivityStore.setState({ current: { ...buildBossFightActivity(boss, primaryWeapon, 'prep'), bossPhase: 'prep', startedAt: null, completesAt: null, lastHeartbeatAt: null, schemaVersion: 1, updatedAt: null }, pending: false });
+    const builtActivity = buildBossFightActivity(boss, primaryWeapon, 'prep');
+    useActivityStore.setState({ current: { ...builtActivity, bossPhase: 'prep', targetType: builtActivity.targetType ?? null, targetId: builtActivity.targetId ?? null, targetLabel: builtActivity.targetLabel ?? null, sceneKey: builtActivity.sceneKey ?? null, notes: builtActivity.notes ?? null, activityPayload: builtActivity.activityPayload ?? {}, publicPayload: builtActivity.publicPayload ?? {}, publicVisible: builtActivity.publicVisible ?? true, startedAt: null, completesAt: null, lastHeartbeatAt: null, schemaVersion: 1, updatedAt: null }, pending: false });
     // The walk's account state: HP 749/760 throughout the boss fight.
     useSurvivalStore.setState({ currentHp: 749, maxHp: 760, isDead: false });
   });

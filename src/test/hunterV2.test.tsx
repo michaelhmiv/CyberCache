@@ -164,7 +164,6 @@ function seedStores() {
     credits: 0,
     scrap: 0,
     cacheKeys: 0,
-    cacheKeyFragments: 0,
     legendaryCores: 0,
     currentZoneId: 'dustwaste_1',
     highestZoneId: 'dustwaste_1',
@@ -422,7 +421,7 @@ describe('Lifetime Record — partial payloads never blank the Profile screen', 
     delete (legacy.kills as Record<string, unknown>).by_element;
     delete legacy.deaths;
     delete legacy.credits;
-    vi.mocked(fetchProfileLifetime).mockResolvedValue(legacy as ProfileLifetimePayload);
+    vi.mocked(fetchProfileLifetime).mockResolvedValue(legacy as unknown as ProfileLifetimePayload);
     vi.mocked(fetchCollections).mockResolvedValue({ legendary_cores: 0, discoveries: [] });
 
     render(<ProfileScreen onNavigate={() => {}} />);
