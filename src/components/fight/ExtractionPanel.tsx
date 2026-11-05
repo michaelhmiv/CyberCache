@@ -10,10 +10,9 @@ import { startActiveActivity } from '../../lib/api/activityService';
 import { buildExtractionActivity } from '../../lib/activity/activityBuilders';
 import { ROAMING_AREAS, getRoamingArea } from '../../constants/roamingAreas';
 import { signatureMaterialForArea } from '../../content/roamingEvents';
-import { pixelBackgroundForArea } from '../../lib/pixel/manifest';
-import { useIdleStore, useLoadoutStore } from '../../store';
+import { pixelBackgroundForArea, requirePixelSprite } from '../../lib/pixel/manifest';
+import { useIdleStore } from '../../store';
 import { useNow } from '../../hooks/useNow';
-import { ExtractionScene } from '../pixelArt/ActionScenes';
 import { AreaPickerList, CurrentAreaChip } from '../common/AreaPicker';
 import { MobileCard } from '../layout/MobileCard';
 
@@ -49,8 +48,6 @@ function formatFinds(finds: Record<string, number>): string {
 }
 
 export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave }) => {
-  const loadout = useLoadoutStore();
-  const hunterWeapon = loadout.getWeapon('primary');
   const selectedAreaId = useIdleStore((s) => s.selectedRoamingAreaId);
   const setSelectedArea = useIdleStore((s) => s.setSelectedRoamingArea);
   const now = useNow();
@@ -66,7 +63,6 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
   const [sessionFinds, setSessionFinds] = useState<Record<string, number>>({});
   const [sessionEssences, setSessionEssences] = useState<Record<string, number>>({});
   const [lastPasses, setLastPasses] = useState<ChefExtractionPass[]>([]);
-  const [flashKey, setFlashKey] = useState(0);
 
   const refresh = useCallback((): Promise<void> => {
     return getExtractionState()
@@ -79,7 +75,6 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
           setMethodChoice(extraction.method === 'deep' ? 'deep' : 'surface');
         }
         if (extraction.settled.passes.length > 0) {
-          setFlashKey((k) => k + 1);
           setLastPasses(extraction.settled.passes);
           setSessionFinds((prev) => {
             const next = { ...prev };
@@ -151,6 +146,15 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
   const progress = state ? Math.min(1, accruedDisplay / state.passMs) : 0;
   const sceneBackground = pixelBackgroundForArea(state?.passAreaId ?? selectedArea.id) ?? 'zone-dustwaste-bg';
   const degraded = active && state?.method === 'deep' && preview?.deepDegraded;
+  // The pass facts the panel header prints (they rode the old
+  // in-panel scene's cause bar until the one-stage rework).
+  const causeLabel = state?.hasState
+    ? active
+      ? `Pass ${passNumber} · ${formatClock(state.passMs - accruedDisplay)} left`
+      : `Pass ${passNumber} · paused at ${formatClock(state.passMs - state.accruedMs)} left`
+    : 'No site claimed yet';
+  const buysLabel = preview ? `→ ~${preview.drawsPerPass} draws · ${preview.xpPerPass} XP` : undefined;
+  const paused = Boolean(state?.hasState && !active);
 
   return (
     <div className="space-y-3" data-testid="extraction-panel">
@@ -159,23 +163,46 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
           <span className="inline-flex items-center gap-1"><PxIcon name="chevL" size={13} /> Back to actions</span>
         </button>
       )}
-      <ExtractionScene
-        key={`extract-scene-${flashKey}`}
-        backgroundId={sceneBackground}
-        deep={state?.passMethod === 'deep'}
-        paused={state?.hasState && !active}
-        unarmed={!hunterWeapon}
-        progress={progress}
-        causeLabel={
-          state?.hasState
-            ? active
-              ? `Pass ${passNumber} · ${formatClock(state.passMs - accruedDisplay)} left`
-              : `Pass ${passNumber} · paused at ${formatClock(state.passMs - state.accruedMs)} left`
-            : 'No site claimed yet'
-        }
-        buysLabel={preview ? `→ ~${preview.drawsPerPass} draws · ${preview.xpPerPass} XP` : undefined}
-        result={lastPasses.length > 0 ? 'success' : null}
-      />
+      {/* One-stage law (owner ruling 2026-11-04): Home has exactly
+          ONE animated stage — the diorama above this workspace —
+          and it carries the extraction scene while extraction is
+          the active action. This panel used to mount its own
+          animated ExtractionScene here, a second living scene
+          stacked under the stage; it is now a STILL poster header:
+          the site's backdrop plate as a plain image (no actors, no
+          drift, no stage machinery) printing the pass facts the
+          scene's cause bar carried — pass state, time left,
+          expected draws/XP, and progress. Settled passes report
+          in the "Just landed" card below, as they always did. */}
+      <div className="relative overflow-hidden border-2 border-border" data-testid="extraction-panel-header">
+        <img
+          src={requirePixelSprite(sceneBackground).url}
+          alt=""
+          draggable={false}
+          className="h-[72px] w-full object-cover"
+          style={{ imageRendering: 'pixelated' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
+        {state?.passMethod === 'deep' && (
+          <div className="absolute right-2 top-2 border border-indigo-300/60 bg-indigo-950/70 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-200">
+            Deep
+          </div>
+        )}
+        {paused && (
+          <div className="absolute left-2 top-2 border-2 border-border bg-bg/85 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-text-primary" data-testid="extraction-panel-paused">
+            Paused
+          </div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 p-2">
+          <div className="flex items-end justify-between gap-2">
+            <div className="text-[11px] font-black text-white" data-testid="extraction-panel-cause">{causeLabel}</div>
+            {buysLabel && <div className="shrink-0 text-[10px] font-bold text-amber">{buysLabel}</div>}
+          </div>
+          <div className="mt-1.5 h-1.5 w-full bg-black/60" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Pass progress">
+            <div className="h-full bg-amber" style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+        </div>
+      </div>
 
       {error && (
         <MobileCard>
