@@ -126,8 +126,11 @@ export function mountAuthRoutes(app: Express, store: AuthStore, config: AuthConf
   if (config.googleClientIds && config.googleClientIds.length > 0) {
     const googleClientIds = config.googleClientIds;
     app.post('/api/auth/google', async (req, res) => {
+      // idToken is read before the try so the GoogleTokenError path can
+      // log the rejected token's public aud/iss claims — only those
+      // claims are logged, never the token itself.
+      const { idToken } = req.body ?? {};
       try {
-        const { idToken } = req.body ?? {};
         if (typeof idToken !== 'string') {
           res.status(400).json({ error: 'validation', message: 'A Google ID token is required' });
           return;
@@ -145,12 +148,6 @@ export function mountAuthRoutes(app: Express, store: AuthStore, config: AuthConf
           // debuggable from server logs. No token material is logged.
           let claims = 'unparseable';
           try {
-            // FINDING F1 (tsc-gate triage, see PR body): `idToken` is
-            // scoped to the outer try block, so this reference throws a
-            // ReferenceError at runtime whenever a Google token is
-            // rejected — the intended 401 + diagnostic log never runs.
-            // Behavior deliberately left untouched by the triage.
-            // @ts-expect-error F1: idToken is not in scope in the catch block (known bug, flagged in PR body)
             const payload = JSON.parse(Buffer.from(String(idToken).split('.')[1], 'base64url').toString('utf8')) as { aud?: unknown; iss?: unknown };
             claims = `aud=${String(payload.aud)} iss=${String(payload.iss)}`;
           } catch { /* keep 'unparseable' */ }

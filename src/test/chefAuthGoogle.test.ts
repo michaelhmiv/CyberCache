@@ -1,7 +1,7 @@
 import express from 'express';
 import { generateKeyPairSync, createSign, type KeyObject } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { resetGoogleKeyCache, verifyGoogleIdToken, GoogleTokenError } from '../server/auth/google';
 import { mountAuthRoutes } from '../server/auth/routes';
 import { InMemoryAuthStore } from '../server/auth/store';
@@ -93,5 +93,42 @@ describe('POST /api/auth/google', () => {
     const forged = await post('/api/auth/google', { idToken: googleToken({ sub: 'attacker' }, other.privateKey) });
     expect(forged.status).toBe(401);
     expect(forged.json.error).toBe('invalid_google_token');
+  });
+
+  it('logs the rejected token aud/iss claims in the failure diagnostic (F1)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const other = generateKeyPairSync('rsa', { modulusLength: 2048 });
+      const forged = await post('/api/auth/google', { idToken: googleToken({ sub: 'attacker' }, other.privateKey) });
+      expect(forged.status).toBe(401);
+      expect(forged.json.error).toBe('invalid_google_token');
+      const diag = warn.mock.calls.map((call) => String(call[0]))
+        .find((line) => line.includes('[chef-auth] google sign-in rejected'));
+      expect(diag).toBeDefined();
+      // The claims come from the rejected token's own payload. Before
+      // the F1 fix the catch block's read of `idToken` threw a
+      // ReferenceError (swallowed by the inner guard), so this line
+      // always printed 'unparseable' and carried no diagnostic value.
+      expect(diag).toContain(`aud=${CLIENT_ID}`);
+      expect(diag).toContain('iss=https://accounts.google.com');
+      expect(diag).not.toContain('unparseable');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('still answers 401 (nothing throws) when the rejected token is unparseable garbage (F1)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const garbage = await post('/api/auth/google', { idToken: 'not-a-jwt' });
+      expect(garbage.status).toBe(401);
+      expect(garbage.json.error).toBe('invalid_google_token');
+      const diag = warn.mock.calls.map((call) => String(call[0]))
+        .find((line) => line.includes('[chef-auth] google sign-in rejected'));
+      expect(diag).toBeDefined();
+      expect(diag).toContain('unparseable');
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
