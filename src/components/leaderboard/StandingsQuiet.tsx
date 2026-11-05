@@ -713,7 +713,7 @@ export const QuietBoard: React.FC<{
             style={DISPLAY}
             className={`flex min-h-[44px] shrink-0 items-center whitespace-nowrap text-[18px] ${
               metric === m
-                ? 'text-text-primary underline decoration-amber decoration-2 underline-offset-8'
+                ? 'text-text-primary underline decoration-[#F5F5F5] decoration-2 underline-offset-8'
                 : 'text-text-muted'
             }`}
           >
