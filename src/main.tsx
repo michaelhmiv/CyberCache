@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { ProfileRecordDemo } from './demo/ProfileRecordDemo';
+import { setSession } from './lib/api/session';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
@@ -34,7 +36,29 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
-try {
+// PROTOTYPE (design/hunter-subpages-profile): /profile-demo mounts
+// the Profile record-plate fixture harness instead of the app. This
+// branch dies with the prototype; it is never merged.
+if (window.location.pathname.startsWith('/profile-demo')) {
+  // Install the fixture session through the app's OWN session writer
+  // before first render, so the AuthProvider boot restores a signed-in
+  // user and the screen's user-guarded reads fire against the seam.
+  await setSession({
+    accessToken: 'fixture-access',
+    refreshToken: 'fixture-refresh',
+    refreshExpiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+    account: { id: 'fixture-rook', email: 'rook@example.com', isGuest: false, emailVerified: true },
+  });
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <GlobalErrorBoundary>
+        <AuthProvider>
+          <ProfileRecordDemo />
+        </AuthProvider>
+      </GlobalErrorBoundary>
+    </StrictMode>,
+  );
+} else try {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <GlobalErrorBoundary>
