@@ -151,8 +151,9 @@ function CornerBadge({ text, icon, color }: { text?: string; icon?: PxIconName; 
   // protruding half was sliced off at the button's top edge.
   // R3 (owner feedback, 2026-11-05): the badge is now a compact
   // corner TAB in the weekly count tab's manner — the label
-  // hugged at px-1 py-px (~40×13px for CLAIM, not the old
-  // 44px-wide band) — and its host is the key's transparent
+  // hugged at px-[3px] py-px, tight-tracked (~40×13px for
+  // the widest word, GUEST — not the old 44px-wide band) —
+  // and its host is the key's transparent
   // HIT BOX (the 44px button, which carries no overflow or
   // clip of its own), so the papercut's guarantee survives the
   // move: the tab renders whole, never clipped, never at a
@@ -166,7 +167,7 @@ function CornerBadge({ text, icon, color }: { text?: string; icon?: PxIconName; 
   // SMALLER around the label; the floor did not move.
   return (
     <span
-      className="absolute right-0 top-0 z-10 px-1 py-px text-[11px] font-black leading-none text-black"
+      className="absolute right-0 top-0 z-10 px-[3px] py-px text-[11px] font-black leading-none tracking-tight text-black"
       style={{ backgroundColor: color }}
     >
       {icon ? <PxIcon name={icon} size={15} /> : text}
