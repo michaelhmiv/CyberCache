@@ -20,6 +20,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
 import { resolveLookView } from '@/lib/pixel/lookResolution';
 import {
+  LEADERBOARD_METRIC_UNITS,
   formatLeaderboardValue,
   type LeaderboardEntry,
   type LeaderboardMetric,
@@ -63,32 +64,19 @@ const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
 /** Trend as an instrument delta: LED state + signed percent of the
  *  real previous_value/trend payload fields. Never a rank delta. */
 /**
- * The channel unit words, printed beside values and in the board's
- * column header. Mirrors LEADERBOARD_METRIC_UNITS in the service —
- * kept local because screen tests mock the service with a bare
- * factory (functions only), and the header renders unconditionally.
+ * The channel unit word for a metric, read from the service's
+ * canonical LEADERBOARD_METRIC_UNITS — the single source for these
+ * words, printed beside values and in the board's column header.
+ * Read defensively: screen tests may mock the service with a bare
+ * factory that does not provide the map, and a missing unit must
+ * degrade to no unit word, never a throw. (The retired local map
+ * this replaces keyed a stale vocabulary — xp_total, kd_ratio, … —
+ * so 8 of 10 channels read undefined and the board header's
+ * .toUpperCase() crashed the moment those channels were selected;
+ * finding F4 in PR #411.)
  */
-// FINDING F4 (tsc-gate triage, see PR body): this local map's keys use
-// a retired metric vocabulary (xp_total, kills, kd_ratio, …) that
-// matches almost nothing in the real LeaderboardMetric union (xp,
-// total_kills, kdr, …) — only 'level' and 'net_worth' coincide. Unit
-// labels therefore read undefined for 8 of 10 channels, and the
-// board header's METRIC_UNIT_LABEL[metric].toUpperCase() throws for
-// those channels. The service's LEADERBOARD_METRIC_UNITS carries the
-// correct words. Behavior deliberately left untouched by the triage.
-const METRIC_UNIT_LABEL: Record<LeaderboardMetric, string> = {
-  level: 'Lv',
-  // @ts-expect-error F4: local unit map keys do not match LeaderboardMetric (known defect, flagged in PR body)
-  xp_total: 'XP',
-  net_worth: 'credits',
-  kills: 'kills',
-  kd_ratio: 'K/D',
-  boss_kills: 'boss kills',
-  mastery_xp_total: 'mastery XP',
-  mastery_level_total: 'mastery Lv',
-  legendary_drops: 'legendaries',
-  items_found: 'items',
-};
+const channelUnit = (metric: LeaderboardMetric): string | undefined =>
+  LEADERBOARD_METRIC_UNITS?.[metric];
 
 const DeltaReadout: React.FC<{ trend: number; hasPrior: boolean }> = ({ trend, hasPrior }) => {
   if (!hasPrior) {
@@ -174,6 +162,7 @@ const BoardRow: React.FC<{
   onRowClick?: (playerId: string) => void;
 }> = ({ entry, metric, leaderValue, isMe, look, onRowClick }) => {
   const ratio = leaderValue > 0 ? entry.value / leaderValue : 0;
+  const unit = channelUnit(metric);
   return (
     <button
       type="button"
@@ -216,8 +205,13 @@ const BoardRow: React.FC<{
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
         <span className="font-bold leading-none" style={{ ...monoStyle, fontSize: 16, color: INK }}>
-          {formatLeaderboardValue(metric, entry.value)}{' '}
-          <span style={{ fontSize: 11, color: FAINT }}>{METRIC_UNIT_LABEL[metric]}</span>
+          {formatLeaderboardValue(metric, entry.value)}
+          {unit ? (
+            <>
+              {' '}
+              <span style={{ fontSize: 11, color: FAINT }}>{unit}</span>
+            </>
+          ) : null}
         </span>
         <LedMeter
           ratio={ratio}
@@ -258,6 +252,7 @@ export const BoardConsole: React.FC<{
   onRowClick,
 }) => {
   const leaderValue = entries.length > 0 ? entries[0].value : 0;
+  const unit = channelUnit(metric);
   const meInEntries = myPlayerId != null && entries.some((e) => e.player_id === myPlayerId);
   return (
     <Panel testId="standings-board-console">
@@ -346,9 +341,7 @@ export const BoardConsole: React.FC<{
         }}
       >
         <span>RK · HUNTER · Δ</span>
-        <span>
-          OUTPUT · {METRIC_UNIT_LABEL[metric].toUpperCase()} · VS LEADER
-        </span>
+        <span>{unit ? `OUTPUT · ${unit.toUpperCase()} · VS LEADER` : 'OUTPUT · VS LEADER'}</span>
       </div>
       <div>
         {loading ? (
@@ -402,7 +395,8 @@ export const BoardConsole: React.FC<{
           </div>
           <div className="mt-1 flex items-center gap-2">
             <span className="font-bold" style={{ ...monoStyle, fontSize: 14, color: MUT }}>
-              {formatLeaderboardValue(metric, myRank.value)} {METRIC_UNIT_LABEL[metric]}
+              {formatLeaderboardValue(metric, myRank.value)}
+              {unit ? ` ${unit}` : null}
             </span>
             <span className="ml-auto">
               <DeltaReadout trend={myRank.trend} hasPrior={myRank.previous_value != null} />
