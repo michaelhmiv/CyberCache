@@ -409,9 +409,25 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           Return Sheet's door row. In its footprint: CACHE and
           OFFLINE. Badges keep their inset corner, and a pill
           carrying one reserves that corner in its padding
-          (DESIGN.md §6: adapt the host, never shrink the type). */}
-      <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-2">
-        <span className="flex min-w-0 flex-1 items-stretch gap-2">
+          (DESIGN.md §6: adapt the host, never shrink the type).
+          FIT LAW (claim-row wrap fix, 2026-11-05): the badge
+          reservations are honest width — a CLAIM streak pill
+          (~129px) + a GUEST contracts pill (~146px) leave ~98px
+          of a 386px row, and the flex pair was crushed to ~46px
+          per button: labels clipped mid-word and the CACHE
+          bubble — the key count's only print on Home — fell
+          outside its button's box entirely. So the row WRAPS and
+          the pair carries a floor sized from its own content
+          (CACHE 104 = pad+icon+label+bubble; OFFLINE 90 quiet,
+          216 while a hold's CLAIM badge + figure ride it): when
+          the pills' reservations crowd the row, the pills take a
+          second line at full size instead of the pair starving.
+          One line whenever everything fits at natural width;
+          never shrink the type (§6). */}
+      <div data-testid="dashboard-top-bar" className="mb-3 flex flex-wrap items-stretch gap-2">
+        <span
+          className={`flex flex-1 items-stretch gap-2 ${holdPending ? 'min-w-[328px]' : 'min-w-[202px]'}`}
+        >
           {/* CACHE — the key count's one print on Home (the Strip's
               cache segment leaves Home in this package), as a
               bubble on the button that spends them. */}
@@ -420,7 +436,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             data-testid="top-cache-button"
             aria-label={`Cache — ${cacheKeys} cache keys held. Opens the cache chest.`}
             onClick={() => onNavigate?.('chest')}
-            className="bl-panel relative flex min-h-[40px] min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5"
+            className="bl-panel relative flex min-h-[40px] min-w-[104px] flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5"
           >
             <PxIcon name="key" size={15} />
             <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
@@ -447,7 +463,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             aria-busy={claiming || undefined}
             disabled={claiming}
             onClick={() => void handleOfflineTap()}
-            className={`bl-panel relative flex min-h-[40px] min-w-0 flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${holdPending ? 'pr-16' : ''}`}
+            className={`bl-panel relative flex min-h-[40px] flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${holdPending ? 'min-w-[216px]' : 'min-w-[90px]'} ${holdPending ? 'pr-16' : ''}`}
           >
             {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
             {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
