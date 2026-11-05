@@ -79,7 +79,7 @@ import { deriveStandingsBadge, EMPTY_STANDINGS_BADGE } from '@/components/profil
 import { fetchCollections, fetchProfileLifetime, type ProfileLifetimePayload } from '@/lib/api/verifiedOps';
 import { getWeeklyLeaderboards, type WeeklyLeaderboards, type WeeklyRaceBoard } from '@/lib/api/leaderboardService';
 import { collectionEntriesForFamily, COLLECTION_TOTAL } from '@/content/collections';
-import { useActivityStore, useInventoryStore, usePlayerStore } from '@/store';
+import { useActivityStore, useInventoryStore, usePlayerStore, useSkillStore } from '@/store';
 import { IDLE_ACTIVITY } from '@/types/activity';
 import type { AccountState } from '@/auth/accountState';
 
@@ -180,6 +180,7 @@ function seedStores() {
     lastClaimedTick: 0,
   });
   useInventoryStore.setState({ items: [] });
+  useSkillStore.setState({ spent: {} });
   useActivityStore.setState({ current: IDLE_ACTIVITY, hydrated: true, pending: false, error: null });
   hoisted.auth.account = verifiedAccount;
 }
@@ -330,9 +331,82 @@ describe('Hunter arrangement — Trophy tile door + Collections stop', () => {
     vi.mocked(fetchProfileLifetime).mockResolvedValue(lifetimePayload(0));
     vi.mocked(fetchCollections).mockResolvedValue({ legendary_cores: 0, discoveries: [] });
     render(<ProfileScreen onNavigate={() => {}} />);
-    fireEvent.click(await screen.findByTestId('hunter-stop-collections'));
+    // The Arena Plates menu's Collections door is the guest's way
+    // in (the retired rail chip's successor; the pass-1 IA brief
+    // sanctioned reworking this test from the rail testid to the
+    // door testid when the menu replaced the rail).
+    fireEvent.click(await screen.findByTestId('hub-door-collections'));
     const entry = await screen.findByTestId(`collection-entry-boss-${collectionEntriesForFamily('boss')[0].key}`);
     expect(entry.getAttribute('data-found')).toBe('false');
+  });
+});
+
+describe('Hunter menu — the Arena Plates hub (owner pick, 2026-11-05)', () => {
+  it('the tab opens on the menu: every resident has a door, and there is no rail', () => {
+    render(<ProfileScreen onNavigate={() => {}} />);
+
+    expect(screen.getByTestId('hunter-section-hub').className).not.toContain('hidden');
+    for (const id of [
+      'hub-door-trees',
+      'hub-door-research',
+      'hub-door-cache-rank',
+      'hub-door-standings',
+      'hub-door-collections',
+      'hub-door-wardrobe',
+      'hub-door-account',
+      'hub-door-profile',
+    ]) {
+      expect(screen.getByTestId(id)).toBeTruthy();
+    }
+    expect(screen.queryByTestId('hunter-rail')).toBeNull();
+  });
+
+  it('the trees door reports the real build: per-tree ladders and the unspent gauge', () => {
+    // Level 12 → 11 points earned; 6 spent (3/2/1/0 across the
+    // trees) → 5 unspent.
+    usePlayerStore.setState({ level: 12 });
+    useSkillStore.setState({ spent: { gs_dmg_1: 3, demo_ord_1: 2, scav_idle_1: 1 } });
+    render(<ProfileScreen onNavigate={() => {}} />);
+
+    const door = screen.getByTestId('hub-door-trees');
+    expect(door.textContent).toContain('Skill Trees');
+    expect(door.textContent).toContain('5 points unspent');
+    // Each ladder row pairs its tree label with its own spent count.
+    for (const [label, count] of [['Gunslinger', '3'], ['Demolition', '2'], ['Scavenger', '1'], ['Fixer', '0']] as const) {
+      const labelEl = [...door.querySelectorAll('span')].find((s) => s.textContent === label);
+      expect(labelEl).toBeTruthy();
+      expect(labelEl!.parentElement!.textContent).toContain(count);
+    }
+
+    // The hero's announcement chip is the same fact as a door.
+    const chip = screen.getByTestId('hunter-announce-points');
+    expect(chip.textContent).toContain('5 skill points to spend');
+  });
+
+  it('the points announcement is quiet when every point is spent', () => {
+    // Level 7 → 6 earned; all 6 spent.
+    usePlayerStore.setState({ level: 7 });
+    useSkillStore.setState({ spent: { gs_dmg_1: 5, demo_ord_1: 1 } });
+    render(<ProfileScreen onNavigate={() => {}} />);
+
+    expect(screen.queryByTestId('hunter-announce-points')).toBeNull();
+    expect(screen.getByTestId('hub-door-trees').textContent).toContain('All points spent');
+  });
+
+  it('doors open their stops and the plate back row returns to the menu', async () => {
+    render(<ProfileScreen onNavigate={() => {}} />);
+
+    fireEvent.click(screen.getByTestId('hub-door-wardrobe'));
+    expect(screen.getByTestId('hunter-section-wardrobe').className).not.toContain('hidden');
+    expect(screen.getByTestId('hunter-section-hub').className).toContain('hidden');
+    expect(screen.getByTestId('profile-wardrobe-anchor')).toBeTruthy();
+
+    fireEvent.click(screen.getAllByTestId('hunter-back-menu')[0]);
+    expect(screen.getByTestId('hunter-section-hub').className).not.toContain('hidden');
+
+    fireEvent.click(screen.getByTestId('hub-door-trees'));
+    expect(screen.getByTestId('hunter-section-trees').className).not.toContain('hidden');
+    expect(await screen.findByTestId('profile-skill-trees')).toBeTruthy();
   });
 });
 
@@ -395,7 +469,7 @@ describe('Hunter arrangement — Standings door badge + stop', () => {
     await waitFor(() => expect(screen.queryByTestId('hunter-standings-count')).toBeNull());
   });
 
-  it('quiet week: the door renders with NO badge pills and no rail count', async () => {
+  it('quiet week: the door renders with NO badge pills and no menu count', async () => {
     render(<ProfileScreen onNavigate={() => {}} />);
     expect(await screen.findByTestId('standings-door')).toBeTruthy();
     // Let the badge fetch settle.

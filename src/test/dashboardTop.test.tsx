@@ -65,7 +65,7 @@ import {
   getContractsState,
   getLoginStreakState,
 } from '@/lib/chef/chefClient';
-import { usePlayerStore } from '@/store';
+import { usePlayerStore, useSkillStore } from '@/store';
 import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
 import { useContractsStore } from '@/store/slices/contractsSlice';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
@@ -461,5 +461,34 @@ describe('Dashboard top — level chip doors: specifics pop-up + the Return Shee
     // (the Return Sheet is the recap's only home now).
     fireEvent.click(screen.getByTestId('top-level-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
+  });
+});
+
+describe('Dashboard top — unspent skill points chip (Arena Plates follow-on, 2026-11-05)', () => {
+  afterEach(() => {
+    useSkillStore.setState({ spent: {} });
+  });
+
+  it('announces unspent points under the claim row and opens Skill Trees', async () => {
+    const onNavigate = vi.fn();
+    // Level 5 → 4 points earned; 1 spent → 3 unspent.
+    useSkillStore.setState({ spent: { gs_dmg_1: 1 } });
+    render(<HomeScreen onNavigate={onNavigate} />);
+
+    const chip = await screen.findByTestId('announce-points-chip');
+    expect(chip.textContent).toContain('Skill points');
+    expect(chip.textContent).toContain('3 unspent');
+
+    fireEvent.click(chip);
+    expect(onNavigate).toHaveBeenCalledWith('skills');
+  });
+
+  it('is quiet when every earned point is spent', async () => {
+    useSkillStore.setState({ spent: { gs_dmg_1: 4 } });
+    render(<HomeScreen onNavigate={vi.fn()} />);
+
+    // The row itself renders; the points chip does not.
+    expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
+    expect(screen.queryByTestId('announce-points-chip')).toBeNull();
   });
 });

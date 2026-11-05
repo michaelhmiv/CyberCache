@@ -42,9 +42,9 @@ Buy a Legendary weapon with an effect you've never owned off
 [[The Market]], and both its effect entry and its frame entry fill on
 delivery. There is nothing to turn in and nothing to forget to claim.
 
-Open Collections from the **Collections stop on the Hunter tab** to
-see the shelf family by family — or tap the **Collections tile on your
-Trophy Shelf** (Profile stop), which opens the same shelf. Each family
+Open Collections from the **Collections door on the Hunter tab's
+menu** to see the shelf family by family — or tap the **Collections
+tile on your Trophy Shelf** (Profile & Record stop), which opens the same shelf. Each family
 shows a found count. An entry you haven't earned yet shows only as a
 silhouette labeled **Undiscovered**, with a short note on how entries
 in its family are earned — its name (and, for a boss, what it drops)

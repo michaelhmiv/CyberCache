@@ -20,6 +20,20 @@ import { LifetimeStatsPanel } from '@/components/profile/LifetimeStatsPanel';
 import { ActivityLogDoor } from '@/components/profile/ActivityLogDoor';
 import { StandingsDoor } from '@/components/profile/StandingsDoor';
 import { useStandingsBadge } from '@/components/profile/standingsBadge';
+import {
+  HunterPlateHero,
+  PlatesBackRow,
+  PlatesDoor,
+  PlatesTreesDoor,
+  PlatesWideDoor,
+  type HubDoorDatum,
+  type ResearchStatusLine,
+} from '@/components/profile/HunterPlates';
+import { getSkillTreeNodes } from '@/constants/skillTrees';
+import { SkillTreeType } from '@/types/game';
+import { getResearchState } from '@/lib/chef/chefClient';
+import type { ResearchStateView } from '@/content/research';
+import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { CollectionsScreen } from './CollectionsScreen';
 import { LeaderboardsScreen } from './LeaderboardsScreen';
@@ -38,34 +52,39 @@ interface ProfileScreenProps {
   onNavigate?: (screen: string) => void;
   /**
    * Deep-link focus (device feedback r2): 'skills' lands the player
-   * on the Hunter → Skill Trees rail stop — the Dashboard "Skill
-   * Trees" action routes here, so the player lands on the trees
+   * on the Hunter → Skill Trees stop — the Dashboard "Skill Trees"
+   * action routes here, so the player lands on the trees
    * themselves instead of the top of the Profile stop.
    */
   focusSection?: 'skills' | 'research' | 'wardrobe' | null;
 }
 
 /**
- * Hunter (redesign v2, DESIGN.md §2/§3) — the tab's rail stops.
- * Every stop is a destination: Profile (identity, Trophy Shelf, the
- * Standings door, lifetime record), Collections (the 81 proofs),
- * Cache Rank, Research, Skill Trees (Mastery is its segment),
- * Standings (the leaderboards behind the badged door), and Account
- * (identity plate + tools: link, settings, field manual, sign-out).
- * The rail scrolls horizontally rather than shrinking its labels
- * (DESIGN.md §6); full stop names print here AND on the stops.
+ * Hunter (Arena Plates menu, owner pick 2026-11-05; DESIGN.md
+ * §2/§3) — the tab opens on a MENU, not a rail: a hero plate
+ * (identity + announcements) over live-status doors in the Arena
+ * Plates register (HunterPlates.tsx). Every stop is a destination
+ * behind its door: Skill Trees first (Mastery is its segment),
+ * Research, Cache Rank, Standings (the leaderboards behind the
+ * badged door), Collections (the 81 proofs), Wardrobe (its own
+ * stop — cosmetics demoted to the tail), Account (identity plate +
+ * tools: link, settings, field manual, sign-out), and Profile &
+ * Record last (identity, Trophy Shelf, the Standings door,
+ * lifetime record). Every stop carries the plate back row to the
+ * menu; there is no rail.
  */
-type HunterStop = 'profile' | 'collections' | 'cacheRank' | 'research' | 'trees' | 'standings' | 'account';
+type HunterStop = 'hub' | 'profile' | 'collections' | 'cacheRank' | 'research' | 'trees' | 'standings' | 'account' | 'wardrobe';
 
-const HUNTER_STOPS: Array<{ id: HunterStop; label: string; icon: PxIconName }> = [
-  { id: 'profile', label: 'Profile', icon: 'person' },
-  { id: 'collections', label: 'Collections', icon: 'shelf' },
-  { id: 'cacheRank', label: 'Cache Rank', icon: 'chevs' },
-  { id: 'research', label: 'Research', icon: 'book' },
-  { id: 'trees', label: 'Skill Trees', icon: 'nodes' },
-  { id: 'standings', label: 'Standings', icon: 'flag' },
-  { id: 'account', label: 'Account', icon: 'cog' },
-];
+const STOP_LABELS: Record<Exclude<HunterStop, 'hub'>, string> = {
+  profile: 'Profile & Record',
+  collections: 'Collections',
+  cacheRank: 'Cache Rank',
+  research: 'Research',
+  trees: 'Skill Trees',
+  standings: 'Standings',
+  account: 'Account',
+  wardrobe: 'Wardrobe',
+};
 
 const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; desc: string; onClick: () => void; tone?: string; testId?: string }> = ({ glyph, icon, label, desc, onClick, tone = '#FF9000', testId }) => (
   <button
@@ -107,12 +126,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const { summary: totalsSummary } = useCharacterStatSummary();
   const activityKind = useActivityStore((s) => s.current.kind);
   const [snapshots, setSnapshots] = useState<Array<{ snapshot_at: string; [key: string]: unknown }>>([]);
-  const [stop, setStop] = useState<HunterStop>(() => (focusSection === 'skills' ? 'trees' : focusSection === 'research' ? 'research' : 'profile'));
+  const [stop, setStop] = useState<HunterStop>(() => (focusSection === 'skills' ? 'trees' : focusSection === 'research' ? 'research' : focusSection === 'wardrobe' ? 'wardrobe' : 'hub'));
   // Stops whose content mounts lazily on first visit and stays
   // mounted (the two full screens: Collections, Standings) — the
   // always-resident stops are the panels that already lived here.
-  const [visitedStops, setVisitedStops] = useState<ReadonlySet<HunterStop>>(() => new Set<HunterStop>(['profile']));
+  const [visitedStops, setVisitedStops] = useState<ReadonlySet<HunterStop>>(() => new Set<HunterStop>(['hub']));
   const standingsBadge = useStandingsBadge();
+  // The hub's Research door reports the real enrollment — the same
+  // Chef research state the ResearchPanel renders. Loaded here so
+  // the menu can print the course + progress before any stop opens;
+  // a failed read leaves the door on its catalog line (no lure).
+  const [researchState, setResearchState] = useState<ResearchStateView | null>(null);
   // Door taps ask the Standings earnings panel to scroll itself
   // into view + highlight: the badge's destination is the panel,
   // not just the page.
@@ -132,7 +156,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     setPrevFocusSection(focusSection);
     if (focusSection === 'skills') goToStop('trees');
     if (focusSection === 'research') goToStop('research');
-    if (focusSection === 'wardrobe') goToStop('profile');
+    if (focusSection === 'wardrobe') goToStop('wardrobe');
   }
 
   // Deep-link focus: when the player arrives via the Dashboard
@@ -148,16 +172,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   }, [focusSection, stop]);
 
   // Deep-link focus: 'wardrobe' arrives from the Gear page's
-  // figure-stage door (Exec C) — the Wardrobe panel lives on the
-  // Profile stop; scroll it into view once that stop is lit.
-  const wardrobeRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (focusSection !== 'wardrobe' || stop !== 'profile') return;
-    const el = wardrobeRef.current;
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
-  }, [focusSection, stop]);
+  // figure-stage door (Exec C) — since the Arena Plates menu the
+  // Wardrobe is its own stop, so the focus lands on the stop
+  // itself; no scroll anchor is needed.
 
   useEffect(() => {
     if (!user) return;
@@ -177,6 +194,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     return () => { cancelled = true; };
   }, [user]);
 
+  useEffect(() => {
+    if (typeof getResearchState !== 'function') return;
+    let cancelled = false;
+    getResearchState()
+      .then((result) => {
+        if (!cancelled) setResearchState(result.research);
+      })
+      .catch(() => {
+        // Chef unreachable: the Research door stays on its
+        // catalog line.
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   const weapons = inventory.getWeapons();
   const totalItems = inventory.items.length;
   const xpToNext = xpToNextLevel(player.level);
@@ -188,6 +219,78 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     : account?.accountType === 'guest'
       ? 'Guest account'
       : 'Email verification pending';
+
+  // ── The hub (Arena Plates menu) ────────────────────────────────
+  // Every door's status derives from the real profile at render:
+  // per-tree spent from the skill store, the research line from the
+  // Chef state above, wardrobe counts from the cosmetics view (the
+  // same store the Wardrobe panel reads), the standings badge from
+  // the weekly-races payload, cores from the player record.
+  const cosmeticsView = useCosmeticsStore((s) => s.view);
+  const wardrobePartsOwned = cosmeticsView?.parts.length ?? 0;
+  const wardrobePartsWorn = Object.keys(cosmeticsView?.selection.equipped ?? {}).length;
+  const treeSpent = [SkillTreeType.Gunslinger, SkillTreeType.Demolition, SkillTreeType.Scavenger, SkillTreeType.Fixer].map((tree) => ({
+    label: String(tree),
+    spent: getSkillTreeNodes(tree).reduce((sum, node) => sum + (skillStore.spent[node.id] || 0), 0),
+  }));
+  const researchLine: ResearchStatusLine | null = researchState?.activeEnrollment
+    ? {
+        courseLabel: researchState.activeEnrollment.courseName,
+        progress: researchState.activeEnrollment.progressFraction,
+      }
+    : null;
+
+  const hubDoors: HubDoorDatum[] = [
+    {
+      testId: 'hub-door-trees', icon: 'nodes', label: 'Skill Trees',
+      status: availableSkillPoints > 0 ? `${availableSkillPoints} points unspent` : 'All points spent',
+      hero: availableSkillPoints > 0 ? String(availableSkillPoints) : undefined,
+      onClick: () => goToStop('trees'),
+    },
+    {
+      testId: 'hub-door-research', icon: 'book', label: 'Research',
+      status: researchLine ? `${researchLine.courseLabel} · in progress` : 'Course catalog · the parallel track',
+      hero: researchLine ? `${Math.round(researchLine.progress * 100)}%` : undefined,
+      onClick: () => goToStop('research'),
+    },
+    {
+      testId: 'hub-door-cache-rank', icon: 'chevs', label: 'Cache Rank',
+      status: 'Tracks, ranks, and token spend',
+      onClick: () => goToStop('cacheRank'),
+    },
+    {
+      testId: 'hub-door-standings', icon: 'flag', label: 'Standings',
+      status: 'Weekly races · rewards auto-pay at settlement',
+      badge: standingsBadge.unseenEarningsCount,
+      badgeTestId: 'hunter-standings-count',
+      onClick: () => {
+        goToStop('standings');
+        setEarningsFocusNonce((n) => n + 1);
+      },
+    },
+    {
+      testId: 'hub-door-collections', icon: 'shelf', label: 'Collections',
+      status: 'The 81 proofs · legendary cores',
+      hero: player.legendaryCores > 0 ? String(player.legendaryCores) : undefined,
+      onClick: () => goToStop('collections'),
+    },
+    {
+      testId: 'hub-door-wardrobe', icon: 'person', label: 'Wardrobe',
+      status: wardrobePartsOwned > 0 ? `${wardrobePartsWorn} worn · ${wardrobePartsOwned} owned · pure cosmetic` : 'Skin parts · pure cosmetic — zero stats',
+      onClick: () => goToStop('wardrobe'),
+    },
+    {
+      testId: 'hub-door-account', icon: 'cog', label: 'Account',
+      status: verifiedLabel,
+      onClick: () => goToStop('account'),
+    },
+    {
+      testId: 'hub-door-profile', icon: 'chart', label: 'Profile & Record',
+      status: 'Identity · trophy shelf · lifetime record · totals & sources',
+      quiet: true,
+      onClick: () => goToStop('profile'),
+    },
+  ];
 
   const typeCounts: Record<string, number> = {};
   weapons.forEach((w) => { typeCounts[w.weaponType] = (typeCounts[w.weaponType] || 0) + 1; });
@@ -235,50 +338,56 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     <div className="bl-page space-y-4 p-4 pb-20">
       <ResourceBar onOpenSettings={() => onNavigate?.('settings')} />
 
-      <div
-        className="flex gap-2 overflow-x-auto pb-1"
-        role="tablist"
-        aria-label="Hunter sections"
-        data-testid="hunter-rail"
-      >
-        {HUNTER_STOPS.map((s) => {
-          const active = stop === s.id;
-          return (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              data-testid={`hunter-stop-${s.id}`}
-              onClick={() => goToStop(s.id)}
-              className={`flex shrink-0 items-center gap-1.5 border-2 px-2.5 py-1.5 text-xs font-black uppercase tracking-wide transition-colors ${
-                active
-                  ? 'border-amber bg-amber/15 text-amber'
-                  : 'border-border bg-surface text-text-muted'
-              }`}
-            >
-              <PxIcon name={s.icon} size={13} />
-              {s.label}
-              {s.id === 'standings' && standingsBadge.unseenEarningsCount > 0 && (
-                <span
-                  data-testid="hunter-standings-count"
-                  className="relative border border-amber/60 bg-amber/25 px-1 text-[11px] font-black leading-tight text-amber"
-                >
-                  {/* Unseen settled earnings — a notice count, not a
-                      claim: race rewards auto-pay at settlement, so
-                      no claim pulse (§10 reserves the pulse for real
-                      claim actions). Viewing the Standings earnings
-                      panel clears it. */}
-                  {standingsBadge.unseenEarningsCount}
+      {stopSection('hub', (
+        <>
+          {/* The menu (Arena Plates, owner pick 2026-11-05): hero
+              plate + live-status doors. Skill Trees lead with the
+              build itself; progression substance rides above the
+              tail, where Wardrobe and Account sit demoted by
+              position; Profile & Record closes the menu as the
+              wide door. Every former rail resident has a door —
+              no feature lost, no dead doors. */}
+          <HunterPlateHero
+            level={player.level}
+            name={player.name}
+            handleLine={(
+              <>
+                <span className={account?.hasUsername ? 'font-bold text-amber' : undefined}>
+                  {account?.hasUsername ? `@${account.username ?? profileSummary?.username}` : 'No handle set'}
                 </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                <span aria-hidden="true">·</span>
+                <span>Level {player.level}</span>
+              </>
+            )}
+            xp={player.xp}
+            xpToNext={xpToNext}
+            xpProgress={xpProgress}
+            availableSkillPoints={availableSkillPoints}
+            earningsCount={standingsBadge.unseenEarningsCount}
+            research={researchLine}
+            onOpenTrees={() => goToStop('trees')}
+            onOpenStandings={() => {
+              goToStop('standings');
+              setEarningsFocusNonce((n) => n + 1);
+            }}
+            onOpenResearch={() => goToStop('research')}
+          />
+          <PlatesTreesDoor door={hubDoors[0]} treeSpent={treeSpent} points={availableSkillPoints} />
+          <div className="grid grid-cols-2 gap-2">
+            <PlatesDoor door={hubDoors[1]} />
+            <PlatesDoor door={hubDoors[2]} />
+            <PlatesDoor door={hubDoors[3]} />
+            <PlatesDoor door={hubDoors[4]} />
+            <PlatesDoor door={hubDoors[5]} />
+            <PlatesDoor door={hubDoors[6]} />
+          </div>
+          <PlatesWideDoor door={hubDoors[7]} />
+        </>
+      ))}
 
       {stopSection('profile', (
         <>
+      <PlatesBackRow stopLabel={STOP_LABELS.profile} onBack={() => goToStop('hub')} />
       {/* Identity + Trophy Shelf share ONE panel (drift-fix F4,
           mock m36): compact identity line on top, the shelf section
           below it. The XP bar is NOT repeated here — it lives in
@@ -340,20 +449,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         onClick={() => setTotalsOpen(true)}
       />
 
-      {/* Wardrobe (Parts M4) — the skin-part showcase + wear/remove
-          surface. M4 placed it directly after the identity block;
-          F4 folded the Trophy Shelf into that block, so the Wardrobe
-          stands as the next first-class panel, before Standings.
-          The wrapper is the deep-link anchor for the Gear page's
-          figure-stage Wardrobe door (Exec C): a 'wardrobe' focus
-          scrolls here and rings the panel. */}
-      <div
-        ref={wardrobeRef}
-        data-testid="profile-wardrobe-anchor"
-        className={focusSection === 'wardrobe' ? 'scroll-mt-2 rounded-xl ring-2 ring-amber' : 'scroll-mt-2'}
-      >
-        <WardrobePanel />
-      </div>
+      {/* The Wardrobe is NOT on this stop anymore: the Arena
+          Plates menu gives it its own door and its own stop
+          (owner-approved, 2026-11-05) — cosmetics demoted to the
+          menu's tail. The panel itself lives on the wardrobe
+          stop below; the Gear page's figure-stage door (Exec C)
+          lands there via the 'wardrobe' focus. */}
 
       <StandingsDoor
         badge={standingsBadge}
@@ -548,32 +649,40 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       ))}
 
       {stopSection('collections', (
-        visitedStops.has('collections') ? <CollectionsScreen embedded /> : null
+        <>
+          <PlatesBackRow stopLabel={STOP_LABELS.collections} onBack={() => goToStop('hub')} />
+          {visitedStops.has('collections') ? <CollectionsScreen embedded /> : null}
+        </>
       ))}
 
       {stopSection('cacheRank', (
-        <CacheRankPanel />
+        <>
+          <PlatesBackRow stopLabel={STOP_LABELS.cacheRank} onBack={() => goToStop('hub')} />
+          <CacheRankPanel />
+        </>
       ))}
 
       {stopSection('research', (
-        <ResearchPanel />
+        <>
+          <PlatesBackRow stopLabel={STOP_LABELS.research} onBack={() => goToStop('hub')} />
+          <ResearchPanel />
+        </>
       ))}
 
       {stopSection('trees', (
         <>
+      <PlatesBackRow stopLabel={STOP_LABELS.trees} onBack={() => goToStop('hub')} />
       <div
         ref={skillTreesRef}
         data-testid="profile-skill-trees"
         className={focusSection === 'skills' ? 'scroll-mt-2 rounded-xl ring-2 ring-purple' : 'scroll-mt-2'}
       >
-        <MobileCard className="space-y-3" rarityColor="#FF4B5C">
-          <div className="flex items-center gap-2">
-            <PxIcon name="bolt" size={17} className="text-red" />
-            <div className="text-xs font-black uppercase tracking-wide text-text-primary">Skill Trees</div>
-            <div className="ml-auto text-[10px] text-text-muted">{availableSkillPoints} pts available</div>
-          </div>
-          <SkillTreeScreen embedded />
-        </MobileCard>
+        {/* No card header here: the plate back row prints the
+            stop's name (every header prints once), and the screen
+            below wears the plate register itself — its stats row
+            carries the available-points count the retired card
+            header used to print. */}
+        <SkillTreeScreen embedded />
       </div>
 
       <MasterySection />
@@ -583,17 +692,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       {stopSection('standings', (
         visitedStops.has('standings') ? (
           <>
-            <div className="flex items-center gap-2">
-              <PxIcon name="crown" size={17} className="text-amber" />
-              <div className="text-lg font-black uppercase tracking-wide text-text-primary">Standings</div>
-            </div>
+            <PlatesBackRow stopLabel={STOP_LABELS.standings} onBack={() => goToStop('hub')} />
             <LeaderboardsScreen embedded focusEarningsNonce={earningsFocusNonce} />
           </>
         ) : null
       ))}
 
+      {stopSection('wardrobe', (
+        <>
+          <PlatesBackRow stopLabel={STOP_LABELS.wardrobe} onBack={() => goToStop('hub')} />
+          {/* The Wardrobe's own stop (Arena Plates menu): the
+              skin-part showcase + wear/remove surface, homed
+              behind its own door at the menu's tail. The wrapper
+              keeps the deep-link anchor testid the panel carried
+              on the Profile stop. */}
+          <div data-testid="profile-wardrobe-anchor" className="scroll-mt-2">
+            <WardrobePanel />
+          </div>
+        </>
+      ))}
+
       {stopSection('account', (
         <>
+      <PlatesBackRow stopLabel={STOP_LABELS.account} onBack={() => goToStop('hub')} />
       <MobileCard className="space-y-2" rarityColor="#7CFC00">
         <div className="flex items-center gap-2">
           <PxIcon name="diamondIn" size={17} className="text-green" />

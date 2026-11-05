@@ -120,7 +120,8 @@ the same item wearing different light.
 
 ## Wearing parts: the Wardrobe
 
-The **Wardrobe** lives on your Hunter profile: a showcase stage
+The **Wardrobe** has its own stop on the Hunter tab, behind the
+Wardrobe door at the foot of the Hunter menu: a showcase stage
 with your hunter wearing his current look (weapon included), your
 owned parts by slot, and the full craftable catalog with its
 costs. Those costs are live: a part's Scrap price is tuned per
