@@ -18,8 +18,10 @@ import type { ProfileLifetimePayload } from '@/lib/api/verifiedOps';
 import { xpToNextLevel } from '@/content/simulation';
 import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
 import { createTickRng } from '@/lib/rng/tickRng';
+import { DropSource, Rarity } from '@/types/game';
 import type { Weapon } from '@/types/items';
 import { SKIN_PARTS, skinSetById, type CosmeticsStateView } from '@/content/skins';
+import { SKILL_NODES } from '@/constants/skillTrees';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
@@ -85,27 +87,14 @@ export const STATS_FIXTURE: PlayerPublicStats = {
 
 /** The same six weapons variant A generated, with the same seeds. */
 export function generateFixtureWeapons(): Weapon[] {
-  const mk = (
-    rarity: Weapon['rarity'],
-    level: number,
-    source: 'BossDrop' | 'RoamingDrop',
-    seedKey: string,
-    seed: number,
-  ): Weapon =>
-    generateWeapon({
-      rarityOrTier: rarity,
-      itemLevel: level,
-      source,
-      rng: createTickRng('profile-demo', seedKey, seed),
-    }).weapon;
   try {
     return [
-      mk('Legendary', 24, 'BossDrop', 'boss-a', 1),
-      mk('Legendary', 22, 'BossDrop', 'boss-b', 2),
-      mk('Epic', 26, 'RoamingDrop', 'roam-a', 3),
-      mk('Rare', 21, 'RoamingDrop', 'roam-b', 4),
-      mk('Rare', 19, 'RoamingDrop', 'roam-c', 5),
-      mk('Uncommon', 18, 'RoamingDrop', 'roam-d', 6),
+      generateWeapon({ source: DropSource.BossDrop, level: 24, forcedRarity: Rarity.Legendary }, createTickRng('profile-demo', 'boss-a', 1)),
+      generateWeapon({ source: DropSource.BossDrop, level: 22, forcedRarity: Rarity.Legendary }, createTickRng('profile-demo', 'boss-b', 2)),
+      generateWeapon({ source: DropSource.RoamingDrop, level: 26, forcedRarity: Rarity.Epic }, createTickRng('profile-demo', 'roam-a', 3)),
+      generateWeapon({ source: DropSource.RoamingDrop, level: 21, forcedRarity: Rarity.Rare }, createTickRng('profile-demo', 'roam-b', 4)),
+      generateWeapon({ source: DropSource.RoamingDrop, level: 19, forcedRarity: Rarity.Rare }, createTickRng('profile-demo', 'roam-c', 5)),
+      generateWeapon({ source: DropSource.RoamingDrop, level: 18, forcedRarity: Rarity.Uncommon }, createTickRng('profile-demo', 'roam-d', 6)),
     ];
   } catch {
     return [];
@@ -245,22 +234,23 @@ export function buildDeathLogFixture(): DeathLogFixture[] {
 
 /**
  * Spends mirroring variant A: 18 points spent (Gunslinger 8,
- * Demolition 5, Scavenger 5, Fixer 0) in the store's flat
- * node-id → points shape — leaving exactly 5 unspent at Level 24.
+ * Demolition 5, Scavenger 5, Fixer 0) on REAL skill nodes in the
+ * store's flat node-id → points shape — leaving exactly 5 unspent
+ * at Level 24, and giving the stat summary real skill sources.
  */
 function buildSkillSpends(): Record<string, number> {
+  const budgets: Record<string, number> = { Gunslinger: 8, Demolition: 5, Scavenger: 5, Fixer: 0 };
   const spent: Record<string, number> = {};
-  const fillTree = (tree: string, budget: number) => {
+  for (const [tree, budget] of Object.entries(budgets)) {
     let left = budget;
-    for (let i = 0; left > 0; i += 1) {
-      const take = Math.min(3, left);
-      spent[`${tree}-fixture-node-${i}`] = take;
+    for (const node of SKILL_NODES) {
+      if (left <= 0) break;
+      if (node.tree !== tree) continue;
+      const take = Math.min(node.maxPoints, left);
+      if (take > 0) spent[node.id] = take;
       left -= take;
     }
-  };
-  fillTree('Gunslinger', 8);
-  fillTree('Demolition', 5);
-  fillTree('Scavenger', 5);
+  }
   return spent;
 }
 

@@ -37,6 +37,7 @@ import { ROAMING_AREAS } from '@/constants/roamingAreas';
 import { WEAPON_TYPES } from '@/constants/weaponTypes';
 import { ELEMENTS } from '@/constants/elements';
 import { REGION_1_BOSSES } from '@/constants/bosses';
+import { LEGENDARY_EFFECTS } from '@/constants/legendaryEffects';
 import { NAMED_ELITES } from '@/content/collections';
 import {
   FIXTURE_EMAIL,
@@ -62,6 +63,14 @@ const AREA_NAMES = new Map(ROAMING_AREAS.map((a) => [a.id as string, a.name]));
 const WEAPON_TYPE_NAMES = new Map(Object.values(WEAPON_TYPES).map((t) => [t.id as string, t.name]));
 const ELEMENT_NAMES = new Map(Object.values(ELEMENTS).map((e) => [e.id as string, e.name]));
 const BOSS_NAMES = new Map(REGION_1_BOSSES.map((b) => [b.id as string, b.name]));
+
+/**
+ * The lifetime fixture's by_boss keys are ledger keys; one of them
+ * predates the boss's canonical id. Art and display name resolve
+ * through the canonical id (the game's own boss record), the
+ * victory count stays the fixture's.
+ */
+const BOSS_ART_KEYS: Record<string, string> = { choir_of_teeth: 'static_choir' };
 
 function prettifyKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -426,8 +435,10 @@ export const ProfileGalleryPage: React.FC<{
         </div>
         <div className="mt-4 flex flex-col gap-7">
           {bossRows.map(([bossId, victories]) => {
-            const art = bossArt(bossId);
+            const artKey = BOSS_ART_KEYS[bossId] ?? bossId;
+            const art = bossArt(artKey);
             if (!art) return null;
+            const label = BOSS_NAMES.get(artKey) ?? bossLabel(bossId);
             return (
               <figure key={bossId} className="px-5">
                 <div
@@ -443,7 +454,7 @@ export const ProfileGalleryPage: React.FC<{
                   />
                   <img
                     src={art.spriteUrl}
-                    alt={bossLabel(bossId)}
+                    alt={label}
                     className="absolute bottom-0 left-1/2 h-[148px] -translate-x-1/2"
                     style={{ imageRendering: 'pixelated' }}
                     draggable={false}
@@ -454,7 +465,7 @@ export const ProfileGalleryPage: React.FC<{
                     className="text-[19px]"
                     style={{ fontFamily: DISPLAY, color: BONE, letterSpacing: '0.05em' }}
                   >
-                    {bossLabel(bossId)}
+                    {label}
                   </span>
                   <span className="text-[13px] font-bold tabular-nums" style={{ color: BONE }}>
                     {fmt(victories)} victories
@@ -685,7 +696,7 @@ export const ProfileGalleryPage: React.FC<{
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 flex items-end justify-center"
+            className="fixed inset-0 z-[70] flex items-end justify-center"
             style={{ background: 'rgba(0,0,0,0.62)' }}
             onClick={() => setViewingId(null)}
           >
@@ -719,11 +730,29 @@ export const ProfileGalleryPage: React.FC<{
                 {ELEMENT_NAMES.get(viewing.element) ?? prettifyKey(viewing.element)} ·{' '}
                 {String(viewing.manufacturer)}
               </p>
+              {(() => {
+                const effect = viewing.legendaryEffectId
+                  ? LEGENDARY_EFFECTS.find((e) => e.id === viewing.legendaryEffectId)
+                  : undefined;
+                return effect ? (
+                  <div className="mt-3">
+                    <p
+                      className="text-center text-[13px] font-bold"
+                      style={{ color: showcaseRarityColor(viewing.rarity) }}
+                    >
+                      {effect.name}
+                    </p>
+                    <p className="mt-1 text-center text-xs leading-relaxed" style={{ color: FAINT }}>
+                      {effect.description}
+                    </p>
+                  </div>
+                ) : null;
+              })()}
               {viewing.affixes.length > 0 ? (
                 <div className="mt-3 flex flex-col items-center gap-1">
-                  {viewing.affixes.map((a, idx) => (
-                    <p key={`${a.name}-${idx}`} className="text-center text-xs" style={{ color: FAINT }}>
-                      {a.name}
+                  {viewing.affixes.map((a) => (
+                    <p key={a.id} className="text-center text-xs" style={{ color: FAINT }}>
+                      {a.displayText}
                     </p>
                   ))}
                 </div>
