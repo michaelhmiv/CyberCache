@@ -199,6 +199,20 @@ function num(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * Whole-number coercion for integer-typed columns: a finite number is
+ * rounded to the nearest integer, anything else is null. Exists
+ * because a fractional literal handed to a Postgres bigint/integer
+ * column fails the whole statement (`invalid input syntax for type
+ * bigint`) — a client that legitimately holds a fractional value
+ * (combat playtime accrues fractional wall-clock seconds) must not be
+ * able to poison an entire row write with one field.
+ */
+function int(value: unknown): number | null {
+  const parsed = num(value);
+  return parsed === null ? null : Math.round(parsed);
+}
+
 function uuidField(req: Request, res: Response, field: string, label: string): string | null {
   const value = str(body(req)[field]);
   if (!UUID_RE.test(value)) {
@@ -804,6 +818,12 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   // combat_stats table directly through PostgREST. The row is the
   // caller's own (JWT-derived id; any user_id in the body is ignored)
   // and the column set is whitelisted here at the trust boundary.
+  // The integer-typed columns (migration 0003: bigint/integer) are
+  // also TYPE-pinned here via `int`: the client's playtime counters
+  // accrue fractional wall-clock seconds, and a float handed to a
+  // bigint column rejected the whole-row upsert — every combat stat
+  // save failed once a session's first heartbeat landed. The kills_by_*
+  // maps are jsonb, which accepts any JSON number, so they keep `num`.
   app.get('/api/stats/combat', async (req, res) => {
     const playerId = caller(config, req, res);
     if (!playerId) return;
@@ -829,18 +849,18 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     try {
       await store.saveCombatStats(playerId, {
         user_id: playerId,
-        total_kills: num(b.total_kills) ?? 0,
-        total_deaths: num(b.total_deaths) ?? 0,
-        longest_kill_streak: num(b.longest_kill_streak) ?? 0,
+        total_kills: int(b.total_kills) ?? 0,
+        total_deaths: int(b.total_deaths) ?? 0,
+        longest_kill_streak: int(b.longest_kill_streak) ?? 0,
         last_kill_at: optStr(b.last_kill_at),
         run_started_at: optStr(b.run_started_at),
         kills_by_area: numMap(b.kills_by_area),
         kills_by_weapon_type: numMap(b.kills_by_weapon_type),
         kills_by_boss: numMap(b.kills_by_boss),
         kills_by_element: numMap(b.kills_by_element),
-        highest_boss_tier: num(b.highest_boss_tier) ?? 0,
-        active_play_seconds: num(b.active_play_seconds) ?? 0,
-        idle_play_seconds: num(b.idle_play_seconds) ?? 0,
+        highest_boss_tier: int(b.highest_boss_tier) ?? 0,
+        active_play_seconds: int(b.active_play_seconds) ?? 0,
+        idle_play_seconds: int(b.idle_play_seconds) ?? 0,
         updated_at: optStr(b.updated_at) ?? new Date().toISOString(),
       });
       res.json({ ok: true });
