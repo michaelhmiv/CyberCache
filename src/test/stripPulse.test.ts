@@ -36,8 +36,12 @@ describe('stripPulse tracker (eye-leading pass, DESIGN.md §10)', () => {
     const tracker = createStripPulseTracker();
     tracker.observe(base, 0, false);
     expect(tracker.observe({ ...base, credits: 900 }, 1000, false)).toEqual({});
+    // Re-observing the settled (lower) balance changes nothing.
     expect(tracker.observe({ ...base, credits: 900 }, 2000, false)).toEqual({});
-    expect(tracker.observe(base, 3000, false)).toEqual({});
+    // A later real credit back up IS a gain and pulses — the
+    // tracker compares against the last observed value, not a
+    // high-water mark. (1000 − 900 = the credits floor → full.)
+    expect(tracker.observe(base, 3000, false).credits?.tier).toBe('full');
   });
 
   it('tier selection: absolute floors earn the full beat', () => {
@@ -45,10 +49,11 @@ describe('stripPulse tracker (eye-leading pass, DESIGN.md §10)', () => {
     tracker.observe(base, 0, false);
     // +100 credits = the credits floor → full.
     expect(tracker.observe({ ...base, credits: 1100 }, 1000, false).credits?.tier).toBe('full');
-    // +49 scrap is under the scrap floor and under 2% → micro.
+    // +49 scrap at a 5,000 balance is under the scrap floor AND
+    // under 2% of the new balance (49/5049 ≈ 0.97%) → micro.
     const t2 = createStripPulseTracker();
-    t2.observe(base, 0, false);
-    expect(t2.observe({ ...base, scrap: 549 }, 1000, false).scrap?.tier).toBe('micro');
+    t2.observe({ ...base, scrap: 5000 }, 0, false);
+    expect(t2.observe({ ...base, scrap: 5049 }, 1000, false).scrap?.tier).toBe('micro');
     // +50 scrap = the scrap floor → full.
     const t3 = createStripPulseTracker();
     t3.observe(base, 0, false);
