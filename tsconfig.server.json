@@ -7,11 +7,9 @@
     "types": ["node"],
     "skipLibCheck": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
-    "ignoreDeprecations": "6.0",
     "noFallthroughCasesInSwitch": true
   },
   "include": [
