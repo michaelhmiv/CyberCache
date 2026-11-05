@@ -13,6 +13,7 @@ import { generateShield } from '@/server/lib/generators/shieldGenerator';
 import { generateClassMod } from '@/server/lib/generators/classModGenerator';
 import { generateRelic } from '@/server/lib/generators/relicGenerator';
 import { generateOrdnance } from '@/server/lib/generators/ordnanceGenerator';
+import { DropSource } from '@/types/game';
 describe('Chef determinism', () => {
   const PLAYER = '00000000-0000-0000-0000-000000000001';
   const AREA = 'dustwaste_frontier';
@@ -46,7 +47,7 @@ describe('Chef determinism', () => {
     const rng2 = createTickRng(PLAYER, AREA, TICK);
 
     const opts = {
-      source: 'World Drop' as const,
+      source: DropSource.WorldDrop,
       level: 5,
       forcedType: undefined,
       forcedRarity: undefined,

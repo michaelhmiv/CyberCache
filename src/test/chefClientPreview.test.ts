@@ -8,6 +8,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
+import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 
 describe('Client preview events are cosmetic', () => {
   beforeEach(() => {
@@ -21,10 +22,10 @@ describe('Client preview events are cosmetic', () => {
         id: 'item-1',
         name: 'Test Weapon',
         level: 5,
-        rarity: 'Rare' as const,
-        weaponType: 'SMG' as const,
-        manufacturer: 'Redline' as const,
-        element: 'Fire' as const,
+        rarity: Rarity.Rare,
+        weaponType: WeaponType.SMG,
+        manufacturer: Manufacturer.Redline,
+        element: Element.Fire,
         rollQuality: 75,
         baseDamage: 100,
         attackSpeed: 1.2,
@@ -41,7 +42,7 @@ describe('Client preview events are cosmetic', () => {
         scrapYieldMod: 0,
         parts: [],
         affixes: [],
-        sourceTag: 'World Drop' as const,
+        sourceTag: DropSource.WorldDrop,
         isLocked: false,
         pixelSeed: 12345,
         combatPower: 100,
@@ -65,10 +66,10 @@ describe('Client preview events are cosmetic', () => {
       id: 'existing-item',
       name: 'Old Weapon',
       level: 1,
-      rarity: 'Common' as const,
-      weaponType: 'Pistol' as const,
-      manufacturer: 'Ironwood' as const,
-      element: 'Kinetic' as const,
+      rarity: Rarity.Common,
+      weaponType: WeaponType.Pistol,
+      manufacturer: Manufacturer.Ironwood,
+      element: Element.Kinetic,
       rollQuality: 50,
       baseDamage: 10,
       attackSpeed: 1.0,
@@ -85,7 +86,7 @@ describe('Client preview events are cosmetic', () => {
       scrapYieldMod: 0,
       parts: [],
       affixes: [],
-      sourceTag: 'World Drop' as const,
+      sourceTag: DropSource.WorldDrop,
       isLocked: false,
       pixelSeed: 999,
       combatPower: 10,
