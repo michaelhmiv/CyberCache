@@ -188,8 +188,10 @@ export interface ListingRowProps {
   reduceMotion: boolean | null;
   /** Render-time clock snapshot (the parent's render pass). */
   now: number;
-  /** Buy lane: the seller's hunter name (sellerDisplayName). */
-  sellerName?: string;
+  /** Buy lane: the labeled counterparty ("Seller · {hunter name}",
+   *  composed by the parent from sellerDisplayName — a name, §1,
+   *  never an id). */
+  sellerLabel?: React.ReactNode;
   /** Real-sales stats for the listing's identity key, when known. */
   stats?: PriceStats;
   /** Mine lane: the net-proceeds line ("You receive … after the … fee"). */
@@ -203,7 +205,7 @@ export interface ListingRowProps {
 }
 
 export const ListingRow: React.FC<ListingRowProps> = ({
-  listing, index, reduceMotion, now, sellerName, stats, netLine, onInspect, onShowUsage, action,
+  listing, index, reduceMotion, now, sellerLabel, stats, netLine, onInspect, onShowUsage, action,
 }) => {
   const item = listing.itemSnapshot;
   const vehicle = listing.vehicleSnapshot;
@@ -229,7 +231,7 @@ export const ListingRow: React.FC<ListingRowProps> = ({
     const headline = gearRowHeadline(item);
     fact = [
       headline.label ? `${headline.label} ${headline.value}` : headline.value,
-      sellerName,
+      sellerLabel,
       med,
       age,
     ];
@@ -239,7 +241,7 @@ export const ListingRow: React.FC<ListingRowProps> = ({
     fact = [
       def?.displayName ?? vehicle.vehicleClassId,
       `Cond ${conditionPct}%`,
-      sellerName,
+      sellerLabel,
       med,
       age,
     ];
@@ -248,7 +250,7 @@ export const ListingRow: React.FC<ListingRowProps> = ({
     fact = [
       def ? `${skinSetById(def.setId)?.name ?? def.setId} · ${def.slot}` : 'Skin part',
       listing.qualityPercent !== null && listing.qualityPercent !== undefined ? `Q${Math.round(listing.qualityPercent)}%` : null,
-      sellerName,
+      sellerLabel,
       age,
     ];
   } else {
@@ -256,7 +258,7 @@ export const ListingRow: React.FC<ListingRowProps> = ({
       listing.quantity > 1 ? `×${listing.quantity}` : null,
       listing.kind === 'consumable' ? `${Math.round(listing.qualityPercent ?? 100)}% quality` : null,
       listing.quantity > 1 && listing.unitPrice > 0 ? `${fmt(listing.unitPrice)}cr ea` : null,
-      sellerName,
+      sellerLabel,
       medPerUnit,
       age,
     ];
