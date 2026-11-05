@@ -204,6 +204,23 @@ confirm first, with the epic count stated. Locked and equipped items
 are always left alone, and **Legendaries are never bulk-scrapped** —
 they are salvaged one at a time from the item's inspect sheet.
 
+**Auto-Salvage Rules** (in Settings) put that same breakdown on
+autopilot for fresh drops. Set a max rarity (up to **Epic** — never
+Legendary), a max roll quality, and a yield: **Scrap**, or
+**Materials**, which breaks each item down into +1 of its kind's
+crafting material instead (weapons → Ballistic Parts, shields and
+ordnance → Reactive Components, class mods and relics → Tech) and
+reports the scrap you traded away. Whenever a **roaming claim** or an
+**offline settlement** stores new drops, each drop at or under both
+caps is salvaged on the spot, for exactly what manual salvage would
+have paid — skill bonuses like Hoarder's Instinct included. Boss
+loot, cache contents, market deliveries, and crafted items are never
+auto-salvaged, and the rule never reaches back into your existing
+bag: it only ever sees the drops a settlement just brought in. Every
+auto-salvage is announced — a feed line per item, a summary in the
+claim and the offline recap, and a marked record in the
+[[Activity-Log]].
+
 ## Reforge: fix one affix
 
 The **reforge bench** rerolls **one** rolled affix on a weapon, shield,
