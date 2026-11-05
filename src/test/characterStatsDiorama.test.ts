@@ -53,7 +53,6 @@ function makePlayer(overrides: Partial<PlayerProfile> = {}): PlayerProfile {
     credits: 0,
     scrap: 0,
     cacheKeys: 0,
-    cacheKeyFragments: 0,
     legendaryCores: 0,
     currentZoneId: 'dustwaste',
     highestZoneId: 'dustwaste',
@@ -210,7 +209,7 @@ describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () =>
     // uses the cyan tone.
     const player = makePlayer();
     const weapon = makeWeapon({ id: 'w1' });
-    const shield = { id: 's1', name: 'Test Shield', kind: 'Shield' as const, rarity: 0, level: 1, hp: 200, mitigation: 0.1, abilities: [], affixes: [], sourceTag: 'World Drop' as const, isLocked: false, pixelSeed: 0 };
+    const shield = { id: 's1', name: 'Test Shield', kind: 'Shield' as const, rarity: Rarity.Common, level: 1, hp: 200, rechargeRate: 11.5, mitigation: 0.1, element: Element.Kinetic, abilities: [], affixes: [], sourceTag: DropSource.WorldDrop, isLocked: false, pixelSeed: 0 };
     const summary = buildCharacterStatSummary({ player, weapons: [weapon], shield, spentSkills: {} });
     const healthMetric = summary.all.find((metric) => metric.key === 'health')!;
     expect(healthMetric.stacked).toBeDefined();
@@ -262,7 +261,7 @@ describe('buildCharacterStatSummary — HUD label disambiguation (PR #1)', () =>
     // readers). The segment only appears when it has width.
     const player = makePlayer();
     const weapon = makeWeapon({ id: 'w1' });
-    const zeroMitShield = { id: 's1', name: 'Zero Mit Shield', kind: 'Shield' as const, rarity: 0, level: 1, hp: 100, mitigation: 0, abilities: [], affixes: [], sourceTag: 'World Drop' as const, isLocked: false, pixelSeed: 0 };
+    const zeroMitShield = { id: 's1', name: 'Zero Mit Shield', kind: 'Shield' as const, rarity: Rarity.Common, level: 1, hp: 100, rechargeRate: 11.5, mitigation: 0, element: Element.Kinetic, abilities: [], affixes: [], sourceTag: DropSource.WorldDrop, isLocked: false, pixelSeed: 0 };
     const summary = buildCharacterStatSummary({ player, weapons: [weapon], shield: zeroMitShield, spentSkills: {} });
     const healthMetric = summary.all.find((metric) => metric.key === 'health')!;
     const labels = healthMetric.stacked!.map((segment) => segment.label);

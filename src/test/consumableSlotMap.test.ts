@@ -16,6 +16,7 @@ describe('readConsumableSlots', () => {
         shield: null,
         classMod: null,
         relic: null,
+        vehicle: null,
       },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
