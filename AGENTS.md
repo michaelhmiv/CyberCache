@@ -88,7 +88,7 @@ Run from repo root when possible:
 2. `npm run build`
 3. `npm run lint`
 4. `bash scripts/guard-architecture.sh`
-5. `npx tsc --noEmit`
+5. `npm run typecheck` (the root tsconfig is a solution file with `files: []` — a bare `npx tsc --noEmit` checks nothing; the script runs the app, node, and server configs)
 6. Wiki check (when the change touches a mapped gameplay source): `node scripts/check-wiki-map.mjs` — its page must be updated in the same PR, or the PR body carries `wiki-impact: none`.
 
 If any command fails, report whether it appears pre-existing or introduced by the change.
