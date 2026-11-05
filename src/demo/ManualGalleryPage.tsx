@@ -29,7 +29,7 @@
  * unicode glyphs are dropped: in this register color is light
  * and action, never a section's paint.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { SECTIONS, TOUR_STEPS, type HelpSection } from '@/screens/HelpScreen';
 import {
@@ -166,13 +166,20 @@ export const ManualGalleryPage: React.FC<ManualGalleryPageProps> = ({
     );
   }, [query, searching]);
 
+  // A room change starts at the room's top — the exhibition's
+  // scroll container keeps its position across views otherwise.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    rootRef.current?.scrollIntoView({ block: 'start' });
+  }, [view]);
+
   const openSection = (id: string) => setView({ kind: 'section', id });
   const sectionIndex = view.kind === 'section' ? SECTIONS.findIndex((s) => s.id === view.id) : -1;
   const section: HelpSection | undefined = sectionIndex >= 0 ? SECTIONS[sectionIndex] : undefined;
   const step = TOUR_STEPS[tourStep];
 
   return (
-    <div data-testid="manual-gallery">
+    <div data-testid="manual-gallery" ref={rootRef}>
       {view.kind === 'index' && (
         <>
           {/* ── THE WALL LABEL — title first, then the wall text ── */}
