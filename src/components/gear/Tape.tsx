@@ -1,7 +1,7 @@
 import React from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
-export const panelClip = { clipPath: 'polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)' };
+const panelClip = { clipPath: 'polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)' };
 
 /**
  * Tape — the inspect sheet's section grammar (DESIGN.md §1: One
