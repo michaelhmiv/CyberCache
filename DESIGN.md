@@ -73,6 +73,23 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   a matched pair at one height on their respective sides), over the
   enemy's lower body — never its face. The BOSS plate does not move: its
   under-the-boss ground-line anchor stays exactly as ruled in 2026-11-02.*
+  *Owner rework 2026-11-04 (from the device, superseding the stage-controls
+  and area-door parts of the 2026-11-02 rulings above): the "arrows" on
+  the stage — the Switch Action chip's swap glyph — are REMOVED, and Stop
+  moves left into the vacated corner: the stage carries Stop alone, only
+  while an action runs, and no controls at all at standby. The Switch
+  sheet survives (it is Salvage's door from Home); its opener moves into
+  the standby and roaming workspace panels. Area switching leaves the
+  rail: there is no AREA stop — Roam is the area door (§2/§3). And the
+  ONE-STAGE LAW: Home has exactly one animated stage — this Stage. Every
+  activity's scene renders here while that activity is the active action
+  (Extraction's scene included — it fell through to the camp vista while
+  its workspace duplicated the scene below); workspaces and panels carry
+  controls and information only, never a second animated scene. A still
+  poster header is acceptable where a panel needs a visual. The Boss and
+  Endless panels' combat-resolution playback is not a scene in this
+  sense: it animates the Chef's returned result (ARCHITECTURE.md), it
+  does not duplicate the Stage.*
 - **The Rail** — one compact chip rail for modes and sections (Home modes, Gear
   stops, Market stops, Hunter stops), current state lit. The rail is a screen's
   table of contents: every stop is a destination, not a scroll position.
@@ -151,7 +168,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 
 | Tab | Rail / composition | Holds |
 |---|---|---|
-| **Home** | Rail, then Stage: `Area · Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The rail leads the screen (owner ruling 2026-11-04); the belt sits in the rail's vacated slot under the stage, and the lit mode's workspace under the belt; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. |
+| **Home** | Rail, then Stage: `Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The rail leads the screen (owner ruling 2026-11-04); the belt sits in the rail's vacated slot under the stage, and the lit mode's workspace under the belt; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. There is no Area stop (owner rework 2026-11-04): Roam is the area door — entering roam auto-opens the area picker, and tapping Roam while roaming opens it alone. |
 | **Gear** | Rail: `Loadout · Workshop` | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop door row at its foot; the bench keeps its own stop. |
 | **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk` | Player market, NPC storefront, the two service boards as separate stops, and manufacturer standing at its own desk. |
 | **Hunter** | Rail: `Profile · Collections · Cache Rank · Research · Skill Trees · Standings · Account` | The hunter's record: profile + Trophy Shelf, collections and cores, ranks, courses, trees, the weekly races behind the Standings door, and account/settings/manual. |
@@ -162,7 +179,10 @@ Rules:
   accents. Do not merge them into a single "Services" stop with an internal switch
   (v1 proposed this; the surfacing spec reversed it).
 - **Salvage is not a Home rail stop.** Salvage is a transaction on an item: it lives
-  on the inspect sheet and in Gear. Home's rail is exactly the six modes above.
+  on the inspect sheet and in Gear. Home's rail is exactly the five modes above.
+  From Home it is reached through the Switch Action sheet, whose door rides
+  the standby and roaming workspace panels (owner rework 2026-11-04 — the
+  door's swap-arrow chip left the stage; Stop took the corner).
 - **Market opens on Buy.** Sell, My Listings ("Mine" segment) and History
   ("History" segment) live on the Sell stop.
 - A tab's rail stops are destinations with stable order. Adding a stop requires
@@ -178,9 +198,14 @@ replace the canonical one. (Tap depths are governed by §9.)
 
 ### Home
 
-- **Stage + rail modes:** Roam (hero rundown + workspace) · Area (one picker sheet,
-  two openers: rail Area, workspace Change Area) · Boss (select sheet → prep
-  poster sheet) · Endless (rail stop) · Extract (rail stop) · Craft (the action;
+- **Stage + rail modes:** Roam (hero rundown + workspace; Roam is also the
+  area door — one picker sheet, two openers: rail Roam, which auto-opens it
+  on entry and opens it alone while roaming, and the workspace panels'
+  Change Area buttons; the rail's separate Area stop was removed by owner
+  ruling 2026-11-04) · Boss (select sheet → prep poster sheet) · Endless
+  (rail stop) · Extract (rail stop; its scene rides the Stage while it is
+  the active action — the workspace panel carries a still poster header
+  and its controls only, per the one-stage law, §1) · Craft (the action;
   its panel prints an "Open Workshop" door to the Gear bench — the action is
   **Craft** here, the bench is **Workshop** there; never label both "Crafting").
 - **The hero rundown** is attached to the stage's foot (§1): the hunter's
@@ -326,11 +351,14 @@ player needs each block.
    and the login streak — an announcement, not a claimable: its reward
    banks on arrival and its chip pulses only until acknowledged (§9).
    (Absences under 5 minutes still settle silently; the Return Sheet is §10.)
-3. **The mode rail** — `Area · Roam · Boss · Endless · Extract · Craft`
+3. **The mode rail** — `Roam · Boss · Endless · Extract · Craft`
    (owner ruling 2026-11-04: the rail leads the Stage; it sat at step 4,
-   under the stage, until the swap).
-4. **The Stage** — count plate, combat HP plates, icon-only action controls
-   (44px swap/stop glyph squares, top-left). Attached to its foot: **the hero
+   under the stage, until the swap; the same day's rework removed the
+   Area stop — Roam is the area door, §3).
+4. **The Stage** — count plate, combat HP plates, the icon-only Stop
+   control (44px stop glyph square, top-left, only while an action runs —
+   the swap-arrow Switch chip left the stage in the 2026-11-04 rework;
+   its sheet's door rides the workspace panels). Attached to its foot: **the hero
    rundown** (two rows — DPS · Dmg/tick · Crit % · Crit × over HP · Shield ·
    Mit · Shield Break — each tappable into its source breakdown; the buff
    line under it while anything is active).
