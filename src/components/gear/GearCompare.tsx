@@ -1,107 +1,163 @@
 /**
  * GearCompare — shared inline comparison strip for gear swap UIs.
  *
- * Shows per-type key stat deltas (green ↑ better, red ↓ worse, = equal)
- * against a currently equipped item. Used by SlotGearPicker and
- * SyncedLoadoutScreen to give players apples-to-apples comparison
- * when selecting replacement gear.
+ * Shows per-type key stat deltas against the currently equipped
+ * item: signed text (+5 / -3 / =) in green / red / muted — the
+ * game's delta language (heroRundown's stageStatDelta), never
+ * unicode arrows, never below the 11px type floor (DESIGN.md §5/§7).
+ * Consumers: SlotGearPicker rows and MarketScreen Buy-lane cards.
+ *
+ * This is the STAT layer only: direct item fields, DPS through
+ * dpsChain, zero build math. The build-layer consequence of a swap
+ * ("The Trade") lives in the inspect sheet and runs the character
+ * stat summary once per opened sheet — rows render in the hundreds
+ * on deep inventories and must stay O(item) (gear-freeze rule).
+ *
+ * Direction of "better" is declared per stat, never assumed from
+ * the sign alone (the ConsumableCompare discipline): every entry
+ * carries its own verdict, and facts with no honest verdict —
+ * element, shield behavior, recharge (no engine consumes
+ * rechargeRate; ARCHITECTURE.md shield-defense row) — print as
+ * neutral lines, never green/red.
  */
 import React from 'react';
-import type { GearItem, Weapon } from '@/types/items';
+import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
+import { computeStandardDps } from '@/lib/stats/dpsChain';
+import { formatSignedPct, formatWhole } from '@/lib/stats/formatStat';
+import { SKILL_NODES } from '@/constants/skillTrees';
 
 // ── Type Guards ──────────────────────────────────────────────────────────────
 
 const isWeapon = (item: GearItem): item is Weapon => 'weaponType' in item;
-const isShield = (item: GearItem): item is { hp: number; mitigation: number; rechargeRate: number; element?: string } =>
-  'hp' in item && !isWeapon(item);
-const isClassMod = (item: GearItem): item is { treeBonus: string; nodeBoosts: Record<string, number> } =>
-  'treeBonus' in item;
-const isOrdnance = (item: GearItem): item is { damage: number; shieldDamage: number; armorDamage: number; element?: string; effect: string } =>
-  'damage' in item && 'effect' in item && !isWeapon(item);
-const isRelic = (item: GearItem): item is { affixes: unknown[] } =>
+const isShield = (item: GearItem): item is Shield => 'hp' in item && !isWeapon(item);
+const isClassMod = (item: GearItem): item is ClassMod => 'treeBonus' in item;
+const isOrdnance = (item: GearItem): item is Ordnance => 'damage' in item && 'effect' in item && !isWeapon(item);
+const isRelic = (item: GearItem): item is Relic =>
   !isWeapon(item) && !isShield(item) && !isClassMod(item) && !isOrdnance(item);
 
 // ── Delta Helpers ────────────────────────────────────────────────────────────
 
-function delta(current: number, candidate: number, fmt?: (v: number) => string): string {
-  const diff = candidate - current;
-  if (diff === 0) return '=';
-  const sign = diff > 0 ? '+' : '';
-  const val = fmt ? fmt(diff) : String(Math.round(diff));
-  return diff > 0 ? `↑ ${sign}${val}` : `↓ ${sign}${val}`;
+interface DeltaEntry {
+  label: string;
+  text: string;
+  /** true = gain (green), false = loss (red), null = neutral / equal (muted). */
+  better: boolean | null;
 }
 
-function deltaPct(current: number, candidate: number): string {
-  return delta(current, candidate, (v) => `${Math.round(v * 100)}%`);
+/** Signed whole-number delta; '=' when unchanged. Higher is better. */
+function numDelta(label: string, current: number, candidate: number, fmt: (v: number) => string = (v) => formatWhole(v)): DeltaEntry {
+  const diff = candidate - current;
+  if (diff === 0) return { label, text: '=', better: null };
+  return { label, text: `${diff > 0 ? '+' : ''}${fmt(diff)}`, better: diff > 0 };
 }
+
+/** Signed percentage-point delta for fraction fields (0.05 -> "+5%"). */
+function pctDelta(label: string, current: number, candidate: number): DeltaEntry {
+  const diff = candidate - current;
+  if (diff === 0) return { label, text: '=', better: null };
+  return { label, text: formatSignedPct(diff), better: diff > 0 };
+}
+
+/** A fact with no better/worse verdict — printed muted, always. */
+function fact(label: string, text: string): DeltaEntry {
+  return { label, text, better: null };
+}
+
+const skillNodeName = (nodeId: string) =>
+  SKILL_NODES.find((node) => node.id === nodeId)?.name ?? nodeId;
 
 // ── Per-Type Comparison Rows ─────────────────────────────────────────────────
 
-interface DeltaEntry {
-  label: string;
-  delta: string;
-  better: boolean | null; // null = neutral/equal
-}
-
 function weaponDeltas(current: Weapon, candidate: Weapon): DeltaEntry[] {
   return [
-    { label: 'PWR', delta: delta(current.combatPower, candidate.combatPower), better: candidate.combatPower > current.combatPower ? true : candidate.combatPower < current.combatPower ? false : null },
-    { label: 'DMG', delta: delta(current.baseDamage, candidate.baseDamage), better: candidate.baseDamage > current.baseDamage ? true : candidate.baseDamage < current.baseDamage ? false : null },
-    { label: 'Crit', delta: deltaPct(current.critChance, candidate.critChance), better: candidate.critChance > current.critChance ? true : candidate.critChance < current.critChance ? false : null },
-    { label: 'AtkSpd', delta: delta(current.attackSpeed, candidate.attackSpeed, (v) => v.toFixed(1)), better: candidate.attackSpeed > current.attackSpeed ? true : candidate.attackSpeed < current.attackSpeed ? false : null },
-    { label: 'Boss%', delta: deltaPct(current.bossDamageMod, candidate.bossDamageMod), better: candidate.bossDamageMod > current.bossDamageMod ? true : candidate.bossDamageMod < current.bossDamageMod ? false : null },
-    { label: 'Ele', delta: current.element !== candidate.element ? `${current.element} → ${candidate.element}` : current.element, better: null },
+    // DPS first: the number the inspect sheet leads with and the
+    // number players sort by (dpsChain via computeStandardDps —
+    // the only DPS math).
+    numDelta('DPS', computeStandardDps(current), computeStandardDps(candidate)),
+    numDelta('DMG', current.baseDamage, candidate.baseDamage),
+    pctDelta('Crit', current.critChance, candidate.critChance),
+    numDelta('AtkSpd', current.attackSpeed, candidate.attackSpeed, (v) => v.toFixed(1)),
+    pctDelta('CritDmg', current.critDamage, candidate.critDamage),
+    pctDelta('Boss%', current.bossDamageMod, candidate.bossDamageMod),
+    pctDelta('Offline%', current.offlineEarningsMod, candidate.offlineEarningsMod),
+    pctDelta('Shield', current.shieldDamageMod, candidate.shieldDamageMod),
+    pctDelta('Armor', current.armorDamageMod, candidate.armorDamageMod),
+    fact('Ele', current.element !== candidate.element ? `${current.element} to ${candidate.element}` : current.element),
   ];
 }
 
-function shieldDeltas(current: ReturnType<typeof isShield> extends true ? GearItem : never, candidate: GearItem): DeltaEntry[] {
-  const c = current as { hp: number; mitigation: number; rechargeRate: number; element?: string };
-  const t = candidate as { hp: number; mitigation: number; rechargeRate: number; element?: string };
-  const cBehavior = SHIELD_BEHAVIORS[shieldBehaviorOf(c)].name;
-  const tBehavior = SHIELD_BEHAVIORS[shieldBehaviorOf(t)].name;
+function shieldDeltas(current: Shield, candidate: Shield): DeltaEntry[] {
+  const cBehavior = SHIELD_BEHAVIORS[shieldBehaviorOf(current)].name;
+  const tBehavior = SHIELD_BEHAVIORS[shieldBehaviorOf(candidate)].name;
   return [
-    { label: 'HP', delta: delta(c.hp, t.hp), better: t.hp > c.hp ? true : t.hp < c.hp ? false : null },
-    { label: 'Mit', delta: deltaPct(c.mitigation, t.mitigation), better: t.mitigation > c.mitigation ? true : t.mitigation < c.mitigation ? false : null },
-    { label: 'Rech', delta: delta(c.rechargeRate, t.rechargeRate), better: t.rechargeRate > c.rechargeRate ? true : t.rechargeRate < c.rechargeRate ? false : null },
-    { label: 'Ele', delta: (c.element || '—') !== (t.element || '—') ? `${c.element || '—'} → ${t.element || '—'}` : (t.element || '—'), better: null },
-    { label: 'Behav', delta: cBehavior !== tBehavior ? `${cBehavior} → ${tBehavior}` : tBehavior, better: null },
+    numDelta('HP', current.hp, candidate.hp),
+    pctDelta('Mit', current.mitigation, candidate.mitigation),
+    // Recharge is an item FACT only: no engine consumes
+    // rechargeRate, so its delta is never colored as a trade.
+    (() => {
+      const entry = numDelta('Rech', current.rechargeRate, candidate.rechargeRate);
+      return { ...entry, better: null };
+    })(),
+    fact('Ele', (current.element || '—') !== (candidate.element || '—') ? `${current.element || '—'} to ${candidate.element || '—'}` : (candidate.element || '—')),
+    fact('Behav', cBehavior !== tBehavior ? `${cBehavior} to ${tBehavior}` : tBehavior),
   ];
 }
 
-function classModDeltas(current: ReturnType<typeof isClassMod> extends true ? GearItem : never, candidate: GearItem): DeltaEntry[] {
-  const c = current as { treeBonus: string; nodeBoosts: Record<string, number> };
-  const t = candidate as { treeBonus: string; nodeBoosts: Record<string, number> };
-  const cBoost = Object.values(c.nodeBoosts).reduce((s, v) => s + v, 0);
-  const tBoost = Object.values(t.nodeBoosts).reduce((s, v) => s + v, 0);
-  const cNodes = Object.keys(c.nodeBoosts).length;
-  const tNodes = Object.keys(t.nodeBoosts).length;
-  return [
-    { label: 'Tree', delta: c.treeBonus !== t.treeBonus ? `${c.treeBonus} → ${t.treeBonus}` : t.treeBonus, better: null },
-    { label: 'Nodes', delta: delta(cNodes, tNodes), better: tNodes > cNodes ? true : tNodes < cNodes ? false : null },
-    { label: 'Boost', delta: delta(cBoost, tBoost), better: tBoost > cBoost ? true : tBoost < cBoost ? false : null },
-  ];
+function classModDeltas(current: ClassMod, candidate: ClassMod): DeltaEntry[] {
+  const entries: DeltaEntry[] = [];
+  if (current.treeBonus !== candidate.treeBonus) {
+    entries.push(fact('Tree', `${current.treeBonus} to ${candidate.treeBonus}`));
+  }
+  // Per-node boosts BY NAME — a total ("Boost +3") hides which
+  // skills move, and the skills are the trade.
+  const nodeIds = new Set([...Object.keys(current.nodeBoosts), ...Object.keys(candidate.nodeBoosts)]);
+  for (const nodeId of nodeIds) {
+    const diff = (candidate.nodeBoosts[nodeId] ?? 0) - (current.nodeBoosts[nodeId] ?? 0);
+    if (diff === 0) continue;
+    entries.push({
+      label: skillNodeName(nodeId),
+      text: `${diff > 0 ? '+' : ''}${diff}`,
+      better: diff > 0,
+    });
+  }
+  if (entries.length === 0) entries.push(fact('Boosts', '='));
+  return entries;
 }
 
-function ordnanceDeltas(current: ReturnType<typeof isOrdnance> extends true ? GearItem : never, candidate: GearItem): DeltaEntry[] {
-  const c = current as { damage: number; shieldDamage: number; armorDamage: number; element?: string; effect: string };
-  const t = candidate as { damage: number; shieldDamage: number; armorDamage: number; element?: string; effect: string };
-  return [
-    { label: 'DMG', delta: delta(c.damage, t.damage), better: t.damage > c.damage ? true : t.damage < c.damage ? false : null },
-    { label: 'Shield', delta: delta(c.shieldDamage, t.shieldDamage), better: t.shieldDamage > c.shieldDamage ? true : t.shieldDamage < c.shieldDamage ? false : null },
-    { label: 'Armor', delta: delta(c.armorDamage, t.armorDamage), better: t.armorDamage > c.armorDamage ? true : t.armorDamage < c.armorDamage ? false : null },
-    { label: 'Ele', delta: (c.element || '—') !== (t.element || '—') ? `${c.element || '—'} → ${t.element || '—'}` : (t.element || '—'), better: null },
+function ordnanceDeltas(current: Ordnance, candidate: Ordnance): DeltaEntry[] {
+  const entries: DeltaEntry[] = [
+    numDelta('Payload', current.damage, candidate.damage),
+    numDelta('Shield', current.shieldDamage, candidate.shieldDamage),
+    numDelta('Armor', current.armorDamage, candidate.armorDamage),
+    fact('Ele', (current.element || '—') !== (candidate.element || '—') ? `${current.element || '—'} to ${candidate.element || '—'}` : (candidate.element || '—')),
   ];
+  if (current.effect !== candidate.effect) {
+    entries.push(fact('Effect', `${current.effect} to ${candidate.effect}`));
+  }
+  return entries;
 }
 
-function relicDeltas(current: ReturnType<typeof isRelic> extends true ? GearItem : never, candidate: GearItem): DeltaEntry[] {
-  const c = current as { affixes?: unknown[] };
-  const t = candidate as { affixes?: unknown[] };
-  const cCount = c.affixes?.length ?? 0;
-  const tCount = t.affixes?.length ?? 0;
-  return [
-    { label: 'Affixes', delta: delta(cCount, tCount), better: tCount > cCount ? true : tCount < cCount ? false : null },
+function relicDeltas(current: Relic, candidate: Relic): DeltaEntry[] {
+  // Affix-by-affix, by displayText — a bare count ("Affixes -1")
+  // was the old strip's whole answer for the kind whose identity
+  // IS its affixes. Multiset diff so duplicated texts count.
+  const remaining = new Map<string, number>();
+  for (const affix of current.affixes) remaining.set(affix.displayText, (remaining.get(affix.displayText) ?? 0) + 1);
+  const gained: string[] = [];
+  for (const affix of candidate.affixes) {
+    const left = remaining.get(affix.displayText) ?? 0;
+    if (left > 0) remaining.set(affix.displayText, left - 1);
+    else gained.push(affix.displayText);
+  }
+  const lost: string[] = [];
+  for (const [text, count] of remaining) for (let i = 0; i < count; i += 1) lost.push(text);
+  const entries: DeltaEntry[] = [
+    ...gained.map((text) => ({ label: 'Affix', text, better: true as boolean | null })),
+    ...lost.map((text) => ({ label: 'Affix', text, better: false as boolean | null })),
   ];
+  if (entries.length === 0) entries.push(fact('Affixes', '='));
+  return entries;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -109,7 +165,7 @@ function relicDeltas(current: ReturnType<typeof isRelic> extends true ? GearItem
 interface GearCompareProps {
   current: GearItem;
   candidate: GearItem;
-  compact?: boolean; // fewer rows for tight spaces
+  compact?: boolean; // fewer entries for tight rows — sheds the tail, never shrinks type
 }
 
 export const GearCompare: React.FC<GearCompareProps> = ({ current, candidate, compact = false }) => {
@@ -134,18 +190,18 @@ export const GearCompare: React.FC<GearCompareProps> = ({ current, candidate, co
 
   return (
     <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1">
-      {deltas.map((d) => {
+      {deltas.map((d, i) => {
         const isUp = d.better === true;
         const isDown = d.better === false;
         return (
           <span
-            key={d.label}
-            className={`text-[9px] font-black inline-flex items-center gap-0.5 ${
+            key={`${d.label}-${i}`}
+            className={`text-[11px] font-black inline-flex items-center gap-1 ${
               isUp ? 'text-green' : isDown ? 'text-red' : 'text-text-muted'
             }`}
           >
-            <span className="text-[8px] text-text-muted/70">{d.label}</span>
-            {d.delta}
+            <span className="text-text-muted/70">{d.label}</span>
+            {d.text}
           </span>
         );
       })}
