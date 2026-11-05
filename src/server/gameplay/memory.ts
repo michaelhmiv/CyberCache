@@ -452,7 +452,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   }>();
   /** Research completions (0038): playerId → courseId → completed_at (ISO). */
   readonly researchCompletions = new Map<string, Map<string, string>>();
-  /** Login-streak claim rows (0036): `${playerId}:${day}` → the claim. */
+  /** Login-streak claim rows (0036 + 0079): `${playerId}:${day}` → the claim.
+   *  `paid` mirrors the row's paid_at stamp — the payment anchor. */
   readonly loginStreakClaims = new Map<string, {
     day: string;
     streak_length: number;
@@ -461,6 +462,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     credits_awarded: number;
     fragments_awarded: number;
     cache_keys_awarded: number;
+    paid: boolean;
   }>();
 
   /**
@@ -902,10 +904,12 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return result;
   }
 
-  // ─── Login streak (0036) ─────────────────────────────────────────
-  // Mirrors cc_record_login_streak_day: same streak arithmetic,
-  // same ladder + lever scalars, same claim-row idempotency, same
-  // ledger payload shape.
+  // ─── Login streak (0036 + 0079) ────────────────────────────────
+  // Mirrors cc_record_login_streak_day (records the day, holds the
+  // reward unpaid) and cc_claim_login_streak_day (pays it once):
+  // same streak arithmetic, same ladder + lever scalars, same
+  // claim-row idempotency, same ledger payload shape — written at
+  // claim time, not record time.
 
   async getLoginStreakFacts(playerId: string): Promise<LoginStreakFacts | null> {
     const p = this.profiles.get(playerId);
@@ -922,7 +926,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     };
   }
 
-  /** cc_record_login_streak_day mirror: the (player, day) claim row is the idempotency anchor. */
+  /** cc_record_login_streak_day mirror (0079): the (player, day)
+   *  claim row is the RECORD anchor — recording credits nothing;
+   *  the reward waits on the row until claimLoginStreakDay pays it. */
   async recordLoginStreakDay(playerId: string): Promise<Json> {
     const p = this.requireProfile(playerId);
     const today = loginStreakUtcDay(this.now());
@@ -932,6 +938,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       return {
         action_type: 'cc_login_streak_claim',
         already_claimed: true,
+        claimable: !prior.paid,
         day: prior.day,
         streak_length: prior.streak_length,
         cycle_day: prior.cycle_day,
@@ -952,9 +959,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const streakLength = loginStreakLengthAfter(state.last_claim_day, state.current_streak, today);
     const position = loginStreakPositionFor(streakLength);
     const grant = loginStreakGrantFor(position.cycleDay, position.tier, this.loginStreakLevers());
-    p.credits += grant.credits;
-    p.cache_token_parts = (p.cache_token_parts ?? 0) + grant.fragments;
-    p.cache_tokens += grant.cacheKeys;
     const claim = {
       day: today,
       streak_length: streakLength,
@@ -963,6 +967,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       credits_awarded: grant.credits,
       fragments_awarded: grant.fragments,
       cache_keys_awarded: grant.cacheKeys,
+      paid: false,
     };
     this.loginStreakClaims.set(claimKey, claim);
     state.current_streak = streakLength;
@@ -971,9 +976,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     state.last_cycle_day = position.cycleDay;
     state.last_tier = position.tier;
     this.loginStreakStates.set(playerId, state);
-    const result: Json = {
+    return {
       action_type: 'cc_login_streak_claim',
       already_claimed: false,
+      claimable: true,
       day: today,
       streak_length: streakLength,
       cycle_day: position.cycleDay,
@@ -981,6 +987,50 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       credits_awarded: grant.credits,
       fragments_awarded: grant.fragments,
       cache_keys_awarded: grant.cacheKeys,
+      profile: this.snapshot(p),
+    };
+  }
+
+  /** cc_claim_login_streak_day mirror (0079): pays TODAY's recorded
+   *  row exactly once — `paid` is the anchor; a replay pays nothing.
+   *  Only today's row is reachable, so an unpaid row from a previous
+   *  day is expired. The ledger entry lands here, at claim time. */
+  async claimLoginStreakDay(playerId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const today = loginStreakUtcDay(this.now());
+    const claimKey = `${playerId}:${today}`;
+    const claim = this.loginStreakClaims.get(claimKey);
+    if (!claim) throw new Error('No streak reward recorded today');
+    if (claim.paid) {
+      return {
+        action_type: 'cc_login_streak_claim',
+        already_claimed: true,
+        claimable: false,
+        day: claim.day,
+        streak_length: claim.streak_length,
+        cycle_day: claim.cycle_day,
+        tier: claim.tier,
+        credits_awarded: claim.credits_awarded,
+        fragments_awarded: claim.fragments_awarded,
+        cache_keys_awarded: claim.cache_keys_awarded,
+        profile: this.snapshot(p),
+      };
+    }
+    p.credits += claim.credits_awarded;
+    p.cache_token_parts = (p.cache_token_parts ?? 0) + claim.fragments_awarded;
+    p.cache_tokens += claim.cache_keys_awarded;
+    claim.paid = true;
+    const result: Json = {
+      action_type: 'cc_login_streak_claim',
+      already_claimed: false,
+      claimable: false,
+      day: claim.day,
+      streak_length: claim.streak_length,
+      cycle_day: claim.cycle_day,
+      tier: claim.tier,
+      credits_awarded: claim.credits_awarded,
+      fragments_awarded: claim.fragments_awarded,
+      cache_keys_awarded: claim.cache_keys_awarded,
       profile: this.snapshot(p),
     };
     this.ledger.set(`login-streak:${playerId}:${today}`, result);
