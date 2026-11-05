@@ -1,15 +1,18 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { GearItem } from '@/types/items';
 import {
   bespokeSpriteIdForGear,
   composeGearCached,
   defaultGearInput,
+  gearGridFor,
   paintGear,
   type GearComposeInput,
   type GearDensity,
   type GearGrammar,
 } from '@/lib/pixel/gearCardCompositor';
 import { getPixelSprite } from '@/lib/pixel/manifest';
+import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
+import { useDeferredArt } from './useDeferredArt';
 
 /**
  * PixelGear — renders a non-weapon gear item as pixel art through
@@ -46,6 +49,14 @@ interface PixelGearProps {
   /** Test seam: a bespoke registry override (production uses the
    *  core registry, which is empty until named gear art exists). */
   bespokeRegistry?: Readonly<Record<string, string>>;
+  /**
+   * Viewport-deferred composition (Gear cold-load fix): when set,
+   * the canvas mounts at its final geometry immediately but the
+   * compose + paint wait until the element is near the viewport
+   * (useDeferredArt). List surfaces opt in; on-screen surfaces
+   * leave it off and compose at once.
+   */
+  defer?: boolean;
 }
 
 export const PixelGear: React.FC<PixelGearProps> = React.memo(({
@@ -58,8 +69,17 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
   testId,
   density = 'card',
   bespokeRegistry,
+  defer = false,
 }: PixelGearProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { ref: deferRef, active } = useDeferredArt<HTMLCanvasElement>(defer);
+  const setCanvasRef = useCallback(
+    (el: HTMLCanvasElement | null) => {
+      canvasRef.current = el;
+      deferRef.current = el;
+    },
+    [deferRef],
+  );
 
   const resolved: GearComposeInput | undefined = useMemo(() => {
     if (input) return input;
@@ -83,8 +103,8 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
   const bespokeSprite = bespoke ? getPixelSprite(bespoke) : undefined;
 
   const render = useMemo(
-    () => (resolved && !bespokeSprite ? composeGearCached(resolved, grammar, density) : undefined),
-    [resolved, bespokeSprite, grammar, density],
+    () => (active && resolved && !bespokeSprite ? composeGearCached(resolved, grammar, density) : undefined),
+    [active, resolved, bespokeSprite, grammar, density],
   );
 
   const paintScale = density === 'card' ? CARD_PAINT_SCALE : THUMB_PAINT_SCALE;
@@ -114,11 +134,44 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
     );
   }
 
-  if (!render) return null;
+  if (!render) {
+    // Deferred and not yet activated: mount the canvas at its FINAL
+    // geometry (the plate grid is a pure function of grammar +
+    // density, so this box is exactly the box the painted canvas
+    // will occupy) with the compose + paint still pending. No
+    // layout shift when the art lands.
+    if (defer && !active && resolved && !bespokeSprite) {
+      const grid = gearGridFor(grammar, density);
+      const height = Math.round(size * (grid.height / grid.width));
+      return (
+        <canvas
+          ref={setCanvasRef}
+          width={grid.width * paintScale}
+          height={grid.height * paintScale}
+          className={className}
+          style={{
+            width: fluid ? '100%' : size,
+            height: fluid ? 'auto' : height,
+            imageRendering: 'pixelated',
+            filter:
+              resolved.rarity === 'Epic' || resolved.rarity === 'Legendary'
+                ? `drop-shadow(0 0 6px ${RARITY_FRAME_STYLES[resolved.rarity].color})`
+                : undefined,
+          }}
+          role="img"
+          aria-label={item?.name ?? `${resolved.rarity ?? ''} ${grammar.kind}`}
+          data-testid={testId}
+          data-density={density}
+          data-deferred-art="pending"
+        />
+      );
+    }
+    return null;
+  }
   const height = Math.round(size * (render.height / render.width));
   return (
     <canvas
-      ref={canvasRef}
+      ref={setCanvasRef}
       width={render.width * paintScale}
       height={render.height * paintScale}
       className={className}

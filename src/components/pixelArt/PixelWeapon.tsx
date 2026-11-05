@@ -1,16 +1,22 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Weapon } from '@/types/items';
 import {
   composePixelWeaponCached,
   paintPixelWeapon,
   pixelWeaponInputFromWeapon,
+  PIXEL_WEAPON_HEIGHT,
+  PIXEL_WEAPON_WIDTH,
   type PixelWeaponInput,
 } from '@/lib/pixel/weaponCompositor';
 import {
   composeWeaponCardCached,
   paintWeaponCard,
+  CARD_WEAPON_HEIGHT,
+  CARD_WEAPON_WIDTH,
 } from '@/lib/pixel/weaponCardCompositor';
 import { bespokeSpriteIdForWeapon, getPixelSprite } from '@/lib/pixel/manifest';
+import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
+import { useDeferredArt } from './useDeferredArt';
 
 /**
  * PixelWeapon — renders a weapon as pixel art through the parts-kit
@@ -44,10 +50,26 @@ interface PixelWeaponProps {
   testId?: string;
   /** Composition density: 'stage' 120×44 (default) or 'card' 240×88. */
   density?: 'stage' | 'card';
+  /**
+   * Viewport-deferred composition (Gear cold-load fix): when set,
+   * the canvas mounts at its final geometry immediately but the
+   * compose + paint wait until the element is near the viewport
+   * (useDeferredArt). List surfaces opt in; on-screen surfaces
+   * (loadout, inspect, diorama) leave it off and compose at once.
+   */
+  defer?: boolean;
 }
 
-export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, input, size = 120, fluid = false, className = '', testId, density = 'stage' }: PixelWeaponProps) => {
+export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, input, size = 120, fluid = false, className = '', testId, density = 'stage', defer = false }: PixelWeaponProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { ref: deferRef, active } = useDeferredArt<HTMLCanvasElement>(defer);
+  const setCanvasRef = useCallback(
+    (el: HTMLCanvasElement | null) => {
+      canvasRef.current = el;
+      deferRef.current = el;
+    },
+    [deferRef],
+  );
 
   const resolved: PixelWeaponInput | undefined = useMemo(() => {
     if (input) return input;
@@ -61,12 +83,12 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
   const paintScale = density === 'card' ? CARD_PAINT_SCALE : PAINT_SCALE;
 
   const stageRender = useMemo(
-    () => (resolved && !bespokeSprite && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
-    [resolved, bespokeSprite, density],
+    () => (active && resolved && !bespokeSprite && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
+    [active, resolved, bespokeSprite, density],
   );
   const cardRender = useMemo(
-    () => (resolved && !bespokeSprite && density === 'card' ? composeWeaponCardCached(resolved) : undefined),
-    [resolved, bespokeSprite, density],
+    () => (active && resolved && !bespokeSprite && density === 'card' ? composeWeaponCardCached(resolved) : undefined),
+    [active, resolved, bespokeSprite, density],
   );
   const render = cardRender ?? stageRender;
 
@@ -96,11 +118,46 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     );
   }
 
-  if (!render) return null;
+  if (!render) {
+    // Deferred and not yet activated: mount the canvas at its FINAL
+    // geometry (the density grids are fixed — 120×44 / 240×88 — so
+    // this box is exactly the box the painted canvas will occupy)
+    // with the compose + paint still pending. No layout shift when
+    // the art lands; the rarity glow is rarity-derived, so it can
+    // ride the placeholder unchanged.
+    if (defer && !active && resolved && !bespokeSprite) {
+      const gridW = density === 'card' ? CARD_WEAPON_WIDTH : PIXEL_WEAPON_WIDTH;
+      const gridH = density === 'card' ? CARD_WEAPON_HEIGHT : PIXEL_WEAPON_HEIGHT;
+      const height = Math.round(size * (gridH / gridW));
+      return (
+        <canvas
+          ref={setCanvasRef}
+          width={gridW * paintScale}
+          height={gridH * paintScale}
+          className={className}
+          style={{
+            width: fluid ? '100%' : size,
+            height: fluid ? 'auto' : height,
+            imageRendering: 'pixelated',
+            filter:
+              resolved.rarity === 'Epic' || resolved.rarity === 'Legendary'
+                ? `drop-shadow(0 0 6px ${RARITY_FRAME_STYLES[resolved.rarity].color})`
+                : undefined,
+          }}
+          role="img"
+          aria-label={resolved.name ?? `${resolved.rarity ?? ''} ${resolved.weaponType ?? ''}`}
+          data-testid={testId}
+          data-density={density}
+          data-deferred-art="pending"
+        />
+      );
+    }
+    return null;
+  }
   const height = Math.round(size * (render.height / render.width));
   return (
     <canvas
-      ref={canvasRef}
+      ref={setCanvasRef}
       width={render.width * paintScale}
       height={render.height * paintScale}
       className={className}
