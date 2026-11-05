@@ -237,8 +237,13 @@ replace the canonical one. (Tap depths are governed by §9.)
 
 - **Loadout (the merged page)** — ONE scroll (owner layout "Exec C, the
   Split", 2026-11-03): the doll zone — a compact figure stage sized to the
-  hunter (◦ Wardrobe door on the stage, canonical home Hunter → Profile;
-  the DPS/HP hero plate at the stage's foot), the three gun slots as full
+  hunter, frame-filling its column: the figure's frame (not the armed
+  extent) sets the size, so the hunter stands at most of the stage's
+  height and a long gun crops at the stage's right edge like a portrait,
+  receiver and grip in view (the doll fit, 2026-11-04; wide stages keep
+  the armed width law) (◦ Wardrobe door on the stage, canonical home
+  Hunter → Profile; the DPS/HP hero plate at the stage's foot), the
+  three gun slots as full
   rows down the right column (Primary as a poster row), the four
   accessories as a 2×2 band beneath — then the Garage section, § Inventory,
   § Belt & Stacks, and the Workshop door row at the foot (◦, printing
