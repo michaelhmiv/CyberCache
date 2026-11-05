@@ -106,6 +106,17 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
   syncPushRegistration: vi.fn(async () => {}),
 }));
 
+// jsdom has no IntersectionObserver; the Craft workspace mounts
+// the Workshop, whose ChipRail needs one (same stub shape as
+// workshopDirectionAScreen.test.tsx).
+globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: IntersectionObserverCallback) {
+  return {
+    observe: (target: Element) => callback([{ isIntersecting: false, target } as unknown as IntersectionObserverEntry], {} as IntersectionObserver),
+    unobserve: () => undefined,
+    disconnect: () => undefined,
+  };
+}) as unknown as typeof IntersectionObserver;
+
 import { HomeScreen } from '@/screens/HomeScreen';
 import { usePlayerStore } from '@/store';
 import { startActiveActivity } from '@/lib/api/activityService';
@@ -163,17 +174,22 @@ describe('Home mode rail — switching modes replaces the open panel (QC B2)', (
     expect(pressed('extract')).toBe('false');
   });
 
-  it('Endless → Craft: crafting starts and the endless panel is gone', async () => {
+  it('Endless → Craft: the bench replaces the endless panel; Work the Bench starts crafting', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
     fireEvent.click(await screen.findByTestId('mode-rail-endless'));
     expect(await screen.findByTestId('endless-panel')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('mode-rail-craft'));
-    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('crafting'));
-    expect(await screen.findByRole('button', { name: 'Open Workshop' })).toBeTruthy();
+    expect(await screen.findByTestId('home-craft-bench', undefined, { timeout: 10_000 })).toBeTruthy();
     expect(screen.queryByTestId('endless-panel')).toBeNull();
     expect(pressed('craft')).toBe('true');
     expect(pressed('endless')).toBe('false');
+    // The bench opened as a view (consolidation, 2026-11-04) —
+    // crafting starts from its own Work the Bench control, not
+    // from the rail tap.
+    expect(useActivityStore.getState().current.kind).not.toBe('crafting');
+    fireEvent.click(screen.getByTestId('craft-bench-work-button'));
+    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('crafting'));
   });
 
   it('Endless → Roam: roaming starts, the panel dismisses, and the lit stop agrees', async () => {

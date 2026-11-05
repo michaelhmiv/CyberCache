@@ -118,6 +118,17 @@ import type { SettlementRecap } from '@/lib/activity/activitySettlement';
 const mockStanding = vi.mocked(getStandingState);
 const mockBuy = vi.mocked(standingBuy);
 
+// jsdom has no IntersectionObserver; the Craft workspace mounts
+// the Workshop, whose ChipRail needs one (same stub shape as
+// workshopDirectionAScreen.test.tsx).
+globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: IntersectionObserverCallback) {
+  return {
+    observe: (target: Element) => callback([{ isIntersecting: false, target } as unknown as IntersectionObserverEntry], {} as IntersectionObserver),
+    unobserve: () => undefined,
+    disconnect: () => undefined,
+  };
+}) as unknown as typeof IntersectionObserver;
+
 /** Redline at rank 5: BOTH weekly offers are claimable (crate at
  *  rank ≥ 4, signature order at rank 5 with the lane enabled). */
 function standingFacts(overrides: Partial<StandingFacts> = {}): StandingFacts {
@@ -234,13 +245,21 @@ describe('Home composition — mode rail (§2/§4)', () => {
     expect(screen.getByTestId('mode-rail-extract').getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('Craft starts the crafting activity from the rail at one tap', async () => {
+  it('Craft opens the bench workspace from the rail at one tap — looking does not switch the action', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
     fireEvent.click(await screen.findByTestId('mode-rail-craft'));
-    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('crafting'));
-    // The lit workspace is the Craft panel (its Workshop door).
-    expect(await screen.findByRole('button', { name: 'Open Workshop' })).toBeTruthy();
+    // The lit workspace IS the Workshop (crafting consolidation,
+    // 2026-11-04): the bench itself on Home, not a door to a bench
+    // on another tab.
+    expect(await screen.findByTestId('home-craft-bench', undefined, { timeout: 10_000 })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Open Workshop' })).toBeNull();
     expect(screen.getByTestId('mode-rail-craft').getAttribute('aria-pressed')).toBe('true');
+    // Opening the bench is a look, not a switch: the action slot
+    // is untouched until the bench's own Work the Bench control
+    // claims it.
+    expect(useActivityStore.getState().current.kind).not.toBe('crafting');
+    fireEvent.click(screen.getByTestId('craft-bench-work-button'));
+    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('crafting'));
   });
 });
 
