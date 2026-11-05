@@ -520,7 +520,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           onClick={() => onNavigate?.('chest')}
           className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
-          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
             <PxIcon name="key" size={20} className="text-[#3FD6E8]" />
             <span
               data-testid="top-cache-key-count"
@@ -546,7 +546,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           onClick={() => void handleOfflineTap()}
           className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
-          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
             {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
             <PxIcon name="clock" size={20} className="text-[#F2C063]" />
             {holdPending && (
@@ -575,7 +575,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           onClick={() => setSheet('streak')}
           className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
-          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
             {streakClaimable ? (
               <PulseGlow color="#FF8A00" testId="streak-claim-pulse" />
             ) : streakAnnouncement && !streakJustClaimed ? (
@@ -607,7 +607,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           onClick={() => setSheet('contracts')}
           className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
-          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+          <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
             {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
             <PxIcon name="orders" size={20} className="text-[#5EE8A0]" />
           </span>
@@ -626,7 +626,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             onClick={() => setSheet('weekly')}
             className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
           >
-            <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-2">
+            <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
               <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
               <PxIcon name="crate" size={20} className="text-[#7DD0F0]" />
             </span>

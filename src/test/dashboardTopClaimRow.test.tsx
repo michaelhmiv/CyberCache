@@ -62,6 +62,31 @@
  * back toward label-era sizes. Everything else — icon-only,
  * one line, equal shares, data + badges, zone separation —
  * is unchanged.
+ *
+ * R3 AMENDMENT (owner feedback on the presented r2 captures,
+ * 2026-11-05: "cut the button size in half, still too big" +
+ * the section-gap ruling): the rail of plates is replaced by
+ * content-sized CHIPS, and the pins move with the composition:
+ *  - the BUTTON is now a transparent 44px hit box (h-11,
+ *    min-w-[44px]) — no flex-1, no flex-col, no plate classes;
+ *    the painted chip inside it stands 28px tall (half the
+ *    r2 plate's footprint) with the icon + readout inline;
+ *  - the svg-width pin moves 24 → 20 — the largest glyph the
+ *    28px chip honestly holds with the corner tab clear; the
+ *    pin's purpose is unchanged (never back toward 15px);
+ *  - equal flex shares are gone by design: chips size to
+ *    their content and dock left on the row's 8px beat
+ *    (gap-3 = --cc-gap-md under .bl-page);
+ *  - the badge is a compact corner tab on the HIT BOX
+ *    (top-0/right-0 — see qcPapercuts' re-pinned Papercut 2);
+ *    no badge band is reserved anywhere, and OFFLINE pending
+ *    no longer carries a width floor: its chip widens with
+ *    its figure, the figure still at full size;
+ *  - the row's mb-3 is gone (Home's stack owns the section
+ *    boundary — the 8px section-gap law, probed in the
+ *    claim-row-look-captures spacing probe).
+ * Icon-only, one line, all data + badges, behavior/testids/
+ * destinations — unchanged, and pinned below as before.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -232,35 +257,39 @@ function standingWithWeeklyClaimable() {
   return { verified: true, standing: view, profile: null } as never;
 }
 
-function contentRowOf(button: HTMLElement) {
-  // The key's content stage (icon + data cluster) — the last
-  // span child; badge and pulse spans render before it.
-  return button.querySelector(':scope > span:last-of-type') as HTMLElement;
+function chipOf(button: HTMLElement) {
+  // The painted chip — the button's data-chip span (the hit
+  // box's only painted child; badges render after it, at the
+  // button's own corner).
+  return button.querySelector(':scope > span[data-chip]') as HTMLElement;
 }
 
-function expectIconKey(button: HTMLElement, minWidthClass: string) {
-  expect(button.className).toContain('flex-col');
-  expect(button.className).toContain('flex-1');
-  expect(button.className).toContain(minWidthClass);
+function expectIconKey(button: HTMLElement) {
+  // The button is the transparent HIT BOX (r3): 44px tall,
+  // at least 44px wide, no plate of its own — no flex-1 (the
+  // equal-share rail is gone), no flex-col (no badge band /
+  // content stage stack), never a wrap.
+  expect(button.className).toContain('h-11');
+  expect(button.className).toContain('min-h-[44px]');
+  expect(button.className).toContain('min-w-[44px]');
+  expect(button.className).not.toContain('flex-1');
+  expect(button.className).not.toContain('flex-col');
   expect(button.className).not.toContain('flex-wrap');
-  // The label-era badge reservations are reclaimed.
+  // The label-era badge reservations stay reclaimed.
   for (const reservation of ['pr-16', 'pr-12', 'pr-9']) {
     expect(button.className).not.toContain(reservation);
   }
-  // Two zones: badge at the top corner, content on the fixed
-  // stage below its band — they can never share a band. The
-  // cluster centers in the stage on both axes (§6 alignment
-  // law), and the icon stands at 24px — the design fix's 26px
-  // heroes, taken down only as far as the owner's r2
-  // compaction (48px keys, 26px stage) honestly allows; the
-  // pin stands so the row cannot drift back to floor-hugging
-  // 15px glyphs in label-era plates.
-  const stage = contentRowOf(button);
-  expect(stage.className).toContain('mt-auto');
-  expect(stage.className).toContain('h-[26px]');
-  expect(stage.className).toContain('items-center');
-  expect(stage.className).toContain('justify-center');
-  expect(button.querySelector('svg')?.getAttribute('width')).toBe('24');
+  // The painted chip: 28px tall — half the r2 plate — with
+  // the icon + readout composed inline and centered (§6
+  // alignment law). The icon stands at 20px, the largest
+  // the chip honestly holds; the pin stands so the glyphs
+  // can never silently shrink back toward label-era sizes.
+  const chip = chipOf(button);
+  expect(chip).toBeTruthy();
+  expect(chip.className).toContain('h-[28px]');
+  expect(chip.className).toContain('items-center');
+  expect(chip.className).toContain('justify-center');
+  expect(button.querySelector('svg')?.getAttribute('width')).toBe('20');
 }
 
 beforeEach(() => {
@@ -325,10 +354,10 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     // The quiet OFFLINE key is a bare icon.
     expect(offlineButton.textContent?.trim()).toBe('');
 
-    expectIconKey(cacheButton, 'min-w-[64px]');
-    expectIconKey(offlineButton, 'min-w-[44px]');
-    expectIconKey(streakButton, 'min-w-[52px]');
-    expectIconKey(contractsButton, 'min-w-[52px]');
+    expectIconKey(cacheButton);
+    expectIconKey(offlineButton);
+    expectIconKey(streakButton);
+    expectIconKey(contractsButton);
   });
 
   it('both badges + the weekly pill: five icon keys, one line', { timeout: 20_000 }, async () => {
@@ -342,7 +371,7 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(weekly.textContent).toContain('1');
     expect(weekly.textContent).not.toContain('Weekly');
     expect(weekly.getAttribute('aria-label')).toContain('Weekly claimables');
-    expectIconKey(weekly, 'min-w-[52px]');
+    expectIconKey(weekly);
     const row = screen.getByTestId('dashboard-top-bar');
     expect(row.className).not.toContain('flex-wrap');
     for (const id of ['top-cache-button', 'top-offline-button', 'top-streak-button', 'top-contracts-button']) {
@@ -386,11 +415,13 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(offlineButton.textContent).toContain('CLAIM');
     expect(offlineButton.textContent).not.toContain('Offline');
     expect(screen.getByTestId('top-offline-pending').textContent).toContain('4,321');
-    // The pending key widens for its figure (icon + the credits
-    // leg); the badge rides the top corner, the figure the
-    // centered stage — no reservation, no wrap.
-    expectIconKey(offlineButton, 'min-w-[108px]');
+    // The pending chip widens for its figure (icon + the
+    // credits leg, composed inline in the chip); the tab
+    // rides the hit box's top corner — no reservation, no
+    // width floor, no wrap (r3).
+    expectIconKey(offlineButton);
+    expect(chipOf(offlineButton).contains(screen.getByTestId('top-offline-pending'))).toBe(true);
     expect(screen.getByTestId('dashboard-top-bar').className).not.toContain('flex-wrap');
-    expect(screen.getByTestId('top-cache-button').className).toContain('min-w-[64px]');
+    expect(screen.getByTestId('top-cache-button').className).toContain('min-w-[44px]');
   });
 });

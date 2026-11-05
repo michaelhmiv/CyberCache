@@ -289,7 +289,11 @@ describe('F3 — retired chrome stays retired (source pins)', () => {
     // same pad, stated in the utility scale. If the root's
     // horizontal pad ever widens again, this pin fails before a
     // capture has to catch it.
-    expect(market).toContain('className="space-y-3 px-2.5 pt-4 pb-20"');
+    // Section-gap law (owner, 2026-11-05): the root stack is
+    // space-y-2 now — a true 8px section gap on Market (no
+    // .bl-page density layer here), the one gap every tab
+    // shares. The px-2.5 fit invariant above is unchanged.
+    expect(market).toContain('className="space-y-2 px-2.5 pt-4 pb-20"');
     expect(market).not.toContain('className="space-y-3 p-4 pb-20"');
     // Second half of the same root cause: the density layer also
     // remaps gap-2 → --cc-gap-sm (0.375rem) under .bl-page, so the
