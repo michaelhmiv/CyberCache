@@ -22,13 +22,33 @@
  *  - DATA stays: the key bubble, the pending figure, the
  *    streak day numeral, the CLAIM / GUEST / count badges;
  *  - the old badge-corner padding reservations are gone, and
- *    each key's content row anchors to its bottom (mt-auto in
+ *    each key's content stage anchors to its bottom (mt-auto in
  *    a flex-col key) while the badge keeps the top corner —
  *    badge and content can never share a band at any width;
  *  - per-key min-width floors are sized from icon + data.
  *
  * On the #402 component every assertion below fails (wrap,
  * painted labels, reservations, pair span, no bottom anchor).
+ *
+ * DESIGN FIX (2026-11-05, later the same day): the owner
+ * rejected #403's LOOK — the fit was right and the design was
+ * wrong (15px glyphs rattling in wide label-era plates,
+ * floor-hugging, no rhythm). An impeccable layout + polish
+ * pass redesigned the row as one instrument rail, and the
+ * pins below moved ONLY where that composition legitimately
+ * changed, as recorded here:
+ *  - every key now takes an EQUAL flex share (the two-slab /
+ *    two-stub rhythm is gone), so the compact keys' floors
+ *    dropped to their cluster sizes (streak/contracts/weekly
+ *    60/56/56 → 52) and OFFLINE pending's floor is sized from
+ *    its new cluster (116 → 108);
+ *  - the content stage is a FIXED 33px band and the cluster
+ *    CENTERS in it on both axes (items-center +
+ *    justify-center pins added) — the mt-auto zone separation
+ *    from the badge band is unchanged;
+ *  - the icons stand at 26px (§7's door/row size) — a new pin
+ *    reads the rendered svg width so the glyphs can never
+ *    silently shrink back to label-era 15px.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -200,22 +220,32 @@ function standingWithWeeklyClaimable() {
 }
 
 function contentRowOf(button: HTMLElement) {
-  // The key's bottom-anchored content row (icon + data) — the
-  // last span child; badge and pulse spans render before it.
+  // The key's content stage (icon + data cluster) — the last
+  // span child; badge and pulse spans render before it.
   return button.querySelector(':scope > span:last-of-type') as HTMLElement;
 }
 
 function expectIconKey(button: HTMLElement, minWidthClass: string) {
   expect(button.className).toContain('flex-col');
+  expect(button.className).toContain('flex-1');
   expect(button.className).toContain(minWidthClass);
   expect(button.className).not.toContain('flex-wrap');
   // The label-era badge reservations are reclaimed.
   for (const reservation of ['pr-16', 'pr-12', 'pr-9']) {
     expect(button.className).not.toContain(reservation);
   }
-  // Two zones: badge at the top corner, content on the bottom
-  // baseline — they can never share a band.
-  expect(contentRowOf(button).className).toContain('mt-auto');
+  // Two zones: badge at the top corner, content on the fixed
+  // stage below its band — they can never share a band. The
+  // cluster centers in the stage on both axes (§6 alignment
+  // law), and the icon stands at §7's 26px door/row size —
+  // the design fix's pins, so the row cannot drift back to
+  // floor-hugging 15px glyphs in label-era plates.
+  const stage = contentRowOf(button);
+  expect(stage.className).toContain('mt-auto');
+  expect(stage.className).toContain('h-[33px]');
+  expect(stage.className).toContain('items-center');
+  expect(stage.className).toContain('justify-center');
+  expect(button.querySelector('svg')?.getAttribute('width')).toBe('26');
 }
 
 beforeEach(() => {
@@ -282,8 +312,8 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
 
     expectIconKey(cacheButton, 'min-w-[64px]');
     expectIconKey(offlineButton, 'min-w-[44px]');
-    expectIconKey(streakButton, 'min-w-[60px]');
-    expectIconKey(contractsButton, 'min-w-[56px]');
+    expectIconKey(streakButton, 'min-w-[52px]');
+    expectIconKey(contractsButton, 'min-w-[52px]');
   });
 
   it('both badges + the weekly pill: five icon keys, one line', { timeout: 20_000 }, async () => {
@@ -297,7 +327,7 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(weekly.textContent).toContain('1');
     expect(weekly.textContent).not.toContain('Weekly');
     expect(weekly.getAttribute('aria-label')).toContain('Weekly claimables');
-    expectIconKey(weekly, 'min-w-[56px]');
+    expectIconKey(weekly, 'min-w-[52px]');
     const row = screen.getByTestId('dashboard-top-bar');
     expect(row.className).not.toContain('flex-wrap');
     for (const id of ['top-cache-button', 'top-offline-button', 'top-streak-button', 'top-contracts-button']) {
@@ -343,8 +373,8 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(screen.getByTestId('top-offline-pending').textContent).toContain('4,321');
     // The pending key widens for its figure (icon + the credits
     // leg); the badge rides the top corner, the figure the
-    // bottom baseline — no reservation, no wrap.
-    expectIconKey(offlineButton, 'min-w-[116px]');
+    // centered stage — no reservation, no wrap.
+    expectIconKey(offlineButton, 'min-w-[108px]');
     expect(screen.getByTestId('dashboard-top-bar').className).not.toContain('flex-wrap');
     expect(screen.getByTestId('top-cache-button').className).toContain('min-w-[64px]');
   });
