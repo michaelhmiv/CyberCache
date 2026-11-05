@@ -29,7 +29,7 @@
  *     to each leg's charge exactly as cc_accept_listing applies it.
  *   - The vendor leg is flat: today's vendor unit price (rotation +
  *     Item of the Day resolved by src/lib/vendor/catalog.ts) times
- *     the quantity. The vendor never sells fragments or cores.
+ *     the quantity. The vendor never sells cores.
  *   - The quote is a CEILING: the fill re-plans under lock and
  *     charges the re-planned total only when it is ≤ the quoted
  *     total for the confirmed quantity; otherwise it aborts with a
@@ -38,12 +38,11 @@
  */
 import {
   CORE_IDENTITY_KEY,
-  FRAGMENT_IDENTITY_KEY,
   essenceIdentityKey,
   materialIdentityKey,
 } from './identityKey';
 
-export type QuickBuyGoodKind = 'material' | 'essence' | 'consumable' | 'fragment' | 'core';
+export type QuickBuyGoodKind = 'material' | 'essence' | 'consumable' | 'core';
 
 /** The stack listing kinds a quick-buy sweep can take from — 1:1 with the good kinds. */
 export type QuickBuyListingKind = QuickBuyGoodKind;
@@ -52,19 +51,17 @@ export type QuickBuySource = 'market' | 'vendor';
 
 export interface QuickBuyGoodRef {
   kind: QuickBuyGoodKind;
-  /** Material/essence id, consumable type, or the commodity id for fragment/core. */
+  /** Material/essence id, consumable type, or the commodity id for core. */
   id: string;
 }
 
-/** The fragment/core commodity ids used on the wire (the good's `id`). */
-export const QUICKBUY_FRAGMENT_ID = 'cache';
+/** The core commodity id used on the wire (the good's `id`). */
 export const QUICKBUY_CORE_ID = 'legendary';
 
 export const QUICKBUY_GOOD_KINDS: readonly QuickBuyGoodKind[] = [
   'material',
   'essence',
   'consumable',
-  'fragment',
   'core',
 ];
 
@@ -74,7 +71,7 @@ export function isQuickBuyGoodKind(value: unknown): value is QuickBuyGoodKind {
 
 /**
  * The single identity key for a good, when one exists. Materials,
- * essences, fragments and cores each have exactly one market
+ * essences and cores each have exactly one market
  * identity; consumables band by quality, so a consumable good has
  * one key PER BAND — `consumableIdentityKey` with a quality — and
  * this returns null for them (the sweep matches by consumable type,
@@ -86,8 +83,6 @@ export function quickBuyIdentityKey(good: QuickBuyGoodRef): string | null {
       return materialIdentityKey(good.id);
     case 'essence':
       return essenceIdentityKey(good.id);
-    case 'fragment':
-      return FRAGMENT_IDENTITY_KEY;
     case 'core':
       return CORE_IDENTITY_KEY;
     case 'consumable':

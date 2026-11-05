@@ -64,13 +64,10 @@ interface RewardRow {
  *  it, icon at door size, amount as the hero number, the word
  *  Banked riding every line (the money already moved) — the
  *  cache key's tag is the design's one line of ceremony. */
-function rewardRows(reward: { credits: number; fragments: number; cacheKeys: number }): RewardRow[] {
+function rewardRows(reward: { credits: number; cacheKeys: number }): RewardRow[] {
   const rows: RewardRow[] = [];
   if (reward.credits > 0) {
     rows.push({ icon: 'coin', tint: GOLD, amount: reward.credits, unit: 'Credits', tag: 'Banked', flare: false });
-  }
-  if (reward.fragments > 0) {
-    rows.push({ icon: 'frag', tint: TEAL, amount: reward.fragments, unit: 'Cache fragments', tag: 'Banked', flare: false });
   }
   if (reward.cacheKeys > 0) {
     rows.push({ icon: 'key', tint: TEAL, amount: reward.cacheKeys, unit: 'Cache key', tag: 'Cycle prize', flare: true });
@@ -78,7 +75,7 @@ function rewardRows(reward: { credits: number; fragments: number; cacheKeys: num
   return rows;
 }
 
-/** "+500 credits · +3 fragments · +1 cache key" — past-tense
+/** "+500 credits · +1 cache key" — past-tense
  *  amounts for the claimed state's fact lines, each amount in
  *  the gain green (the mock's fact-line language). */
 function plusReward(reward: LoginStreakReward): React.ReactNode {
@@ -90,7 +87,6 @@ function plusReward(reward: LoginStreakReward): React.ReactNode {
       </span>,
     );
   if (reward.credits > 0) push(reward.credits, reward.credits === 1 ? 'credit' : 'credits');
-  if (reward.fragments > 0) push(reward.fragments, reward.fragments === 1 ? 'fragment' : 'fragments');
   if (reward.cacheKeys > 0) push(reward.cacheKeys, reward.cacheKeys === 1 ? 'cache key' : 'cache keys');
   return parts.flatMap((part, i) => (i === 0 ? [part] : [' · ', part]));
 }
@@ -101,7 +97,6 @@ function plusReward(reward: LoginStreakReward): React.ReactNode {
 function ladderLines(day: LoginStreakReward): string[] {
   const lines: string[] = [];
   if (day.credits > 0) lines.push(`${day.credits} cr`);
-  if (day.fragments > 0) lines.push(`${day.fragments} frag`);
   if (day.cacheKeys > 0) lines.push('KEY');
   return lines;
 }
@@ -229,7 +224,6 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
   const heroDay = fresh || !cycleComplete ? (granted.cycleDay ?? view.cycleDay) : null;
   const rows = rewardRows({
     credits: granted.creditsAwarded,
-    fragments: granted.fragmentsAwarded,
     cacheKeys: granted.cacheKeysAwarded,
   });
 

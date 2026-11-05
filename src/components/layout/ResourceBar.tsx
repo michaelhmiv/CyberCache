@@ -301,8 +301,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
         <Segment
           resourceId="cacheKey"
           value={player.cacheKeys}
-          micro={`${player.cacheKeyFragments}/5`}
-          ariaText={`Keys — ${player.cacheKeys} keys, ${player.cacheKeyFragments} of 5 fragments`}
+          ariaText={`Keys — ${player.cacheKeys} keys`}
         />
         <Segment
           resourceId="legendaryCore"

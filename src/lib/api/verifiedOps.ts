@@ -41,12 +41,12 @@ const op = async (path: string, body: Record<string, unknown>): Promise<Verified
 
 export const verifiedOps = {
   initialBundle: () => op('/ops/initial-bundle', { nonce: requestId('initial') }),
-  // Cache box lane (0037): one op opens a box; the payment names
-  // how this opening is paid. The server owns the free-first rule
-  // (the day's first opening resolves free whatever is requested),
-  // the daily cap, and the draw. 'ad' is a client attestation — the
-  // ad unit id is the claim; there is no rewarded-key claim anymore.
-  makeItem: async (input?: { payment?: 'free' | 'ad' | 'key'; adUnitId?: string }) => {
+  // Cache box lane (0037, rebuilt 0082): one op opens a box; the
+  // payment names how this opening is paid — 1 cache key or one
+  // rewarded-ad attestation. Every opening is paid, uncapped; the
+  // server owns the payment resolution and the draw. 'ad' is a
+  // client attestation — the ad unit id is the claim.
+  makeItem: async (input?: { payment?: 'ad' | 'key'; adUnitId?: string }) => {
     const result = await op('/ops/make-item', {
       nonce: requestId('make'),
       payment: input?.payment ?? 'key',
@@ -210,11 +210,6 @@ export const verifiedOps = {
   marketCreateMaterial: async (materialId: string, quantity: number, priceCredits: number) => {
     const result = await op('/ops/market-create-material', { nonce: requestId('list-mat'), material_id: materialId, quantity, price_credits: priceCredits });
     trackMarketList('material');
-    return result;
-  },
-  marketCreateFragment: async (quantity: number, priceCredits: number) => {
-    const result = await op('/ops/market-create-fragment', { nonce: requestId('list-frag'), quantity, price_credits: priceCredits });
-    trackMarketList('fragment');
     return result;
   },
   marketCreateCore: async (quantity: number, priceCredits: number) => {

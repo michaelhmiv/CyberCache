@@ -58,7 +58,6 @@ export function loginStreakStateFromFacts(
             cycleDay: facts.today_claim.cycle_day,
             tier: facts.today_claim.tier,
             creditsAwarded: facts.today_claim.credits_awarded,
-            fragmentsAwarded: facts.today_claim.fragments_awarded,
             cacheKeysAwarded: facts.today_claim.cache_keys_awarded,
           }
         : null,
@@ -107,7 +106,6 @@ export function createGetLoginStreakHandler(store: ChefGameplayStore, config: Lo
           cycleDay: record.cycle_day ?? null,
           tier: record.tier ?? null,
           creditsAwarded: record.credits_awarded ?? 0,
-          fragmentsAwarded: record.fragments_awarded ?? 0,
           cacheKeysAwarded: record.cache_keys_awarded ?? 0,
         },
         profile: record.profile ?? null,

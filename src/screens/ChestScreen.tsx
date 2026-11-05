@@ -10,7 +10,7 @@ import { RARITIES } from '@/constants/rarities';
 import { verifiedOps, type VerifiedResult } from '@/lib/api/verifiedOps';
 import { fetchCacheLane, type CacheLaneState } from '@/lib/api/cacheLaneService';
 import { canUseRewardedCacheAds, showRewardedCacheAd } from '@/lib/ads/rewardedCacheAd';
-import { CACHE_LANE_RULE, cacheLaneResetsAt } from '@/content/cacheLane';
+import { CACHE_LANE_RULE } from '@/content/cacheLane';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/serverItemAdapter';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
 import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
@@ -187,13 +187,12 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   const [error, setError] = useState<string | null>(null);
 
   const keys = player.cacheKeys;
-  const frags = player.cacheKeyFragments;
 
-  // Cache box lane (0037): the daily budget — 1 free box, then key
-  // or watch-ad openings, 10 total per UTC day. The server enforces
-  // all of it inside the open op; this state only presents it. The
-  // ad offer lives HERE and nowhere else (no ads on the play
-  // screen, ever).
+  // Cache box lane (0037, rebuilt 0082): no daily budget — every
+  // opening is paid with 1 cache key or one rewarded-ad
+  // attestation, uncapped. The server enforces payment inside the
+  // open op; this state only presents the key stock. The ad offer
+  // lives HERE and nowhere else (no ads on the play screen, ever).
   const [lane, setLane] = useState<CacheLaneState | null>(null);
 
   const refreshLane = async () => {
@@ -214,28 +213,15 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   /** Fold an open op's returned lane view (snake_case jsonb) into state. */
   const applyLaneFromResult = (result: VerifiedResult) => {
     const raw = result.cache_lane as Record<string, unknown> | undefined;
-    if (!raw || typeof raw.day !== 'string') return;
-    const by = (raw.by_payment ?? {}) as Record<string, number>;
+    if (!raw) return;
     const profile = result.profile as { cache_tokens?: number } | undefined;
     setLane({
-      day: raw.day,
-      cap: Number(raw.cap ?? 10),
-      freePerDay: Number(raw.free_per_day ?? 1),
-      openedToday: Number(raw.opened_today ?? 0),
-      remaining: Number(raw.remaining ?? 0),
-      freeAvailable: raw.free_available === true,
-      keys: Number(profile?.cache_tokens ?? keys),
-      byPayment: {
-        free: Number(by.free ?? 0),
-        ad: Number(by.ad ?? 0),
-        key: Number(by.key ?? 0),
-      },
-      resetsAt: cacheLaneResetsAt(raw.day),
-      rule: CACHE_LANE_RULE,
+      keys: Number(raw.keys ?? profile?.cache_tokens ?? keys),
+      rule: typeof raw.rule === 'string' ? raw.rule : CACHE_LANE_RULE,
     });
   };
 
-  const openWith = async (payment: 'free' | 'ad' | 'key', adUnitId?: string) => {
+  const openWith = async (payment: 'ad' | 'key', adUnitId?: string) => {
     if (opening) return;
     setOpening(true);
     setError(null);
@@ -259,7 +245,6 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     }
   };
 
-  const handleOpenFree = () => void openWith('free');
   const handleOpenKey = () => {
     if (keys > 0) void openWith('key');
   };
@@ -275,8 +260,6 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   };
 
   const adsReady = canUseRewardedCacheAds();
-  const freeAvailable = lane?.freeAvailable ?? false;
-  const capReached = lane !== null && lane.remaining <= 0;
 
   const close = () => {
     setRevealed(null);
@@ -376,9 +359,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   // decrypt overlay, and the reveal prop all show THIS crate, and no
   // surface colors it by a rarity the roll hasn't happened yet.
   const cachePropSprite = getPixelSprite('prop-cache-crate');
-  const canOpenAnother =
-    !opening &&
-    (lane ? lane.remaining > 0 && (lane.freeAvailable || keys > 0) : keys > 0);
+  const canOpenAnother = !opening && keys > 0;
 
   return (
     <div className="p-4 space-y-4 pb-20">
@@ -387,55 +368,12 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
         <div className="flex items-center gap-2 text-sm">
           <span className="text-text-secondary">Keys:</span>
           <span className="text-amber font-bold">{keys}</span>
-          {frags > 0 && (
-            <span className="text-text-muted text-xs">(+{frags} fragment{frags === 1 ? '' : 's'})</span>
-          )}
         </div>
       </div>
 
       {error && (
         <div className="rounded-xl border border-red/30 bg-red/10 p-3 text-xs text-red-light">
           {error}
-        </div>
-      )}
-
-      <div className="bg-surface-raised border border-border rounded-xl p-3">
-        <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="text-text-muted">Key Fragments</span>
-          <span className="text-text-secondary font-bold">{frags} / 5</span>
-        </div>
-        <div className="w-full h-2 rounded-full bg-bg overflow-hidden">
-          <div
-            className="h-full rounded-full bg-amber transition-all duration-300"
-            style={{ width: `${Math.min((frags / 5) * 100, 100)}%` }}
-          />
-        </div>
-        <div className="text-[10px] text-text-muted mt-1">
-          5 fragments = 1 Cache Key
-        </div>
-      </div>
-
-      {lane && (
-        <div className="bg-surface-raised border border-border rounded-xl p-3">
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="text-text-muted">Cache Boxes Today</span>
-            <span className="text-text-secondary font-bold">
-              {lane.openedToday} / {lane.cap} opened · {lane.remaining} left
-            </span>
-          </div>
-          <div className="w-full h-2 rounded-full bg-bg overflow-hidden">
-            <div
-              className="h-full rounded-full bg-amber transition-all duration-300"
-              style={{ width: `${Math.min((lane.openedToday / Math.max(lane.cap, 1)) * 100, 100)}%` }}
-            />
-          </div>
-          <div className="text-[10px] text-text-muted mt-1">
-            {lane.freeAvailable
-              ? "Today's FREE box is ready below — no key, no ad."
-              : capReached
-                ? `Daily limit reached — the budget resets at 00:00 UTC (${new Date(lane.resetsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} local).`
-                : 'Free box used today — open more with a key or an ad.'}
-          </div>
         </div>
       )}
 
@@ -450,31 +388,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
             />
           )}
         </div>
-        {capReached ? (
-          <div className="rounded-xl border border-border bg-bg p-3 text-xs text-text-secondary">
-            You&apos;ve opened all {lane?.cap ?? 10} of today&apos;s cache boxes. The daily
-            budget resets at 00:00 UTC
-            {lane
-              ? ` (${new Date(lane.resetsAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} local)`
-              : ''}{' '}
-            — your first box tomorrow is free again.
-          </div>
-        ) : freeAvailable ? (
-          <>
-            <button
-              onClick={handleOpenFree}
-              disabled={opening}
-              className="w-full py-3 rounded-xl bg-amber text-bg font-black text-sm uppercase tracking-wider disabled:opacity-40 active:scale-95 transition-transform"
-            >
-              {opening ? 'Decrypting...' : 'OPEN FREE CACHE'}
-            </button>
-            <div className="text-[10px] text-text-muted">
-              Today&apos;s free box. After it, open more with a key or an ad — up to{' '}
-              {lane?.cap ?? 10} boxes a day.
-            </div>
-          </>
-        ) : (
-          <div className="space-y-2">
+        <div className="space-y-2">
             <button
               onClick={handleOpenKey}
               disabled={keys <= 0 || opening}
@@ -495,13 +409,10 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 Rewarded ads are available in Android app builds.
               </div>
             )}
-            {lane && (
-              <div className="text-[10px] text-text-muted">
-                {lane.remaining} of {lane.cap} boxes left today — always optional, keys work too.
-              </div>
-            )}
+            <div className="text-[10px] text-text-muted">
+              {lane?.rule ?? CACHE_LANE_RULE}
+            </div>
           </div>
-        )}
         <div className="flex items-center justify-center gap-1 text-[10px] text-text-muted">
           <Info size={10} />
           Server-verified rarity roll · Rare or better
@@ -611,8 +522,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                     setRevealed(null);
                     setItemActions({});
                     setEquipUndo(null);
-                    if (freeAvailable) handleOpenFree();
-                    else handleOpenKey();
+                    handleOpenKey();
                   }}
                   className="px-5 py-2 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm active:scale-95 transition-transform"
                 >

@@ -533,13 +533,12 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     for (const key of Object.keys(player.materials)) keys.add(materialIdentityKey(key));
     // Sellable resources (0050): price guidance for the stacks the
     // player could list right now.
-    if (player.cacheKeyFragments > 0) keys.add(FRAGMENT_IDENTITY_KEY);
     if (player.legendaryCores > 0) keys.add(CORE_IDENTITY_KEY);
     for (const [essenceId, count] of Object.entries(player.essences)) {
       if (count > 0) keys.add(essenceIdentityKey(essenceId));
     }
     return [...keys].sort().join(',');
-  }, [buyListings, myListings, inventory.items, vehicles, player.consumableBatches, player.materials, player.cacheKeyFragments, player.legendaryCores, player.essences]);
+  }, [buyListings, myListings, inventory.items, vehicles, player.consumableBatches, player.materials, player.legendaryCores, player.essences]);
 
   useEffect(() => {
     if (!statsKeys) return;
@@ -740,28 +739,6 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
   // key ('frag:cache', 'core:legendary', 'ess:<id>') — collision-free
   // against batch uuids and material ids. The per-unit fallbacks only
   // seed the price field until real sales set a median.
-  const handleListFragment = async () => {
-    const owned = player.cacheKeyFragments;
-    if (owned <= 0) return;
-    const key = FRAGMENT_IDENTITY_KEY;
-    const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[key] ?? owned)));
-    const stats = priceStats[key];
-    const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 250);
-    if (price <= 0) {
-      setToastMessage('Price must be positive.');
-      return;
-    }
-    setPendingListId(key);
-    try {
-      await verifiedOps.marketCreateFragment(qty, price);
-      setToastMessage(`Listed ${qty} × ${FRAGMENT_DISPLAY_NAME} for ${price.toLocaleString()}cr.`);
-      await refreshListings();
-    } catch (err) {
-      setToastMessage(err instanceof Error ? err.message : 'Unable to list fragments.');
-    } finally {
-      setPendingListId(null);
-    }
-  };
 
   const handleListCore = async () => {
     const owned = player.legendaryCores;
@@ -1222,35 +1199,6 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                   </div>
                 );
               })}
-            </>
-          )}
-
-          {player.cacheKeyFragments > 0 && (
-            <>
-              <div className="pt-2 text-[11px] font-black uppercase tracking-wider text-text-muted">Cache Fragments</div>
-              {(() => {
-                const key = FRAGMENT_IDENTITY_KEY;
-                const owned = player.cacheKeyFragments;
-                const stats = priceStats[key];
-                const qty = Math.max(1, Math.min(owned, Math.floor(stackQty[key] ?? owned)));
-                const price = stackPrice[key] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice * qty) : qty * 250);
-                const preview = feePreview(Math.max(0, price), skillBonuses);
-                return (
-                  <div className="bl-card space-y-2 p-2.5">
-                    <StackMiniCard listing={{ id: key, sellerId: currentUserId ?? '', sellerName: '', sellerType: 'player', kind: 'fragment', itemId: null, itemSnapshot: null, vehicleSnapshot: null, category: 'fragment', displayName: FRAGMENT_DISPLAY_NAME, quantity: owned, qualityPercent: null, consumableType: null, materialId: null, essenceId: null, partId: null, tintPaletteId: null, identityKey: key, weaponType: null, element: null, rarity: null, itemLevel: null, price: 0, unitPrice: 0, listedAt: 0, feePaid: 0 }} />
-                    <div className="flex items-center gap-2">
-                      <input type="number" value={qty} min={1} max={owned} onChange={(e) => setStackQty((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-20 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Quantity" />
-                      <input type="number" value={price} onChange={(e) => setStackPrice((p) => ({ ...p, [key]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Total price" />
-                      <button onClick={() => guardTransact('sell', () => void handleListFragment())} disabled={pendingListId === key} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
-                        {pendingListId === key ? 'Listing…' : (<>List{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
-                      </button>
-                    </div>
-                    <SalesGuidance stats={stats} perUnit />
-                    <div className="text-[11px] text-text-muted">Listed fragments are held in escrow — they can't auto-convert into cache keys while listed.</div>
-                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
-                  </div>
-                );
-              })()}
             </>
           )}
 

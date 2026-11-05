@@ -55,7 +55,10 @@ export interface ActivityEarnings {
   credits?: number;
   scrap?: number;
   xp?: number;
+  /** Historical only: pre-0082 claims paid cache fragments. */
   fragments?: number;
+  /** Whole cache keys paid (0082+ claim payloads). */
+  cacheKeys?: number;
   materials?: Record<string, number>;
   essences?: Record<string, number>;
 }

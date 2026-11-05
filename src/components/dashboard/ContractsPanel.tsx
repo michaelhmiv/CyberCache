@@ -59,14 +59,10 @@ export const ContractsPanel: React.FC = () => {
       const next = await claimContract({ nonce: newContractNonce('claim'), instanceId: contract.id });
       const parts: string[] = [];
       if (next.claimed.creditsAwarded > 0) parts.push(`+${next.claimed.creditsAwarded} cr`);
-      if (next.claimed.fragmentsAwarded > 0) {
-        parts.push(`+${next.claimed.fragmentsAwarded} fragment${next.claimed.fragmentsAwarded === 1 ? '' : 's'}`);
-      }
       let text = parts.length > 0 ? `Claimed: ${parts.join(' + ')}` : 'Claimed';
       if (next.claimed.setBonus) {
         const bonus: string[] = [];
         if (next.claimed.setBonus.credits > 0) bonus.push(`+${next.claimed.setBonus.credits} cr`);
-        if (next.claimed.setBonus.fragments > 0) bonus.push(`+${next.claimed.setBonus.fragments} fragments`);
         if (next.claimed.setBonus.cache_keys > 0) bonus.push('+1 cache key');
         text += ` · Full set bonus: ${bonus.join(' + ')}`;
       }

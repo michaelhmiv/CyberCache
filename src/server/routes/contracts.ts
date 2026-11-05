@@ -161,7 +161,6 @@ export function createClaimContractHandler(store: ChefGameplayStore, config: Con
           instanceId: record.instance_id ?? body.instanceId,
           templateId: record.template_id ?? null,
           creditsAwarded: record.credits_awarded ?? 0,
-          fragmentsAwarded: record.fragments_awarded ?? 0,
           setBonus: record.set_bonus ?? null,
         },
         contracts: assembled?.board ?? null,

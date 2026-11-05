@@ -47,7 +47,6 @@ const initialPlayerState = (): PlayerProfile => ({
   credits: 5000,
   scrap: 500,
   cacheKeys: 3,
-  cacheKeyFragments: 0,
   legendaryCores: 0,
   cacheRankTokens: 0,
   cacheRankSpends: {},

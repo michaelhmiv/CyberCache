@@ -132,7 +132,7 @@ export interface ChefClaimResult {
     creditsAwarded: number;
     scrapAwarded: number;
     xpAwarded: number;
-    cacheFragmentsAwarded: number;
+    cacheKeysAwarded: number;
     materials: Record<string, number>;
     essences: Record<string, number>;
     killsRecorded: number;
@@ -513,7 +513,7 @@ export interface OfflineSettlementResult {
     creditsAwarded: number;
     scrapAwarded: number;
     xpAwarded: number;
-    cacheFragmentsAwarded: number;
+    cacheKeysAwarded: number;
     materials: Record<string, number>;
     essences: Record<string, number>;
     killsRecorded: number;
@@ -897,7 +897,6 @@ export interface ChefLoginStreakResult {
     cycleDay: number | null;
     tier: number | null;
     creditsAwarded: number;
-    fragmentsAwarded: number;
     cacheKeysAwarded: number;
   };
   profile: Record<string, unknown> | null;
@@ -930,8 +929,7 @@ export interface ChefClaimContractResult extends ChefContractsResult {
     instanceId: string;
     templateId: string | null;
     creditsAwarded: number;
-    fragmentsAwarded: number;
-    setBonus: { credits: number; fragments: number; cache_keys: number } | null;
+    setBonus: { credits: number; cache_keys: number } | null;
   };
 }
 
