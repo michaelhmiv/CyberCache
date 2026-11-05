@@ -68,7 +68,7 @@ export function validateMechanicsFoundation(): MechanicsValidationReport {
   let checkCount = 0;
 
   const consumables = Object.values(CONSUMABLES);
-  const consumableIds = new Set(consumables.map((item) => item.id));
+  const consumableIds = new Set<string>(consumables.map((item) => item.id));
   const recipeIds = new Set(CRAFTING_RECIPES.map((recipe) => recipe.id));
   const bossIds = new Set(REGION_1_BOSSES.map((boss) => boss.id));
   const legendaryIds = new Set(LEGENDARY_EFFECTS.map((effect) => effect.id));

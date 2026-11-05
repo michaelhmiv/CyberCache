@@ -9,7 +9,7 @@ import { legendaryEffectName } from '../../constants/legendaryEffects';
 import { RARITIES } from '../../constants/rarities';
 import { getBossRiskModifiers } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
-import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
+import { buildInitialTimeline, runFightAnimation, type FightOutcome, type FightTimeline } from '../../lib/animation/fightTimeline';
 import { getActionSkillState, verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
 import { ACTION_SKILL_DEFS, type ActionSkillStateView } from '@/content/actionSkills';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';

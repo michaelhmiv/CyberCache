@@ -1,6 +1,7 @@
 import React, { memo, useState, useEffect, useMemo, useRef } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
+import type { ConsumableType } from '@/types/game';
 import { buildEffectSummary } from '@/lib/buffs/effectSummary';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';

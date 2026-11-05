@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { Sparkline } from '@/components/progression/Sparkline';
-import { getMyProgressionSnapshots, type ProgressionMetric } from '@/lib/api/progressionService';
+import { getMyProgressionSnapshots, type PlayerProgressionSnapshot, type ProgressionMetric } from '@/lib/api/progressionService';
 import { getMyLeaderboardRank, type LeaderboardMetric } from '@/lib/api/leaderboardService';
 
 const panelClip = { clipPath: 'polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)' };
