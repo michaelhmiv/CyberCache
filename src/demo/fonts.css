@@ -1,0 +1,41 @@
+/*
+ * Prototype-only font delivery (Field Manual variant C harness).
+ *
+ * This sandbox's Chromium cannot reach Google Fonts (the proxy
+ * refuses the tunnel), so captures taken the usual way render in
+ * FALLBACK faces — the shipped app's own Google-Fonts @import fails
+ * silently here. These @font-face rules serve the game's two real
+ * faces from local subset files so the prototype captures judge the
+ * actual typography. Demo-only: imported solely by
+ * src/demo/ManualGalleryDemo.tsx; the shipped app keeps loading
+ * the faces from Google Fonts in index.css. (Pattern proven in the
+ * Cache Rank variant C pass.)
+ */
+@font-face {
+  font-family: 'Bebas Neue';
+  src: url('./fonts/BebasNeue-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('./fonts/ChakraPetch-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('./fonts/ChakraPetch-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('./fonts/ChakraPetch-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

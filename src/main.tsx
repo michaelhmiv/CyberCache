@@ -5,6 +5,7 @@ import App from './App.tsx';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
+import ManualGalleryDemo from './demo/ManualGalleryDemo';
 
 function renderErrorToRoot(error: unknown, source: string) {
   const root = document.getElementById('root');
@@ -34,7 +35,15 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
-try {
+if (window.location.pathname.includes('manual-gallery')) {
+  // Prototype harness (Field Manual variant C design pass) — renders
+  // the gallery demo standalone, without the auth bootstrap or the Chef.
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ManualGalleryDemo />
+    </StrictMode>,
+  );
+} else try {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <GlobalErrorBoundary>
