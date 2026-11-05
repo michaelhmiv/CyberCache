@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { ClaimPulse } from '@/components/common/ClaimPulse';
 import {
   formatLoginStreakReward,
   loginStreakPositionFor,
@@ -10,6 +11,8 @@ import {
 } from '@/content/loginStreak';
 import {
   loginStreakAnnouncement,
+  loginStreakClaimable,
+  loginStreakClaimKey,
   useLoginStreakStore,
 } from '@/store/slices/loginStreakSlice';
 
@@ -168,7 +171,18 @@ function FactLine({ label, children }: { label: string; children: React.ReactNod
  * pick 2026-11-03) with the streak audit's defects D1–D7
  * answered in the same slice.
  *
- * The flow truth has not changed: there is NO claim action.
+ * PROTOTYPE (design/feedback-prototype, 2026-11-04 — the
+ * feedback-legibility pass): the flow truth HAS changed in
+ * this branch. When the server's result carries
+ * `granted.claimable`, the check-in recorded the day but the
+ * reward is held unpaid — the sheet's primary action is a
+ * true CLAIM, and the celebration renders only after the
+ * claim lands. The shipped auto-grant flow below (no
+ * claimable flag) is untouched and still drives the legacy
+ * states. See the brief:
+ * ~/workspace/cybercache-prep/design-briefs/feedback-legibility-2026-11-04.md
+ *
+ * In the SHIPPED flow there is NO claim action.
  * The check-in is the state read itself — GET /api/login-streak/me
  * records the first authenticated check-in of the UTC day
  * server-side and banks the ladder reward exactly once, before
@@ -210,6 +224,12 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
   const acknowledge = useLoginStreakStore((s) => s.acknowledge);
   const load = useLoginStreakStore((s) => s.load);
   const revalidate = useLoginStreakStore((s) => s.revalidate);
+  // PROTOTYPE (true claim): the claim state + action.
+  const claiming = useLoginStreakStore((s) => s.claiming);
+  const claimError = useLoginStreakStore((s) => s.claimError);
+  const claim = useLoginStreakStore((s) => s.claim);
+  const lastClaimedGrantKey = useLoginStreakStore((s) => s.lastClaimedGrantKey);
+  const seenClaimKey = useLoginStreakStore((s) => s.seenClaimKey);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
@@ -220,13 +240,30 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
   if (!result) return null;
   const view = result.loginStreak;
   const granted = result.granted;
-  const fresh = loginStreakAnnouncement(result, resultDay, seenGrantKey);
+  // PROTOTYPE (true claim) state machine, ahead of the legacy
+  // announcement: CLAIMABLE (the server recorded the day and
+  // holds the reward unpaid — the sheet's one job is the claim)
+  // → JUST CLAIMED (this session's claim landed and has not
+  // been acknowledged — the landing celebration) → the quiet
+  // banked sheet. When the server carries no claimable flag
+  // (the shipped auto-grant), the legacy fresh-grant
+  // announcement drives the celebration exactly as before.
+  const claimable = loginStreakClaimable(result);
+  const claimKey = loginStreakClaimKey(result, resultDay);
+  const justClaimed =
+    !claimable &&
+    claimKey !== null &&
+    lastClaimedGrantKey === claimKey &&
+    seenClaimKey !== claimKey;
+  const fresh =
+    justClaimed ||
+    (!claimable && loginStreakAnnouncement(result, resultDay, seenGrantKey));
 
   const nextPosition = loginStreakPositionFor(view.nextStreakLength);
   const opensTier = nextPosition.tier > view.tier;
   const cycleComplete = view.cycleDay >= 7;
 
-  const heroDay = fresh || !cycleComplete ? (granted.cycleDay ?? view.cycleDay) : null;
+  const heroDay = claimable || fresh || !cycleComplete ? (granted.cycleDay ?? view.cycleDay) : null;
   const rows = rewardRows({
     credits: granted.creditsAwarded,
     fragments: granted.fragmentsAwarded,
@@ -247,17 +284,17 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
       <div
         data-testid="streak-hero"
         className="flex items-center gap-3.5 border-2 bg-surface-raised px-3.5 py-3"
-        style={{ borderColor: fresh ? STREAK_ACCENT : 'rgba(255,138,61,0.4)' }}
+        style={{ borderColor: claimable || fresh ? STREAK_ACCENT : 'rgba(255,138,61,0.4)' }}
       >
         <div
           className="relative shrink-0 border-2 border-border-light bg-black/50 p-2"
           style={{ color: STREAK_ACCENT }}
         >
           <PxIcon name="flame" size={40} />
-          {fresh && <MedalGlow />}
+          {(claimable || fresh) && <MedalGlow />}
         </div>
         <div className="min-w-0">
-          {!fresh && cycleComplete ? (
+          {!claimable && !fresh && cycleComplete ? (
             <>
               <div className="bl-title text-[46px] leading-[0.95] text-text-primary">
                 Tier {nextPosition.tier}
@@ -271,7 +308,11 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
               <div className="bl-title text-[46px] leading-[0.95] text-text-primary">
                 Day {heroDay}
               </div>
-              {fresh ? (
+              {claimable ? (
+                <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: STREAK_ACCENT }}>
+                  Ready to claim
+                </div>
+              ) : fresh ? (
                 cycleComplete ? (
                   <span
                     className="mt-1 inline-block px-1.5 py-0.5 text-[11px] font-bold uppercase leading-none text-black"
@@ -300,7 +341,95 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
         </div>
       </div>
 
-      {fresh ? (
+      {claimable ? (
+        <>
+          {/* PROTOTYPE (true claim): the reward FACE-UP — what
+              the claim pays, at hero size, in ink. Green belongs
+              to landed deltas and nothing has landed yet; the
+              rows carry no Banked tag because the money has not
+              moved. This is the state the auto-grant never had:
+              the player can see the reward, whole, before it is
+              theirs — and taking it is an act, not a footnote. */}
+          <div data-testid="streak-claim-rows">
+            {rows.map((row, i) => (
+              <motion.div
+                key={row.unit}
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + i * 0.12, duration: 0.25 }}
+                className="relative flex items-center gap-3 border-b border-border-light/60 px-1 py-2.5 last:border-b-0"
+              >
+                <PxIcon name={row.icon} size={26} style={{ color: row.tint }} />
+                <span className="text-[34px] font-bold leading-none tabular-nums text-text-primary">
+                  +{row.amount}
+                </span>
+                <span className="text-[13px] font-semibold uppercase tracking-wide text-text-primary">
+                  {row.unit}
+                </span>
+                <span className="ml-auto text-[11px] font-bold uppercase text-text-muted">
+                  {row.flare ? row.tag : 'Today'}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+
+          <StreakLadder view={view} />
+
+          <FactLine label="Next">
+            {opensTier ? (
+              <>
+                Streak day {view.nextStreakLength} opens{' '}
+                <span className="text-green">Tier {nextPosition.tier}</span> —{' '}
+                {formatLoginStreakReward(view.nextReward)}
+              </>
+            ) : (
+              <>Streak day {view.nextStreakLength} — {formatLoginStreakReward(view.nextReward)}</>
+            )}
+          </FactLine>
+
+          {/* THE CLAIM — the sheet's one primary action (the
+              amber law), carrying the claimable pulse: DESIGN.md
+              §9/§10 reserve the pulse for rewards the player
+              actually claims, and this one finally qualifies.
+              Tapping it is the moment the money moves — the
+              celebration that follows is the landing, and the
+              Strip pulses the counters it fills. */}
+          <button
+            type="button"
+            data-testid="streak-claim-button"
+            disabled={claiming}
+            onClick={() => void claim()}
+            className="relative w-full overflow-hidden px-4 py-3 text-[15px] font-bold uppercase tracking-wide text-black disabled:opacity-70"
+            style={{ backgroundColor: CTA_FILL }}
+          >
+            {!claiming && <ClaimPulse color={CTA_FILL} testId="streak-claim-pulse" />}
+            <span className="relative">
+              {claiming ? 'Claiming…' : `Claim Day ${granted.cycleDay ?? view.cycleDay} reward`}
+            </span>
+          </button>
+          {claimError && (
+            <div
+              className="text-center text-[11px] font-bold leading-snug"
+              style={{ color: '#FF5566' }}
+            >
+              That claim didn't go through — the reward is still here. Tap Claim again.
+            </div>
+          )}
+          <button
+            type="button"
+            data-testid="streak-later-button"
+            onClick={() => onDone?.()}
+            className="w-full px-4 py-1 text-[11px] font-bold uppercase tracking-wide text-text-muted"
+          >
+            Later — it waits until 00:00 UTC
+          </button>
+
+          <div className="text-center text-[11px] leading-snug text-text-muted">
+            <div>Unclaimed rewards expire when the new streak day starts at 00:00 UTC.</div>
+            <div>{view.missRule}</div>
+          </div>
+        </>
+      ) : fresh ? (
         <>
           {/* The reward, at the size the numbers law demands:
               rows land one at a time (~120ms apart), the key
@@ -374,8 +503,12 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
       {/* The exit is the acknowledgement: in the fresh state it
           carries the announcement glow because tapping it is
           what ends the announcement. It claims nothing — the
-          reward banked before this sheet opened. */}
-      {fresh ? (
+          reward banked before this sheet opened. In the
+          claimable state this block is skipped entirely: the
+          claim branch above carries its own actions (Claim /
+          Later) and its own footer — a "Back to the hunt" here
+          would read as a second, competing primary. */}
+      {!claimable && (fresh ? (
         <motion.button
           type="button"
           data-testid="streak-done-button"
@@ -407,12 +540,14 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
         >
           Back to the hunt
         </button>
-      )}
+      ))}
 
-      <div className="text-center text-[11px] leading-snug text-text-muted">
-        <div>{view.missRule}</div>
-        <div>A new streak day starts at 00:00 UTC.</div>
-      </div>
+      {!claimable && (
+        <div className="text-center text-[11px] leading-snug text-text-muted">
+          <div>{view.missRule}</div>
+          <div>A new streak day starts at 00:00 UTC.</div>
+        </div>
+      )}
     </div>
   );
 };

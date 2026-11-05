@@ -67,7 +67,11 @@ import { ContractsPanel } from './ContractsPanel';
 import { WeeklyClaimablesList } from './WeeklyClaimables';
 import { usePlayerStore } from '@/store';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
-import { loginStreakAnnouncement, useLoginStreakStore } from '@/store/slices/loginStreakSlice';
+import {
+  loginStreakAnnouncement,
+  loginStreakClaimable,
+  useLoginStreakStore,
+} from '@/store/slices/loginStreakSlice';
 import { countClaimableContracts, useContractsStore } from '@/store/slices/contractsSlice';
 import { useStandingStore, weeklyClaimables } from '@/store/slices/standingSlice';
 import { xpToNextLevel } from '@/content/simulation';
@@ -179,6 +183,12 @@ export const DashboardTopBar: React.FC = () => {
     streakResultDay,
     streakSeenGrantKey,
   );
+  // PROTOTYPE (true claim, 2026-11-04): a recorded-but-unpaid
+  // reward outranks the announcement — the chip becomes a real
+  // claimable (pulse + CLAIM badge, §9's language used
+  // truthfully for the first time on this chip) until the
+  // claim lands.
+  const streakClaimable = loginStreakClaimable(streakResult);
   const streakDay = streakResult?.loginStreak.currentStreak ?? null;
 
   const board = contractsResult?.contracts ?? null;
@@ -199,16 +209,23 @@ export const DashboardTopBar: React.FC = () => {
     (awayPending ? '. While you were away rewards are waiting.' : '');
   const streakLabel = streakResult
     ? `Daily streak — day ${streakDay ?? 0}` +
-      (streakAnnouncement ? `, new grant banked for day ${granted?.streakLength}` : ', today checked in')
+      (streakClaimable
+        ? `, day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward ready to claim`
+        : streakAnnouncement
+          ? `, new grant banked for day ${granted?.streakLength}`
+          : ', today checked in')
     : 'Daily streak';
   // The sheet's subtitle speaks the same past tense as the
   // panel: a fresh grant was granted on arrival; a replayed
-  // day was claimed (banked) today.
+  // day was claimed (banked) today. PROTOTYPE: an unpaid
+  // reward speaks in the present — it is ready, not banked.
   const streakSubtitle = !streakResult
     ? 'Daily check-in rewards'
-    : granted && !granted.alreadyClaimed
-      ? `Daily check-in · Day ${granted.cycleDay ?? streakResult.loginStreak.cycleDay} granted on arrival`
-      : `Daily check-in · Day ${streakResult.loginStreak.cycleDay} claimed today`;
+    : streakClaimable
+      ? `Daily check-in · Day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward ready to claim`
+      : granted && !granted.alreadyClaimed
+        ? `Daily check-in · Day ${granted.cycleDay ?? streakResult.loginStreak.cycleDay} granted on arrival`
+        : `Daily check-in · Day ${streakResult.loginStreak.cycleDay} claimed today`;
   const contractsLabel = !board
     ? 'Contracts'
     : contractsGuestLocked
@@ -278,10 +295,19 @@ export const DashboardTopBar: React.FC = () => {
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakAnnouncement ? 'pr-12' : ''}`}
+          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakClaimable ? 'pr-16' : streakAnnouncement ? 'pr-12' : ''}`}
         >
-          {streakAnnouncement && <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />}
-          {streakAnnouncement && <CornerBadge text="NEW" color={STREAK_ACCENT} />}
+          {streakClaimable ? (
+            <>
+              <PulseGlow color="#FF8A00" testId="streak-claim-pulse" />
+              <CornerBadge text="CLAIM" color="#FF8A00" />
+            </>
+          ) : streakAnnouncement ? (
+            <>
+              <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />
+              <CornerBadge text="NEW" color={STREAK_ACCENT} />
+            </>
+          ) : null}
           <PxIcon name="flame" size={15} />
           <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
             {streakDay !== null ? `Day ${streakDay}` : 'Streak'}

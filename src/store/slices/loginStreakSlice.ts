@@ -53,7 +53,11 @@
  */
 
 import { create } from 'zustand';
-import { getLoginStreakState, type ChefLoginStreakResult } from '@/lib/chef/chefClient';
+import {
+  claimLoginStreakDay,
+  getLoginStreakState,
+  type ChefLoginStreakResult,
+} from '@/lib/chef/chefClient';
 import { loginStreakUtcDay } from '@/content/loginStreak';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
 
@@ -69,6 +73,20 @@ export interface LoginStreakPanelState {
   seenGrantKey: string | null;
   /** Key of the fresh grant whose wallet tick has played. */
   tickedGrantKey: string | null;
+  /**
+   * PROTOTYPE (design/feedback-prototype — true claim): true
+   * while a claim POST is in flight.
+   */
+  claiming: boolean;
+  /** PROTOTYPE: the last claim attempt failed (the held reward
+   *  stays claimable; the panel keeps the CLAIM button live). */
+  claimError: boolean;
+  /** PROTOTYPE: key of the grant this session claimed — the
+   *  panel's landing celebration keys on it. */
+  lastClaimedGrantKey: string | null;
+  /** PROTOTYPE: key of the claimed grant the player has
+   *  acknowledged (the celebration's "seen", D2's twin). */
+  seenClaimKey: string | null;
   /** Fetch the state view once per session (the daily check-in). */
   load: () => Promise<void>;
   /** Re-read when a live session crossed the UTC day boundary
@@ -78,9 +96,65 @@ export interface LoginStreakPanelState {
   acknowledge: () => void;
   /** Record that the Strip's wallet tick played for a grant. */
   markWalletTicked: (key: string) => void;
+  /**
+   * PROTOTYPE (true claim): pay the held claimable reward.
+   * Production transport is POST /api/login-streak/claim
+   * (claimLoginStreakDay); the demo harness substitutes a
+   * fixture transport via setLoginStreakClaimTransportForDemo.
+   * On success the response replaces the held result and its
+   * profile snapshot syncs — the payout reaches the wallet
+   * through the same verified sync as every other op.
+   */
+  claim: () => Promise<void>;
   /** Replace the held state (a fresh view returned by an op). */
   applyResult: (result: ChefLoginStreakResult) => void;
   reset: () => void;
+}
+
+/**
+ * PROTOTYPE (true claim): the identity of one recorded day's
+ * reward, claimed or not. Unlike loginStreakGrantKey (which
+ * describes a fresh auto-grant and is null on replays), the
+ * claim key must also name a reward that was recorded on an
+ * earlier read and is still unpaid — a claim survives an app
+ * restart, so its key cannot depend on the read being fresh.
+ */
+export function loginStreakClaimKey(
+  result: ChefLoginStreakResult | null,
+  resultDay: string | null,
+): string | null {
+  const granted = result?.granted;
+  if (!granted || granted.streakLength === null) return null;
+  return [
+    'claim',
+    resultDay ?? 'undated',
+    granted.streakLength,
+    granted.cycleDay ?? 0,
+    granted.tier ?? 0,
+    granted.creditsAwarded,
+    granted.fragmentsAwarded,
+    granted.cacheKeysAwarded,
+  ].join(':');
+}
+
+/** The announcement derivation for the TRUE-CLAIM world: a
+ *  recorded-but-unpaid reward is being announced (it is a real
+ *  claimable — DESIGN.md §9's pulse belongs to it now). */
+export function loginStreakClaimable(
+  result: ChefLoginStreakResult | null,
+): boolean {
+  return Boolean(result?.granted.claimable) && result?.granted.streakLength !== null;
+}
+
+let demoClaimTransport: (() => Promise<ChefLoginStreakResult>) | null = null;
+
+/** PROTOTYPE seam: the feedback demo harness installs a fixture
+ *  claim transport (no Chef exists behind the demo). Production
+ *  code never calls this; claim() falls back to the real POST. */
+export function setLoginStreakClaimTransportForDemo(
+  fn: (() => Promise<ChefLoginStreakResult>) | null,
+): void {
+  demoClaimTransport = fn;
 }
 
 /**
@@ -155,6 +229,10 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
     resultDay: null,
     seenGrantKey: null,
     tickedGrantKey: null,
+    claiming: false,
+    claimError: false,
+    lastClaimedGrantKey: null,
+    seenClaimKey: null,
     load: () => {
       const { loadState } = get();
       if (loadState === 'loading') return inFlight ?? Promise.resolve();
@@ -170,12 +248,43 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
       return fetchStreak();
     },
     acknowledge: () => {
-      const { result, resultDay, seenGrantKey } = get();
+      const { result, resultDay, seenGrantKey, lastClaimedGrantKey, seenClaimKey } = get();
       const key = loginStreakGrantKey(result, resultDay);
       if (key !== null && key !== seenGrantKey) set({ seenGrantKey: key });
+      // PROTOTYPE (true claim): acknowledging the sheet after a
+      // claim also retires the landing celebration.
+      if (lastClaimedGrantKey !== null && lastClaimedGrantKey !== seenClaimKey) {
+        set({ seenClaimKey: lastClaimedGrantKey });
+      }
     },
     markWalletTicked: (key) => {
       if (get().tickedGrantKey !== key) set({ tickedGrantKey: key });
+    },
+    claim: async () => {
+      const { result, resultDay, claiming } = get();
+      if (claiming || !loginStreakClaimable(result)) return;
+      const claimedKey = loginStreakClaimKey(result, resultDay);
+      set({ claiming: true, claimError: false });
+      try {
+        const next = demoClaimTransport
+          ? await demoClaimTransport()
+          : await claimLoginStreakDay();
+        set({
+          result: next,
+          loadState: 'ready',
+          resultDay: loginStreakUtcDay(new Date()),
+          claiming: false,
+          lastClaimedGrantKey: claimedKey,
+        });
+        if (next.profile) {
+          syncVerifiedResult(next as unknown as Record<string, unknown>);
+        }
+      } catch {
+        // The reward stays claimable — the panel keeps the
+        // CLAIM button live and names the failure (every "no"
+        // carries its remedy: tap again).
+        set({ claiming: false, claimError: true });
+      }
     },
     applyResult: (result) =>
       set({ result, loadState: 'ready', resultDay: loginStreakUtcDay(new Date()) }),
@@ -187,6 +296,10 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
         resultDay: null,
         seenGrantKey: null,
         tickedGrantKey: null,
+        claiming: false,
+        claimError: false,
+        lastClaimedGrantKey: null,
+        seenClaimKey: null,
       });
     },
   };

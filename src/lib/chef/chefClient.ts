@@ -893,6 +893,16 @@ export interface ChefLoginStreakResult {
   loginStreak: import('@/content/loginStreak').LoginStreakStateView;
   granted: {
     alreadyClaimed: boolean;
+    /**
+     * PROTOTYPE (design/feedback-prototype — the true-claim
+     * shape from the feedback-legibility brief, 2026-11-04):
+     * true while today's recorded reward is held UNPAID by the
+     * server — the check-in recorded the day, the payout waits
+     * for the player's claim. Absent (undefined) on the shipped
+     * auto-grant server, where every recorded day is already
+     * paid; clients treat undefined as the legacy flow.
+     */
+    claimable?: boolean;
     streakLength: number | null;
     cycleDay: number | null;
     tier: number | null;
@@ -908,6 +918,24 @@ export async function getLoginStreakState(): Promise<ChefLoginStreakResult> {
     '/login-streak/me',
     { method: 'GET' },
     'Chef login streak failed',
+  );
+}
+
+/**
+ * PROTOTYPE (design/feedback-prototype): the claim call for the
+ * true-claim streak — POST /api/login-streak/claim, JWT identity
+ * only, no body (the server pays the held claim row for the
+ * server's own UTC today; exactly-once rides the row's paid
+ * stamp). The endpoint is specified in
+ * ~/workspace/cybercache-prep/design-briefs/feedback-legibility-2026-11-04.md
+ * and does not exist on the shipped Chef yet; the demo harness
+ * substitutes a fixture transport (loginStreakSlice).
+ */
+export async function claimLoginStreakDay(): Promise<ChefLoginStreakResult> {
+  return endlessFetch<ChefLoginStreakResult>(
+    '/login-streak/claim',
+    { method: 'POST' },
+    'Chef login streak claim failed',
   );
 }
 

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { FeedbackDemo } from './demo/FeedbackDemo';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
@@ -34,17 +35,32 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
+// PROTOTYPE (design/feedback-prototype): /feedback-demo mounts
+// the feedback-legibility fixture harness instead of the app —
+// no auth, no Chef; the demo seeds its stores directly. This
+// branch dies with the prototype; it is never a shipped route.
+const isFeedbackDemo =
+  typeof window !== 'undefined' && window.location.pathname.startsWith('/feedback-demo');
+
 try {
   createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <GlobalErrorBoundary>
-        <AuthProvider>
-          <AccountStorageBoundary>
-            <App />
-          </AccountStorageBoundary>
-        </AuthProvider>
-      </GlobalErrorBoundary>
-    </StrictMode>,
+    isFeedbackDemo ? (
+      <StrictMode>
+        <GlobalErrorBoundary>
+          <FeedbackDemo />
+        </GlobalErrorBoundary>
+      </StrictMode>
+    ) : (
+      <StrictMode>
+        <GlobalErrorBoundary>
+          <AuthProvider>
+            <AccountStorageBoundary>
+              <App />
+            </AccountStorageBoundary>
+          </AuthProvider>
+        </GlobalErrorBoundary>
+      </StrictMode>
+    ),
   );
 } catch (error) {
   console.error('[createRoot] failed to render:', error);
