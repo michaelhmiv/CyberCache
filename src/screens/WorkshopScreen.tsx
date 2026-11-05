@@ -825,13 +825,21 @@ export const WorkshopScreen: React.FC<{
           workspace's banner + the job cards' state labels. */}
       {!embedded && (
       <div className="relative overflow-hidden rounded-lg border-2 border-border">
-        {/* FINDING F7 (tsc-gate triage, see PR body): this stage passes
-            no progress/causeLabel, so the scene's cause bar receives
-            undefined (its width computes to NaN% and is dropped by
-            CSS). What the bench bar should name — the running job's
-            progress — is a product call, so the triage flags it. */}
-        {/* @ts-expect-error F7: bench stage passes no progress/causeLabel (known defect, flagged in PR body) */}
-        <CraftingBenchScene benchSpriteId={stageBench.spriteId} unarmed={!hunterWeapon} />
+        {/* The scene's cause bar (G-3) names its cause: the running
+            job's recipe name, filling on the job card's own progress
+            numbers (jobProgressFraction — one source, so the bar and
+            the card never disagree). No job running: the bar sits at
+            0 under the bench's own name, the same idle shape the
+            repair bay scene renders. (F7, fixed: this stage previously
+            passed neither prop, so the bar computed a NaN% width
+            under an empty label.) */}
+        <CraftingBenchScene
+          benchSpriteId={stageBench.spriteId}
+          unarmed={!hunterWeapon}
+          progress={runningJob ? jobProgressFraction(runningJob) : 0}
+          causeLabel={runningJob ? runningJob.name : 'The Bench'}
+          buysLabel={runningJob ? undefined : 'awaiting a job'}
+        />
         <div className="absolute left-2 top-2 flex gap-1.5">
           <span className="px-2 py-1 text-[11px] font-black border bg-bg/80 text-text-secondary border-border" style={chipClip}>
             The Bench
@@ -1012,6 +1020,20 @@ const QualityBandKey: React.FC = () => (
   </div>
 );
 
+/**
+ * A job's elapsed share of its total bench time as a 0..1 fraction:
+ * completed units plus the in-progress unit's accrued share. The job
+ * card's bar and the bench scene's cause bar both read this, so the
+ * two surfaces can never disagree — and the fraction is always
+ * finite (a zero-unit or unstarted job reads 0, never NaN).
+ */
+function jobProgressFraction(job: WorkshopJobView): number {
+  if (job.unitsTotal <= 0) return 0;
+  const share =
+    (job.unitsCompleted + (job.unitDurationMs > 0 ? job.accruedMs / job.unitDurationMs : 0)) / job.unitsTotal;
+  return Number.isFinite(share) ? Math.min(1, Math.max(0, share)) : 0;
+}
+
 // ─── Job card (G-3 progress-cause line) ──────────────────────────────
 
 const JobCard: React.FC<{
@@ -1051,10 +1073,7 @@ const JobCard: React.FC<{
         .map(([key, per]) => `${per * remainingUnits} ${getVisualAsset('material', key).label}`)
         .join(' + ')
     : '';
-  const progressPct = Math.min(
-    100,
-    ((job.unitsCompleted + (job.unitDurationMs > 0 ? job.accruedMs / job.unitDurationMs : 0)) / job.unitsTotal) * 100,
-  );
+  const progressPct = jobProgressFraction(job) * 100;
   const stateLabel =
     job.state === 'running'
       ? 'Running'
