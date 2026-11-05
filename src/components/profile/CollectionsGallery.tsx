@@ -4,8 +4,17 @@ import { X } from 'lucide-react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
 import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
-import { bespokeSpriteIdForLegendaryEffect, getPixelSprite } from '@/lib/pixel/manifest';
-import { AREA_VISUALS, bossArena, type RoamingAreaId } from '@/content/areaPalettes';
+import { getPixelSprite } from '@/lib/pixel/manifest';
+import { bossArena } from '@/content/areaPalettes';
+import {
+  GALLERY_FAMILY_LABELS,
+  GALLERY_UNDISCOVERED_TEASERS,
+  ZONE_PAINTINGS,
+  discoveryMapFromPayload,
+  gallerySpriteIdFor,
+  type DiscoveryInfo,
+  type DiscoveryMap,
+} from './collectionsGalleryModel';
 import {
   COLLECTION_TOTAL,
   collectionEntriesForFamily,
@@ -38,40 +47,6 @@ import { Manufacturer, Rarity, WeaponType } from '@/types/game';
  * viewing room alike.
  */
 
-export interface DiscoveryInfo {
-  source: string;
-  discoveredAt?: string;
-}
-
-export type DiscoveryMap = Map<string, DiscoveryInfo>;
-
-export const GALLERY_FAMILY_LABELS: Record<CollectionFamily, string> = {
-  legendary_effect: 'Legendary Effects',
-  boss: 'Bosses Downed',
-  weapon_frame: 'Legendary Frames',
-  named_elite: 'Named Elites',
-};
-
-/** What an UNLOGGED entry may say about itself: how its family is
- *  earned, never which entry it is. (Verbatim from the shipped
- *  screen — the A11 tests pin the boss line.) */
-export const GALLERY_UNDISCOVERED_TEASERS: Record<CollectionFamily, string> = {
-  legendary_effect: 'An unlogged legendary effect — own a weapon carrying it to log this entry.',
-  boss: 'An undefeated boss — beat it to log this entry.',
-  weapon_frame: 'An unlogged Legendary frame — own one to log this entry.',
-  named_elite: 'An undowned named elite — fell it in its roaming area to log this entry.',
-};
-
-const ZONE_PAINTINGS: Record<string, string> = {
-  dustwaste_frontier: 'zone-dustwaste-bg',
-  redline_circuit: 'zone-redline-bg',
-  ironwood_bastion: 'zone-ironwood-bg',
-  blastforge_yards: 'zone-blastforge-bg',
-  prismatek_reactor: 'zone-prismatek-bg',
-  throwtech_dumpnet: 'zone-throwtech-bg',
-  helixworks_labyrinth: 'zone-helixworks-bg',
-};
-
 function seedFromKey(key: string): number {
   let hash = 2166136261;
   for (let i = 0; i < key.length; i++) {
@@ -79,15 +54,6 @@ function seedFromKey(key: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return Math.abs(hash);
-}
-
-export function gallerySpriteIdFor(entry: CollectionEntry): string | undefined {
-  if (entry.family === 'boss') return `boss-${entry.key.replace(/_/g, '-')}`;
-  if (entry.family === 'legendary_effect') return bespokeSpriteIdForLegendaryEffect(entry.key);
-  if (entry.family === 'named_elite') {
-    return AREA_VISUALS[entry.key as RoamingAreaId]?.eliteSpriteId ?? 'enemy-elite';
-  }
-  return undefined;
 }
 
 const SILHOUETTE: React.CSSProperties = { filter: 'brightness(0) contrast(1.2)', opacity: 0.45 };
@@ -477,14 +443,6 @@ const ROOM_NOTES: Record<CollectionFamily, string> = {
   legendary_effect: 'Effects rolled on legendary weapons you have held.',
   weapon_frame: 'A Legendary of this frame has passed through your hands.',
 };
-
-export function discoveryMapFromPayload(payload: CollectionsPayload): DiscoveryMap {
-  const map: DiscoveryMap = new Map();
-  for (const d of payload.discoveries ?? []) {
-    map.set(`${d.family}:${d.entry_key}`, { source: d.source, discoveredAt: d.discovered_at });
-  }
-  return map;
-}
 
 /** The Showcase page: a quiet masthead, the completion told as one
  *  sentence (no gauge — the lit and dark pieces ARE the progress),
