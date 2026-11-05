@@ -108,9 +108,9 @@ type StripResourceId = 'credits' | 'scrap' | 'cacheKey' | 'legendaryCore' | 'loo
  * Two salience tiers keep the beat honest at idle-game rates:
  *  - FULL — a gain that matters (per-resource absolute floor,
  *    or ≥2% of the new balance for the two flow currencies):
- *    the bigger pop, the longer glow (~0.55s).
+ *    the bigger pop, the longer glow (~0.6s, peak held ~30%).
  *  - MICRO — the roaming drip (~every 3s, small change): a
- *    shorter, smaller pulse (~0.35s). A full pulse inside the
+ *    shorter, smaller pulse (~0.4s). A full pulse inside the
  *    900ms coalesce window after the last full one is demoted
  *    to micro, so a burst of gains flashes once, not strobes.
  * Decreases never pulse: spending is the player's own act,
@@ -164,15 +164,30 @@ const ValueDigits: React.FC<{
     );
   }
   const full = pulse.tier === 'full';
+  // The beat HOLDS its peak for the first ~30% before decaying —
+  // a pure ease-out spends the pop in the first 150ms, faster
+  // than an eye can be led. Full ≈ 0.6s, micro ≈ 0.4s; the
+  // reduced-motion variant keeps the hold in the tint alone.
+  const peakScale = full ? 1.22 : 1.1;
   return (
     <span className="relative inline-flex">
       <motion.span
         key={`glow-${pulse.token}`}
         aria-hidden
         className="pointer-events-none absolute inset-0"
-        initial={{ opacity: full ? 0.9 : 0.45, boxShadow: `0 0 12px ${pulse.tint}` }}
-        animate={{ opacity: 0, boxShadow: `0 0 0 ${pulse.tint}` }}
-        transition={{ duration: full ? 0.6 : 0.4, ease: 'easeOut' }}
+        initial={{
+          opacity: full ? 0.9 : 0.45,
+          boxShadow: `0 0 12px ${pulse.tint}`,
+        }}
+        animate={{
+          opacity: [full ? 0.9 : 0.45, full ? 0.9 : 0.45, 0],
+          boxShadow: [
+            `0 0 12px ${pulse.tint}`,
+            `0 0 12px ${pulse.tint}`,
+            `0 0 0 ${pulse.tint}`,
+          ],
+        }}
+        transition={{ duration: full ? 0.7 : 0.45, times: [0, 0.3, 1], ease: 'easeOut' }}
       />
       <motion.span
         key={pulse.token}
@@ -181,12 +196,18 @@ const ValueDigits: React.FC<{
         className="relative whitespace-nowrap text-[13px] font-black tabular-nums leading-none"
         style={{ transformOrigin: 'left center' }}
         initial={
-          pulse.still
-            ? { color: GAIN_GREEN }
-            : { scale: full ? 1.22 : 1.1, color: GAIN_GREEN }
+          pulse.still ? { color: GAIN_GREEN } : { scale: peakScale, color: GAIN_GREEN }
         }
-        animate={pulse.still ? { color: INK } : { scale: 1, color: INK }}
-        transition={{ duration: full ? 0.55 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+        animate={
+          pulse.still
+            ? { color: [GAIN_GREEN, GAIN_GREEN, INK] }
+            : { scale: [peakScale, peakScale, 1], color: [GAIN_GREEN, GAIN_GREEN, INK] }
+        }
+        transition={{
+          duration: pulse.still ? 0.5 : full ? 0.6 : 0.4,
+          times: [0, 0.32, 1],
+          ease: 'easeOut',
+        }}
       >
         {children}
       </motion.span>

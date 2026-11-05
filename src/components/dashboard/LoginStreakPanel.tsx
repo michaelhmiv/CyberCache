@@ -320,6 +320,10 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
                   >
                     Cycle complete
                   </span>
+                ) : justClaimed ? (
+                  <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wide text-text-muted">
+                    Claimed just now
+                  </div>
                 ) : (
                   <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wide text-text-muted">
                     Granted on arrival
