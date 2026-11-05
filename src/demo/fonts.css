@@ -1,0 +1,41 @@
+/**
+ * PROTOTYPE-ONLY font serving (design/hunter-subpages-wardrobe-e).
+ *
+ * The shipped app loads Bebas Neue + Chakra Petch from Google
+ * Fonts (src/index.css @import). The local capture browser cannot
+ * reach Google Fonts (egress proxy refuses the tunnel), so every
+ * local capture of every variant silently renders in fallback
+ * faces. These @font-face rules serve the SAME two families from
+ * files beside the demo so captures show the design's real
+ * letterforms. Latin subsets, downloaded from Google Fonts
+ * (OFL-licensed faces). Never shipped: this file is imported only
+ * by the demo harness, and the branch dies with the prototype.
+ */
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/BebasNeue-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/ChakraPetch-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/ChakraPetch-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/ChakraPetch-700.woff2') format('woff2');
+}
