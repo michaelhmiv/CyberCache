@@ -66,31 +66,44 @@ const ServiceJobRow: React.FC<{
           ? 'Paused'
           : job.state;
   return (
-    <div className="border border-border bg-bg/70 p-2.5 space-y-1.5" data-testid={`service-job-${job.id}`}>
+    <div className="space-y-2" data-testid={`service-job-${job.id}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[11px] font-bold text-text-primary">
+        <span className="min-w-0 truncate text-[13px] font-black text-text-primary">
           {itemName ?? job.name}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
           <span className="border border-border bg-surface px-1.5 py-0.5 text-[11px] font-bold text-text-secondary" style={chipClip}>
             {isRepair ? 'Repair' : 'Shield-tech'}
           </span>
-          <span className={`text-[11px] font-bold ${job.state === 'running' ? 'text-green' : job.state === 'paused' ? 'text-red' : 'text-amber'}`}>
+          <span className={`text-[11px] font-black uppercase ${job.state === 'running' ? 'text-green' : job.state === 'paused' ? 'text-red' : 'text-amber'}`}>
             {stateLabel}
           </span>
         </span>
       </div>
       <div className="text-[11px] text-text-secondary">
         {isRepair
-          ? <>{job.repairKitType ?? 'PatchKit'} · {job.unitsCompleted}/{job.unitsTotal} kits applied · {Math.floor(job.repairPointsRestored)} condition restored so far</>
-          : <>{job.shieldtechFromBehavior ?? '?'} → {job.shieldtechToBehavior ?? '?'} · {job.unitsCompleted}/{job.unitsTotal} cores applied{(job.shieldtechPointsApplied ?? 0) > 0 ? ` · ${job.shieldtechPointsApplied} coverage applied` : ''} — the flip lands at full coverage</>}
+          ? (job.repairKitType ?? 'PatchKit')
+          : <>{job.shieldtechFromBehavior ?? '?'} → {job.shieldtechToBehavior ?? '?'} — the flip lands at full coverage</>}
       </div>
-      <div className="flex items-center justify-between text-[11px] text-text-muted">
-        <span>{formatDuration(job.remainingMs)} left</span>
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[11px] text-text-muted">
+        {isRepair ? (
+          <>
+            <span><span className="text-sm font-black text-text-primary">{job.unitsCompleted}/{job.unitsTotal}</span>{' kits applied'}</span>
+            <span><span className="text-sm font-black text-text-primary">{Math.floor(job.repairPointsRestored)}</span>{' condition restored so far'}</span>
+          </>
+        ) : (
+          <>
+            <span><span className="text-sm font-black text-text-primary">{job.unitsCompleted}/{job.unitsTotal}</span>{' cores applied'}</span>
+            {(job.shieldtechPointsApplied ?? 0) > 0 && (
+              <span><span className="text-sm font-black text-text-primary">{job.shieldtechPointsApplied}</span>{' coverage applied'}</span>
+            )}
+          </>
+        )}
+        <span><span className="text-sm font-black text-text-primary">{formatDuration(job.remainingMs)}</span>{' left'}</span>
         <span className="flex items-center gap-1"><Clock size={10} /> {formatDuration(job.unitDurationMs)}/unit</span>
       </div>
-      <div className="h-1.5 bg-surface-raised rounded-full overflow-hidden">
-        <div className="h-full bg-amber rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+      <div className="h-2 bg-black/60 overflow-hidden">
+        <div className={`h-full transition-all ${isTargeted ? 'bg-green' : 'bg-amber'}`} style={{ width: `${progressPct}%` }} />
       </div>
       <div className="flex gap-2">
         {!isTargeted && (
@@ -98,7 +111,7 @@ const ServiceJobRow: React.FC<{
             whileTap={{ scale: 0.97 }}
             onClick={() => onWork(job)}
             disabled={busy}
-            className="flex-1 py-2 rounded-lg bg-amber text-bg text-[11px] font-bold active:bg-amber/80 transition-colors disabled:opacity-50"
+            className="bl-primary flex-1 py-3 text-xs font-black uppercase tracking-wide transition-colors disabled:opacity-50"
           >
             {isRepair ? 'Work this repair' : 'Work this recalibration'}
           </motion.button>
@@ -107,9 +120,9 @@ const ServiceJobRow: React.FC<{
           whileTap={{ scale: 0.97 }}
           onClick={() => onCancel(job.id)}
           disabled={busy}
-          className="py-2 px-3 rounded-lg bg-red/10 border border-red/30 text-red text-[11px] font-bold active:bg-red/20 transition-colors disabled:opacity-50"
+          className="bl-secondary py-3 px-4 text-xs font-black uppercase tracking-wide transition-colors disabled:opacity-50"
         >
-          Cancel
+          <span className="text-red">Cancel</span>
         </motion.button>
       </div>
       <div className="text-[11px] text-text-muted">
@@ -161,8 +174,8 @@ export const RepairServiceSection: React.FC<{ onNavigate?: (screen: string) => v
   return (
     <MobileCard className="space-y-2" >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber">
-          <PxIcon name="wrench" size={13} /> Repairs &amp; Service
+        <div className="flex items-center gap-2 text-[15px] font-black text-text-primary">
+          <span className="text-amber"><PxIcon name="wrench" size={15} /></span> Repairs &amp; Service
         </div>
         {serviceJobs.length > 0 && (
           <span className="text-[11px] font-bold text-text-muted">{serviceJobs.length} active</span>
@@ -181,13 +194,13 @@ export const RepairServiceSection: React.FC<{ onNavigate?: (screen: string) => v
           <button
             type="button"
             onClick={() => onNavigate?.('garage')}
-            className="w-full py-2 rounded-lg bg-amber/10 border border-amber/30 text-amber text-[11px] font-bold active:bg-amber/20 transition-colors"
+            className="bl-secondary w-full py-3 text-xs font-black uppercase tracking-wide text-amber transition-colors"
           >
             Open the Garage
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="divide-y divide-border/70 [&>*]:py-2.5 [&>*:first-child]:pt-0.5">
           {serviceJobs.map((job) => (
             <ServiceJobRow
               key={job.id}

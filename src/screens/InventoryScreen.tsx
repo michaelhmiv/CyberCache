@@ -76,15 +76,19 @@ const WorkshopStatusStrip: React.FC<{
         type="button"
         onClick={onOpen}
         data-testid="gear-workshop-strip"
-        className="flex w-full items-center gap-2.5 border border-border bg-surface/80 px-3 py-3 text-left transition-colors hover:border-amber/50"
+        className="bl-panel flex w-full items-center gap-2.5 px-3 py-3 text-left transition-colors active:brightness-110"
       >
         <PxIcon name="anvil" size={26} className="shrink-0 text-amber" />
         <span className="min-w-0 flex-1">
           <span className="block text-[15px] font-black text-text-primary">Workshop</span>
           <span className="block text-[11px] font-bold text-text-muted" data-testid="gear-workshop-strip-counts">
-            {hasCounts
-              ? `${running} running · ${queued} queued · ${ready} ready — the bench lives on Home`
-              : 'No jobs on the bench — the bench lives on Home'}
+            {hasCounts ? (
+              <>
+                <span className="text-[13px] font-black text-text-primary">{running}</span>{' running · '}
+                <span className="text-[13px] font-black text-text-primary">{queued}</span>{' queued · '}
+                <span className="text-[13px] font-black text-text-primary">{ready}</span>{' ready — the bench lives on Home'}
+              </>
+            ) : 'No jobs on the bench — the bench lives on Home'}
           </span>
         </span>
         <span

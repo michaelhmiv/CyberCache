@@ -98,7 +98,18 @@ export const HomeCraftBench: React.FC<{
   }, [activity, benchJobs]);
 
   const stateWord = isCrafting ? 'Running' : isService ? 'Service' : benchJobs.length > 0 ? 'Paused' : 'Idle';
-  const stateTone = isCrafting ? 'text-green' : isService ? 'text-cyan' : benchJobs.length > 0 ? 'text-red' : 'text-text-muted';
+  const stateTone = isCrafting ? 'text-green' : isService ? 'text-cyan' : benchJobs.length > 0 ? 'text-red' : 'text-amber';
+  // The card's side beam carries the state (MobileCard's rarity
+  // beam, driven by state instead of rarity): green running, the
+  // service yellow on the service lane, red paused, amber idle.
+  const stateHex = isCrafting ? '#7CFC00' : isService ? '#F7D20B' : benchJobs.length > 0 ? '#FF4B5C' : '#FF9000';
+  const stateWash = isCrafting ? 'bg-green/5' : isService ? 'bg-cyan/5' : benchJobs.length > 0 ? 'bg-red/5' : '';
+  // The hero figure beside the state word: the running job's
+  // progress, or how many jobs wait. Numbers lead (eye-leading
+  // law); the reason line below carries the words.
+  const runningPct = runningJob
+    ? Math.min(100, Math.floor(((runningJob.unitsCompleted * runningJob.unitDurationMs + runningJob.accruedMs) / Math.max(1, runningJob.unitsTotal * runningJob.unitDurationMs)) * 100))
+    : null;
 
   return (
     <div className="space-y-3" data-testid="home-craft-bench">
@@ -112,21 +123,34 @@ export const HomeCraftBench: React.FC<{
         </button>
       )}
 
-      <MobileCard className={`space-y-2 ${!isCrafting && benchJobs.length > 0 ? 'border-amber/30 bg-amber/5' : ''}`} >
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm font-black text-text-primary">
-            <span className="text-amber"><PxIcon name="anvil" size={17} /></span>
-            The Workshop
-          </div>
-          <span className={`text-[11px] font-black uppercase tracking-wider ${stateTone}`} data-testid="craft-bench-state">
+      <MobileCard rarityColor={stateHex} className={`space-y-2 ${stateWash}`} >
+        <div className="flex items-center gap-2 text-[15px] font-black text-text-primary">
+          <span className="text-amber"><PxIcon name="anvil" size={17} /></span>
+          The Workshop
+        </div>
+
+        <div className="flex items-end justify-between gap-2">
+          <span className={`text-[20px] font-black uppercase leading-none tracking-wide ${stateTone}`} data-testid="craft-bench-state">
             {stateWord}
           </span>
+          {isCrafting && runningJob && runningPct !== null && (
+            <span className="text-right leading-none">
+              <span className="text-[20px] font-black text-text-primary">{runningJob.unitsCompleted}/{runningJob.unitsTotal}</span>
+              <span className="block text-[11px] font-bold text-text-muted">units · {runningPct}%</span>
+            </span>
+          )}
+          {!isCrafting && !isService && benchJobs.length > 0 && (
+            <span className="text-right leading-none">
+              <span className="text-[20px] font-black text-text-primary">{benchJobs.length}</span>
+              <span className="block text-[11px] font-bold text-text-muted">waiting</span>
+            </span>
+          )}
         </div>
 
         <div className="text-[11px] text-text-secondary leading-relaxed" data-testid="craft-bench-banner">
           {isCrafting
             ? runningJob
-              ? <>Crafting is your current action — the bench is running. Working: <span className="font-bold text-text-primary">{runningJob.name}</span> · {runningJob.unitsCompleted}/{runningJob.unitsTotal} units.</>
+              ? <>Crafting is your current action — the bench is running. Working: <span className="font-bold text-text-primary">{runningJob.name}</span>.</>
               : 'Crafting is your current action — the bench is running. Queue a recipe below and it starts at once.'
             : isService
               ? <>Workshop Service is your current action — <span className="font-bold text-text-primary">{activity.current.targetLabel ?? 'service work'}</span> is progressing in Repairs &amp; Service below. The craft bench is paused meanwhile.</>
@@ -140,7 +164,7 @@ export const HomeCraftBench: React.FC<{
             whileTap={{ scale: 0.97 }}
             onClick={() => void startCrafting()}
             disabled={activity.pending}
-            className="w-full py-2 rounded-lg bg-amber text-bg text-xs font-bold active:bg-amber/80 transition-colors disabled:opacity-50"
+            className="bl-primary w-full py-3 text-xs font-black uppercase tracking-wide transition-colors disabled:opacity-50"
             data-testid="craft-bench-work-button"
           >
             {activity.pending ? 'Syncing…' : isService ? 'Work the Bench instead' : 'Work the Bench'}
