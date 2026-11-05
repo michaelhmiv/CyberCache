@@ -1,3 +1,8 @@
+/* eslint-disable react-refresh/only-export-components -- PROTOTYPE
+   (design/hunter-subpages-manual-e): SECTIONS / TOUR_STEPS and their
+   types are exported so the Hunter-subpage design variants can
+   typeset the shipped manual's words verbatim (variant A's
+   precedent). This branch is never merged. */
 import React, { useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import {

@@ -70,7 +70,6 @@ const Orientation: React.FC<{
   onStep: (n: number) => void;
   onJump: () => void;
 }> = ({ step, onStep, onJump }) => {
-  const current = TOUR_STEPS[step];
   return (
     <section aria-label="Orientation — the guided tour">
       <h2 className="leading-none" style={{ ...display, fontSize: 40, color: BONE }}>
