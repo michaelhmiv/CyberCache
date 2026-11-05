@@ -49,6 +49,19 @@
  *  - the icons stand at 26px (§7's door/row size) — a new pin
  *    reads the rendered svg width so the glyphs can never
  *    silently shrink back to label-era 15px.
+ *
+ * R2 AMENDMENT (owner feedback on the presented design-fix
+ * captures, 2026-11-05: "They don't need to be so tall and
+ * reduce the spacing"): the rail compacts and the pins move
+ * with it — key height 56 → 48px (tap floor 44), content
+ * stage 33 → 26px, icons 26 → 24px, row gap 8 → 6px, key
+ * padding 6 → 4px, cluster gap 6 → 4px. 24px is the minimum
+ * icon reduction the 48px key honestly allows (badge band +
+ * clear stage cap the stage at 26px); the svg-width pin
+ * moves to 24 so the glyphs still can never silently shrink
+ * back toward label-era sizes. Everything else — icon-only,
+ * one line, equal shares, data + badges, zone separation —
+ * is unchanged.
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -237,15 +250,17 @@ function expectIconKey(button: HTMLElement, minWidthClass: string) {
   // Two zones: badge at the top corner, content on the fixed
   // stage below its band — they can never share a band. The
   // cluster centers in the stage on both axes (§6 alignment
-  // law), and the icon stands at §7's 26px door/row size —
-  // the design fix's pins, so the row cannot drift back to
-  // floor-hugging 15px glyphs in label-era plates.
+  // law), and the icon stands at 24px — the design fix's 26px
+  // heroes, taken down only as far as the owner's r2
+  // compaction (48px keys, 26px stage) honestly allows; the
+  // pin stands so the row cannot drift back to floor-hugging
+  // 15px glyphs in label-era plates.
   const stage = contentRowOf(button);
   expect(stage.className).toContain('mt-auto');
-  expect(stage.className).toContain('h-[33px]');
+  expect(stage.className).toContain('h-[26px]');
   expect(stage.className).toContain('items-center');
   expect(stage.className).toContain('justify-center');
-  expect(button.querySelector('svg')?.getAttribute('width')).toBe('26');
+  expect(button.querySelector('svg')?.getAttribute('width')).toBe('24');
 }
 
 beforeEach(() => {

@@ -437,29 +437,42 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           read as empty slabs. This pass (impeccable layout +
           polish, DESIGN.md §6 alignment law) designs the row as
           ONE instrument rail: every key takes an EQUAL flex
-          share at one height (56px), so the row has a single
+          share at one height, so the row has a single
           rhythm instead of two slabs and two stubs; the icons
-          stand at 26px — §7's door/row size, the visual heroes
-          of their keys — each tinted in its own key's accent,
+          stand large — the visual heroes of their keys — each
+          tinted in its own key's accent,
           the color its CLAIM badge and pulse already speak (the
           key in the Strip's teal resource tint, §5; the clock in
           the offline gold; the flame in the streak accent; the
           orders in the contracts green; the crate in the weekly
           sky); and each key's cluster (icon + its one data
           readout) centers optically on the shared content stage
-          (a fixed 33px band, mt-auto in the flex-col key,
+          (a fixed band, mt-auto in the flex-col key,
           centered both axes), so icons share one center line
           across the row and the bubble/figure/numeral read as
           part of the icon, never as flotsam at a plate corner.
+          R2 AMENDMENT (owner feedback on the presented r1
+          captures, 2026-11-05: "They don't need to be so tall
+          and reduce the spacing"): the rail compacts — keys
+          56 → 48px (the tap-target floor is 44), the content
+          stage 33 → 26px, the row gap 8 → 6px, key padding
+          6 → 4px, cluster gap 6 → 4px. The icons come down
+          26 → 24px — the minimum reduction the shorter key
+          honestly allows: at 48px the badge band (the badge's
+          bottom edge sits 21px below the key's top) plus a
+          clear stage caps the stage at 26px, and 24 is the
+          largest glyph that centers in it with the badge and
+          content zones still clear — nowhere near the 15px
+          #403 failure the heroes rule bans.
           Floors are sized from the clusters they must hold; the
           one deliberate asymmetry is OFFLINE pending, whose
           floor widens to carry its figure at full size — the
           row's one live claim earns the width (eye-leading:
           lead the eye to the money waiting). The widest state
           (pending hold + both word badges + weekly) sums
-          ≈360px of the 386px row. Never wrap, never shrink
+          ≈352px of the 386px row. Never wrap, never shrink
           the type. */}
-      <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-2">
+      <div data-testid="dashboard-top-bar" className="mb-3 flex items-stretch gap-1.5">
         {/* CACHE — the key count's one print on Home (the Strip's
             cache segment leaves Home in this package), as a
             bubble attached to the key icon in the centered
@@ -469,10 +482,10 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="top-cache-button"
           aria-label={`Cache — ${cacheKeys} cache keys held. Opens the cache chest.`}
           onClick={() => onNavigate?.('chest')}
-          className="bl-panel relative flex h-[56px] min-h-[44px] min-w-[64px] flex-1 flex-col overflow-hidden px-1.5"
+          className="bl-panel relative flex h-[48px] min-h-[44px] min-w-[64px] flex-1 flex-col overflow-hidden px-1"
         >
-          <span className="mt-auto flex h-[33px] items-center justify-center gap-1.5">
-            <PxIcon name="key" size={26} className="text-[#3FD6E8]" />
+          <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
+            <PxIcon name="key" size={24} className="text-[#3FD6E8]" />
             <span
               data-testid="top-cache-key-count"
               className="shrink-0 bg-amber px-1.5 py-0.5 text-[12px] font-black leading-none tabular-nums text-black"
@@ -495,12 +508,12 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           aria-busy={claiming || undefined}
           disabled={claiming}
           onClick={() => void handleOfflineTap()}
-          className={`bl-panel relative flex h-[56px] min-h-[44px] flex-1 flex-col overflow-hidden px-1.5 ${holdPending ? 'min-w-[108px]' : 'min-w-[44px]'}`}
+          className={`bl-panel relative flex h-[48px] min-h-[44px] flex-1 flex-col overflow-hidden px-1 ${holdPending ? 'min-w-[108px]' : 'min-w-[44px]'}`}
         >
           {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
           {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
-          <span className="mt-auto flex h-[33px] items-center justify-center gap-1.5">
-            <PxIcon name="clock" size={26} className="text-[#F2C063]" />
+          <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
+            <PxIcon name="clock" size={24} className="text-[#F2C063]" />
             {holdPending && (
               <span
                 data-testid="top-offline-pending"
@@ -524,7 +537,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className="bl-panel relative flex h-[56px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1.5"
+          className="bl-panel relative flex h-[48px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1"
         >
           {streakClaimable ? (
             <>
@@ -537,8 +550,8 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
               <CornerBadge text="NEW" color={STREAK_ACCENT} />
             </>
           ) : null}
-          <span className="mt-auto flex h-[33px] items-center justify-center gap-1.5">
-            <PxIcon name="flame" size={26} className="text-[#FF8A3D]" />
+          <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
+            <PxIcon name="flame" size={24} className="text-[#FF8A3D]" />
             {streakDay !== null && (
               <span className="whitespace-nowrap text-[13px] font-black leading-none tabular-nums text-text-secondary">
                 {streakDay}
@@ -557,13 +570,13 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="top-contracts-button"
           aria-label={contractsLabel}
           onClick={() => setSheet('contracts')}
-          className="bl-panel relative flex h-[56px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1.5"
+          className="bl-panel relative flex h-[48px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1"
         >
           {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
           {contractsGuestLocked && <CornerBadge text="GUEST" color="#8A847C" />}
-          <span className="mt-auto flex h-[33px] items-center justify-center gap-1.5">
-            <PxIcon name="orders" size={26} className="text-[#5EE8A0]" />
+          <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
+            <PxIcon name="orders" size={24} className="text-[#5EE8A0]" />
           </span>
         </button>
 
@@ -576,12 +589,12 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             data-testid="top-weekly-button"
             aria-label={weeklyLabel}
             onClick={() => setSheet('weekly')}
-            className="bl-panel relative flex h-[56px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1.5"
+            className="bl-panel relative flex h-[48px] min-h-[44px] min-w-[52px] flex-1 flex-col overflow-hidden px-1"
           >
             <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
             <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
-            <span className="mt-auto flex h-[33px] items-center justify-center gap-1.5">
-              <PxIcon name="crate" size={26} className="text-[#7DD0F0]" />
+            <span className="mt-auto flex h-[26px] items-center justify-center gap-1">
+              <PxIcon name="crate" size={24} className="text-[#7DD0F0]" />
             </span>
           </button>
         )}
