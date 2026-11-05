@@ -21,6 +21,7 @@ import { ActivityLogDoor } from '@/components/profile/ActivityLogDoor';
 import { StandingsDoor } from '@/components/profile/StandingsDoor';
 import { useStandingsBadge } from '@/components/profile/standingsBadge';
 import { DeckHeader, HubDoor, HunterAnnouncements, HunterHero, ProgressionStrip, type ResearchStatusLine } from '@/components/profile/HunterMenuChrome';
+import { HubLookLanding, LookBackRow, type HubDoorDatum, type HunterMenuLook } from '@/components/profile/HunterMenuLooks';
 import { getSkillTreeNodes } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
@@ -55,6 +56,14 @@ interface ProfileScreenProps {
    * branch; the winning direction gets a clean production build.
    */
   menuVariant?: 'current' | 'deck' | 'strip' | 'hub';
+  /**
+   * PROTOTYPE ONLY (pass 2, 2026-11-04): the visual LANGUAGE for the
+   * hub landing — 'plates' | 'manifest' | 'crate' (see
+   * HunterMenuLooks.tsx). Pass 1's Hub skeleton in three designed
+   * looks; only meaningful with menuVariant='hub'. Dies with the
+   * prototype branch like menuVariant does.
+   */
+  menuLook?: HunterMenuLook;
   /** PROTOTYPE seam: the active research course's status line for
    *  the strip/hero/hub chrome. Production wiring reads the same
    *  Chef research state ResearchPanel renders (getResearchState). */
@@ -119,7 +128,7 @@ const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; de
   </button>
 );
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusSection = null, menuVariant = 'current', fixtureResearch = null }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusSection = null, menuVariant = 'current', menuLook, fixtureResearch = null }) => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const skillStore = useSkillStore();
@@ -241,6 +250,56 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       ? 'Guest account'
       : 'Email verification pending';
 
+  // PROTOTYPE (pass 2): the hub doors as data for the look languages
+  // (HunterMenuLooks.tsx) — the same facts and handlers the HubDoor
+  // calls in the landing below carry, in hub order.
+  const lookDoors: HubDoorDatum[] = [
+    {
+      testId: 'hub-door-trees', icon: 'nodes', label: 'Skill Trees',
+      status: availableSkillPoints > 0 ? `${availableSkillPoints} points unspent · ${treeStatusLine}` : treeStatusLine,
+      hero: availableSkillPoints > 0 ? String(availableSkillPoints) : undefined,
+      onClick: () => goToStop('trees'),
+    },
+    {
+      testId: 'hub-door-research', icon: 'book', label: 'Research',
+      status: fixtureResearch ? `${fixtureResearch.courseLabel} · in progress` : 'Course catalog · the parallel track',
+      hero: fixtureResearch ? `${Math.round(fixtureResearch.progress * 100)}%` : undefined,
+      onClick: () => goToStop('research'),
+    },
+    {
+      testId: 'hub-door-cache-rank', icon: 'chevs', label: 'Cache Rank',
+      status: 'Tracks, ranks, and token spend',
+      onClick: () => goToStop('cacheRank'),
+    },
+    {
+      testId: 'hub-door-standings', icon: 'flag', label: 'Standings',
+      status: 'Weekly races · rewards auto-pay at settlement',
+      badge: standingsBadge.unseenEarningsCount,
+      onClick: () => { goToStop('standings'); setEarningsFocusNonce((n) => n + 1); },
+    },
+    {
+      testId: 'hub-door-collections', icon: 'shelf', label: 'Collections',
+      status: 'The 81 proofs · legendary cores',
+      hero: player.legendaryCores > 0 ? String(player.legendaryCores) : undefined,
+      onClick: () => goToStop('collections'),
+    },
+    {
+      testId: 'hub-door-wardrobe', icon: 'person', label: 'Wardrobe',
+      status: wardrobePartsOwned > 0 ? `${wardrobePartsWorn} worn · ${wardrobePartsOwned} owned · pure cosmetic` : 'Skin parts · pure cosmetic — zero stats',
+      onClick: () => goToStop('wardrobe'),
+    },
+    {
+      testId: 'hub-door-account', icon: 'cog', label: 'Account',
+      status: verifiedLabel,
+      onClick: () => goToStop('account'),
+    },
+    {
+      testId: 'hub-door-profile', icon: 'chart', label: 'Profile & Record',
+      status: 'Identity · trophy shelf · lifetime record · totals & sources',
+      onClick: () => goToStop('profile'),
+    },
+  ];
+
   const typeCounts: Record<string, number> = {};
   weapons.forEach((w) => { typeCounts[w.weaponType] = (typeCounts[w.weaponType] || 0) + 1; });
   const favoriteType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
@@ -328,15 +387,23 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       {/* PROTOTYPE (hub direction): inside a door's stop, a single
           back row returns to the menu — the rail is retired. */}
       {menuVariant === 'hub' && stop !== 'hub' && (
-        <button
-          type="button"
-          data-testid="hunter-back-menu"
-          onClick={() => goToStop('hub')}
-          className="bl-secondary flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-black uppercase tracking-wide text-text-secondary"
-        >
-          <PxIcon name="chevs" size={13} className="-scale-x-100" />
-          Hunter Menu
-        </button>
+        menuLook ? (
+          <LookBackRow
+            look={menuLook}
+            stopLabel={HUNTER_STOPS.find((s) => s.id === stop)?.label ?? stop}
+            onBack={() => goToStop('hub')}
+          />
+        ) : (
+          <button
+            type="button"
+            data-testid="hunter-back-menu"
+            onClick={() => goToStop('hub')}
+            className="bl-secondary flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-black uppercase tracking-wide text-text-secondary"
+          >
+            <PxIcon name="chevs" size={13} className="-scale-x-100" />
+            Hunter Menu
+          </button>
+        )
       )}
 
       {menuVariant !== 'deck' && menuVariant !== 'hub' && (
@@ -747,6 +814,36 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           cosmetics (Wardrobe) get a door of equal craft and quieter
           data, at the tail with Account. */}
       {menuVariant === 'hub' && stopSection('hub', (
+        menuLook ? (
+          <HubLookLanding
+            look={menuLook}
+            level={player.level}
+            name={player.name}
+            handleLine={(
+              <>
+                <span className={account?.hasUsername ? 'font-bold text-amber' : undefined}>
+                  {account?.hasUsername ? `@${account.username ?? profileSummary?.username}` : 'No handle set'}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>Level {player.level}</span>
+              </>
+            )}
+            xp={player.xp}
+            xpToNext={xpToNext}
+            xpProgress={xpProgress}
+            availableSkillPoints={availableSkillPoints}
+            earningsCount={standingsBadge.unseenEarningsCount}
+            research={fixtureResearch}
+            treeSpent={[SkillTreeType.Gunslinger, SkillTreeType.Demolition, SkillTreeType.Scavenger, SkillTreeType.Fixer].map((tree) => ({
+              label: String(tree),
+              spent: getSkillTreeNodes(tree).reduce((sum, node) => sum + (skillStore.spent[node.id] || 0), 0),
+            }))}
+            doors={lookDoors}
+            onOpenTrees={() => goToStop('trees')}
+            onOpenStandings={() => { goToStop('standings'); setEarningsFocusNonce((n) => n + 1); }}
+            onOpenResearch={() => goToStop('research')}
+          />
+        ) : (
         <>
           <HunterHero
             level={player.level}
@@ -848,6 +945,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
             onClick={() => goToStop('profile')}
           />
         </>
+        )
       ))}
 
       {/* PROTOTYPE (hub direction): Wardrobe stands alone behind

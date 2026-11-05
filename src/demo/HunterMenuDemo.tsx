@@ -122,12 +122,22 @@ function seedFixture() {
 const VARIANTS = ['deck', 'strip', 'hub'] as const;
 type Variant = (typeof VARIANTS)[number];
 
+/** Pass 2: visual languages for the hub landing (?look=plates|manifest|crate). */
+const LOOKS = ['plates', 'manifest', 'crate'] as const;
+type Look = (typeof LOOKS)[number];
+
 const DemoStage: React.FC = () => {
   const { loading } = useAuth();
+  const [look, setLook] = useState<Look | null>(() => {
+    const l = new URLSearchParams(window.location.search).get('look');
+    return (LOOKS as readonly string[]).includes(l ?? '') ? (l as Look) : null;
+  });
   const [variant, setVariant] = useState<Variant>(() => {
     const v = new URLSearchParams(window.location.search).get('variant');
     return (VARIANTS as readonly string[]).includes(v ?? '') ? (v as Variant) : 'hub';
   });
+  // A chosen look only exists on the hub skeleton.
+  const activeVariant: Variant = look ? 'hub' : variant;
   const [seeded, setSeeded] = useState(false);
 
   // The AuthProvider's boot resets every runtime store to initial
@@ -145,7 +155,7 @@ const DemoStage: React.FC = () => {
   }, [loading, seeded]);
 
   return (
-      <div className="flex h-dvh flex-col bg-bg" data-testid={`hunter-demo-${variant}`}>
+      <div className="flex h-dvh flex-col bg-bg" data-testid={`hunter-demo-${activeVariant}`}>
         {/* Capture switcher — scaffolding, not design. */}
         <div className="flex shrink-0 gap-1 border-b border-border bg-surface px-2 py-1">
           {VARIANTS.map((v) => (
@@ -153,18 +163,31 @@ const DemoStage: React.FC = () => {
               key={v}
               type="button"
               data-testid={`demo-switch-${v}`}
-              onClick={() => setVariant(v)}
-              className={`px-2 py-1 text-[11px] font-black uppercase ${variant === v ? 'bg-amber text-bg' : 'text-text-muted'}`}
+              onClick={() => { setVariant(v); setLook(null); }}
+              className={`px-2 py-1 text-[11px] font-black uppercase ${activeVariant === v && !look ? 'bg-amber text-bg' : 'text-text-muted'}`}
             >
               {v}
+            </button>
+          ))}
+          <span className="mx-1 w-px bg-border" aria-hidden="true" />
+          {LOOKS.map((l) => (
+            <button
+              key={l}
+              type="button"
+              data-testid={`demo-look-${l}`}
+              onClick={() => setLook(l)}
+              className={`px-2 py-1 text-[11px] font-black uppercase ${look === l ? 'bg-amber text-bg' : 'text-text-muted'}`}
+            >
+              {l}
             </button>
           ))}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {seeded && (
             <ProfileScreen
-              key={variant}
-              menuVariant={variant}
+              key={`${activeVariant}-${look ?? 'pass1'}`}
+              menuVariant={activeVariant}
+              menuLook={look ?? undefined}
               fixtureResearch={FIXTURE_RESEARCH}
               onNavigate={() => {}}
             />
