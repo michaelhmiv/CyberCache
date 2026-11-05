@@ -456,10 +456,10 @@ describe('CONS-03 — resolved phase labels the settled encounter', () => {
 
   it('builds terminal labels for victory and defeat, and the phase survives migration', () => {
     const victory = buildBossFightActivity(boss, undefined, 'resolved', 'victory');
-    expect(victory.publicPayload.activity_label).toBe(`Defeated ${boss.name}`);
+    expect(victory.publicPayload!.activity_label).toBe(`Defeated ${boss.name}`);
     expect(victory.notes).toBe(`Defeated ${boss.name}`);
     const defeat = buildBossFightActivity(boss, undefined, 'resolved', 'defeat');
-    expect(defeat.publicPayload.activity_label).toBe(`Fell to ${boss.name}`);
+    expect(defeat.publicPayload!.activity_label).toBe(`Fell to ${boss.name}`);
     expect(isBossPhase('resolved')).toBe(true);
     const migrated = migrateActivityForBossCollapse({
       kind: 'boss_fight', bossPhase: 'resolved',
