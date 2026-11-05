@@ -11,7 +11,15 @@
  *  - A8: Market Buy card stat lines print in full: the badge line
  *    (which carries activity-module stat values) wraps instead of
  *    ellipsizing, stat chips never break mid-value, and the
- *    seller/trend row wraps instead of crushing.
+ *    seller/trend row wraps instead of crushing. (Superseded in
+ *    form by the owner ruling of 2026-11-04: the Buy/Mine lists
+ *    became true lists on the Gear list's row anatomy — the card
+ *    face A8 governed is retired, the row's fact line truncates
+ *    by flex design, and the full stat lines print in the inspect
+ *    sheet, the row's detail door. The A8 describe below pins the
+ *    new contract: the retired card markup stays retired and the
+ *    row face carries no stat chips. marketListRow.test.tsx pins
+ *    the row anatomy itself.)
  *  - A9: the gain-toast lane sits in its own lane above the 66px
  *    bottom nav (66 + 14px gap), pointer-transparent, and the
  *    toast entry slide (6px) can never dip into the nav.
@@ -65,20 +73,19 @@ describe('QC A5 — PickerSheet sizes to content, capped at 92vh', () => {
   });
 });
 
-describe('QC A8 — Market card stat lines print in full', () => {
+describe('QC A8 — Market stat lines: full in inspect, the row face is a list (2026-11-04)', () => {
   const market = readSource('src/screens/MarketScreen.tsx');
+  const row = readSource('src/components/market/ListingRow.tsx');
 
-  it('the badge line wraps — no truncate on the stat-bearing badge', () => {
-    expect(market).not.toContain('text-amber mt-0.5 truncate');
-    expect(market).toContain('text-amber mt-0.5 leading-snug');
+  it('the retired Buy card face stays retired — badge line, stat chips, seller/trend row', () => {
+    expect(market).not.toContain('text-amber mt-0.5 leading-snug');
+    expect(market).not.toContain('inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5');
+    expect(market).not.toContain('flex flex-wrap items-center justify-between gap-x-2 gap-y-1');
   });
 
-  it('stat chips are nowrap so a value never breaks mid-number', () => {
-    expect(market).toContain('inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5');
-  });
-
-  it('the seller / price-trend row wraps instead of crushing', () => {
-    expect(market).toContain('flex flex-wrap items-center justify-between gap-x-2 gap-y-1');
+  it('listings render through the compact row, whose face carries no stat chips', () => {
+    expect(market).toContain('<ListingRow');
+    expect(row).not.toContain('whitespace-nowrap rounded border');
   });
 });
 

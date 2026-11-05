@@ -327,3 +327,23 @@ export function gearRowHeadline(
   }
   return summary.primaryStats[0];
 }
+
+/**
+ * The LISTING variant of the row headline (Market Buy/Sell rows,
+ * owner addition 2026-11-04: the Gear list treatment applies to the
+ * Market lists too). Same RowHeadline contract, same right-hand
+ * slot — but on a listing the number a scanner compares across rows
+ * is the PRICE, not a stat: the total the buyer pays for the whole
+ * listing (per-unit price is a fact-line fact for stacks, never the
+ * hero). The item's own gearRowHeadline stat still leads the row's
+ * fact line, so two similar guns compare at a glance; the full
+ * poster lives behind inspect. Amber because the shipped Market
+ * prints its prices in amber — the row inherits the tab's read.
+ */
+export function priceRowHeadline(price: number): RowHeadline {
+  return {
+    label: null,
+    value: `${Math.round(price).toLocaleString()}cr`,
+    tone: 'text-amber',
+  };
+}

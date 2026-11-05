@@ -14,7 +14,7 @@ really exists, at the price shown.
 
 [[images/ui/market-buy.png]]
 
-*The Buy stop: the rail across the top, search and filters, then the listings — each with its art, its stats, its price, and its seller.*
+*The Buy stop: the rail across the top, search and filters, then the listings — one compact row each: its art, its price, its seller, and how long it has been listed.*
 
 ## Who can use it
 
@@ -99,9 +99,15 @@ listing.)
    (on weapon searches), the level range and price range, and the
    sort — newest, cheapest, most expensive, highest level, rarity,
    or name.
-3. Every row names its seller by their hunter name and carries its price history under the name,
-   with the price and the Buy button at the row's right edge. Tap Buy
-   and confirm. You pay exactly the
+3. Every row is one compact line: the item's art, its name
+   in its rarity color, and under the name a fact line — the item's
+   headline stat, its seller by their hunter name, and how long ago
+   it was listed. Listings never expire, so age is the time fact a
+   row can tell you. The price is the row's big number at the right
+   edge — with the recent-sales median printed under it when real
+   sales exist — and the Buy button beside it; tap
+   the item itself for the full stat poster and its market history.
+   Tap Buy and confirm. You pay exactly the
    listed price — the fee
    (below) comes out of the seller's side, never added on top for you.
 
@@ -148,12 +154,16 @@ the sale is recorded; opening History yourself clears the announcement.
 Pricing on the Market is informed, not guessed. Listings and sell forms
 carry real sales data for the same kind of item:
 
-- a price sparkline built from recent sales,
-- the **median** recent unit price,
+- on a listing row, the **median** recent unit price and the 7-day
+  **trend** print as text under the price,
 - a 7-day **trend** (up / down / flat, with the percentage move), comparing
-  the last 7 days against the 7 days before that.
+  the last 7 days against the 7 days before that,
+- on the sell form, the full guidance line: median, last sale price,
+  and how many have sold; the inspect sheet carries the item's whole
+  market picture (comparable supply, lowest and median asks, recent
+  sales).
 
-An item with no recent sales shows no chart — the game never invents a
+An item with no recent sales shows none of this — the game never invents a
 price history. Use the median as your anchor: pricing far above it usually
 means your listing sits, and pricing below it is how you sell fast at a
 real cost.

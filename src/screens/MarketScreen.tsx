@@ -5,8 +5,6 @@ import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Filter, Lock, RefreshCw, Search, X } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
-import { GearIllustration } from '@/components/gearArt/GearIllustration';
-import { GearCompare } from '@/components/gear/GearCompare';
 import { useAuth } from '@/auth/AuthProvider';
 import { trackMarketBuy, trackMarketList } from '@/lib/analytics/analytics';
 import { useAnnouncementsStore, useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useSkillStore } from '@/store';
@@ -32,8 +30,7 @@ import {
   type MarketCategory,
 } from '@/lib/market/identityKey';
 import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
-import { conditionFraction, getVehicleClass } from '@/lib/vehicles/vehicles';
-import { VehicleSprite } from '@/components/gear/GaragePanel';
+import { getVehicleClass } from '@/lib/vehicles/vehicles';
 import type { PriceStats } from '@/lib/market/priceStats';
 import type { MarketListingQuery, MarketSort } from '@/lib/market/listingQuery';
 import { ResourceBar } from '@/components/layout/ResourceBar';
@@ -52,7 +49,7 @@ import { fetchMarketListings, fetchMyMarketListings } from '@/lib/api/marketList
 import { fetchPriceStats } from '@/lib/api/marketPriceStats';
 import type { GearItem, Weapon } from '@/types/items';
 import type { Listing, MarketHistory } from '@/types/market';
-import { gearCardSummary } from '@/lib/gear/gearCardSummary';
+import { ListingRow, GearCandidateRow, VehicleCandidateRow } from '@/components/market/ListingRow';
 
 const getNow = () => Date.now();
 
@@ -128,14 +125,6 @@ function isWeapon(item: GearItem): item is Weapon {
   return 'weaponType' in item;
 }
 
-function itemKind(item: GearItem): string {
-  if (isWeapon(item)) return item.weaponType;
-  if ('hp' in item) return 'Shield';
-  if ('treeBonus' in item) return 'Class Mod';
-  if ('effect' in item && 'damage' in item) return 'Ordnance';
-  return 'Relic';
-}
-
 function defaultPrice(item: GearItem): number {
   return isWeapon(item) ? Math.round(item.combatPower * 10 + item.rollQuality * 50) : Math.round((item.level ?? 1) * 200);
 }
@@ -151,104 +140,6 @@ function feePreview(price: number, bonuses: Record<string, number>, sourceTag?: 
   const pct = breakdown.effectiveRate * 100;
   const pctLabel = Number.isInteger(pct) ? String(pct) : pct.toFixed(2).replace(/0$/, '');
   return { ...breakdown, pctLabel };
-}
-
-/** Returns the currently equipped item that is the same broad kind as the candidate. */
-function equippedForComparison(item: GearItem, loadout: ReturnType<typeof useLoadoutStore>): GearItem | undefined {
-  if (isWeapon(item)) return loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
-  if ('hp' in item) return loadout.getShield();
-  if ('treeBonus' in item) return loadout.getClassMod();
-  if ('damage' in item && 'effect' in item) return loadout.getOrdnance();
-  return loadout.getRelic();
-}
-
-function GearMiniCard({ item, compareItem, right, onInspect }: { item: GearItem; compareItem?: GearItem; right?: React.ReactNode; onInspect: () => void }) {
-  const color = rarityColor(item.rarity);
-  const summary = gearCardSummary(item);
-  return (
-    <div className="flex items-center gap-3">
-      <button type="button" onClick={onInspect} className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center border border-border bg-bg">
-          <GearIllustration item={item} size={46} showBadges={false} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-black leading-snug" style={{ color }}>{item.name}</div>
-          <div className="text-[11px] text-text-muted">{item.rarity} · Lv.{item.level ?? 1} · {itemKind(item)}</div>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {summary.primaryStats.slice(0, 3).map((stat) => (
-              <span key={stat.label} className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
-                <span className="text-text-muted">{stat.label}</span>
-                <span className={`font-bold ${stat.tone ?? 'text-text-primary'}`}>{stat.value}</span>
-              </span>
-            ))}
-          </div>
-          {summary.badges[0] && (
-            // QC A8: the badge line carries stat values (activity
-            // module rates) — it wraps, never ellipsizes. Values on
-            // a card print in full or not at all.
-            <div className="text-[11px] text-amber mt-0.5 leading-snug">{summary.badges[0]}</div>
-          )}
-          {compareItem && (
-            <GearCompare current={compareItem} candidate={item} compact />
-          )}
-        </div>
-      </button>
-      {right}
-    </div>
-  );
-}
-
-/**
- * Card for vehicle listings and sell candidates (0021): the ACTUAL
- * instance's sprite — class profile with its rolled affix overlays
- * and condition wear, the same derivation the Garage draws — plus
- * the class stats a buyer compares (yield, fuel burn) and the
- * instance's live condition. Vehicles are pure market goods (owner
- * ruling 2026-11-02): no level requirement appears here because
- * there is none — if you can buy it, you can drive it.
- */
-function VehicleMiniCard({ vehicle }: { vehicle: VehicleDisplay }) {
-  const def = getVehicleClass(vehicle.vehicleClassId);
-  const color = rarityColor(vehicle.rarity);
-  const conditionPct = Math.round(conditionFraction(vehicle.conditionCurrent, vehicle.conditionMax) * 100);
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex w-[88px] shrink-0 items-center justify-center border border-border bg-bg p-1">
-        <VehicleSprite vehicle={vehicle} widthClass="w-[80px]" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-xs font-black leading-snug" style={{ color }}>{vehicle.name}</div>
-        <div className="text-[11px] text-text-muted">{vehicle.rarity} · Lv.{vehicle.level ?? 1} · {def?.displayName ?? vehicle.vehicleClassId}</div>
-        <div className="flex flex-wrap gap-1 mt-1">
-          {def && (
-            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
-              <span className="text-text-muted">Yield</span>
-              <span className="font-bold text-text-primary">×{def.baseYield.toFixed(2)}</span>
-            </span>
-          )}
-          {def && (
-            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
-              <span className="text-text-muted">Burn</span>
-              <span className="font-bold text-text-primary">{def.fuelBurnPerTick.toFixed(1)}/tick</span>
-            </span>
-          )}
-          <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
-            <span className="text-text-muted">Condition</span>
-            <span className="font-bold text-text-primary">{conditionPct}%</span>
-          </span>
-          {def && def.materialYieldBonus > 0 && (
-            <span className="inline-flex items-center gap-0.5 whitespace-nowrap rounded border border-border bg-bg px-1 py-0.5 text-[11px]">
-              <span className="text-text-muted">Materials</span>
-              <span className="font-bold text-text-primary">+{Math.round(def.materialYieldBonus * 100)}%</span>
-            </span>
-          )}
-        </div>
-        {vehicle.affixes.length > 0 && (
-          <div className="text-[11px] text-amber mt-0.5 leading-snug">{vehicle.affixes[0].displayText}</div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 /** Compact card for consumable/material/resource stack listings (0019, 0050). */
@@ -294,38 +185,6 @@ function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; righ
   );
 }
 
-/** Tiny price-history sparkline from real completed sales (0019). */
-function PriceSparkline({ points }: { points: number[] }) {
-  if (points.length < 2) return null;
-  const w = 48;
-  const h = 16;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
-  const path = points
-    .map((p, i) => `${((i / (points.length - 1)) * w).toFixed(1)},${(h - 2 - ((p - min) / range) * (h - 4)).toFixed(1)}`)
-    .join(' ');
-  return (
-    <svg width={w} height={h} className="shrink-0" aria-hidden="true">
-      <polyline points={path} fill="none" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-/** Sparkline + 7d trend for one identity key, from real sales. Renders nothing without sales. */
-function PriceTrend({ stats }: { stats?: PriceStats }) {
-  if (!stats || (stats.salesCount === 0 && stats.lastUnitPrice === null)) return null;
-  const arrow = stats.trend === 'up' ? '▲' : stats.trend === 'down' ? '▼' : stats.trend === 'flat' ? '→' : '';
-  const tone = stats.trend === 'up' ? 'text-green-400' : stats.trend === 'down' ? 'text-red-400' : 'text-text-muted';
-  return (
-    <div className={`flex items-center gap-1.5 text-[11px] ${tone}`}>
-      <PriceSparkline points={stats.recentUnitPrices} />
-      {stats.medianUnitPrice !== null && <span className="text-text-muted">median {Math.round(stats.medianUnitPrice).toLocaleString()}cr</span>}
-      {arrow && stats.trendPct !== null && <span>{arrow} {Math.abs(Math.round(stats.trendPct * 100))}% / 7d</span>}
-    </div>
-  );
-}
-
 /** "Recent sales: median X · last Y · N sold" — the seller guidance line (0019). */
 function SalesGuidance({ stats, perUnit }: { stats?: PriceStats; perUnit?: boolean }) {
   if (!stats || stats.salesCount === 0) return null;
@@ -351,7 +210,6 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
   const reduceMotion = useReducedMotion();
   const inventory = useInventoryStore();
   const player = usePlayerStore();
-  const loadout = useLoadoutStore();
   const vehicles = useVehicleStore((s) => s.vehicles);
   const equippedVehicleId = useLoadoutStore((s) => s.slots.vehicle);
   const skillBonuses = useSkillStore().getBonuses();
@@ -1018,46 +876,26 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
               const shortfall = listing.price - player.credits;
               const cantAfford = !marketLocked && pendingBuyId !== listing.id && shortfall > 0;
               return (
-                <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card p-2.5">
-                  {/* Compact row (F3, mock m39; M4 adds the cosmetic
-                      branch): item + seller/trend
-                      in the flexible middle, price over a SMALL Buy
-                      button in a fixed right column — the full-width
-                      button band is gone, so rows run ~half the old
-                      height and listings start high. Same handler,
-                      same lock-on-the-action; the disabled rule is
-                      G3's now — only a pending buy disables, and
-                      can't-afford renders its own tappable button. */}
-                  <div className="flex items-start gap-2">
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      {listing.kind === 'gear' && listing.itemSnapshot ? (
-                        <GearMiniCard item={listing.itemSnapshot} compareItem={equippedForComparison(listing.itemSnapshot, loadout)} onInspect={() => setInspectItem(listing.itemSnapshot)} />
-                      ) : listing.kind === 'vehicle' && listing.vehicleSnapshot ? (
-                        <VehicleMiniCard vehicle={listing.vehicleSnapshot} />
-                      ) : listing.kind === 'cosmetic' ? (
-                        <CosmeticMiniCard partId={listing.partId} name={listing.displayName} qualityPercent={listing.qualityPercent} tintPaletteId={listing.tintPaletteId} />
-                      ) : (
-                        <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} />
-                      )}
-                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                        <span className="text-[11px] text-text-muted">Seller · {seller}</span>
-                        <PriceTrend stats={stats} />
-                      </div>
-                    </div>
-                    <div className="flex w-[92px] shrink-0 flex-col items-end gap-1.5">
-                      <div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>
-                      {cantAfford ? (
-                        <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} aria-label={`Not enough credits — short by ${shortfall.toLocaleString()} cr`} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-400/50 bg-red-400/10 px-2 py-2 text-center text-[11px] font-bold leading-tight text-red-300">
-                          Short by {shortfall.toLocaleString()} cr
-                        </button>
-                      ) : (
-                        <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber px-2 py-2 text-[11px] font-bold text-bg disabled:opacity-40">
-                          {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
+                <ListingRow
+                  key={listing.id}
+                  listing={listing}
+                  index={index}
+                  reduceMotion={reduceMotion}
+                  now={getNow()}
+                  sellerLabel={<>Seller · {seller}</>}
+                  stats={stats}
+                  onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => setInspectItem(listing.itemSnapshot) : undefined}
+                  onShowUsage={setUsageMaterialId}
+                  action={cantAfford ? (
+                    <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} aria-label={`Not enough credits — short by ${shortfall.toLocaleString()} cr`} className="flex h-11 shrink-0 items-center justify-center rounded-lg border border-red-400/50 bg-red-400/10 px-2 text-center text-[11px] font-bold leading-tight text-red-300">
+                      Short by {shortfall.toLocaleString()} cr
+                    </button>
+                  ) : (
+                    <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id} className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber px-3 text-[11px] font-bold text-bg disabled:opacity-40">
+                      {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
+                    </button>
+                  )}
+                />
               );
             })}
           </div>
@@ -1129,8 +967,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
             const preview = feePreview(price, skillBonuses, item.sourceTag);
             const stats = priceStats[gearIdentityKeyForItem(item)];
             return (
-              <div key={item.id} className="bl-card space-y-2 p-2.5">
-                <GearMiniCard item={item} onInspect={() => setInspectItem(item)} />
+              <div key={item.id} className="bl-card space-y-2 p-2.5" style={{ borderLeftColor: rarityColor(item.rarity), borderLeftWidth: 4 }}>
+                <GearCandidateRow item={item} onInspect={() => setInspectItem(item)} />
                 <div className="flex items-center gap-2">
                   <input type="number" value={price} onChange={(e) => setListingPrice((p) => ({ ...p, [item.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" />
                   <button onClick={() => guardTransact('sell', () => void handleList(item.id))} disabled={pendingListId === item.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
@@ -1151,8 +989,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 const price = listingPrice[vehicle.id] ?? (stats?.medianUnitPrice ? Math.round(stats.medianUnitPrice) : Math.max(500, (vehicle.level ?? 1) * 200));
                 const preview = feePreview(Math.max(0, price), skillBonuses, vehicle.sourceTag);
                 return (
-                  <div key={vehicle.id} className="bl-card space-y-2 p-2.5" data-testid={`sell-vehicle-${vehicle.id}`}>
-                    <VehicleMiniCard vehicle={vehicle} />
+                  <div key={vehicle.id} className="bl-card space-y-2 p-2.5" data-testid={`sell-vehicle-${vehicle.id}`} style={{ borderLeftColor: rarityColor(vehicle.rarity), borderLeftWidth: 4 }}>
+                    <VehicleCandidateRow vehicle={vehicle} />
                     <div className="flex items-center gap-2">
                       <input type="number" value={price} onChange={(e) => setListingPrice((p) => ({ ...p, [vehicle.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" aria-label="Price" />
                       <button onClick={() => guardTransact('sell', () => void handleListVehicle(vehicle, price))} disabled={pendingListId === vehicle.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
@@ -1383,33 +1221,21 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
           {sortedMyListings.map((listing, index) => {
             const preview = feePreview(listing.price, skillBonuses, listing.itemSnapshot?.sourceTag);
             return (
-            <motion.div key={listing.id} {...listEntranceProps(index, reduceMotion)} className="bl-card p-2.5">
-              {/* Compact row (F3, same anatomy as Buy; M4 adds the
-                  cosmetic branch): item + fee
-                  line in the middle, price over a SMALL Cancel in
-                  the right column — the full-width red band is
-                  gone. Same handler, same lock-on-the-action. */}
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  {listing.kind === 'gear' && listing.itemSnapshot ? (
-                    <GearMiniCard item={listing.itemSnapshot} onInspect={() => setInspectItem(listing.itemSnapshot)} />
-                  ) : listing.kind === 'vehicle' && listing.vehicleSnapshot ? (
-                    <VehicleMiniCard vehicle={listing.vehicleSnapshot} />
-                  ) : listing.kind === 'cosmetic' ? (
-                    <CosmeticMiniCard partId={listing.partId} name={listing.displayName} qualityPercent={listing.qualityPercent} tintPaletteId={listing.tintPaletteId} />
-                  ) : (
-                    <StackMiniCard listing={listing} onShowUsage={setUsageMaterialId} />
-                  )}
-                  <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
-                </div>
-                <div className="flex w-[92px] shrink-0 flex-col items-end gap-1.5">
-                  <div className="text-right text-xs font-black text-amber">{listing.price.toLocaleString()}cr</div>
-                  <button onClick={() => guardTransact('cancel a listing', () => void handleCancelListing(listing))} disabled={pendingCancelId === listing.id} className="w-full rounded-lg bg-red-600 px-2 py-2 text-[11px] font-bold text-bg hover:bg-red-500 disabled:opacity-50">
+              <ListingRow
+                key={listing.id}
+                listing={listing}
+                index={index}
+                reduceMotion={reduceMotion}
+                now={getNow()}
+                netLine={`Net ${preview.sellerProceeds.toLocaleString()}cr after the ${preview.pctLabel}% fee`}
+                onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => setInspectItem(listing.itemSnapshot) : undefined}
+                onShowUsage={setUsageMaterialId}
+                action={(
+                  <button onClick={() => guardTransact('cancel a listing', () => void handleCancelListing(listing))} disabled={pendingCancelId === listing.id} className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-red-600 px-3 text-[11px] font-bold text-bg hover:bg-red-500 disabled:opacity-50">
                     {pendingCancelId === listing.id ? 'Cancelling…' : (<>Cancel Listing{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
                   </button>
-                </div>
-              </div>
-            </motion.div>
+                )}
+              />
             );
           })}
         </div>
