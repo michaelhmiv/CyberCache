@@ -23,6 +23,7 @@ import type { BossDef } from '@/types/boss';
 import type { Weapon } from '@/types/items';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
+import { assembleStatSummaryInput } from '@/lib/stats/assembleStatSummaryInput';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import { escalatedBossFee } from '@/lib/bossFees';
 import { BossStamp } from '@/components/common/BossStamp';
@@ -61,23 +62,27 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
   // rundown prints as "Eff. DPS" once the boss is selected. The
   // pre-fix chip priced a single weapon through a separate chain
   // call, so the list and the prep screen disagreed (gear-truth
-  // slice). The input assembly mirrors useCharacterStatSummary.
+  // slice). The input assembly is the shared one
+  // (assembleStatSummaryInput — the same helper useCharacterStatSummary
+  // consumes, class-mod boosts folded), so the projection can never
+  // drift from the rundown again.
   const projectDpsVs = (boss: BossDef): number => {
     if (!projectionWeapon) return 0;
-    const summary = buildCharacterStatSummary({
+    const summary = buildCharacterStatSummary(assembleStatSummaryInput({
       player,
       weapons: projectionWeapons,
       shield: loadout.getShield(),
       classMod: loadout.getClassMod(),
       relic: loadout.getRelic(),
       ordnance: loadout.getOrdnance(),
-      spentSkills: skills.spent,
+      spent: skills.spent,
+      classModBoosts: skills.classModBoosts,
       boss,
       activeBuffs: activeBuffsStore.buffs.filter((buff) => buff.expiresAt > Date.now()),
       consumableMods: buildConsumableInventoryMods(player.consumables),
       consumableInventory: player.consumables,
       medKitBuffer: survival.medKitBuffer,
-    });
+    }));
     return summary.all.find((entry) => entry.key === 'dps')?.value ?? 0;
   };
 

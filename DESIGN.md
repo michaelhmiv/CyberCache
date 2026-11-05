@@ -340,7 +340,20 @@ replace the canonical one. (Tap depths are governed by §9.)
   behind inspect. The GRID keeps the full card face — stats, badges,
   and the instance's real affix lines.
 - **Inspect sheet** — tap any item card: stats, compare, equip, reforge/reroll
-  action row, and the ◦ deep link to Market → Shield Tech.
+  action row, and the ◦ deep link to Market → Shield Tech. The compare is
+  **The Trade** tape (2026-11-04): candidate vs the equipped piece it would
+  replace, gains/losses groups, changed lines only, the resulting value as
+  hero with the signed delta beside it (§9), non-numeric consequences
+  (legendary effects with descriptions, affixes and class-mod node boosts
+  by name, action-skill qualification crossings) as first-class lines, an
+  honest "No build change" state, and boss-context DPS when a boss is
+  selected. The same sheet serves the Market inspect, so the trade is the
+  buy decision too. Picker and market ROWS carry only the item-layer strip
+  (dpsChain DPS, signed-text deltas, 11px floor) — build-layer summary math
+  runs once per opened sheet, never per row (the freeze rule, pinned by
+  test). Displayed build numbers everywhere price class-mod skill boosts
+  (the one assembly, `assembleStatSummaryInput` — screens show what the
+  Chef pays).
 - **§ Belt & Stacks** (section of the Loadout page; the Items stop retired
   into it, 2026-11-03) — the belt slots + consumables/materials stacks,
   quality % printed.
