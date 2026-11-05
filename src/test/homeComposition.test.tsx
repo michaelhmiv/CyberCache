@@ -66,6 +66,10 @@ vi.mock('@/lib/chef/chefClient', async (importOriginal) => ({
   getEndlessMe: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   getExtractionState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   getResearchState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
+  // The consolidated Craft bench mounts the Workshop's action-
+  // skill card; its mount read must fail fast like the rest or
+  // the bench tests ride a real network timeout (~20s).
+  getActionSkillState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
 vi.mock('@/lib/api/activityService', () => {
@@ -104,7 +108,7 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
 import { HomeScreen } from '@/screens/HomeScreen';
 import { IDLE_ACTIVITY } from '@/types/activity';
 import { getStandingState, standingBuy } from '@/lib/chef/chefClient';
-import { usePlayerStore } from '@/store';
+import { usePlayerStore, useWorkshopStore } from '@/store';
 import { useActivityStore } from '@/store/slices/activitySlice';
 import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
 import { useContractsStore } from '@/store/slices/contractsSlice';
@@ -245,7 +249,14 @@ describe('Home composition — mode rail (§2/§4)', () => {
     expect(screen.getByTestId('mode-rail-extract').getAttribute('aria-pressed')).toBe('true');
   });
 
+  // Mounting the consolidated bench renders the FULL real
+  // Workshop (88-card catalog) inside the full Home tree — the
+  // heaviest render in this suite under jsdom — so this test
+  // carries a 60s budget; the workshop store's refresh is stubbed
+  // because this suite leaves the network chef client real, and
+  // its timeouts would otherwise churn the tree for ~20s.
   it('Craft opens the bench workspace from the rail at one tap — looking does not switch the action', async () => {
+    useWorkshopStore.setState({ refresh: vi.fn(async () => {}) });
     render(<HomeScreen onNavigate={() => {}} />);
     fireEvent.click(await screen.findByTestId('mode-rail-craft'));
     // The lit workspace IS the Workshop (crafting consolidation,
@@ -260,7 +271,7 @@ describe('Home composition — mode rail (§2/§4)', () => {
     expect(useActivityStore.getState().current.kind).not.toBe('crafting');
     fireEvent.click(screen.getByTestId('craft-bench-work-button'));
     await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('crafting'));
-  });
+  }, 60_000);
 });
 
 describe('Home composition — stage furniture + standby panel (drift-fix F2)', () => {

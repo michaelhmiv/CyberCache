@@ -63,6 +63,10 @@ vi.mock('@/lib/chef/chefClient', async (importOriginal) => ({
   getEndlessMe: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   getExtractionState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   getResearchState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
+  // The consolidated Craft bench mounts the Workshop's action-
+  // skill card; its mount read must fail fast like the rest or
+  // the bench test rides a real network timeout (~20s).
+  getActionSkillState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
 vi.mock('@/lib/api/activityService', () => {
@@ -118,7 +122,7 @@ globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: Inter
 }) as unknown as typeof IntersectionObserver;
 
 import { HomeScreen } from '@/screens/HomeScreen';
-import { usePlayerStore } from '@/store';
+import { usePlayerStore, useWorkshopStore } from '@/store';
 import { startActiveActivity } from '@/lib/api/activityService';
 import { useActivityStore } from '@/store/slices/activitySlice';
 import { useIdleStore } from '@/store/slices/idleSlice';
@@ -174,7 +178,13 @@ describe('Home mode rail — switching modes replaces the open panel (QC B2)', (
     expect(pressed('extract')).toBe('false');
   });
 
+  // The bench mount renders the full real Workshop inside the
+  // full Home tree (the suite's heaviest jsdom render) and this
+  // suite leaves the network chef client real — stub the workshop
+  // refresh and carry a 60s budget (the dedicated consolidation
+  // suite covers the same composition with the network mocked).
   it('Endless → Craft: the bench replaces the endless panel; Work the Bench starts crafting', async () => {
+    useWorkshopStore.setState({ refresh: vi.fn(async () => {}) });
     render(<HomeScreen onNavigate={() => {}} />);
     fireEvent.click(await screen.findByTestId('mode-rail-endless'));
     expect(await screen.findByTestId('endless-panel')).toBeTruthy();
@@ -190,7 +200,7 @@ describe('Home mode rail — switching modes replaces the open panel (QC B2)', (
     expect(useActivityStore.getState().current.kind).not.toBe('crafting');
     fireEvent.click(screen.getByTestId('craft-bench-work-button'));
     await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('crafting'));
-  });
+  }, 60_000);
 
   it('Endless → Roam: roaming starts, the panel dismisses, and the lit stop agrees', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
