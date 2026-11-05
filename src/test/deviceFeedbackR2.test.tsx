@@ -251,22 +251,24 @@ async function equipFromPicker(itemId: string, itemName: string, slot: string) {
   expect(mockEquipItem).toHaveBeenCalledWith(itemId, slot);
 }
 
-// ── F2 — doors land on the Loadout tab ─────────────────────────────
+// ── F2 — doors land on the Loadout page ────────────────────────────
 
 describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
-  it('a loadout tab intent opens the gear home ON the Loadout tab, slots visible, equip works end to end', async () => {
+  it('a loadout tab intent opens the gear home ON the Loadout page, slots visible, equip works end to end', async () => {
     const weapon = makeWeapon('w-door', 'Door Pistol');
     useInventoryStore.setState({ items: [weapon] });
 
     render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'loadout', seq: 1 }} />);
 
-    // The gear home opens ON the Loadout stop — the merged page,
+    // The gear home opens ON the Loadout page — the merged page,
     // whose first zone is the doll and its equip surface.
     // F5 successor landmark: the Loadout stop's old intro sentence
     // ("Your seven gear slots…") was removed per the fidelity audit;
     // the panel header's "Tap a slot to equip" hint is its marker now.
+    // Crafting consolidation (2026-11-04): the rail and its stops
+    // are retired — there is no stop left to be selected.
     await screen.findByText('Tap a slot to equip');
-    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByTestId('gear-rail')).toBeNull();
 
     // Slots are visible and tappable on arrival; the picker opens.
     fireEvent.click(slotChip('Primary'));
@@ -285,12 +287,12 @@ describe('device r2 — F2: loadout doors arrive at the equip surface', () => {
     expect(panel.contains(toast)).toBe(false);
   });
 
-  it('without an intent the gear home opens on the Loadout stop (Wave D: the rail’s first stop)', async () => {
+  it('without an intent the gear home opens on the Loadout page (the merged page, no rail)', async () => {
     useInventoryStore.setState({ items: [makeWeapon('w-gear', 'Gear Pistol')] });
     render(<InventoryScreen onNavigate={vi.fn()} />);
     await screen.findByText('Tap a slot to equip');
     expect(screen.queryByText('Item Grid')).toBeNull();
-    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByTestId('gear-rail')).toBeNull();
   });
 
   it('the doors themselves carry the loadout intent (wiring)', () => {

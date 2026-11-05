@@ -50,7 +50,7 @@ Two things need **no account at all**:
 - **Crafting.** Guests craft freely — benches, recipes, and materials all work from your first session. See [[Crafting]].
 - **The NPC [[Vendor]].** The vendor yard is open to everyone: guests can buy from the vendor **and** sell gear back at the buyback desk.
 
-The Workshop — crafting's home — is fully readable as a guest, too: the whole recipe catalog, your benches, and your standing:
+The Workshop — crafting's home, on the Home tab's Craft workspace — is fully readable as a guest, too: the whole recipe catalog, your bench, and your standing:
 
 [[images/ui/workshop.png]]
 

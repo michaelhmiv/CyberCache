@@ -646,6 +646,17 @@ const VehicleCard: React.FC<{
               Cancel job
             </button>
           </div>
+          {/* Crafting consolidation (2026-11-04): repairs are
+              managed at the bench — Home's Craft workspace carries
+              the Repairs & Service section. This door lands there;
+              starting and quick-working the job stay here. */}
+          <button
+            type="button"
+            onClick={() => onNavigate?.('workshop')}
+            className="text-[11px] font-bold text-amber hover:text-amber/80"
+          >
+            Manage at the bench — Repairs &amp; Service on Home →
+          </button>
         </div>
       )}
     </div>

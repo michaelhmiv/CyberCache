@@ -109,11 +109,14 @@ sheet]] for the kits a full restore still needs, counted after the
 kits you hold are spent. You have two ways to
 use one:
 
-- **Self-repair** — do it yourself in the Workshop: untrained and slow,
-  at the kit's base rate. A **Workshop Rush Ticket** can be escrowed
-  when you start a self-repair, exactly as at the crafting bench: the
-  job runs faster by the ticket's quality (a 100% ticket cuts the
-  time by 20%), and cancelling before work starts refunds the ticket.
+- **Self-repair** — do it yourself: untrained and slow, at the kit's
+  base rate. A **Workshop Rush Ticket** can be escrowed when you
+  start a self-repair, exactly as at the crafting bench: the job
+  runs faster by the ticket's quality (a 100% ticket cuts the time
+  by 20%), and cancelling before work starts refunds the ticket.
+  The job starts here in the Garage and runs while Workshop
+  Service is your action; it is managed on the vehicle's card or
+  at the bench — **Home → Craft → Repairs & Service**.
 - **[[Repair Board]]** — post the job and let a mechanic do it:
   trained hands restore more per kit and earn their pay doing it.
 
