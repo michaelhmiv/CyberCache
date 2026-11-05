@@ -244,9 +244,12 @@ never come from salvage — roam for those, or buy them.
 **Bulk salvage** clears space in one move. The salvage button on the
 Gear tab opens a rarity sheet — **Commons only**, **Uncommon & under**,
 **Rare & under**, or **Epic & under** — with the live count each level
-would take. Pick one and everything eligible at or under that rarity
-is scrapped in a single instant settlement, followed by one summary
-card showing the totals you gained. **Epic & under** asks you to
+would take. Pick one and the sheet closes right away: everything
+eligible at or under that rarity leaves your inventory immediately
+and the settlement finishes in the background, followed by one summary
+card showing the totals you gained when it lands. If a settlement
+ever fails, nothing is scrapped — the items come back and a notice
+says so. **Epic & under** asks you to
 confirm first, with the epic count stated. Locked and equipped items
 are always left alone, and **Legendaries are never bulk-scrapped** —
 they are salvaged one at a time from the item's inspect sheet.
