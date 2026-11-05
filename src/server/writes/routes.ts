@@ -55,6 +55,7 @@
  *   POST /api/activity/heartbeat            activityService.heartbeat           cc_active_action_heartbeat()
  *   POST /api/profile/set-username          usernameService.setUsername         cc_set_username(name)
  *   POST /api/profile/offline-cap           offlineCapService.setLimiter        cc_set_offline_cap_limiter(cap)
+ *   GET/POST /api/profile/auto-salvage      autoSalvageService (0080)           profiles.auto_salvage_* / cc_set_auto_salvage_rule
  *   POST /api/profile/showcase-pins         profile showcase pins (0058)        profile_showcase_pins (own rows, replace)
  *   POST /api/profile/mark-reminder-seen    verificationReminderService         cc_mark_reminder_seen()
  *   GET/PUT/DELETE /api/runtime/snapshot    runtimeStoreService                 player_runtime_snapshots (own row)
@@ -703,6 +704,42 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       const raw = body(req).cap_hours;
       const capHours = raw === null || raw === undefined ? null : num(raw);
       res.json(await store.setOfflineCapLimiter(playerId, capHours));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Auto-Salvage Rule (0080): profile-owned, JWT identity only. The
+  // GET is the Settings card's authoritative re-read; the POST is
+  // cc_set_auto_salvage_rule — validation reports as data (HTTP 200
+  // with {ok:false, error}), like the offline-cap write above.
+  app.get('/api/profile/auto-salvage', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    try {
+      const rule = await store.getAutoSalvageRule(playerId);
+      if (!rule) {
+        res.status(404).json({ ok: false, error: 'Profile not found.' });
+        return;
+      }
+      res.json({ ok: true, autoSalvage: rule });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+  app.post('/api/profile/auto-salvage', async (req, res) => {
+    const playerId = caller(config, req, res);
+    if (!playerId) return;
+    try {
+      const b = body(req);
+      res.json(
+        await store.setAutoSalvageRule(playerId, {
+          enabled: b.enabled !== false,
+          maxRarity: str(b.max_rarity),
+          maxQuality: num(b.max_quality) ?? Number.NaN,
+          toMaterials: b.to_materials === true,
+        }),
+      );
     } catch (err) {
       fail(res, err);
     }

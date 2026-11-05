@@ -124,6 +124,11 @@ export interface ProfileRowData {
   workshop_tools?: Record<string, unknown>;
   /** Legendary core balance (migration 0026). Optional: pre-0026 seed rows omit it. */
   legendary_cores?: number;
+  /** Auto-Salvage Rule (migration 0080). Optional: pre-0080 seed rows omit them (= enabled, Common, 20, scrap). */
+  auto_salvage_enabled?: boolean;
+  auto_salvage_max_rarity?: string;
+  auto_salvage_max_quality?: number;
+  auto_salvage_to_materials?: boolean;
   /** Banked bench time, whole seconds (migration 0075). Optional: pre-0075 seed rows omit it (= 0). */
   bench_time_banked_seconds?: number;
   /** The bench-time settlers' sub-second drain remainder, ms (migration 0075). Optional (= 0). */
