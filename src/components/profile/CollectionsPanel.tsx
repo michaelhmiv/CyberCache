@@ -328,14 +328,14 @@ const SpecSheet: React.FC<{ target: SpecTarget; onClose: () => void }> = ({ targ
   const reduceMotion = useReducedMotion();
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-[70] flex items-end justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
       <button type="button" aria-label="Close spec sheet" className="absolute inset-0 bg-black/70" onClick={onClose} />
       <motion.div
-        className="relative w-full max-w-[430px] px-4 pb-5 pt-3"
+        className="relative max-h-[92vh] w-full max-w-[430px] overflow-y-auto px-4 pb-5 pt-3"
         style={{ backgroundColor: PANEL_RAISED, borderTop: `2px solid ${hue}` }}
         initial={reduceMotion ? false : { y: 48 }}
         animate={{ y: 0 }}
