@@ -55,21 +55,39 @@
  * Pop-ups are the shipped PickerSheet (SheetPortal to
  * document.body — sheets never render inside transformed or
  * clipped ancestors, the flow-fix F17 pattern).
+ *
+ * ANNOUNCEMENT LINE (eye-leading pass, 2026-11-04): directly
+ * under this row, at most one announcement chip at a time —
+ * orphan earning events that have no moment of their own
+ * (DESIGN.md §9's announcement grammar: past tense, pulse until
+ * acknowledged, opens the destination). First citizen: market
+ * sale proceeds ("Sold · +N cr", the amount actually credited,
+ * opening Market → Sell → History). Second: a bench job that
+ * finished while the player was elsewhere ("Bench ready",
+ * opening the Workshop). The announcements store owns the
+ * signals and the queue order (Sold before bench); this row
+ * only renders and routes.
  */
 import React, { useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PickerSheet } from '@/components/common/PickerSheet';
+import { ClaimPulse } from '@/components/common/ClaimPulse';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { OfflineRecapCard } from '@/components/activity/OfflineRecap';
 import { LoginStreakPanel } from './LoginStreakPanel';
 import { ContractsPanel } from './ContractsPanel';
 import { WeeklyClaimablesList } from './WeeklyClaimables';
-import { usePlayerStore } from '@/store';
+import { useMarketStore, usePlayerStore } from '@/store';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import { loginStreakAnnouncement, useLoginStreakStore } from '@/store/slices/loginStreakSlice';
 import { countClaimableContracts, useContractsStore } from '@/store/slices/contractsSlice';
 import { useStandingStore, weeklyClaimables } from '@/store/slices/standingSlice';
+import {
+  useAnnouncementsStore,
+  visibleAnnouncement,
+} from '@/store/slices/announcementsSlice';
+import { GAIN_GREEN } from '@/lib/ui/stripPulse';
 import { xpToNextLevel } from '@/content/simulation';
 
 const STREAK_ACCENT = '#FF8A3D';
@@ -127,7 +145,18 @@ function CornerBadge({ text, icon, color }: { text?: string; icon?: PxIconName; 
   );
 }
 
-export const DashboardTopBar: React.FC = () => {
+const SOLD_ACCENT = GAIN_GREEN;
+const BENCH_ACCENT = '#FFA01F';
+
+interface DashboardTopBarProps {
+  /** App navigation for the announcement chips' destinations
+   *  (Market → Sell → History; the Workshop). Optional so the
+   *  row still renders in isolated harnesses; a chip without a
+   *  navigator still acknowledges on tap. */
+  onNavigate?: (screen: string) => void;
+}
+
+export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) => {
   const level = usePlayerStore((s) => s.level);
   const xp = usePlayerStore((s) => s.xp);
   const streakResult = useLoginStreakStore((s) => s.result);
@@ -141,28 +170,58 @@ export const DashboardTopBar: React.FC = () => {
   const loadStanding = useStandingStore((s) => s.load);
   const lastSettlement = useOfflineRecapStore((s) => s.lastSettlement);
   const recapDismissed = useOfflineRecapStore((s) => s.dismissed);
+  const soldAnnouncement = useAnnouncementsStore((s) => s.sold);
+  const benchAnnouncement = useAnnouncementsStore((s) => s.bench);
+  const checkSales = useAnnouncementsStore((s) => s.checkSales);
+  const acknowledgeSold = useAnnouncementsStore((s) => s.acknowledgeSold);
+  const acknowledgeBench = useAnnouncementsStore((s) => s.acknowledgeBench);
   const [sheet, setSheet] = useState<TopSheet>(null);
 
   // The check-in + board reads fire HERE, on Dashboard mount —
   // never gated on opening a pop-up (see header). The stores
   // dedupe: the panels' own mounts no-op once this has loaded.
+  // The sales read (eye-leading pass) rides the same mount: it
+  // is how a listing that sold while the player was away becomes
+  // the Sold announcement under this row.
   useEffect(() => {
     void loadStreak();
     void loadContracts();
     void loadStanding();
-  }, [loadStreak, loadContracts, loadStanding]);
+    void checkSales();
+  }, [loadStreak, loadContracts, loadStanding, checkSales]);
 
   // Day-boundary revalidation (streak audit D3): a session kept
   // alive across 00:00 UTC re-reads the streak when it returns
   // to the foreground, so the new day's check-in records
   // without an app restart. Same-day returns no-op in the store.
+  // A sale can also land while the app is backgrounded, so the
+  // sales read re-runs on the same foreground return.
   useEffect(() => {
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') void revalidateStreak();
+      if (document.visibilityState === 'visible') {
+        void revalidateStreak();
+        void checkSales();
+      }
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [revalidateStreak]);
+  }, [revalidateStreak, checkSales]);
+
+  // Announcement chips (eye-leading pass, DESIGN.md §9): orphan
+  // earning events with no moment of their own announce under
+  // this row — past tense, pulsing until acknowledged, opening
+  // their destination. One at a time, in the owner's order:
+  // market sale proceeds first, then a finished bench job.
+  const announcement = visibleAnnouncement({ sold: soldAnnouncement, bench: benchAnnouncement });
+  const openSold = () => {
+    acknowledgeSold();
+    useMarketStore.getState().requestSellSegment('history');
+    onNavigate?.('market:sell');
+  };
+  const openBench = () => {
+    acknowledgeBench();
+    onNavigate?.('workshop');
+  };
 
   const xpNeeded = xpToNextLevel(level);
   const xpProgress = xpNeeded > 0 ? Math.min(100, Math.round((xp / xpNeeded) * 100)) : 100;
@@ -328,6 +387,74 @@ export const DashboardTopBar: React.FC = () => {
           </button>
         )}
       </div>
+
+      {/* The announcement line — one chip at a time, directly
+          under the claim row it belongs to (§4 step 2's block).
+          Past tense and priced from the server's own records:
+          the Sold amount is the proceeds the seller was actually
+          credited (net of the sale fee, uplift included), and it
+          has already pulsed the Strip's credits when it landed. */}
+      {announcement === 'sold' && soldAnnouncement && (
+        <button
+          type="button"
+          data-testid="announce-sold-chip"
+          aria-label={
+            soldAnnouncement.count === 1
+              ? `Sold${soldAnnouncement.itemName ? ` — ${soldAnnouncement.itemName}` : ''}, +${soldAnnouncement.totalProceeds.toLocaleString()} credits. Opens your market trade history.`
+              : `Sold — ${soldAnnouncement.count} items, +${soldAnnouncement.totalProceeds.toLocaleString()} credits. Opens your market trade history.`
+          }
+          onClick={openSold}
+          className="bl-panel relative mb-3 flex min-h-[40px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
+        >
+          <ClaimPulse color={SOLD_ACCENT} testId="announce-sold-pulse" />
+          <PxIcon name="coin" size={15} />
+          <span
+            className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider"
+            style={{ color: SOLD_ACCENT }}
+          >
+            {soldAnnouncement.count === 1 ? 'Sold' : `Sold ×${soldAnnouncement.count}`}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">
+            {soldAnnouncement.count === 1
+              ? (soldAnnouncement.itemName ?? 'Market listing')
+              : 'Market listings'}
+          </span>
+          <span
+            className="shrink-0 whitespace-nowrap text-[13px] font-black tabular-nums"
+            style={{ color: SOLD_ACCENT }}
+          >
+            +{soldAnnouncement.totalProceeds.toLocaleString()} cr
+          </span>
+        </button>
+      )}
+      {announcement === 'bench' && benchAnnouncement && (
+        <button
+          type="button"
+          data-testid="announce-bench-chip"
+          aria-label={
+            benchAnnouncement.count === 1
+              ? `Bench ready — ${benchAnnouncement.latestName ?? 'a job'} finished. Opens the Workshop.`
+              : `Bench ready — ${benchAnnouncement.count} jobs finished. Opens the Workshop.`
+          }
+          onClick={openBench}
+          className="bl-panel relative mb-3 flex min-h-[40px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
+        >
+          <ClaimPulse color={BENCH_ACCENT} testId="announce-bench-pulse" />
+          <PxIcon name="anvil" size={15} />
+          <span
+            className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider"
+            style={{ color: BENCH_ACCENT }}
+          >
+            {benchAnnouncement.count === 1 ? 'Bench ready' : `Bench ready ×${benchAnnouncement.count}`}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">
+            {benchAnnouncement.count === 1
+              ? (benchAnnouncement.latestName ?? 'Job finished')
+              : 'Jobs finished at the Workshop'}
+          </span>
+          <PxIcon name="chevR" size={14} />
+        </button>
+      )}
 
       {sheet === 'level' && (
         <PickerSheet

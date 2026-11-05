@@ -34,6 +34,16 @@ interface MarketState {
   marketStopIntent: { stop: MarketStopId; seq: number } | null;
   requestMarketStop: (stop: MarketStopId) => void;
   clearMarketStopIntent: () => void;
+  /** Sell-stop segment deep link: a one-shot intent naming the
+   *  Sell segment a launcher wants to land ON — the Sold
+   *  announcement chip (eye-leading pass) opens the trade record
+   *  itself ('history'), not just the Sell stop. Same one-shot
+   *  grammar as the stop intent: MarketScreen consumes + clears
+   *  on arrival, so a later plain visit keeps the player's own
+   *  segment. */
+  sellSegmentIntent: { segment: 'sell' | 'mine' | 'history'; seq: number } | null;
+  requestSellSegment: (segment: 'sell' | 'mine' | 'history') => void;
+  clearSellSegmentIntent: () => void;
   /** Buy-lane browse deep link: a one-shot intent naming the Buy
    *  category (and optionally a search term) a remedy door elsewhere
    *  in the app wants to land the player ON — e.g. a service board's
@@ -78,6 +88,9 @@ export const useMarketStore = create<MarketState>()((set) => ({
   marketStopIntent: null,
   requestMarketStop: (stop) => set({ marketStopIntent: { stop, seq: Date.now() } }),
   clearMarketStopIntent: () => set({ marketStopIntent: null }),
+  sellSegmentIntent: null,
+  requestSellSegment: (segment) => set({ sellSegmentIntent: { segment, seq: Date.now() } }),
+  clearSellSegmentIntent: () => set({ sellSegmentIntent: null }),
   buyBrowseIntent: null,
   requestBuyBrowse: (category, search = null) =>
     set({ buyBrowseIntent: { category, search, seq: Date.now() } }),
