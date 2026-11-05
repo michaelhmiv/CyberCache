@@ -54,6 +54,7 @@ import {
 } from '../content/crafting';
 import { RESEARCH_COURSES } from '../content/research';
 import { generateCraftedGearItem } from '../server/writes/craftGear';
+import { Rarity } from '../types/game';
 
 /** The shipped refine base yield (economy-config default). */
 const REFINE_BASE_YIELD = REFINE_BASE_YIELD_DEFAULT;
@@ -113,7 +114,7 @@ describe('§9.1 gear catalyst — bounds grid parity', () => {
     const samples: number[] = [];
     for (let i = 0; i < 300; i++) {
       const c = generateCraftedGearItem({
-        slot: 'weapon', rarity: 'Rare', itemLevel: 25, creatorId: 'dist', draws: 1, rng,
+        slot: 'weapon', rarity: Rarity.Rare, itemLevel: 25, creatorId: 'dist', draws: 1, rng,
         qualityRoll: { bounds, bench: 1 },
       });
       samples.push(c.craftQuality!);
@@ -138,7 +139,7 @@ describe('§9.1 gear catalyst — bounds grid parity', () => {
     const rng = mulberry32(11);
     for (let i = 0; i < 5; i++) {
       const c = generateCraftedGearItem({
-        slot: 'weapon', rarity: 'Rare', itemLevel: 25, creatorId: 'plain', draws: 1, rng,
+        slot: 'weapon', rarity: Rarity.Rare, itemLevel: 25, creatorId: 'plain', draws: 1, rng,
       });
       expect(c.craftQuality).toBeUndefined();
       expect(c.payload.craftQuality).toBeUndefined();
@@ -298,7 +299,7 @@ describe('migration 0067 — SQL twin shape', () => {
     const rest = text.slice(start);
     const m = rest.match(/\$\$;|\$func\$;|\$function\$;/);
     expect(m, fname).toBeTruthy();
-    return rest.slice(0, m!.index + m![0].length);
+    return rest.slice(0, (m!.index as number) + m![0].length);
   };
 
   it('the settler is re-based on 0063: Research-carried cap, dropped signature absent', () => {
