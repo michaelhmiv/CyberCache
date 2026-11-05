@@ -48,7 +48,7 @@ Buffs **never stack** — if you hold more than one, only the strongest active o
 
 ## Daily login streak
 
-Open the game on a UTC day and the day is recorded — automatically, the moment [[The Board]] loads. There is no claim button to forget. Come back the next UTC day to extend the streak; **miss a day and the streak restarts at Day 1**, though your longest streak is kept on your profile forever. Guests earn streak rewards on exactly the same terms as signed-in players.
+Open the game on a UTC day and the day is recorded — automatically, the moment [[The Board]] loads. Recording the day is not the same as being paid: the day's reward waits in the streak sheet, face-up, until you tap **Claim**. An unclaimed reward **expires when the next streak day starts at 00:00 UTC** — but the day itself still counts, so forgetting to claim never breaks your streak; only missing a day does. Come back the next UTC day to extend the streak; **miss a day and the streak restarts at Day 1**, though your longest streak is kept on your profile forever. Guests earn streak rewards on exactly the same terms as signed-in players.
 
 Rewards follow a **7-day ladder**. At tier 1 it pays:
 
@@ -71,7 +71,7 @@ Finishing day 7 doesn't end the streak — the next 7 days repeat the ladder at 
 - Tier 1 pays ×1, tier 2 ×1.5, tier 3 ×2, tier 4 ×2.5, and **tier 5 caps the ladder at ×3**. A streak longer than 35 days keeps cycling at tier 5.
 - The **cache key never scales**: every completed cycle pays exactly one key, at every tier.
 
-The flame icon in the top bar shows your current streak day at a glance and opens the streak sheet when tapped. When a check-in has just paid, the flame pulses with a NEW badge — that pulse is an announcement, not a claim: the reward is already in your account. The sheet tags every reward **Banked**, and you can watch your credits tick up to the new balance in the top bar. Opening the sheet and tapping **Back to the hunt** acknowledges the grant and clears the badge; a day that has already banked shows no pulse at all. The sheet prints the full ladder and what tomorrow pays, so you can always see what tomorrow is worth before you decide to come back for it — and a new streak day starts at 00:00 UTC.
+The flame icon in the top bar shows your current streak day at a glance and opens the streak sheet when tapped. While a reward is waiting, the flame pulses with a **CLAIM** badge — that pulse means exactly what it says: the reward is recorded but not yet yours. The sheet shows the reward at full size and the Claim button pays it; as it lands, each reward row stamps **Banked** and your balances in the top bar answer in the same moment. Once claimed, the flame goes quiet — no pulse, no badge — and the sheet simply records what today banked. The sheet prints the full ladder and what tomorrow pays, so you can always see what tomorrow is worth before you decide to come back for it — and a new streak day starts at 00:00 UTC.
 
 ---
 
