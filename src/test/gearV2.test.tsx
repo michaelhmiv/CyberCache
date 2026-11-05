@@ -23,7 +23,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
@@ -184,8 +184,17 @@ describe('Gear v2 — real data on the card face', () => {
     // old list face's "+N more affixes" pointer used to send the
     // player anyway.
     fireEvent.click(screen.getByText('Affix Pistol'));
-    expect(await screen.findByText('+8% Crit Chance')).toBeTruthy();
-    expect(screen.getByText('+5% Boss Damage')).toBeTruthy();
+    // The remaining lines must print on the sheet's own affix list
+    // (the "Affixes (3)" section). The Trade tape further down the
+    // same sheet ALSO restates the candidate's rolled affixes as
+    // swap gains, by displayText — a second, different surface in
+    // the same scene — so these two queries are scoped to the
+    // affix-list section itself. The assertions are unchanged in
+    // strength: the exact rolled lines, printed in full there.
+    const affixList = screen.getByText(/Affixes \(3\)/).closest('section');
+    if (!affixList) throw new Error('inspect affix-list section not found');
+    expect(await within(affixList).findByText('+8% Crit Chance')).toBeTruthy();
+    expect(within(affixList).getByText('+5% Boss Damage')).toBeTruthy();
   });
 });
 
