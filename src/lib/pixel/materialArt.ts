@@ -844,11 +844,16 @@ const materialCache = new Map<string, MaterialRender>();
 
 /** Cached compose, mirroring the gear/weapon compositors. */
 export function composeMaterialCached(id: string, density: MaterialDensity = 'object'): MaterialRender {
-  const composed = composeMaterial(id, density);
-  const cached = materialCache.get(composed.signature);
+  // Input-derived cache key (see composeWeaponCardCached):
+  // composeMaterial is a pure function of (id, density), so the
+  // pair is an exact key — the old signature-keyed lookup composed
+  // in full before every check and never hit.
+  const key = `${density}|${id}`;
+  const cached = materialCache.get(key);
   if (cached) return cached;
+  const composed = composeMaterial(id, density);
   if (materialCache.size > 400) materialCache.clear();
-  materialCache.set(composed.signature, composed);
+  materialCache.set(key, composed);
   return composed;
 }
 

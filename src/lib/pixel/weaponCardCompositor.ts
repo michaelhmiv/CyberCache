@@ -1312,11 +1312,19 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
  * weapon they have already drawn.
  */
 export function composeWeaponCardCached(input: PixelWeaponInput, themeId?: string): WeaponCardRender {
-  const composed = composeWeaponCard(input, themeId);
-  const cached = cardCache.get(composed.signature);
+  // The cache key must be INPUT-derived: the render signature is
+  // render-derived (it hashes the composed rows), so keying the
+  // lookup on it forces a full compose before every check — the
+  // cache could never hit and every list mount repaid the full
+  // card-density composition for every weapon (the 2026-11-04 Gear
+  // tab freeze on deep inventories). Compose is deterministic in
+  // (input, themeId), so the serialized input is an exact key.
+  const key = hashString(`cardkey|${themeId ?? ''}|${JSON.stringify(input)}`).toString(16);
+  const cached = cardCache.get(key);
   if (cached) return cached;
+  const composed = composeWeaponCard(input, themeId);
   if (cardCache.size > 400) cardCache.clear();
-  cardCache.set(composed.signature, composed);
+  cardCache.set(key, composed);
   return composed;
 }
 
