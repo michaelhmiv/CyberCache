@@ -75,7 +75,10 @@ describe('render fixes (source shape)', () => {
   it('P1 — profile handle actions are null-account safe', () => {
     const profile = read('../screens/ProfileScreen.tsx');
     expect(profile).not.toContain('{!account.isAnonymous && (');
-    expect(profile).toContain('{account && !account.isAnonymous && (');
+    // Register B (2026-11-05): the handle actions moved into the
+    // telemetry record; the null-account guard rides both props.
+    expect(profile).toContain('canRename={!!account && !account.isAnonymous}');
+    expect(profile).toContain('canSetUsername={!!account && !account.isAnonymous}');
   });
 
   it('X4 — dev copy is gone from player surfaces', () => {

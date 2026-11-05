@@ -5,6 +5,8 @@ import {
   type ProfileLifetimePayload,
   type ShowcaseItemPayload,
 } from '@/lib/api/verifiedOps';
+import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+import { showcaseWeaponInput } from '@/lib/pixel/showcaseWeaponInput';
 import { RARITIES } from '@/constants/rarities';
 import { RARITY_RANK } from '@/lib/pixel/lootMoment';
 import { Rarity } from '@/types/game';
@@ -56,9 +58,13 @@ const num = (value: unknown): number | null => (typeof value === 'number' && Num
 const str = (value: unknown): string | null => (typeof value === 'string' && value !== '' ? value : null);
 
 /**
- * One pinned unit's spec sheet row. The spec lines read the
- * payload's own fields — a field the instance does not carry is
- * simply not printed (no invented specs).
+ * One pinned unit's spec sheet row. The unit itself rides in the
+ * art well — the real instance through the shipped compositor
+ * (real-item invariant; a shelved legendary keeps its bespoke
+ * sprite via the same payload → input mapping the shared
+ * ShowcaseWeaponRow uses). The spec lines read the payload's own
+ * fields — a field the instance does not carry is simply not
+ * printed (no invented specs).
  */
 const SpecRow: React.FC<{
   item: ShowcaseItemPayload;
@@ -94,6 +100,12 @@ const SpecRow: React.FC<{
     <div data-testid={testId} className="flex items-start gap-2.5 py-2" style={{ borderBottom: '1px solid rgba(58,52,43,0.55)' }}>
       <span className="pt-1">
         <TmLed lit color={color} size={10} />
+      </span>
+      <span
+        className="flex w-[104px] shrink-0 items-center justify-center px-1 py-1"
+        style={{ border: '1px solid #3A342B', background: 'linear-gradient(180deg, #050403 0%, #0A0806 100%)', boxShadow: 'inset 0 2px 7px rgba(0,0,0,0.9)' }}
+      >
+        <PixelWeapon input={showcaseWeaponInput(item)} size={104} density="card" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-baseline gap-x-2">
