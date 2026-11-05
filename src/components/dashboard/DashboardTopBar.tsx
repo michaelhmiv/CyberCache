@@ -463,7 +463,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             aria-busy={claiming || undefined}
             disabled={claiming}
             onClick={() => void handleOfflineTap()}
-            className={`bl-panel relative flex min-h-[40px] flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${holdPending ? 'min-w-[216px] pr-16' : 'min-w-[90px]'}`}
+            className={`bl-panel relative flex min-h-[40px] flex-1 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${holdPending ? 'min-w-[216px]' : 'min-w-[90px]'} ${holdPending ? 'pr-16' : ''}`}
           >
             {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
             {holdPending && <CornerBadge text="CLAIM" color="#F2C063" />}
