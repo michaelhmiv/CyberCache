@@ -23,9 +23,14 @@
 --   §2 cc_set_auto_salvage_rule — the Settings write path (the Chef
 --      route derives the actor from the JWT; validation reports as
 --      data, the cc_set_offline_cap_limiter / cc_set_username
---      pattern). 'Legendary' is refused as a ceiling, exactly like
---      cc_recycle_batch (0055): legendaries are never swept by a
---      bulk rule — they recycle one at a time, deliberately.
+--      pattern). 'Legendary' is refused as a ceiling at EVERY
+--      layer — the §1 column check, this setter, the §3 ceiling
+--      map, and the Settings card's options all stop at Epic —
+--      exactly like cc_recycle_batch (0055): legendaries are never
+--      swept by a bulk rule — they recycle one at a time,
+--      deliberately. (The §3 eligible-set CASE still ranks a
+--      Legendary ITEM 5: that is the item's own rarity, and ranking
+--      it above every legal ceiling is what keeps it unsalvageable.)
 --
 --   §3 cc_auto_salvage_claim_items — the settlement pass. The claim
 --      routes call it with the ids of the items THIS claim just
@@ -99,7 +104,7 @@ alter table public.profiles
 alter table public.profiles
   drop constraint if exists profiles_auto_salvage_max_rarity_check,
   add constraint profiles_auto_salvage_max_rarity_check
-    check (auto_salvage_max_rarity in ('Common', 'Uncommon', 'Rare', 'Epic', 'Legendary')),
+    check (auto_salvage_max_rarity in ('Common', 'Uncommon', 'Rare', 'Epic')),
   drop constraint if exists profiles_auto_salvage_max_quality_check,
   add constraint profiles_auto_salvage_max_quality_check
     check (auto_salvage_max_quality between 0 and 100);
@@ -254,7 +259,6 @@ begin
     when 'Uncommon' then 2
     when 'Rare' then 3
     when 'Epic' then 4
-    when 'Legendary' then 5
     else 0
   end;
 

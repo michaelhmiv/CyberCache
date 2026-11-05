@@ -3734,8 +3734,13 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       return summary([], 0, 0, 0, {}, {});
     }
     const RARITY_RANK: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
+    // The CEILING map stops at Epic — a Legendary ceiling is
+    // impossible at every layer (0080's column check, the setter's
+    // refusal, the SQL ceiling CASE), so an out-of-set stored value
+    // resolves to 0 (salvage nothing), never to the item rank 5.
+    const CEILING_RANK: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4 };
     const GEAR_KINDS = new Set(['weapon', 'shield', 'ordnance', 'classMod', 'relic']);
-    const ceiling = RARITY_RANK[rule.max_rarity] ?? 0;
+    const ceiling = CEILING_RANK[rule.max_rarity] ?? 0;
     const wanted = new Set(itemIds);
     const eligible = [...this.items.values()]
       .filter((item) => {
