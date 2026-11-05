@@ -32,6 +32,7 @@ import {
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { SalvageThresholdSheet } from '@/components/gear/SalvageThresholdSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
+import { ElementBadge } from '@/components/gear/ElementBadge';
 import { useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { verifiedOps } from '@/lib/api/verifiedOps';
@@ -56,7 +57,6 @@ import {
   gearRowHeadline,
   type CardStat
 } from '@/lib/gear/gearCardSummary';
-import { ELEMENTS as ELEMENT_DEFS } from '@/constants/elements';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -171,25 +171,6 @@ const LOADOUT_LABELS: Record<LoadoutSlot, string> = {
   shield: 'Shield',
   classMod: 'Class Mod',
   relic: 'Relic',
-};
-
-/**
- * Element → sheet glyph for the list row's thumbnail corner badge
- * (owner ruling 2026-11-04: information rides badges and color
- * wherever a badge says it as well as a word would — the element is
- * never spelled out on the row). Picks are the sheet's plainest
- * silhouettes, chosen to survive the 13px inline size on the badge's
- * element-color field: flame / bolt / droplet / snow (snow is the
- * sheet's own Cryo glyph, DESIGN.md §7) / ring-dot for Void, and a
- * plain dot for Kinetic, the neutral element.
- */
-const ELEMENT_GLYPHS: Partial<Record<Element, PxIconName>> = {
-  [Element.Kinetic]: 'dot',
-  [Element.Fire]: 'flame',
-  [Element.Shock]: 'bolt',
-  [Element.Corrosive]: 'drop',
-  [Element.Cryo]: 'snow',
-  [Element.Void]: 'ringDot',
 };
 
 const KIND_DEFS: Array<{ id: GearKind; label: string; short: string; icon: PxIconName }> = [
@@ -416,8 +397,6 @@ const GearCard = memo(({
   // card-density list row was ~26 ms of compose per weapon.
   const headline = gearRowHeadline(item, summary);
   const elementName = itemElement(item);
-  const elementDef = elementName ? ELEMENT_DEFS[elementName as Element] : undefined;
-  const elementGlyph = elementName ? ELEMENT_GLYPHS[elementName as Element] : undefined;
 
   return (
     <motion.div
@@ -443,16 +422,7 @@ const GearCard = memo(({
 
       <div className="relative flex w-12 shrink-0 items-center justify-center">
         <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} />
-        {elementDef && elementGlyph && (
-          <span
-            className="absolute bottom-0 left-0 flex h-4 w-4 items-center justify-center border border-black/70"
-            style={{ backgroundColor: elementDef.color }}
-            title={elementDef.name}
-            data-element-badge={elementDef.id}
-          >
-            <PxIcon name={elementGlyph} size={13} className="text-[#171008]" />
-          </span>
-        )}
+        <ElementBadge element={elementName} />
       </div>
 
       <span className="w-10 shrink-0 text-[11px] font-black tabular-nums text-text-muted">Lv {item.level}</span>
