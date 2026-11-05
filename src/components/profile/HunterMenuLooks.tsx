@@ -598,8 +598,8 @@ const CrateFace: React.FC<{
       </span>
       <span className="min-w-0 flex-1">
         <span
-          className="bl-title block leading-none"
-          style={{ fontSize: wide ? 21 : 15, color: door.quiet ? STENCIL_MUTED : STENCIL }}
+          className={wide ? 'bl-title block truncate leading-none' : 'block truncate font-extrabold uppercase leading-none tracking-wide'}
+          style={{ fontSize: wide ? 21 : 13, color: door.quiet ? STENCIL_MUTED : STENCIL }}
         >
           {door.label}
         </span>
@@ -620,8 +620,8 @@ const CrateFace: React.FC<{
       )}
       {door.hero && (
         <span
-          className="bl-title shrink-0 leading-none"
-          style={{ fontSize: wide ? 30 : 20, color: ajar ? AMBER_GLOW : STENCIL }}
+          className={wide ? 'bl-title shrink-0 leading-none' : 'shrink-0 font-black leading-none'}
+          style={{ fontSize: wide ? 30 : 18, color: ajar ? AMBER_GLOW : STENCIL }}
         >
           {door.hero}
         </span>
@@ -736,7 +736,7 @@ const CrateLanding: React.FC<HubLookProps> = (p) => {
           door={trees}
           wide
           ajar={p.availableSkillPoints > 0}
-          contents={`Contents — ${p.treeSpent.length} trees · ${treeLine(p.treeSpent)}`}
+          contents={`Contents — ${p.treeSpent.length} trees · ${p.treeSpent.reduce((s, t) => s + t.spent, 0)} pts spent`}
         />
         <div className="grid grid-cols-2 gap-2.5">
           <CrateFace door={research} contents={research.status} />
