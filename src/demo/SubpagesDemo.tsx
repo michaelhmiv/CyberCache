@@ -59,7 +59,7 @@ const Rail: React.FC<{ active: string }> = ({ active }) => {
               backgroundColor: 'rgba(255,255,255,0.02)',
             }}
           >
-            <PxIcon name={stop.icon} size={14} />
+            <PxIcon name={stop.icon} size={13} />
             {stop.label}
           </span>
         );
