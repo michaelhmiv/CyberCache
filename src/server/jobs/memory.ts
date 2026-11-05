@@ -7,14 +7,13 @@
  *    20-hour heartbeat guard, 7-day activity window);
  *  - prune follows cc_prune_progression_snapshots (throttled sources
  *    only, 30-day horizon, milestone sources kept);
- *  - NPC seeding replaces the NPC account's active stock, like the SQL
- *    path (cancel-then-insert in one transaction);
+ *  - there is no NPC market seeding to mirror: the seed job was
+ *    removed under the pure player market ruling (2026-11-04);
  *  - snapshot *contents* are not mirrored (the SQL compute function owns
  *    them and is verified against real Postgres); only row presence,
  *    source, and timing are tracked here.
  */
-import { randomUUID } from 'node:crypto';
-import type { JobStore, NotificationEventInput, NpcSeedItem } from './store';
+import type { JobStore, NotificationEventInput } from './store';
 
 export interface JobProfileData {
   id: string;
@@ -76,15 +75,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export class InMemoryJobStore implements JobStore {
   readonly seed: JobSeed;
   private readonly now: () => number;
-  private readonly nextId: () => string;
 
   constructor(
     seed: JobSeed = emptyJobSeed(),
-    opts: { now?: () => number; nextId?: () => string } = {},
+    opts: { now?: () => number } = {},
   ) {
     this.seed = seed;
     this.now = opts.now ?? (() => Date.now());
-    this.nextId = opts.nextId ?? (() => randomUUID());
   }
 
   async recordDailyHeartbeats(): Promise<{ recorded: number }> {
@@ -123,32 +120,6 @@ export class InMemoryJobStore implements JobStore {
       (s) => !(THROTTLED_SOURCES.has(s.source) && Date.parse(s.snapshot_at) < cutoff),
     );
     return { pruned: before - this.seed.snapshots.length };
-  }
-
-  async seedNpcMarket(npcUserId: string, items: NpcSeedItem[]): Promise<{ seeded: number }> {
-    for (const listing of this.seed.listings) {
-      if (listing.seller_user_id === npcUserId && listing.status === 'active') {
-        listing.status = 'cancelled';
-      }
-    }
-    for (const item of items) {
-      this.seed.items.push({
-        id: item.id,
-        owner_user_id: npcUserId,
-        kind: item.kind,
-        item_level: item.item_level,
-        rarity: item.rarity,
-        payload: item.payload,
-      });
-      this.seed.listings.push({
-        id: this.nextId(),
-        seller_user_id: npcUserId,
-        item_instance_id: item.id,
-        price_credits: item.price_credits,
-        status: 'active',
-      });
-    }
-    return { seeded: items.length };
   }
 
   async listActivePushTokens(playerId: string): Promise<string[]> {

@@ -101,8 +101,9 @@ export function writeError(message: string): WriteStoreError {
  * from the NPC vendor (supply_mode 'npc_market') can never be listed
  * on the player market — it exits through vendor buyback or salvage.
  * Both write stores refuse with this exact message. Non-weapon
- * npc_market gear keeps the shipped behavior (it lists, stamped
- * seller_type 'npc', as market depth).
+ * npc_market gear lists normally, stamped seller_type 'player':
+ * seller_type describes the seller (2026-11-04), and a hunter
+ * re-selling vendor-origin gear is a player sale.
  */
 export const NPC_VENDOR_WEAPON_REFUSAL =
   "Vendor weapons can't be listed on the player market — sell them back to the vendor or recycle them instead";

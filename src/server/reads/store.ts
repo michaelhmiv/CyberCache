@@ -803,7 +803,12 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
   return {
     id: listing.id,
     sellerId: listing.seller_user_id,
-    sellerType: listing.seller_type === 'npc' || item?.supply_mode === 'npc_market' ? 'npc' : 'player',
+    // sellerType describes the SELLER (pure player market ruling,
+    // 2026-11-04): 'npc' only when the listing's seller is the NPC
+    // market service account (by stamp or by account id). An item's
+    // supply_mode is provenance, not seller identity — a player
+    // re-listing vendor-origin gear is a player listing.
+    sellerType: listing.seller_type === 'npc' || listing.seller_user_id === NPC_MARKET_USER_ID ? 'npc' : 'player',
     kind,
     category,
     displayName,
@@ -2075,6 +2080,9 @@ export class InMemoryReadStore implements ReadStore {
       if (!Number.isFinite(soldAt) || soldAt < since) continue;
       const item = l.item_instance_id ? items.get(l.item_instance_id) ?? null : null;
       const row = browseRowFor(l, item);
+      // Pure player market (2026-11-04): NPC sales never fold into
+      // price history — the Pg twin excludes them in SQL.
+      if (row.sellerType === 'npc') continue;
       if (row.identityKey) records.push({ identityKey: row.identityKey, unitPrice: row.unitPrice, soldAt });
     }
     return computePriceStats(records, keys, now);
@@ -2880,20 +2888,20 @@ export class PgReadStore implements ReadStore {
     // over the columns migration 0019 stamps at creation — a browse
     // never opens an item payload to filter.
     const where: string[] = [`ml.status = 'active'`];
-    // NPC stock ceiling (owner ruling, 2026-11-03, widening the pure
-    // player market of 2026-11-02): NPC-sourced gear above Common
-    // rarity NEVER browses — the twin of the exclusion in
-    // applyListingQuery's matches(). Seller and rarity are read the
-    // way browseRowFor derives them (stamped column first, item facts
-    // as the fallback), so legacy rows seeded before stamping are
-    // caught too. NPC Common gear of every kind keeps its seat — it
-    // is the beginner comfort stock. Both the count and the page
-    // query share this clause (and the item join), so totals always
-    // agree with the rows.
+    // Pure player market (owner ruling, 2026-11-04, superseding the
+    // 2026-11-03 Common-stock compromise): NPC listings NEVER browse
+    // and never count — any kind, any rarity. The twin of the
+    // exclusion in applyListingQuery's matches(). A listing is an
+    // NPC listing when its seller is the NPC market service account,
+    // read the way browseRowFor derives it (stamped seller_type or
+    // the account id itself), so legacy seeded rows are caught
+    // whatever state their stamps are in. An item's supply_mode is
+    // provenance, not seller identity, and plays no part here.
+    // Both the count and the page query share this clause (and the
+    // item join), so totals always agree with the rows.
     where.push(`not (
-      coalesce(ml.listing_kind, 'gear') = 'gear'
-      and (ml.seller_type = 'npc' or ii.supply_mode = 'npc_market')
-      and coalesce(ml.rarity, ii.rarity, ii.payload ->> 'rarity') in ('Uncommon', 'Rare', 'Epic', 'Legendary')
+      coalesce(ml.seller_type, 'player') = 'npc'
+      or ml.seller_user_id = '${NPC_MARKET_USER_ID}'::uuid
     )`);
     const params: unknown[] = [];
     const push = (clause: (i: number) => string, value: unknown) => {
@@ -3015,6 +3023,12 @@ export class PgReadStore implements ReadStore {
            left join public.item_instances ii on ii.id = ml.item_instance_id
           where ml.status = 'sold'
             and ml.sold_at >= now() - ($2::int || ' days')::interval
+            -- Pure player market (2026-11-04): price history folds
+            -- PLAYER sales only. A completed NPC "sale" (a player
+            -- buying seeded stock) is a vendor transaction, not a
+            -- market signal, and must never move a median.
+            and coalesce(ml.seller_type, 'player') <> 'npc'
+            and ml.seller_user_id <> '${NPC_MARKET_USER_ID}'::uuid
        ) s
        where identity_key = any($1::text[])`,
       [keys, PRICE_STATS_SUPPLY_DAYS],
