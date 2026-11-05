@@ -30,8 +30,17 @@ const rowFromState = (userId: string, state: ReturnType<typeof useCombatStatsSto
   kills_by_boss: state.killsByBoss,
   kills_by_element: state.killsByElement as Record<string, number>,
   highest_boss_tier: state.highestBossTier,
-  active_play_seconds: state.activePlaySeconds,
-  idle_play_seconds: state.idlePlaySeconds,
+  // Playtime accrues as fractional wall-clock seconds in memory (the
+  // foreground heartbeat credits the real elapsed time between beats,
+  // e.g. 3.184s), but the combat_stats columns are bigint whole
+  // seconds (migration 0003) and Postgres rejects a fractional literal
+  // — and because the save is ONE whole-row upsert, that rejection
+  // froze every stat in the row, not just playtime. Round at the wire:
+  // the in-memory state keeps the fraction, so the rounding costs
+  // under a second overall, never a per-save remainder. The Chef route
+  // rounds again at its trust boundary as defense in depth.
+  active_play_seconds: Math.max(0, Math.round(state.activePlaySeconds)),
+  idle_play_seconds: Math.max(0, Math.round(state.idlePlaySeconds)),
   updated_at: new Date().toISOString(),
 });
 
