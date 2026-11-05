@@ -1,0 +1,59 @@
+/**
+ * PROTOTYPE-ONLY font serving (design/hunter-subpages-wardrobe-d).
+ *
+ * The shipped app loads Bebas Neue + Chakra Petch from Google
+ * Fonts (src/index.css @import). The local capture browser cannot
+ * reach Google Fonts (egress proxy refuses the tunnel), so every
+ * local capture of every variant silently renders in fallback
+ * faces. These @font-face rules serve the SAME two families from
+ * files beside the demo so captures show the design's real
+ * letterforms. Latin subsets, downloaded from Google Fonts
+ * (OFL-licensed faces). Never shipped: this file is imported only
+ * by the demo harness, and the branch dies with the prototype.
+ */
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/BebasNeue-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/ChakraPetch-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/ChakraPetch-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/ChakraPetch-700.woff2') format('woff2');
+}
+
+/* The one authored motion of the ledger: a stamp strikes. Applied
+ * to a stamp whose verdict just changed (the component re-mounts
+ * the stamp on state change so the strike replays). */
+@keyframes stamp-strike {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--stamp-tilt, -6deg)) scale(1.7);
+  }
+  55% {
+    opacity: 1;
+    transform: rotate(var(--stamp-tilt, -6deg)) scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--stamp-tilt, -6deg)) scale(1);
+  }
+}

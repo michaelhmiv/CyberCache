@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { WardrobeLedgerDemo } from './demo/WardrobeLedgerDemo';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
@@ -34,17 +35,32 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
+// PROTOTYPE (design/hunter-subpages-wardrobe-d): /wardrobe-ledger-demo
+// mounts the Wardrobe fixture harness instead of the app — local
+// fixture state, no Chef session. This branch dies with the
+// prototype; it is never a shipped route.
+const isWardrobeLedgerDemo =
+  typeof window !== 'undefined' && window.location.pathname.startsWith('/wardrobe-ledger-demo');
+
 try {
   createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <GlobalErrorBoundary>
-        <AuthProvider>
-          <AccountStorageBoundary>
-            <App />
-          </AccountStorageBoundary>
-        </AuthProvider>
-      </GlobalErrorBoundary>
-    </StrictMode>,
+    isWardrobeLedgerDemo ? (
+      <StrictMode>
+        <GlobalErrorBoundary>
+          <WardrobeLedgerDemo />
+        </GlobalErrorBoundary>
+      </StrictMode>
+    ) : (
+      <StrictMode>
+        <GlobalErrorBoundary>
+          <AuthProvider>
+            <AccountStorageBoundary>
+              <App />
+            </AccountStorageBoundary>
+          </AuthProvider>
+        </GlobalErrorBoundary>
+      </StrictMode>
+    ),
   );
 } catch (error) {
   console.error('[createRoot] failed to render:', error);
