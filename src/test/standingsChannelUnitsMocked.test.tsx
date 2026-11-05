@@ -2,21 +2,23 @@
  * Standings board — defensive floor for the channel-unit read.
  *
  * Screen tests elsewhere mock the leaderboard service with a bare
- * factory that may not provide LEADERBOARD_METRIC_UNITS (the shape
- * that pushed #408 into keeping a local unit map — which then
- * crashed on 8 of 10 channels, finding F4 in PR #411). With the unit
- * map absent entirely, selecting a channel must still render: the
- * board header prints without a unit word and rows print bare
- * values. Nothing throws, and nothing prints "undefined".
+ * factory (the shape that pushed #408 into keeping a local unit
+ * map — which then crashed on 8 of 10 channels, finding F4 in
+ * PR #411). The console reads the canonical unit map defensively:
+ * if the map is ever unavailable at runtime, selecting a channel
+ * must still render — the board header prints without a unit word
+ * and rows print bare values. Nothing throws, and nothing prints
+ * "undefined". (Vitest itself throws on a wholly absent mock
+ * export, so the floor is pinned with the export present but
+ * undefined — the runtime shape the defensive read guards.)
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
-vi.mock('@/lib/api/leaderboardService', async (importOriginal) => {
-  const real = await importOriginal<typeof import('@/lib/api/leaderboardService')>();
-  const { LEADERBOARD_METRIC_UNITS: _units, ...rest } = real;
-  return rest;
-});
+vi.mock('@/lib/api/leaderboardService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api/leaderboardService')>()),
+  LEADERBOARD_METRIC_UNITS: undefined,
+}));
 
 import { BoardConsole } from '@/components/leaderboard/StandingsConsole';
 import type { LeaderboardEntry } from '@/lib/api/leaderboardService';
