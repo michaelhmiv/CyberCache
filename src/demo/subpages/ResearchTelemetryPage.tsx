@@ -303,10 +303,9 @@ const EnrollButton: React.FC<{
 
 const SpecSheet: React.FC<{
   course: ResearchCourseView;
-  state: ResearchStateView;
   busy: boolean;
   onEnroll: (course: ResearchCourseView) => void;
-}> = ({ course, state, busy, onEnroll }) => {
+}> = ({ course, busy, onEnroll }) => {
   const prereq = course.prerequisite ? researchCourse(course.prerequisite) : undefined;
   return (
     <div
@@ -423,7 +422,7 @@ const CourseRow: React.FC<{
           <span className="shrink-0 text-[11px] font-bold tracking-[0.1em]" style={{ ...MONO, color: statusColor }}>
             {STATUS_WORD[course.status]}
           </span>
-          <PxIcon name="chevR" size={14} className="shrink-0" />
+          <PxIcon name="chevR" size={13} className="shrink-0" />
         </div>
         <div className="mt-1 text-[11px] font-semibold tracking-[0.06em]" style={{ ...MONO, color: INK_FAINT }}>
           DUR {formatResearchDuration(course.durationNowMs).toUpperCase()} · FEE {course.costNow.toLocaleString()} CR ·
@@ -469,7 +468,7 @@ const CourseRow: React.FC<{
         </div>
       )}
 
-      {selected && <SpecSheet course={course} state={state} busy={busy} onEnroll={onEnroll} />}
+      {selected && <SpecSheet course={course} busy={busy} onEnroll={onEnroll} />}
     </div>
   );
 };

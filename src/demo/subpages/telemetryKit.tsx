@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components -- prototype kit:
+   tokens, formatters, and components share one file by design. */
 /**
  * telemetryKit — PROTOTYPE shared console primitives for the Hunter
  * subpage design pass, variant B "Instrument Panel"
