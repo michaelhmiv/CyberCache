@@ -285,7 +285,7 @@ const EntryRow: React.FC<{
         </span>
         <span className="mt-0.5 block truncate font-mono text-[11px] leading-snug text-text-muted">
           {found
-            ? `SRC ${discovery.source} · ${formatLogDate(discovery.discovered_at)}`
+            ? `Logged · ${discovery.source} · ${formatLogDate(discovery.discovered_at)}`
             : UNDISCOVERED_TEASERS[entry.family]}
         </span>
       </span>
