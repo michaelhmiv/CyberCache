@@ -14,13 +14,16 @@
  * recap's re-entry became the level pop-up, whose OfflineRecapCard
  * discriminates the shapes exactly as it always did. Wave C moved
  * the recap once more — it now presents as the Return Sheet
- * (DESIGN.md §10), which the level chip opens whenever a
- * settlement exists; the card inside is the same discriminating
- * component. The crash class is therefore guarded HERE now: these
- * tests seed each shape as a dismissed recap and render the real
- * Dashboard — no crash, no chip — then open the Return Sheet
- * through the level chip and read the variant's own truth from
- * the card.
+ * (DESIGN.md §10); the two-buttons package (2026-11-05) moved its
+ * door once more, to the top bar's OFFLINE button, which opens
+ * the sheet whenever a settlement exists (and claims the held
+ * settlement on the same tap while one waits — nothing is held
+ * in these harnesses, so the button is the sheet's quiet door);
+ * the card inside is the same discriminating component. The
+ * crash class is therefore guarded HERE now: these tests seed
+ * each shape as a dismissed recap and render the real Dashboard
+ * — no crash, no chip — then open the Return Sheet through the
+ * OFFLINE button and read the variant's own truth from the card.
  */
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -161,7 +164,7 @@ describe('Dashboard recap — settlement-shape discrimination (Return Sheet)', (
     render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
     expect(screen.queryByTestId('offline-recap-reopen')).toBeNull();
-    fireEvent.click(screen.getByTestId('top-level-button'));
+    fireEvent.click(screen.getByTestId('top-offline-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
     // Scoped to the recap card: merged Home carries other "Credits"
     // labels now (the Strip chip, Hunter Totals rows).
@@ -178,7 +181,7 @@ describe('Dashboard recap — settlement-shape discrimination (Return Sheet)', (
     useOfflineRecapStore.setState({ lastSettlement: crafting, dismissed: true });
     render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('top-level-button'));
+    fireEvent.click(screen.getByTestId('top-offline-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
     expect(screen.getByText('The benches kept working')).toBeTruthy();
     expect(screen.getByText(/2 jobs finished/)).toBeTruthy();
@@ -188,7 +191,7 @@ describe('Dashboard recap — settlement-shape discrimination (Return Sheet)', (
     useOfflineRecapStore.setState({ lastSettlement: extraction, dismissed: true });
     render(<HomeScreen onNavigate={vi.fn()} />);
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('top-level-button'));
+    fireEvent.click(screen.getByTestId('top-offline-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
     expect(screen.getByText('The site kept producing')).toBeTruthy();
     expect(screen.getByText(/1 pass completed/)).toBeTruthy();

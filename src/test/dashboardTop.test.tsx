@@ -231,7 +231,10 @@ describe('Dashboard top — first paint', () => {
     expect(screen.queryByTestId('top-level-button')).toBeNull();
     const needed = xpToNextLevel(5);
     const xp = Math.floor(needed / 2);
-    expect(screen.getByTestId('resource-xp-fraction').textContent).toContain(`${xp} / ${needed} XP`);
+    // The fraction prints in the house number format
+    // (toLocaleString grouping): "796 / 1,593 XP".
+    expect(screen.getByTestId('resource-xp-fraction').textContent)
+      .toContain(`${xp.toLocaleString()} / ${needed.toLocaleString()} XP`);
     // The Home Strip drops its cache segment: the key count
     // prints once on Home — the CACHE button's bubble (the store
     // holds the initial 3 keys in this harness).
