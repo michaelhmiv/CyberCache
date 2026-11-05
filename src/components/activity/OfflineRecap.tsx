@@ -9,15 +9,21 @@
  * Return Sheet form (redesign Wave C, DESIGN.md §3/§10): the recap
  * presents as the Return Sheet — a totals row, the absence's best
  * drop as a poster card animated on the loot ladder's own timings,
- * one Collect button, and the push primer in the footer once. The
- * sheet's host is DashboardTopBar: the LEVEL chip opens it whenever
- * a settlement exists (acknowledged or not), and the level pop-up
- * holds level specifics only. The offline-recap store's `dismissed`
- * flag is the level button's read marker (it stops the away
- * beacon); the card renders whenever a settlement exists so
- * re-opening the sheet always re-reads the recap. PRESENTATION
- * ONLY — the <5-minute suppression and every settlement rule stay
- * in the recap slice / settlement modules, untouched.
+ * one primary button, and the push primer in the footer once. The
+ * sheet's host is DashboardTopBar: the OFFLINE button opens it.
+ *
+ * Hold-and-claim (migration 0083, 2026-11-05): a roaming recap now
+ * has two states. HELD — the settlement was computed and is WAITING
+ * unpaid: the amounts print as held, never as banked, and the
+ * primary button is the real Claim (it pays the hold exactly once
+ * and this card flips to the receipt in place). RECEIPT — the
+ * claim landed; the primary button is Collect (acknowledge), as
+ * before. The away beacon no longer reads this card's dismissed
+ * flag — it reads the server hold on the OFFLINE button. The card
+ * renders whenever a settlement exists so re-opening the sheet
+ * always re-reads the recap. PRESENTATION ONLY — the <5-minute
+ * suppression and every settlement rule stay in the recap slice /
+ * settlement modules, untouched.
  *
  * PERM-01 invariant: the push-notification primer (PushPrimerRow)
  * lives inside each variant body below — it moved WITH the recap
@@ -25,7 +31,7 @@
  * prompt, behind its value moment and session-scoped answer.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useReducedMotion } from 'framer-motion';
 import { X, Clock } from 'lucide-react';
@@ -162,14 +168,32 @@ function BestDropPoster({ items }: { items: GearItem[] }) {
 
 export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
   const { lastSettlement, dismiss } = useOfflineRecapStore();
+  const [claiming, setClaiming] = useState(false);
+  const [claimFailed, setClaimFailed] = useState(false);
 
   if (!lastSettlement) return null;
 
-  // "Collect" acknowledges the settlement (stops the level button's
-  // away beacon) and lets the host close the sheet.
+  // "Collect" acknowledges the settlement and lets the host close
+  // the sheet. (Dismissing a HELD recap pays nothing and loses
+  // nothing — the hold stays on the server and the OFFLINE button
+  // keeps showing it.)
   const acknowledge = () => {
     dismiss();
     onDone?.();
+  };
+
+  // The Claim (0083): pay the held settlement. On success the recap
+  // store flips to the receipt and this card re-renders as the paid
+  // Return Sheet; on failure the hold is untouched server-side and
+  // the button offers the retry.
+  const claim = async () => {
+    if (claiming) return;
+    setClaiming(true);
+    setClaimFailed(false);
+    const { claimOfflineEarnings } = await import('@/lib/activity/activitySettlement');
+    const receipt = await claimOfflineEarnings({});
+    setClaiming(false);
+    if (!receipt) setClaimFailed(true);
   };
 
   // Craft settlement (0024): the away time went to the benches, not
@@ -356,6 +380,12 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
     Object.keys(s.rewards.essences).length > 0 ||
     (s.autoSalvage != null && s.autoSalvage.salvaged_count > 0) ||
     s.items.length > 0;
+  // Hold-and-claim (0083): a HELD recap's amounts are waiting, not
+  // banked — claimable when anything in it would actually pay
+  // (kills included: a tiny window can leave only kills payable,
+  // its credit/XP fractions banked as remainders).
+  const held = s.held === true;
+  const claimable = held && (hasRewards || s.rewards.killsRecorded > 0);
   // Auto-salvage (0080): what the rule turned this settlement's
   // matching drops into — printed as its own row so the conversion
   // is never invisible in the recap.
@@ -418,6 +448,13 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
             )}
           </span>
         </div>
+        {held && (
+          <p data-testid="return-held-note" className="text-xs font-bold text-amber">
+            {claimable
+              ? 'Held by the Chef — not in your wallet yet. Claim below to bank it.'
+              : 'Held by the Chef — nothing payable in this stretch.'}
+          </p>
+        )}
       </div>
 
       {/* Totals row + best-drop poster (the Return Sheet form) */}
@@ -520,15 +557,34 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         </div>
       )}
 
-      {/* Collect CTA — the sheet's one button (§10) */}
+      {/* The sheet's one primary button (§10): the Claim while the
+          settlement is held (0083), Collect on the receipt. */}
       <PushPrimerRow />
       <div className="px-5 pb-5 pt-2">
-        <button
-          onClick={acknowledge}
-          className="w-full bl-primary text-sm font-black py-2"
-        >
-          Collect
-        </button>
+        {claimable ? (
+          <>
+            <button
+              data-testid="return-claim-button"
+              onClick={() => void claim()}
+              disabled={claiming}
+              className="w-full bl-primary text-sm font-black py-2 disabled:opacity-60"
+            >
+              {claiming ? 'Claiming…' : 'Claim'}
+            </button>
+            {claimFailed && (
+              <p data-testid="return-claim-failed" className="mt-2 text-center text-xs font-bold text-red-400">
+                The claim didn't land — your earnings are still held. Try again.
+              </p>
+            )}
+          </>
+        ) : (
+          <button
+            onClick={acknowledge}
+            className="w-full bl-primary text-sm font-black py-2"
+          >
+            Collect
+          </button>
+        )}
       </div>
     </motion.div>
   );

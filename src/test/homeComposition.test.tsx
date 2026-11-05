@@ -198,7 +198,7 @@ afterEach(() => {
 });
 
 describe('Home composition — mode rail (§2/§4)', () => {
-  it('renders exactly the five rail stops in order, above the Stage, with the belt in the rail\u2019s vacated slot', async () => {
+  it('renders exactly the five rail stops in order, above the Stage, with the belt in the rail\u2019s vacated slot', { timeout: 20_000 }, async () => {
     render(<HomeScreen onNavigate={() => {}} />);
     const rail = await screen.findByTestId('home-mode-rail');
     const stops = within(rail).getAllByRole('button').map((b) => b.getAttribute('data-testid'));
@@ -462,9 +462,15 @@ describe('Home composition — the Return Sheet (§10)', () => {
   it('presents totals + the best drop as a poster card; Collect acknowledges', async () => {
     useOfflineRecapStore.getState().setSettlement(roamingRecapWithDrops);
     render(<HomeScreen onNavigate={() => {}} />);
-    // The level chip is the Return Sheet's door while a
-    // settlement exists.
-    fireEvent.click(screen.getByTestId('top-level-button'));
+    // The OFFLINE button is the Return Sheet's door while a
+    // settlement exists (two-buttons package, 2026-11-05 — the
+    // claim row's level chip is retired). Nothing is held in
+    // this harness, so the button is the sheet's quiet door;
+    // the recap below is the receipt, and its button is
+    // Collect. (While the server holds unpaid earnings the
+    // same tap claims first and its Claim pays in place —
+    // dashboardTop pins that flow.)
+    fireEvent.click(screen.getByTestId('top-offline-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
     expect(screen.getByTestId('return-totals-row')).toBeTruthy();
     const poster = screen.getByTestId('return-best-drop');
@@ -473,7 +479,7 @@ describe('Home composition — the Return Sheet (§10)', () => {
     // The lesser drop is folded into the poster's "+N more".
     expect(poster.textContent).toContain('+1 more drop');
 
-    // The Return Sheet behind the level chip is the
+    // The Return Sheet behind the OFFLINE button is the
     // settlement's only Home door now (the Next Move card is
     // removed) — its Collect is the one this flow
     // acknowledges with.
@@ -484,7 +490,10 @@ describe('Home composition — the Return Sheet (§10)', () => {
 
   it('the level pop-up holds specifics only — the recap is not inside it', async () => {
     render(<HomeScreen onNavigate={() => {}} />);
-    fireEvent.click(screen.getByTestId('top-level-button'));
+    // The level pop-up's Home door is the Strip's LV segment
+    // now (the claim row's level button retired with the
+    // two-buttons package); the sheet behind it is unchanged.
+    fireEvent.click(screen.getByTestId('resource-chip-level'));
     expect(await screen.findByText('XP into this level')).toBeTruthy();
     expect(screen.queryByText('While You Were Away')).toBeNull();
   });

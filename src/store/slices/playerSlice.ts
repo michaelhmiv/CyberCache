@@ -2,7 +2,63 @@ import { create } from 'zustand';
 import { ConsumableBatch, PlayerProfile } from '../../types/player';
 import { WorkshopQueue } from '../../types/workshop';
 
+/**
+ * The held (unpaid) offline settlement (migration 0083) — server
+ * truth, synced from the profile snapshot's `offline_hold` key by
+ * syncRuntimeProfile. The Home OFFLINE button reads its pending
+ * figure from here; nothing client-side computes earnings.
+ */
+export interface OfflineHoldState {
+  credits: number;
+  scrap: number;
+  xp: number;
+  cacheKeys: number;
+  kills: number;
+  ticks: number;
+  materials: Record<string, number>;
+  essences: Record<string, number>;
+  itemCount: number;
+  elapsedMs: number;
+  areaId: string | null;
+}
+
+export const EMPTY_OFFLINE_HOLD: OfflineHoldState = {
+  credits: 0,
+  scrap: 0,
+  xp: 0,
+  cacheKeys: 0,
+  kills: 0,
+  ticks: 0,
+  materials: {},
+  essences: {},
+  itemCount: 0,
+  elapsedMs: 0,
+  areaId: null,
+};
+
+/**
+ * True when the hold carries anything a claim would actually pay —
+ * kills included: a tiny window can bank its credit/XP fractions as
+ * remainders and leave only kills payable, and the claim is what
+ * records them (0034's kill record rides the claim).
+ */
+export function hasPayableOfflineHold(hold: OfflineHoldState): boolean {
+  return (
+    hold.credits > 0 ||
+    hold.scrap > 0 ||
+    hold.xp > 0 ||
+    hold.cacheKeys > 0 ||
+    hold.kills > 0 ||
+    hold.itemCount > 0 ||
+    Object.values(hold.materials).some((n) => n > 0) ||
+    Object.values(hold.essences).some((n) => n > 0)
+  );
+}
+
 export interface PlayerState extends PlayerProfile {
+  /** The held offline settlement (0083); zeros until a server profile lands. */
+  offlineHold: OfflineHoldState;
+  setOfflineHold: (hold: OfflineHoldState) => void;
   /**
    * True once a server profile has actually landed via syncFromServer
    * (audit UX-04). The store's initial values are placeholders
@@ -75,7 +131,10 @@ function normalizeBatch(raw: ConsumableBatch): ConsumableBatch {
 
 export const usePlayerStore = create<PlayerState>()((set, get) => ({
   ...initialPlayerState(),
+  offlineHold: EMPTY_OFFLINE_HOLD,
   profileLoaded: false,
+
+  setOfflineHold: (hold) => set({ offlineHold: hold }),
 
   /**
    * Apply server-canonical values. Pure replace — no local deltas,

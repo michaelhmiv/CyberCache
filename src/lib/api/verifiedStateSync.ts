@@ -1,7 +1,7 @@
 import { useBossStore } from '@/store/slices/bossSlice';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { emptySlots, useLoadoutStore, type LoadoutSlot } from '@/store/slices/loadoutSlice';
-import { usePlayerStore } from '@/store/slices/playerSlice';
+import { usePlayerStore, type OfflineHoldState } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { RiskSetting } from '@/types/game';
@@ -36,6 +36,20 @@ export type RuntimeProfilePayload = {
   last_claimed_tick?: number | string;
   last_roaming_settled_at?: string;
   last_settlement_nonce?: string;
+  /** The held (unpaid) offline settlement totals (migration 0083). */
+  offline_hold?: {
+    credits?: number | string;
+    scrap?: number | string;
+    xp?: number | string;
+    cache_keys?: number | string;
+    kills?: number | string;
+    ticks?: number | string;
+    materials?: Record<string, number>;
+    essences?: Record<string, number>;
+    item_count?: number | string;
+    elapsed_ms?: number | string;
+    area_id?: string | null;
+  };
 };
 
 export type LoadoutSnapshotPayload = Partial<Record<LoadoutSlot, string | null>>;
@@ -142,6 +156,26 @@ function clearItemFromLoadout(itemId: string): void {
   slotsToClear.forEach((slot) => loadout.setSlot(slot, null));
 }
 
+/** The snapshot's offline_hold block → the player store's shape (0083). */
+function offlineHoldValue(
+  raw: RuntimeProfilePayload['offline_hold'],
+): OfflineHoldState | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  return {
+    credits: numberValue(raw.credits),
+    scrap: numberValue(raw.scrap),
+    xp: numberValue(raw.xp),
+    cacheKeys: numberValue(raw.cache_keys),
+    kills: numberValue(raw.kills),
+    ticks: numberValue(raw.ticks),
+    materials: recordValue(raw.materials) ?? {},
+    essences: recordValue(raw.essences) ?? {},
+    itemCount: numberValue(raw.item_count),
+    elapsedMs: numberValue(raw.elapsed_ms),
+    areaId: typeof raw.area_id === 'string' ? raw.area_id : null,
+  };
+}
+
 export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): void {
   if (!profile) return;
 
@@ -164,6 +198,11 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
     lastClaimTime: timestampValue(profile.last_idle_claim_at, player.lastClaimTime),
     lastClaimedTick: numberValue(profile.last_claimed_tick, player.lastClaimedTick),
   });
+
+  // The held offline settlement (0083): server truth for the Home
+  // OFFLINE button — lands with every profile sync, zeroes on claim.
+  const offlineHold = offlineHoldValue(profile.offline_hold);
+  if (offlineHold) usePlayerStore.getState().setOfflineHold(offlineHold);
 
   const skillSpends = recordValue(profile.skill_spends);
   if (skillSpends) useSkillStore.setState({ spent: skillSpends });

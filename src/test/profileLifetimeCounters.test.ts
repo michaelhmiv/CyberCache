@@ -209,9 +209,14 @@ describe('kill element record (0051 twin) — same choke point as weapon type', 
       activity_payload: {},
     });
     await store.settleOfflineRoaming(A, 'offline-nonce-51', rewards(6));
+    // 0083 (hold-and-claim): the settle held the window — the
+    // kill record moves at CLAIM, not at settle.
+    expect(store.killElementStatsFor(A)).toEqual({});
+    await store.claimOfflineSettlement(A);
     expect(store.killElementStatsFor(A)).toEqual({ Cryo: 6 });
     now = new Date('2026-11-02T12:05:00.000Z');
     await store.settleOfflineRoaming(A, 'offline-nonce-51', rewards(6)); // replay
+    await store.claimOfflineSettlement(A); // claim replay: nothing held
     expect(store.killElementStatsFor(A)).toEqual({ Cryo: 6 });
   });
 });

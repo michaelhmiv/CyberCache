@@ -43,13 +43,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
             §1's one allowed resident, inside the Strip since
             drift-fix F1; Settings' canonical home stays
             Hunter → Account). This is audit SET-01's home-screen
-            Settings entry in its DESIGN form. */}
+            Settings entry in its DESIGN form. HOME VARIANT
+            (2026-11-05): no cache segment (the claim row's CACHE
+            button carries the key count), the LV segment is the
+            level pop-up's door, and a real XP row (fraction + bar)
+            replaces the hairline. The level door travels as an
+            event — DashboardTopBar owns the sheets. */}
         <div className="mb-2">
-          <ResourceBar onOpenSettings={() => onNavigate('settings')} />
+          <ResourceBar
+            variant="home"
+            onOpenSettings={() => onNavigate('settings')}
+            onLevelPress={() => window.dispatchEvent(new CustomEvent('cybercache:open-level-sheet'))}
+          />
         </div>
-        {/* Claim row: level chip (the Return Sheet's door) +
-            streak / contracts / weekly claim chips — first paint,
-            no scroll, nothing else above the Stage (§4). */}
+        {/* Claim row: CACHE + OFFLINE buttons (the level pill
+            retired 2026-11-05 — its readout duplicated the Strip)
+            + streak / contracts / weekly claim chips — first
+            paint, no scroll, nothing else above the Stage (§4). */}
         <DashboardTopBar onNavigate={onNavigate} />
         {/* The Stage block — mode rail, diorama, belt, lit workspace. */}
         <div className="scroll-mt-2">

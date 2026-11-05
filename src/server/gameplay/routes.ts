@@ -14,6 +14,7 @@ import type { AuthConfig } from '../auth/routes';
 import type { EconomyConfig } from '../economy/config';
 import { createClaimHandler } from '../routes/roamingHandler';
 import { createSettleOfflineHandler } from '../routes/settleOffline';
+import { createClaimOfflineHandler } from '../routes/claimOffline';
 import { createSalvageHandler, createVerifyBossHandler } from '../routes/claim';
 import { createResurrectHandler } from '../routes/resurrect';
 import {
@@ -77,6 +78,7 @@ export interface GameplayRoutesConfig extends AuthConfig {
 export function mountGameplayRoutes(app: Express, store: ChefGameplayStore, config: GameplayRoutesConfig): void {
   app.post('/api/claim', createClaimHandler(store, config));
   app.post('/api/settle-offline', createSettleOfflineHandler(store, config));
+  app.post('/api/claim-offline', createClaimOfflineHandler(store, config));
   app.post('/api/verify-boss', createVerifyBossHandler(store, config));
   app.post('/api/salvage', createSalvageHandler(store, config));
   app.post('/api/resurrect', createResurrectHandler(store, config));
@@ -85,7 +87,7 @@ export function mountGameplayRoutes(app: Express, store: ChefGameplayStore, conf
   app.post('/api/endless/bank', createBankEndlessHandler(store, config));
   app.get('/api/endless/me', createGetEndlessHandler(store, config));
   console.log(
-    '[chef] gameplay routes mounted: POST /api/claim, /api/settle-offline, /api/verify-boss, /api/salvage, /api/resurrect, /api/endless/* (Route B B6)',
+    '[chef] gameplay routes mounted: POST /api/claim, /api/settle-offline, /api/claim-offline, /api/verify-boss, /api/salvage, /api/resurrect, /api/endless/* (Route B B6)',
   );
 }
 

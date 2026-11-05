@@ -265,8 +265,11 @@ describe('Papercut 2 — claim-row corner badges render fully inside their butto
 
   it('source: every badged claims-row pill reserves its badge corner in padding', () => {
     const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
-    // Level: the progress block reserves the AWAY badge's corner.
-    expect(topBar).toContain("awayPending ? 'pr-12' : ''");
+    // Offline (the level pill's successor in the claim row,
+    // two-buttons package 2026-11-05): while a hold waits, the
+    // CLAIM badge's corner is reserved via pr-16 — the AWAY
+    // badge's reservation, carried to the new button.
+    expect(topBar).toContain("holdPending ? 'pr-16' : ''");
     // Contracts: the claim-count badge reserves via pr-9; the
     // GUEST word badge (assumption-gaps G10 — a word in the badge
     // language, not a bare lock glyph) is wider and reserves pr-16.

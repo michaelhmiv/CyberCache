@@ -257,14 +257,20 @@ describe('Phase 1 structure — builds + offline summary + used-in', () => {
     const slice = readSource('src/store/slices/offlineRecapSlice.ts');
     expect(slice).toContain('reopen');
     expect(slice).toContain('cybercache.offlineRecap.v1');
-    // Dashboard-top redesign (2026-11-01) supersedes the reopen
-    // strip: the recap's re-entry is now the Dashboard top bar's
-    // level button — its pop-up renders the recap card whenever a
-    // settlement exists, dismissed or not. The pin follows the
+    // Dashboard-top redesign (2026-11-01) superseded the reopen
+    // strip, and the two-buttons package (2026-11-05) superseded
+    // the level button in turn: the recap's re-entry is now the
+    // top bar's OFFLINE button, beside the CACHE button that took
+    // the level button's place in the claim row — the sheet it
+    // opens renders the recap card whenever a settlement exists,
+    // dismissed or not, and the same tap claims the held
+    // settlement while one waits (0083). The pin follows the
     // surface to its new home.
     const topBar = readSource('src/components/dashboard/DashboardTopBar.tsx');
     expect(topBar).toContain('OfflineRecapCard');
-    expect(topBar).toContain('top-level-button');
+    expect(topBar).toContain('top-cache-button');
+    expect(topBar).toContain('top-offline-button');
+    expect(topBar).not.toContain('top-level-button');
     // Wave B: HomeScreen is the top bar's mount (DashboardScreen
     // retired in the Board+Action merge) — the pin follows it.
     const dashboard = readSource('src/screens/HomeScreen.tsx');

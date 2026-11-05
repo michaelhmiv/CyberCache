@@ -13,6 +13,12 @@
  *   - Server returns authoritative profile + items + settlement summary.
  *   - Client applies returned state and dispatches recap for UI display.
  *
+ * Hold-and-claim (migration 0083): a roaming settlement is HELD, not
+ * paid — the recap shows the held totals as WAITING, the held items
+ * are NOT added to inventory here, and `claimOfflineEarnings` below
+ * is the payment: it applies the claim receipt (profile + kept
+ * items) and turns the recap into the receipt.
+ *
  * Forbidden patterns (formerly present, now removed):
  *   - Client-side Date.now() for elapsed time computation
  *   - Client-side reward minting (credits, XP, scrap, materials, items)
@@ -125,14 +131,19 @@ export async function settleActiveActivityRewards(
       return result;
     }
 
-    // Apply server-authoritative profile to client stores.
+    // Apply server-authoritative profile to client stores. For a
+    // HELD settlement (0083) the snapshot's balances are the
+    // pre-claim ones and its offline_hold key carries the waiting
+    // totals — the Home OFFLINE button reads them from there.
     syncRuntimeProfile(result.profile as Parameters<typeof syncRuntimeProfile>[0]);
 
     // Add server-generated items to inventory (upsert, not replace —
     // receiveServerItems is a full reconcile now, so use upsertItem
     // to add only the newly persisted items). Vehicle drops (0021)
     // are not GearItem — they join the garage at full condition.
-    if (result.items.length > 0) {
+    // HELD settlements skip this entirely: the drops are payloads in
+    // the server's hold, not inventory — they land at claim.
+    if (!result.held && result.items.length > 0) {
       const { useInventoryStore } = await import('@/store/slices/inventorySlice');
       const { useVehicleStore } = await import('@/store/slices/vehicleSlice');
       const { VEHICLE_CONDITION_MAX } = await import('@/lib/vehicles/vehicles');
@@ -180,6 +191,113 @@ export async function settleActiveActivityRewards(
   } catch (error) {
     console.warn(
       '[activitySettlement] Server settlement failed:',
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
+}
+
+/**
+ * Claim the held offline settlement (migration 0083) — the payment
+ * half of hold-and-claim, fired by the Home OFFLINE button and the
+ * Return Sheet's Claim button.
+ *
+ * The server pays the hold exactly once and returns the receipt:
+ * this applies the post-claim profile (balances moved, offline_hold
+ * zeroed), upserts the KEPT items (the claim's auto-salvage pass
+ * already filtered the salvaged drops out server-side), and writes
+ * the receipt into the recap store so the Return Sheet flips from
+ * WAITING to the receipt in place. Returns the receipt recap, or
+ * null when nothing was held / the claim failed (the hold stays
+ * pending either way — a failed claim never loses the earnings).
+ */
+export async function claimOfflineEarnings(
+  options: { userId?: string | null; saveSnapshot?: boolean } = {},
+): Promise<SettlementRecap | null> {
+  // No userId gate: the claim's identity is the session JWT (the
+  // server derives the player from it, never from a body) — the id
+  // here only targets the runtime snapshot save, which falls back
+  // to the sync module's active user when omitted.
+  const userId = options.userId;
+
+  try {
+    const { claimOffline } = await import('@/lib/chef/chefClient');
+    const claim = await claimOffline();
+
+    if (!claim.claimed || !claim.rewards) {
+      // Nothing held (or already claimed): still sync the returned
+      // profile so the button's pending figure settles to truth.
+      if (claim.profile) {
+        syncRuntimeProfile(claim.profile as Parameters<typeof syncRuntimeProfile>[0]);
+      }
+      return null;
+    }
+
+    // Apply the post-claim profile — the wallet answers here (the
+    // Strip's pulse-on-increase fires off these very numbers).
+    syncRuntimeProfile(claim.profile as Parameters<typeof syncRuntimeProfile>[0]);
+
+    // Upsert the kept items — same vehicle/gear split as settlement.
+    const keptItems = claim.items ?? [];
+    if (keptItems.length > 0) {
+      const { useInventoryStore } = await import('@/store/slices/inventorySlice');
+      const { useVehicleStore } = await import('@/store/slices/vehicleSlice');
+      const { VEHICLE_CONDITION_MAX } = await import('@/lib/vehicles/vehicles');
+      const inv = useInventoryStore.getState();
+      keptItems.forEach((item) => {
+        if (item && typeof item === 'object' && 'vehicleClassId' in item) {
+          useVehicleStore.getState().upsertVehicle({
+            ...(item as unknown as import('@/types/items').Vehicle),
+            conditionCurrent: VEHICLE_CONDITION_MAX,
+            conditionMax: VEHICLE_CONDITION_MAX,
+          });
+        } else {
+          inv.upsertItem(item);
+        }
+      });
+    }
+
+    if (options.saveSnapshot !== false) {
+      if (userId) await saveCurrentRuntimeStores(userId);
+      else await saveCurrentRuntimeStores();
+    }
+
+    // The receipt, in the recap's own shape (held: false — paid).
+    const receipt: OfflineSettlementResult = {
+      settled: true,
+      held: false,
+      areaId: claim.areaId ?? '',
+      areaName: claim.areaName ?? '',
+      timeAway: claim.timeAway ?? '',
+      elapsedMs: claim.elapsedMs ?? 0,
+      cappedMs: claim.elapsedMs ?? 0,
+      capReached: claim.capReached ?? false,
+      capHours: claim.capHours ?? 0,
+      ticksSettled: claim.ticksSettled ?? 0,
+      startTick: claim.startTick ?? 0,
+      endTick: claim.endTick ?? 0,
+      profile: claim.profile ?? {},
+      rewards: claim.rewards,
+      items: keptItems,
+      feedEvents: claim.feedEvents ?? [],
+      idempotent: false,
+      ...(claim.autoSalvage ? { autoSalvage: claim.autoSalvage } : {}),
+      ...(claim.standing ? { standing: claim.standing } : {}),
+    };
+
+    const { useOfflineRecapStore } = await import('@/store/slices/offlineRecapSlice');
+    useOfflineRecapStore.getState().setSettlement(receipt);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('cybercache:offline-claimed', { detail: receipt }),
+      );
+    }
+
+    return receipt;
+  } catch (error) {
+    console.warn(
+      '[activitySettlement] Offline claim failed:',
       error instanceof Error ? error.message : error,
     );
     return null;

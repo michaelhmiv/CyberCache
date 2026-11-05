@@ -395,6 +395,19 @@ describe('offline settlement parity (routes)', () => {
     expect(rec(claimRes.json.vehicle).activeTicks).toBe(20);
     expect(rec(claimRes.json.vehicle).fuelConsumed).toBeCloseTo(20 * 1.1, 6);
 
+    // 0083 (hold-and-claim): the settle HELD its window — the
+    // vehicle outcome (fuel + condition) persisted at settle,
+    // but the currencies wait in the hold. Claiming pays the
+    // held window; the persisted state then matches the
+    // foreground claim's, which is the parity this test pins.
+    const settleClaimRes = await postJson(settleServer.base, '/api/claim-offline', settleServer.token, {
+      playerId: G,
+    });
+    expect(settleClaimRes.status).toBe(200);
+    expect(settleClaimRes.json.claimed).toBe(true);
+    expect(rec(settleClaimRes.json.rewards).creditsAwarded)
+      .toBe(rec(claimRes.json.rewards).creditsAwarded);
+
     const claimProfile = claimStore.profiles.get(G)!;
     const settleProfile = settleStore.profiles.get(G)!;
     expect(settleProfile.vehicle_fuel).toBe(claimProfile.vehicle_fuel);
