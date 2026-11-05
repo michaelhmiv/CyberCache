@@ -9,7 +9,7 @@ import { legendaryEffectName } from '../../constants/legendaryEffects';
 import { RARITIES } from '../../constants/rarities';
 import { getBossRiskModifiers } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
-import { buildInitialTimeline, runFightAnimation, type FightTimeline } from '../../lib/animation/fightTimeline';
+import { buildInitialTimeline, runFightAnimation, type FightOutcome, type FightTimeline } from '../../lib/animation/fightTimeline';
 import { getActionSkillState, verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
 import { ACTION_SKILL_DEFS, type ActionSkillStateView } from '@/content/actionSkills';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
@@ -388,7 +388,24 @@ export const BossEncounterPanel: React.FC<{
       return;
     }
 
-    const initialTimeline = buildInitialTimeline(outcome, boss.health, player.level, shield?.hp ?? 0);
+    // Present the Chef's already-decided outcome through the
+    // timeline's shape (the EndlessPanel adaptation pattern): the
+    // timeline reads only result.victory / result.bossHpRemaining,
+    // and the result card below reads its own synced state.
+    const fightOutcome: FightOutcome = {
+      result: {
+        victory: outcome.result.victory,
+        winChance: outcome.result.winChance,
+        bossHpRemaining: outcome.result.bossHpRemaining,
+        phaseFailed: outcome.result.phaseFailed,
+      },
+      creditsDelta: outcome.creditsDelta,
+      bonusLootRolls: 0,
+      consumedConsumables: outcome.consumedConsumables,
+      loot: [],
+      extraLoot: outcome.extraLoot,
+    };
+    const initialTimeline = buildInitialTimeline(fightOutcome, boss.health, player.level, shield?.hp ?? 0);
     setFightTimeline(initialTimeline);
     const cancel = { cancelled: false };
     animationCancelRef.current = cancel;

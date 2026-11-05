@@ -21,6 +21,10 @@ Standings list everyone with a score above zero, but **rewards only pay at or ab
 
 Before the first rankings settle, the standings show an empty board: rankings fill in from hunters' play, so the board populates after the next snapshot once anyone has scored.
 
+### The global board
+
+Below the settlement readout sits the **global board**: ten channels — Level, XP, Net Worth, Kills, K/D, Boss Tier, Mastery XP, Mastery Lv, Legendaries, and Items — each readable over **all time**, the **week**, or the **day**. The channel selector doubles as your own scorecard: every channel's button prints your rank on that channel for the selected period before you ever switch to it. Each row shows the hunter's movement against their previous reading on that channel, and a meter of their value against the channel leader's. If your own reading falls outside the rows shown, it pins to the foot of the board — your rank, your value, and your movement are always on the page.
+
 ### Visiting another hunter
 
 Every name on the standings — weekly races and the all-time boards alike — is a door. Tap a hunter and a pop-up introduces them: the look they wear, their Trophy Shelf (hand-pinned trophies marked), their best depth, Cache Rank, and collection progress, and their headline stats. **View Full Profile** opens the whole public record: the hunter at stage size in the look they wear, the full shelf, and every public stat — level, kills, boss tiers, mastery, collection. Profiles are read-only and open to everyone, guests included: a hunter's public record is the brag surface — what they pinned, what they wear, and what the game itself keeps score of. Nothing private travels with it: no balances beyond net worth, no account details, no history folds.
@@ -29,7 +33,7 @@ Every name on the standings — weekly races and the all-time boards alike — i
 
 Settlement rides the game's daily heartbeat: once a week has closed, it settles exactly once and rewards are paid from the settled standings.
 
-**There is nothing to claim.** Paid rewards land in your account at settlement — cache keys are credited and the drop-luck buff starts on its own. Your record lives in the **Your Weekly Earnings** panel at the very top of the Standings page: per settled week it lists each race, your finish, and exactly what it paid. (Don't confuse these with the Rep Desk's weekly Parts Crate and Signature Orders on [[The Board]] — those are separate offers you buy with credits, and those ones really do have a Claim button.)
+**There is nothing to claim.** Paid rewards land in your account at settlement — cache keys are credited and the drop-luck buff starts on its own. Your record lives in the **Settlement readout** at the very top of the Standings page — it wears a lit **PAYOUT · AUTO — NO CLAIM** lamp so the point can't be missed: per settled week it lists each race, your finish, and exactly what it paid. (Don't confuse these with the Rep Desk's weekly Parts Crate and Signature Orders on [[The Board]] — those are separate offers you buy with credits, and those ones really do have a Claim button.)
 
 | Finish | Cache keys | Drop-luck buff |
 | --- | --- | --- |

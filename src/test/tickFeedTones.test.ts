@@ -29,12 +29,14 @@ const CURRENT_TONES: TickEventTone[] = [
   'consumable',
   'event',
   'event_major',
+  'standing',
+  'auto_salvage',
 ];
 
 describe('TickEventTone (canonical)', () => {
-  it('includes all 15 current tones', () => {
+  it('includes all 17 current tones', () => {
     // If you add a new tone, add it to CURRENT_TONES above.
-    expect(CURRENT_TONES).toHaveLength(15);
+    expect(CURRENT_TONES).toHaveLength(17);
   });
 
   for (const tone of CURRENT_TONES) {
@@ -74,6 +76,8 @@ const gainToneClass: Record<DisplayTone, { text: string; bg: string; border: str
   consumable: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   event: { text: 'text-cyan', bg: 'bg-cyan/10', border: 'border-cyan/70', fill: 'bg-cyan' },
   event_major: { text: 'text-purple', bg: 'bg-purple/15', border: 'border-purple/80', fill: 'bg-purple' },
+  standing: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
+  auto_salvage: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   unknown: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
 };
 
@@ -112,10 +116,10 @@ describe('Tick event display mapping', () => {
     expect(cls).toBe(gainToneClass.unknown);
   });
 
-  it('display mapping has entries for all 15 current tones plus unknown', () => {
+  it('display mapping has entries for all 17 current tones plus unknown', () => {
     const keys = Object.keys(gainToneClass);
-    // 15 tones (13 legacy + 'event'/'event_major' from the roaming
-    // variance overhaul) + 'unknown' = 16 entries
+    // 17 tones (13 legacy + 'event'/'event_major' from the roaming
+    // variance overhaul + 'standing'/'auto_salvage') + 'unknown' = 18 entries
     expect(keys).toHaveLength(CURRENT_TONES.length + 1);
     for (const tone of CURRENT_TONES) {
       expect(gainToneClass[tone]).toBeDefined();

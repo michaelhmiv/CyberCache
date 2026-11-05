@@ -63,7 +63,7 @@ const relic: Relic = {
   affixes: [{
     id: 'a1', stat: 'rareDropChanceMod', value: 0.06, tier: 1,
     displayText: '+6% rare drop', category: 'drop',
-  } as Relic['affixes'][number]],
+  } as unknown as Relic['affixes'][number]],
   sourceTag: DropSource.WorldDrop, isLocked: false,
 };
 
@@ -124,7 +124,7 @@ describe('slotBlockSummary — the merged Gear page perk lines (owner ruling 202
       ...relic,
       affixes: [
         ...relic.affixes,
-        { id: 'a2', stat: 'scrapYieldMod', value: 0.1, tier: 1, displayText: '+10% scrap', category: 'economy' } as Relic['affixes'][number],
+        { id: 'a2', stat: 'scrapYieldMod', value: 0.1, tier: 1, displayText: '+10% scrap', category: 'economy' } as unknown as Relic['affixes'][number],
       ],
     };
     expect(slotBlockSummary('relic', twoAffix).statSegments).toEqual(['+6% rare drop', '+10% scrap']);

@@ -1,4 +1,4 @@
-import { CraftingRecipe } from '../types/workshop';
+import { type CraftingRecipe } from '../types/workshop';
 
 export const CRAFTING_RECIPES: CraftingRecipe[] = [
   // Survival

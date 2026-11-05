@@ -280,7 +280,7 @@ describe('wiring — quality read in boss attempts (rule totals)', () => {
 
 describe('wiring — mechanic and crit reads', () => {
   const unmetMechanicBoss = {
-    mechanic: { id: 'sealed_vault', name: 'Sealed Vault', description: '', checkType: 'trait' as const, requiredLoadoutTrait: 'breach', threshold: 1 },
+    mechanic: { id: 'sealed_vault', name: 'Sealed Vault', description: '', checkType: 'mechanic' as const, requiredLoadoutTrait: 'breach', threshold: 1 },
   };
 
   it('Boss Scanner\'s def mechanicScoreFlat lifts an unmet mechanic check (0.5 → 0.54)', () => {
@@ -298,7 +298,7 @@ describe('wiring — mechanic and crit reads', () => {
 
   it('repair suppression prices only against repair mechanics (Corrosive Ammo: flat + suppression vs flat alone)', () => {
     const repairBoss = {
-      mechanic: { id: 'repair_loop', name: 'Repair Loop', description: '', checkType: 'trait' as const, requiredLoadoutTrait: 'breach', threshold: 1 },
+      mechanic: { id: 'repair_loop', name: 'Repair Loop', description: '', checkType: 'mechanic' as const, requiredLoadoutTrait: 'breach', threshold: 1 },
     };
     // Corrosive Ammo declares mechanicScoreFlat 0.08 + repairSuppression 0.08.
     expect(simWith({ CorrosiveAmmo: 1 }, { boss: repairBoss }).mechanicScore).toBeCloseTo(0.66, 6);

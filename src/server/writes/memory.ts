@@ -21,6 +21,7 @@ import {
   isQuickBuyGoodKind,
   planMarketSweep,
   splitStackCharge,
+  type QuickBuyGoodKind,
   type QuickBuyGoodRef,
   type QuickBuyListingRow,
   type QuickBuyQuote,
@@ -206,6 +207,7 @@ import {
   type CombatStatsData,
   type ConsumableBatchData,
   type EnqueueCraftJobInput,
+  type EnqueueRepairJobInput,
   type Json,
   type LedgerEntryData,
   type PushDeviceData,
@@ -1068,7 +1070,11 @@ export class InMemoryWriteStore implements WriteStore {
   }
 
   private quickBuyListingMatches(listing: WriteListingData, good: QuickBuyGoodRef): boolean {
-    switch (good.kind) {
+    // 'fragment' was retired with the fragment economy (0082) and no
+    // longer exists on QuickBuyGoodKind; the case below stays as a
+    // belt for stale payloads, sharing the core branch exactly as
+    // before — hence the widened switch expression.
+    switch (good.kind as QuickBuyGoodKind | 'fragment') {
       case 'material':
         return listing.material_id === good.id;
       case 'essence':
@@ -4664,7 +4670,9 @@ export class InMemoryWriteStore implements WriteStore {
           researchFeeReduction: this.researchBonusesFor(seller.id).marketFeeReduction,
         });
       }
-    } else if (seller && listing.seller_type !== 'npc') {
+    } else if (seller) {
+      // (seller_type needs no re-check here: NPC listings threw at
+      // the pure-market guard above, so this branch is player-only.)
       // Consumable / material sale (0019): the same fee through the
       // same completion path, Darknet Broker reduction only for the
       // Scavenger terms — stacks carry no find provenance, so Market
@@ -4824,9 +4832,9 @@ export class InMemoryWriteStore implements WriteStore {
     for (const j of [...this.jobs.values()]) {
       if (j.owner_user_id === playerId || j.provider_user_id === playerId) this.jobs.delete(j.id);
     }
-    this.seed.listings = this.seed.listings.filter((l) => l.seller_user_id !== playerId && !ownItemIds.has(l.item_instance_id));
+    this.seed.listings = this.seed.listings.filter((l) => l.seller_user_id !== playerId && !(l.item_instance_id !== null && ownItemIds.has(l.item_instance_id)));
     for (const l of [...this.listings.values()]) {
-      if (l.seller_user_id === playerId || ownItemIds.has(l.item_instance_id)) this.listings.delete(l.id);
+      if (l.seller_user_id === playerId || (l.item_instance_id !== null && ownItemIds.has(l.item_instance_id))) this.listings.delete(l.id);
     }
     this.seed.items = this.seed.items.filter((i) => i.owner_user_id !== playerId);
     for (const id of ownItemIds) this.items.delete(id);

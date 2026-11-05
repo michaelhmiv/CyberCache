@@ -39,7 +39,7 @@ function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
     name: 'Expansion Test Gun',
     level: 75,
     rarity: Rarity.Legendary,
-    weaponType: WeaponType.Rifle,
+    weaponType: WeaponType.SMG,
     manufacturer: Manufacturer.Redline,
     element: Element.Fire,
     rollQuality: 90,

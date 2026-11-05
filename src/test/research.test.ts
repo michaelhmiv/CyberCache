@@ -705,19 +705,19 @@ describe('batch recipe gate — writes store', () => {
       last_settlement_nonce: null, offline_cap_hours: 0, vehicle_fuel: 0,
       workshop_benches: 1, workshop_tools: {},
       id: A,
-    } as ProfileRowData];
+    } as unknown as ProfileRowData];
     return s;
   }
 
   it('refuses the batch recipe until Production Systems is complete, then escrows batch inputs', async () => {
     const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date(T0) });
     await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: 'recipe_patch_kit_batch', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_patch_kit_batch', units: 1,
     })).rejects.toThrow('research_required');
 
     store.completeResearchCourse(A, 'production_systems');
     const job = await store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: 'recipe_patch_kit_batch', units: 1, consumableEfficiencyBonus: 0,
+      bench: 1, recipeId: 'recipe_patch_kit_batch', units: 1,
     }) as Json;
     expect((job.job as Json).recipe_id ?? (job.job as Json).recipeId).toBe('recipe_patch_kit_batch');
   });

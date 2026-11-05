@@ -1,7 +1,7 @@
-import { emptySlots, type LoadoutSlot } from '@/store/slices/loadoutSlice';
+import { emptySlots, type GearLoadoutSlot, type LoadoutSlot } from '@/store/slices/loadoutSlice';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 
-export const LOADOUT_SLOT_ORDER: LoadoutSlot[] = [
+export const LOADOUT_SLOT_ORDER: GearLoadoutSlot[] = [
   'primary',
   'secondary',
   'heavy',
@@ -13,7 +13,7 @@ export const LOADOUT_SLOT_ORDER: LoadoutSlot[] = [
 
 export const WEAPON_LOADOUT_SLOTS: LoadoutSlot[] = ['primary', 'secondary', 'heavy'];
 
-export const LOADOUT_SLOT_LABEL: Record<LoadoutSlot, string> = {
+export const LOADOUT_SLOT_LABEL: Record<GearLoadoutSlot, string> = {
   primary: 'Primary',
   secondary: 'Secondary',
   heavy: 'Heavy',
@@ -113,7 +113,10 @@ export function buildLoadoutRows(
 }
 
 export function getLoadoutRow(rows: LoadoutSlotRow[], slot: LoadoutSlot): LoadoutSlotRow {
-  return rows.find((row) => row.slot === slot) ?? { slot, label: LOADOUT_SLOT_LABEL[slot], itemId: null, item: null, status: 'empty' };
+  // The label map covers gear slots only; a 'vehicle' lookup reads
+  // undefined here, exactly as it did when the map was mistyped as a
+  // full Record<LoadoutSlot, string>.
+  return rows.find((row) => row.slot === slot) ?? { slot, label: LOADOUT_SLOT_LABEL[slot as GearLoadoutSlot], itemId: null, item: null, status: 'empty' };
 }
 
 export function getEquippedItemIdSet(rows: LoadoutSlotRow[]): Set<string> {
@@ -129,13 +132,18 @@ export function getLoadoutIntegrityIssues(rows: LoadoutSlotRow[]): LoadoutSlotRo
 }
 
 export function chooseDefaultSlotForItem(item: GearItem, rows: LoadoutSlotRow[]): LoadoutSlot | null {
+  // Captured before the guard chain: the guards are runtime `in`
+  // checks, but Weapon is structurally assignable to Relic (it carries
+  // every Relic field), so TS exclusion-narrowing collapses `item` to
+  // never by the weapon branch. The id read itself is unchanged.
+  const itemId = item.id;
   if (isShieldItem(item)) return 'shield';
   if (isClassModItem(item)) return 'classMod';
   if (isOrdnanceItem(item)) return 'ordnance';
   if (isRelicItem(item)) return 'relic';
 
   if (isWeaponItem(item)) {
-    const currentWeaponSlot = rows.find((row) => WEAPON_LOADOUT_SLOTS.includes(row.slot) && row.itemId === item.id)?.slot;
+    const currentWeaponSlot = rows.find((row) => WEAPON_LOADOUT_SLOTS.includes(row.slot) && row.itemId === itemId)?.slot;
     if (currentWeaponSlot) return currentWeaponSlot;
 
     const firstEmptyWeaponSlot = rows.find((row) => WEAPON_LOADOUT_SLOTS.includes(row.slot) && row.status === 'empty')?.slot;

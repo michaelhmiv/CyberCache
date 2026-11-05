@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { ConsumableBatch, PlayerProfile } from '../../types/player';
-import { WorkshopQueue } from '../../types/workshop';
+import { type ConsumableBatch, type PlayerProfile } from '../../types/player';
+import { type WorkshopQueue } from '../../types/workshop';
 
 /**
  * The held (unpaid) offline settlement (migration 0083) — server

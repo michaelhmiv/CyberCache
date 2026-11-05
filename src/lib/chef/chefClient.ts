@@ -584,7 +584,10 @@ export interface OfflineSettlementResult {
 
 export type OfflineSettlementNoOp = {
   settled: false;
-  reason: 'not_roaming' | 'no_elapsed' | 'error';
+  /** 'idempotent' is a real server answer (settleOffline route: a nonce
+   *  the server already processed) — the union used to omit it, which
+   *  made the client's idempotent branch look unreachable. */
+  reason: 'not_roaming' | 'no_elapsed' | 'error' | 'idempotent';
   detail?: string;
 };
 

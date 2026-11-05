@@ -6,7 +6,7 @@ import { COMBAT_CORE_METRIC_KEYS, getBreakdownMetricKeys } from '@/lib/hud/headl
 import { MetricCard } from './MetricCard';
 import { PRODUCTIVE_ACTIVITY_LABELS, type ActivityKind } from '@/types/activity';
 
-const COMBAT_CORE_KEYS = new Set(COMBAT_CORE_METRIC_KEYS);
+const COMBAT_CORE_KEYS: ReadonlySet<string> = new Set(COMBAT_CORE_METRIC_KEYS);
 
 /**
  * Filter the full metric list down to only those relevant to the player's

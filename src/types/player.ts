@@ -1,4 +1,4 @@
-import { WorkshopQueue } from './workshop';
+import { type WorkshopQueue } from './workshop';
 
 export interface ConsumableBatch {
   id: string;

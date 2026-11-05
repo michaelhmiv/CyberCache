@@ -1,4 +1,4 @@
-import type { ActivityKind } from '@/types/activity';
+import type { ActivityKind, ActivityKindWithBossPrep } from '@/types/activity';
 
 export type ActionAnimationBeat =
   | 'idle-breathe'
@@ -21,7 +21,7 @@ export type ActionAnimationBeat =
   | 'hunter-down';
 
 export type ActionAnimationPlan = {
-  kind: ActivityKind;
+  kind: ActivityKindWithBossPrep;
   idle: ActionAnimationBeat[];
   onTick: ActionAnimationBeat[];
   onLoot: ActionAnimationBeat[];
@@ -29,7 +29,7 @@ export type ActionAnimationPlan = {
   onError: ActionAnimationBeat[];
 };
 
-export const ACTION_ANIMATION_PLANS: Record<ActivityKind, ActionAnimationPlan> = {
+export const ACTION_ANIMATION_PLANS: Record<ActivityKindWithBossPrep, ActionAnimationPlan> = {
   none: { kind: 'none', idle: ['idle-breathe'], onTick: ['idle-breathe'], onLoot: [], onCache: [], onError: ['idle-breathe'] },
   idle_standby: { kind: 'idle_standby', idle: ['idle-breathe'], onTick: ['idle-breathe'], onLoot: [], onCache: [], onError: ['idle-breathe'] },
   roaming_loot: { kind: 'roaming_loot', idle: ['patrol-step', 'target-motion'], onTick: ['patrol-step', 'target-motion', 'impact-flash'], onLoot: ['impact-flash', 'reward-flyout'], onCache: ['impact-flash', 'cache-pulse'], onError: ['target-motion'] },

@@ -148,7 +148,7 @@ describe('fractional scrap — profile bank persistence (in-memory store)', () =
 
     await store.applyChefRewards(
       PLAYER,
-      { credits: 20, scrap: 1, scrapRemainder: 0.5, xp: 20, fragments: 0, materials: {}, essences: {}, kills: 0 },
+      { credits: 20, scrap: 1, scrapRemainder: 0.5, xp: 20, keys: 0, materials: {}, essences: {}, kills: 0 },
       1000,
       'dustwaste_frontier',
     );
@@ -158,7 +158,7 @@ describe('fractional scrap — profile bank persistence (in-memory store)', () =
     // A claim path that does not supply a remainder must not zero the bank.
     await store.applyChefRewards(
       PLAYER,
-      { credits: 0, scrap: 2, xp: 0, fragments: 0, materials: {}, essences: {}, kills: 0 },
+      { credits: 0, scrap: 2, xp: 0, keys: 0, materials: {}, essences: {}, kills: 0 },
       1010,
       'dustwaste_frontier',
     );

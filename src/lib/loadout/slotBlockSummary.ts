@@ -40,9 +40,9 @@ import {
 import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
 import { ELEMENTS } from '@/constants/elements';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
-import type { LoadoutSlot } from '@/store/slices/loadoutSlice';
+import type { GearLoadoutSlot } from '@/store/slices/loadoutSlice';
 
-export const SLOT_BLOCK_LABELS: Record<LoadoutSlot, string> = {
+export const SLOT_BLOCK_LABELS: Record<GearLoadoutSlot, string> = {
   primary: 'Primary',
   secondary: 'Secondary',
   heavy: 'Heavy',
@@ -53,10 +53,10 @@ export const SLOT_BLOCK_LABELS: Record<LoadoutSlot, string> = {
 };
 
 /** The three weapon slots — the right column of the Split. */
-export const GUN_SLOTS: LoadoutSlot[] = ['primary', 'secondary', 'heavy'];
+export const GUN_SLOTS: GearLoadoutSlot[] = ['primary', 'secondary', 'heavy'];
 
 /** The four accessory slots — the band beneath the figure zone. */
-export const ACCESSORY_SLOTS: LoadoutSlot[] = ['shield', 'classMod', 'relic', 'ordnance'];
+export const ACCESSORY_SLOTS: GearLoadoutSlot[] = ['shield', 'classMod', 'relic', 'ordnance'];
 
 const fmt = (value: number): string =>
   Number.isFinite(value) ? Math.round(value).toLocaleString() : '0';
@@ -77,7 +77,7 @@ export function elementTintOf(item: GearItem | null): string | null {
 }
 
 export interface SlotBlockSummary {
-  slot: LoadoutSlot;
+  slot: GearLoadoutSlot;
   /** 'gun' for the weapon slots, 'accessory' for the band. */
   kind: 'gun' | 'accessory';
   slotLabel: string;
@@ -155,7 +155,7 @@ function perksOf(item: GearItem): string[] {
  * instance (or null) — the caller resolves it from the loadout read
  * model so the block always describes the ACTUAL equipped item.
  */
-export function slotBlockSummary(slot: LoadoutSlot, item: GearItem | null): SlotBlockSummary {
+export function slotBlockSummary(slot: GearLoadoutSlot, item: GearItem | null): SlotBlockSummary {
   const slotLabel = SLOT_BLOCK_LABELS[slot];
   const kind = GUN_SLOTS.includes(slot) ? 'gun' : 'accessory';
   if (!item) {

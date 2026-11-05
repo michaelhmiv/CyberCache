@@ -82,7 +82,7 @@
  * only renders and routes.
  */
 import React, { useEffect, useState } from 'react';
-import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PickerSheet } from '@/components/common/PickerSheet';
 import { ClaimPulse } from '@/components/common/ClaimPulse';

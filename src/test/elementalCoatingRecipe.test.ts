@@ -139,6 +139,8 @@ describe('craft engine — enqueue, settle, crafted batch lands', () => {
     gearTemperBaseChance: 0.05, refineBaseYield: 0.8,
     repairWorkRateBase: 20, repairMasterySpeedPerLevel: 0.02,
     repairMasteryEfficiencyPerLevel: 0.02,
+    shieldTechWorkRateBase: 500, shieldTechMasterySpeedPerLevel: 0.02,
+    shieldTechMasteryEfficiencyPerLevel: 0.02,
   };
 
   function harness(recipeScrapCosts?: Record<string, number>) {

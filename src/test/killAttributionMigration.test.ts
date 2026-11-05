@@ -187,7 +187,7 @@ describe('kill attribution — twin parity over the probe fixture matrix', () =>
       });
       await store.applyChefRewards(
         A,
-        { credits: 0, scrap: 0, xp: 0, fragments: 0, materials: {}, essences: {}, kills: fixture.kills },
+        { credits: 0, scrap: 0, xp: 0, keys: 0, materials: {}, essences: {}, kills: fixture.kills },
         1,
         'dustwaste_frontier',
       );

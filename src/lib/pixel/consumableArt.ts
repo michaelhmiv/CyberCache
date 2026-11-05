@@ -220,7 +220,11 @@ export function consumableArtRow(id: string): ConsumableArtRow {
  *  shadow, W = hard white, B/b = brass (market trim, premium
  *  fittings), M/m = casing metal ramp (the rounds' per-item
  *  colorway metal, pass 2), X/Y/Z = raw extra hexes (Prism flecks). */
-export type ConsShade = 'K' | 'S' | 'W' | 'D' | 'd' | 'P' | 'p' | 'L' | 'A' | 'a' | 'E' | 'B' | 'b' | 'M' | 'm' | 'X' | 'Y' | 'Z';
+// '.' is the empty/erase cell: grids initialize to it, filled() means
+// !== '.', and set(x, y, '.') punches a cell back out (ticket corners,
+// edge chips). It carries no color — palette maps are Partial and
+// never consulted for it.
+export type ConsShade = 'K' | 'S' | 'W' | 'D' | 'd' | 'P' | 'p' | 'L' | 'A' | 'a' | 'E' | 'B' | 'b' | 'M' | 'm' | 'X' | 'Y' | 'Z' | '.';
 
 interface Ramp { deep: string; shade: string; base: string; lite: string; hot: string }
 

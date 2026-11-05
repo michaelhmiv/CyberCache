@@ -5,7 +5,7 @@ import {
   Manufacturer,
 } from '@/types/game';
 import type { GenerateWeaponOptions } from '@/types/generator';
-import { Weapon, WeaponPart, Affix, LegendaryEffectDef } from '@/types/items';
+import { type Weapon, type WeaponPart, type Affix, type LegendaryEffectDef } from '@/types/items';
 import { WEAPON_TYPES } from '@/constants/weaponTypes';
 import { RARITIES } from '@/constants/rarities';
 import { MANUFACTURERS } from '@/constants/manufacturers';
@@ -39,7 +39,6 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
     forcedLegendaryEffectId,
     forcedElement,
     forcedManufacturer,
-    _luckBonus = 0,
     bossTier,
     zoneWeights,
   } = options;

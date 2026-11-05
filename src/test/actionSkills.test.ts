@@ -81,7 +81,8 @@ import { processBossAttempt, type BossAttemptRequest } from '../server/chef';
 import { mountActionSkillRoutes, mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/routes';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { InMemoryWriteStore } from '../server/writes/memory';
-import { emptyWriteSeed, type ProfileRowData } from '../server/writes/store';
+import { emptyWriteSeed } from '../server/writes/store';
+import type { ProfileRowData } from '../server/reads/store';
 import { InMemoryEconomyStore } from '../server/economy/memory';
 import { issueAccessToken } from '../server/auth/tokens';
 
@@ -237,11 +238,11 @@ describe('action skill content', () => {
 describe('action skill levers', () => {
   it('every content lever is an economy config key with the same default and clamp', () => {
     for (const key of Object.keys(ACTION_SKILL_LEVER_DEFAULTS) as Array<keyof typeof ACTION_SKILL_LEVER_DEFAULTS>) {
-      expect(ECONOMY_CONFIG_KEYS[key as string], key).toBeTruthy();
-      expect(ECONOMY_CONFIG_DEFAULTS[key as string], key).toBe(ACTION_SKILL_LEVER_DEFAULTS[key]);
+      expect(ECONOMY_CONFIG_KEYS[key as keyof typeof ECONOMY_CONFIG_KEYS], key).toBeTruthy();
+      expect(ECONOMY_CONFIG_DEFAULTS[key as keyof typeof ECONOMY_CONFIG_DEFAULTS], key).toBe(ACTION_SKILL_LEVER_DEFAULTS[key]);
       const clamp = ACTION_SKILL_LEVER_CLAMPS[key];
-      expect(ECONOMY_CONFIG_KEYS[key as string].min, key).toBe(clamp.min);
-      expect(ECONOMY_CONFIG_KEYS[key as string].max, key).toBe(clamp.max);
+      expect(ECONOMY_CONFIG_KEYS[key as keyof typeof ECONOMY_CONFIG_KEYS].min, key).toBe(clamp.min);
+      expect(ECONOMY_CONFIG_KEYS[key as keyof typeof ECONOMY_CONFIG_KEYS].max, key).toBe(clamp.max);
     }
   });
 

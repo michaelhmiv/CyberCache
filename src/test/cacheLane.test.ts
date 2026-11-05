@@ -118,8 +118,8 @@ describe('cache lane content', () => {
     expect(resolveCacheBoxPayment('free')).toBeNull();
     expect(resolveCacheBoxPayment('scrip')).toBeNull();
     expect(resolveCacheBoxPayment('')).toBeNull();
-    expect(resolveCacheBoxPayment(null)).toBeNull();
-    expect(resolveCacheBoxPayment(undefined)).toBeNull();
+    expect(resolveCacheBoxPayment(null as unknown as string)).toBeNull();
+    expect(resolveCacheBoxPayment(undefined as unknown as string)).toBeNull();
   });
 
   it('the lane view is keys + rule and nothing else', () => {
@@ -327,7 +327,7 @@ describe('cache lane — economy fold', () => {
       { user_id: A, action_type: 'cc_make_item', idempotency_key: 'k1', created_at: at, result_payload: { payment: 'key' } },
       { user_id: A, action_type: 'cc_make_item', idempotency_key: 'legacy', created_at: at, result_payload: {} },
       { user_id: A, action_type: 'cc_claim_rewarded_cache_key', idempotency_key: 'old', created_at: at, result_payload: {} },
-    ] as typeof seed.ledger;
+    ] as unknown as typeof seed.ledger;
     const store = new InMemoryEconomyStore(seed);
     const m = await store.computeMetricsForDay('2026-10-31');
     expect(m.cacheBoxesOpenedFree).toBe(1);
@@ -344,7 +344,7 @@ describe('cache lane — economy fold', () => {
       { user_id: A, action_type: 'cc_apply_chef_rewards', idempotency_key: 'c1', created_at: at, result_payload: { rewards: { cache_keys_awarded: 2 } } },
       { user_id: A, action_type: 'cc_settle_offline_roaming', idempotency_key: 'c2', created_at: at, result_payload: { rewards: { cache_keys_awarded: 1 } } },
       { user_id: A, action_type: 'cc_apply_chef_rewards', idempotency_key: 'old', created_at: at, result_payload: { rewards: { cache_fragments_awarded: 7 } } },
-    ] as typeof seed.ledger;
+    ] as unknown as typeof seed.ledger;
     const store = new InMemoryEconomyStore(seed);
     const m = await store.computeMetricsForDay('2026-10-31');
     expect(m.cacheKeysFromRoaming).toBe(3);

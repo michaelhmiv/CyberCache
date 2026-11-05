@@ -12,12 +12,12 @@
  * LiveTurfDiorama. The actionAnimationDirector.ts beat catalog
  * remains for reference but is no longer wired to any visual stage.
  */
-import type { ActivityKind } from '@/types/activity';
+import type { ActivityKind, ActivityKindWithBossPrep } from '@/types/activity';
 
 export type ActionWorkspacePriority = 'state' | 'reward-intel' | 'feed' | 'decision' | 'selector';
 
 export interface MechanicWorkspaceSpec {
-  kind: ActivityKind;
+  kind: ActivityKindWithBossPrep;
   title: string;
   liveVerb: string;
   coreDecision: string;
@@ -28,7 +28,7 @@ export interface MechanicWorkspaceSpec {
   priorities: ActionWorkspacePriority[];
 }
 
-export const ACTION_WORKSPACE_SPECS: Record<ActivityKind, MechanicWorkspaceSpec> = {
+export const ACTION_WORKSPACE_SPECS: Record<ActivityKindWithBossPrep, MechanicWorkspaceSpec> = {
   none: {
     kind: 'none',
     title: 'No Action',

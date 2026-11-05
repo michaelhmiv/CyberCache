@@ -84,10 +84,13 @@ export function effectiveSkillPoints(
  * (can exceed maxPoints); treeBonus grants +1 to every node in the
  * named tree, capped at each node's maxPoints.
  */
+/** The flat effect-key → total map every skill-bonus consumer reads. */
+export type SkillBonuses = Record<string, number>;
+
 export function computeSkillBonuses(
   spent: Record<string, number>,
   classModBoosts: ClassModBoosts = { nodeBoosts: {} },
-): Record<string, number> {
+): SkillBonuses {
   const bonuses: Record<string, number> = {};
 
   const effective = effectiveSkillPoints(spent, classModBoosts);

@@ -8,6 +8,7 @@ interface TestItem {
   rarity: string;
   element: string;
   power: number;
+  price?: number;
 }
 
 function makeItems(): TestItem[] {
@@ -63,9 +64,9 @@ describe('useFilterSort', () => {
     const { result } = renderHook(() =>
       useFilterSort<TestItem>({
         items: [
-          { id: 'a', name: 'Patch Kit ×3 (Batch)', element: 'None', rarity: 'common', price: 1 },
-          { id: 'b', name: 'Patch Kit', element: 'None', rarity: 'common', price: 1 },
-          { id: 'c', name: 'Batch Cell', element: 'Ice', rarity: 'common', price: 1 },
+          { id: 'a', name: 'Patch Kit ×3 (Batch)', element: 'None', rarity: 'common', power: 0, price: 1 },
+          { id: 'b', name: 'Patch Kit', element: 'None', rarity: 'common', power: 0, price: 1 },
+          { id: 'c', name: 'Batch Cell', element: 'Ice', rarity: 'common', power: 0, price: 1 },
         ],
         searchFields: [(i) => i.name, (i) => i.element],
         sorts: [{ key: 'name', label: 'Name', compare: (a, b) => a.name.localeCompare(b.name) }],

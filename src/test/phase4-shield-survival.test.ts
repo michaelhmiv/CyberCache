@@ -18,13 +18,14 @@ import type { Element } from '@/types/game';
 const makeMonster = (overrides: Partial<MonsterDef> = {}): MonsterDef => ({
   id: 'test-rat',
   name: 'Test Rat',
+  archetype: 'fodder',
+  xpReward: 8,
+  visualKey: 'monster_scavenger',
   attackPower: 50,
   defense: 5,
   hp: 100,
   accuracy: 0.90,
   element: null as unknown as Element,
-  tier: 1,
-  unlockLevel: 1,
   ...overrides,
 });
 

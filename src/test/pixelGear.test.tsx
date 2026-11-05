@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
-import { Element, Rarity } from '@/types/game';
+import { DropSource, Element, Rarity } from '@/types/game';
 import type { GearItem, Shield } from '@/types/items';
 import { PixelGear } from '@/components/pixelArt/PixelGear';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
@@ -25,7 +25,7 @@ import { fixtureBlockGrammar } from './gearFixtureGrammar';
 const shield: Shield = {
   id: 'test_shield', name: 'Test Shield', level: 5, rarity: Rarity.Rare,
   hp: 200, rechargeRate: 5, mitigation: 0.2, element: Element.Fire,
-  affixes: [], sourceTag: 'World Drop', isLocked: false, pixelSeed: 67890,
+  affixes: [], sourceTag: DropSource.WorldDrop, isLocked: false, pixelSeed: 67890,
 };
 
 describe('PixelGear — composes through the core', () => {
@@ -70,7 +70,7 @@ describe('GearIllustration — shield flipped (slice 1), relic flipped (slice 4)
   it('a relic renders its pixel plate through the seam', () => {
     const relic = {
       id: 'test_relic', name: 'Echo Stone', level: 3, rarity: Rarity.Common,
-      affixes: [], sourceTag: 'World Drop', isLocked: false,
+      affixes: [], sourceTag: DropSource.WorldDrop, isLocked: false,
     } as unknown as GearItem;
     const { container } = render(<GearIllustration item={relic} size="card" showBadges={false} />);
     expect(container.querySelector('canvas')).not.toBeNull();

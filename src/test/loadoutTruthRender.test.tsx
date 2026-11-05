@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { blit, newCanvas, type RgbaImage } from '@/lib/pixel/sceneRenderer';
+import { blit, newCanvas } from '@/lib/pixel/sceneRenderer';
+import type { RgbaImage } from '@/lib/pixel/pngCodec';
 import { PART_POSES, PART_SLOTS, PARTS_FEET_X, SKELETON, WEAPON_PAINT_ORDER } from '@/lib/pixel/parts';
 import {
   composePartSet,

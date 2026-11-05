@@ -3,7 +3,9 @@ import { getActivityModuleStatKeys, getPrimaryActivityModuleStatKeys } from '@/l
 
 export const COMBAT_CORE_METRIC_KEYS = ['health', 'dps', 'shieldBreak'] as const;
 
-export const HEADLINE_METRIC_KEYS: Record<'universal' | ActivityKind, readonly string[]> = {
+// 'endless_run' and 'extraction' have no entry: getHeadlineMetricKeys
+// falls back to the universal set for them, as it always has.
+export const HEADLINE_METRIC_KEYS: Record<'universal', readonly string[]> & Partial<Record<ActivityKind, readonly string[]>> = {
   universal: COMBAT_CORE_METRIC_KEYS,
   none: COMBAT_CORE_METRIC_KEYS,
   idle_standby: COMBAT_CORE_METRIC_KEYS,
@@ -32,7 +34,7 @@ export function getHeadlineMetricKeys(kind: ActivityKind | string | undefined): 
  * included so the player can reference their character power regardless
  * of context.
  */
-export const BREAKDOWN_METRIC_KEYS: Record<'universal' | ActivityKind, readonly string[]> = {
+export const BREAKDOWN_METRIC_KEYS: Record<'universal', readonly string[]> & Partial<Record<ActivityKind, readonly string[]>> = {
   universal: COMBAT_CORE_METRIC_KEYS,
   none: COMBAT_CORE_METRIC_KEYS,
   idle_standby: [

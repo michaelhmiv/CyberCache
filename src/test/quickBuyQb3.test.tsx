@@ -168,6 +168,8 @@ describe('DispatchPanel — courier fuel quick-buy mount', () => {
   function stateWith(offers: ChefDispatchState['offers']): ChefDispatchState {
     return {
       slots: 2, slotsUsed: 0, playerLevel: 20, vehicleFuel: 100,
+      credits: 0, boardIndex: 0, boardDay: '2026-11-04', rerollsUsed: 0,
+      rerollsRemaining: 0, rerollPrice: null, departedOfferIds: [],
       offers, missions: [], candidates: [vehicle],
     };
   }
@@ -254,7 +256,7 @@ describe('boss + endless belt — commitment-over-stock quick-buy mount', () => 
     hoisted.quickbuyQuote.mockImplementation(async (_kind: string, id: string, qty: number) =>
       quoteFor(id, qty, id === 'MedKit' ? 250 : null));
     useLoadoutStore.setState({
-      slots: { primary: null, secondary: null, heavy: null, shield: null, ordnance: null, classMod: null, relic: null },
+      slots: { primary: null, secondary: null, heavy: null, shield: null, ordnance: null, classMod: null, relic: null, vehicle: null },
       consumables: { PreFight: null, MidFight: null, Emergency: null },
     });
     useBossStore.setState({

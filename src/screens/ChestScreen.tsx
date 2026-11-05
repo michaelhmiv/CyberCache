@@ -125,7 +125,6 @@ const GearItemCard: React.FC<{
         )}
         <button
           onClick={onLockToggle}
-          disabled={action === 'scrapped'}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-raised text-text-secondary text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
           {itemIsLocked ? <Lock size={12} /> : <Unlock size={12} />}
@@ -133,7 +132,7 @@ const GearItemCard: React.FC<{
         </button>
         <button
           onClick={onScrap}
-          disabled={itemIsLocked || action === 'scrapped'}
+          disabled={itemIsLocked}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
           <PxIcon name="recycle" size={13} />

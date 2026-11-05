@@ -22,6 +22,7 @@ import type { Shield, Weapon } from '@/types/items';
 import { ROAMING_AREAS } from '@/constants/roamingAreas';
 import { getRecipesUsingMaterial } from '@/constants/craftingRecipes';
 import type { SettlementRecap } from '@/lib/activity/activitySettlement';
+import type { OfflineSettlementResult } from '@/lib/chef/chefClient';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import { useIdleStore } from '@/store/slices/idleSlice';
 import { useLoadoutPresetsStore } from '@/store/slices/loadoutPresetsSlice';
@@ -61,7 +62,7 @@ vi.mock('framer-motion', async (importOriginal) => {
 // needs one. Same stub shape as ChipRail.test.tsx.
 globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: IntersectionObserverCallback) {
   return {
-    observe: (target: Element) => callback([{ isIntersecting: false, target } as IntersectionObserverEntry], {} as IntersectionObserver),
+    observe: (target: Element) => callback([{ isIntersecting: false, target } as unknown as IntersectionObserverEntry], {} as IntersectionObserver),
     unobserve: () => undefined,
     disconnect: () => undefined,
   };
@@ -123,7 +124,7 @@ function makeShield(id: string, name: string): Shield {
 
 const EMPTY_SLOTS = {
   primary: null, secondary: null, heavy: null,
-  ordnance: null, shield: null, classMod: null, relic: null,
+  ordnance: null, shield: null, classMod: null, relic: null, vehicle: null,
 } as const;
 
 function seedStores() {
@@ -248,20 +249,20 @@ describe('Phase 1 — replayable offline summary', () => {
     useOfflineRecapStore.getState().dismiss();
     expect(useOfflineRecapStore.getState().dismissed).toBe(true);
     // Dismissal never loses the summary.
-    expect(useOfflineRecapStore.getState().lastSettlement?.rewards.creditsAwarded).toBe(4321);
+    expect((useOfflineRecapStore.getState().lastSettlement as OfflineSettlementResult | undefined)?.rewards.creditsAwarded).toBe(4321);
 
     useOfflineRecapStore.getState().reopen();
     const reopened = useOfflineRecapStore.getState();
     expect(reopened.dismissed).toBe(false);
-    expect(reopened.lastSettlement?.rewards.creditsAwarded).toBe(4321);
-    expect(reopened.lastSettlement?.rewards.xpAwarded).toBe(640);
-    expect(reopened.lastSettlement?.ticksSettled).toBe(120);
+    expect((reopened.lastSettlement as OfflineSettlementResult | undefined)?.rewards.creditsAwarded).toBe(4321);
+    expect((reopened.lastSettlement as OfflineSettlementResult | undefined)?.rewards.xpAwarded).toBe(640);
+    expect((reopened.lastSettlement as OfflineSettlementResult | undefined)?.ticksSettled).toBe(120);
 
     // Persisted copy matches, so a later session can re-open it too.
     const raw = localStorage.getItem('cybercache.offlineRecap.v1');
     expect(raw).toBeTruthy();
     const parsed = JSON.parse(raw as string) as { recap: SettlementRecap; dismissed: boolean };
-    expect(parsed.recap.rewards.creditsAwarded).toBe(4321);
+    expect((parsed.recap as OfflineSettlementResult).rewards.creditsAwarded).toBe(4321);
     expect(parsed.dismissed).toBe(false);
   });
 });

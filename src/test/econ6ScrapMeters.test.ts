@@ -55,10 +55,13 @@ function makeSeed(): WriteSeed {
   } satisfies ProfileRowData];
   seed.items = [{
     id: GUN, owner_user_id: P, kind: 'weapon', payload: { weaponType: 'Pistol', combatPower: 50 },
+    static_item_id: null, quality: null, material_tier: null,
+    condition_state: null, condition_current: null, condition_max: null,
+    supply_mode: 'verified_action', source_id: null, creator_user_id: null,
+    tradeable: true, account_bound: false, locked_until: null,
     rarity: 'Common', item_level: 5, runtime_state: 'available', equipped_slot: null,
-    forge_slot: null, cosmetic_skin_id: null,
-    instance: { itemId: GUN, kind: 'weapon', rarity: 'Common' },
-    estimated_value: 250, locked: false, source_tag: 'World Drop',
+    is_locked: false,
+    estimated_value: 250,
     created_at: `${DAY}T09:00:00.000Z`, updated_at: `${DAY}T09:00:00.000Z`,
   } satisfies WriteItemData];
   return seed;
@@ -130,7 +133,6 @@ describe('scrap meters — the real write routes move the counters', () => {
     const options: InMemoryWriteOptions = {
       now: () => new Date(nowMs),
       uuid: nextUuid,
-      initialBundle: () => null,
     };
     store = new InMemoryWriteStore(seed, options);
     const app = express();

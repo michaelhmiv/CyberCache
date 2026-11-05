@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-05 — Standings becomes a telemetry deck
+
+- **Standings reads as instruments now** — the page behind the Hunter tab's Standings door is rebuilt as a telemetry deck: squared rack panels, inset readout wells, and lamps instead of cards. The settlement record leads with a lit **PAYOUT · AUTO — NO CLAIM** lamp over the same promise as always — race rewards pay themselves at settlement; the record just shows what landed, with totals in a readout bank. The global board's channel selector now prints **your rank on every channel** for the period you're viewing, each row carries its movement against the previous reading and a meter against the leader's value, and your own reading pins to the foot of the board when it falls outside the rows shown. The weekly races run as numbered channels, and last week's finals archive in their own panel. Nothing about the numbers changed — same boards, same races, same settlement — only how they're read.
+
 ## 2026-11-05 — What's yours, claimed by hand
 
 - **Your streak pays when you claim it** — the daily login streak no longer pays out on its own when you open the game. The day's reward waits on Home behind a real **Claim** button; tap it and the celebration shows what you actually got. Leave it unclaimed and the reward expires at the day rollover (00:00 UTC) — the streak day itself still counts either way.

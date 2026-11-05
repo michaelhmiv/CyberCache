@@ -238,8 +238,14 @@ export function effectiveVehicleYield(
 /** Fuel units burned per fueled tick, after the efficiency affix
  *  (floored at 10% of base). The Fixer Lean Burn term (migration
  *  0029) applies AFTER the affix term: × (1 − min(0.30, bonus)). */
+/** A vehicle-like rate input. A null vehicleClassId is the on-foot
+ * case: getVehicleClass returns null for it and every rate reads 0.
+ * The dispatch route passes exactly that shape for vehicle-less
+ * offers, so the null is part of the contract, not an accident. */
+export type VehicleRateInput = Pick<Vehicle, 'affixes'> & { vehicleClassId: string | null };
+
 export function vehicleBurnPerTick(
-  vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>,
+  vehicle: VehicleRateInput,
   vehicleFuelBonus = 0,
 ): number {
   const def = getVehicleClass(vehicle.vehicleClassId);
@@ -253,7 +259,7 @@ export function vehicleBurnPerTick(
  *  danger rating. The Fixer Fleet Engineer major (migration 0029)
  *  scales the result by (1 − vehicleDecayReduction). */
 export function vehicleDecayPerTick(
-  vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>,
+  vehicle: VehicleRateInput,
   dangerRating: DangerRating,
   vehicleDecayReduction = 0,
 ): number {
@@ -266,7 +272,7 @@ export function vehicleDecayPerTick(
 }
 
 /** Extra material-quantity chance: class cargo identity + cargo rack affixes. */
-export function vehicleMaterialBonusChance(vehicle: Pick<Vehicle, 'vehicleClassId' | 'affixes'>): number {
+export function vehicleMaterialBonusChance(vehicle: VehicleRateInput): number {
   const def = getVehicleClass(vehicle.vehicleClassId);
   if (!def) return 0;
   return def.materialYieldBonus + vehicleAffixTotals(vehicle).cargoPct;

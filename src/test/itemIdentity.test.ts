@@ -25,7 +25,8 @@ import { DropSource, Rarity } from '@/types/game';
 import { generateWeapon } from '../server/lib/generators/weaponGenerator';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { InMemoryWriteStore } from '../server/writes/memory';
-import { emptyWriteSeed, type ProfileRowData, type WriteItemData } from '../server/writes/store';
+import { emptyWriteSeed, type WriteItemData } from '../server/writes/store';
+import type { ProfileRowData } from '../server/reads/store';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';

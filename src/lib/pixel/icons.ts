@@ -125,9 +125,15 @@ export type PxIconName = keyof typeof PX_ICONS;
 
 export const PX_ICON_NAMES = Object.keys(PX_ICONS) as PxIconName[];
 
-/** The only sizes an icon may render at (redesign v2 size ramp). */
+/** The preferred render sizes (redesign v2 size ramp). */
 export const PX_ICON_SIZES = [13, 17, 26, 40] as const;
-export type PxIconSize = (typeof PX_ICON_SIZES)[number];
+/**
+ * Any size renders correctly (the glyph is a 16x16 viewBox scaled to the
+ * given px), and shipped call sites legitimately use off-ramp sizes
+ * (10–34px in dense rows and plates), so the prop type is `number`;
+ * PX_ICON_SIZES stays the preferred ramp for new work.
+ */
+export type PxIconSize = number;
 
 /** Duotone tone fills, from the v2 sheet rules (mock-v2.css .pxi). */
 export const PX_ICON_TONE_FILLS: Record<PxIconTone, { fill: string; opacity: number }> = {

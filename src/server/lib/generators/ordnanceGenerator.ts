@@ -1,5 +1,5 @@
 import { Element, Rarity, Manufacturer, DropSource } from '@/types/game';
-import { Ordnance, Affix } from '@/types/items';
+import { type Ordnance, type Affix } from '@/types/items';
 import { RARITIES } from '@/constants/rarities';
 import { ELEMENTS } from '@/constants/elements';
 import { createRNG, seededRandom, seededInt, pickWeighted, hashString } from '@/lib/utils/rng';

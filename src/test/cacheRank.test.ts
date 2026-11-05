@@ -78,7 +78,8 @@ import { generateRelic } from '../server/lib/generators/relicGenerator';
 import { mountCacheRankRoutes, mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/routes';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { InMemoryWriteStore } from '../server/writes/memory';
-import { emptyWriteSeed, type ProfileRowData, type WriteSeed } from '../server/writes/store';
+import { emptyWriteSeed, type WriteSeed } from '../server/writes/store';
+import type { ProfileRowData } from '../server/reads/store';
 import { SKILL_NODES } from '@/constants/skillTrees';
 import type { SkillNodeData } from '../server/writes/store';
 import {
@@ -318,7 +319,7 @@ describe('migration 0031 textual pins', () => {
 
 describe('cache rank grants — in-memory gameplay store (the trigger twin)', () => {
   const rewards = (xp: number) => ({
-    credits: 0, scrap: 0, xp, fragments: 0,
+    credits: 0, scrap: 0, xp, keys: 0,
     materials: {} as Json, essences: {} as Json, kills: 0,
   });
 
@@ -346,7 +347,7 @@ describe('cache rank grants — in-memory gameplay store (the trigger twin)', ()
     expect(store.cacheRankGrantLog).toEqual([
       { playerId: A, fromLevel: 0, toLevel: 9, tokens: 8 },
     ]);
-    await store.applyChefRewards(A, rewards(5));
+    await store.applyChefRewards(A, rewards(5), 1, '');
     const profile = store.profiles.get(A)!;
     expect(profile.player_level).toBe(10);
     expect(store.cacheRankGrantLog).toEqual([
@@ -355,7 +356,7 @@ describe('cache rank grants — in-memory gameplay store (the trigger twin)', ()
     ]);
     expect(profile.cache_rank_tokens).toBe(14);
     // Further claims without a level change grant nothing.
-    await store.applyChefRewards(A, rewards(0));
+    await store.applyChefRewards(A, rewards(0), 2, '');
     expect(store.cacheRankGrantLog).toHaveLength(2);
   });
 
@@ -420,7 +421,7 @@ describe('cache rank grants — in-memory gameplay store (the trigger twin)', ()
     store.seedProfile({ id: A, player_level: 99, player_xp: xpToNextLevel(99) - 1 });
     await store.grantCacheRankTokens(A);
     expect(store.profiles.get(A)?.cache_rank_tokens).toBe(148);
-    await store.applyChefRewards(A, rewards(1));
+    await store.applyChefRewards(A, rewards(1), 1, '');
     expect(store.profiles.get(A)?.player_level).toBe(100);
     expect(store.cacheRankGrantLog.at(-1)).toEqual(
       { playerId: A, fromLevel: 99, toLevel: 100, tokens: 26 });
@@ -735,12 +736,12 @@ describe('cache rank consumers — Chef engines', () => {
   it('mechanics snapshot: Thick Skin scales base HP only; Heavy Hand joins DPS; contributions trace', () => {
     const player = (spends: Record<string, number>): PlayerProfile => ({
       id: A, name: 'Test Hunter', level: 10, xp: 0, credits: 0, scrap: 0,
-      cacheKeys: 0, cacheKeyFragments: 0, legendaryCores: 0,
+      cacheKeys: 0, legendaryCores: 0,
       currentZoneId: 'dustwaste', highestZoneId: 'dustwaste',
       offlineCapHours: 0, lastClaimTime: 0, deathFeeInsurance: false,
       consumables: {}, materials: {}, essences: {}, workshopQueues: [], lastWorkshopTick: 0,
       cacheRankTokens: 0, cacheRankSpends: spends,
-    } as PlayerProfile);
+    } as unknown as PlayerProfile);
     const weapon = generateWeapon(
       { source: DropSource.WorldDrop, level: 10, forcedRarity: Rarity.Rare },
       createTickRng('cache-rank-test', 'snapshot', 3),
@@ -861,7 +862,7 @@ describe('cache rank consumers — writes store', () => {
         id: A, cache_tokens: 5,
         skill_spends: { scav_cache_1: 5 },
         cache_rank_spends: { cacheQuality: 10 },
-      } as Partial<ProfileRowData>)];
+      } as Partial<ProfileRowData> & { id: string })];
     }, () => 0.65);
     const rankedMade = await ranked.makeItem(A, writeNonce(), 'key', null) as Json;
     expect(rankedMade.cache_quality).toBeCloseTo(0.45, 10); // 0.25 skill + 0.20 rank
@@ -876,7 +877,7 @@ describe('cache rank consumers — writes store', () => {
         writeProfile({
           id: A, credits: 0, skill_spends: { scav_fee_1: 5 },
           cache_rank_spends: { marketProceeds: 10 },
-        } as Partial<ProfileRowData>),
+        } as Partial<ProfileRowData> & { id: string }),
         writeProfile({ id: B, credits: 100_000 }),
       ];
       s.items = [{
@@ -908,7 +909,7 @@ describe('cache rank consumers — writes store', () => {
     const LISTING = 'dddddddd-dddd-4ddd-8ddd-ddddddddddd2';
     const store = makeWriteStore((s) => {
       s.profiles = [
-        writeProfile({ id: NPC, credits: 0, cache_rank_spends: { marketProceeds: 10 } } as Partial<ProfileRowData>),
+        writeProfile({ id: NPC, credits: 0, cache_rank_spends: { marketProceeds: 10 } } as Partial<ProfileRowData> & { id: string }),
         writeProfile({ id: B, credits: 100_000 }),
       ];
       s.items = [{
@@ -944,6 +945,8 @@ describe('cache rank consumers — craft engine XP', () => {
     gearTemperBaseChance: 0.05, refineBaseYield: 0.8,
     repairWorkRateBase: 20, repairMasterySpeedPerLevel: 0.02,
     repairMasteryEfficiencyPerLevel: 0.02,
+    shieldTechWorkRateBase: 500, shieldTechMasterySpeedPerLevel: 0.02,
+    shieldTechMasteryEfficiencyPerLevel: 0.02,
   };
 
   function engineHarness(cacheRankXpBonus?: (playerId: string) => number) {
@@ -964,9 +967,9 @@ describe('cache rank consumers — craft engine XP', () => {
       profile: () => profileView,
       activeAction: () => ({ kind: 'crafting', lastHeartbeatMs: now }),
       jobs: () => jobs,
-      addJob: (j) => { jobs.push(j); },
+      addJob: (j: CraftJobRecord) => { jobs.push(j); },
       masteryLevel: () => 1,
-      skillBonus: (_id, key) => computeSkillBonuses({})[key] ?? 0,
+      skillBonus: (_id: string, key: string) => computeSkillBonuses({})[key as keyof ReturnType<typeof computeSkillBonuses>] ?? 0,
       addMasteryXp: () => {},
       addStat: () => {},
       addBatch: () => {},
@@ -976,7 +979,7 @@ describe('cache rank consumers — craft engine XP', () => {
       restoreVehicle: () => null,
       levers: () => LEVERS,
       cacheRankXpBonus,
-    } as CraftAdapter;
+    } as unknown as CraftAdapter;
     return {
       jobs,
       run: () => {

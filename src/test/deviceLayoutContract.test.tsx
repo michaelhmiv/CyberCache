@@ -94,7 +94,7 @@ describe('layout contract — compactResourceValue bounds', () => {
 describe('layout contract — ResourceBar at phone width', () => {
   beforeEach(() => {
     usePlayerStore.setState({
-      credits: 999_949, scrap: 12_345, cacheKeys: 15, cacheKeyFragments: 3,
+      credits: 999_949, scrap: 12_345, cacheKeys: 15,
       legendaryCores: 2, level: 100,
       // Audit UX-04: these tests simulate a loaded profile — the bar
       // skeletons until the first server sync sets this flag.
