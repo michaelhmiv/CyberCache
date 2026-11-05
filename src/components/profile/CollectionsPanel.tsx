@@ -183,16 +183,19 @@ const SegmentedMeter: React.FC<{ value: number; max: number; color: string; heig
 
 /** Semicircular master dial — pure CSS conic sweep, no SVG. The
  *  needle rests at the measured completion; the digital readout
- *  under the hub is the authority, the dial is the glance. */
+ *  beside the hub is the authority, the dial is the glance. The
+ *  full circles are drawn 160 tall and clipped to the semicircle
+ *  by the wrapper's overflow, so the dial can never paint over
+ *  the channel meters below it. */
 const MasterDial: React.FC<{ pct: number }> = ({ pct }) => {
   const sweep = Math.max(0, Math.min(180, pct * 1.8));
   return (
-    <div className="relative shrink-0" style={{ width: 176, height: 100 }} aria-hidden>
+    <div className="relative shrink-0 overflow-hidden" style={{ width: 160, height: 92 }} aria-hidden>
       <div
         className="absolute left-0 top-0"
         style={{
-          width: 176,
-          height: 176,
+          width: 160,
+          height: 160,
           borderRadius: '50%',
           background: `conic-gradient(from 270deg, ${SIGNAL} 0deg ${sweep}deg, #1C242E ${sweep}deg 180deg, transparent 180deg 360deg)`,
         }}
@@ -200,12 +203,12 @@ const MasterDial: React.FC<{ pct: number }> = ({ pct }) => {
       <div
         className="absolute"
         style={{
-          width: 136,
-          height: 136,
+          width: 124,
+          height: 124,
           borderRadius: '50%',
           backgroundColor: PANEL,
-          left: 20,
-          top: 20,
+          left: 18,
+          top: 18,
         }}
       />
       {/* needle */}
@@ -213,10 +216,10 @@ const MasterDial: React.FC<{ pct: number }> = ({ pct }) => {
         className="absolute"
         style={{
           width: 3,
-          height: 66,
+          height: 58,
           backgroundColor: AMBER,
           left: 'calc(50% - 1.5px)',
-          bottom: 12,
+          bottom: 10,
           transformOrigin: '50% 100%',
           transform: `rotate(${-90 + sweep}deg)`,
           boxShadow: `0 0 8px ${AMBER}88`,
@@ -224,7 +227,7 @@ const MasterDial: React.FC<{ pct: number }> = ({ pct }) => {
       />
       <div
         className="absolute rounded-full"
-        style={{ width: 13, height: 13, backgroundColor: '#2A333F', left: 'calc(50% - 6.5px)', bottom: 6 }}
+        style={{ width: 13, height: 13, backgroundColor: '#2A333F', left: 'calc(50% - 6.5px)', bottom: 4 }}
       />
       <span className="absolute bottom-0 left-1 font-mono text-[11px] text-text-muted">0</span>
       <span className="absolute bottom-0 right-1 font-mono text-[11px] text-text-muted">{COLLECTION_TOTAL}</span>
@@ -232,17 +235,32 @@ const MasterDial: React.FC<{ pct: number }> = ({ pct }) => {
   );
 };
 
-const Readout: React.FC<{ label: string; value: string; accent?: string }> = ({ label, value, accent }) => (
+const Readout: React.FC<{ label: string; value: string; accent?: string; small?: boolean }> = ({
+  label,
+  value,
+  accent,
+  small,
+}) => (
   <div>
-    <div className="font-mono text-[11px] uppercase tracking-[0.18em] text-text-muted">{label}</div>
+    <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted">{label}</div>
     <div
-      className="mt-0.5 font-mono text-xl font-bold tabular-nums leading-none"
+      className={`mt-0.5 font-mono font-bold tabular-nums leading-none ${small ? 'text-[13px]' : 'text-xl'}`}
       style={{ color: accent ?? '#F5F5F5' }}
     >
       {value}
     </div>
   </div>
 );
+
+/** Compact log date for the header strip: NOV 02 '26. */
+function formatLogDateShort(iso: string | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const mon = d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${mon} ${day} '${String(d.getFullYear()).slice(2)}`;
+}
 
 const EntryRow: React.FC<{
   entry: CollectionEntry;
@@ -421,7 +439,7 @@ export const CollectionsPanel: React.FC<CollectionsPanelProps> = ({ payload, cor
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="bl-title text-[30px] leading-none text-text-primary">Collections</h2>
-            <div className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-text-muted">
+            <div className="mt-1.5 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.18em] text-text-muted">
               Hoard telemetry · {COLLECTION_TOTAL} channels
             </div>
           </div>
@@ -438,14 +456,10 @@ export const CollectionsPanel: React.FC<CollectionsPanelProps> = ({ payload, cor
         <div className="mt-3 flex items-end gap-4">
           <MasterDial pct={pct} />
           <div className="grid flex-1 grid-cols-2 gap-x-3 gap-y-3 pb-1">
-            <Readout
-              label="Logged"
-              value={`${foundTotal} / ${COLLECTION_TOTAL}`}
-              accent={SIGNAL}
-            />
+            <Readout label="Logged" value={`${foundTotal}/${COLLECTION_TOTAL}`} accent={SIGNAL} />
             <Readout label="Complete" value={`${pct}%`} accent={SIGNAL} />
-            <Readout label="Outstanding" value={`${COLLECTION_TOTAL - foundTotal}`} />
-            <Readout label="Last entry" value={formatLogDate(lastLogged)} />
+            <Readout label="Open" value={`${COLLECTION_TOTAL - foundTotal}`} />
+            <Readout label="Last log" value={formatLogDateShort(lastLogged)} small />
           </div>
         </div>
 
