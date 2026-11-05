@@ -408,7 +408,7 @@ const RaceChannel: React.FC<{
           {race.label}
         </span>
         <span className="ml-auto whitespace-nowrap" style={{ ...monoStyle, fontSize: 11, color: FAINT }}>
-          {race.participant_count} RACERS
+          {race.participant_count === 1 ? '1 RACER' : `${race.participant_count} RACERS`}
         </span>
       </div>
       <div className="mt-0.5 flex items-baseline justify-between gap-2">
