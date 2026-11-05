@@ -1,41 +1,41 @@
 /**
- * Cache box lane (migration 0037) — the monetization lane for Data
- * Caches, distinct from loot drops.
+ * Cache box lane (migration 0082 rebuild; originally 0037) — the
+ * monetization lane for Data Caches, distinct from loot drops.
  *
- * Laws under test:
- *  - ONE DAILY BUDGET: 10 openings per UTC day (cacheBoxDailyCap
- *    lever, default 10, hard clamp [1, 30]), counting EVERY
- *    opening, the free one included. An 11th opening is refused.
- *  - FREE-FIRST: the day's first opening resolves 'free' whatever
- *    the caller asked to pay — a key or an ad is never consumed
- *    for it. A 'free' request after it is refused.
- *  - PAID OPENINGS: 2..cap are paid per opening by the player's
- *    choice — 1 cache key, or one watch-ad attestation (the open
- *    call carrying the ad unit id; client-attested, no SSV).
+ * Owner rulings of 2026-11-04 under test:
+ *  - THE DAILY BUDGET IS DEAD: no daily cap, no free daily box, no
+ *    "openings today", no 00:00 UTC reset. Every opening is PAID —
+ *    1 cache key OR one rewarded-ad attestation, player's choice
+ *    per opening, unlimited while they can pay.
+ *  - NO PAYMENT, NO OPENING: a 'free' request is refused like any
+ *    other unknown payment; a key opening with no keys is refused;
+ *    an ad opening without the attestation (ad unit id) is refused.
  *  - EXACTLY ONCE: the nonce ledger makes an opening replay-safe —
- *    a replay returns the stored result, records no second
- *    opening, spends nothing twice.
- *  - KEYS STAY A STOCK: leaderboard (0035) / streak (0036) /
- *    fragment keys buy ad-free openings INSIDE the budget; they
- *    never buy an opening past the cap.
- *  - THE OLD LANE IS GONE: cc_claim_rewarded_cache_key (3 keys/day
- *    + cooldown) is dropped by 0037, its route is unmounted, the
- *    client op is deleted, and the ad offer lives ONLY on the
- *    cache surface (ChestScreen) — ResourceBar is display-only.
+ *    a replay returns the stored result and spends nothing twice.
+ *  - KEYS ARE THE ONLY CACHE CURRENCY: fragments are abolished —
+ *    no accrual, no display, no 5:1 conversion anywhere. Roaming
+ *    pays WHOLE keys at CACHE_KEY_CHANCE (0.00012/tick) through
+ *    silent remainder bookkeeping (pinned in the chef suites; the
+ *    lever + content pins live here).
+ *  - GRANDFATHERING (migration 0082): stranded fragment balances
+ *    converted to keys at 5:1 floor; parts zeroed; nobody lost keys.
+ *  - THE OLD LANES STAY GONE: cc_claim_rewarded_cache_key (3/day +
+ *    cooldown) was dropped by 0037 and its route stays unmounted;
+ *    the ad offer lives ONLY on the cache surface (ChestScreen) —
+ *    ResourceBar is display-only; no ads on the play screen ever.
  *  - DRAW INVARIANCE: the opening still draws through
  *    cc_draw_odds('cache_primary_rarity', cache_quality) — odds
- *    weights untouched (6000/3200/800 from 0004), the 0031 quality
- *    computation (skill cacheQuality + Cache Rank Optimizer)
- *    byte-identical in both twins (the cacheRank suite's makeItem
- *    quality test staying green is the behavioral proof).
- *  - METERS: lane issuance folds from cc_make_item ledger rows
- *    into cache_boxes_opened_free / _ad / _key; pre-0037 rows
- *    carry no payment and count as key.
+ *    weights untouched, the 0031 quality computation byte-identical
+ *    in both twins (the cacheRank suite's makeItem quality test
+ *    staying green is the behavioral proof).
+ *  - METERS: lane issuance folds from cc_make_item ledger rows into
+ *    cache_boxes_opened_free / _ad / _key (pre-0082 history keeps
+ *    folding; new rows are only ad/key); roaming key issuance folds
+ *    into cache_keys_from_roaming.
  *
- * The SQL twin is exercised against real Postgres in the slice
- * harness (0037: full chain 0001→0037, budget walk, free-first,
- * replay, rollover, lever row, claim-function drop, metrics fold);
- * its shapes are pinned textually below.
+ * The SQL twin is exercised against real Postgres by the parent's
+ * staging-first migration routine; its shapes are pinned textually
+ * below against db/migrations/0082_cache_lane_rebuild.sql.
  */
 import express from 'express';
 import type { AddressInfo } from 'node:net';
@@ -43,18 +43,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  CACHE_BOX_DAILY_CAP_DEFAULT,
-  CACHE_BOX_FREE_PER_DAY,
-  CACHE_LANE_LEVER_CLAMPS,
-  CACHE_LANE_LEVER_DEFAULTS,
   CACHE_LANE_RULE,
-  cacheBoxOpenedTotal,
-  cacheLaneResetsAt,
-  cacheLaneUtcDay,
   cacheLaneView,
   resolveCacheBoxPayment,
-  resolveCacheLaneLevers,
 } from '@/content/cacheLane';
+import { CACHE_KEY_CHANCE } from '@/content/roamingRates';
 import {
   ECONOMY_CONFIG_DEFAULTS,
   ECONOMY_CONFIG_KEYS,
@@ -105,80 +98,59 @@ function writeSeed(cacheTokens: number): WriteSeed {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Content: the budget, the lever, free-first resolution
+// 1. Content: the rule, the payment resolution, the key chance
 // ---------------------------------------------------------------------------
 
 describe('cache lane content', () => {
-  it('ships the ruled constants: cap 10 total, 1 free', () => {
-    expect(CACHE_BOX_DAILY_CAP_DEFAULT).toBe(10);
-    expect(CACHE_BOX_FREE_PER_DAY).toBe(1);
-    expect(CACHE_LANE_LEVER_DEFAULTS.cacheBoxDailyCap).toBe(10);
-    expect(CACHE_LANE_RULE).toContain('free');
-  });
-
-  it('the lever clamps to [1, 30] and truncates to an integer', () => {
-    expect(CACHE_LANE_LEVER_CLAMPS.cacheBoxDailyCap).toEqual({ min: 1, max: 30, integer: true });
-    expect(resolveCacheLaneLevers().cacheBoxDailyCap).toBe(10);
-    expect(resolveCacheLaneLevers({ cacheBoxDailyCap: 0 }).cacheBoxDailyCap).toBe(1);
-    expect(resolveCacheLaneLevers({ cacheBoxDailyCap: 99 }).cacheBoxDailyCap).toBe(30);
-    expect(resolveCacheLaneLevers({ cacheBoxDailyCap: 7.9 }).cacheBoxDailyCap).toBe(7);
-    expect(resolveCacheLaneLevers({ cacheBoxDailyCap: Number.NaN }).cacheBoxDailyCap).toBe(10);
-  });
-
-  it('the config registry mirrors the content lever exactly', () => {
-    expect(ECONOMY_CONFIG_DEFAULTS.cacheBoxDailyCap).toBe(CACHE_LANE_LEVER_DEFAULTS.cacheBoxDailyCap);
-    const spec = ECONOMY_CONFIG_KEYS.cacheBoxDailyCap;
-    expect(spec.min).toBe(CACHE_LANE_LEVER_CLAMPS.cacheBoxDailyCap.min);
-    expect(spec.max).toBe(CACHE_LANE_LEVER_CLAMPS.cacheBoxDailyCap.max);
-    expect(spec.integer).toBe(true);
-    expect(validateEconomyConfigValue('cacheBoxDailyCap', 12)).toBe(12);
-    expect(validateEconomyConfigValue('cacheBoxDailyCap', 0)).toBeNull();
-    expect(validateEconomyConfigValue('cacheBoxDailyCap', 31)).toBeNull();
-    expect(validateEconomyConfigValue('cacheBoxDailyCap', 2.5)).toBeNull();
-  });
-
-  it('UTC day + reset: the budget resets at the next UTC midnight', () => {
-    expect(cacheLaneUtcDay(new Date('2026-10-31T23:59:59.000Z'))).toBe('2026-10-31');
-    expect(cacheLaneResetsAt('2026-10-31')).toBe('2026-11-01T00:00:00.000Z');
-    expect(cacheLaneResetsAt('2026-12-31')).toBe('2027-01-01T00:00:00.000Z');
-  });
-
-  it('the view derives opened / remaining / free from the counts', () => {
-    const fresh = cacheLaneView(
-      { day: '2026-10-31', keys: 3, byPayment: { free: 0, ad: 0, key: 0 } },
-      resolveCacheLaneLevers(),
+  it('the rule says what the owner ruled: paid per opening, no daily limit', () => {
+    expect(CACHE_LANE_RULE).toBe(
+      'Every cache box costs 1 cache key or one short ad — no daily limit. ' +
+      'Keys are rare: roaming drops one now and then, and the login streak, ' +
+      'contracts, and leaderboards pay them too.',
     );
-    expect(fresh).toMatchObject({
-      day: '2026-10-31', cap: 10, freePerDay: 1, openedToday: 0,
-      remaining: 10, freeAvailable: true, keys: 3,
-      resetsAt: '2026-11-01T00:00:00.000Z',
-    });
-    const mid = cacheLaneView(
-      { day: '2026-10-31', keys: 1, byPayment: { free: 1, ad: 2, key: 3 } },
-      resolveCacheLaneLevers(),
-    );
-    expect(mid.openedToday).toBe(6);
-    expect(mid.remaining).toBe(4);
-    expect(mid.freeAvailable).toBe(false);
-    const done = cacheLaneView(
-      { day: '2026-10-31', keys: 9, byPayment: { free: 1, ad: 0, key: 9 } },
-      resolveCacheLaneLevers(),
-    );
-    expect(done.remaining).toBe(0);
-    expect(cacheBoxOpenedTotal(done.byPayment)).toBe(10);
+    expect(CACHE_LANE_RULE).not.toMatch(/free/i);
+    expect(CACHE_LANE_RULE).not.toMatch(/fragment/i);
   });
 
-  it('free-first: any request resolves free while the free box remains', () => {
-    const fresh = { free: 0, ad: 0, key: 0 };
-    expect(resolveCacheBoxPayment('free', fresh)).toBe('free');
-    expect(resolveCacheBoxPayment('key', fresh)).toBe('free');
-    expect(resolveCacheBoxPayment('ad', fresh)).toBe('free');
-    expect(resolveCacheBoxPayment('anything', fresh)).toBe('free');
-    const used = { free: 1, ad: 0, key: 0 };
-    expect(resolveCacheBoxPayment('key', used)).toBe('key');
-    expect(resolveCacheBoxPayment('ad', used)).toBe('ad');
-    expect(resolveCacheBoxPayment('free', used)).toBeNull();
-    expect(resolveCacheBoxPayment('scrip', used)).toBeNull();
+  it('payment resolution is exact: ad stays ad, key stays key, everything else refused', () => {
+    expect(resolveCacheBoxPayment('ad')).toBe('ad');
+    expect(resolveCacheBoxPayment('key')).toBe('key');
+    expect(resolveCacheBoxPayment('free')).toBeNull();
+    expect(resolveCacheBoxPayment('scrip')).toBeNull();
+    expect(resolveCacheBoxPayment('')).toBeNull();
+    expect(resolveCacheBoxPayment(null)).toBeNull();
+    expect(resolveCacheBoxPayment(undefined)).toBeNull();
+  });
+
+  it('the lane view is keys + rule and nothing else', () => {
+    expect(cacheLaneView({ keys: 3 })).toEqual({ keys: 3, rule: CACHE_LANE_RULE });
+    expect(cacheLaneView({ keys: 0 })).toEqual({ keys: 0, rule: CACHE_LANE_RULE });
+  });
+
+  it('the roaming key chance is pinned at the ruled 0.00012 and levered', () => {
+    expect(CACHE_KEY_CHANCE).toBe(0.00012);
+    expect(ECONOMY_CONFIG_DEFAULTS.cacheKeyChance).toBe(0.00012);
+    const spec = ECONOMY_CONFIG_KEYS.cacheKeyChance;
+    expect(spec.min).toBe(0);
+    expect(spec.max).toBe(1);
+    expect(validateEconomyConfigValue('cacheKeyChance', 0.00012)).toBe(0.00012);
+    expect(validateEconomyConfigValue('cacheKeyChance', 2)).toBeNull();
+  });
+
+  it('the retired levers are gone from the registry', () => {
+    for (const key of ['fragmentChance', 'cacheBoxDailyCap', 'streakFragmentScalar']) {
+      expect(ECONOMY_CONFIG_KEYS[key as keyof typeof ECONOMY_CONFIG_KEYS]).toBeUndefined();
+      expect(ECONOMY_CONFIG_DEFAULTS[key as keyof typeof ECONOMY_CONFIG_DEFAULTS]).toBeUndefined();
+    }
+  });
+
+  it('fragment accrual and conversion are GONE from the claim + write paths', () => {
+    for (const p of ['src/server/chef.ts', 'src/server/writes/memory.ts', 'src/server/gameplay/memory.ts']) {
+      expect(readSource(p), p).not.toContain('cacheFragmentsAwarded');
+    }
+    // The 5:1 conversion helper survives nowhere in the lane.
+    expect(readSource('src/content/cacheLane.ts')).not.toContain('FRAGMENTS_PER_KEY');
+    expect(readSource('src/server/writes/memory.ts')).not.toContain('applyCacheFragmentRollup');
   });
 });
 
@@ -188,82 +160,57 @@ describe('cache lane content', () => {
 
 describe('cache lane — write twin', () => {
   const NOW = new Date('2026-10-31T12:00:00.000Z');
-  const makeStore = (tokens: number, opts?: { cap?: number; now?: () => Date }) =>
-    new InMemoryWriteStore(writeSeed(tokens), {
-      now: opts?.now ?? (() => NOW),
-      rng: () => 0.5,
-      cacheLaneLeverProvider: opts?.cap !== undefined ? () => ({ cacheBoxDailyCap: opts.cap }) : undefined,
-    });
+  const makeStore = (tokens: number) =>
+    new InMemoryWriteStore(writeSeed(tokens), { now: () => NOW, rng: () => 0.5 });
 
-  it('free-first: a key request on a fresh day resolves free and spends nothing', async () => {
+  it('key openings spend exactly one key each', async () => {
     const store = makeStore(2);
     const first = (await store.makeItem(A, nonce(), 'key', null)) as Json;
-    expect(first.payment).toBe('free');
-    expect((first.profile as Json).cache_tokens).toBe(2);
-    const lane = first.cache_lane as Json;
-    expect(lane).toMatchObject({ day: '2026-10-31', cap: 10, opened_today: 1, remaining: 9, free_available: false });
-    expect(lane.by_payment).toEqual({ free: 1, ad: 0, key: 0 });
-
+    expect(first.payment).toBe('key');
+    expect((first.profile as Json).cache_tokens).toBe(1);
+    expect(first.cache_lane).toEqual({ keys: 1, rule: CACHE_LANE_RULE });
     const second = (await store.makeItem(A, nonce(), 'key', null)) as Json;
     expect(second.payment).toBe('key');
-    expect((second.profile as Json).cache_tokens).toBe(1);
-    expect(store.seed.cacheBoxOpenings.map((o) => o.payment)).toEqual(['free', 'key']);
+    expect((second.profile as Json).cache_tokens).toBe(0);
+    expect(store.seed.cacheBoxOpenings.map((o) => o.payment)).toEqual(['key', 'key']);
   });
 
-  it('an ad request on a fresh day also resolves free (no attestation consumed)', async () => {
+  it('a key opening with no keys is refused — no payment, no opening', async () => {
     const store = makeStore(0);
-    const res = (await store.makeItem(A, nonce(), 'ad', 'ca-app-pub-x/y')) as Json;
-    expect(res.payment).toBe('free');
-    expect(store.seed.cacheBoxOpenings[0].ad_unit_id).toBeNull();
+    await expect(store.makeItem(A, nonce(), 'key', null)).rejects.toThrow('Not enough tokens');
+    expect(store.seed.cacheBoxOpenings).toHaveLength(0);
   });
 
-  it('a free request after the free box is used is refused', async () => {
+  it('a free request is refused outright', async () => {
     const store = makeStore(5);
-    await store.makeItem(A, nonce(), 'key', null);
-    await expect(store.makeItem(A, nonce(), 'free', null)).rejects.toThrow('Free cache box already used today');
+    await expect(store.makeItem(A, nonce(), 'free', null)).rejects.toThrow('Unknown cache box payment');
+    await expect(store.makeItem(A, nonce(), 'scrip', null)).rejects.toThrow('Unknown cache box payment');
+    expect(store.seed.cacheBoxOpenings).toHaveLength(0);
   });
 
   it('ad openings require the attestation (ad unit id) and record it', async () => {
     const store = makeStore(0);
-    await store.makeItem(A, nonce(), 'key', null); // the free box
     await expect(store.makeItem(A, nonce(), 'ad', null)).rejects.toThrow('ad_unit_id is required');
     await expect(store.makeItem(A, nonce(), 'ad', '   ')).rejects.toThrow('ad_unit_id is required');
     const ad = (await store.makeItem(A, nonce(), 'ad', 'ca-app-pub-x/y')) as Json;
     expect(ad.payment).toBe('ad');
-    expect(store.seed.cacheBoxOpenings[1]).toMatchObject({ payment: 'ad', ad_unit_id: 'ca-app-pub-x/y' });
+    expect(store.seed.cacheBoxOpenings[0]).toMatchObject({ payment: 'ad', ad_unit_id: 'ca-app-pub-x/y' });
   });
 
-  it('key openings spend exactly one key; a keyless key opening is refused', async () => {
-    const store = makeStore(1);
-    await store.makeItem(A, nonce(), 'key', null); // free
-    const keyed = (await store.makeItem(A, nonce(), 'key', null)) as Json;
-    expect(keyed.payment).toBe('key');
-    await expect(store.makeItem(A, nonce(), 'key', null)).rejects.toThrow('Not enough tokens');
-  });
-
-  it('the cap refuses the 11th opening of the day, however it would be paid', async () => {
-    const store = makeStore(50);
-    for (let i = 0; i < 10; i++) {
-      const res = (await store.makeItem(A, nonce(), i % 2 ? 'ad' : 'key', 'ca-app-pub-x/y')) as Json;
-      expect((res.cache_lane as Json).opened_today).toBe(i + 1);
+  it('UNCAPPED: 15 openings in one day all settle while the player can pay', async () => {
+    const store = makeStore(8);
+    for (let i = 0; i < 15; i++) {
+      const useKey = i % 2 === 0; // 8 key openings (i even), 7 ad openings
+      const res = (await store.makeItem(A, nonce(), useKey ? 'key' : 'ad', 'ca-app-pub-x/y')) as Json;
+      expect(res.payment).toBe(useKey ? 'key' : 'ad');
     }
-    await expect(store.makeItem(A, nonce(), 'key', null)).rejects.toThrow('Daily cache box limit reached');
-    await expect(store.makeItem(A, nonce(), 'ad', 'ca-app-pub-x/y')).rejects.toThrow('Daily cache box limit reached');
-    expect(store.seed.cacheBoxOpenings).toHaveLength(10);
-    // Keys were spent only on key-paid openings: 1 free + 5 ad + 4 key… the
-    // walk alternates key/ad starting with key (which resolved free).
+    expect(store.seed.cacheBoxOpenings).toHaveLength(15);
     const p = store.seed.profiles.find((row) => row.id === A);
-    expect(p?.cache_tokens).toBe(46);
-  });
-
-  it('the cap is the lever: cap 3 refuses the 4th opening', async () => {
-    const store = makeStore(50, { cap: 3 });
-    await store.makeItem(A, nonce(), 'key', null);
-    await store.makeItem(A, nonce(), 'key', null);
-    const third = (await store.makeItem(A, nonce(), 'key', null)) as Json;
-    expect((third.cache_lane as Json).cap).toBe(3);
-    expect((third.cache_lane as Json).remaining).toBe(0);
-    await expect(store.makeItem(A, nonce(), 'key', null)).rejects.toThrow('Daily cache box limit reached');
+    expect(p?.cache_tokens).toBe(0); // exactly the 8 key openings debited
+    // And the 16th key opening is refused only for lack of payment.
+    await expect(store.makeItem(A, nonce(), 'key', null)).rejects.toThrow('Not enough tokens');
+    const sixteenth = (await store.makeItem(A, nonce(), 'ad', 'ca-app-pub-x/y')) as Json;
+    expect(sixteenth.payment).toBe('ad');
   });
 
   it('a replayed nonce returns the stored opening and records nothing twice', async () => {
@@ -274,38 +221,21 @@ describe('cache lane — write twin', () => {
     expect(replay).toEqual(first);
     expect(store.seed.cacheBoxOpenings).toHaveLength(1);
     expect(store.seed.items.filter((i) => i.owner_user_id === A)).toHaveLength(1);
+    const p = store.seed.profiles.find((row) => row.id === A);
+    expect(p?.cache_tokens).toBe(2);
   });
 
-  it('the budget rolls over at UTC midnight: yesterday’s openings do not count', async () => {
-    let now = new Date('2026-10-31T23:30:00.000Z');
-    const store = makeStore(0, { now: () => now });
-    const dayOne = (await store.makeItem(A, nonce(), 'key', null)) as Json;
-    expect(dayOne.payment).toBe('free');
-    await expect(store.makeItem(A, nonce(), 'key', null)).rejects.toThrow('Not enough tokens');
-    now = new Date('2026-11-01T00:00:01.000Z');
-    const dayTwo = (await store.makeItem(A, nonce(), 'key', null)) as Json;
-    expect(dayTwo.payment).toBe('free');
-    expect((dayTwo.cache_lane as Json).day).toBe('2026-11-01');
-    expect((dayTwo.cache_lane as Json).opened_today).toBe(1);
-    expect(store.seed.cacheBoxOpenings.map((o) => o.open_day)).toEqual(['2026-10-31', '2026-11-01']);
-  });
-
-  it('budgets are per-player: B’s free box is independent of A’s', async () => {
+  it('payments are per-player: B pays their own way regardless of A', async () => {
     const store = makeStore(0);
-    await store.makeItem(A, nonce(), 'key', null);
-    const bFirst = (await store.makeItem(B, nonce(), 'key', null)) as Json;
-    expect(bFirst.payment).toBe('free');
-  });
-
-  it('an unknown payment is refused once the free box is used', async () => {
-    const store = makeStore(5);
-    await store.makeItem(A, nonce(), 'key', null);
-    await expect(store.makeItem(A, nonce(), 'scrip', null)).rejects.toThrow('Unknown cache box payment');
+    await store.makeItem(A, nonce(), 'ad', 'ca-app-pub-x/y');
+    await expect(store.makeItem(B, nonce(), 'key', null)).rejects.toThrow('Not enough tokens');
+    const bAd = (await store.makeItem(B, nonce(), 'ad', 'ca-app-pub-x/y')) as Json;
+    expect(bAd.payment).toBe('ad');
   });
 });
 
 // ---------------------------------------------------------------------------
-// 3. HTTP: the open op's wire contract + the budget read
+// 3. HTTP: the open op's wire contract + the lane read
 // ---------------------------------------------------------------------------
 
 describe('cache lane — HTTP', () => {
@@ -320,19 +250,9 @@ describe('cache lane — HTTP', () => {
     app.use(express.json());
     const writeStore = new InMemoryWriteStore(writeSeed(2), { now: () => NOW, rng: () => 0.5 });
     mountWriteRoutes(app, writeStore, { jwtSecret: SECRET });
-    // The route reads the budget for the REAL current UTC day (the
-    // same wall-clock pattern as the weekly boards route), so the
-    // seed is dated relative to today.
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     const readSeedData: ReadSeed = {
       ...emptyReadSeed(),
       profiles: [profile({ id: A, cache_tokens: 2 })],
-      cacheBoxOpenings: [
-        { user_id: A, open_day: today, payment: 'free' },
-        { user_id: A, open_day: today, payment: 'key' },
-        { user_id: A, open_day: yesterday, payment: 'ad' },
-      ],
     };
     mountReadRoutes(app, new InMemoryReadStore(readSeedData, () => NOW), { jwtSecret: SECRET });
     await new Promise<void>((resolve) => { server = app.listen(0, () => resolve()); });
@@ -352,15 +272,13 @@ describe('cache lane — HTTP', () => {
     return { status: res.status, json };
   }
 
-  it('POST /api/ops/make-item takes the payment fields and resolves free-first', async () => {
-    const res = await post('/api/ops/make-item', tokenA, { nonce: nonce(), payment: 'key' });
-    expect(res.status).toBe(200);
-    expect(res.json.payment).toBe('free');
-    expect((res.json.profile as Json).cache_tokens).toBe(2);
+  it('POST /api/ops/make-item resolves the payment the player chose — no free-first', async () => {
     const keyed = await post('/api/ops/make-item', tokenA, { nonce: nonce(), payment: 'key' });
     expect(keyed.status).toBe(200);
     expect(keyed.json.payment).toBe('key');
     expect((keyed.json.profile as Json).cache_tokens).toBe(1);
+    const free = await post('/api/ops/make-item', tokenA, { nonce: nonce(), payment: 'free' });
+    expect(free.status).toBe(400);
   });
 
   it('the retired rewarded-key claim route is not mounted', async () => {
@@ -370,20 +288,20 @@ describe('cache lane — HTTP', () => {
     expect(res.status).toBe(404);
   });
 
-  it('GET /api/caches/me serves the caller’s budget (JWT identity only)', async () => {
+  it('the fragment listing op is refused — fragments no longer exist', async () => {
+    const res = await post('/api/ops/market-create-fragment', tokenA, {
+      nonce: nonce(), quantity: 5, price_credits: 100,
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('GET /api/caches/me serves keys + rule (JWT identity only)', async () => {
     const res = await fetch(`${base}/api/caches/me`, {
       headers: { authorization: `Bearer ${tokenA}` },
     });
     expect(res.status).toBe(200);
     const lane = (await res.json()) as Json;
-    // Seeded: today's free + key openings count; yesterday's ad does not.
-    const today = new Date().toISOString().slice(0, 10);
-    expect(lane).toMatchObject({
-      day: today, cap: 10, freePerDay: 1, openedToday: 2,
-      remaining: 8, freeAvailable: false, keys: 2,
-      byPayment: { free: 1, ad: 0, key: 1 },
-      resetsAt: cacheLaneResetsAt(today),
-    });
+    expect(lane).toEqual({ keys: 2, rule: CACHE_LANE_RULE });
   });
 
   it('GET /api/caches/me 404s for a token with no profile', async () => {
@@ -395,7 +313,7 @@ describe('cache lane — HTTP', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. Economy fold: lane issuance meters
+// 4. Economy fold: lane issuance meters (history keeps folding)
 // ---------------------------------------------------------------------------
 
 describe('cache lane — economy fold', () => {
@@ -418,14 +336,29 @@ describe('cache lane — economy fold', () => {
     expect(m.cacheOpens).toBe(5);
     expect(m.cacheKeysFromAds).toBe(1); // the historical claim fold still reads old rows
   });
+
+  it('roaming key issuance folds into cache_keys_from_roaming; fragment history stays readable', async () => {
+    const seed = emptyEconomySeed();
+    const at = '2026-10-31T12:00:00.000Z';
+    seed.ledger = [
+      { user_id: A, action_type: 'cc_apply_chef_rewards', idempotency_key: 'c1', created_at: at, result_payload: { rewards: { cache_keys_awarded: 2 } } },
+      { user_id: A, action_type: 'cc_settle_offline_roaming', idempotency_key: 'c2', created_at: at, result_payload: { rewards: { cache_keys_awarded: 1 } } },
+      { user_id: A, action_type: 'cc_apply_chef_rewards', idempotency_key: 'old', created_at: at, result_payload: { rewards: { cache_fragments_awarded: 7 } } },
+    ] as typeof seed.ledger;
+    const store = new InMemoryEconomyStore(seed);
+    const m = await store.computeMetricsForDay('2026-10-31');
+    expect(m.cacheKeysFromRoaming).toBe(3);
+    expect(m.cacheFragmentsAwarded).toBe(7); // historical rows remain history
+  });
 });
 
 // ---------------------------------------------------------------------------
-// 5. Authority + invariance pins (textual, the rewarded test's successor)
+// 5. Authority + invariance pins (textual)
 // ---------------------------------------------------------------------------
 
 describe('cache lane — authority pins', () => {
-  const migration = readSource('db/migrations/0037_cache_lane.sql');
+  const migration = readSource('db/migrations/0082_cache_lane_rebuild.sql');
+  const migration0037 = readSource('db/migrations/0037_cache_lane.sql');
 
   it('the ad offer lives ONLY on the cache surface', () => {
     const chest = readSource('src/screens/ChestScreen.tsx');
@@ -435,7 +368,6 @@ describe('cache lane — authority pins', () => {
     expect(bar).not.toContain('rewardedCacheAd');
     expect(bar).not.toContain('Watch Ad');
     expect(bar).not.toContain('claimRewardedCacheKey');
-    // No other screen or component imports the ads module.
     for (const p of [
       'src/screens/HomeScreen.tsx',
       'src/components/dashboard/DashboardDeck.tsx',
@@ -448,47 +380,61 @@ describe('cache lane — authority pins', () => {
     }
   });
 
-  it('the retired claim is gone from every live path', () => {
+  it('the retired rewarded-key claim stays gone from every live path', () => {
     expect(readSource('src/lib/api/verifiedOps.ts')).not.toContain('claimRewardedCacheKey');
     expect(readSource('src/lib/api/verifiedOps.ts')).not.toContain('claim-rewarded-cache-key');
     expect(readSource('src/server/writes/routes.ts')).not.toContain("op('/api/ops/claim-rewarded-cache-key'");
     expect(readSource('src/server/writes/store.ts')).not.toContain('cc_claim_rewarded_cache_key');
     expect(readSource('src/server/writes/memory.ts')).not.toContain('cc_claim_rewarded_cache_key');
-    expect(migration).toContain('drop function if exists public.cc_claim_rewarded_cache_key(uuid, text, text, text)');
-    // No zombie 3/day cap or 5-minute cooldown survives in live code.
-    for (const p of ['src/server/writes/memory.ts', 'src/server/writes/routes.ts']) {
-      expect(readSource(p), p).not.toContain('Daily rewarded cache key limit reached');
-      expect(readSource(p), p).not.toContain('Rewarded cache key cooldown active');
-    }
-    expect(migration).not.toContain('Daily rewarded cache key limit reached');
+    expect(migration0037).toContain('drop function if exists public.cc_claim_rewarded_cache_key(uuid, text, text, text)');
   });
 
-  it('the draw is untouched: same odds call, same quality inputs, no odds reseeding', () => {
+  it('no daily language survives on the cache screen', () => {
+    const chest = readSource('src/screens/ChestScreen.tsx');
+    expect(chest).not.toContain('Cache Boxes Today');
+    expect(chest).not.toContain('openedToday');
+    expect(chest).not.toContain('resetsAt');
+    expect(chest).not.toContain('CACHE_BOX_FREE_PER_DAY');
+    expect(chest).toContain('OPEN WITH KEY');
+    expect(chest).toContain('CACHE_LANE_RULE');
+  });
+
+  it('the draw is untouched: same odds call, same quality inputs, no odds reseeding in 0082', () => {
     expect(migration).toContain("public.cc_draw_odds('cache_primary_rarity', cache_quality)");
     expect(migration).not.toContain('insert into public.odds_outcomes');
-    expect(migration).not.toContain('update public.odds_outcomes');
     const mem = readSource('src/server/writes/memory.ts');
     expect(mem).toContain('cacheQualityAdjustedWeights(outcomes, cacheQuality)');
     // The error vocabulary is shared verbatim by both twins.
-    for (const message of [
-      'Daily cache box limit reached',
-      'Free cache box already used today',
-      'Unknown cache box payment',
-      'ad_unit_id is required',
-      'Not enough tokens',
-    ]) {
+    for (const message of ['Unknown cache box payment', 'ad_unit_id is required', 'Not enough tokens']) {
       expect(migration, message).toContain(message);
       expect(mem, message).toContain(message);
     }
+    // …and the budget error vocabulary is gone from BOTH twins (the
+    // migration legitimately NAMES the retired levers in its config
+    // cleanup; what must not survive is the enforcement language).
+    for (const message of ['Daily cache box limit reached', 'Free cache box already used today']) {
+      expect(migration, message).not.toContain(message);
+      expect(mem, message).not.toContain(message);
+    }
+    expect(mem).not.toContain('cacheBoxDailyCap');
   });
 
-  it('0037 carries the budget record, the lever read, and the lane meters', () => {
-    expect(migration).toContain('create table if not exists public.cache_box_openings');
-    expect(migration).toContain("cc_economy_config_number('cacheBoxDailyCap', 10)");
-    expect(migration).toContain('cache_boxes_opened_free');
-    expect(migration).toContain('cache_boxes_opened_ad');
-    expect(migration).toContain('cache_boxes_opened_key');
-    expect(migration).toContain("coalesce(result_payload ->> 'payment', 'key')");
-    expect(migration).toContain('drop function if exists public.cc_make_item(uuid, text)');
+  it('0082 grandfathers balances: stranded fragments convert at 5:1 floor, parts zeroed', () => {
+    expect(migration).toContain('floor(coalesce(cache_token_parts, 0) / 5)::integer');
+    expect(migration).toContain('cache_token_parts = 0');
+    expect(migration).toContain('add column if not exists cache_key_remainder');
+  });
+
+  it('0082 retires the fragment market and zeroes the seeded fragment pays', () => {
+    expect(migration).toContain('drop function if exists public.cc_market_create_fragment');
+    expect(migration).toContain('login_streak_reward_definitions');
+    expect(migration).toContain('fragment_parts_daily = 0');
+    expect(migration).toContain('cc_record_login_streak_day');
+  });
+
+  it('0082 embeds the same lane rule the content module ships', () => {
+    expect(migration).toContain(CACHE_LANE_RULE);
+    expect(migration).toContain('cache_keys_from_roaming');
+    expect(migration).toContain("delete from public.economy_config");
   });
 });

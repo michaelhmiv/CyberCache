@@ -43,7 +43,10 @@ export interface EconomyMetricsRow {
   marketMedianByRarity: Record<string, number>;
   cacheKeysFromAds: number;
   cacheOpens: number;
+  /** Historical: fragments paid by claims before migration 0082 abolished them. */
   cacheFragmentsAwarded: number;
+  /** Whole cache keys paid by roaming/offline claims (migration 0082). */
+  cacheKeysFromRoaming: number;
   /** Cache box lane issuance by payment (migration 0037). */
   cacheBoxesOpenedFree: number;
   cacheBoxesOpenedAd: number;
@@ -297,6 +300,7 @@ function mapMetricsRow(r: PgMetricsRow): EconomyMetricsRow {
     cacheKeysFromAds: Number(r.cache_keys_from_ads),
     cacheOpens: Number(r.cache_opens),
     cacheFragmentsAwarded: Number(r.cache_fragments_awarded),
+    cacheKeysFromRoaming: Number(r.cache_keys_from_roaming ?? 0),
     cacheBoxesOpenedFree: Number(r.cache_boxes_opened_free ?? 0),
     cacheBoxesOpenedAd: Number(r.cache_boxes_opened_ad ?? 0),
     cacheBoxesOpenedKey: Number(r.cache_boxes_opened_key ?? 0),
