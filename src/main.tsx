@@ -5,6 +5,7 @@ import App from './App.tsx';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
+import { SubpagesDemo } from './demo/SubpagesDemo';
 
 function renderErrorToRoot(error: unknown, source: string) {
   const root = document.getElementById('root');
@@ -34,15 +35,25 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
+// PROTOTYPE (design/hunter-subpages-profile-b): /subpages-demo
+// mounts the Hunter-subpage fixture harness instead of the app —
+// fixture state shaped like the real payloads, no Chef session.
+// This branch dies with the prototype; it is never a shipping path.
+const isSubpagesDemo = window.location.pathname.startsWith('/subpages-demo');
+
 try {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <GlobalErrorBoundary>
-        <AuthProvider>
-          <AccountStorageBoundary>
-            <App />
-          </AccountStorageBoundary>
-        </AuthProvider>
+        {isSubpagesDemo ? (
+          <SubpagesDemo />
+        ) : (
+          <AuthProvider>
+            <AccountStorageBoundary>
+              <App />
+            </AccountStorageBoundary>
+          </AuthProvider>
+        )}
       </GlobalErrorBoundary>
     </StrictMode>,
   );
