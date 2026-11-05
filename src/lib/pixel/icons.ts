@@ -45,7 +45,16 @@ export const PX_ICONS = {
   cross: [[6,2,4,12],[2,6,12,4]],
   crosshair: [[7,0,2,2],[7,14,2,2],[0,7,2,2],[14,7,2,2],[4,3,8,2],[3,5,2,6],[11,5,2,6],[4,11,8,2],[7,7,2,2,'h']],
   drop: [[7,1,2,3],[6,4,4,2],[4,6,8,4],[5,10,6,3],[7,13,2,1],[6,7,1,3,'h']],
-  flame: [[7,1,2,3],[6,4,4,2],[5,6,6,4],[5,10,6,3],[6,13,4,1],[5,8,1,4,'s'],[7,8,2,4,'h']],
+  // flame redrawn 2026-11-05 (owner-delegated): the v2 drawing — a 2-wide
+  // neck over a straight 6-wide body with a center highlight stripe — read
+  // as a bottle/flask at the claim row's 20px, not a flame. The redraw is a
+  // layered teardrop: a 1px flick tip leaning right, sides stepping outward
+  // all the way down (no straight run over 2 rows), widest in the bottom
+  // third on a broad base, an inner flame in highlight seated low, and a
+  // second highlight stack as the bright core. Same registry name, same
+  // duotone hand; every surface that renders 'flame' (streak chip + sheet,
+  // Fire element badge, hot-area marker) keeps its meaning.
+  flame: [[9,1,1,1],[8,2,2,1],[7,3,4,2],[6,5,6,2],[5,7,8,1],[4,8,8,1],[4,9,9,1],[4,10,10,1],[4,11,9,1],[4,12,10,2],[5,14,8,1],[7,8,2,1,'h'],[7,9,3,1,'h'],[6,10,4,1,'h'],[6,11,5,3,'h'],[7,12,2,1,'h'],[7,13,3,1,'h']],
   flask: [[6,1,4,1],[7,2,2,3],[5,5,6,2],[4,7,8,2],[3,9,10,4],[3,11,10,2,'s'],[6,8,1,1,'h'],[9,9,1,1,'h']],
   frag: [[7,1,2,4],[6,5,4,4],[5,9,6,3],[6,12,4,2],[6,5,1,4,'h'],[9,9,2,3,'s']],
   gem: [[2,4,12,2],[3,6,10,2],[5,8,6,2],[7,10,2,2],[4,4,1,6,'p'],[11,4,1,6,'p'],[7,6,2,2,'h']],
