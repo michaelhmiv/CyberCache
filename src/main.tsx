@@ -4,6 +4,7 @@ import './index.css';
 import App from './App.tsx';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
+import { CollectionsLedgerDemo } from './demo/CollectionsLedgerDemo';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
 
 function renderErrorToRoot(error: unknown, source: string) {
@@ -34,15 +35,24 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
+// DESIGN PASS capture harness (prototype branch only): ?collections-ledger
+// renders the Collections ledger standalone with fixture data.
+const isCollectionsLedgerDemo =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('collections-ledger');
+
 try {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <GlobalErrorBoundary>
-        <AuthProvider>
-          <AccountStorageBoundary>
-            <App />
-          </AccountStorageBoundary>
-        </AuthProvider>
+        {isCollectionsLedgerDemo ? (
+          <CollectionsLedgerDemo />
+        ) : (
+          <AuthProvider>
+            <AccountStorageBoundary>
+              <App />
+            </AccountStorageBoundary>
+          </AuthProvider>
+        )}
       </GlobalErrorBoundary>
     </StrictMode>,
   );
