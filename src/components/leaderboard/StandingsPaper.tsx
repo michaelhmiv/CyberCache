@@ -147,6 +147,19 @@ const fmtDay = (iso: string): string =>
     .toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
     .toUpperCase();
 
+/** The pasted ID photo: a fixed square on the line, the hunter's
+ *  figure standing in it — the same portrait the shipped rows use,
+ *  framed like a photograph glued to the file. */
+const IdPhoto: React.FC<{ look: HunterLookView; playerId: string }> = ({ look, playerId }) => (
+  <span
+    className="block h-9 w-9 shrink-0 overflow-hidden p-[2px]"
+    style={{ border: `1px solid ${RULE_STRONG}`, backgroundColor: '#0D0A06' }}
+    data-testid={`paper-portrait-${playerId}`}
+  >
+    <HunterPortrait look={resolveLookView(look)} className="h-full w-full" />
+  </span>
+);
+
 /* ---------------- 1 · the return (title sheet) ---------------- */
 
 export const PaperTitleSheet: React.FC<{
@@ -262,9 +275,11 @@ export const PayVoucher: React.FC<{
                 </span>
               </div>
             </div>
-            <Stamp className="absolute right-4 top-[86px]" rotate={-7} size={14}>
-              Paid by settlement
-            </Stamp>
+            <div className="mt-2 flex justify-end pr-1">
+              <Stamp rotate={-7} size={14}>
+                Paid by settlement
+              </Stamp>
+            </div>
           </>
         )}
 
@@ -324,15 +339,7 @@ const RaceEntryLine: React.FC<{
     <span className="w-7 shrink-0 text-right text-[13px]" style={{ ...MONO, color: INK_FAINT }}>
       {entry.rank}
     </span>
-    {look && (
-      <span
-        className="shrink-0 p-[2px]"
-        style={{ border: `1px solid ${RULE_STRONG}`, backgroundColor: '#0D0A06' }}
-        data-testid={`paper-portrait-${entry.player_id}`}
-      >
-        <HunterPortrait look={resolveLookView(look)} className="h-8" />
-      </span>
-    )}
+    {look && <IdPhoto look={look} playerId={entry.player_id} />}
     <span className="relative min-w-0 flex-1">
       <span
         className="block truncate text-[13px] font-bold uppercase"
@@ -540,15 +547,7 @@ const LedgerRow: React.FC<{
       >
         {entry.rank}
       </span>
-      {look && (
-        <span
-          className="shrink-0 p-[2px]"
-          style={{ border: `1px solid ${RULE_STRONG}`, backgroundColor: '#0D0A06' }}
-          data-testid={`paper-portrait-${entry.player_id}`}
-        >
-          <HunterPortrait look={resolveLookView(look)} className="h-8" />
-        </span>
-      )}
+      {look && <IdPhoto look={look} playerId={entry.player_id} />}
       <span className="relative min-w-0 flex-1">
         <span
           className="block truncate text-[13px] font-bold uppercase"
