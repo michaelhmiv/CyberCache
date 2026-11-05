@@ -170,7 +170,9 @@ export function planMarketSweep(
 ): QuickBuyMarketPlan {
   const wanted = Math.max(0, Math.floor(requestedQty) || 0);
   const eligible = rows
-    .filter((row) => row.sellerUserId !== buyerId && row.quantity > 0 && row.priceCredits >= 0)
+    // Pure player market (2026-11-04): NPC listings are never sweep
+    // supply, whatever rows a caller hands the planner.
+    .filter((row) => row.sellerUserId !== buyerId && row.sellerKind !== 'npc' && row.quantity > 0 && row.priceCredits >= 0)
     .sort(compareQuickBuyRows);
   const supplyQty = eligible.reduce((sum, row) => sum + row.quantity, 0);
   const fills: QuickBuyFillLeg[] = [];

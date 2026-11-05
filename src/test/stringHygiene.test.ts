@@ -246,9 +246,25 @@ describe('string hygiene — A2/A3/A6: fixed sites stay fixed (source pins)', ()
       mustNotContain: ['dedicatedDrops.slice(0, 3).join('],
     },
     {
+      // The stat-deck rendering moved to the ONE shared source
+      // (cache reveal one-page, 2026-11-04): the sheet renders its
+      // Roll Parts / Legendary Effect tapes through PartLine /
+      // LegendaryEffectBlock, so the A3 law (part keys and effect
+      // ids render through their labels, never raw) now pins at
+      // the shared sites below. skillNodeName(node) still renders
+      // in the sheet's own Skill Node Boosts tape.
       file: 'src/components/gear/GearInspectSheet.tsx',
-      mustContain: ['partStatLabel(k)', 'legendaryEffectName(item.legendaryEffectId)', 'skillNodeName(node)'],
+      mustContain: ['skillNodeName(node)', 'PartLine', 'LegendaryEffectBlock'],
       mustNotContain: ['`${k} ${typeof v'],
+    },
+    {
+      file: 'src/components/gear/itemStatDeck.tsx',
+      mustContain: ['partStatLabel(k)'],
+      mustNotContain: ['`${k} ${typeof v'],
+    },
+    {
+      file: 'src/lib/gear/itemStatDeck.ts',
+      mustContain: ['legendaryEffectName(item.legendaryEffectId)'],
     },
     {
       file: 'src/components/vendor/RepDeskPanel.tsx',

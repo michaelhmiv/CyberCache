@@ -135,13 +135,12 @@ Legendary weapons can additionally carry one named
 
 ## The one gear home
 
-Everything gear lives on the **Gear tab**, as a rail of two stops:
-**Loadout** and **Workshop**. The Loadout stop is one merged page —
-everything below is on it, in one scroll:
+Everything gear lives on the **Gear tab**, as one merged page — the
+Loadout page. Everything below is on it, in one scroll:
 
 [[images/ui/gear-loadout.png]]
 
-*The Loadout stop on day one: your hunter on the doll stage, the three gun rows down the right, the accessory band beneath, and the inventory below.*
+*The Loadout page on day one: your hunter on the doll stage, the three gun rows down the right, the accessory band beneath, and the inventory below.*
 
 - **The doll zone** — the equip surface: your hunter stands on a
   compact stage wearing your actual equipped gear — your primary
@@ -182,13 +181,20 @@ everything below is on it, in one scroll:
 - **Belt & Stacks** — your belt, plus every stack you carry:
   consumable batches with their quality % printed, materials,
   and essences.
-- **The Workshop door** — at the page's foot, printing your bench
-  state (the one bench, jobs running); it opens the **Workshop**
-  stop, the crafting bench (see [[Crafting]]).
+- **The Workshop status strip** — at the page's foot, printing the
+  bench at a glance (jobs running / queued / ready, and whether
+  Craft holds your action slot); it opens the **Workshop** on the
+  Home tab's Craft workspace, where the bench lives (see
+  [[Crafting]]).
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
-protected from salvage), or salvage it.
+protected from salvage), or salvage it. The stat deck is one shared
+rendering everywhere it appears: the inspect sheet and the
+[[Caches|cache reveal]] print the same numbers the same way — DPS,
+every affix spelled out, and a legendary effect's name *and* what it
+does — so the deck you read at the reveal is the deck you inspect
+later, word for word.
 
 [[images/ui/gear-inspect.png]]
 
@@ -244,6 +250,23 @@ card showing the totals you gained. **Epic & under** asks you to
 confirm first, with the epic count stated. Locked and equipped items
 are always left alone, and **Legendaries are never bulk-scrapped** —
 they are salvaged one at a time from the item's inspect sheet.
+
+**Auto-Salvage Rules** (in Settings) put that same breakdown on
+autopilot for fresh drops. Set a max rarity (up to **Epic** — never
+Legendary), a max roll quality, and a yield: **Scrap**, or
+**Materials**, which breaks each item down into +1 of its kind's
+crafting material instead (weapons → Ballistic Parts, shields and
+ordnance → Reactive Components, class mods and relics → Tech) and
+reports the scrap you traded away. Whenever a **roaming claim** or an
+**offline settlement** stores new drops, each drop at or under both
+caps is salvaged on the spot, for exactly what manual salvage would
+have paid — skill bonuses like Hoarder's Instinct included. Boss
+loot, cache contents, market deliveries, and crafted items are never
+auto-salvaged, and the rule never reaches back into your existing
+bag: it only ever sees the drops a settlement just brought in. Every
+auto-salvage is announced — a feed line per item, a summary in the
+claim and the offline recap, and a marked record in the
+[[Activity-Log]].
 
 ## Reforge: fix one affix
 

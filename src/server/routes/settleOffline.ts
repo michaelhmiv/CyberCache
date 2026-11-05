@@ -598,6 +598,56 @@ export function createSettleOfflineHandler(
         }
       }
 
+      // Auto-salvage (migration 0080): the profile's Auto-Salvage
+      // Rule applies to the drops THIS settlement just stored, same
+      // as a foreground claim — each matching item is recycled
+      // through cc_recycle_item, the response's item list keeps only
+      // the unsalvaged drops, the profile becomes the post-salvage
+      // snapshot, and one auto_salvage feed event per salvaged drop
+      // rides the settlement's feed. Same treatment as the steps
+      // above: the settlement is already applied atomically, so a
+      // failure is logged, never retried (the nonce forbids a
+      // second settlement), and the items simply stay in the bag.
+      let autoSalvageBlock: Record<string, unknown> | null = null;
+      let responseItems = result.items;
+      let responseProfile: unknown = settlement.profile ?? {};
+      if (result.items.length > 0) {
+        try {
+          const salvage = (await store.applyAutoSalvage(
+            playerId,
+            body.settlementNonce,
+            'offline',
+            result.items.map((item) => String((item as { id?: unknown }).id ?? '')),
+          )) as Record<string, unknown>;
+          const salvaged = Array.isArray(salvage.items) ? (salvage.items as Array<Record<string, unknown>>) : [];
+          if (Number(salvage.salvaged_count ?? 0) > 0) {
+            const { profile: salvageProfile, ...summary } = salvage;
+            autoSalvageBlock = summary;
+            if (salvageProfile) responseProfile = salvageProfile;
+            const salvagedIds = new Set(salvaged.map((entry) => String(entry.id ?? '')));
+            responseItems = result.items.filter(
+              (item) => !salvagedIds.has(String((item as { id?: unknown }).id ?? '')),
+            );
+            for (const entry of salvaged) {
+              result.feedEvents.push({
+                at: Date.now(),
+                tone: 'auto_salvage',
+                label: `Auto-salvaged ${String(entry.name || 'item')}`,
+                detail:
+                  typeof entry.converted_material === 'string'
+                    ? `Broken down into ${entry.converted_material} while you were away — your Auto-Salvage Rules.`
+                    : `+${Number(entry.scrap_award ?? 0)} scrap while you were away — your Auto-Salvage Rules.`,
+                value: Number(entry.scrap_award ?? 0),
+                areaId: area.id,
+              });
+            }
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] settlement auto-salvage failed:', message);
+        }
+      }
+
       // Roaming-event telemetry (0023): same treatment as the vehicle
       // outcome above — the settlement is already applied atomically,
       // so a failure is logged, never retried (the nonce forbids a
@@ -669,12 +719,13 @@ export function createSettleOfflineHandler(
         ticksSettled: Number(settlement.ticks_settled ?? result.rewards.ticks),
         startTick: Number(settlement.start_tick ?? profile.last_claimed_tick ?? 0),
         endTick: Number(settlement.end_tick ?? 0),
-        profile: settlement.profile ?? {},
+        profile: responseProfile,
         rewards: result.rewards,
         vehicle: result.vehicle,
-        items: result.items,
+        items: responseItems,
         feedEvents: result.feedEvents,
         consumedConsumables: result.consumedConsumables,
+        ...(autoSalvageBlock ? { autoSalvage: autoSalvageBlock } : {}),
         ...(standingBlock ? { standing: standingBlock } : {}),
         idempotent: false,
       });

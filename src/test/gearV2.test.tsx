@@ -1,28 +1,26 @@
 /**
- * Gear v2 (redesign Wave D, DESIGN.md §2/§3/§6) — the Gear tab as
- * a rail of stops.
+ * Gear v2 (redesign Wave D, DESIGN.md §2/§3/§6) — the Gear tab.
  *
  * What this pins:
- *  - The rail carries exactly the §2 stops in order — Loadout ·
- *    Grid · Items · Workshop — at the §5 floor size with real tap
- *    targets (source shape), and the tab opens on Loadout, the
- *    rail's first stop.
+ *  - The Gear tab is ONE merged Loadout page. The Grid and Items
+ *    stops retired into it as sections (Exec C, 2026-11-03), and
+ *    the Workshop stop retired into Home's Craft workspace
+ *    (crafting consolidation, owner ruling 2026-11-04): there is
+ *    no gear rail at all — the page foot carries a Workshop
+ *    STATUS STRIP (bench counts + Craft state) that doors to
+ *    Home's bench.
  *  - F1 successor (owner ruling 2026-11-02, superseding the
  *    original §11 F1): the Garage is NOT a rail stop — it folds
- *    into the Loadout stop as the vehicle section. The Loadout
+ *    into the Loadout page as the vehicle section. The Loadout
  *    carries the vehicle slot's status line, whose Open Garage
  *    toggle expands the full Garage panel in place; a garage
  *    intent lands on Loadout with the section already expanded.
- *  - The Workshop stop badges its active job count on the rail and
- *    carries the bench-family doors (reforge/salvage signposts to
- *    their canonical Grid/inspect doors).
  *  - Grid cards print the item instance's REAL affixes on the card
  *    face (real-item invariant), not just affix counts.
- *  - The Items stop prints the stacks with quality % per batch
- *    (DESIGN.md §3), from the player's actual batch records.
+ *  - The Belt & Stacks section prints the stacks with quality %
+ *    per batch (DESIGN.md §3), from the player's actual batch
+ *    records.
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -63,40 +61,32 @@ afterAll(() => {
   if (originalIntersectionObserver) globalThis.IntersectionObserver = originalIntersectionObserver;
 });
 
-describe('Gear v2 — the rail of stops', () => {
+describe('Gear v2 — the merged page, no rail', () => {
   beforeEach(() => {
     useInventoryStore.setState({ items: [] });
     useWorkshopStore.setState({ server: null });
     usePlayerStore.setState({ consumables: {}, consumableBatches: [], materials: {}, essences: {} });
   });
 
-  it('renders exactly the two §2 stops in order, at floor size with real tap targets', () => {
+  it('renders no gear rail and no stops — the Loadout page stands alone', () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    const rail = screen.getByTestId('gear-rail');
-    const stops = [...rail.querySelectorAll('[data-testid^="gear-stop-"]')].map((el) => el.getAttribute('data-testid'));
-    // Merged page (Exec C, 2026-11-03): the rail is Loadout ·
-    // Workshop — the Grid and Items stops retired into the merged
-    // Loadout page as its Inventory and Belt & Stacks sections.
-    expect(stops).toEqual(['gear-stop-loadout', 'gear-stop-workshop']);
-    // Owner ruling 2026-11-02: there is no Garage stop — the
-    // Garage folded into Loadout (§11 F1 as amended).
+    // Crafting consolidation (2026-11-04): the Workshop stop
+    // retired to Home, and the one-stop rail went with it.
+    expect(screen.queryByTestId('gear-rail')).toBeNull();
+    expect(screen.queryByTestId('gear-stop-loadout')).toBeNull();
+    expect(screen.queryByTestId('gear-stop-workshop')).toBeNull();
+    // Owner ruling 2026-11-02: there is no Garage stop either —
+    // the Garage folded into Loadout (§11 F1 as amended).
     expect(screen.queryByTestId('gear-stop-garage')).toBeNull();
     expect(screen.queryByTestId('gear-stop-grid')).toBeNull();
     expect(screen.queryByTestId('gear-stop-items')).toBeNull();
-    for (const label of ['Loadout', 'Workshop']) {
-      expect(screen.getByTestId(`gear-stop-${label.toLowerCase()}`)).toBeTruthy();
-      expect(rail.textContent).toContain(label);
-    }
-    const railSource = readFileSync(resolve(__dirname, '../../src/components/gear/GearRail.tsx'), 'utf8');
-    expect(railSource).toContain('min-h-[48px]');
-    expect(railSource).toContain('text-[11px]');
-    expect(railSource).not.toContain('text-[10px]');
-    expect(railSource).not.toContain('text-[9px]');
+    // The bench's trace on Gear is the status strip at the foot.
+    expect(screen.getByTestId('gear-workshop-strip')).toBeTruthy();
   });
 
-  it('opens on the Loadout stop; the Garage folds in under the vehicle line (F1 successor — owner ruling 2026-11-02)', async () => {
+  it('opens on the Loadout page; the Garage folds in under the vehicle line (F1 successor — owner ruling 2026-11-02)', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    // F5 successor landmark: the Loadout stop's old intro sentence
+    // F5 successor landmark: the Loadout page's old intro sentence
     // ("Your seven gear slots…") was removed per the fidelity audit;
     // the panel header's "Tap a slot to equip" hint is its marker now.
     expect(await screen.findByText('Tap a slot to equip')).toBeTruthy();
@@ -104,17 +94,15 @@ describe('Gear v2 — the rail of stops', () => {
     // slot shows as its status line with the expansion toggle.
     expect(screen.queryByTestId('garage-panel')).toBeNull();
     expect(screen.getByTestId('vehicle-status')).toBeTruthy();
-    // One tap expands the full Garage IN PLACE — the Loadout stop
-    // stays lit; there is no Garage stop to navigate to.
+    // One tap expands the full Garage IN PLACE — there is no
+    // Garage stop to navigate to.
     fireEvent.click(screen.getByRole('button', { name: 'Open Garage' }));
     expect(await screen.findByTestId('garage-panel')).toBeTruthy();
-    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
   });
 
   it('a garage intent lands on Loadout with the vehicle section already expanded', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} tabIntent={{ tab: 'loadout', expandVehicle: true, seq: 3 }} />);
     expect(await screen.findByTestId('garage-panel')).toBeTruthy();
-    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('button', { name: 'Close Garage' })).toBeTruthy();
   });
 
@@ -126,39 +114,40 @@ describe('Gear v2 — the rail of stops', () => {
     expect(await screen.findByText('Inventory', { selector: '.text-base' })).toBeTruthy();
     expect(screen.getByText('Belt & Stacks')).toBeTruthy();
     expect(screen.getByText('How the belt works')).toBeTruthy();
-    // And the Workshop door row rides at the page foot (W12).
-    expect(screen.getByTestId('gear-workshop-door')).toBeTruthy();
+    // And the Workshop status strip rides at the page foot.
+    expect(screen.getByTestId('gear-workshop-strip')).toBeTruthy();
   });
 
-  it('the Workshop stop carries the bench-family doors to Inventory', async () => {
+  it('the bench-family signposts retired with the Workshop stop', () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    fireEvent.click(screen.getByTestId('gear-stop-workshop'));
-    expect(await screen.findByText('Also at the bench', undefined, { timeout: 10_000 })).toBeTruthy();
-    expect(screen.getByText(/Reforge an affix/)).toBeTruthy();
-    expect(screen.getByText(/Salvage & recycle/)).toBeTruthy();
-    // The signpost lands on the merged page's Inventory section.
-    fireEvent.click(screen.getByText(/Salvage & recycle/));
-    expect(await screen.findByText('Inventory', { selector: '.text-base' }, { timeout: 10_000 })).toBeTruthy();
-    expect(screen.getByTestId('gear-stop-loadout').getAttribute('aria-selected')).toBe('true');
-  }, 30_000);
+    // The reforge/salvage signposts existed to route Workshop-stop
+    // visitors back to the Loadout page; with the stop gone they
+    // have nothing to route. Their canonical doors (inspect sheet,
+    // Inventory section) never moved.
+    expect(screen.queryByText('Also at the bench')).toBeNull();
+    expect(screen.queryByText(/Reforge an affix — pick the item/)).toBeNull();
+    expect(screen.queryByText(/Salvage & recycle — in Inventory/)).toBeNull();
+  });
 
-  it('badges the Workshop stop with the active job count', () => {
+  it('the status strip prints the bench counts from the workshop view', () => {
     useWorkshopStore.setState({
       server: {
         benches: 1,
         tools: {} as never,
         masteries: {},
         activeActionKind: null,
-        recentCompletions: [],
+        recentCompletions: [{ jobId: 'job-done' } as never],
         jobs: [
           { state: 'running' } as never,
           { state: 'queued' } as never,
-          { state: 'done' } as never,
+          { state: 'paused' } as never,
         ],
       },
     });
     render(<InventoryScreen onNavigate={vi.fn()} />);
-    expect(screen.getByTestId('gear-workshop-badge').textContent).toBe('2');
+    expect(screen.getByTestId('gear-workshop-strip-counts').textContent).toContain('1 running · 2 queued · 1 ready');
+    // Jobs waiting while Craft doesn't hold the slot: paused truth.
+    expect(screen.getByTestId('gear-workshop-strip-state').textContent).toBe('Bench paused');
   });
 });
 

@@ -70,7 +70,7 @@ import {
   computeSkillBonuses,
   type ClassModBoosts,
 } from '../../lib/skills/skillBonuses';
-import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses';
+import { applySalvageSkillBonuses, SALVAGE_MATERIAL_BY_KIND } from '../../lib/skills/salvageBonuses';
 import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections';
 import {
   accrueActionSkillCharge,
@@ -251,6 +251,11 @@ export interface InMemoryProfile {
   last_roaming_settled_at: string | null;
   last_settlement_nonce: string | null;
   offline_cap_hours: number | null;
+  /** Auto-Salvage Rule (migration 0080): profile-owned; absent = the shipped defaults. */
+  auto_salvage_enabled?: boolean;
+  auto_salvage_max_rarity?: string;
+  auto_salvage_max_quality?: number;
+  auto_salvage_to_materials?: boolean;
   /** Dispatch board reroll state (migration 0068): stored board
    *  index + rerolls used + the UTC day key they belong to. Reads
    *  resolve the effective state lazily (resolveDispatchBoardState). */
@@ -452,7 +457,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   }>();
   /** Research completions (0038): playerId → courseId → completed_at (ISO). */
   readonly researchCompletions = new Map<string, Map<string, string>>();
-  /** Login-streak claim rows (0036): `${playerId}:${day}` → the claim. */
+  /** Login-streak claim rows (0036 + 0079): `${playerId}:${day}` → the claim.
+   *  `paid` mirrors the row's paid_at stamp — the payment anchor. */
   readonly loginStreakClaims = new Map<string, {
     day: string;
     streak_length: number;
@@ -461,6 +467,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     credits_awarded: number;
     fragments_awarded: number;
     cache_keys_awarded: number;
+    paid: boolean;
   }>();
 
   /**
@@ -902,10 +909,12 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return result;
   }
 
-  // ─── Login streak (0036) ─────────────────────────────────────────
-  // Mirrors cc_record_login_streak_day: same streak arithmetic,
-  // same ladder + lever scalars, same claim-row idempotency, same
-  // ledger payload shape.
+  // ─── Login streak (0036 + 0079) ────────────────────────────────
+  // Mirrors cc_record_login_streak_day (records the day, holds the
+  // reward unpaid) and cc_claim_login_streak_day (pays it once):
+  // same streak arithmetic, same ladder + lever scalars, same
+  // claim-row idempotency, same ledger payload shape — written at
+  // claim time, not record time.
 
   async getLoginStreakFacts(playerId: string): Promise<LoginStreakFacts | null> {
     const p = this.profiles.get(playerId);
@@ -922,7 +931,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     };
   }
 
-  /** cc_record_login_streak_day mirror: the (player, day) claim row is the idempotency anchor. */
+  /** cc_record_login_streak_day mirror (0079): the (player, day)
+   *  claim row is the RECORD anchor — recording credits nothing;
+   *  the reward waits on the row until claimLoginStreakDay pays it. */
   async recordLoginStreakDay(playerId: string): Promise<Json> {
     const p = this.requireProfile(playerId);
     const today = loginStreakUtcDay(this.now());
@@ -932,6 +943,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       return {
         action_type: 'cc_login_streak_claim',
         already_claimed: true,
+        claimable: !prior.paid,
         day: prior.day,
         streak_length: prior.streak_length,
         cycle_day: prior.cycle_day,
@@ -952,9 +964,6 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const streakLength = loginStreakLengthAfter(state.last_claim_day, state.current_streak, today);
     const position = loginStreakPositionFor(streakLength);
     const grant = loginStreakGrantFor(position.cycleDay, position.tier, this.loginStreakLevers());
-    p.credits += grant.credits;
-    p.cache_token_parts = (p.cache_token_parts ?? 0) + grant.fragments;
-    p.cache_tokens += grant.cacheKeys;
     const claim = {
       day: today,
       streak_length: streakLength,
@@ -963,6 +972,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       credits_awarded: grant.credits,
       fragments_awarded: grant.fragments,
       cache_keys_awarded: grant.cacheKeys,
+      paid: false,
     };
     this.loginStreakClaims.set(claimKey, claim);
     state.current_streak = streakLength;
@@ -971,9 +981,10 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     state.last_cycle_day = position.cycleDay;
     state.last_tier = position.tier;
     this.loginStreakStates.set(playerId, state);
-    const result: Json = {
+    return {
       action_type: 'cc_login_streak_claim',
       already_claimed: false,
+      claimable: true,
       day: today,
       streak_length: streakLength,
       cycle_day: position.cycleDay,
@@ -981,6 +992,50 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       credits_awarded: grant.credits,
       fragments_awarded: grant.fragments,
       cache_keys_awarded: grant.cacheKeys,
+      profile: this.snapshot(p),
+    };
+  }
+
+  /** cc_claim_login_streak_day mirror (0079): pays TODAY's recorded
+   *  row exactly once — `paid` is the anchor; a replay pays nothing.
+   *  Only today's row is reachable, so an unpaid row from a previous
+   *  day is expired. The ledger entry lands here, at claim time. */
+  async claimLoginStreakDay(playerId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    const today = loginStreakUtcDay(this.now());
+    const claimKey = `${playerId}:${today}`;
+    const claim = this.loginStreakClaims.get(claimKey);
+    if (!claim) throw new Error('No streak reward recorded today');
+    if (claim.paid) {
+      return {
+        action_type: 'cc_login_streak_claim',
+        already_claimed: true,
+        claimable: false,
+        day: claim.day,
+        streak_length: claim.streak_length,
+        cycle_day: claim.cycle_day,
+        tier: claim.tier,
+        credits_awarded: claim.credits_awarded,
+        fragments_awarded: claim.fragments_awarded,
+        cache_keys_awarded: claim.cache_keys_awarded,
+        profile: this.snapshot(p),
+      };
+    }
+    p.credits += claim.credits_awarded;
+    p.cache_token_parts = (p.cache_token_parts ?? 0) + claim.fragments_awarded;
+    p.cache_tokens += claim.cache_keys_awarded;
+    claim.paid = true;
+    const result: Json = {
+      action_type: 'cc_login_streak_claim',
+      already_claimed: false,
+      claimable: false,
+      day: claim.day,
+      streak_length: claim.streak_length,
+      cycle_day: claim.cycle_day,
+      tier: claim.tier,
+      credits_awarded: claim.credits_awarded,
+      fragments_awarded: claim.fragments_awarded,
+      cache_keys_awarded: claim.cache_keys_awarded,
       profile: this.snapshot(p),
     };
     this.ledger.set(`login-streak:${playerId}:${today}`, result);
@@ -3679,6 +3734,122 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     };
     this.ledger.set(nonce, result);
     return result;
+  }
+
+  /**
+   * Auto-salvage settlement pass (migration 0080) — the in-memory
+   * twin of cc_auto_salvage_claim_items. Mirrors the SQL pass
+   * exactly: the profile's rule (defaults Common / 20 / scrap when
+   * unset), candidates narrowed to the ids the claim just stored,
+   * re-derived from the item records (owned, 'available', unlocked,
+   * gear kinds, rarity at/under the ceiling, roll quality at/under
+   * the cap where the payload carries a roll), id order, and every
+   * item recycled through this store's own recycleItem under the
+   * derived nonce 'autosalvage:<source>:<claim nonce>:<item id>' —
+   * the yield is the per-item path, never a second formula. The
+   * yield toggle converts the scrap award into +1 of the item's
+   * kind-mapped material (SALVAGE_MATERIAL_BY_KIND), exactly as
+   * the SQL pass does.
+   */
+  async applyAutoSalvage(playerId: string, nonce: string, source: 'roam' | 'offline', itemIds: string[]): Promise<Json> {
+    if (!nonce || nonce.trim().length < 8) {
+      throw new GameplayStoreError('nonce is required');
+    }
+    if (source !== 'roam' && source !== 'offline') {
+      throw new GameplayStoreError('Invalid auto-salvage source');
+    }
+    const p = this.profiles.get(playerId);
+    if (!p) throw new GameplayStoreError('Profile not found');
+    const rule = {
+      max_rarity: typeof p.auto_salvage_max_rarity === 'string' ? p.auto_salvage_max_rarity : 'Common',
+      max_quality: typeof p.auto_salvage_max_quality === 'number' ? p.auto_salvage_max_quality : 20,
+      to_materials: p.auto_salvage_to_materials === true,
+    };
+    const enabled = p.auto_salvage_enabled !== false;
+    const summary = (items: Json[], scrap: number, converted: number, cores: number, counts: Record<string, number>, materials: Record<string, number>): Json => ({
+      action_type: 'cc_auto_salvage',
+      source,
+      enabled,
+      rule,
+      salvaged_count: items.length,
+      counts_by_rarity: counts,
+      scrap_award: scrap,
+      converted_scrap: converted,
+      cores_award: cores,
+      materials,
+      items,
+      profile: this.snapshot(p),
+    });
+    if (!enabled || itemIds.length === 0) {
+      return summary([], 0, 0, 0, {}, {});
+    }
+    const RARITY_RANK: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
+    // The CEILING map stops at Epic — a Legendary ceiling is
+    // impossible at every layer (0080's column check, the setter's
+    // refusal, the SQL ceiling CASE), so an out-of-set stored value
+    // resolves to 0 (salvage nothing), never to the item rank 5.
+    const CEILING_RANK: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4 };
+    const GEAR_KINDS = new Set(['weapon', 'shield', 'ordnance', 'classMod', 'relic']);
+    const ceiling = CEILING_RANK[rule.max_rarity] ?? 0;
+    const wanted = new Set(itemIds);
+    const eligible = [...this.items.values()]
+      .filter((item) => {
+        if (item.owner_user_id !== playerId) return false;
+        if (!wanted.has(item.id) && !wanted.has(String((item.payload as { id?: unknown })?.id ?? ''))) return false;
+        if (item.runtime_state !== 'available' || item.is_locked) return false;
+        if (!GEAR_KINDS.has(item.kind)) return false;
+        if ((RARITY_RANK[item.rarity ?? ''] ?? 99) > ceiling) return false;
+        const roll = (item.payload as { rollQuality?: unknown })?.rollQuality;
+        if (typeof roll === 'number' && Number.isFinite(roll) && roll > rule.max_quality) return false;
+        return true;
+      })
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    let scrapTotal = 0;
+    let convertedTotal = 0;
+    let coresTotal = 0;
+    const countsByRarity: Record<string, number> = {};
+    const materialsOut: Record<string, number> = {};
+    const itemsOut: Json[] = [];
+    for (const item of eligible) {
+      const name = typeof (item.payload as { name?: unknown })?.name === 'string' ? String((item.payload as { name?: unknown }).name) : '';
+      const r = (await this.recycleItem(
+        playerId,
+        `autosalvage:${source}:${nonce}:${item.id}`,
+        item.id,
+      )) as Record<string, unknown>;
+      const award = Number(r.scrap_award ?? 0);
+      coresTotal += Number(r.cores_award ?? 0);
+      countsByRarity[item.rarity ?? 'Common'] = (countsByRarity[item.rarity ?? 'Common'] ?? 0) + 1;
+      let convertedMaterial: string | null = null;
+      if (rule.to_materials && award > 0) {
+        const mat = SALVAGE_MATERIAL_BY_KIND[item.kind] ?? 'Scrap';
+        if (mat !== 'Scrap') {
+          convertedMaterial = mat;
+          convertedTotal += award;
+          p.materials['Scrap'] = Math.max(0, (p.materials['Scrap'] ?? 0) - award);
+          p.materials[mat] = (p.materials[mat] ?? 0) + 1;
+          materialsOut[mat] = (materialsOut[mat] ?? 0) + 1;
+        } else {
+          scrapTotal += award;
+        }
+      } else {
+        scrapTotal += award;
+      }
+      if (typeof r.bonus_material === 'string') {
+        materialsOut[r.bonus_material] = (materialsOut[r.bonus_material] ?? 0) + 1;
+      }
+      itemsOut.push({
+        id: item.id,
+        name,
+        kind: item.kind,
+        rarity: item.rarity,
+        level: item.item_level,
+        scrap_award: award,
+        bonus_material: typeof r.bonus_material === 'string' ? r.bonus_material : null,
+        converted_material: convertedMaterial,
+      });
+    }
+    return summary(itemsOut, scrapTotal, convertedTotal, coresTotal, countsByRarity, materialsOut);
   }
 
   /**

@@ -22,7 +22,7 @@ import { humanizeWorkshopError, WORKSHOP_ERROR_FALLBACK } from '@/lib/workshop/e
 export interface WorkshopJobView {
   id: string;
   bench: number;
-  kind: 'consumable' | 'refine' | 'gear' | 'tool' | 'repair';
+  kind: 'consumable' | 'refine' | 'gear' | 'tool' | 'repair' | 'shieldtech';
   recipeId: string;
   name: string;
   state: 'running' | 'queued' | 'paused' | 'complete' | 'cancelled';
@@ -54,6 +54,11 @@ export interface WorkshopJobView {
   repairItemId: string | null;
   repairKitType: string | null;
   repairPointsRestored: number;
+  /** Shield-tech jobs only (0044): the shield + behavior flip and points applied. */
+  shieldtechItemId?: string | null;
+  shieldtechFromBehavior?: string | null;
+  shieldtechToBehavior?: string | null;
+  shieldtechPointsApplied?: number;
 }
 
 export interface WorkshopCompletionView extends Record<string, unknown> {

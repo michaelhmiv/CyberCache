@@ -6,8 +6,9 @@
  *                                     → cc_record_daily_heartbeats()
  *   POST /api/jobs/prune-snapshots    pg_cron 'cybercache-prune-snapshots' (0 7 * * 0)
  *                                     → cc_prune_progression_snapshots()
- *   POST /api/jobs/seed-npc-market    NPC marketplace cold-start seeding
- *                                     (was: Supabase-backed /api/market/seed only)
+ *   (There is no NPC market seed job: the Buy/Sell lanes are the
+ *    pure player market — owner ruling, 2026-11-04 — so nothing
+ *    here creates marketplace listings.)
  *   POST /api/push/test               Supabase Edge Function 'send-test-push'
  *                                     → FCM via src/server/jobs/fcm.ts
  *   GET  /api/admin/economy           economy metrics report + levers (0018)
@@ -18,8 +19,7 @@
  *  - /api/jobs/* are machine callers (Railway cron at B6). They require
  *    the shared job secret in the `x-chef-job-secret` header, compared
  *    in constant time. No player JWT is accepted here, and no identity
- *    or economy input is read from the request body beyond the seed's
- *    count/level knobs (clamped to the June ranges).
+ *    or economy input is read from the request body.
  *  - /api/push/test is a player route: identity comes ONLY from the
  *    verified Chef JWT (chefPlayerId), exactly like B2/B3 routes. It
  *    sends to the caller's own registered devices, as the Edge Function
@@ -32,10 +32,8 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
 import { chefPlayerId, type AuthConfig } from '../auth/routes';
-import { NPC_MARKET_USER_ID } from '../lib/npcMarket';
 import type { JobStore } from './store';
 import { cleanPushText, type FcmSender } from './fcm';
-import { buildNpcSeedItems, clampSeedCount, clampSeedLevel } from './npcItems';
 import {
   ECONOMY_CONFIG_DEFAULTS,
   RECIPE_SCRAP_DEFAULTS,
@@ -51,8 +49,6 @@ import type { LeaderboardStore } from '../leaderboards/store';
 export interface JobRoutesConfig extends AuthConfig {
   /** CHEF_JOB_SECRET; when empty the /api/jobs/* routes are not mounted. */
   jobSecret?: string;
-  /** NPC seller account for market seeding (NPC_MARKET_USER_ID). */
-  npcUserId?: string;
   /** FCM sender; null = push not configured on this instance. */
   fcmSender?: FcmSender | null;
   /** Economy observability store (0018); absent = admin routes unmounted. */
@@ -96,7 +92,6 @@ function body(req: Request): Body {
 
 export function mountJobRoutes(app: Express, store: JobStore, config: JobRoutesConfig): void {
   const jobSecret = config.jobSecret ?? '';
-  const npcUserId = config.npcUserId ?? NPC_MARKET_USER_ID;
 
   if (jobSecret) {
     const job = (path: string, run: (req: Request) => Promise<Record<string, unknown>>) => {
@@ -238,12 +233,6 @@ export function mountJobRoutes(app: Express, store: JobStore, config: JobRoutesC
       return { job: 'prune-snapshots', pruned };
     });
 
-    job('/api/jobs/seed-npc-market', async (req) => {
-      const count = clampSeedCount(body(req).count);
-      const level = clampSeedLevel(body(req).level);
-      const { seeded } = await store.seedNpcMarket(npcUserId, buildNpcSeedItems(count, level));
-      return { job: 'seed-npc-market', seeded, level };
-    });
   }
 
   // Test push — the Edge Function port. Player route (Chef JWT), sends a

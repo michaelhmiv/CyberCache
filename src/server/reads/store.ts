@@ -124,6 +124,11 @@ export interface ProfileRowData {
   workshop_tools?: Record<string, unknown>;
   /** Legendary core balance (migration 0026). Optional: pre-0026 seed rows omit it. */
   legendary_cores?: number;
+  /** Auto-Salvage Rule (migration 0080). Optional: pre-0080 seed rows omit them (= enabled, Common, 20, scrap). */
+  auto_salvage_enabled?: boolean;
+  auto_salvage_max_rarity?: string;
+  auto_salvage_max_quality?: number;
+  auto_salvage_to_materials?: boolean;
   /** Banked bench time, whole seconds (migration 0075). Optional: pre-0075 seed rows omit it (= 0). */
   bench_time_banked_seconds?: number;
   /** The bench-time settlers' sub-second drain remainder, ms (migration 0075). Optional (= 0). */
@@ -207,6 +212,8 @@ export interface LedgerEntryData {
   result_payload: Record<string, unknown>;
   /** Row timestamp — read only by the weekly leaderboard fold (0035). */
   created_at?: string;
+  /** Idempotency key — read only by the Activity Log projection (the 0080 auto-salvage nonce marker). */
+  idempotency_key?: string;
 }
 
 export interface EndlessRunRecordData {
@@ -796,7 +803,12 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
   return {
     id: listing.id,
     sellerId: listing.seller_user_id,
-    sellerType: listing.seller_type === 'npc' || item?.supply_mode === 'npc_market' ? 'npc' : 'player',
+    // sellerType describes the SELLER (pure player market ruling,
+    // 2026-11-04): 'npc' only when the listing's seller is the NPC
+    // market service account (by stamp or by account id). An item's
+    // supply_mode is provenance, not seller identity — a player
+    // re-listing vendor-origin gear is a player listing.
+    sellerType: listing.seller_type === 'npc' || listing.seller_user_id === NPC_MARKET_USER_ID ? 'npc' : 'player',
     kind,
     category,
     displayName,
@@ -1609,10 +1621,12 @@ function activityInputFromSeed(seed: ReadSeed, playerId: string): ActivityRawInp
   const ownLedger: ActivityLedgerRow[] = rich
     ? rich.filter((r) => r.user_id === playerId).map((r) => ({
       id: r.id, action_type: r.action_type, result_payload: foldRecord(r.result_payload), created_at: r.created_at,
+      nonce: r.nonce ?? null,
     }))
     : (seed.ledger ?? []).filter((r) => r.user_id === playerId).map((r, i) => ({
       id: `mem-ledger-${i}`, action_type: r.action_type, result_payload: foldRecord(r.result_payload),
       created_at: r.created_at ?? '1970-01-01T00:00:00.000Z',
+      nonce: r.idempotency_key ?? null,
     }));
   const acceptRows: Array<{ user_id: string; result_payload: Record<string, unknown> }> = rich
     ? rich.filter((r) => r.action_type === 'cc_accept_listing' || r.action_type === 'cc_quickbuy_fill')
@@ -2066,6 +2080,9 @@ export class InMemoryReadStore implements ReadStore {
       if (!Number.isFinite(soldAt) || soldAt < since) continue;
       const item = l.item_instance_id ? items.get(l.item_instance_id) ?? null : null;
       const row = browseRowFor(l, item);
+      // Pure player market (2026-11-04): NPC sales never fold into
+      // price history — the Pg twin excludes them in SQL.
+      if (row.sellerType === 'npc') continue;
       if (row.identityKey) records.push({ identityKey: row.identityKey, unitPrice: row.unitPrice, soldAt });
     }
     return computePriceStats(records, keys, now);
@@ -2379,7 +2396,7 @@ export class PgReadStore implements ReadStore {
       const params: unknown[] = cursorAt ? [playerId, window, cursorAt] : [playerId, window];
       const bound = (column: string) => (cursorAt ? `and ${column} <= $3::timestamptz` : '');
       const { rows: ledgerRaw } = await this.db.query(
-        `select id::text as id, action_type, result_payload, created_at
+        `select id::text as id, action_type, result_payload, created_at, idempotency_key
            from public.verified_action_ledger
           where user_id = $1 ${bound('created_at')}
           order by created_at desc, id desc limit $2`,
@@ -2430,6 +2447,7 @@ export class PgReadStore implements ReadStore {
         action_type: String(row.action_type),
         result_payload: foldRecord(row.result_payload),
         created_at: iso(row.created_at),
+        nonce: typeof row.idempotency_key === 'string' ? row.idempotency_key : null,
       }));
       const soldListings: ActivityListingRow[] = (listingRaw as Row[]).map((row) => ({
         id: String(row.id),
@@ -2870,20 +2888,20 @@ export class PgReadStore implements ReadStore {
     // over the columns migration 0019 stamps at creation — a browse
     // never opens an item payload to filter.
     const where: string[] = [`ml.status = 'active'`];
-    // NPC stock ceiling (owner ruling, 2026-11-03, widening the pure
-    // player market of 2026-11-02): NPC-sourced gear above Common
-    // rarity NEVER browses — the twin of the exclusion in
-    // applyListingQuery's matches(). Seller and rarity are read the
-    // way browseRowFor derives them (stamped column first, item facts
-    // as the fallback), so legacy rows seeded before stamping are
-    // caught too. NPC Common gear of every kind keeps its seat — it
-    // is the beginner comfort stock. Both the count and the page
-    // query share this clause (and the item join), so totals always
-    // agree with the rows.
+    // Pure player market (owner ruling, 2026-11-04, superseding the
+    // 2026-11-03 Common-stock compromise): NPC listings NEVER browse
+    // and never count — any kind, any rarity. The twin of the
+    // exclusion in applyListingQuery's matches(). A listing is an
+    // NPC listing when its seller is the NPC market service account,
+    // read the way browseRowFor derives it (stamped seller_type or
+    // the account id itself), so legacy seeded rows are caught
+    // whatever state their stamps are in. An item's supply_mode is
+    // provenance, not seller identity, and plays no part here.
+    // Both the count and the page query share this clause (and the
+    // item join), so totals always agree with the rows.
     where.push(`not (
-      coalesce(ml.listing_kind, 'gear') = 'gear'
-      and (ml.seller_type = 'npc' or ii.supply_mode = 'npc_market')
-      and coalesce(ml.rarity, ii.rarity, ii.payload ->> 'rarity') in ('Uncommon', 'Rare', 'Epic', 'Legendary')
+      coalesce(ml.seller_type, 'player') = 'npc'
+      or ml.seller_user_id = '${NPC_MARKET_USER_ID}'::uuid
     )`);
     const params: unknown[] = [];
     const push = (clause: (i: number) => string, value: unknown) => {
@@ -3005,6 +3023,12 @@ export class PgReadStore implements ReadStore {
            left join public.item_instances ii on ii.id = ml.item_instance_id
           where ml.status = 'sold'
             and ml.sold_at >= now() - ($2::int || ' days')::interval
+            -- Pure player market (2026-11-04): price history folds
+            -- PLAYER sales only. A completed NPC "sale" (a player
+            -- buying seeded stock) is a vendor transaction, not a
+            -- market signal, and must never move a median.
+            and coalesce(ml.seller_type, 'player') <> 'npc'
+            and ml.seller_user_id <> '${NPC_MARKET_USER_ID}'::uuid
        ) s
        where identity_key = any($1::text[])`,
       [keys, PRICE_STATS_SUPPLY_DAYS],

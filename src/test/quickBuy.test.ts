@@ -9,7 +9,7 @@
  *   2. HTTP through the real write routes + InMemoryWriteStore:
  *      quote shapes, atomic fills at boundary quantities, the
  *      quote-as-hard-ceiling rule (drift requotes, nothing moves),
- *      fee parity incl. the NPC exemption, insufficient-credits
+ *      fee parity, the NPC sourcing exclusion, insufficient-credits
  *      atomicity, vendor rotation edge (quote day D, buy day D+1),
  *      guest quote open / guest fill refused, nonce replay.
  *   3. Source pins on db/migrations/0060_quickbuy_fill.sql. (The SQL
@@ -56,6 +56,7 @@ const L_CHEAP = '99999999-9999-4999-8999-000000000001';
 const L_DEAR = '99999999-9999-4999-8999-000000000002';
 const L_OWN = '99999999-9999-4999-8999-000000000003';
 const L_FRAG = '99999999-9999-4999-8999-000000000004';
+const L_FRAG_NPC = '99999999-9999-4999-8999-000000000014';
 const L_MEDKIT_HI = '99999999-9999-4999-8999-000000000005';
 const L_MEDKIT_LO = '99999999-9999-4999-8999-000000000006';
 
@@ -102,10 +103,17 @@ function writeSeed(): WriteSeed {
     listing({ id: L_DEAR, seller_user_id: S2, quantity: 6, price_credits: 90, listed_at: '2026-11-04T08:00:00.000Z' }),
     // The buyer's own dirt-cheap stack — invisible to their own sweep.
     listing({ id: L_OWN, seller_user_id: B, quantity: 100, price_credits: 100, listed_at: '2026-11-04T06:00:00.000Z' }),
-    // NPC-seeded cache fragments: 10 for 100cr.
+    // Player-listed cache fragments: 10 for 100cr.
     listing({
-      id: L_FRAG, seller_user_id: NPCBACK, seller_type: 'npc', listing_kind: 'fragment',
+      id: L_FRAG, seller_user_id: S2, seller_type: 'player', listing_kind: 'fragment',
       material_id: null, quantity: 10, price_credits: 100, listed_at: '2026-11-04T05:00:00.000Z',
+    }),
+    // Legacy NPC-seeded fragment stack, CHEAPER than the player's
+    // (10 for 50cr): under the pure player market (2026-11-04)
+    // Quick-Buy must never quote or fill from it.
+    listing({
+      id: L_FRAG_NPC, seller_user_id: NPCBACK, seller_type: 'npc', listing_kind: 'fragment',
+      material_id: null, quantity: 10, price_credits: 50, listed_at: '2026-11-04T04:00:00.000Z',
     }),
     // MedKit consumable stacks across quality bands: dearer unit but
     // higher quality listed first — the sweep must still take the
@@ -234,6 +242,18 @@ describe('quickBuy planner — sweep + default tab', () => {
     expect(big.partial).toBe(true);
     expect(big.fillableQty).toBe(4);
     expect(big.total).toBe(40);
+  });
+
+  it('never plans a fill from an NPC listing (pure player market, 2026-11-04)', () => {
+    // A legacy seeded stack row must not be quoted or filled even if
+    // it is the cheapest supply on the lane.
+    const plan = planMarketSweep([
+      row({ id: 'npc-cheap', sellerUserId: '00000000-0000-0000-0000-000000000000', sellerKind: 'npc', quantity: 100, priceCredits: 100, listedAt: '2026-11-04T06:00:00.000Z' }),
+      row({ id: 'player', sellerUserId: S2, quantity: 3, priceCredits: 60, listedAt: '2026-11-04T07:00:00.000Z' }),
+    ], 10, B);
+    expect(plan.supplyQty).toBe(3);
+    expect(plan.fills.map((f) => f.listingId)).toEqual(['player']);
+    expect(plan.total).toBe(60);
   });
 
   it('identity keys: commodities collapse, goods keep their id', () => {
@@ -405,8 +425,29 @@ describe('quickBuy — write paths', () => {
     expect(listingOf(L_DEAR)?.quantity).toBe(1);
   });
 
-  it('fill: NPC fragment stack — split charge, 5:1 conversion, full payout with no fee', async () => {
+  it('Quick-Buy never sources the NPC fragment stack, however cheap (pure player market, 2026-11-04)', async () => {
+    // The quote for 5 fragments prices off the PLAYER stack only:
+    // 5 @ 10cr = 50, never the NPC stack's 5 @ 5cr.
+    const res = await quote(h, h.tokens[B], 'fragment', 'cache', 5);
+    const q = res.json as unknown as QuickBuyQuote;
+    expect(q.market.total).toBe(50);
+    expect(q.market.fills.map((f) => f.listingId)).toEqual([L_FRAG]);
+    // A fill attempted at the NPC-implied price requotes and moves
+    // nothing — the server re-plans player-only at fill time too.
     const bankBefore = creditsOf(NPCBACK);
+    const bBefore = creditsOf(B);
+    const filled = await fill(h, h.tokens[B], {
+      source: 'market', kind: 'fragment', id: 'cache', quantity: 5, quotedTotal: 25,
+    });
+    expect(filled.json.status).toBe('requote');
+    expect(creditsOf(B)).toBe(bBefore);
+    expect(creditsOf(NPCBACK)).toBe(bankBefore);
+    expect(listingOf(L_FRAG_NPC)?.quantity).toBe(10);
+    expect(listingOf(L_FRAG_NPC)?.status).toBe('active');
+  });
+
+  it('fill: fragment stack — split charge, 5:1 conversion, seller paid net of the 5% fee', async () => {
+    const s2Before = creditsOf(S2);
     const res = await fill(h, h.tokens[B], {
       source: 'market', kind: 'fragment', id: 'cache', quantity: 5, quotedTotal: 50,
     });
@@ -416,7 +457,8 @@ describe('quickBuy — write paths', () => {
     expect(profileOf(B)?.cache_token_parts).toBe(0);
     expect(listingOf(L_FRAG)?.quantity).toBe(5);
     expect(listingOf(L_FRAG)?.price_credits).toBe(50);
-    expect(creditsOf(NPCBACK)).toBe(bankBefore + 50);
+    // Player sale: floor(50 × 0.05) = 2 destroyed, seller nets 48.
+    expect(creditsOf(S2)).toBe(s2Before + 48);
   });
 
   it('insufficient credits: requote names the gap via the fresh quote; nothing moves', async () => {

@@ -10,13 +10,14 @@
  *    store — the same numbers the old in-scroll Level Strip
  *    showed; no second XP truth), tappable → the level pop-up.
  *  - STREAK icon button: opens the login-streak pop-up (the real
- *    LoginStreakPanel). While a fresh grant is unacknowledged it
- *    carries the announcement — pulse + "NEW" badge — that the
- *    grant BANKED on arrival (streak audit D1: the pulse is news,
- *    not a claim signal; the reward is never claimed, it lands
- *    at the check-in read). The sheet's "Back to the hunt"
- *    acknowledges it and the announcement dies for the session;
- *    the already-claimed state carries no pulse and no badge.
+ *    LoginStreakPanel). While today's recorded reward is unpaid
+ *    (0079, the true claim) the chip is a real claimable — pulse
+ *    + amber "CLAIM" badge — until the claim lands in the sheet;
+ *    an unclaimed reward expires at the 00:00 UTC rollover and
+ *    the badge dies with the day. (A pre-0079 result instead
+ *    carries the legacy announcement — pulse + "NEW" — that a
+ *    grant banked on arrival; "Back to the hunt" acknowledges
+ *    it.) The paid state carries no pulse and no badge.
  *  - CONTRACTS icon button: opens the contracts pop-up (the real
  *    ContractsPanel). Pulses with a claimable-count badge when
  *    contracts are ready to claim; guests get the lock badge the
@@ -80,7 +81,12 @@ import { ContractsPanel } from './ContractsPanel';
 import { WeeklyClaimablesList } from './WeeklyClaimables';
 import { useMarketStore, usePlayerStore } from '@/store';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
-import { loginStreakAnnouncement, useLoginStreakStore } from '@/store/slices/loginStreakSlice';
+import {
+  loginStreakAnnouncement,
+  loginStreakClaimable,
+  loginStreakClaimKey,
+  useLoginStreakStore,
+} from '@/store/slices/loginStreakSlice';
 import { countClaimableContracts, useContractsStore } from '@/store/slices/contractsSlice';
 import { useStandingStore, weeklyClaimables } from '@/store/slices/standingSlice';
 import {
@@ -162,6 +168,8 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
   const streakResult = useLoginStreakStore((s) => s.result);
   const streakResultDay = useLoginStreakStore((s) => s.resultDay);
   const streakSeenGrantKey = useLoginStreakStore((s) => s.seenGrantKey);
+  const streakLastClaimedKey = useLoginStreakStore((s) => s.lastClaimedGrantKey);
+  const streakSeenClaimKey = useLoginStreakStore((s) => s.seenClaimKey);
   const loadStreak = useLoginStreakStore((s) => s.load);
   const revalidateStreak = useLoginStreakStore((s) => s.revalidate);
   const contractsResult = useContractsStore((s) => s.result);
@@ -238,6 +246,23 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
     streakResultDay,
     streakSeenGrantKey,
   );
+  // True claim (0079): a recorded-but-unpaid reward outranks the
+  // announcement — the chip becomes a real claimable (pulse +
+  // CLAIM badge, §9's language used truthfully on this chip)
+  // until the claim lands.
+  const streakClaimable = loginStreakClaimable(streakResult);
+  // Just claimed (0079): this session's claim landed and the
+  // landing is unacknowledged — the panel's own derivation.
+  // The chip goes plain (the prototype's claimed frame): the
+  // legacy NEW announcement must not re-fire for money the
+  // player just took by hand, and the sheet speaks of the
+  // claim, not of an arrival.
+  const streakClaimKey = loginStreakClaimKey(streakResult, streakResultDay);
+  const streakJustClaimed =
+    !streakClaimable &&
+    streakClaimKey !== null &&
+    streakLastClaimedKey === streakClaimKey &&
+    streakSeenClaimKey !== streakClaimKey;
   const streakDay = streakResult?.loginStreak.currentStreak ?? null;
 
   const board = contractsResult?.contracts ?? null;
@@ -258,16 +283,28 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
     (awayPending ? '. While you were away rewards are waiting.' : '');
   const streakLabel = streakResult
     ? `Daily streak — day ${streakDay ?? 0}` +
-      (streakAnnouncement ? `, new grant banked for day ${granted?.streakLength}` : ', today checked in')
+      (streakClaimable
+        ? `, day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward ready to claim`
+        : streakJustClaimed
+          ? `, reward for day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} claimed just now`
+          : streakAnnouncement
+            ? `, new grant banked for day ${granted?.streakLength}`
+            : ', today checked in')
     : 'Daily streak';
-  // The sheet's subtitle speaks the same past tense as the
-  // panel: a fresh grant was granted on arrival; a replayed
-  // day was claimed (banked) today.
+  // The sheet's subtitle speaks the same tense as the panel: an
+  // unpaid reward speaks in the present (it is ready, not
+  // banked); a paid day speaks in the past tense — and a reward
+  // the player just claimed by hand was never "granted on
+  // arrival" (0079): it says claimed, just now.
   const streakSubtitle = !streakResult
     ? 'Daily check-in rewards'
-    : granted && !granted.alreadyClaimed
-      ? `Daily check-in · Day ${granted.cycleDay ?? streakResult.loginStreak.cycleDay} granted on arrival`
-      : `Daily check-in · Day ${streakResult.loginStreak.cycleDay} claimed today`;
+    : streakClaimable
+      ? `Daily check-in · Day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward ready to claim`
+      : streakJustClaimed
+        ? `Daily check-in · Day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} claimed just now`
+        : granted && !granted.alreadyClaimed
+          ? `Daily check-in · Day ${granted.cycleDay ?? streakResult.loginStreak.cycleDay} granted on arrival`
+          : `Daily check-in · Day ${streakResult.loginStreak.cycleDay} claimed today`;
   const contractsLabel = !board
     ? 'Contracts'
     : contractsGuestLocked
@@ -337,10 +374,19 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           data-testid="top-streak-button"
           aria-label={streakLabel}
           onClick={() => setSheet('streak')}
-          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakAnnouncement ? 'pr-12' : ''}`}
+          className={`bl-panel relative flex min-h-[40px] shrink-0 items-center gap-1.5 overflow-hidden px-2.5 py-1.5 ${streakClaimable ? 'pr-16' : streakAnnouncement && !streakJustClaimed ? 'pr-12' : ''}`}
         >
-          {streakAnnouncement && <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />}
-          {streakAnnouncement && <CornerBadge text="NEW" color={STREAK_ACCENT} />}
+          {streakClaimable ? (
+            <>
+              <PulseGlow color="#FF8A00" testId="streak-claim-pulse" />
+              <CornerBadge text="CLAIM" color="#FF8A00" />
+            </>
+          ) : streakAnnouncement && !streakJustClaimed ? (
+            <>
+              <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />
+              <CornerBadge text="NEW" color={STREAK_ACCENT} />
+            </>
+          ) : null}
           <PxIcon name="flame" size={15} />
           <span className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-text-muted">
             {streakDay !== null ? `Day ${streakDay}` : 'Streak'}
