@@ -293,3 +293,37 @@ export function gearCardSummary(item: GearItem): GearCardSummary {
     badges: firstUseful ? [firstUseful] : [],
   };
 }
+
+// ── Compact list-row headline ────────────────────────────────────────
+
+export interface RowHeadline {
+  label: string | null;
+  value: string;
+  tone?: string;
+}
+
+/**
+ * The ONE headline stat a compact inventory list row prints per kind
+ * (DESIGN.md §3 — the list is a scanning surface; detail lives behind
+ * inspect). Read from the same summary the card face uses, so the row
+ * can never disagree with the card or the picker about a number:
+ * weapon DPS · shield HP · ordnance DMG — each kind's first primary
+ * stat, the figure its sort menu leads with. Class mods lead with
+ * Boost (their comparable power number; the tree is identity and
+ * prints in inspect). Relics have no single power number — their
+ * headline is the top affix line (the summary's first badge), with
+ * the affix-count stat as the fallback for an affix-less relic.
+ */
+export function gearRowHeadline(
+  item: GearItem,
+  summary: GearCardSummary = gearCardSummary(item),
+): RowHeadline {
+  if (isClassMod(item)) {
+    return summary.primaryStats.find((stat) => stat.label === 'Boost') ?? summary.primaryStats[0];
+  }
+  if (isRelic(item)) {
+    if (summary.badges[0]) return { label: null, value: summary.badges[0], tone: 'text-amber' };
+    return summary.primaryStats[0];
+  }
+  return summary.primaryStats[0];
+}
