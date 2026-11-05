@@ -1,12 +1,19 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import type { LeaderboardEntry } from '@/lib/api/leaderboardService';
+import {
+  LEADERBOARD_METRIC_UNITS,
+  formatLeaderboardValue,
+  type LeaderboardEntry,
+  type LeaderboardMetric,
+} from '@/lib/api/leaderboardService';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
 import { resolveLookView } from '@/lib/pixel/lookResolution';
 import type { HunterLookView } from '@/content/skins';
 
 interface LeaderboardRowProps {
   entry: LeaderboardEntry;
+  /** Which board this row belongs to — labels and formats the value. */
+  metric: LeaderboardMetric;
   isMe?: boolean;
   onClick?: (playerId: string) => void;
   compact?: boolean;
@@ -14,7 +21,7 @@ interface LeaderboardRowProps {
   look?: HunterLookView | null;
 }
 
-export const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ entry, isMe, onClick, compact, look }) => {
+export const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ entry, metric, isMe, onClick, compact, look }) => {
   const trend = entry.trend > 0 ? 'up' : entry.trend < 0 ? 'down' : 'flat';
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
 
@@ -47,7 +54,12 @@ export const LeaderboardRow: React.FC<LeaderboardRowProps> = ({ entry, isMe, onC
       </div>
       <div className="flex items-center gap-1.5">
         <TrendIcon size={10} className={trend === 'up' ? 'text-green' : trend === 'down' ? 'text-red' : 'text-text-muted'} />
-        <div className="text-sm font-black text-text-primary">{Math.round(entry.value).toLocaleString()}</div>
+        <div className="text-sm font-black text-text-primary">
+          {formatLeaderboardValue(metric, entry.value)}{' '}
+          <span className="text-[10px] font-bold uppercase text-text-muted">
+            {LEADERBOARD_METRIC_UNITS[metric]}
+          </span>
+        </div>
       </div>
     </button>
   );

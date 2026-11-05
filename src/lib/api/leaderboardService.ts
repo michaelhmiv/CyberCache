@@ -28,6 +28,34 @@ export interface LeaderboardEntry {
   trend: number;
 }
 
+/**
+ * The unit each board's value column counts in. Rows print it beside
+ * the number — the value column used to be a bare figure with no
+ * label saying what was being counted (papercut). Suffix style
+ * matches the weekly-race rows ("12 kills").
+ */
+export const LEADERBOARD_METRIC_UNITS: Record<LeaderboardMetric, string> = {
+  level: 'Lv',
+  xp: 'XP',
+  net_worth: 'credits',
+  total_kills: 'kills',
+  kdr: 'K/D',
+  highest_boss_tier: 'tier',
+  total_mastery_xp: 'Mastery XP',
+  highest_mastery_level: 'Mastery Lv',
+  legendary_items: 'legendaries',
+  total_items: 'items',
+};
+
+/**
+ * Board value formatting: ratios keep two decimals (house style —
+ * PublicProfilePanel prints K/D at toFixed(2), and the row used to
+ * whole-round a K/D of 1.75 to "2"); counts round whole.
+ */
+export function formatLeaderboardValue(metric: LeaderboardMetric, value: number): string {
+  return metric === 'kdr' ? value.toFixed(2) : Math.round(value).toLocaleString();
+}
+
 export interface MyLeaderboardRank {
   rank: number;
   value: number;

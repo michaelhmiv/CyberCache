@@ -12,5 +12,6 @@ export function articleFor(name: string): 'a' | 'an' {
 /** "a Redline" / "an Ironwood" — the article agreed with the name. */
 export function withArticle(name: string, capitalize = false): string {
   const article = articleFor(name);
-  return `${capitalize ? article.toUpperCase() : article} ${name}`;
+  const head = capitalize ? article.charAt(0).toUpperCase() + article.slice(1) : article;
+  return `${head} ${name}`;
 }

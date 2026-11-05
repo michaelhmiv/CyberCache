@@ -3,6 +3,7 @@ import type { Affix, ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from 
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { rollQualityLabel } from '@/constants/rarities';
 import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
+import { pct } from '@/lib/gear/statFormat';
 import { LEGENDARY_EFFECTS } from '@/constants/legendaryEffects';
 import { bespokeSpriteIdForWeapon, normalizeLegendaryName } from './manifest';
 import { MOVEMENT, isTickHit } from './movement';
@@ -130,17 +131,20 @@ const fmtRate = (value: number): string => {
  * The weapon stat figures — ONE source for every surface that prints
  * them (DISP-03, audit fix A): this celebration line and WeaponCard.
  * Formats are the card's contract: damage as rolled, speed at two
- * decimals, crit as a true percentage at one decimal. The celebration
- * used to round speed to one decimal and print the crit FRACTION as
+ * decimals, crit as a true percentage. The celebration used to round
+ * speed to one decimal and print the crit FRACTION as
  * if it were a percent (0.095 → "0.1%"), so the same item read
  * "FR 1.5 · CRIT 0.1%" in the celebration and "Spd 1.47 · Crit 9.5%"
- * on its card in the 2026-11-01 walk.
+ * on its card in the 2026-11-01 walk. Crit formatting itself is the
+ * shared `pct` from statFormat.ts — the reveal deck below the moment
+ * rounds to whole percent, and the card must agree with it exactly
+ * (10.3% on the card vs 10% in the deck was the papercut).
  */
 export function weaponStatFigures(item: Weapon): { dmg: string; spd: string; crit: string } {
   return {
     dmg: fmtInt(item.baseDamage),
     spd: item.attackSpeed.toFixed(2),
-    crit: `${(item.critChance * 100).toFixed(1)}%`,
+    crit: pct(item.critChance),
   };
 }
 

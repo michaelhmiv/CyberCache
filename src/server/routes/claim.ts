@@ -35,7 +35,7 @@ import {
   scaleConsumableQuality,
   type ActionSkillFirePlan,
 } from '../../content/actionSkills';
-import { SkillTreeType } from '../../types/game';
+import { RiskSetting, SkillTreeType } from '../../types/game';
 import { actionSkillEcho, actionSkillLevers, deferredActionSkillFirePlan, planActionSkillFire } from './actionSkill';
 import { escalatedBossFee, utcDayStartIso } from '../../lib/bossFees';
 import {
@@ -90,6 +90,21 @@ export function createVerifyBossHandler(
       const body = req.body as BossAttemptRequest & { jwt?: string };
       if (!body.bossId) {
         res.status(400).json({ error: 'Missing required field: bossId' });
+        return;
+      }
+      // `risk` is player intent the Chef prices the attempt from
+      // (getBossRiskModifiers). A missing/invalid value used to fall
+      // through the switch, return undefined modifiers, and throw on
+      // `rm.chaos` — a 500 for a malformed request. The route 400s
+      // every other invalid intent field (unknown boss, bad prepared
+      // consumables, unaffordable attempt), so validate here too
+      // rather than silently defaulting: a default would let a buggy
+      // client fight at a stance the player never chose.
+      if (!Object.values(RiskSetting).includes(body.risk)) {
+        res.status(400).json({
+          error: 'Invalid risk setting',
+          detail: `risk must be one of: ${Object.values(RiskSetting).join(', ')}`,
+        });
         return;
       }
 

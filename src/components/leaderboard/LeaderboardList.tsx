@@ -4,10 +4,12 @@ import { useHunterLooks } from '@/lib/pixel/useHunterLooks';
 
 import { LeaderboardRow } from './LeaderboardRow';
 import { MobileCard } from '@/components/layout/MobileCard';
-import type { LeaderboardEntry } from '@/lib/api/leaderboardService';
+import type { LeaderboardEntry, LeaderboardMetric } from '@/lib/api/leaderboardService';
 
 interface LeaderboardListProps {
   entries: LeaderboardEntry[];
+  /** Which board these entries belong to — rows label values with it. */
+  metric: LeaderboardMetric;
   myPlayerId?: string | null;
   loading?: boolean;
   onRowClick?: (playerId: string) => void;
@@ -15,6 +17,7 @@ interface LeaderboardListProps {
 
 export const LeaderboardList: React.FC<LeaderboardListProps> = ({
   entries,
+  metric,
   myPlayerId,
   loading,
   onRowClick,
@@ -68,6 +71,7 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
           <LeaderboardRow
             key={entry.player_id}
             entry={entry}
+            metric={metric}
             isMe={entry.player_id === myPlayerId}
             onClick={onRowClick}
             look={looks[entry.player_id] ?? null}
@@ -75,7 +79,7 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
         ))}
         {!myInTop && myEntry && (
           <div className="border-t-2 border-amber/50 bg-amber/10">
-            <LeaderboardRow entry={myEntry} isMe compact look={looks[myEntry.player_id] ?? null} />
+            <LeaderboardRow entry={myEntry} metric={metric} isMe compact look={looks[myEntry.player_id] ?? null} />
           </div>
         )}
       </div>
