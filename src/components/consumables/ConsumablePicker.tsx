@@ -6,7 +6,6 @@
  * sort, and family-count chips.
  */
 import React, { useMemo } from 'react';
-import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { Search, ArrowUpDown, X } from 'lucide-react';
 import { usePlayerStore } from '@/store';

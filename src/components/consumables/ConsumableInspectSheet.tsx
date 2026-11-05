@@ -1,5 +1,4 @@
 import React from 'react';
-import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';

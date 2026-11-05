@@ -544,7 +544,7 @@ const paintVial: Painter = (cv, R, A, variant, icon, rng) => {
   }
 };
 
-const paintCell: Painter = (cv, R, A, variant, icon, rng) => {
+const paintCell: Painter = (cv, R, A, variant, icon, _rng) => {
   if (variant === 'drum') {
     // Generic Fuel Cell: a squat fuel drum with a carry handle.
     cv.rect(9, 8, 6, 2, 'd');
@@ -632,7 +632,7 @@ const paintMagazine: Painter = (cv, R, A, variant) => {
   if (pro) for (const y of [9, 17]) cv.rect(7, y, 10, 1, 'd'); // slat bands
 };
 
-const paintRounds: Painter = (cv, R, A, variant, icon, rng) => {
+const paintRounds: Painter = (cv, R, A, variant, _icon, _rng) => {
   if (variant === 'coat' || variant === 'coatPrism') {
     // The coatings: an applicator jar — squat pot, wide lid, the
     // dip brush resting against it, sheen pooled on the face.
@@ -721,7 +721,7 @@ const paintScanner: Painter = (cv, R, A, variant, icon) => {
   }
 };
 
-const paintBeacon: Painter = (cv, R, A, variant, icon) => {
+const paintBeacon: Painter = (cv, R, A, variant, _icon) => {
   cv.rect(6, 19, 13, 2, 'd'); // base plate
   cv.set(7, 18, 'd'); cv.set(16, 18, 'd'); // feet
   cv.rect(11, 11, 3, 8, 'P'); // mast
