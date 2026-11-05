@@ -3,6 +3,23 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-05",
+      "merges": [
+        {
+          "number": 386,
+          "title": "Daily login streak: TRUE CLAIM — record holds, tap Claim pays (migration 0079)"
+        },
+        {
+          "number": 393,
+          "title": "Pure player market: Buy/Sell are solely player listings (supersedes #317)"
+        },
+        {
+          "number": 395,
+          "title": "Cache reveal: one page — stage stays, full stat deck below (no phase swap)"
+        }
+      ]
+    },
+    {
       "date": "2026-11-04",
       "merges": [
         {
@@ -32,6 +49,50 @@
         {
           "number": 378,
           "title": "0076: cc_record_kill_stats kill attribution reads the real weapon slots"
+        },
+        {
+          "number": 379,
+          "title": "Elemental Coating: crafting recipe (0077) + boss-sim break wiring"
+        },
+        {
+          "number": 380,
+          "title": "Wiring package: boss sim reads consumable defs + Grenade merge + Rush Ticket repair scope (migration 0077)"
+        },
+        {
+          "number": 382,
+          "title": "Consumable item art: real pixel sprites for all 43 types (runtime compositor)"
+        },
+        {
+          "number": 383,
+          "title": "Fix Gear tab freeze: compositor caches could never hit (compose ran before the cache lookup)"
+        },
+        {
+          "number": 384,
+          "title": "Home stage + mode rail rework: Roam is the area door, Stop takes the stage corner, one-stage law for Extract"
+        },
+        {
+          "number": 385,
+          "title": "feat(gear): true compact list view — one line per item, 46px rows (owner ruling 2026-11-04)"
+        },
+        {
+          "number": 387,
+          "title": "Gear doll fit: the hunter fills his stage (frame-fit, not armed-extent)"
+        },
+        {
+          "number": 388,
+          "title": "test(claim): pin route clock in amount-pinning claim tests; add deliberate hot-area payout pins"
+        },
+        {
+          "number": 389,
+          "title": "Crafting consolidation: the Workshop lives on Home (owner ruling 2026-11-04)"
+        },
+        {
+          "number": 390,
+          "title": "feat(strip+announce): pulse-on-increase + Sold / bench-ready announcement chips (eye-leading pass)"
+        },
+        {
+          "number": 392,
+          "title": "Auto-salvage: profile-owned rule, Chef claim-settlement enforcement (migration 0080)"
         }
       ]
     },
