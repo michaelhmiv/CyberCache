@@ -306,7 +306,9 @@ describe('string hygiene — A2/A3/A6: fixed sites stay fixed (source pins)', ()
       mustNotContain: ['placeholder="hunter_name"'],
     },
     {
-      file: 'src/components/leaderboard/LeaderboardRow.tsx',
+      // The board row lives in StandingsConsole since the
+      // Instrument Panel build (LeaderboardRow.tsx retired).
+      file: 'src/components/leaderboard/StandingsConsole.tsx',
       mustContain: ["'Vault Runner'"],
       mustNotContain: ['`Player ${'],
     },
