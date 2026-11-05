@@ -316,6 +316,60 @@ export function createClaimHandler(
         await recordItemDiscoveries(store, playerId, result.items, 'roaming_drop');
       }
 
+      // Auto-salvage (migration 0080): the profile's Auto-Salvage
+      // Rule applies to the drops THIS claim just stored — each
+      // matching item is recycled through cc_recycle_item before
+      // the response is built, so salvaged drops never present as
+      // inventory. The claim itself is fully paid at this point; a
+      // salvage failure is logged and the items simply stay in the
+      // bag (the safe direction), never failing the claim — the
+      // telemetry precedent below. The response then carries the
+      // summary block, the post-salvage profile, the kept items
+      // only, and one auto_salvage feed event per salvaged drop, so
+      // the conversion is never invisible (eye-leading law).
+      let autoSalvageBlock: Record<string, unknown> | null = null;
+      let responseItems = result.items;
+      let responseProfile = (rpcResult as Record<string, unknown>)?.profile ?? rpcResult;
+      if (result.items.length > 0) {
+        try {
+          const salvage = (await store.applyAutoSalvage(
+            playerId,
+            `claim:${body.tickCount}`,
+            'roam',
+            result.items.map((item) => String((item as { id?: unknown }).id ?? '')),
+          )) as Record<string, unknown>;
+          const salvaged = Array.isArray(salvage.items) ? (salvage.items as Array<Record<string, unknown>>) : [];
+          if (Number(salvage.salvaged_count ?? 0) > 0) {
+            const { profile: salvageProfile, ...summary } = salvage;
+            autoSalvageBlock = summary;
+            if (salvageProfile) responseProfile = salvageProfile;
+            const salvagedIds = new Set(salvaged.map((entry) => String(entry.id ?? '')));
+            responseItems = result.items.filter(
+              (item) => !salvagedIds.has(String((item as { id?: unknown }).id ?? '')),
+            );
+            // Pushed into the engine's own array: the standing drip
+            // below appends to the same list, and the response reads
+            // it whole.
+            for (const entry of salvaged) {
+              result.feedEvents.push({
+                at: Date.now(),
+                tone: 'auto_salvage',
+                label: `Auto-salvaged ${String(entry.name || 'item')}`,
+                detail:
+                  typeof entry.converted_material === 'string'
+                    ? `Broken down into ${entry.converted_material} — your Auto-Salvage Rules.`
+                    : `+${Number(entry.scrap_award ?? 0)} scrap — your Auto-Salvage Rules.`,
+                value: Number(entry.scrap_award ?? 0),
+                areaId: body.areaId,
+              });
+            }
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] Failed to apply auto-salvage:', message);
+        }
+      }
+
       // Persist consumable consumption atomically (server-authoritative).
       // A persistence failure here must NOT be swallowed: the claim has
       // already paid rewards computed with those consumables active, so
@@ -461,8 +515,10 @@ export function createClaimHandler(
 
       res.json({
         ...result,
-        profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+        items: responseItems,
+        profile: responseProfile,
         consumedConsumables,
+        ...(autoSalvageBlock ? { autoSalvage: autoSalvageBlock } : {}),
         ...(deathPayload ? { death: deathPayload } : {}),
         ...(standingBlock ? { standing: standingBlock } : {}),
       });

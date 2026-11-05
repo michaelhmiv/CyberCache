@@ -9,7 +9,7 @@ import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { GearCompare } from '@/components/gear/GearCompare';
 import { useAuth } from '@/auth/AuthProvider';
 import { trackMarketBuy, trackMarketList } from '@/lib/analytics/analytics';
-import { useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useSkillStore } from '@/store';
+import { useAnnouncementsStore, useInventoryStore, useLoadoutStore, useMarketStore, usePlayerStore, useSkillStore } from '@/store';
 import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
 import { CosmeticMiniCard } from '@/components/market/CosmeticMiniCard';
 import { RARITIES } from '@/constants/rarities';
@@ -413,6 +413,30 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
     useMarketStore.getState().setActiveTab(marketStopIntent.stop);
     useMarketStore.getState().clearMarketStopIntent();
   }, [marketStopIntent]);
+
+  // Sell-segment deep link (eye-leading pass): the Sold
+  // announcement chip opens the trade record itself, not just
+  // the Sell stop. Render-phase adjustment (the buy-browse
+  // pattern below), not an effect: sellSegment is local state,
+  // and the intent lands in the same commit as the stop switch
+  // that carried it; the seq guard keeps it one-shot.
+  const sellSegmentIntent = useMarketStore((s) => s.sellSegmentIntent);
+  const [appliedSegmentSeq, setAppliedSegmentSeq] = useState<number | null>(null);
+  if (sellSegmentIntent && sellSegmentIntent.seq !== appliedSegmentSeq) {
+    setAppliedSegmentSeq(sellSegmentIntent.seq);
+    setSellSegment(sellSegmentIntent.segment);
+    useMarketStore.getState().clearSellSegmentIntent();
+  }
+
+  // Reading your own trade record marks sales as seen: if the
+  // player opens History themselves, a pending Sold announcement
+  // is stale news and clears (the announcements store advances
+  // its watermark past the server's current sales).
+  useEffect(() => {
+    if (market.activeTab === 'sell' && sellSegment === 'history') {
+      void useAnnouncementsStore.getState().markSalesSeen();
+    }
+  }, [market.activeTab, sellSegment]);
 
   // Buy-browse deep link: a remedy door (e.g. a service board's
   // no-supply blocker) asked for the Buy stop pre-browsed to a

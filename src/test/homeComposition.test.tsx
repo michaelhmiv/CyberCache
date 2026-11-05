@@ -66,6 +66,10 @@ vi.mock('@/lib/chef/chefClient', async (importOriginal) => ({
   getEndlessMe: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   getExtractionState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
   getResearchState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
+  // The consolidated Craft bench mounts the Workshop's action-
+  // skill card; its mount read must fail fast like the rest or
+  // the bench tests ride a real network timeout (~20s).
+  getActionSkillState: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
 vi.mock('@/lib/api/activityService', () => {
@@ -104,7 +108,7 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
 import { HomeScreen } from '@/screens/HomeScreen';
 import { IDLE_ACTIVITY } from '@/types/activity';
 import { getStandingState, standingBuy } from '@/lib/chef/chefClient';
-import { usePlayerStore } from '@/store';
+import { usePlayerStore, useWorkshopStore } from '@/store';
 import { useActivityStore } from '@/store/slices/activitySlice';
 import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
 import { useContractsStore } from '@/store/slices/contractsSlice';
@@ -117,6 +121,17 @@ import type { SettlementRecap } from '@/lib/activity/activitySettlement';
 
 const mockStanding = vi.mocked(getStandingState);
 const mockBuy = vi.mocked(standingBuy);
+
+// jsdom has no IntersectionObserver; the Craft workspace mounts
+// the Workshop, whose ChipRail needs one (same stub shape as
+// workshopDirectionAScreen.test.tsx).
+globalThis.IntersectionObserver = vi.fn(function (this: unknown, callback: IntersectionObserverCallback) {
+  return {
+    observe: (target: Element) => callback([{ isIntersecting: false, target } as unknown as IntersectionObserverEntry], {} as IntersectionObserver),
+    unobserve: () => undefined,
+    disconnect: () => undefined,
+  };
+}) as unknown as typeof IntersectionObserver;
 
 /** Redline at rank 5: BOTH weekly offers are claimable (crate at
  *  rank ≥ 4, signature order at rank 5 with the lane enabled). */
@@ -234,14 +249,29 @@ describe('Home composition — mode rail (§2/§4)', () => {
     expect(screen.getByTestId('mode-rail-extract').getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('Craft starts the crafting activity from the rail at one tap', async () => {
+  // Mounting the consolidated bench renders the FULL real
+  // Workshop (88-card catalog) inside the full Home tree — the
+  // heaviest render in this suite under jsdom — so this test
+  // carries a 60s budget; the workshop store's refresh is stubbed
+  // because this suite leaves the network chef client real, and
+  // its timeouts would otherwise churn the tree for ~20s.
+  it('Craft opens the bench workspace from the rail at one tap — looking does not switch the action', async () => {
+    useWorkshopStore.setState({ refresh: vi.fn(async () => {}) });
     render(<HomeScreen onNavigate={() => {}} />);
     fireEvent.click(await screen.findByTestId('mode-rail-craft'));
-    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('crafting'));
-    // The lit workspace is the Craft panel (its Workshop door).
-    expect(await screen.findByRole('button', { name: 'Open Workshop' })).toBeTruthy();
+    // The lit workspace IS the Workshop (crafting consolidation,
+    // 2026-11-04): the bench itself on Home, not a door to a bench
+    // on another tab.
+    expect(await screen.findByTestId('home-craft-bench', undefined, { timeout: 10_000 })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Open Workshop' })).toBeNull();
     expect(screen.getByTestId('mode-rail-craft').getAttribute('aria-pressed')).toBe('true');
-  });
+    // Opening the bench is a look, not a switch: the action slot
+    // is untouched until the bench's own Work the Bench control
+    // claims it.
+    expect(useActivityStore.getState().current.kind).not.toBe('crafting');
+    fireEvent.click(screen.getByTestId('craft-bench-work-button'));
+    await waitFor(() => expect(useActivityStore.getState().current.kind).toBe('crafting'));
+  }, 60_000);
 });
 
 describe('Home composition — stage furniture + standby panel (drift-fix F2)', () => {

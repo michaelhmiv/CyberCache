@@ -3,6 +3,23 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-05",
+      "merges": [
+        {
+          "number": 386,
+          "title": "Daily login streak: TRUE CLAIM — record holds, tap Claim pays (migration 0079)"
+        },
+        {
+          "number": 393,
+          "title": "Pure player market: Buy/Sell are solely player listings (supersedes #317)"
+        },
+        {
+          "number": 395,
+          "title": "Cache reveal: one page — stage stays, full stat deck below (no phase swap)"
+        }
+      ]
+    },
+    {
       "date": "2026-11-04",
       "merges": [
         {
@@ -64,6 +81,18 @@
         {
           "number": 388,
           "title": "test(claim): pin route clock in amount-pinning claim tests; add deliberate hot-area payout pins"
+        },
+        {
+          "number": 389,
+          "title": "Crafting consolidation: the Workshop lives on Home (owner ruling 2026-11-04)"
+        },
+        {
+          "number": 390,
+          "title": "feat(strip+announce): pulse-on-increase + Sold / bench-ready announcement chips (eye-leading pass)"
+        },
+        {
+          "number": 392,
+          "title": "Auto-salvage: profile-owned rule, Chef claim-settlement enforcement (migration 0080)"
         }
       ]
     },

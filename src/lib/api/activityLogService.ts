@@ -114,6 +114,8 @@ export interface ActivityRecord {
     direction: 'bought' | 'sold';
     priceCredits: number;
     feeCredits: number | null;
+    /** Sold records only: the credits the seller was actually credited (price − fee + any Silver Tongue uplift), proven by the sale's accept rows. Null when unproven. */
+    proceedsCredits?: number | null;
     counterpartyId: string | null;
     counterpartyName: string | null;
     listingId: string | null;
@@ -126,7 +128,7 @@ export interface ActivityRecord {
     capReached: boolean | null;
     ticks: number | null;
   };
-  salvage?: { scrapAward: number; coresAward: number };
+  salvage?: { scrapAward: number; coresAward: number; auto?: boolean };
   dispatch?: { family: string; payoutCredits: number; payoutFraction: number | null };
   endless?: { status: string; depthReached: number };
   system?: { subtype: string };

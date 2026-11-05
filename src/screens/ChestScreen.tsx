@@ -13,7 +13,7 @@ import { canUseRewardedCacheAds, showRewardedCacheAd } from '@/lib/ads/rewardedC
 import { CACHE_LANE_RULE } from '@/content/cacheLane';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/serverItemAdapter';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
-import { SHIELD_BEHAVIORS, shieldBehaviorOf } from '@/lib/combat/shieldBehaviors';
+import { ItemStatDeck } from '@/components/gear/itemStatDeck';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { getPixelSprite, pixelBackgroundForArea } from '@/lib/pixel/manifest';
@@ -101,40 +101,15 @@ const GearItemCard: React.FC<{
         )}
       </div>
 
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-text-muted mb-3">
-        {itemIsWeapon && (
-          <>
-            <span>Dmg {(item as Weapon).baseDamage}</span>
-            <span>Spd {((item as Weapon).attackSpeed ?? 0).toFixed(2)}</span>
-            <span>Crit {((item as Weapon).critChance * 100).toFixed(1)}%</span>
-            <span>Boss {((item as Weapon).bossDamageMod * 100).toFixed(0)}%</span>
-          </>
-        )}
-        {isShield(item) && (
-          <>
-            <span>HP {(item as Shield).hp}</span>
-            <span>Recharge {(item as Shield).rechargeRate}/s</span>
-            <span>Mitigation {((item as Shield).mitigation * 100).toFixed(0)}%</span>
-            {shieldBehaviorOf(item as Shield) !== 'standard' && (
-              <span>Behavior {SHIELD_BEHAVIORS[shieldBehaviorOf(item as Shield)].name}</span>
-            )}
-          </>
-        )}
-        {isClassMod(item) && (
-          <span>Tree: {(item as ClassMod).treeBonus}</span>
-        )}
-        {isOrdnance(item) && (
-          <>
-            <span>Dmg {(item as Ordnance).damage}</span>
-            <span>Effect: {(item as Ordnance).effect}</span>
-          </>
-        )}
-        {isRelic(item) && (
-          <span>{(item as Relic).affixes.length} affix{(item as Relic).affixes.length !== 1 ? 'es' : ''}</span>
-        )}
-        {'affixes' in item && item.affixes && item.affixes.length > 0 && !isRelic(item) && (
-          <span>{item.affixes.length} affix{item.affixes.length !== 1 ? 'es' : ''}</span>
-        )}
+      {/* The FULL stat deck — the same shared rendering the
+          inspect sheet uses (itemStatDeck), so the reveal can never
+          disagree with inspect about an item's numbers: DPS, every
+          affix line by its display text, legendary effect name +
+          description, class-mod node boosts by name. (Owner,
+          2026-11-04: "show more stats" — the old hand-rolled line
+          printed four weapon numbers and bare affix counts.) */}
+      <div className="mb-3">
+        <ItemStatDeck item={item} />
       </div>
 
       <div className="flex items-center gap-2">
@@ -176,7 +151,9 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   const [opening, setOpening] = useState(false);
   const [revealed, setRevealed] = useState<GearItem[] | null>(null);
   // P3 loot moment: the cache's contents celebrate first (rarity
-  // ladder + legendary treatment), then the item cards take over.
+  // ladder + legendary treatment) on the reveal page's stage; when
+  // the moment completes, the item cards appear BELOW the stage on
+  // the same page (one page, no phase swap — owner, 2026-11-04).
   // The item was already granted by the server op before `revealed`
   // was set.
   const [momentDone, setMomentDone] = useState(false);
@@ -464,79 +441,79 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4"
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/90"
           >
-            {!momentDone ? (
-              <>
-                {/* P3 loot moment over the pixel zone backdrop — the
-                    cache's actual drop, celebrated before the cards. */}
-                {zoneBg && (
-                  <img src={zoneBg.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover opacity-55" style={{ imageRendering: 'pixelated' }} />
-                )}
-                <div className="absolute left-0 right-0 top-8 z-50 text-center">
-                  <div className="text-xl font-black text-amber">CACHE DECRYPTED</div>
-                </div>
-                <LootMoment
-                  items={revealed}
-                  surface="stage"
-                  reduced={reducedMotion}
-                  anchorXPct={50}
-                  groundYPct={74}
-                  propCache
-                  onDone={() => setMomentDone(true)}
-                  testId="cache-loot-moment"
-                />
-              </>
-            ) : (
-              <>
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', delay: 0.1 }}
-              className="text-amber mb-4"
-            >
-              <PxIcon name="star" size={40} className="text-amber" />
-            </motion.div>
-            <div className="text-xl font-black text-amber mb-4">CACHE DECRYPTED</div>
-            <div className="w-full max-w-[480px] space-y-3 max-h-[55vh] overflow-y-auto">
-              {visibleItems.map((item, i) => (
-                <GearItemCard
-                  key={item.id}
-                  item={item}
-                  action={itemActions[item.id] ?? 'none'}
-                  onEquip={() => void handleEquip(item)}
-                  onScrap={() => handleScrap(item, i)}
-                  onLockToggle={() => handleLockToggle(item, i)}
-                />
-              ))}
-              {visibleItems.length === 0 && (
-                <div className="text-text-muted text-sm text-center py-8">
-                  All items collected.
-                </div>
+            {/* ONE reveal page (owner, 2026-11-04): the loot moment
+                plays on the stage at the top — its composition,
+                backdrop, header and choreography are UNTOUCHED — and
+                when it completes, the stat deck + actions render
+                BELOW it on this same page instead of the overlay
+                swapping to a separate card phase (the old swap read
+                as a second pop-up arriving too fast). The page
+                scrolls to fit both; the stage keeps its natural
+                full-viewport height at the top. */}
+            <div data-testid="cache-reveal-stage" className="relative h-dvh w-full">
+              {/* P3 loot moment over the pixel zone backdrop — the
+                  cache's actual drop, celebrated before the cards. */}
+              {zoneBg && (
+                <img src={zoneBg.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover opacity-55" style={{ imageRendering: 'pixelated' }} />
               )}
+              <div className="absolute left-0 right-0 top-8 z-50 text-center">
+                <div className="text-xl font-black text-amber">CACHE DECRYPTED</div>
+              </div>
+              <LootMoment
+                items={revealed}
+                surface="stage"
+                reduced={reducedMotion}
+                anchorXPct={50}
+                groundYPct={74}
+                propCache
+                onDone={() => setMomentDone(true)}
+                testId="cache-loot-moment"
+              />
             </div>
-            <div className="flex items-center gap-3 mt-4">
-              {canOpenAnother && (
-                <button
-                  onClick={() => {
-                    setRevealed(null);
-                    setItemActions({});
-                    setEquipUndo(null);
-                    handleOpenKey();
-                  }}
-                  className="px-5 py-2 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm active:scale-95 transition-transform"
-                >
-                  Open Another
-                </button>
-              )}
-              <button
-                onClick={close}
-                className="px-6 py-2 rounded-xl bg-amber text-bg font-bold text-sm active:scale-95 transition-transform"
-              >
-                Collect
-              </button>
-            </div>
-              </>
+            {momentDone && (
+              <div data-testid="cache-reveal-deck" className="relative z-10 mx-auto w-full max-w-[480px] px-4 pb-10 pt-2">
+                <div className="space-y-3">
+                  {visibleItems.map((item, i) => (
+                    <GearItemCard
+                      key={item.id}
+                      item={item}
+                      action={itemActions[item.id] ?? 'none'}
+                      onEquip={() => void handleEquip(item)}
+                      onScrap={() => handleScrap(item, i)}
+                      onLockToggle={() => handleLockToggle(item, i)}
+                    />
+                  ))}
+                  {visibleItems.length === 0 && (
+                    <div className="text-text-muted text-sm text-center py-8">
+                      All items collected.
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  {canOpenAnother && (
+                    <button
+                      onClick={() => {
+                        setRevealed(null);
+                        setItemActions({});
+                        setEquipUndo(null);
+                        if (freeAvailable) handleOpenFree();
+                        else handleOpenKey();
+                      }}
+                      className="px-5 py-2 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm active:scale-95 transition-transform"
+                    >
+                      Open Another
+                    </button>
+                  )}
+                  <button
+                    onClick={close}
+                    className="px-6 py-2 rounded-xl bg-amber text-bg font-bold text-sm active:scale-95 transition-transform"
+                  >
+                    Collect
+                  </button>
+                </div>
+              </div>
             )}
           </motion.div>
         )}

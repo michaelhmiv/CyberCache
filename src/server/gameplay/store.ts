@@ -168,6 +168,8 @@ export interface LoginStreakFacts {
     credits_awarded: number;
     fragments_awarded: number;
     cache_keys_awarded: number;
+    /** True once the claim op paid this row (0079's paid_at). */
+    paid: boolean;
   } | null;
 }
 
@@ -679,12 +681,22 @@ export interface ChefGameplayStore {
   getLoginStreakFacts(playerId: string): Promise<LoginStreakFacts | null>;
   /**
    * Record today's login-streak check-in (cc_record_login_streak_day,
-   * 0036): the first authenticated check-in of a UTC day grants the
-   * ladder reward for the new streak position; a replay the same
-   * day returns the stored claim (already_claimed) and grants
-   * nothing. Exactly-once is the claims table's (player, day) key.
+   * 0036 as restated by 0079): the first authenticated check-in of
+   * a UTC day records the day and stamps the ladder reward for the
+   * new streak position on the claim row UNPAID (claimable); a
+   * replay the same day returns the stored row. Nothing is
+   * credited here — payment is claimLoginStreakDay's.
    */
   recordLoginStreakDay(playerId: string): Promise<Json>;
+  /**
+   * Pay today's held login-streak reward (cc_claim_login_streak_day,
+   * 0079): credits the recorded row's stored amounts exactly once —
+   * the row's paid_at stamp is the anchor, a replay returns
+   * already_claimed and pays nothing. Only today's row can be
+   * paid, so an unpaid row from a previous day is expired. Throws
+   * 'No streak reward recorded today' when no row exists.
+   */
+  claimLoginStreakDay(playerId: string): Promise<Json>;
   /**
    * Contracts-board facts (0042): both current sets with evaluated
    * progress. Facts only — issuance happens through issueContracts.
@@ -917,6 +929,20 @@ export interface ChefGameplayStore {
    */
   settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
+  /**
+   * Auto-salvage settlement pass (migration 0080,
+   * cc_auto_salvage_claim_items): recycle the just-stored claim
+   * items that match the profile's Auto-Salvage Rule. Called ONLY
+   * by the roaming claim and offline settlement routes, with the
+   * ids of the items that claim stored — boss loot, cache contents,
+   * market deliveries and crafted items never reach it. Each
+   * eligible item is recycled through cc_recycle_item itself
+   * (derived nonce 'autosalvage:<source>:<claim nonce>:<item id>'),
+   * so the yield is the manual salvage path's own. Returns the
+   * aggregate summary (counts, scrap/cores/materials, per-item
+   * list, post-pass profile snapshot).
+   */
+  applyAutoSalvage(playerId: string, nonce: string, source: 'roam' | 'offline', itemIds: string[]): Promise<Json>;
   /**
    * Record collection discoveries proven by a settled server-side
    * fact (cc_record_discoveries, 0026). Entries are derived by the
@@ -1180,7 +1206,8 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     if (!state) return null;
     const claim = await this.one(
       `select claim_day::text as day, streak_length, cycle_day, tier,
-              credits_awarded, fragments_awarded, cache_keys_awarded
+              credits_awarded, fragments_awarded, cache_keys_awarded,
+              (paid_at is not null) as paid
          from public.login_streak_claims
         where player_id = $1 and claim_day = (now() at time zone 'UTC')::date`,
       [playerId],
@@ -1192,6 +1219,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         credits_awarded: num(row.credits_awarded),
         fragments_awarded: num(row.fragments_awarded),
         cache_keys_awarded: num(row.cache_keys_awarded),
+        paid: row.paid === true,
       }),
     );
     return { ...state, today_claim: claim ?? null };
@@ -1199,6 +1227,10 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   recordLoginStreakDay(playerId: string): Promise<Json> {
     return this.callJson('select public.cc_record_login_streak_day($1) as result', [playerId]);
+  }
+
+  claimLoginStreakDay(playerId: string): Promise<Json> {
+    return this.callJson('select public.cc_claim_login_streak_day($1) as result', [playerId]);
   }
 
   issueContracts(playerId: string, periodKind: 'daily' | 'weekly'): Promise<Json> {
@@ -2192,5 +2224,14 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json> {
     return this.callJson('select public.cc_recycle_item($1, $2, $3) as result', [playerId, nonce, itemId]);
+  }
+
+  applyAutoSalvage(playerId: string, nonce: string, source: 'roam' | 'offline', itemIds: string[]): Promise<Json> {
+    return this.callJson('select public.cc_auto_salvage_claim_items($1, $2, $3, $4) as result', [
+      playerId,
+      nonce,
+      source,
+      itemIds,
+    ]);
   }
 }

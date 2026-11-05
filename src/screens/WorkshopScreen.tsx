@@ -3,7 +3,7 @@ import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X } from 'lucide-react';
-import { useActivityStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
+import { useActivityStore, useAnnouncementsStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
 import { TintPanel } from '@/components/workshop/TintPanel';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
@@ -59,6 +59,7 @@ import {
   type WorkshopPlayerContext,
 } from '@/lib/workshop/readiness';
 import { GateLines, RecipeInspectSheet, SourceLine } from '@/components/workshop/RecipeDetail';
+import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
 import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
@@ -249,9 +250,31 @@ const OverclockBar: React.FC = () => {
   );
 };
 
-export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }> = ({ onNavigate }) => {
+export const WorkshopScreen: React.FC<{
+  onNavigate?: (screen: string) => void;
+  /**
+   * Crafting consolidation (owner ruling 2026-11-04): the bench's
+   * canonical home is Home's Craft workspace, where this screen
+   * renders EMBEDDED — no page chrome, no animated bench scene
+   * (one-stage law: the main stage carries the scene), no Workshop
+   * Activity card (the workspace's truth banner carries the paused
+   * state + remedy at the top), and the Bench Jobs list covers the
+   * craft lane only (service-lane jobs render in the Repairs &
+   * Service section). Standalone rendering (screen tests) keeps the
+   * full page.
+   */
+  embedded?: boolean;
+}> = ({ onNavigate, embedded = false }) => {
   const player = usePlayerStore();
   const workshop = useWorkshopStore();
+  // Bench-ready suppression (eye-leading pass): while the bench
+  // itself is on screen, job completions already read here — the
+  // announcements store must not ALSO raise the bench-ready chip.
+  const setBenchInView = useAnnouncementsStore((s) => s.setBenchInView);
+  useEffect(() => {
+    setBenchInView(true);
+    return () => setBenchInView(false);
+  }, [setBenchInView]);
   const activity = useActivityStore();
   const loadout = useLoadoutStore();
   // Real-item invariant: the bench hunter carries the player's actual
@@ -324,6 +347,14 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const activeJobs = useMemo(
     () => jobs.filter((j) => j.state === 'running' || j.state === 'queued' || j.state === 'paused'),
     [jobs],
+  );
+  // Embedded (Home Craft workspace): the Bench Jobs list and the
+  // bench strip speak for the CRAFT lane — service-lane jobs have
+  // their own section below the bench. Readiness/capacity math
+  // keeps reading activeJobs whole (service jobs share the bench).
+  const benchJobs = useMemo(
+    () => (embedded ? activeJobs.filter((j) => !isServiceLaneJob(j)) : activeJobs),
+    [activeJobs, embedded],
   );
   const masteries = useMemo(() => server?.masteries ?? {}, [server]);
   const isCrafting = activity.current.kind === 'crafting';
@@ -454,7 +485,9 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   const stageBench = benchDef(1);
   const runningJob = activeJobs.find((j) => j.state === 'running');
   const runningBenchJobs = activeJobs.filter((j) => j.state === 'running' && j.bench === 1);
-  const benchJobCount = activeJobs.filter((j) => j.bench === 1).length;
+  const benchJobCount = benchJobs.filter((j) => j.bench === 1).length;
+  const stripRunningJob = benchJobs.find((j) => j.state === 'running');
+  const stripRunningBenchJobs = benchJobs.filter((j) => j.state === 'running' && j.bench === 1);
 
   // Bench time (slice 10, brief §8): the bank and the envelope from
   // the server view; the content constants stand in until the first
@@ -513,17 +546,21 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
   }, [activeCategories, toggleFacet]);
 
   return (
-    <div className="bl-page p-4 space-y-4 pb-20">
-      <div className="flex items-center justify-between">
-        <div className="bl-title text-3xl leading-none text-text-primary">Workshop</div>
-        <div className="flex items-center gap-1.5 text-[11px] text-text-muted bg-surface-raised border-2 border-border rounded-full px-2.5 py-1">
-          <span className={`w-2 h-2 rounded-full ${activeJobs.length > 0 ? 'bg-amber' : 'bg-green'}`} />
-          <span className="ml-1">The bench — {activeJobs.length > 0 ? 'working' : 'ready'}</span>
-        </div>
-      </div>
-      <div className="text-xs text-text-muted">
-        Turn raw drops into kits, ammo and real gear. <span className="font-bold text-text-secondary">Crafted items roll a quality %</span> — over 100% beats the Vendor’s flat 100. Jobs advance only while Crafting is your action.
-      </div>
+    <div className={embedded ? 'space-y-4' : 'bl-page p-4 space-y-4 pb-20'}>
+      {!embedded && (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="bl-title text-3xl leading-none text-text-primary">Workshop</div>
+            <div className="flex items-center gap-1.5 text-[11px] text-text-muted bg-surface-raised border-2 border-border rounded-full px-2.5 py-1">
+              <span className={`w-2 h-2 rounded-full ${activeJobs.length > 0 ? 'bg-amber' : 'bg-green'}`} />
+              <span className="ml-1">The bench — {activeJobs.length > 0 ? 'working' : 'ready'}</span>
+            </div>
+          </div>
+          <div className="text-xs text-text-muted">
+            Turn raw drops into kits, ammo and real gear. <span className="font-bold text-text-secondary">Crafted items roll a quality %</span> — over 100% beats the Vendor’s flat 100. Jobs advance only while Crafting is your action.
+          </div>
+        </>
+      )}
 
       {/* The first controls (Direction A): what can I make, right
           now — the craftable filter, the whole catalog, and search
@@ -621,14 +658,16 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
       <div className="space-y-1">
         <div className="border border-border bg-surface px-2 py-1.5">
           <div className="flex items-center gap-1.5 text-[11px] font-black text-text-primary">
-            <span className={`h-2 w-2 shrink-0 rounded-full ${activeJobs.length > 0 ? 'bg-amber' : 'bg-green'}`} />
+            <span className={`h-2 w-2 shrink-0 rounded-full ${benchJobs.length > 0 ? 'bg-amber' : 'bg-green'}`} />
             The Bench
           </div>
           <div className="mt-0.5 text-[11px] leading-snug text-text-muted">
-            {activeJobs.length > 0
-              ? runningBenchJobs.length > 1
-                ? `Working · ${runningBenchJobs.length} jobs running on the bench`
-                : `Working · ${runningJob?.name ?? activeJobs[0]?.name ?? 'job running'}`
+            {benchJobs.length > 0
+              ? stripRunningBenchJobs.length > 1
+                ? `Working · ${stripRunningBenchJobs.length} jobs running on the bench`
+                : stripRunningJob
+                  ? `Working · ${stripRunningJob.name}`
+                  : `Paused · ${benchJobs[0]?.name ?? 'job'} — progress waits on Crafting`
               : 'Idle · ready'}
           </div>
         </div>
@@ -780,7 +819,11 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
 
       {/* The bench stage (§2.9): the bench's station, the hunter at
           work while crafting is active; paused jobs sit idle-dark
-          under a Paused pennant. */}
+          under a Paused pennant. Standalone only — embedded in
+          Home's Craft workspace the one-stage law gives the scene
+          to the main stage, and the paused truth rides the
+          workspace's banner + the job cards' state labels. */}
+      {!embedded && (
       <div className="relative overflow-hidden rounded-lg border-2 border-border">
         <CraftingBenchScene benchSpriteId={stageBench.spriteId} unarmed={!hunterWeapon} />
         <div className="absolute left-2 top-2 flex gap-1.5">
@@ -800,11 +843,19 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
           </div>
         )}
       </div>
+      )}
 
       {/* Overclock (0030): the Fixer signature's charge track lives
           directly under the bench stage it accelerates. */}
       <OverclockBar />
 
+      {/* The Workshop Activity card is the standalone page's paused
+          truth + remedy. Embedded, the Craft workspace's banner at
+          the top carries both — this card would only re-narrate
+          them (no-redundant-state law) — but a workshop error
+          (a refused enqueue/cancel) still prints in place. */}
+      {embedded && workshop.error && <div className="text-[11px] text-red">{workshop.error}</div>}
+      {!embedded && (
       <MobileCard className="space-y-1 border-amber/30 bg-amber/5">
         <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber">
           <PxIcon name="cog" size={13} /> Workshop Activity
@@ -827,6 +878,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         {activityError && <div className="text-[11px] text-red">{activityError}</div>}
         {workshop.error && <div className="text-[11px] text-red">{workshop.error}</div>}
       </MobileCard>
+      )}
 
       {server && server.recentCompletions.length > 0 && (
         <div className="space-y-2">
@@ -858,7 +910,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
         </div>
       )}
 
-      {activeJobs.length > 0 && (
+      {benchJobs.length > 0 && (
         <div className="space-y-2">
           <div className="text-xs font-bold text-text-muted uppercase">
             Bench Jobs
@@ -869,7 +921,7 @@ export const WorkshopScreen: React.FC<{ onNavigate?: (screen: string) => void }>
               </span>
             ) : null}
           </div>
-          {activeJobs.map((job) => (
+          {benchJobs.map((job) => (
             <JobCard
               key={job.id}
               job={job}

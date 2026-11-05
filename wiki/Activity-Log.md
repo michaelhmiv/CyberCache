@@ -11,9 +11,10 @@ The Activity Log is your hunter's whole record — every drop, trade, craft, and
 - **[[Bosses|Boss fights]]** — outcome, the win chance going in, credits won or lost, and the victory loot
 - **[[Caches]]** — the item, the outcome, and the draw exactly as rolled
 - **[[Crafting|Crafts]]** — recipe, units, bench, XP, and what came off the bench
-- **[[The Market|Market trades]]** — price, fee, and who was on the other side
+- **[[The Market|Market trades]]** — price, fee, and who was on the other side; for your own sales, the exact amount you were credited (price minus fee, plus any proceeds bonus) — the figure the Sold announcement on Home shows
 - **Earnings claims** — credits, scrap, XP, cache keys, materials, and essences, with the amounts up front
 - **[[Dispatch]] settlements, [[Endless Mode|Endless]] runs, salvage payouts, and system events** like resurrections
+- **Auto-salvages** — when your [[Gear|Auto-Salvage Rules]] convert a fresh drop at settlement, the record says so: it is labeled an auto-salvage, its sheet names the rule as how it happened, and one from an offline settlement sits in that settlement's while-away stretch like everything else the settler produced
 
 ## Receipts and odds
 

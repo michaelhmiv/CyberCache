@@ -7,6 +7,7 @@ import { verifiedOps } from '@/lib/api/verifiedOps';
 import { resetRuntimeStoresToInitialState, saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_LIMITER_OPTIONS, OFFLINE_CAP_MILESTONES, earnedOfflineCapHours, effectiveOfflineCapHours, nextOfflineCapMilestone } from '@/content/offlineCap';
 import { setOfflineCapLimiter } from '@/lib/api/offlineCapService';
+import { getAutoSalvageRule, setAutoSalvageRule, type AutoSalvageRule } from '@/lib/api/autoSalvageService';
 import { HUNTER_HEAD_VARIANTS, isHunterHeadVariantId, type HunterHeadVariantId } from '@/lib/pixel/headParts';
 import { getResearchState, getStandingState } from '@/lib/chef/chefClient';
 import { STANDING_COSMETICS } from '@/content/manufacturerStanding';
@@ -112,6 +113,67 @@ export const SettingsScreen: React.FC = () => {
 
   const salvageOptions = ['Common', 'Uncommon', 'Rare', 'Epic'];
   const qualityOptions = [0, 20, 40, 60, 80];
+
+  // Auto-Salvage Rules (migration 0080): the rule is PROFILE-owned
+  // and enforced by the Chef at claim settlement — the idle store
+  // fields below are display state only. On mount the card re-reads
+  // the authoritative rule from the profile and mirrors it into the
+  // display store; every change writes through to the profile
+  // first-class (validation reports as data, like the limiter), and
+  // a failed save re-reads so the card never shows a rule the
+  // server does not hold.
+  const [salvageDraft, setSalvageDraft] = useState<AutoSalvageRule | undefined>(undefined);
+  const [salvageSaving, setSalvageSaving] = useState(false);
+  const [salvageError, setSalvageError] = useState<string | null>(null);
+  const salvageRule: AutoSalvageRule = salvageDraft ?? {
+    enabled: true,
+    maxRarity: idle.autoSalvageRarity,
+    maxQuality: idle.autoSalvageQuality,
+    toMaterials: idle.autoSalvageToMaterials,
+  };
+  const mirrorSalvageToDisplay = (rule: AutoSalvageRule) => {
+    idle.setAutoSalvage(rule.maxRarity, rule.maxQuality);
+    idle.setAutoSalvageToMaterials(rule.toMaterials);
+  };
+  useEffect(() => {
+    let cancelled = false;
+    getAutoSalvageRule()
+      .then((rule) => {
+        if (cancelled || !rule) return;
+        setSalvageDraft(rule);
+        mirrorSalvageToDisplay(rule);
+      })
+      .catch(() => {
+        // Chef unreachable: the display values stand; settlement is
+        // server-derived from the profile either way.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const handleSalvage = async (next: AutoSalvageRule) => {
+    if (salvageSaving) return;
+    setSalvageSaving(true);
+    setSalvageError(null);
+    setSalvageDraft(next);
+    mirrorSalvageToDisplay(next);
+    const result = await setAutoSalvageRule(next);
+    setSalvageSaving(false);
+    if (!result.ok) {
+      setSalvageError(result.error ?? 'Could not save the Auto-Salvage Rules.');
+      const authoritative = await getAutoSalvageRule();
+      if (authoritative) {
+        setSalvageDraft(authoritative);
+        mirrorSalvageToDisplay(authoritative);
+      }
+      return;
+    }
+    if (result.rule) {
+      setSalvageDraft(result.rule);
+      mirrorSalvageToDisplay(result.rule);
+    }
+  };
 
   const handleReset = async () => {
     if (!resetConfirmed) {
@@ -244,13 +306,29 @@ export const SettingsScreen: React.FC = () => {
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Auto-Salvage Rules</div>
         </div>
         <div className="space-y-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Auto-Salvage</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {([true, false] as const).map((on) => (
+              <button
+                key={String(on)}
+                onClick={() => void handleSalvage({ ...salvageRule, enabled: on })}
+                disabled={salvageSaving}
+                className={`py-1.5 text-[10px] font-black ${salvageRule.enabled === on ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+              >
+                {on ? 'On' : 'Off'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-2">
           <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Max Rarity to Auto-Salvage</div>
           <div className="grid grid-cols-4 gap-1.5">
             {salvageOptions.map((r) => (
               <button
                 key={r}
-                onClick={() => idle.setAutoSalvage(r, idle.autoSalvageQuality)}
-                className={`py-1.5 text-[10px] font-black ${idle.autoSalvageRarity === r ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+                onClick={() => void handleSalvage({ ...salvageRule, maxRarity: r })}
+                disabled={salvageSaving}
+                className={`py-1.5 text-[10px] font-black ${salvageRule.maxRarity === r ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
               >
                 {r}
               </button>
@@ -263,13 +341,40 @@ export const SettingsScreen: React.FC = () => {
             {qualityOptions.map((q) => (
               <button
                 key={q}
-                onClick={() => idle.setAutoSalvage(idle.autoSalvageRarity, q)}
-                className={`py-1.5 text-[10px] font-black ${idle.autoSalvageQuality === q ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+                onClick={() => void handleSalvage({ ...salvageRule, maxQuality: q })}
+                disabled={salvageSaving}
+                className={`py-1.5 text-[10px] font-black ${salvageRule.maxQuality === q ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
               >
                 {q}
               </button>
             ))}
           </div>
+        </div>
+        <div className="space-y-2">
+          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Salvage Yield</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => void handleSalvage({ ...salvageRule, toMaterials: false })}
+              disabled={salvageSaving}
+              className={`py-1.5 text-[10px] font-black ${!salvageRule.toMaterials ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+            >
+              Scrap
+            </button>
+            <button
+              onClick={() => void handleSalvage({ ...salvageRule, toMaterials: true })}
+              disabled={salvageSaving}
+              className={`py-1.5 text-[10px] font-black ${salvageRule.toMaterials ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+            >
+              Materials
+            </button>
+          </div>
+          <div className="text-[10px] text-text-muted">
+            Materials breaks each salvaged item down into its kind&apos;s crafting material instead of scrap.
+          </div>
+        </div>
+        {salvageError && <div className="text-[10px] font-bold text-red-400">{salvageError}</div>}
+        <div className="text-[10px] text-text-muted">
+          Applied as roaming and offline drops land. Boss loot, cache contents, market goods, and crafted items are never auto-salvaged, and gear already in your bag is never swept.
         </div>
       </MobileCard>
 

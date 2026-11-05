@@ -21,11 +21,13 @@ One earning rule keeps an open world honest: roaming pays its per-tick earnings 
 
 While you are watching the stage in the foreground, the screen **syncs with the server on the game's 3-second tick**, so settled results show up as each tick lands; nothing syncs while the app is hidden. The moment you come back, the sync restarts immediately — a brief app switch (under 15 seconds) picks the action back up mid-stride, and the gains from those few ticks fold quietly into your feed record instead of bursting in as catch-up pop-ups. A longer absence settles on your return through the **While You Were Away** recap (see [[Progression]]). The feed shows the last few facts; its foot carries **See full log**, the door to the [[Activity Log]] — the whole record, kept.
 
+Both settlements — the foreground claim and the while-away one — run your **Auto-Salvage Rules** over the drops they just stored (see [[Gear]]): a drop under your rarity and roll-quality caps is salvaged as it lands, announced in the feed and the recap rather than added to your bag.
+
 Roaming is also where the open world can kill you — death and resurrection are covered under [[Bosses]]. Pacing, XP rates, and offline earnings (including the 24-hour absolute offline cap) are covered in [[Progression]]. Every area, pictured in its own painting with its signature loot and named elite: [[Reference-Areas]].
 
 ## Crafting
 
-Crafting turns materials into gear frames, consumables, refining output, and vehicle supplies through timed jobs at your workshop benches — and it only progresses **while crafting is your active action**. A job left mid-progress waits for you; it does not finish in the background while you roam.
+Crafting turns materials into gear frames, consumables, refining output, and vehicle supplies through timed jobs at the bench — the Workshop workspace on Home, behind the mode rail's **Craft** stop — and it only progresses **while crafting is your active action**. A job left mid-progress waits for you; it does not finish in the background while you roam. The service lane (**Workshop Service**) is the bench's other occupation: it works one repair or shield-tech job at a time, aimed at that job.
 
 Crafting pays player XP at **0.775× roaming's rate** — pegged to what an hour of roaming at your strongest area would pay, priced per completed unit. That is deliberately a little below roaming: a dedicated crafter trades a slice of XP rate for the value of what they make, and the good consumables in this game come from crafters, not shops.
 

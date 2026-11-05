@@ -18,11 +18,16 @@
  *    day restarts at 1; the longest streak is kept. Cycle position
  *    derives purely from the streak length (day 8 = tier 2 day 1;
  *    day 36+ stays at the tier-5 ceiling).
- *  - EXACTLY ONCE: the (player, day) claim row is the idempotency
- *    anchor — a replayed check-in the same UTC day returns the
- *    stored claim and grants nothing again.
+ *  - EXACTLY ONCE, TWICE OVER (0079, the TRUE CLAIM): the
+ *    (player, day) claim row is the RECORD anchor — a replayed
+ *    check-in returns the stored row and records nothing again,
+ *    and the check-in credits NOTHING. The row's paid stamp is
+ *    the PAYMENT anchor — a replayed claim returns the stored
+ *    claim and pays nothing again. Only today's row can be
+ *    claimed, so an unclaimed reward expires at the rollover
+ *    while the recorded day still counts toward the streak.
  *  - SERVER-ANCHORED: the day comes from the server's clock; the
- *    route is a body-less GET — identity from the JWT only. Guests
+ *    routes are body-less — identity from the JWT only. Guests
  *    earn identically (grants key on the profile row).
  *  - LEVERS: streakCreditScalar is an economy-config key, default
  *    pinned to the content default, hard-clamped [0, 3] in the
@@ -32,12 +37,15 @@
  *    rows into credits_minted_login_streak (inside the minted
  *    total), cache_fragments_from_login_streak, and
  *    cache_keys_from_login_streak — distinct from leaderboard
- *    keys and ad-lane issuance.
+ *    keys and ad-lane issuance. Since 0079 the ledger row is
+ *    written at CLAIM time, so the meters move at claim, not at
+ *    check-in.
  *
  * The SQL twin is exercised against real Postgres in the slice
  * harness (0036: full chain, grant walk across days, replay,
- * gap reset, tier ceiling, lever rows, metrics fold, seed parity);
- * its shapes are pinned textually below.
+ * gap reset, tier ceiling, lever rows, metrics fold, seed parity;
+ * 0079: hold/claim/expiry walk); its shapes are pinned textually
+ * below.
  */
 import express from 'express';
 import type { AddressInfo } from 'node:net';
@@ -240,6 +248,7 @@ describe('login streak state view', () => {
         todayClaim: {
           day: TODAY, streakLength: 3, cycleDay: 3, tier: 1,
           creditsAwarded: 200, fragmentsAwarded: 1, cacheKeysAwarded: 0,
+          paid: true,
         },
       }),
       LEVERS,
@@ -247,12 +256,37 @@ describe('login streak state view', () => {
     );
     expect(view.currentStreak).toBe(3);
     expect(view.todayState).toBe('earned');
+    expect(view.todayClaimable).toBe(false);
     expect(view.todayReward?.credits).toBe(200);
     expect(view.ladder.map((d) => d.state)).toEqual([
       'earned', 'earned', 'today', 'upcoming', 'upcoming', 'upcoming', 'upcoming',
     ]);
     expect(view.nextStreakLength).toBe(4);
     expect(view.nextReward).toEqual(loginStreakReward(4, 1));
+  });
+
+  it('recorded but UNPAID today (0079): the day is earned, the reward claimable and face-up', () => {
+    const view = loginStreakStateView(
+      facts({
+        currentStreak: 3,
+        longestStreak: 3,
+        lastClaimDay: TODAY,
+        todayClaim: {
+          day: TODAY, streakLength: 3, cycleDay: 3, tier: 1,
+          creditsAwarded: 200, fragmentsAwarded: 1, cacheKeysAwarded: 0,
+          paid: false,
+        },
+      }),
+      LEVERS,
+      TODAY,
+    );
+    expect(view.currentStreak).toBe(3);
+    expect(view.todayState).toBe('earned');
+    expect(view.todayClaimable).toBe(true);
+    expect(view.todayReward?.credits).toBe(200);
+    expect(view.ladder.map((d) => d.state)).toEqual([
+      'earned', 'earned', 'today', 'upcoming', 'upcoming', 'upcoming', 'upcoming',
+    ]);
   });
 
   it('alive but unclaimed at streak 6: today is the key day', () => {
@@ -292,6 +326,7 @@ describe('login streak state view', () => {
         todayClaim: {
           day: TODAY, streakLength: 8, cycleDay: 1, tier: 2,
           creditsAwarded: 150, fragmentsAwarded: 0, cacheKeysAwarded: 0,
+          paid: true,
         },
       }),
       LEVERS,
@@ -306,10 +341,11 @@ describe('login streak state view', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. The grant — in-memory gameplay store (the SQL twin's mirror)
+// 4. Record holds, claim pays — in-memory gameplay store (the SQL
+//    twin's mirror)
 // ---------------------------------------------------------------------------
 
-describe('login streak grants — in-memory gameplay store', () => {
+describe('login streak record + claim — in-memory gameplay store', () => {
   function makeStore(startIso: string, levers?: () => { streakCreditScalar?: number }) {
     let now = new Date(startIso);
     const store = new InMemoryChefGameplayStore(
@@ -322,37 +358,75 @@ describe('login streak grants — in-memory gameplay store', () => {
     return { store, setNow: (iso: string) => { now = new Date(iso); } };
   }
 
-  it('first check-in grants day 1; a same-day replay grants nothing again', async () => {
+  it('check-in records day 1 claimable and credits NOTHING; a same-day re-read changes nothing', async () => {
     const { store } = makeStore('2026-11-01T08:00:00.000Z');
     store.seedProfile({ id: A });
     const first = await store.recordLoginStreakDay(A) as Json;
     expect(first.already_claimed).toBe(false);
+    expect(first.claimable).toBe(true);
     expect(first.streak_length).toBe(1);
     expect(first.credits_awarded).toBe(100);
     expect(first.day).toBe('2026-11-01');
+    const profile = store.profiles.get(A);
+    expect(profile?.credits).toBe(0); // held, not paid
+    expect(profile?.cache_token_parts).toBe(0);
+    expect(profile?.cache_tokens).toBe(0);
     const replay = await store.recordLoginStreakDay(A) as Json;
     expect(replay.already_claimed).toBe(true);
+    expect(replay.claimable).toBe(true); // still waiting on the claim
     expect(replay.credits_awarded).toBe(100);
+    expect(store.profiles.get(A)?.credits).toBe(0);
     const facts = await store.getLoginStreakFacts(A);
     expect(facts?.current_streak).toBe(1);
     expect(facts?.today_claim?.credits_awarded).toBe(100);
-    const profile = store.profiles.get(A);
-    expect(profile?.credits).toBe(100); // paid exactly once
+    expect(facts?.today_claim?.paid).toBe(false);
   });
 
-  it('a 9-day walk: day 7 pays the key, day 8 opens tier 2, longest tracks', async () => {
+  it('claim pays exactly once; a replayed claim pays nothing and says so', async () => {
+    const { store } = makeStore('2026-11-01T08:00:00.000Z');
+    store.seedProfile({ id: A });
+    await store.recordLoginStreakDay(A);
+    const paid = await store.claimLoginStreakDay(A) as Json;
+    // The claim result is the meters' input: 0036's action type
+    // and payload shape, produced at claim time.
+    expect(paid.action_type).toBe('cc_login_streak_claim');
+    expect(paid.already_claimed).toBe(false);
+    expect(paid.claimable).toBe(false);
+    expect(paid.credits_awarded).toBe(100);
+    expect(store.profiles.get(A)?.credits).toBe(100);
+    const replay = await store.claimLoginStreakDay(A) as Json;
+    expect(replay.already_claimed).toBe(true);
+    expect(replay.claimable).toBe(false);
+    expect(store.profiles.get(A)?.credits).toBe(100); // not paid twice
+    const facts = await store.getLoginStreakFacts(A);
+    expect(facts?.today_claim?.paid).toBe(true);
+    // A check-in read after the claim reports the day paid.
+    const reread = await store.recordLoginStreakDay(A) as Json;
+    expect(reread.claimable).toBe(false);
+  });
+
+  it('claiming with nothing recorded today is refused', async () => {
+    const { store } = makeStore('2026-11-01T08:00:00.000Z');
+    store.seedProfile({ id: A });
+    await expect(store.claimLoginStreakDay(A)).rejects.toThrow('No streak reward recorded today');
+  });
+
+  it('a 9-day walk of record + claim: day 7 pays the key, day 8 opens tier 2, totals as 0036', async () => {
     const { store, setNow } = makeStore('2026-11-01T08:00:00.000Z');
     store.seedProfile({ id: A });
-    const grants: Json[] = [];
+    const records: Json[] = [];
+    const claims: Json[] = [];
     for (let day = 1; day <= 9; day += 1) {
       setNow(`2026-11-${String(day).padStart(2, '0')}T08:00:00.000Z`);
-      grants.push(await store.recordLoginStreakDay(A) as Json);
+      records.push(await store.recordLoginStreakDay(A) as Json);
+      claims.push(await store.claimLoginStreakDay(A) as Json);
     }
-    expect(grants.map((g) => g.streak_length)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-    expect(grants[6].cache_keys_awarded).toBe(1);
-    expect(grants[6].credits_awarded).toBe(500);
-    expect(grants[7].tier).toBe(2);
-    expect(grants[7].credits_awarded).toBe(150);
+    expect(records.map((g) => g.streak_length)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(claims.every((c) => c.already_claimed === false)).toBe(true);
+    expect(claims[6].cache_keys_awarded).toBe(1);
+    expect(claims[6].credits_awarded).toBe(500);
+    expect(claims[7].tier).toBe(2);
+    expect(claims[7].credits_awarded).toBe(150);
     const profile = store.profiles.get(A);
     // Tier-1 week (1,900 cr / 1 key) + tier-2 days 1–2 (150 + 225 cr).
     // Fragments are abolished (0082): the parts balance never moves.
@@ -363,10 +437,47 @@ describe('login streak grants — in-memory gameplay store', () => {
     expect(facts?.longest_streak).toBe(9);
   });
 
+  it('days recorded but never claimed pay nothing — the streak still grows', async () => {
+    const { store, setNow } = makeStore('2026-11-01T08:00:00.000Z');
+    store.seedProfile({ id: A });
+    for (let day = 1; day <= 3; day += 1) {
+      setNow(`2026-11-0${day}T08:00:00.000Z`);
+      await store.recordLoginStreakDay(A);
+    }
+    const profile = store.profiles.get(A);
+    expect(profile?.credits).toBe(0);
+    expect(profile?.cache_token_parts).toBe(0);
+    const facts = await store.getLoginStreakFacts(A);
+    expect(facts?.current_streak).toBe(3);
+    expect(facts?.today_claim?.paid).toBe(false);
+  });
+
+  it('expiry: an unclaimed day-1 reward can never be paid on day 2 — and day 2 still extends the streak', async () => {
+    const { store, setNow } = makeStore('2026-11-01T08:00:00.000Z');
+    store.seedProfile({ id: A });
+    await store.recordLoginStreakDay(A); // day 1 recorded, never claimed
+    setNow('2026-11-02T08:00:00.000Z');
+    // The claim only ever pays TODAY's row: day 1's reward expired
+    // at the rollover.
+    await expect(store.claimLoginStreakDay(A)).rejects.toThrow('No streak reward recorded today');
+    expect(store.profiles.get(A)?.credits).toBe(0);
+    // The recorded day 1 still counted: day 2 records as streak 2
+    // and claims its own reward — day 1's 100 is gone for good.
+    const day2 = await store.recordLoginStreakDay(A) as Json;
+    expect(day2.streak_length).toBe(2);
+    const paid = await store.claimLoginStreakDay(A) as Json;
+    expect(paid.credits_awarded).toBe(150);
+    expect(store.profiles.get(A)?.credits).toBe(150);
+    const facts = await store.getLoginStreakFacts(A);
+    expect(facts?.current_streak).toBe(2);
+    expect(facts?.longest_streak).toBe(2);
+  });
+
   it('a missed day restarts the streak at 1 but keeps the longest', async () => {
     const { store, setNow } = makeStore('2026-11-01T08:00:00.000Z');
     store.seedProfile({ id: A });
     await store.recordLoginStreakDay(A);
+    await store.claimLoginStreakDay(A);
     setNow('2026-11-02T08:00:00.000Z');
     await store.recordLoginStreakDay(A);
     setNow('2026-11-04T08:00:00.000Z'); // 11-03 missed
@@ -379,16 +490,30 @@ describe('login streak grants — in-memory gameplay store', () => {
     expect(facts?.longest_streak).toBe(2);
   });
 
-  it('lever scalars apply in the twin (credit scalar 2 doubles day 1)', async () => {
+  it('lever scalars apply at record time; the claim pays the stored amounts (scalar 2 doubles day 1)', async () => {
     const { store } = makeStore('2026-11-01T08:00:00.000Z', () => ({ streakCreditScalar: 2 }));
     store.seedProfile({ id: A });
-    const grant = await store.recordLoginStreakDay(A) as Json;
-    expect(grant.credits_awarded).toBe(200);
+    const recorded = await store.recordLoginStreakDay(A) as Json;
+    expect(recorded.credits_awarded).toBe(200);
+    const paid = await store.claimLoginStreakDay(A) as Json;
+    expect(paid.credits_awarded).toBe(200);
+    expect(store.profiles.get(A)?.credits).toBe(200);
   });
 
-  it('an unknown profile is refused', async () => {
+  it('guest parity: a guest profile records and claims on the same terms (no account-type gate)', async () => {
+    const { store } = makeStore('2026-11-01T08:00:00.000Z');
+    store.seedProfile({ id: A, account_type: 'guest' } as never);
+    const recorded = await store.recordLoginStreakDay(A) as Json;
+    expect(recorded.claimable).toBe(true);
+    const paid = await store.claimLoginStreakDay(A) as Json;
+    expect(paid.credits_awarded).toBe(100);
+    expect(store.profiles.get(A)?.credits).toBe(100);
+  });
+
+  it('an unknown profile is refused by both ops', async () => {
     const { store } = makeStore('2026-11-01T08:00:00.000Z');
     await expect(store.recordLoginStreakDay(A)).rejects.toThrow('Profile not found');
+    await expect(store.claimLoginStreakDay(A)).rejects.toThrow('Profile not found');
     expect(await store.getLoginStreakFacts(A)).toBeNull();
   });
 });
@@ -435,14 +560,28 @@ async function get(h: RouteHarness, path: string, token?: string) {
 }
 
 describe('login streak routes', () => {
+  async function post(
+    h: { base: string },
+    path: string,
+    token?: string,
+  ): Promise<{ status: number; json: Json }> {
+    const res = await fetch(`${h.base}${path}`, {
+      method: 'POST',
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    });
+    return { status: res.status, json: (await res.json()) as Json };
+  }
+
   it('requires auth and 404s without a profile', async () => {
     const store = new InMemoryChefGameplayStore(() => new Date('2026-11-01T08:00:00.000Z'));
     const h = await makeRouteServer(store);
     expect((await get(h, '/api/login-streak/me')).status).toBe(401);
     expect((await get(h, '/api/login-streak/me', h.tokenA)).status).toBe(404);
+    expect((await post(h, '/api/login-streak/claim')).status).toBe(401);
+    expect((await post(h, '/api/login-streak/claim', h.tokenA)).status).toBe(404);
   });
 
-  it('the first GET of the day grants and reports earned; the second is a replay', async () => {
+  it('the first GET records the day claimable and credits NOTHING; the second is a replay', async () => {
     const store = new InMemoryChefGameplayStore(() => new Date('2026-11-01T08:00:00.000Z'));
     store.seedProfile({ id: A });
     const h = await makeRouteServer(store);
@@ -451,18 +590,51 @@ describe('login streak routes', () => {
     expect(first.json.verified).toBe(true);
     const granted = first.json.granted as Json;
     expect(granted.alreadyClaimed).toBe(false);
+    expect(granted.claimable).toBe(true);
     expect(granted.creditsAwarded).toBe(100);
     const view = first.json.loginStreak as Json;
     expect(view.currentStreak).toBe(1);
     expect(view.todayState).toBe('earned');
-    expect((first.json.profile as Json).credits).toBe(100);
+    expect(view.todayClaimable).toBe(true);
+    expect((first.json.profile as Json).credits).toBe(0); // held, not paid
 
     const second = await get(h, '/api/login-streak/me', h.tokenA);
     expect((second.json.granted as Json).alreadyClaimed).toBe(true);
-    expect((second.json.profile as Json).credits).toBe(100); // not paid twice
+    expect((second.json.granted as Json).claimable).toBe(true);
+    expect((second.json.profile as Json).credits).toBe(0);
   });
 
-  it('identity comes from the JWT: player B starts their own streak', async () => {
+  it('POST /claim pays exactly once (second POST is an honest already-claimed), and credits land in the response profile', async () => {
+    const store = new InMemoryChefGameplayStore(() => new Date('2026-11-01T08:00:00.000Z'));
+    store.seedProfile({ id: A });
+    const h = await makeRouteServer(store);
+    await get(h, '/api/login-streak/me', h.tokenA);
+    const claim = await post(h, '/api/login-streak/claim', h.tokenA);
+    expect(claim.status).toBe(200);
+    expect(claim.json.verified).toBe(true);
+    const granted = claim.json.granted as Json;
+    expect(granted.alreadyClaimed).toBe(false);
+    expect(granted.claimable).toBe(false);
+    expect(granted.creditsAwarded).toBe(100);
+    expect((claim.json.loginStreak as Json).todayClaimable).toBe(false);
+    expect((claim.json.profile as Json).credits).toBe(100);
+
+    const replay = await post(h, '/api/login-streak/claim', h.tokenA);
+    expect(replay.status).toBe(200);
+    expect((replay.json.granted as Json).alreadyClaimed).toBe(true);
+    expect((replay.json.profile as Json).credits).toBe(100); // not paid twice
+    expect(store.profiles.get(A)?.credits).toBe(100);
+  });
+
+  it('POST /claim before any check-in is a 409 (nothing recorded today)', async () => {
+    const store = new InMemoryChefGameplayStore(() => new Date('2026-11-01T08:00:00.000Z'));
+    store.seedProfile({ id: A });
+    const h = await makeRouteServer(store);
+    expect((await post(h, '/api/login-streak/claim', h.tokenA)).status).toBe(409);
+    expect(store.profiles.get(A)?.credits).toBe(0);
+  });
+
+  it('identity comes from the JWT: player B records and claims their own streak', async () => {
     const store = new InMemoryChefGameplayStore(() => new Date('2026-11-01T08:00:00.000Z'));
     store.seedProfile({ id: A });
     store.seedProfile({ id: B });
@@ -471,8 +643,12 @@ describe('login streak routes', () => {
     await get(h, '/api/login-streak/me', h.tokenA);
     const bFirst = await get(h, '/api/login-streak/me', h.tokenB);
     expect((bFirst.json.granted as Json).alreadyClaimed).toBe(false);
+    expect((bFirst.json.granted as Json).claimable).toBe(true);
     expect((bFirst.json.loginStreak as Json).currentStreak).toBe(1);
-    expect(store.profiles.get(B)?.credits).toBe(100);
+    const bClaim = await post(h, '/api/login-streak/claim', h.tokenB);
+    expect((bClaim.json.granted as Json).alreadyClaimed).toBe(false);
+    expect(store.profiles.get(B)?.credits).toBe(100); // B paid
+    expect(store.profiles.get(A)?.credits).toBe(0); // A never claimed
   });
 });
 
@@ -569,5 +745,49 @@ describe('migration 0036 textual pins', () => {
     expect(sql).toContain("filter (where action_type = 'cc_login_streak_claim'), 0) as minted_login_streak");
     expect(sql).toContain('+ m.minted_login_streak');
     expect(sql).toContain('credits_minted_login_streak = excluded.credits_minted_login_streak');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. Migration 0079 — textual pins (the true claim's SQL shapes)
+// ---------------------------------------------------------------------------
+
+describe('migration 0079 textual pins', () => {
+  const sql = readFileSync(join(process.cwd(), 'db/migrations/0079_login_streak_true_claim.sql'), 'utf8');
+  const recordStart = sql.indexOf('create or replace function public.cc_record_login_streak_day');
+  const claimStart = sql.indexOf('create or replace function public.cc_claim_login_streak_day');
+  const recordFn = sql.slice(recordStart, claimStart);
+  const claimFn = sql.slice(claimStart);
+
+  it('adds paid_at and backfills every pre-existing row as paid (history reads as banked)', () => {
+    expect(sql).toContain('add column if not exists paid_at timestamptz');
+    expect(sql).toContain('set paid_at = claimed_at');
+    expect(sql).toContain('where paid_at is null');
+  });
+
+  it('the record function HOLDS: it computes and stamps amounts but never touches balances or the ledger', () => {
+    expect(recordStart).toBeGreaterThan(-1);
+    // Still the streak arithmetic + lever scalars of 0036.
+    expect(recordFn).toContain("cc_economy_config_number('streakCreditScalar', 1)");
+    expect(recordFn).toContain("cc_economy_config_number('streakFragmentScalar', 1)");
+    expect(recordFn).toContain('insert into public.login_streak_claims');
+    expect(recordFn).toContain("'claimable', c.paid_at is null");
+    // And no payment path anywhere inside it.
+    expect(recordFn).not.toContain('update public.profiles');
+    expect(recordFn).not.toContain('verified_action_ledger');
+  });
+
+  it('the claim function PAYS: today’s row only, paid_at as the exactly-once anchor, ledger at claim time', () => {
+    expect(claimStart).toBeGreaterThan(recordStart);
+    expect(claimFn).toContain('where player_id = p_player_id and claim_day = v_today');
+    expect(claimFn).toContain("raise exception 'No streak reward recorded today'");
+    expect(claimFn).toContain('if c.paid_at is not null then');
+    expect(claimFn).toContain('set paid_at = p_now');
+    expect(claimFn).toContain('update public.profiles');
+    expect(claimFn).toContain('insert into public.verified_action_ledger');
+    expect(claimFn).toContain("'cc_login_streak_claim'");
+    expect(claimFn).toContain("'login-streak:'");
+    expect(claimFn).toContain('cache_token_parts = cache_token_parts + c.fragments_awarded');
+    expect(claimFn).toContain('cache_tokens = cache_tokens + c.cache_keys_awarded');
   });
 });

@@ -68,20 +68,19 @@ Five kinds of things trade on the Market:
 
 ## The player-market rule
 
-Above **Common** rarity, the Buy stop is a **pure player market**:
-every Uncommon-or-better listing there was put up by a hunter, in
-every gear kind — weapons, shields, relics, class mods, and ordnance
-alike. And a weapon that came from vendor stock can't be listed in
-Sell — if you own one, it leaves your inventory the other ways: sell
-it back to the vendor at the [[Vendor]] stop (buyback) or recycle it
-for scrap.
+The Buy and Sell stops are a **pure player market**: every listing
+there — every kind, every rarity, Common included — was put up by a
+hunter, and every purchase is one hunter buying from another. There
+is no NPC stock in these lanes at all. The NPC shop lives in its own
+place, the [[Vendor]] stop: staples, the daily rotation, and buyback
+all happen there, never in Buy or Sell.
 
-The one NPC presence in Buy is **basic Common stock in every gear
-kind** — vendor-sourced Common weapons, shields, relics, class mods,
-and ordnance, always labelled **NPC Vendor** as the seller. That
-basic stock is there on purpose: it's gear a new hunter can get
-comfortable with. If a row's seller is a hunter name, it's a player's
-listing; anything above Common is always a player's listing.
+A weapon that came from vendor stock can't be listed in Sell — if
+you own one, it leaves your inventory the other ways: sell it back
+to the vendor at the [[Vendor]] stop (buyback) or recycle it for
+scrap. (Vendor-sourced gear of other kinds can be re-listed like
+anything else you own — when a hunter lists it, it's a hunter's
+listing.)
 
 ## Buying
 
@@ -95,8 +94,7 @@ listing; anything above Common is always a player's listing.
    (on weapon searches), the level range and price range, and the
    sort — newest, cheapest, most expensive, highest level, rarity,
    or name.
-3. Every row names its seller by their hunter name (NPC seed stock is
-   labelled NPC Vendor) and carries its price history under the name,
+3. Every row names its seller by their hunter name and carries its price history under the name,
    with the price and the Buy button at the row's right edge. Tap Buy
    and confirm. You pay exactly the
    listed price — the fee
@@ -104,7 +102,7 @@ listing; anything above Common is always a player's listing.
 
    [[images/ui/market-row.png]]
 
-   *One Buy row up close: a Common launcher from NPC Vendor stock, its damage readouts, and its price. A hunter's listing names the hunter instead.*
+   *One Buy row up close: its damage readouts and its price, with the seller's hunter name on the row.*
 
 ## Selling
 
@@ -133,6 +131,12 @@ The fee takes 500 cr out of the economy and you receive 9,500 cr.
 One refinement: certain skill nodes shrink the fee on *your* sales (the
 reduction is relative — it shrinks the fee, not the price). See
 [[Progression]] for the trees that carry them.
+
+You never have to wonder whether something sold: when a listing sells,
+Home announces it on the **Sold** chip under the claim chips, showing the
+exact amount you were credited — price minus fee, plus any proceeds bonus.
+Tapping the chip lands here, on the Sell stop's **History** segment, where
+the sale is recorded; opening History yourself clears the announcement.
 
 ## Price history and trends
 

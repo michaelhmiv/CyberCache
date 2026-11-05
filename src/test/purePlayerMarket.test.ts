@@ -1,77 +1,92 @@
 /**
- * NPC stock ceiling (owner ruling, 2026-11-03): "make them just basic
- * common… gotta give mainly beginners something to get comfortable
- * with." This widens the pure player market of 2026-11-02 (#300):
- * above Common the Buy lane is player listings only in EVERY gear
- * kind, and NPC Common stock of every kind (weapons included) is the
- * beginner comfort stock.
+ * Pure player market (owner ruling, 2026-11-04, superseding the
+ * 2026-11-03 NPC Common-stock compromise of PR #317): "the buy and
+ * sell tab should solely be user sold and bought items." Zero NPC
+ * listings in the Buy/Sell lanes — all kinds, all rarities, Common
+ * included. The NPC vendor's own Vendor tab is a separate lane and
+ * is untouched by everything pinned here.
  *
- * Covered here:
- *   1. NPC seed generation stocks all five gear kinds again (weapons
- *      restored to their original 45% share) but every seeded item is
- *      Common — the rarity ceiling is the whole point.
- *   2. Source pins for the enforcement seams that the HTTP tests in
- *      marketDepth.test.ts cannot reach directly: the Pg browse's
- *      SQL ceiling (the twin of the listingQuery fold) and the Pg
- *      write store's vendor-weapon refusal (UNCHANGED by this ruling
- *      — the create path stays refused for vendor weapons).
- *
- * The browse fold, the read routes, and the write-route refusal are
- * covered behaviorally in marketDepth.test.ts.
+ * Covered here (source pins for the seams the HTTP suites cannot
+ * reach directly; behavior lives in marketDepth.test.ts,
+ * marketFee.test.ts, chefJobs.test.ts, quickBuy.test.ts):
+ *   1. The seed is gone at the source: no generator file, no job
+ *      route, no legacy route, no store method.
+ *   2. The browse exclusion is total in both read stores (the
+ *      listingQuery fold and its Pg SQL twin) and seller identity is
+ *      the seller (account or stamp), never the item's provenance.
+ *   3. Price history excludes NPC "sales" in both read stores.
+ *   4. Migration 0081 retires the live seeded rows (cancel active
+ *      NPC-account listings), re-stamps player rows the old create
+ *      mis-stamped 'npc', restates cc_accept_listing with the NPC
+ *      refusal, restates cc_market_create with the 'player' stamp,
+ *      and adds the NPC exclusion to both Quick-Buy SQL functions.
+ *   5. The vendor-weapon create refusal (#300) is UNCHANGED in both
+ *      write stores — vendor weapons still exit via buyback/recycle.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildNpcSeedItems, generateNpcItem } from '../server/jobs/npcItems';
 
-describe('NPC seed generation — all kinds, Common only (owner ruling, 2026-11-03)', () => {
-  it('buildNpcSeedItems emits the full count, all five kinds, every item Common', () => {
-    const items = buildNpcSeedItems(300, 10);
-    expect(items).toHaveLength(300);
-    const kinds = new Set(items.map((i) => i.kind));
-    expect(kinds).toEqual(new Set(['gear:weapon', 'gear:shield', 'gear:classMod', 'gear:relic', 'gear:ordnance']));
-    // The ceiling: not one seeded item above Common.
-    expect(items.every((i) => i.rarity === 'Common')).toBe(true);
-    // Weapons are back at roughly their original 45% share (loose
-    // statistical band — the kind roll is Math.random).
-    const weapons = items.filter((i) => i.kind === 'gear:weapon').length;
-    expect(weapons).toBeGreaterThan(90);
-    expect(weapons).toBeLessThan(180);
-    // Every seeded item is priced by the standing rules (floor 100).
-    expect(items.every((i) => i.price_credits >= 100)).toBe(true);
+const src = (rel: string) => readFileSync(resolve(__dirname, rel), 'utf8');
+const NIL = '00000000-0000-0000-0000-000000000000';
+
+describe('pure player market — the seed is gone at the source', () => {
+  it('the NPC item generator and the legacy seed route files do not exist', () => {
+    expect(existsSync(resolve(__dirname, '../server/jobs/npcItems.ts'))).toBe(false);
+    expect(existsSync(resolve(__dirname, '../server/routes/marketSeedRoute.ts'))).toBe(false);
   });
 
-  it('generateNpcItem returns Common items, weapons included', () => {
-    let sawWeapon = false;
-    for (let n = 0; n < 500; n += 1) {
-      const item = generateNpcItem(10) as unknown as Record<string, unknown>;
-      expect(item.rarity).toBe('Common');
-      if ('weaponType' in item) sawWeapon = true;
-    }
-    expect(sawWeapon).toBe(true);
+  it('no route or store method can seed NPC market listings', () => {
+    expect(src('../server/jobs/routes.ts')).not.toContain('seed-npc-market');
+    expect(src('../server/jobs/routes.ts')).not.toContain('seedNpcMarket');
+    expect(src('../server/jobs/store.ts')).not.toContain('seedNpcMarket');
+    expect(src('../server/jobs/memory.ts')).not.toContain('seedNpcMarket');
+    expect(src('../server/index.ts')).not.toContain('marketSeedRoute');
+    expect(src('../server/index.ts')).not.toContain('/api/market/seed');
   });
 });
 
-describe('NPC stock ceiling — Pg seam source pins', () => {
-  const readsStore = readFileSync(resolve(__dirname, '../server/reads/store.ts'), 'utf8');
-  const writesStore = readFileSync(resolve(__dirname, '../server/writes/store.ts'), 'utf8');
-  const writesMemory = readFileSync(resolve(__dirname, '../server/writes/memory.ts'), 'utf8');
-  const listingQuery = readFileSync(resolve(__dirname, '../lib/market/listingQuery.ts'), 'utf8');
-  const npcItems = readFileSync(resolve(__dirname, '../server/jobs/npcItems.ts'), 'utf8');
+describe('pure player market — browse + price-history seams', () => {
+  const readsStore = src('../server/reads/store.ts');
+  const readsMemory = src('../server/reads/store.ts'); // InMemoryReadStore shares the file
+  const listingQuery = src('../lib/market/listingQuery.ts');
 
-  it('the Pg browse carries the npc above-Common exclusion twin', () => {
-    // Seller read the browseRowFor way (stamped column OR item supply
-    // mode), rarity derived stamped-first like browseRowFor.
-    expect(readsStore).toContain("ml.seller_type = 'npc' or ii.supply_mode = 'npc_market'");
-    expect(readsStore).toContain("coalesce(ml.rarity, ii.rarity, ii.payload ->> 'rarity') in ('Uncommon', 'Rare', 'Epic', 'Legendary')");
-    // The count query joins item_instances so totals agree with rows.
-    expect(readsStore).toContain('left join public.item_instances ii on ii.id = ml.item_instance_id\n       where ${whereSql}');
+  it('the browse fold excludes sellerType npc outright — no rarity ceiling remains', () => {
+    expect(listingQuery).toContain("if (row.sellerType === 'npc') return false;");
+    expect(listingQuery).not.toContain('> RARITY_RANK.Common');
   });
 
-  it('the browse fold carries the same ceiling', () => {
-    expect(listingQuery).toContain("row.sellerType === 'npc'");
-    expect(listingQuery).toContain("row.kind === 'gear'");
-    expect(listingQuery).toContain('> RARITY_RANK.Common');
+  it('the Pg browse twin excludes by seller stamp or NPC account, in rows and counts alike', () => {
+    expect(readsStore).toContain("coalesce(ml.seller_type, 'player') = 'npc'");
+    expect(readsStore).toContain("or ml.seller_user_id = '${NPC_MARKET_USER_ID}'::uuid");
+    expect(readsStore).not.toContain("in ('Uncommon', 'Rare', 'Epic', 'Legendary')");
+  });
+
+  it('browseRowFor derives seller identity from the seller, never the item provenance', () => {
+    expect(readsStore).toContain('listing.seller_user_id === NPC_MARKET_USER_ID');
+    expect(readsStore).not.toContain("item?.supply_mode === 'npc_market' ? 'npc' : 'player'");
+  });
+
+  it('price history excludes NPC sales in both read stores', () => {
+    expect(readsStore).toContain("coalesce(ml.seller_type, 'player') <> 'npc'");
+    expect(readsStore).toContain("ml.seller_user_id <> '${NPC_MARKET_USER_ID}'::uuid");
+    expect(readsMemory).toContain("if (row.sellerType === 'npc') continue;");
+  });
+});
+
+describe('pure player market — write seams', () => {
+  const writesStore = src('../server/writes/store.ts');
+  const writesMemory = src('../server/writes/memory.ts');
+  const quickBuy = src('../lib/market/quickBuy.ts');
+
+  it('a direct accept of an NPC listing is refused in the InMemory twin', () => {
+    expect(writesMemory).toContain("listing.seller_type === 'npc' || listing.seller_user_id === NIL_UUID");
+    expect(writesMemory).toContain('NPC listings are not part of the player market');
+  });
+
+  it('Quick-Buy never sources from an NPC listing (planner + InMemory fill)', () => {
+    expect(quickBuy).toContain("row.sellerKind !== 'npc'");
+    expect(writesMemory).toContain("listing.seller_type !== 'npc' &&");
   });
 
   it('both write stores still share the vendor-weapon refusal (unchanged)', () => {
@@ -80,10 +95,46 @@ describe('NPC stock ceiling — Pg seam source pins', () => {
     expect(writesMemory).toContain('NPC_VENDOR_WEAPON_REFUSAL');
     expect(writesMemory).toContain('isNpcVendorWeapon(item)');
   });
+});
 
-  it('the NPC generator stocks weapons again, pinned to Common', () => {
-    expect(npcItems).toContain('generateWeapon(');
-    expect(npcItems).toContain('forcedRarity: Rarity.Common');
-    expect(npcItems).toContain('NPC_COMMON_ONLY');
+describe('migration 0081 — retirement + restated functions', () => {
+  const sql = src('../../db/migrations/0081_pure_player_market.sql');
+
+  it('cancels the live seeded rows (NPC account, active only) and moves no credits', () => {
+    expect(sql).toContain('update public.market_listings');
+    expect(sql).toContain("set status = 'cancelled'");
+    expect(sql).toContain(`seller_user_id = '${NIL}'::uuid`);
+    expect(sql).toContain("and status = 'active'");
+  });
+
+  it('re-stamps player rows the old create mis-stamped npc (seller is a player)', () => {
+    expect(sql).toContain("set seller_type = 'player'");
+    expect(sql).toContain("where seller_type = 'npc'");
+    expect(sql).toContain(`and seller_user_id <> '${NIL}'::uuid`);
+  });
+
+  it('cc_accept_listing refuses NPC listings after the active-status check', () => {
+    const accept = sql.slice(sql.indexOf('create or replace function public.cc_accept_listing'));
+    const statusCheck = accept.indexOf("raise exception 'Active listing not found'");
+    const refusal = accept.indexOf('NPC listings are not part of the player market');
+    expect(statusCheck).toBeGreaterThan(-1);
+    expect(refusal).toBeGreaterThan(statusCheck);
+    expect(accept).toContain("coalesce(listing.seller_type, 'player') = 'npc'");
+    // The 0064 fee law rides verbatim, supply exemption included.
+    expect(accept).toContain("coalesce(item.supply_mode, '') <> 'npc_market'");
+    expect(accept).toContain('proceeds_bonus := least(fee_credits, floor((listing.price_credits - fee_credits)');
+  });
+
+  it('cc_market_create stamps player listings player, whatever the item provenance', () => {
+    const create = sql.slice(sql.indexOf('create or replace function public.cc_market_create'));
+    expect(create).toContain('seller_type describes the seller (0081; owner ruling');
+    expect(create).toContain("'player')");
+    expect(create).not.toContain("then 'npc' else 'player'");
+  });
+
+  it('both Quick-Buy SQL functions exclude NPC listings from sourcing', () => {
+    const exclusions = sql.match(/coalesce\(l\.seller_type, 'player'\) <> 'npc'/g) ?? [];
+    expect(exclusions.length).toBe(2); // cc_quickbuy_quote + cc_quickbuy_fill
+    expect(sql).toContain(`l.seller_user_id <> '${NIL}'::uuid`);
   });
 });

@@ -117,6 +117,18 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
 - **Claims never hide.** Claimable things live as chips directly under the Strip
   or as badged doors (see §9).
 
+### Do on Home, own in Gear (owner, 2026-11-04)
+
+Everything the player DOES lives on Home; everything the player OWNS
+lives in Gear. The crafting bench is the ruling case: the Workshop —
+recipes, the job queue, the bench-time bank, and the repair/service
+jobs — is Home's Craft workspace, because working the bench is an
+action, and the bench runs only while Craft holds the action slot.
+Gear keeps the owned side: loadout, inventory, belt & stacks, and the
+Garage (which starts repairs; managing them is the bench's service
+section on Home). A surface that makes the player travel to another
+tab to operate what they started is a defect against this principle.
+
 ### Every "no" carries its remedy (owner-approved 2026-11-02)
 
 When a surface refuses, locks, disables, or comes up empty, the same surface
@@ -158,6 +170,24 @@ hard ceiling** — the purchase re-quotes atomically at tap time and charges
 min(quote, current), never more; if the fresh total exceeds the quote, nothing
 is charged and the sheet re-renders from the fresh quote saying so.
 
+### Auto-salvage scope law (owner-approved 2026-11-04; migration 0080)
+
+The Auto-Salvage Rules (Settings: on/off, max rarity, max roll quality,
+yield Scrap-or-Materials) are profile-owned and enforced by the Chef at
+settlement — never by the client, never from the runtime snapshot. The
+scope is a law, not a default: the rule reaches **roaming claim drops
+and offline-settlement drops only** — the items that settlement just
+stored, checked before they land. It never touches **boss loot, cache
+contents, market deliveries, or crafted items** (the settlement
+function itself refuses any other source), it never sweeps the
+existing bag retroactively, and its rarity ceiling stops at **Epic**
+at every layer — legendaries are salvaged one at a time, deliberately,
+or not at all. The payout is the manual salvage path's own
+(cc_recycle_item, skill bonuses included), and every conversion is
+visible: a feed line per item, a summary in the claim response and
+the offline recap, and an Activity Log record marked as an
+auto-salvage. Nothing about the rule may happen silently.
+
 ---
 
 ## 2. Navigation — four tabs
@@ -169,7 +199,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 | Tab | Rail / composition | Holds |
 |---|---|---|
 | **Home** | Rail, then Stage: `Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The rail leads the screen (owner ruling 2026-11-04); the belt sits in the rail's vacated slot under the stage, and the lit mode's workspace under the belt; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. There is no Area stop (owner rework 2026-11-04): Roam is the area door — entering roam auto-opens the area picker, and tapping Roam while roaming opens it alone. |
-| **Gear** | Rail: `Loadout · Workshop` | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop door row at its foot; the bench keeps its own stop. |
+| **Gear** | No rail — one page | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop status strip at its foot (◦ door to the bench on Home — crafting consolidated onto Home, owner ruling 2026-11-04; the Workshop stop is retired). |
 | **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk` | Player market, NPC storefront, the two service boards as separate stops, and manufacturer standing at its own desk. |
 | **Hunter** | Rail: `Profile · Collections · Cache Rank · Research · Skill Trees · Standings · Account` | The hunter's record: profile + Trophy Shelf, collections and cores, ranks, courses, trees, the weekly races behind the Standings door, and account/settings/manual. |
 
@@ -205,9 +235,16 @@ replace the canonical one. (Tap depths are governed by §9.)
   ruling 2026-11-04) · Boss (select sheet → prep poster sheet) · Endless
   (rail stop) · Extract (rail stop; its scene rides the Stage while it is
   the active action — the workspace panel carries a still poster header
-  and its controls only, per the one-stage law, §1) · Craft (the action;
-  its panel prints an "Open Workshop" door to the Gear bench — the action is
-  **Craft** here, the bench is **Workshop** there; never label both "Crafting").
+  and its controls only, per the one-stage law, §1) · Craft (rail stop;
+  opens the **Workshop** workspace on Home — the whole bench: recipes, the job
+  queue, the bench-time bank, and a Repairs & Service section for the
+  service-lane jobs; owner consolidation ruling 2026-11-04. Opening the bench
+  never switches the action by itself: the workspace's own "Work the Bench"
+  control claims the slot, and while anything else holds the slot the bench
+  prints its paused state with the reason and that remedy in place. The
+  workspace adds no animated scene of its own — the main stage carries the
+  activity scene (one-stage law). The action is **Craft**, the bench is the
+  **Workshop**; never label both "Crafting").
 - **The hero rundown** is attached to the stage's foot (§1): the hunter's
   eight hero stats in two rows of four, each opening its source breakdown.
   The full all-metrics breakdown lives behind **Hunter → Profile's
@@ -242,13 +279,15 @@ replace the canonical one. (Tap depths are governed by §9.)
   pop-up holds level specifics only — the recap lives on the Return Sheet, nowhere
   else.
 - **Login streak:** the flame chip in the claim row opens the streak sheet. The
-  check-in is the day's first state read — the reward banks server-side on
-  arrival, so there is nothing to claim and the sheet's only action is the
-  acknowledgement ("Back to the hunt"). A fresh grant announces — pulse + NEW
-  on the chip, the poster-plate celebration in the sheet (§10), the Strip's
-  credits ticking up to the new balance — and the announcement lives only
-  until acknowledged; the already-banked state carries no pulse and no badge
-  (§9).
+  check-in is the day's first state read — it records the day server-side and
+  holds the reward UNPAID (migration 0079, the true claim — owner decision
+  2026-11-04, overruling this section's earlier announcement model). While
+  the reward waits, the chip is a real claimable — pulse + amber CLAIM badge
+  — and the sheet shows the reward face-up behind its one primary action,
+  the Claim button; claiming pays it and the landing celebration plays in
+  the sheet (§10) as the wallet answers. An unclaimed reward expires at the
+  00:00 UTC rollover (the streak day still counts); the claimed state
+  renders quiet — "Claimed …", no pulse, no badge (§9).
 - **The deck** (below the fold, fixed order — §4): launcher cards (Dispatch ·
   Crack Cache), Now feed. (The Slots launcher, the Loadout shortcut, the
   Weekly panel, and Hunter Totals all left the deck in the 2026-11-03
@@ -271,8 +310,10 @@ replace the canonical one. (Tap depths are governed by §9.)
   three gun slots as full
   rows down the right column (Primary as a poster row), the four
   accessories as a 2×2 band beneath — then the Garage section, § Inventory,
-  § Belt & Stacks, and the Workshop door row at the foot (◦, printing
-  bench state; the bench's canonical home is the Workshop stop). Slot
+  § Belt & Stacks, and the Workshop status strip at the foot (◦, printing
+  the bench at a glance — jobs running / queued / ready, Craft active or
+  paused; the bench's canonical home is Home's Craft workspace since the
+  2026-11-04 consolidation). Slot
   blocks print the item's name in its rarity color — in full, wrapping
   when it needs the room (names never truncate on the gun rows) — and a
   PERK line —
@@ -303,7 +344,9 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **§ Belt & Stacks** (section of the Loadout page; the Items stop retired
   into it, 2026-11-03) — the belt slots + consumables/materials stacks,
   quality % printed.
-- **Workshop** — the bench: recipes + job queue.
+- **Workshop** — RETIRED as a Gear stop (owner consolidation ruling,
+  2026-11-04): the bench's canonical home is Home's Craft workspace (§3
+  Home). The Loadout page's foot keeps the ◦ status strip.
 - **Garage (vehicle section of the Loadout page)** — the page's vehicle
   slot expands in place into the full Garage: vehicles, fuel cells +
   refuel, condition + self-repair with patch kits. Not a rail stop (owner
@@ -363,11 +406,13 @@ player needs each block.
 **Above the fold, always, in this order:**
 
 1. **The Strip** (wallet + fused XP hairline + level chip + settings gear).
-2. **Claim chips row** — every claimable, plus the one announcement: new
-   contract offers, the weekly Parts Crate / Signature Orders when ready,
-   and the login streak — an announcement, not a claimable: its reward
-   banks on arrival and its chip pulses only until acknowledged (§9).
-   (Absences under 5 minutes still settle silently; the Return Sheet is §10.)
+2. **Claim chips row** — every claimable: new contract offers, the weekly
+   Parts Crate / Signature Orders when ready, and the login streak — a true
+   claimable since 0079: its chip pulses with a CLAIM badge while the day's
+   recorded reward waits unpaid, and goes plain the moment it is claimed
+   (§9). Announcement chips (sold, bench-ready) ride this row's mechanism
+   without being claimables. (Absences under 5 minutes still settle
+   silently; the Return Sheet is §10.)
 3. **The mode rail** — `Roam · Boss · Endless · Extract · Craft`
    (owner ruling 2026-11-04: the rail leads the Stage; it sat at step 4,
    under the stage, until the swap; the same day's rework removed the
@@ -669,19 +714,20 @@ should never be two taps from anywhere.
 
 **Claimables announce themselves.** Everything claimable, weekly, or
 time-boxed — contract offers, the weekly Parts Crate and Signature
-Orders, and the login streak's announcement — carries a visible surface
+Orders, and the login streak — carries a visible surface
 on Home itself at 0–1 taps: a claim chip under the Strip, and the Next
 Move card under the stage (the deck's Weekly panel retired into it in
 the 2026-11-03 consolidation).
 Settled race rewards are not claimables (settlement pays them
 automatically); they announce through the live badge on Hunter's
 Standings door and resolve on the Standings earnings panel (§3).
-The login streak is the same kind of fact: its reward banks
-server-side at the day's first check-in read — there is no claim
-action and there never was one — so its pulse is an **announcement**,
-not a claim signal. It lives only until the player acknowledges it in
-the streak sheet, its rewards are named in the past tense with
-**Banked** tags, and the already-banked state carries no pulse at all.
+The login streak joined the claimables in 0079 (owner decision
+2026-11-04): its reward no longer banks at the check-in read — the
+read records the day and holds the reward unpaid, so its pulse is a
+true **claim signal** at last: CLAIM badge on the chip, the reward
+face-up in the sheet, **Banked** tags only once the claim has paid
+them, and the claimed state quiet with no pulse at all. An unclaimed
+reward expires at the 00:00 UTC rollover; the streak day still counts.
 Consolidation must never silently demote any of them; the chips and
 badges exist to prevent exactly that, and their languages stay
 distinct — a pulse and the word "claim" belong only to rewards the
@@ -734,17 +780,22 @@ game feels alive between loot moments; a static claimable is a missed
 hook. **Reduced motion is respected** by collapsing this UI motion —
 never by retiming the loot moment or the fight beats.
 
-### The streak grant moment
+### The streak claim moment
 
-A fresh daily grant gets a small ceremony of its own — deliberately a
-tier below the loot moment (no beam, no world dim). In the streak
-sheet the poster plate stamps the day, the reward rows land one at a
-time (~120ms apart) with the cache-key row flaring once, and in the
-Strip the credits count up to the new balance — the whole beat runs
-about 1.2 seconds and settles. It plays once per grant: acknowledging
-the sheet, remounting, or re-reading the same day never replays it,
-and an already-banked day opens the quiet sheet with no motion at
-all. **Reduced motion** collapses the moment to its settled frame —
+The daily reward's ceremony belongs to the CLAIM, not the check-in
+(0079): the check-in itself is silent — the day records, the chip
+takes its CLAIM badge, nothing moves. When the player taps Claim in
+the streak sheet, the moment plays at the instant it describes —
+deliberately a tier below the loot moment (no beam, no world dim):
+the poster plate stamps the day, the reward rows stamp **Banked**
+one at a time (~120ms apart) with the cache-key row flaring once,
+and the wallet answers as the claim's profile sync lands (the
+Strip's pulse-on-increase; the legacy credits count-up never fires
+for a held reward). The whole beat runs about 1.2 seconds and
+settles. It plays once per claim: acknowledging the sheet,
+remounting, or re-reading the same day never replays it, and an
+already-claimed day opens the quiet sheet with no motion at all.
+**Reduced motion** collapses the moment to its settled frame —
 rows simply present, balance already final.
 
 ### The Return Sheet

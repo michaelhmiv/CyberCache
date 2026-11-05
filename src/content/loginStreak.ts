@@ -18,9 +18,19 @@
  *    GET /api/login-streak/me — the Cache Rank pattern). The day
  *    comes from the database clock; no request body field can name
  *    a day, a streak length, or an amount.
- *  - EXACTLY ONCE PER UTC DAY. The login_streak_claims row keyed
- *    (player, day) is the idempotency anchor: a replayed check-in
- *    returns the stored claim and grants nothing again.
+ *  - EXACTLY ONCE PER UTC DAY, IN TWO HALVES (0079, the TRUE
+ *    CLAIM — owner decision 2026-11-04, overruling the 0036
+ *    observe-and-grant model). The login_streak_claims row keyed
+ *    (player, day) is recorded by the check-in: a replayed
+ *    check-in returns the stored row and records nothing again.
+ *    The row's paid_at stamp is the PAYMENT anchor: the check-in
+ *    credits nothing — the reward sits on the row, face-up,
+ *    until the player claims it (cc_claim_login_streak_day via
+ *    POST /api/login-streak/claim), and a replayed claim returns
+ *    the stored claim and pays nothing again. An unpaid row from
+ *    a previous day is expired by construction (the claim only
+ *    ever pays today's row), while the streak itself reads
+ *    recorded days only — an expired reward never breaks one.
  *  - CONSECUTIVE OR RESET. A claim on the UTC day after the last
  *    claim extends the streak; any larger gap restarts it at 1.
  *    The longest streak is kept forever (login_streak_state +
@@ -242,6 +252,8 @@ export interface LoginStreakClaim {
    */
   fragmentsAwarded: number;
   cacheKeysAwarded: number;
+  /** True once the claim op has paid this row (0079's paid_at). */
+  paid: boolean;
 }
 
 /** Server-record facts the view derives from (routes/stores supply). */
@@ -271,7 +283,7 @@ export interface LoginStreakStateView {
   /** Cycle day the next claim lands on within the displayed cycle. */
   cycleDay: number;
   /**
-   * 'earned' once today's claim is recorded, else 'pending'.
+   * 'earned' once today's day is recorded, else 'pending'.
    * NOTE (audit D6): 'pending' is UNREACHABLE through the shipped
    * flow — the one route (GET /api/login-streak/me) records the
    * check-in before it derives this view, so every result a
@@ -279,9 +291,16 @@ export interface LoginStreakStateView {
    * pending state. The branch survives here only because this
    * pure derivation also describes pre-record facts for the
    * in-memory twin's tests; do not design UI against it.
+   * 'earned' speaks of the DAY, not the money (0079): whether
+   * today's recorded reward is still unpaid is `todayClaimable`.
    */
   todayState: 'earned' | 'pending';
-  /** What today's claim paid (null until recorded). */
+  /**
+   * True while today's recorded reward is held UNPAID (0079):
+   * the day is recorded, the money waits for the player's claim.
+   */
+  todayClaimable: boolean;
+  /** What today's recorded reward pays on claim (null until recorded). */
   todayReward: LoginStreakReward | null;
   /** What the next claim day pays (lever-applied ladder amounts). */
   nextReward: LoginStreakReward;
@@ -349,6 +368,7 @@ export function loginStreakStateView(
     tier: position.tier,
     cycleDay: position.cycleDay,
     todayState: claim ? 'earned' : 'pending',
+    todayClaimable: claim ? !claim.paid : false,
     todayReward,
     nextReward: loginStreakGrantFor(nextPosition.cycleDay, nextPosition.tier, levers),
     nextStreakLength,
