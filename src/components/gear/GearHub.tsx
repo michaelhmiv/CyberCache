@@ -11,12 +11,14 @@
  *     markers, ONE headline stat per kind. Everything else is behind
  *     inspect, which is one tap on the row.
  */
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
   ArrowUpDown,
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
   X,
   LayoutGrid,
   List,
@@ -33,10 +35,23 @@ import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { SalvageThresholdSheet } from '@/components/gear/SalvageThresholdSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { ElementBadge } from '@/components/gear/ElementBadge';
-import { useInventoryStore, useLoadoutStore, useMarketStore } from '@/store';
+import { useInventoryStore, useLoadoutStore, useMarketStore, useSkillStore } from '@/store';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { salvageYieldFromRecycleResult } from '@/lib/gear/salvageAward';
+import {
+  DEFAULT_SORT_STATE,
+  SORT_GROUPS,
+  applyKindPick,
+  applySortPick,
+  isSortKey,
+  sortItems,
+  sortLabel,
+  sortStateFromPersisted,
+  toggleSortDir,
+  type GearKind,
+  type SortUiState,
+} from '@/lib/gear/inventorySort';
 import { formatRpcError } from '@/lib/api/rpcError';
 import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 import type { GearItem } from '@/types/items';
@@ -60,108 +75,13 @@ import {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const RARITY_RANK: Record<string, number> = {
-  Common: 1,
-  Uncommon: 2,
-  Rare: 3,
-  Epic: 4,
-  Legendary: 5,
-};
-
 const RARITY_ORDER = Object.values(Rarity);
 const ELEMENTS = Object.values(Element);
 const MANUFACTURERS = Object.values(Manufacturer);
 const WEAPON_TYPES = Object.values(WeaponType);
 const SOURCE_ORDER = Object.values(DropSource);
 
-type SortKey =
-  | 'combatPower'
-  | 'bossPower'
-  | 'farmPower'
-  | 'economy'
-  | 'level'
-  | 'rarity'
-  | 'rollQuality'
-  | 'name'
-  | 'recent'
-  | 'shieldHp'
-  | 'mitigation'
-  | 'recharge'
-  | 'payload'
-  | 'shieldBreak'
-  | 'armorBreak'
-  | 'skillBoost'
-  | 'nodeCount'
-  | 'affixCount'
-  | 'activityValue'
-  | 'idleValue'
-  | 'dropValue'
-  | 'scrapValue';
-
-type GearKind = 'all' | 'weapon' | 'shield' | 'ordnance' | 'classMod' | 'relic';
 type ViewMode = 'list' | 'grid';
-
-interface SortOption {
-  key: SortKey;
-  label: string;
-}
-
-const SORTS_BY_KIND: Record<GearKind, SortOption[]> = {
-  all: [
-    { key: 'combatPower', label: 'Best Overall' },
-    { key: 'level', label: 'Level' },
-    { key: 'rarity', label: 'Rarity' },
-    { key: 'recent', label: 'Newest' },
-    { key: 'activityValue', label: 'Activity Value' },
-    { key: 'name', label: 'Name A-Z' },
-  ],
-  weapon: [
-    { key: 'combatPower', label: 'DPS' },
-    { key: 'bossPower', label: 'Boss' },
-    { key: 'farmPower', label: 'Farm' },
-    { key: 'economy', label: 'Economy' },
-    { key: 'rollQuality', label: 'Roll' },
-    { key: 'level', label: 'Level' },
-    { key: 'rarity', label: 'Rarity' },
-    { key: 'recent', label: 'Newest' },
-  ],
-  shield: [
-    { key: 'shieldHp', label: 'HP' },
-    { key: 'mitigation', label: 'Mitigation' },
-    { key: 'recharge', label: 'Recharge' },
-    { key: 'activityValue', label: 'Activity Value' },
-    { key: 'level', label: 'Level' },
-    { key: 'rarity', label: 'Rarity' },
-    { key: 'recent', label: 'Newest' },
-  ],
-  ordnance: [
-    { key: 'payload', label: 'Payload' },
-    { key: 'shieldBreak', label: 'Shield Break' },
-    { key: 'armorBreak', label: 'Armor Break' },
-    { key: 'activityValue', label: 'Activity Value' },
-    { key: 'level', label: 'Level' },
-    { key: 'rarity', label: 'Rarity' },
-    { key: 'recent', label: 'Newest' },
-  ],
-  classMod: [
-    { key: 'skillBoost', label: 'Skill Boost' },
-    { key: 'nodeCount', label: 'Nodes' },
-    { key: 'activityValue', label: 'Activity Value' },
-    { key: 'level', label: 'Level' },
-    { key: 'rarity', label: 'Rarity' },
-    { key: 'recent', label: 'Newest' },
-  ],
-  relic: [
-    { key: 'idleValue', label: 'Idle Value' },
-    { key: 'dropValue', label: 'Drop Value' },
-    { key: 'scrapValue', label: 'Scrap Value' },
-    { key: 'affixCount', label: 'Affix Count' },
-    { key: 'activityValue', label: 'Activity Value' },
-    { key: 'level', label: 'Level' },
-    { key: 'rarity', label: 'Rarity' },
-    { key: 'recent', label: 'Newest' },
-  ],
-};
 
 const LOADOUT_LABELS: Record<GearLoadoutSlot, string> = {
   primary: 'Primary',
@@ -191,40 +111,27 @@ const kindOf = (item: GearItem): GearKind =>
         : isOrdnance(item) ? 'ordnance'
           : 'relic';
 
+// Sort preference persistence — the app's UI-pref pattern
+// (localStorage, cc- key, best-effort). Only key + direction are
+// stored; the scope derives from the key's group on restore.
+const GEAR_SORT_STORAGE_KEY = 'cc-gear-sort-v1';
+function loadSortUiState(): SortUiState {
+  try {
+    const raw = localStorage.getItem(GEAR_SORT_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { key?: unknown; dir?: unknown };
+      if (isSortKey(parsed.key)) {
+        return sortStateFromPersisted(parsed.key, parsed.dir === 'asc' ? 'asc' : 'desc');
+      }
+    }
+  } catch { /* fall through to the default */ }
+  return DEFAULT_SORT_STATE;
+}
+
 const kindLabel = (item: GearItem): string =>
   KIND_DEFS.find((kind) => kind.id === kindOf(item))?.label.replace(/s$/, '') ?? 'Gear';
 
 // ── Formatting / Scoring Helpers ─────────────────────────────────────────────
-
-function itemComparable(item: GearItem, key: SortKey): number {
-  const activity = topActivityModule(item)?.value ?? 0;
-  switch (key) {
-    case 'combatPower': return isWeapon(item) ? item.combatPower : isShield(item) ? item.hp : isOrdnance(item) ? item.damage : affixesOf(item).length * 20;
-    case 'bossPower': return isWeapon(item) ? item.bossPower : affixValue(item, ['bossDamageMod', 'survivalBoost']);
-    case 'farmPower': return isWeapon(item) ? item.farmPower : affixValue(item, ['creditsPerKill', 'rareDropChanceMod', 'xpBoostMod']);
-    case 'economy': return isWeapon(item) ? item.economyScore : affixValue(item, ['offlineEarningsMod', 'rareDropChanceMod', 'scrapYieldMod']) * 100;
-    case 'level': return item.level ?? 1;
-    case 'rarity': return RARITY_RANK[item.rarity] ?? 0;
-    case 'rollQuality': return isWeapon(item) ? item.rollQuality : activity * 100;
-    case 'shieldHp': return isShield(item) ? item.hp : 0;
-    case 'mitigation': return isShield(item) ? item.mitigation : 0;
-    case 'recharge': return isShield(item) ? item.rechargeRate : 0;
-    case 'payload': return isOrdnance(item) ? item.damage : 0;
-    case 'shieldBreak': return isOrdnance(item) ? item.shieldDamage : isWeapon(item) ? item.shieldDamageMod : 0;
-    case 'armorBreak': return isOrdnance(item) ? item.armorDamage : isWeapon(item) ? item.armorDamageMod : 0;
-    case 'skillBoost': return sumNodeBoosts(item) + affixValue(item, ['skillPoints', 'weaponDamage', 'critChance']) * 100;
-    case 'nodeCount': return isClassMod(item) ? Object.keys(item.nodeBoosts).length : 0;
-    case 'affixCount': return affixesOf(item).length;
-    case 'activityValue': return activity * 100;
-    case 'idleValue': return affixValue(item, ['offlineEarningsMod', 'offlineScrapMod', 'offlineXpMod', 'offlineMaterialMod']) * 100;
-    case 'dropValue': return affixValue(item, ['rareDropChanceMod', 'cacheKeyChanceMod', 'cacheFragmentChance', 'materialFindChance']) * 100;
-    case 'scrapValue': return affixValue(item, ['scrapYieldMod', 'salvageYield', 'rareMaterialChance', 'essenceExtraction']) * 100;
-    case 'name':
-    case 'recent':
-    default:
-      return 0;
-  }
-}
 
 function itemElement(item: GearItem): string | null {
   return 'element' in item && typeof item.element === 'string' ? item.element : null;
@@ -484,7 +391,6 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   const setShieldTechPreselect = useMarketStore((s) => s.setShieldTechPreselect);
 
   // Browsing + filters
-  const [activeKind, setActiveKind] = useState<GearKind>('all');
   const [search, setSearch] = useState('');
   const [filterRarity, setFilterRarity] = useState<Set<string>>(new Set());
   const [filterElement, setFilterElement] = useState<Set<string>>(new Set());
@@ -496,7 +402,14 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   const [filterEquippedOnly, setFilterEquippedOnly] = useState(false);
 
   // Sort & View
-  const [sort, setSort] = useState<SortKey>('combatPower');
+  const [sortUi, setSortUi] = useState<SortUiState>(loadSortUiState);
+  const { sort, dir: sortDir, activeKind, sortScope } = sortUi;
+  const activeSortLabel = sortLabel(sort);
+  useEffect(() => {
+    try {
+      localStorage.setItem(GEAR_SORT_STORAGE_KEY, JSON.stringify({ key: sort, dir: sortDir }));
+    } catch { /* storage is best-effort */ }
+  }, [sort, sortDir]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showSort, setShowSort] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -554,12 +467,6 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     return Array.from(new Set([...SOURCE_ORDER, ...fromInventory]));
   }, [invItems]);
 
-  const activeSortOptions = SORTS_BY_KIND[activeKind];
-  const effectiveSort = activeSortOptions.some((option) => option.key === sort)
-    ? sort
-    : activeSortOptions[0].key;
-  const activeSortLabel = activeSortOptions.find((option) => option.key === effectiveSort)?.label ?? 'Sort';
-
   const filterCount = filterRarity.size + filterElement.size + filterMfg.size + filterWtype.size + filterSource.size
     + (filterLocked !== 'all' ? 1 : 0)
     + (filterJunk ? 1 : 0)
@@ -568,7 +475,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
   const hasAnyFilter = search !== '' || activeKind !== 'all' || filterCount > 0;
 
   const clearFilters = useCallback(() => {
-    setActiveKind('all');
+    setSortUi((s) => applyKindPick(s, 'all'));
     setSearch('');
     setFilterRarity(new Set());
     setFilterElement(new Set());
@@ -610,24 +517,9 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     if (filterEquippedOnly) result = result.filter((item) => equippedIds.has(item.id));
     if (filterJunk) result = result.filter((item) => !item.isLocked && !equippedIds.has(item.id));
 
-    result.sort((a, b) => {
-      const aEq = equippedIds.has(a.id) ? 1 : 0;
-      const bEq = equippedIds.has(b.id) ? 1 : 0;
-      if (aEq !== bEq) return bEq - aEq;
-
-      if (effectiveSort === 'name') return a.name.localeCompare(b.name);
-      if (effectiveSort === 'recent') return 0;
-      if (effectiveSort === 'rarity') {
-        const ra = RARITY_RANK[a.rarity] ?? 0;
-        const rb = RARITY_RANK[b.rarity] ?? 0;
-        if (ra !== rb) return rb - ra;
-      }
-      const ca = itemComparable(a, effectiveSort);
-      const cb = itemComparable(b, effectiveSort);
-      return cb - ca;
+    return sortItems(result, sort, sortDir, equippedIds, {
+      bonuses: useSkillStore.getState().getBonuses(),
     });
-
-    return result;
   }, [
     invItems,
     activeKind,
@@ -640,7 +532,8 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     filterLocked,
     filterEquippedOnly,
     filterJunk,
-    effectiveSort,
+    sort,
+    sortDir,
     equippedIds,
   ]);
 
@@ -879,7 +772,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
               <button
                 key={id}
                 type="button"
-                onClick={() => setActiveKind(id)}
+                onClick={() => setSortUi((s) => applyKindPick(s, id))}
                 className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-black transition-colors ${
                   active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
                 }`}
@@ -916,28 +809,58 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
           <button
             type="button"
             onClick={() => setShowSort((prev) => !prev)}
-            className="flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-2 text-[11px] font-black text-text-muted"
+            aria-haspopup="menu"
+            aria-expanded={showSort}
+            className="flex h-11 items-center gap-1 rounded-lg border border-border bg-surface px-2.5 text-[11px] font-black text-text-muted"
           >
-            <ArrowUpDown size={12} />
+            <ArrowUpDown size={13} />
             {activeSortLabel}
           </button>
           {showSort && (
-            <div className="absolute left-0 top-full z-30 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
-              {activeSortOptions.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => { setSort(option.key); setShowSort(false); }}
-                  className={`w-full px-3 py-1.5 text-left text-[11px] font-black transition-colors ${
-                    effectiveSort === option.key ? 'bg-amber/15 text-amber' : 'text-text-muted hover:bg-surface-raised'
-                  }`}
-                >
-                  {option.label}
-                </button>
+            <div
+              role="menu"
+              className="absolute left-0 top-full z-30 mt-1 max-h-[70vh] w-64 overflow-y-auto rounded-xl border border-border bg-surface shadow-lg"
+            >
+              {SORT_GROUPS.map((group) => (
+                <div key={group.id} className="border-b border-border/60 last:border-b-0">
+                  <div className="flex items-baseline justify-between gap-2 px-3 pb-0.5 pt-2.5">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-text-primary">
+                      {group.label}
+                    </span>
+                    {group.kind && (
+                      <span className="text-[11px] font-bold text-text-muted">
+                        shows {KIND_DEFS.find((k) => k.id === group.kind)?.label.toLowerCase()} only
+                      </span>
+                    )}
+                  </div>
+                  {group.options.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => { setSortUi((s) => applySortPick(s, option.key)); setShowSort(false); }}
+                      className={`flex min-h-[44px] w-full items-center px-3 text-left text-[11px] font-black transition-colors ${
+                        sort === option.key ? 'bg-amber/15 text-amber' : 'text-text-muted hover:bg-surface-raised'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               ))}
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setSortUi((s) => toggleSortDir(s))}
+          aria-label={sortDir === 'desc' ? 'Highest first — tap to sort lowest first' : 'Lowest first — tap to sort highest first'}
+          title={sortDir === 'desc' ? 'Highest first' : 'Lowest first'}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-muted"
+        >
+          {sortDir === 'desc' ? <ArrowDownWideNarrow size={15} /> : <ArrowUpNarrowWide size={15} />}
+        </button>
 
         <button
           type="button"
@@ -984,6 +907,23 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         )}
       </div>
       </div>
+
+      {/* Sort-driven scope: said out loud, one tap back to All. */}
+      {sortScope && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber/40 bg-amber/10 px-2.5 py-1">
+          <PxIcon name={KIND_DEFS.find((k) => k.id === sortScope)?.icon ?? 'diamondIn'} size={13} />
+          <span className="flex-1 text-[11px] font-black text-amber">
+            Showing {KIND_DEFS.find((k) => k.id === sortScope)?.label} only · sorted by {activeSortLabel}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSortUi((s) => applyKindPick(s, 'all'))}
+            className="flex min-h-[44px] items-center rounded-md px-2 text-[11px] font-black text-amber underline underline-offset-2"
+          >
+            All gear
+          </button>
+        </div>
+      )}
 
       {/* Active filters: one horizontal row, never a wrapped wall. */}
       {activeFilterLabels.length > 0 && (
