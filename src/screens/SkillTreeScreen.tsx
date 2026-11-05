@@ -20,6 +20,17 @@ import {
   type ActionSkillStateView,
 } from '@/content/actionSkills';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
+import {
+  AMBER,
+  AMBER_GLOW,
+  BONE,
+  BONE_FAINT,
+  BONE_MUTED,
+  Bolts,
+  PlateFootStrip,
+  STEEL,
+  plateShell,
+} from '@/components/profile/HunterPlates';
 
 /**
  * ActionSkillPicker — the ONE active signature choice (0030). The
@@ -59,56 +70,69 @@ const ActionSkillPicker: React.FC = () => {
   };
 
   return (
-    <div className="bl-card space-y-2 p-3" data-testid="action-skill-picker">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-xs font-black uppercase tracking-wide text-text-primary">Action Skill</div>
-        {view.selected && (
-          <div className="font-mono text-[11px] font-black text-text-primary">
-            {Math.floor(view.charge)}/{ACTION_SKILL_CHARGE_MAX} charge
+    <div className="relative overflow-hidden p-3.5" style={plateShell} data-testid="action-skill-picker">
+      <Bolts />
+      <div className="relative space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[13px] font-black uppercase tracking-wide" style={{ color: BONE }}>Action Skill</div>
+          {view.selected && (
+            <div className="font-mono text-[11px] font-black" style={{ color: BONE }}>
+              {Math.floor(view.charge)}/{ACTION_SKILL_CHARGE_MAX} charge
+            </div>
+          )}
+        </div>
+        {view.qualified.length === 0 ? (
+          <div className="text-[11px] leading-snug" style={{ color: BONE_FAINT }} data-testid="action-skill-picker-none">
+            {NO_KEYSTONE_NOTE}
           </div>
+        ) : (
+          <>
+            <div className="text-[11px] leading-snug" style={{ color: BONE_FAINT }}>
+              Owning a tree&apos;s keystone unlocks its signature. Pick ONE active signature — it charges through boss attempts and endless fights (Fixers also charge at the benches and the repair bay).
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {view.qualified.map((tree) => {
+                const def = ACTION_SKILL_DEFS[tree];
+                const visual = getSkillTreeVisual(tree);
+                const isActive = view.selected === tree;
+                return (
+                  <button
+                    key={tree}
+                    type="button"
+                    data-testid={`action-skill-pick-${tree}`}
+                    onClick={() => void pick(isActive ? null : tree)}
+                    disabled={busy}
+                    className="relative min-h-[44px] overflow-hidden p-2.5 pb-3.5 text-left disabled:opacity-50"
+                    style={{
+                      border: '2px solid #000',
+                      background: 'linear-gradient(158deg, #1D1811 0%, #0C0A08 100%)',
+                      boxShadow: isActive
+                        ? `3px 3px 0 rgba(0,0,0,0.7), inset 0 0 0 2px ${AMBER}`
+                        : '3px 3px 0 rgba(0,0,0,0.7)',
+                    }}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <PxIcon name={visual.sigil} size={13} style={{ color: visual.color }} />
+                      <span className="text-xs font-black" style={{ color: BONE }}>{def.name}</span>
+                    </div>
+                    <div className="mt-0.5 text-[11px] leading-snug" style={{ color: BONE_FAINT }}>{def.summary}</div>
+                    <div className="mt-1 text-[11px] font-black uppercase" style={{ color: visual.color }}>
+                      {isActive ? 'Active — tap to clear' : `${tree} signature`}
+                    </div>
+                    {/* The tree's color rides the foot strip — never
+                        a side bar (Arena Plates law). */}
+                    <PlateFootStrip color={visual.color} height={3} />
+                  </button>
+                );
+              })}
+            </div>
+            {pickError && (
+              <div role="alert" className="text-[11px] font-black uppercase text-red">{pickError}</div>
+            )}
+          </>
         )}
       </div>
-      {view.qualified.length === 0 ? (
-        <div className="text-[11px] leading-snug text-text-muted" data-testid="action-skill-picker-none">
-          {NO_KEYSTONE_NOTE}
-        </div>
-      ) : (
-        <>
-          <div className="text-[11px] leading-snug text-text-muted">
-            Owning a tree&apos;s keystone unlocks its signature. Pick ONE active signature — it charges through boss attempts and endless fights (Fixers also charge at the benches and the repair bay).
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {view.qualified.map((tree) => {
-              const def = ACTION_SKILL_DEFS[tree];
-              const visual = getSkillTreeVisual(tree);
-              const isActive = view.selected === tree;
-              return (
-                <button
-                  key={tree}
-                  type="button"
-                  data-testid={`action-skill-pick-${tree}`}
-                  onClick={() => void pick(isActive ? null : tree)}
-                  disabled={busy}
-                  className={`border-2 p-2 text-left disabled:opacity-50 ${isActive ? 'ring-2 ring-amber/70' : ''}`}
-                  style={{ borderLeftColor: visual.color, borderLeftWidth: 5 }}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <PxIcon name={visual.sigil} size={13} style={{ color: visual.color }} />
-                    <span className="text-[11px] font-black text-text-primary">{def.name}</span>
-                  </div>
-                  <div className="mt-0.5 text-[9px] leading-tight text-text-muted">{def.summary}</div>
-                  <div className="mt-1 text-[9px] font-black uppercase" style={{ color: visual.color }}>
-                    {isActive ? 'Active — tap to clear' : `${tree} signature`}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {pickError && (
-            <div role="alert" className="text-[10px] font-black uppercase text-red">{pickError}</div>
-          )}
-        </>
-      )}
+      <PlateFootStrip color={STEEL} height={3} />
     </div>
   );
 };
@@ -229,9 +253,15 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     <button
       onClick={respec}
       disabled={pendingNodeId !== null}
-      className="bl-secondary flex shrink-0 items-center gap-1 px-2 py-1.5 text-xs font-black text-amber disabled:opacity-50"
+      className="flex min-h-[44px] shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-black uppercase tracking-wide disabled:opacity-50"
+      style={{
+        color: AMBER,
+        border: '2px solid #000',
+        background: 'linear-gradient(158deg, #1D1811 0%, #0C0A08 100%)',
+        boxShadow: '3px 3px 0 rgba(0,0,0,0.7)',
+      }}
     >
-      <RotateCcw size={12} /> Respec
+      <RotateCcw size={13} /> Respec
     </button>
   );
 
@@ -245,11 +275,28 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     </div>
   );
 
+  // The points read as gauges on plate wells (Arena Plates): the
+  // available count is the screen's hero numeral in amber glow;
+  // the foot strip goes amber only while points wait to be spent.
+  // Label and value stay adjacent siblings — the respec suite reads
+  // the value as the label's next sibling.
   const stats = (
     <div className="grid grid-cols-3 gap-2">
-      <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Available</div><div className="text-xl font-black text-amber">{pointsAvailable}</div></div>
-      <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Spent</div><div className="text-xl font-black text-text-primary">{pointsSpent}</div></div>
-      <div className="bl-card p-2"><div className="text-[10px] uppercase text-text-muted">Respec cost</div><div className="text-xl font-black text-text-primary">{pointsSpent * 100}cr</div></div>
+      <div className="relative overflow-hidden px-3 pb-3.5 pt-2.5" style={plateShell}>
+        <div className="text-[11px] font-bold uppercase" style={{ color: BONE_FAINT }}>Available</div>
+        <div className="text-[22px] font-black leading-tight" style={{ color: AMBER_GLOW }}>{pointsAvailable}</div>
+        <PlateFootStrip color={pointsAvailable > 0 ? AMBER : STEEL} height={3} />
+      </div>
+      <div className="relative overflow-hidden px-3 pb-3.5 pt-2.5" style={plateShell}>
+        <div className="text-[11px] font-bold uppercase" style={{ color: BONE_FAINT }}>Spent</div>
+        <div className="text-[22px] font-black leading-tight" style={{ color: BONE }}>{pointsSpent}</div>
+        <PlateFootStrip color={STEEL} height={3} />
+      </div>
+      <div className="relative overflow-hidden px-3 pb-3.5 pt-2.5" style={plateShell}>
+        <div className="text-[11px] font-bold uppercase" style={{ color: BONE_FAINT }}>Respec cost</div>
+        <div className="text-[22px] font-black leading-tight" style={{ color: BONE }}>{pointsSpent * 100}cr</div>
+        <PlateFootStrip color={STEEL} height={3} />
+      </div>
     </div>
   );
 
@@ -263,40 +310,65 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
           pointsEarned = level − 1 (1 per level), a node's cost is
           spent from its inspect panel, and cc_retrain returns every
           spent point at a cost of pointsSpent × 100cr. */}
-      <div className="text-[10px] leading-snug text-text-muted">
+      <div className="text-[11px] leading-snug text-text-muted">
         Skill points come from levels — 1 per level ({pointsEarned} earned at level {player.level}). Tap a node to inspect it and spend its listed cost. Respec returns every spent point and costs 100cr per point spent.
       </div>
       {embedded && (
         <div className="flex items-center justify-between gap-3">
-          <div className="text-[10px] text-text-muted">Respec returns every spent point — cost {pointsSpent * 100}cr (100cr per point spent).</div>
+          <div className="text-[11px] leading-snug text-text-muted">Respec returns every spent point — cost {pointsSpent * 100}cr (100cr per point spent).</div>
           {respecButton}
         </div>
       )}
 
       <ActionSkillPicker />
 
-      <div className={embedded ? '' : 'space-y-4'}>
-        {TREES.map((tree) => (
-          <button
-            key={tree.id}
-            onClick={() => {
-              setActiveTree(tree.id);
-              setSelectedNodeId(null);
-            }}
-            className={`bl-card p-2 text-left transition-colors ${activeTree === tree.id ? 'ring-2 ring-amber/70' : ''}`}
-            style={{ borderLeftColor: tree.color, borderLeftWidth: 5 }}
-          >
-            <div className="text-xs font-black uppercase" style={{ color: tree.color }}>{tree.label}</div>
-            <div className="mt-0.5 text-[9px] leading-tight text-text-muted">{tree.desc}</div>
-          </button>
-        ))}
+      {/* Tree selector — plates, one per tree. The tree's color is
+          data (its identity): it rides the label and the foot
+          strip, never a side bar. The active plate takes an inset
+          frame in its own color; each plate gauges its spent
+          count on the right. */}
+      <div className="space-y-2">
+        {TREES.map((tree) => {
+          const treeSpentPts = getSkillTreeNodes(tree.id).reduce((sum, n) => sum + (skillStore.spent[n.id] || 0), 0);
+          const isActiveTree = activeTree === tree.id;
+          return (
+            <button
+              key={tree.id}
+              type="button"
+              onClick={() => {
+                setActiveTree(tree.id);
+                setSelectedNodeId(null);
+              }}
+              className="relative block min-h-[44px] w-full overflow-hidden px-3.5 pb-3.5 pt-2.5 text-left transition-transform active:scale-[0.99]"
+              style={{
+                ...plateShell,
+                boxShadow: isActiveTree
+                  ? `5px 5px 0 rgba(0,0,0,0.75), inset 0 0 0 2px ${tree.color}`
+                  : plateShell.boxShadow,
+              }}
+            >
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-black uppercase tracking-wide" style={{ color: tree.color }}>{tree.label}</div>
+                  <div className="mt-0.5 text-[11px] leading-snug" style={{ color: BONE_FAINT }}>{tree.desc}</div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-[19px] font-black leading-none" style={{ color: BONE }}>{treeSpentPts}</div>
+                  <div className="mt-0.5 text-[11px] font-bold uppercase leading-none" style={{ color: BONE_FAINT }}>pts in</div>
+                </div>
+              </div>
+              <PlateFootStrip color={tree.color} height={isActiveTree ? 4 : 3} />
+            </button>
+          );
+        })}
       </div>
 
-      <div className="bl-card overflow-hidden p-0">
-        <div className="flex items-center justify-between border-b-2 border-border px-3 py-2">
+      <div className="relative" style={plateShell}>
+        <Bolts />
+        <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '2px solid rgba(163,152,134,0.28)' }}>
           <div>
-            <div className="text-xs font-black uppercase tracking-wide" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
-            <div className="text-[10px] text-text-muted">Horizontal scroll is intentional on mobile. Tap a node to inspect or spend.</div>
+            <div className="text-[13px] font-black uppercase tracking-wide" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
+            <div className="mt-0.5 text-[11px]" style={{ color: BONE_FAINT }}>Horizontal scroll is intentional on mobile. Tap a node to inspect or spend.</div>
           </div>
           {/* The tree sigil is decorative (QC A7: an unexplained red
               glyph at the board's top-right read as a button). It now
@@ -314,19 +386,19 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
         {errorMessage && (
           <div
             role="alert"
-            className="border-b-2 border-red/40 bg-red/10 px-3 py-2 text-[10px] font-black uppercase text-red"
+            className="relative border-b-2 border-red/40 bg-red/10 px-4 py-2 text-[11px] font-black uppercase text-red"
           >
             {errorMessage}
           </div>
         )}
 
-        <div className="overflow-x-auto p-3">
+        <div className="relative overflow-x-auto p-3">
           <div className="min-w-[520px] space-y-3">
             {tiers.map(([tier, tierNodes], tierIndex) => (
               <div key={tier} className="relative">
                 {tierIndex > 0 && <div className="absolute -top-3 left-1/2 h-3 w-[2px] bg-amber/30" />}
                 <div className="grid grid-cols-[58px_1fr] items-center gap-2">
-                  <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Tier {tier}</div>
+                  <div className="text-[11px] font-black uppercase tracking-wide" style={{ color: BONE_FAINT }}>Tier {tier}</div>
                   <div className="grid grid-cols-3 gap-2">
                     {Array.from({ length: 3 }).map((_, idx) => {
                       // Audit COPY-03: a single-node tier renders its
@@ -346,7 +418,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                       const isAvailable = canSpend(node.id) && pendingNodeId === null;
                       const isSelected = selectedNode?.id === node.id;
                       const isPending = pendingNodeId === node.id;
-                      const size = node.type === 'keystone' ? 'min-h-[76px]' : node.type === 'major' ? 'min-h-[68px]' : 'min-h-[58px]';
+                      const size = node.type === 'keystone' ? 'min-h-[84px]' : node.type === 'major' ? 'min-h-[76px]' : 'min-h-[68px]';
 
                       return (
                         <motion.button
@@ -367,12 +439,12 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                                 size={20}
                                 animate={node.type === 'keystone' && currentPoints > 0}
                               />
-                              <div className="truncate text-[10px] font-black text-text-primary">{node.name}</div>
+                              <div className="truncate text-[11px] font-black text-text-primary">{node.name}</div>
                             </div>
                             {isMaxed && <Lock size={11} className="shrink-0 text-green" />}
                           </div>
-                          <div className="mt-1 text-[9px] text-text-muted">{node.description}</div>
-                          <div className="absolute bottom-1 right-2 text-[10px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
+                          <div className="mt-1 text-[11px] leading-snug text-text-muted">{node.description}</div>
+                          <div className="absolute bottom-1 right-2 text-[11px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
                             {isPending ? '…' : `${currentPoints}/${node.maxPoints}`}
                           </div>
                         </motion.button>
@@ -384,44 +456,50 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
             ))}
           </div>
         </div>
+        <PlateFootStrip color={activeTreeDef.color} height={3} />
       </div>
 
       {selectedNode && (
-        <div className="bl-card space-y-2 p-3" style={{ borderLeftColor: activeTreeDef.color, borderLeftWidth: 5 }}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-black uppercase tracking-wide text-text-primary">{selectedNode.name}</div>
-              <div className="text-[10px] uppercase text-text-muted">{selectedNode.type} · Tier {selectedNode.tier}</div>
+        <div className="relative overflow-hidden p-4" style={plateShell}>
+          <Bolts />
+          <div className="relative space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[15px] font-black uppercase tracking-wide" style={{ color: BONE }}>{selectedNode.name}</div>
+                <div className="mt-0.5 text-[11px] font-bold uppercase" style={{ color: BONE_FAINT }}>{selectedNode.type} · Tier {selectedNode.tier}</div>
+              </div>
+              <div className="text-sm font-black" style={{ color: AMBER }}>{skillStore.spent[selectedNode.id] || 0}/{selectedNode.maxPoints}</div>
             </div>
-            <div className="text-xs font-black text-amber">{skillStore.spent[selectedNode.id] || 0}/{selectedNode.maxPoints}</div>
-          </div>
-          <div className="text-xs text-text-secondary">{selectedNode.description}</div>
-          {selectedNode.requires && selectedNode.requires.length > 0 && (
-            <div className="text-[10px] text-text-muted">Requires: {selectedNode.requires.map((reqId) => SKILL_NODES.find((n) => n.id === reqId)?.name ?? reqId).join(', ')}</div>
-          )}
-          {canSpend(selectedNode.id) ? (
-            <button
-              onClick={() => spendPoint(selectedNode.id)}
-              disabled={pendingNodeId !== null}
-              className="bl-primary w-full py-2 text-xs font-black disabled:opacity-50"
-            >
-              {pendingNodeId === selectedNode.id ? 'Training…' : `Spend ${selectedNode.cost} Point${selectedNode.cost === 1 ? '' : 's'}`}
-            </button>
-          ) : (
-            <>
+            <div className="text-xs leading-snug" style={{ color: BONE_MUTED }}>{selectedNode.description}</div>
+            {selectedNode.requires && selectedNode.requires.length > 0 && (
+              <div className="text-[11px]" style={{ color: BONE_FAINT }}>Requires: {selectedNode.requires.map((reqId) => SKILL_NODES.find((n) => n.id === reqId)?.name ?? reqId).join(', ')}</div>
+            )}
+            {canSpend(selectedNode.id) ? (
               <button
-                disabled
-                aria-disabled="true"
-                data-testid="skill-spend-unavailable"
-                className="bl-primary w-full py-2 text-xs font-black disabled:opacity-50"
+                onClick={() => spendPoint(selectedNode.id)}
+                disabled={pendingNodeId !== null}
+                className="bl-primary min-h-[44px] w-full py-3 text-xs font-black disabled:opacity-50"
               >
                 {pendingNodeId === selectedNode.id ? 'Training…' : `Spend ${selectedNode.cost} Point${selectedNode.cost === 1 ? '' : 's'}`}
               </button>
-              <div className="text-[10px] leading-snug text-text-muted">
-                {spendReason(selectedNode) ?? 'Not spendable right now.'}
-              </div>
-            </>
-          )}
+            ) : (
+              <>
+                <button
+                  disabled
+                  aria-disabled="true"
+                  data-testid="skill-spend-unavailable"
+                  className="bl-primary min-h-[44px] w-full py-3 text-xs font-black disabled:opacity-50"
+                >
+                  {pendingNodeId === selectedNode.id ? 'Training…' : `Spend ${selectedNode.cost} Point${selectedNode.cost === 1 ? '' : 's'}`}
+                </button>
+                <div className="text-[11px] leading-snug" style={{ color: BONE_FAINT }}>
+                  {spendReason(selectedNode) ?? 'Not spendable right now.'}
+                </div>
+              </>
+            )}
+          </div>
+          {/* The tree's color rides the inspect plate's foot strip. */}
+          <PlateFootStrip color={activeTreeDef.color} height={3} />
         </div>
       )}
     </div>

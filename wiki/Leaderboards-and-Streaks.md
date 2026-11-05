@@ -1,6 +1,6 @@
 # Leaderboards & Streaks
 
-Two rhythms keep CyberCache ticking between sessions: **weekly leaderboard races** that settle every week, and a **daily login streak** that rewards simply showing up. Both surface in plain sight — the streak as the flame in [[The Board]]'s top bar, and the standings behind the **Standings door on the Hunter tab**. The door wears a live badge: a pill when last week's race rewards have landed, a warning when the current week is about to close, and your active drop-luck bonus while one runs. Race rewards **pay out automatically** — the pill is a notice that earnings arrived, not a claim prompt, and it clears once you've viewed the earnings panel it points to.
+Two rhythms keep CyberCache ticking between sessions: **weekly leaderboard races** that settle every week, and a **daily login streak** that rewards simply showing up. Both surface in plain sight — the streak as the flame in [[The Board]]'s top bar, and the standings behind the **Standings door on the Hunter tab's menu**. The door wears a live badge: a count when last week's race rewards have landed. The full pill set — the earnings notice, a warning when the current week is about to close, and your active drop-luck bonus while one runs — rides the second Standings door on your Profile & Record. Race rewards **pay out automatically** — the badge is a notice that earnings arrived, not a claim prompt, and it clears once you've viewed the earnings panel it points to.
 
 ## Weekly leaderboards
 
