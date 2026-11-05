@@ -42,8 +42,8 @@ const k = () => `wm${(keySeq += 1)}`;
 /* Inline                                                              */
 /* ------------------------------------------------------------------ */
 
-const INLINE_RE =
-  /(`[^`]+`)|(\[\[[^\]]+\]\])|(<img[^>]*>)|(\[[^\]]*\]\([^)]*\))|(\*\*[^*]+\*\*)|(\*[^*\s][^*]*\*)|(https?:\/\/[^\s)]+)/g;
+const INLINE_RE_SRC =
+  '(`[^`]+`)|(\\[\\[[^\\]]+\\]\\])|(<img[^>]*>)|(\\[[^\\]]*\\]\\([^)]*\\))|(\\*\\*[^*]+\\*\\*)|(\\*[^*\\s][^*]*\\*)|(https?:\\/\\/[^\\s)]+)';
 
 function imgAttrs(tag: string): { src?: string; alt?: string; width?: number } {
   const src = tag.match(/src="([^"]*)"/)?.[1];
@@ -76,9 +76,13 @@ function WikiImg({ rel, alt, width, inTable }: { rel: string; alt?: string; widt
 }
 
 function renderInline(text: string, ctx: MdCtx, inTable = false): React.ReactNode[] {
+  // A FRESH regex per call: renderInline recurses (bold/italic spans
+  // re-render their contents), and a shared /g regex's lastIndex is
+  // mutated by the inner pass — the outer pass then re-matches its
+  // first token forever (this hung the renderer on any bold span).
+  const INLINE_RE = new RegExp(INLINE_RE_SRC, 'g');
   const out: React.ReactNode[] = [];
   let last = 0;
-  INLINE_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = INLINE_RE.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index));
