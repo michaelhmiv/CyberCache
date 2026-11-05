@@ -17,6 +17,24 @@ export interface ClassModBoosts {
   nodeBoosts: Record<string, number>;
 }
 
+/**
+ * The boosts a single class mod item carries, in the ClassModBoosts
+ * shape every consumer takes. This is the client twin of the server's
+ * derivation (`classModBoostsFromGear` over the equipped set,
+ * src/server/gameplay/serverLoadout.ts): the skill slice's
+ * applyClassMod stores exactly this shape from the equipped mod, and
+ * hypothetical loadouts (equip comparison) derive the candidate
+ * mod's boosts through the same extraction so both sides of a swap
+ * price identically.
+ */
+export function classModBoostsOf(
+  classMod: { treeBonus: string; nodeBoosts: Record<string, number> } | undefined | null,
+): ClassModBoosts {
+  return classMod
+    ? { treeBonus: classMod.treeBonus, nodeBoosts: { ...classMod.nodeBoosts } }
+    : { nodeBoosts: {} };
+}
+
 /** Map tree name to SkillTreeType for treeBonus resolution. */
 const TREE_NAME_MAP: Record<string, SkillTreeType> = {
   Gunslinger: SkillTreeType.Gunslinger,

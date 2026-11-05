@@ -54,7 +54,7 @@ export type CharacterStatSummary = {
   all: StatMetric[];
 };
 
-type Input = {
+export type CharacterStatSummaryInput = {
   player: PlayerProfile;
   weapons: Array<Weapon | undefined>;
   shield?: Shield;
@@ -114,7 +114,7 @@ function metric(key: string, label: string, value: number, display: string, deta
   return { key, label, value, display, detail, tone, contributions: contributions.filter((entry) => entry.value !== 0), stacked, sourceActivity };
 }
 
-export function buildCharacterStatSummary(input: Input): CharacterStatSummary {
+export function buildCharacterStatSummary(input: CharacterStatSummaryInput): CharacterStatSummary {
   const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss, activeBuffs = [], medKitBuffer: survivalStoreBuffer = 0, consumableInventory } = input;
   const mechanics = buildCharacterMechanicsSnapshot(input);
   const liveWeapons = weapons.filter((weapon): weapon is Weapon => !!weapon);

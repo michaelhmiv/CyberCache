@@ -20,6 +20,7 @@ import {
 } from '@/store';
 import { useNow } from '@/hooks/useNow';
 import { buildCharacterStatSummary, type CharacterStatSummary } from '@/lib/stats/characterStats';
+import { assembleStatSummaryInput } from '@/lib/stats/assembleStatSummaryInput';
 import { buildCharacterMechanicsSnapshot, type CharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import type { BossDef } from '@/types/boss';
@@ -44,20 +45,26 @@ export function useCharacterStatSummary(boss?: BossDef | null): CharacterStatInp
     const weapons = [loadout.getWeapon('primary'), loadout.getWeapon('secondary'), loadout.getWeapon('heavy')]
       .filter((w): w is Weapon => !!w);
     const activeBuffs = activeBuffsStore.buffs.filter((buff) => buff.expiresAt > now);
-    const summaryInput = {
+    // The ONE assembly (assembleStatSummaryInput): weapons ride
+    // slot-indexed with holes — the builders filter them exactly as
+    // they filtered the compacted array — and spent points fold
+    // through effectiveSkillPoints with the equipped class mod's
+    // boosts, so the summary prices the build the Chef pays.
+    const summaryInput = assembleStatSummaryInput({
       player,
-      weapons,
+      weapons: [loadout.getWeapon('primary'), loadout.getWeapon('secondary'), loadout.getWeapon('heavy')],
       shield: loadout.getShield(),
       classMod: loadout.getClassMod(),
       relic: loadout.getRelic(),
       ordnance: loadout.getOrdnance(),
-      spentSkills: skills.spent,
+      spent: skills.spent,
+      classModBoosts: skills.classModBoosts,
       boss: boss ?? undefined,
       activeBuffs,
       consumableMods: buildConsumableInventoryMods(player.consumables),
       consumableInventory: player.consumables,
       medKitBuffer: survival.medKitBuffer,
-    };
+    });
     return {
       summary: buildCharacterStatSummary(summaryInput),
       snapshot: buildCharacterMechanicsSnapshot(summaryInput),
