@@ -86,7 +86,8 @@ import { InMemoryEconomyStore } from '../server/economy/memory';
 import { mountDispatchRoutes } from '../server/gameplay/routes';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { InMemoryWriteStore } from '../server/writes/memory';
-import { emptyWriteSeed, type ProfileRowData, type WriteItemData } from '../server/writes/store';
+import { emptyWriteSeed, type WriteItemData } from '../server/writes/store';
+import type { ProfileRowData } from '../server/reads/store';
 import { issueAccessToken } from '../server/auth/tokens';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
