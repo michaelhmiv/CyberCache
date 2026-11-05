@@ -227,7 +227,7 @@ export const DashboardTopBar: React.FC = () => {
       (streakClaimable
         ? `, day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward ready to claim`
         : streakJustClaimed
-          ? `, day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} reward claimed just now`
+          ? `, reward for day ${granted?.cycleDay ?? streakResult.loginStreak.cycleDay} claimed just now`
           : streakAnnouncement
             ? `, new grant banked for day ${granted?.streakLength}`
             : ', today checked in')
