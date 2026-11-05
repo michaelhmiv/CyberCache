@@ -269,7 +269,7 @@ export const PushButton: React.FC<{
         {label}
       </span>
       {sub && (
-        <span className="block truncate text-[11px] leading-tight" style={{ ...monoStyle, color: FAINT }}>
+        <span className="block text-[11px] leading-snug" style={{ ...monoStyle, color: FAINT }}>
           {sub}
         </span>
       )}

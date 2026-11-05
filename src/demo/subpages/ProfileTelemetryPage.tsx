@@ -166,29 +166,25 @@ export const ProfileTelemetryPage: React.FC = () => {
       {/* ── UNIT IDENTIFICATION ─────────────────────────────── */}
       <Panel testId="profile-unit-panel">
         <PanelLabel label="Unit Identification" right="SERVICE RECORD · LIVE" rightColor={GREEN} />
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="truncate leading-none" style={{ ...displayStyle, color: INK, fontSize: 34 }}>
-              {STATS.display_name}
-            </div>
-            <div className="mt-1.5 text-[12px]" style={{ ...monoStyle, color: MUT }}>
-              @{STATS.username} · ENLISTED 2026-06-14
-            </div>
-          </div>
-          <div className="flex shrink-0 flex-col gap-1.5 pt-1">
-            <span className="flex items-center gap-1.5">
-              <Led lit color={GREEN} size={8} />
-              <span className="text-[11px] font-bold uppercase" style={{ ...monoStyle, color: MUT }}>
-                Verified
-              </span>
+        <div className="truncate leading-none" style={{ ...displayStyle, color: INK, fontSize: 34 }}>
+          {STATS.display_name}
+        </div>
+        <div className="mt-1.5 text-[12px]" style={{ ...monoStyle, color: MUT }}>
+          @{STATS.username} · ENLISTED 2026-06-14
+        </div>
+        <div className="mt-2.5 flex items-center gap-5">
+          <span className="flex items-center gap-1.5">
+            <Led lit color={GREEN} size={8} />
+            <span className="text-[11px] font-bold uppercase" style={{ ...monoStyle, color: MUT }}>
+              Account Verified
             </span>
-            <span className="flex items-center gap-1.5">
-              <Led lit color={CYAN} size={8} />
-              <span className="text-[11px] font-bold uppercase" style={{ ...monoStyle, color: MUT }}>
-                Research {RESEARCH_PCT}%
-              </span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Led lit color={CYAN} size={8} />
+            <span className="text-[11px] font-bold uppercase" style={{ ...monoStyle, color: MUT }}>
+              Research {RESEARCH_PCT}% Studied
             </span>
-          </div>
+          </span>
         </div>
 
         <div className="mt-3 grid grid-cols-4 gap-1.5">
@@ -322,7 +318,7 @@ export const ProfileTelemetryPage: React.FC = () => {
               Collection Logged
             </span>
             <span className="block text-[11px] leading-tight" style={{ ...monoStyle, color: FAINT }}>
-              Effects · bosses · frames · elites
+              Across all four families
             </span>
           </span>
           <span className="w-[110px] shrink-0">
