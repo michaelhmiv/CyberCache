@@ -137,6 +137,7 @@ const ALLOWLIST: Array<{ file: string; side: GlueHit['side']; cleanedEndsOrStart
   { file: 'src/screens/WorkshopScreen.tsx', side: 'text>expr', cleanedEndsOrStarts: 'cr', reason: 'Bench unlock: cost-input segments each render as " + N <label>" — leading space by construction.' },
   { file: 'src/screens/WorkshopScreen.tsx', side: 'text>expr', cleanedEndsOrStarts: 'R', reason: 'Compact rank badge "{manufacturer} R{rank}" — R{rank} is one token, like Lv.{n}.' },
   { file: 'src/components/consumables/ConsumableInspectSheet.tsx', side: 'text>expr', cleanedEndsOrStarts: 'x', reason: 'Count prefix "x{owned} owned" is one token.' },
+  { file: 'src/components/profile/ResearchPanel.tsx', side: 'text>expr', cleanedEndsOrStarts: 'T', reason: 'Compact tier chip "T{tier}" is one token, like R{rank} / Lv.{n} — the Instrument Panel row badge (owner pick B, 2026-11-05).' },
 ];
 
 function findGlue(file: string, code: string): GlueHit[] {
