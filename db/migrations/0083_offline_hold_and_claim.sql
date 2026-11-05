@@ -533,7 +533,7 @@ begin
      set credits = credits + h.credits,
          player_level = new_level,
          player_xp = new_xp,
-         cache_tokens = cache_tokens + h.cache_tokens,
+         cache_tokens = cache_tokens + h.cache_keys,
          materials = next_materials,
          essences = next_essences,
          updated_at = now()
