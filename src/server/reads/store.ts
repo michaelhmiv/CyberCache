@@ -124,6 +124,11 @@ export interface ProfileRowData {
   workshop_tools?: Record<string, unknown>;
   /** Legendary core balance (migration 0026). Optional: pre-0026 seed rows omit it. */
   legendary_cores?: number;
+  /** Auto-Salvage Rule (migration 0080). Optional: pre-0080 seed rows omit them (= enabled, Common, 20, scrap). */
+  auto_salvage_enabled?: boolean;
+  auto_salvage_max_rarity?: string;
+  auto_salvage_max_quality?: number;
+  auto_salvage_to_materials?: boolean;
   /** Banked bench time, whole seconds (migration 0075). Optional: pre-0075 seed rows omit it (= 0). */
   bench_time_banked_seconds?: number;
   /** The bench-time settlers' sub-second drain remainder, ms (migration 0075). Optional (= 0). */
@@ -207,6 +212,8 @@ export interface LedgerEntryData {
   result_payload: Record<string, unknown>;
   /** Row timestamp — read only by the weekly leaderboard fold (0035). */
   created_at?: string;
+  /** Idempotency key — read only by the Activity Log projection (the 0080 auto-salvage nonce marker). */
+  idempotency_key?: string;
 }
 
 export interface EndlessRunRecordData {
@@ -1609,10 +1616,12 @@ function activityInputFromSeed(seed: ReadSeed, playerId: string): ActivityRawInp
   const ownLedger: ActivityLedgerRow[] = rich
     ? rich.filter((r) => r.user_id === playerId).map((r) => ({
       id: r.id, action_type: r.action_type, result_payload: foldRecord(r.result_payload), created_at: r.created_at,
+      nonce: r.nonce ?? null,
     }))
     : (seed.ledger ?? []).filter((r) => r.user_id === playerId).map((r, i) => ({
       id: `mem-ledger-${i}`, action_type: r.action_type, result_payload: foldRecord(r.result_payload),
       created_at: r.created_at ?? '1970-01-01T00:00:00.000Z',
+      nonce: r.idempotency_key ?? null,
     }));
   const acceptRows: Array<{ user_id: string; result_payload: Record<string, unknown> }> = rich
     ? rich.filter((r) => r.action_type === 'cc_accept_listing' || r.action_type === 'cc_quickbuy_fill')
@@ -2379,7 +2388,7 @@ export class PgReadStore implements ReadStore {
       const params: unknown[] = cursorAt ? [playerId, window, cursorAt] : [playerId, window];
       const bound = (column: string) => (cursorAt ? `and ${column} <= $3::timestamptz` : '');
       const { rows: ledgerRaw } = await this.db.query(
-        `select id::text as id, action_type, result_payload, created_at
+        `select id::text as id, action_type, result_payload, created_at, idempotency_key
            from public.verified_action_ledger
           where user_id = $1 ${bound('created_at')}
           order by created_at desc, id desc limit $2`,
@@ -2430,6 +2439,7 @@ export class PgReadStore implements ReadStore {
         action_type: String(row.action_type),
         result_payload: foldRecord(row.result_payload),
         created_at: iso(row.created_at),
+        nonce: typeof row.idempotency_key === 'string' ? row.idempotency_key : null,
       }));
       const soldListings: ActivityListingRow[] = (listingRaw as Row[]).map((row) => ({
         id: String(row.id),

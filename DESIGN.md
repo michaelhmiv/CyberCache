@@ -170,6 +170,24 @@ hard ceiling** — the purchase re-quotes atomically at tap time and charges
 min(quote, current), never more; if the fresh total exceeds the quote, nothing
 is charged and the sheet re-renders from the fresh quote saying so.
 
+### Auto-salvage scope law (owner-approved 2026-11-04; migration 0080)
+
+The Auto-Salvage Rules (Settings: on/off, max rarity, max roll quality,
+yield Scrap-or-Materials) are profile-owned and enforced by the Chef at
+settlement — never by the client, never from the runtime snapshot. The
+scope is a law, not a default: the rule reaches **roaming claim drops
+and offline-settlement drops only** — the items that settlement just
+stored, checked before they land. It never touches **boss loot, cache
+contents, market deliveries, or crafted items** (the settlement
+function itself refuses any other source), it never sweeps the
+existing bag retroactively, and its rarity ceiling stops at **Epic**
+at every layer — legendaries are salvaged one at a time, deliberately,
+or not at all. The payout is the manual salvage path's own
+(cc_recycle_item, skill bonuses included), and every conversion is
+visible: a feed line per item, a summary in the claim response and
+the offline recap, and an Activity Log record marked as an
+auto-salvage. Nothing about the rule may happen silently.
+
 ---
 
 ## 2. Navigation — four tabs

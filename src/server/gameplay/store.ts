@@ -915,6 +915,20 @@ export interface ChefGameplayStore {
   settleOfflineRoaming(playerId: string, settlementNonce: string, rewards: ChefRewardsInput, consumedConsumables?: Json, capHours?: number): Promise<Json>;
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json>;
   /**
+   * Auto-salvage settlement pass (migration 0080,
+   * cc_auto_salvage_claim_items): recycle the just-stored claim
+   * items that match the profile's Auto-Salvage Rule. Called ONLY
+   * by the roaming claim and offline settlement routes, with the
+   * ids of the items that claim stored — boss loot, cache contents,
+   * market deliveries and crafted items never reach it. Each
+   * eligible item is recycled through cc_recycle_item itself
+   * (derived nonce 'autosalvage:<source>:<claim nonce>:<item id>'),
+   * so the yield is the manual salvage path's own. Returns the
+   * aggregate summary (counts, scrap/cores/materials, per-item
+   * list, post-pass profile snapshot).
+   */
+  applyAutoSalvage(playerId: string, nonce: string, source: 'roam' | 'offline', itemIds: string[]): Promise<Json>;
+  /**
    * Record collection discoveries proven by a settled server-side
    * fact (cc_record_discoveries, 0026). Entries are derived by the
    * routes from Chef/store results — never from the request body.
@@ -2188,5 +2202,14 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   recycleItem(playerId: string, nonce: string, itemId: string): Promise<Json> {
     return this.callJson('select public.cc_recycle_item($1, $2, $3) as result', [playerId, nonce, itemId]);
+  }
+
+  applyAutoSalvage(playerId: string, nonce: string, source: 'roam' | 'offline', itemIds: string[]): Promise<Json> {
+    return this.callJson('select public.cc_auto_salvage_claim_items($1, $2, $3, $4) as result', [
+      playerId,
+      nonce,
+      source,
+      itemIds,
+    ]);
   }
 }

@@ -354,7 +354,18 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
     s.rewards.cacheFragmentsAwarded > 0 ||
     Object.keys(s.rewards.materials).length > 0 ||
     Object.keys(s.rewards.essences).length > 0 ||
+    (s.autoSalvage != null && s.autoSalvage.salvaged_count > 0) ||
     s.items.length > 0;
+  // Auto-salvage (0080): what the rule turned this settlement's
+  // matching drops into — printed as its own row so the conversion
+  // is never invisible in the recap.
+  const autoSalvageValue = s.autoSalvage
+    ? [
+        ...(s.autoSalvage.scrap_award > 0 ? [`+${formatNumber(s.autoSalvage.scrap_award)} scrap`] : []),
+        ...Object.entries(s.autoSalvage.materials).map(([mat, n]) => `+${n} ${mat}`),
+        ...(s.autoSalvage.cores_award > 0 ? [`+${s.autoSalvage.cores_award} cores`] : []),
+      ].join(' · ')
+    : '';
 
   return (
     <motion.div
@@ -469,6 +480,14 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
               label={`${s.standing.manufacturer} Standing`}
               value={`+${s.standing.points}`}
               accent="text-emerald-400"
+            />
+          )}
+          {s.autoSalvage && s.autoSalvage.salvaged_count > 0 && (
+            <RewardRow
+              icon={<PxIcon name="recycle" size={17} />}
+              label={`Auto-salvaged ${s.autoSalvage.salvaged_count} item${s.autoSalvage.salvaged_count === 1 ? '' : 's'}`}
+              value={autoSalvageValue}
+              accent="text-amber"
             />
           )}
           {Object.entries(s.rewards.materials).map(([type, count]) => (

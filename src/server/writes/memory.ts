@@ -224,6 +224,9 @@ import {
   type WriteListingData,
   type WriteSeed,
   type WriteStore,
+  type AutoSalvageRuleData,
+  AUTO_SALVAGE_CEILINGS,
+  autoSalvageRuleFromProfile,
 } from './store.js';
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -5067,6 +5070,39 @@ export class InMemoryWriteStore implements WriteStore {
     p.offline_cap_hours = capHours === null ? 0 : Math.trunc(capHours);
     this.touch(p);
     return { ok: true, offlineCapHours: capHours === null ? null : Math.trunc(capHours) };
+  }
+
+  /** The Auto-Salvage Rule (0080): the profile record's own fields, defaults filling pre-0080 gaps. */
+  async getAutoSalvageRule(playerId: string): Promise<AutoSalvageRuleData | null> {
+    const p = this.profileOrNull(playerId);
+    if (!p) return null;
+    return autoSalvageRuleFromProfile(p);
+  }
+
+  /** cc_set_auto_salvage_rule (0080): validation as data, messages mirroring the RPC verbatim. */
+  async setAutoSalvageRule(playerId: string, rule: AutoSalvageRuleData): Promise<{ ok: boolean; error?: string; autoSalvage?: AutoSalvageRuleData }> {
+    if (!AUTO_SALVAGE_CEILINGS.includes(rule.maxRarity)) {
+      return { ok: false, error: 'Max rarity must be Common, Uncommon, Rare, or Epic — legendaries are never auto-salvaged.' };
+    }
+    if (!Number.isFinite(rule.maxQuality) || Math.trunc(rule.maxQuality) < 0 || Math.trunc(rule.maxQuality) > 100) {
+      return { ok: false, error: 'Max roll quality must be between 0 and 100.' };
+    }
+    const p = this.profileOrNull(playerId);
+    if (!p) return { ok: false, error: 'Profile not found.' };
+    p.auto_salvage_enabled = rule.enabled !== false;
+    p.auto_salvage_max_rarity = rule.maxRarity;
+    p.auto_salvage_max_quality = Math.trunc(rule.maxQuality);
+    p.auto_salvage_to_materials = rule.toMaterials === true;
+    this.touch(p);
+    return {
+      ok: true,
+      autoSalvage: {
+        enabled: p.auto_salvage_enabled,
+        maxRarity: p.auto_salvage_max_rarity,
+        maxQuality: p.auto_salvage_max_quality,
+        toMaterials: p.auto_salvage_to_materials,
+      },
+    };
   }
 
   async markReminderSeen(playerId: string): Promise<ProfileRowData> {

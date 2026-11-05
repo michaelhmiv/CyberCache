@@ -70,7 +70,7 @@ import {
   computeSkillBonuses,
   type ClassModBoosts,
 } from '../../lib/skills/skillBonuses';
-import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses';
+import { applySalvageSkillBonuses, SALVAGE_MATERIAL_BY_KIND } from '../../lib/skills/salvageBonuses';
 import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections';
 import {
   accrueActionSkillCharge,
@@ -251,6 +251,11 @@ export interface InMemoryProfile {
   last_roaming_settled_at: string | null;
   last_settlement_nonce: string | null;
   offline_cap_hours: number | null;
+  /** Auto-Salvage Rule (migration 0080): profile-owned; absent = the shipped defaults. */
+  auto_salvage_enabled?: boolean;
+  auto_salvage_max_rarity?: string;
+  auto_salvage_max_quality?: number;
+  auto_salvage_to_materials?: boolean;
   /** Dispatch board reroll state (migration 0068): stored board
    *  index + rerolls used + the UTC day key they belong to. Reads
    *  resolve the effective state lazily (resolveDispatchBoardState). */
@@ -3679,6 +3684,122 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     };
     this.ledger.set(nonce, result);
     return result;
+  }
+
+  /**
+   * Auto-salvage settlement pass (migration 0080) — the in-memory
+   * twin of cc_auto_salvage_claim_items. Mirrors the SQL pass
+   * exactly: the profile's rule (defaults Common / 20 / scrap when
+   * unset), candidates narrowed to the ids the claim just stored,
+   * re-derived from the item records (owned, 'available', unlocked,
+   * gear kinds, rarity at/under the ceiling, roll quality at/under
+   * the cap where the payload carries a roll), id order, and every
+   * item recycled through this store's own recycleItem under the
+   * derived nonce 'autosalvage:<source>:<claim nonce>:<item id>' —
+   * the yield is the per-item path, never a second formula. The
+   * yield toggle converts the scrap award into +1 of the item's
+   * kind-mapped material (SALVAGE_MATERIAL_BY_KIND), exactly as
+   * the SQL pass does.
+   */
+  async applyAutoSalvage(playerId: string, nonce: string, source: 'roam' | 'offline', itemIds: string[]): Promise<Json> {
+    if (!nonce || nonce.trim().length < 8) {
+      throw new GameplayStoreError('nonce is required');
+    }
+    if (source !== 'roam' && source !== 'offline') {
+      throw new GameplayStoreError('Invalid auto-salvage source');
+    }
+    const p = this.profiles.get(playerId);
+    if (!p) throw new GameplayStoreError('Profile not found');
+    const rule = {
+      max_rarity: typeof p.auto_salvage_max_rarity === 'string' ? p.auto_salvage_max_rarity : 'Common',
+      max_quality: typeof p.auto_salvage_max_quality === 'number' ? p.auto_salvage_max_quality : 20,
+      to_materials: p.auto_salvage_to_materials === true,
+    };
+    const enabled = p.auto_salvage_enabled !== false;
+    const summary = (items: Json[], scrap: number, converted: number, cores: number, counts: Record<string, number>, materials: Record<string, number>): Json => ({
+      action_type: 'cc_auto_salvage',
+      source,
+      enabled,
+      rule,
+      salvaged_count: items.length,
+      counts_by_rarity: counts,
+      scrap_award: scrap,
+      converted_scrap: converted,
+      cores_award: cores,
+      materials,
+      items,
+      profile: this.snapshot(p),
+    });
+    if (!enabled || itemIds.length === 0) {
+      return summary([], 0, 0, 0, {}, {});
+    }
+    const RARITY_RANK: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
+    // The CEILING map stops at Epic — a Legendary ceiling is
+    // impossible at every layer (0080's column check, the setter's
+    // refusal, the SQL ceiling CASE), so an out-of-set stored value
+    // resolves to 0 (salvage nothing), never to the item rank 5.
+    const CEILING_RANK: Record<string, number> = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4 };
+    const GEAR_KINDS = new Set(['weapon', 'shield', 'ordnance', 'classMod', 'relic']);
+    const ceiling = CEILING_RANK[rule.max_rarity] ?? 0;
+    const wanted = new Set(itemIds);
+    const eligible = [...this.items.values()]
+      .filter((item) => {
+        if (item.owner_user_id !== playerId) return false;
+        if (!wanted.has(item.id) && !wanted.has(String((item.payload as { id?: unknown })?.id ?? ''))) return false;
+        if (item.runtime_state !== 'available' || item.is_locked) return false;
+        if (!GEAR_KINDS.has(item.kind)) return false;
+        if ((RARITY_RANK[item.rarity ?? ''] ?? 99) > ceiling) return false;
+        const roll = (item.payload as { rollQuality?: unknown })?.rollQuality;
+        if (typeof roll === 'number' && Number.isFinite(roll) && roll > rule.max_quality) return false;
+        return true;
+      })
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    let scrapTotal = 0;
+    let convertedTotal = 0;
+    let coresTotal = 0;
+    const countsByRarity: Record<string, number> = {};
+    const materialsOut: Record<string, number> = {};
+    const itemsOut: Json[] = [];
+    for (const item of eligible) {
+      const name = typeof (item.payload as { name?: unknown })?.name === 'string' ? String((item.payload as { name?: unknown }).name) : '';
+      const r = (await this.recycleItem(
+        playerId,
+        `autosalvage:${source}:${nonce}:${item.id}`,
+        item.id,
+      )) as Record<string, unknown>;
+      const award = Number(r.scrap_award ?? 0);
+      coresTotal += Number(r.cores_award ?? 0);
+      countsByRarity[item.rarity ?? 'Common'] = (countsByRarity[item.rarity ?? 'Common'] ?? 0) + 1;
+      let convertedMaterial: string | null = null;
+      if (rule.to_materials && award > 0) {
+        const mat = SALVAGE_MATERIAL_BY_KIND[item.kind] ?? 'Scrap';
+        if (mat !== 'Scrap') {
+          convertedMaterial = mat;
+          convertedTotal += award;
+          p.materials['Scrap'] = Math.max(0, (p.materials['Scrap'] ?? 0) - award);
+          p.materials[mat] = (p.materials[mat] ?? 0) + 1;
+          materialsOut[mat] = (materialsOut[mat] ?? 0) + 1;
+        } else {
+          scrapTotal += award;
+        }
+      } else {
+        scrapTotal += award;
+      }
+      if (typeof r.bonus_material === 'string') {
+        materialsOut[r.bonus_material] = (materialsOut[r.bonus_material] ?? 0) + 1;
+      }
+      itemsOut.push({
+        id: item.id,
+        name,
+        kind: item.kind,
+        rarity: item.rarity,
+        level: item.item_level,
+        scrap_award: award,
+        bonus_material: typeof r.bonus_material === 'string' ? r.bonus_material : null,
+        converted_material: convertedMaterial,
+      });
+    }
+    return summary(itemsOut, scrapTotal, convertedTotal, coresTotal, countsByRarity, materialsOut);
   }
 
   /**
