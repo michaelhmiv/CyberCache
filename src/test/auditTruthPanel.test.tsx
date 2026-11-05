@@ -199,7 +199,7 @@ describe('BossEncounterPanel — truth in numbers', () => {
     gate.release = null;
     usePlayerStore.setState({ id: 'test-player', level: 20, credits: 10000, consumables: { MedKit: 5, AmmoPack: 2 } });
     useInventoryStore.setState({ items: [primaryWeapon] });
-    useLoadoutStore.setState({ slots: { primary: primaryWeapon.id, secondary: null, heavy: null, shield: null, ordnance: null, classMod: null, relic: null } });
+    useLoadoutStore.setState({ slots: { primary: primaryWeapon.id, secondary: null, heavy: null, shield: null, ordnance: null, classMod: null, relic: null, vehicle: null } });
     useBossStore.setState({
       currentBossId: boss.id,
       unlockedBossIds: [boss.id],
@@ -209,7 +209,7 @@ describe('BossEncounterPanel — truth in numbers', () => {
       selectedRisk: RiskSetting.Balanced,
       attemptHistory: [],
     });
-    useActivityStore.setState({ current: buildBossFightActivity(boss, primaryWeapon, 'prep'), pending: false });
+    useActivityStore.setState({ current: { ...buildBossFightActivity(boss, primaryWeapon, 'prep'), bossPhase: 'prep', startedAt: null, completesAt: null, lastHeartbeatAt: null, schemaVersion: 1, updatedAt: null }, pending: false });
     // The walk's account state: HP 749/760 throughout the boss fight.
     useSurvivalStore.setState({ currentHp: 749, maxHp: 760, isDead: false });
   });
@@ -240,7 +240,7 @@ describe('BossEncounterPanel — truth in numbers', () => {
       .map((call) => call[0])
       .find((input) => input.bossPhase === 'resolved');
     expect(resolvedCall).toBeDefined();
-    expect(resolvedCall!.publicPayload.activity_label).toBe(`Defeated ${boss.name}`);
+    expect(resolvedCall!.publicPayload!.activity_label).toBe(`Defeated ${boss.name}`);
   });
 
   it('COPY-01: a real rematch fee is itemized as a fee line, labeled by the server', async () => {
