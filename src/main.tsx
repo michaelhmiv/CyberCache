@@ -5,6 +5,7 @@ import App from './App.tsx';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
+import { ResearchShowcaseDemo } from './demo/ResearchShowcaseDemo';
 
 function renderErrorToRoot(error: unknown, source: string) {
   const root = document.getElementById('root');
@@ -35,17 +36,28 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 try {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <GlobalErrorBoundary>
-        <AuthProvider>
-          <AccountStorageBoundary>
-            <App />
-          </AccountStorageBoundary>
-        </AuthProvider>
-      </GlobalErrorBoundary>
-    </StrictMode>,
-  );
+  // PROTOTYPE branch (design/hunter-subpages-research-c): the Hunter
+  // subpage design-pass harness mounts alone at /subpages-demo and
+  // never reaches the real app. This branch dies with the prototype.
+  if (window.location.pathname === '/subpages-demo') {
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <ResearchShowcaseDemo />
+      </StrictMode>,
+    );
+  } else {
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <GlobalErrorBoundary>
+          <AuthProvider>
+            <AccountStorageBoundary>
+              <App />
+            </AccountStorageBoundary>
+          </AuthProvider>
+        </GlobalErrorBoundary>
+      </StrictMode>,
+    );
+  }
 } catch (error) {
   console.error('[createRoot] failed to render:', error);
   renderErrorToRoot(error, 'createRoot');
