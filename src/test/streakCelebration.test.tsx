@@ -300,7 +300,9 @@ describe('Streak poster plate — already claimed is silent', () => {
     render(<Harness />);
     await waitFor(() => expect(mockStreak).toHaveBeenCalledTimes(1));
     await waitFor(() => {
-      expect(screen.getByTestId('top-streak-button').textContent).toContain('Day 3');
+      // Icon-only claim row (owner ruling 2026-11-05): the key
+      // paints the day numeral, never the word "Day".
+      expect(screen.getByTestId('top-streak-button').textContent?.trim()).toBe('3');
     });
 
     expect(screen.queryByTestId('streak-announce-pulse')).toBeNull();

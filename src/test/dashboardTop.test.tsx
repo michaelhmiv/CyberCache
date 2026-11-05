@@ -280,9 +280,11 @@ describe('Dashboard top — the check-in is not behind the tap', () => {
     // …no sheet was opened to make them happen…
     expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull();
     expect(screen.queryByText('Login Streak')).toBeNull();
-    // …and the icon already reflects the recorded day.
+    // …and the icon already reflects the recorded day — as the
+    // bare numeral (icon-only claim row, owner ruling
+    // 2026-11-05): the word lives in the aria-label below.
     await waitFor(() => {
-      expect(screen.getByTestId('top-streak-button').textContent).toContain('Day 3');
+      expect(screen.getByTestId('top-streak-button').textContent?.trim()).toBe('3');
     });
     expect(screen.getByTestId('top-streak-button').getAttribute('aria-label'))
       .toBe('Daily streak — day 3, today checked in');

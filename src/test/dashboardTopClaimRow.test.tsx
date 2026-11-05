@@ -1,28 +1,34 @@
 /**
- * Claim-row fit regression (2026-11-05, PR #400 fallout).
+ * Claim-row icon-only regression (2026-11-05, owner ruling).
  *
- * The defect, measured on the shipped build at 412px (evidence:
- * cybercache-prep/home-buttons-captures): in the fresh-guest
- * state the streak pill's CLAIM reservation (~129px, shrink-0)
- * and the contracts pill's GUEST reservation (~146px, shrink-0)
- * left ~98px of the 386px row for the CACHE + OFFLINE pair —
- * each button rendered ~46px wide, the labels clipped to
- * "CA"/"O", and the CACHE key bubble (the key count's ONLY
- * print on Home) sat entirely outside its button's box, clipped
- * by its own overflow-hidden. jsdom has no layout engine, so
- * this suite pins the STRUCTURE that guarantees the fit at
- * 412px in every badge combination (DESIGN.md §6: adapt the
- * host, never shrink the type):
+ * History: PR #400's claim row crushed CACHE/OFFLINE to ~46px
+ * in the fresh-guest state (badge reservations on the streak /
+ * contracts pills starved the pair; labels clipped, the key
+ * bubble fell outside its button). PR #402 fixed the fit with
+ * flex-wrap + width floors — and the owner rejected the second
+ * line outright ("that second line looks so bad") and ruled
+ * the row ICON-ONLY: "just make those logos then without text
+ * — people will learn what the logos mean."
  *
- *  - the row wraps (`flex-wrap`) instead of crushing the pair;
- *  - the pair group carries a min-width floor sized from its
- *    own content (202px quiet; 328px while a hold is pending),
- *    so badge reservations push the pills to a second line at
- *    full size rather than starving the pair;
- *  - CACHE/OFFLINE carry per-button floors (104px; 90px quiet /
- *    216px pending for OFFLINE) and never `min-w-0`.
+ * This suite pins the structure that makes icon-only fit on
+ * ONE line at 412px in every state (jsdom has no layout; the
+ * 412×915 captures + geometry probe are the pixel proof):
  *
- * On the pre-fix code every one of these assertions fails.
+ *  - the row never wraps and the pair group is gone — the five
+ *    keys are direct children of the row;
+ *  - no word labels paint: CACHE / OFFLINE / ORDERS / WEEKLY
+ *    text is absent from the keys; the full words survive in
+ *    the aria-labels and on the destinations;
+ *  - DATA stays: the key bubble, the pending figure, the
+ *    streak day numeral, the CLAIM / GUEST / count badges;
+ *  - the old badge-corner padding reservations are gone, and
+ *    each key's content row anchors to its bottom (mt-auto in
+ *    a flex-col key) while the badge keeps the top corner —
+ *    badge and content can never share a band at any width;
+ *  - per-key min-width floors are sized from icon + data.
+ *
+ * On the #402 component every assertion below fails (wrap,
+ * painted labels, reservations, pair span, no bottom anchor).
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -193,8 +199,23 @@ function standingWithWeeklyClaimable() {
   return { verified: true, standing: view, profile: null } as never;
 }
 
-function pairGroup() {
-  return screen.getByTestId('top-cache-button').parentElement as HTMLElement;
+function contentRowOf(button: HTMLElement) {
+  // The key's bottom-anchored content row (icon + data) — the
+  // last span child; badge and pulse spans render before it.
+  return button.querySelector(':scope > span:last-of-type') as HTMLElement;
+}
+
+function expectIconKey(button: HTMLElement, minWidthClass: string) {
+  expect(button.className).toContain('flex-col');
+  expect(button.className).toContain(minWidthClass);
+  expect(button.className).not.toContain('flex-wrap');
+  // The label-era badge reservations are reclaimed.
+  for (const reservation of ['pr-16', 'pr-12', 'pr-9']) {
+    expect(button.className).not.toContain(reservation);
+  }
+  // Two zones: badge at the top corner, content on the bottom
+  // baseline — they can never share a band.
+  expect(contentRowOf(button).className).toContain('mt-auto');
 }
 
 beforeEach(() => {
@@ -216,8 +237,8 @@ afterEach(() => {
   cleanup();
 });
 
-describe('Claim row fit — the pair can never be crushed (DESIGN.md §6)', () => {
-  it('fresh-guest state (streak CLAIM + contracts GUEST): the row wraps and the pair keeps its floor', { timeout: 20_000 }, async () => {
+describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-05)', () => {
+  it('fresh-guest state (streak CLAIM + contracts GUEST): icons + data, no labels, no wrap', { timeout: 20_000 }, async () => {
     mockStreak.mockResolvedValue(streakClaimableResult());
     mockContracts.mockResolvedValue(boardResult(false, [contractView('c-1', true)]));
     render(<HomeScreen onNavigate={() => {}} />);
@@ -228,70 +249,83 @@ describe('Claim row fit — the pair can never be crushed (DESIGN.md §6)', () =
     });
     expect(screen.getByTestId('top-contracts-button').textContent).toContain('GUEST');
 
-    // The host adapts: the row wraps…
-    expect(row.className).toContain('flex-wrap');
-    // …and the pair group floors at the width its own content
-    // needs, so the badge reservations (~275px of the 386px
-    // row) push the pills to a second line instead of starving
-    // CACHE/OFFLINE to ~46px each.
-    expect(pairGroup().className).toContain('min-w-[202px]');
-    expect(pairGroup().className).not.toContain('min-w-0');
-
-    // Per-button floors: CACHE fits icon + label + the key
-    // bubble inside its own box; OFFLINE fits its quiet label.
+    // One line: no wrap, and no pair group — the keys are the
+    // row's direct children.
+    expect(row.className).not.toContain('flex-wrap');
     const cacheButton = screen.getByTestId('top-cache-button');
     const offlineButton = screen.getByTestId('top-offline-button');
-    expect(cacheButton.className).toContain('min-w-[104px]');
-    expect(cacheButton.className).not.toContain('min-w-0');
-    expect(offlineButton.className).toContain('min-w-[90px]');
-    expect(offlineButton.className).not.toContain('min-w-0');
+    const streakButton = screen.getByTestId('top-streak-button');
+    const contractsButton = screen.getByTestId('top-contracts-button');
+    expect(cacheButton.parentElement).toBe(row);
 
-    // The bubble — the key count's only print on Home — is a
-    // real child of the CACHE button with the true count.
+    // No word labels paint anywhere in the row…
+    expect(row.textContent).not.toContain('Cache');
+    expect(row.textContent).not.toContain('Offline');
+    expect(row.textContent).not.toContain('Orders');
+    // …while the words survive in the accessibility tree.
+    expect(cacheButton.getAttribute('aria-label')).toBe('Cache — 3 cache keys held. Opens the cache chest.');
+    expect(offlineButton.getAttribute('aria-label')).toContain('nothing waiting');
+    expect(streakButton.getAttribute('aria-label')).toContain('Daily streak — day 1');
+    expect(contractsButton.getAttribute('aria-label')).toContain('sign in with Google');
+
+    // DATA stays: the bubble is the CACHE key's only text —
+    // the true count, a real child of the button.
+    expect(cacheButton.textContent?.trim()).toBe('3');
     expect(cacheButton.contains(screen.getByTestId('top-cache-key-count'))).toBe(true);
-    expect(screen.getByTestId('top-cache-key-count').textContent).toBe('3');
-    // Labels print whole in the DOM the layout now protects.
-    expect(cacheButton.textContent).toContain('Cache');
-    expect(offlineButton.textContent).toContain('Offline');
+    // The streak key paints its badge + the day numeral (data),
+    // never the word "Day".
+    expect(streakButton.textContent).toContain('CLAIM');
+    expect(streakButton.textContent).toContain('1');
+    expect(streakButton.textContent).not.toContain('Day');
+    // The quiet OFFLINE key is a bare icon.
+    expect(offlineButton.textContent?.trim()).toBe('');
+
+    expectIconKey(cacheButton, 'min-w-[64px]');
+    expectIconKey(offlineButton, 'min-w-[44px]');
+    expectIconKey(streakButton, 'min-w-[60px]');
+    expectIconKey(contractsButton, 'min-w-[48px]');
   });
 
-  it('both badges + the weekly pill: all five controls render, structure unchanged', { timeout: 20_000 }, async () => {
+  it('both badges + the weekly pill: five icon keys, one line', { timeout: 20_000 }, async () => {
     mockStreak.mockResolvedValue(streakClaimableResult());
     mockContracts.mockResolvedValue(boardResult(false, [contractView('c-1', true)]));
     mockStanding.mockResolvedValue(standingWithWeeklyClaimable());
     render(<HomeScreen onNavigate={() => {}} />);
 
     const weekly = await screen.findByTestId('top-weekly-button');
-    expect(weekly.textContent).toContain('Weekly');
+    // The weekly key paints its count badge, never its name.
+    expect(weekly.textContent).toContain('1');
+    expect(weekly.textContent).not.toContain('Weekly');
+    expect(weekly.getAttribute('aria-label')).toContain('Weekly claimables');
+    expectIconKey(weekly, 'min-w-[48px]');
     const row = screen.getByTestId('dashboard-top-bar');
-    expect(row.className).toContain('flex-wrap');
-    expect(pairGroup().className).toContain('min-w-[202px]');
+    expect(row.className).not.toContain('flex-wrap');
     for (const id of ['top-cache-button', 'top-offline-button', 'top-streak-button', 'top-contracts-button']) {
       expect(screen.getByTestId(id)).toBeTruthy();
     }
   });
 
-  it('no badges (paid streak, idle contracts): one-line state keeps the same floors', { timeout: 20_000 }, async () => {
+  it('no badges (paid streak, idle contracts): bare icons + the day numeral', { timeout: 20_000 }, async () => {
     mockStreak.mockResolvedValue(streakPaidResult());
     mockContracts.mockResolvedValue(boardResult(true, [contractView('c-1', false)]));
     render(<HomeScreen onNavigate={() => {}} />);
 
     await screen.findByTestId('dashboard-top-bar');
     await waitFor(() => {
-      expect(screen.getByTestId('top-streak-button').textContent).toContain('Day 3');
+      expect(screen.getByTestId('top-streak-button').textContent).toContain('3');
     });
     const row = screen.getByTestId('dashboard-top-bar');
     expect(row.textContent).not.toContain('CLAIM');
     expect(row.textContent).not.toContain('GUEST');
-    // The floors are structural, not state-dependent: the quiet
-    // state fits on one line BECAUSE the natural widths sum
-    // under the row, not because anything shrank.
-    expect(row.className).toContain('flex-wrap');
-    expect(pairGroup().className).toContain('min-w-[202px]');
+    // The streak key is icon + numeral and nothing else.
+    expect(screen.getByTestId('top-streak-button').textContent?.trim()).toBe('3');
+    expect(screen.getByTestId('top-contracts-button').textContent?.trim()).toBe('');
+    expect(screen.getByTestId('top-offline-button').textContent?.trim()).toBe('');
+    expect(row.className).not.toContain('flex-wrap');
     expect(screen.queryByTestId('top-weekly-button')).toBeNull();
   });
 
-  it('a pending hold widens the pair floor: OFFLINE fits its CLAIM badge + figure', { timeout: 20_000 }, async () => {
+  it('a pending hold: OFFLINE carries its CLAIM badge + the true figure, still one line', { timeout: 20_000 }, async () => {
     mockStreak.mockResolvedValue(streakClaimableResult());
     mockContracts.mockResolvedValue(boardResult(false, [contractView('c-1', true)]));
     usePlayerStore.setState({
@@ -305,13 +339,13 @@ describe('Claim row fit — the pair can never be crushed (DESIGN.md §6)', () =
     await waitFor(() => expect(screen.getByTestId('offline-pending-pulse')).toBeTruthy());
     const offlineButton = screen.getByTestId('top-offline-button');
     expect(offlineButton.textContent).toContain('CLAIM');
+    expect(offlineButton.textContent).not.toContain('Offline');
     expect(screen.getByTestId('top-offline-pending').textContent).toContain('4,321');
-    // Pending content is wider (badge corner pr-16 + the held
-    // figure), so the floors widen with it: the pair can only
-    // sit on a line of its own, at full width.
-    expect(pairGroup().className).toContain('min-w-[328px]');
-    expect(offlineButton.className).toContain('min-w-[216px]');
-    expect(offlineButton.className).toContain('pr-16');
-    expect(screen.getByTestId('top-cache-button').className).toContain('min-w-[104px]');
+    // The pending key widens for its figure (icon + the credits
+    // leg); the badge rides the top corner, the figure the
+    // bottom baseline — no reservation, no wrap.
+    expectIconKey(offlineButton, 'min-w-[116px]');
+    expect(screen.getByTestId('dashboard-top-bar').className).not.toContain('flex-wrap');
+    expect(screen.getByTestId('top-cache-button').className).toContain('min-w-[64px]');
   });
 });
