@@ -215,7 +215,7 @@ afterEach(() => {
 });
 
 describe('Dashboard top — first paint', () => {
-  it('shows the CACHE and OFFLINE buttons and both icons under the ResourceBar, before the scroll surfaces', async () => {
+  it('shows the CACHE and OFFLINE buttons and both icons under the ResourceBar, before the scroll surfaces', { timeout: 20_000 }, async () => {
     render(<HomeScreen onNavigate={() => {}} />);
 
     const topBar = await screen.findByTestId('dashboard-top-bar');

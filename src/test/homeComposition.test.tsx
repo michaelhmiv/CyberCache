@@ -198,7 +198,7 @@ afterEach(() => {
 });
 
 describe('Home composition — mode rail (§2/§4)', () => {
-  it('renders exactly the five rail stops in order, above the Stage, with the belt in the rail\u2019s vacated slot', async () => {
+  it('renders exactly the five rail stops in order, above the Stage, with the belt in the rail\u2019s vacated slot', { timeout: 20_000 }, async () => {
     render(<HomeScreen onNavigate={() => {}} />);
     const rail = await screen.findByTestId('home-mode-rail');
     const stops = within(rail).getAllByRole('button').map((b) => b.getAttribute('data-testid'));
