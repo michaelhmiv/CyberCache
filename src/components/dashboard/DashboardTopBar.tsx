@@ -91,7 +91,7 @@ import { OfflineRecapCard } from '@/components/activity/OfflineRecap';
 import { LoginStreakPanel } from './LoginStreakPanel';
 import { ContractsPanel } from './ContractsPanel';
 import { WeeklyClaimablesList } from './WeeklyClaimables';
-import { useMarketStore, usePlayerStore } from '@/store';
+import { useMarketStore, usePlayerStore, useSkillStore } from '@/store';
 import { hasPayableOfflineHold } from '@/store/slices/playerSlice';
 import { claimOfflineEarnings } from '@/lib/activity/activitySettlement';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
@@ -236,6 +236,25 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
   // their destination. One at a time, in the owner's order:
   // market sale proceeds first, then a finished bench job.
   const announcement = visibleAnnouncement({ sold: soldAnnouncement, bench: benchAnnouncement });
+
+  // Unspent skill points (Arena Plates follow-on, owner-approved
+  // 2026-11-05): a standing state, not an event, so it does not
+  // join the one-at-a-time announcement queue — while points wait
+  // unspent, its own chip rides under the announcement line in the
+  // same grammar (amber = action waiting) and opens Hunter →
+  // Skill Trees through the App's 'skills' route. Quiet at zero:
+  // the chip renders only while there are points to spend. The
+  // count is the same derivation the Hunter tab prints (level − 1
+  // earned, minus the skill store's spent record).
+  const skillSpent = useSkillStore((s) => s.spent);
+  const unspentSkillPoints = Math.max(
+    0,
+    level - 1 - Object.values(skillSpent).reduce((sum, n) => sum + (n || 0), 0),
+  );
+  const openSkillPoints = () => {
+    onNavigate?.('skills');
+  };
+
   const openSold = () => {
     acknowledgeSold();
     useMarketStore.getState().requestSellSegment('history');
@@ -583,6 +602,33 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             {benchAnnouncement.count === 1
               ? (benchAnnouncement.latestName ?? 'Job finished')
               : 'Jobs finished at the Workshop'}
+          </span>
+          <PxIcon name="chevR" size={14} />
+        </button>
+      )}
+
+      {/* Unspent skill points — the standing-action chip under the
+          announcement line (see the derivation above). Amber is
+          the claim/action color in this row's grammar; the count
+          is the fact, and the tap lands on the trees themselves. */}
+      {unspentSkillPoints > 0 && (
+        <button
+          type="button"
+          data-testid="announce-points-chip"
+          aria-label={`Skill points — ${unspentSkillPoints} unspent. Opens Hunter, Skill Trees.`}
+          onClick={openSkillPoints}
+          className="bl-panel relative mb-3 flex min-h-[44px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
+        >
+          <ClaimPulse color="#FF9000" testId="announce-points-pulse" />
+          <PxIcon name="nodes" size={15} />
+          <span
+            className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider"
+            style={{ color: '#FF9000' }}
+          >
+            Skill points
+          </span>
+          <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">
+            {unspentSkillPoints} unspent — spend them in Skill Trees
           </span>
           <PxIcon name="chevR" size={14} />
         </button>

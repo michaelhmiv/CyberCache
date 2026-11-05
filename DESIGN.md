@@ -91,8 +91,13 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   sense: it animates the Chef's returned result (ARCHITECTURE.md), it
   does not duplicate the Stage.*
 - **The Rail** — one compact chip rail for modes and sections (Home modes, Gear
-  stops, Market stops, Hunter stops), current state lit. The rail is a screen's
+  stops, Market stops), current state lit. The rail is a screen's
   table of contents: every stop is a destination, not a scroll position.
+- **The Menu** — Hunter's table of contents (owner pick, 2026-11-05): a hero
+  plate over live-status doors in the Arena Plates register (§3). Every door
+  prints its stop's live status on the menu itself — the menu is the tab's
+  summary, not a list of labels — and every stop is a destination behind its
+  door, headed by the plate back row. This tab has no rail.
 - **The Sheet** — the inspect poster's format (sprite stage, rarity name, fact
   chips, stat bars, action row) generalized to every detail view: boss intel,
   market listings, course detail, job cards. If a thing needs detail, it gets a
@@ -201,7 +206,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 | **Home** | Rail, then Stage: `Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The rail leads the screen (owner ruling 2026-11-04); the belt sits in the rail's vacated slot under the stage, and the lit mode's workspace under the belt; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. There is no Area stop (owner rework 2026-11-04): Roam is the area door — entering roam auto-opens the area picker, and tapping Roam while roaming opens it alone. |
 | **Gear** | No rail — one page | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop status strip at its foot (◦ door to the bench on Home — crafting consolidated onto Home, owner ruling 2026-11-04; the Workshop stop is retired). |
 | **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk` | Player market, NPC storefront, the two service boards as separate stops, and manufacturer standing at its own desk. |
-| **Hunter** | Rail: `Profile · Collections · Cache Rank · Research · Skill Trees · Standings · Account` | The hunter's record: profile + Trophy Shelf, collections and cores, ranks, courses, trees, the weekly races behind the Standings door, and account/settings/manual. |
+| **Hunter** | Menu (Arena Plates): `Skill Trees · Research · Cache Rank · Standings · Collections · Wardrobe · Account · Profile & Record` | The hunter's record behind live-status doors: trees first, with the build itself printed on the door (per-tree ladders, unspent gauge), courses, ranks, the weekly races behind the badged Standings door, collections and cores, the wardrobe at the tail, account/settings/manual, and the profile record (identity + Trophy Shelf + lifetime stats) as the wide closing door. |
 
 Rules:
 
@@ -404,30 +409,61 @@ replace the canonical one. (Tap depths are governed by §9.)
   The Vendor's hidden `rep` mode toggle is deleted and must not return.
 ### Hunter
 
-- **Profile** — profile + Trophy Shelf + lifetime stats, top of the tab. The
-  Trophy Shelf tile **opens Collections** (today it opens nothing — a defect the
-  redesign fixes, not a behavior to preserve). The **Totals & Sources door**
-  on this stop opens the full all-metrics source breakdown (the canonical
-  home of the totals view since the deck's Hunter Totals panel retired,
-  2026-11-03; Home's rundown heroes open the same sheet focused per-stat).
-- **Collections** — the 81 proofs as a poster-grid shelf; legendary cores print
-  in the stop header (cores are spent from Gear → inspect).
+The tab opens on the **menu** in the **Arena Plates** register (owner pick
+A, 2026-11-05): clipped-corner plates with machined frames, corner bolts,
+bone-white scrim type, foot strips, and numbers as gauges — the boss-arena
+plate language promoted to a menu. A **hero plate** carries the identity
+(level well, name, handle, XP line) over a real arena painting, plus the
+announcements row — unspent skill points (amber fill), banked race rewards,
+the active research course — each announcement a door, printed only while
+it exists. Below it, the doors in menu order; every door prints its stop's
+live status, so progression substance reads at a glance and cosmetics sit
+demoted at the tail. Every stop is one door tap in, and the **plate back
+row** ("Hunter Menu" + the stop's name) heads each stop — every header
+prints exactly once. Zero colored side bars anywhere in this register:
+color lives in numerals, chips, foot strips, and light. There is no rail
+on this tab.
+
+- **Skill Trees** — the lead door, full width: a segment ladder per tree
+  (spent pips + count) and the unspent-points gauge print on the door
+  itself. Behind it, the four trees + keystones in the same plate register
+  (points as gauge wells; a tree's color rides its label and foot strip,
+  never a side bar); **Respec lives on this stop** (where the points are
+  visible); **Mastery is a segment of this stop**.
+- **Research** — the course catalog and enrollment (the parallel education
+  track). The door heroes the active course's progress % and names the
+  course; idle, it prints the catalog line.
 - **Cache Rank** — the tracks and token spend.
-- **Research** — the course catalog and enrollment (the parallel education track).
-- **Skill Trees** — the four trees + keystones; **Respec lives on this stop**
-  (where the points are visible); **Mastery is a segment of this stop**.
 - **Standings** — the leaderboards door (8 weekly races + rewards + drop-luck
-  buff), carrying a **live badge**: an unseen-earnings pill + ends-soon pill,
-  printed on the door itself. A plain unbadged button is a defect — the badge
-  is what replaces the ambient visibility the retired Rank tab carried. Race
-  rewards are NOT claimable — settlement pays them automatically — so the
-  earnings pill is a past-tense notice ("race rewards earned", no claim
-  pulse), and its destination is the **Your Weekly Earnings** panel at the
-  top of Standings, which prints each settled week's races, finishes, and
-  rewards and states the auto-pay plainly. Viewing the panel clears the
-  notice; a newly settled week raises it again.
+  buff), carrying a **live badge**: the unseen-earnings count, printed on
+  the menu door itself (the full pill set — unseen earnings, ends-soon,
+  active buff — rides the Profile & Record stop's secondary Standings door
+  ◦). A plain unbadged button is a defect — the badge is what replaces the
+  ambient visibility the retired Rank tab carried. Race rewards are NOT
+  claimable — settlement pays them automatically — so the earnings pill is
+  a past-tense notice ("race rewards earned", no claim pulse), and its
+  destination is the **Your Weekly Earnings** panel at the top of
+  Standings, which prints each settled week's races, finishes, and rewards
+  and states the auto-pay plainly. Viewing the panel clears the notice; a
+  newly settled week raises it again.
+- **Collections** — the 81 proofs as a poster-grid shelf; legendary cores
+  print in the stop header (cores are spent from Gear → inspect). The door
+  heroes the legendary-core count while the player holds any.
+- **Wardrobe** — its own stop behind its own door, at the menu's tail: the
+  skin-part showcase + wear/remove surface (pure cosmetic, zero stats).
+  The door prints worn/owned counts once the player owns parts. The Gear
+  page's figure-stage door ◦ lands here too.
 - **Account** — guest→Google link, identity/username, sign-out; **Settings**
   row and **Field Manual** row live on this stop (their canonical home).
+  The door prints the account status (verified / guest / pending).
+- **Profile & Record** — the wide closing door: profile + Trophy Shelf +
+  lifetime stats. The Trophy Shelf tile **opens Collections** (today it
+  opens nothing — a defect the redesign fixes, not a behavior to preserve).
+  The **Totals & Sources door** on this stop opens the full all-metrics
+  source breakdown (the canonical home of the totals view since the deck's
+  Hunter Totals panel retired, 2026-11-03; Home's rundown heroes open the
+  same sheet focused per-stat). The stop also carries the secondary
+  Standings door ◦ (full pill set) and the Activity Log door ◦.
 
 ---
 
@@ -765,6 +801,21 @@ Consolidation must never silently demote any of them; the chips and
 badges exist to prevent exactly that, and their languages stay
 distinct — a pulse and the word "claim" belong only to rewards the
 player actually claims.
+Unspent skill points are not a claimable either — they are an action
+waiting — and they announce in both places a player looks: as the
+amber chip on the Hunter hero plate and as a standing chip under
+Home's claim row, quiet at zero, opening Hunter → Skill Trees
+directly (0–1 taps). Neither chip pulses or says "claim".
+
+**The Hunter menu (2026-11-05).** Hunter's stops sit at tab press +
+door tap (2 from Home), inside the discipline; their statuses print
+on the doors at 0 taps once the tab is open. The menu order is the
+surfacing decision: Skill Trees lead because progression is the
+tab's substance, and Wardrobe/Account/Profile & Record close the
+menu because identity and cosmetics are the tail. The Standings
+badge's canonical carrier is the menu door; the Profile & Record
+stop's badged door is its secondary (◦) carrier with the full pill
+set.
 
 **The two placements.** Slots' canonical door is the Market → Slots rail
 stop — its only door since the 2026-11-03 consolidation retired the

@@ -226,12 +226,21 @@ describe('legacy Chef gameplay routes (B6)', () => {
     expect(res.json.error).toBe('Missing itemId');
   });
 
-  it('verify-boss: 400 on missing bossId; unknown profile is the June 500', async () => {
+  it('verify-boss: 400 on missing bossId, 400 on missing risk; unknown profile is the June 500', async () => {
     const { base, store, tokenA } = await makeServer();
     const bad = await post(base, '/api/verify-boss', { playerId: A }, tokenA);
     expect(bad.status).toBe(400);
     expect(bad.json.error).toBe('Missing required field: bossId');
-    const missing = await post(base, '/api/verify-boss', { playerId: A, bossId: 'dune_tyrant', attemptNonce: 1 }, tokenA);
+    // Papercut (2026-11-05): a missing/invalid `risk` used to fall
+    // through the modifiers switch and throw on `rm.chaos` — a 500
+    // for a malformed request from a REAL profile. It now 400s with
+    // the reason, validated before the profile read.
+    const noRisk = await post(base, '/api/verify-boss', { playerId: A, bossId: 'dune_tyrant', attemptNonce: 1 }, tokenA);
+    expect(noRisk.status).toBe(400);
+    expect(noRisk.json.error).toBe('Invalid risk setting');
+    // The June 500 stays pinned for what it actually is: a
+    // well-formed attempt whose profile cannot be read.
+    const missing = await post(base, '/api/verify-boss', { playerId: A, bossId: 'dune_tyrant', risk: 'Balanced', attemptNonce: 1 }, tokenA);
     expect(missing.status).toBe(500);
     expect(missing.json.error).toBe('Failed to read player profile');
     void store;

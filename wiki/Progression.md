@@ -73,10 +73,10 @@ Three figures carry their history on their face:
 
 ## Cache Rank
 
-Cache Rank lives on the **Hunter tab**, on its own rail stop — the
-same rail carries Research and the Skill Trees (mastery rides with
-the trees), so every ladder in this chapter sits one tap from your
-profile and Trophy Shelf. The Workshop's research lock lines door
+Cache Rank lives on the **Hunter tab**, behind its own door on the
+Hunter menu — the same menu carries Research and the Skill Trees
+(mastery rides with the trees), so every ladder in this chapter
+sits one tap from your profile record and Trophy Shelf. The Workshop's research lock lines door
 straight to the Research stop: when a recipe names the Production
 Systems course, one tap lands you on it.
 

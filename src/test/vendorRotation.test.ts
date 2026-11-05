@@ -331,7 +331,7 @@ describe('vendor rotation + item of the day — shipped buy path', () => {
     try {
       const res = await post(h, '/api/ops/vendor-buy', h.tokenA, { nonce: nonce(), item_key: stale, quantity: 1 });
       expect(res.status).toBe(400);
-      expect(res.json.message).toBe('Unknown vendor item');
+      expect(res.json.message).toBe('Not offered by the vendor today');
 
       const fresh = await post(h, '/api/ops/vendor-buy', h.tokenA, {
         nonce: nonce(),
@@ -435,7 +435,7 @@ describe('vendor buyback — shipped sell path', () => {
       nonce: nonce(), item_key: 'Scrap', quantity: 1,
     });
     expect(buy.status).toBe(400);
-    expect(buy.json.message).toBe('Unknown vendor item');
+    expect(buy.json.message).toBe('Not offered by the vendor today');
     expect(profileOf(h, A).materials.Scrap).toBe(20);
     expect(profileOf(h, A).credits).toBe(creditsBefore);
   });

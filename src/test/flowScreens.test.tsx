@@ -48,7 +48,11 @@ vi.mock('@/lib/api/verifiedOps', () => ({
   fetchProfileLifetime: vi.fn(async () => { throw new Error('no chef in screen tests'); }),
 }));
 
-vi.mock('@/lib/api/leaderboardService', () => ({
+vi.mock('@/lib/api/leaderboardService', async (importOriginal) => ({
+  // Spread the real module first: pure helpers the components import
+  // (formatLeaderboardValue, LEADERBOARD_METRIC_UNITS, …) must stay
+  // real under this mock or rows throw on the missing exports.
+  ...(await importOriginal<typeof import('@/lib/api/leaderboardService')>()),
   getLeaderboard: vi.fn(),
   // Weekly races (0035): resolves an empty slate so the F6 tests
   // exercise the all-time board's gate/error flow undisturbed.

@@ -25,7 +25,7 @@ Every new hunter receives the **starter bundle** automatically, once, the first 
 
 The Scrap Bike is a level 1 Common vehicle, and it is auto-equipped if your vehicle slot is empty. It is yours permanently — the bundle can only ever be granted once per account.
 
-Your hunter's own page is the **Hunter** tab — profile, trophy shelf, wardrobe, and the long-game trackers:
+Your hunter's own page is the **Hunter** tab — it opens on a menu of doors: skill trees first, then the long-game trackers, with your profile record, trophy shelf, and wardrobe behind their own doors:
 
 [[images/ui/hunter-profile.png]]
 

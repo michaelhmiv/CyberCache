@@ -17,6 +17,7 @@ import type { EconomyConfig } from '../economy/config';
 import type { ChefGameplayStore, DeathRecord, Json } from '../gameplay/store';
 import { equippedWeaponManufacturer, skillBonusesFromRecords } from '../gameplay/serverLoadout';
 import { buildConsumableQualityProfile } from '../../lib/consumables/batchProfile';
+import { withArticle } from '../../lib/utils/articles';
 import { isHotArea } from '../../content/hotArea';
 import { cacheRankBonuses } from '../../content/cacheRank';
 import { mergeResearchBonuses } from '../../content/research';
@@ -501,7 +502,7 @@ export function createClaimHandler(
               at: Date.now(),
               tone: 'standing',
               label: `+${standingBlock.points} ${dripManufacturer} standing`,
-              detail: `Kills with a ${dripManufacturer} weapon earn its maker's regard. ${standingBlock.capRemaining} drip points left today.`,
+              detail: `Kills with ${withArticle(dripManufacturer)} weapon earn its maker's regard. ${standingBlock.capRemaining} drip points left today.`,
               manufacturer: dripManufacturer,
               value: standingBlock.points,
               areaId: body.areaId,

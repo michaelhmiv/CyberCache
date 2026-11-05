@@ -1006,7 +1006,12 @@ export class InMemoryWriteStore implements WriteStore {
     // The ONE vendor catalog: staples always, rotation + Item of the
     // Day by the UTC date of this purchase (SQL twin: cc_vendor_price).
     const offer = vendorOfferFor(itemKey, vendorDateKey(this.nowFn()));
-    if (offer === null) throw writeError('Unknown vendor item');
+    // Honest copy (papercut): a null offer means the key is not in
+    // today's catalog — an unknown key or a rotation item on a day it
+    // doesn't rotate in. "Unknown vendor item" claimed the item
+    // doesn't exist; the vendor's own language is rotation ("Today's
+    // Rotation — New stock 00:00 UTC"). SQL twin: cc_vendor_buy (0084).
+    if (offer === null) throw writeError('Not offered by the vendor today');
     const qty = Math.max(1, Math.floor(quantity) || 1);
     const total = offer.unitPrice * qty;
     if (p.credits < total) throw writeError('Insufficient credits');

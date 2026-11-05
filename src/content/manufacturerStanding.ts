@@ -25,6 +25,7 @@
 import { MANUFACTURERS } from '@/constants/manufacturers';
 import { Manufacturer, Rarity } from '@/types/game';
 import { salvageScrap } from '@/lib/skills/salvageBonuses';
+import { withArticle } from '@/lib/utils/articles';
 
 // ---------------------------------------------------------------------------
 // Manufacturers
@@ -354,7 +355,7 @@ export const STANDING_UNLOCKS: StandingUnlockDef[] = STANDING_MANUFACTURERS.flat
       rank: 2,
       kind: 'recipe' as const,
       label: `${recipe.name} recipe`,
-      detail: `Craft ${recipe.name} at the bench — a ${def.name} exclusive, quality-scalable like any crafted consumable.`,
+      detail: `Craft ${recipe.name} at the bench — ${withArticle(def.name)} exclusive, quality-scalable like any crafted consumable.`,
     },
     {
       id: standingUnlockId(manufacturer, 'cosmetic'),
@@ -362,7 +363,7 @@ export const STANDING_UNLOCKS: StandingUnlockDef[] = STANDING_MANUFACTURERS.flat
       rank: 3,
       kind: 'cosmetic' as const,
       label: `${def.name} rig colors`,
-      detail: `A ${def.name} head variant and decal tint for your rig, chosen in Settings. Looks only — no stats.`,
+      detail: `${withArticle(def.name, true)} head variant and decal tint for your rig, chosen in Settings. Looks only — no stats.`,
     },
     {
       id: standingUnlockId(manufacturer, 'crate'),
@@ -378,7 +379,7 @@ export const STANDING_UNLOCKS: StandingUnlockDef[] = STANDING_MANUFACTURERS.flat
       rank: 5,
       kind: 'order' as const,
       label: 'Signature Order',
-      detail: `Commission a ${def.name} weapon at your level once a week — Rare to Epic, never Legendary.`,
+      detail: `Commission ${withArticle(def.name)} weapon at your level once a week — Rare to Epic, never Legendary.`,
     },
   ];
 });
