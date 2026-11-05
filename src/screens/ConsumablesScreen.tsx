@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { AnimatePresence } from 'framer-motion';
 import { ChevronRight } from 'lucide-react';
 import { CONSUMABLES, CONSUMABLE_SLOTS } from '@/constants/consumables';
@@ -169,10 +170,12 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                 className={`relative flex w-full items-center gap-3 border-2 p-3 ${tone} ${isExpanded ? 'ring-1 ring-amber' : ''} transition-transform active:scale-[0.98]`}
                 style={panelClip}
               >
-                {/* Slot number badge */}
+                {/* Slot number badge — a loaded slot shows the item's
+                    formed-object sprite (consumableArt), not the §7
+                    sheet glyph; the tile stays 48px, the sprite fills it. */}
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-border bg-bg/80">
                   {def ? (
-                    <PxIcon name={def.visual.icon} size={26} />
+                    <PixelConsumable type={id!} size={44} />
                   ) : (
                     <span className="text-xl font-black text-text-muted">{SLOT_ORDER.indexOf(slot) + 1}</span>
                   )}
@@ -215,7 +218,7 @@ export const ConsumablesScreen: React.FC<{ onNavigate?: (screen: string) => void
                       onClick={() => setInspecting(def)}
                       className="flex w-full items-center gap-2 px-2 py-2 text-left transition-colors hover:bg-amber/10"
                     >
-                      <PxIcon name={def.visual.icon} size={13} style={{ color: def.visual.accent === 'green' ? '#7CFC00' : '#FFB300' }} />
+                      <PixelConsumable type={id!} size={17} density="thumb" />
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] font-black text-text-primary">Inspect {def.name}</div>
                         <div className="text-[11px] text-text-muted">Effects, quality, crafting</div>

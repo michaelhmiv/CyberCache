@@ -1,5 +1,5 @@
 import React from 'react';
-import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { ConsumableDef, ConsumableFamily, ConsumableRuntimeEffects } from '@/constants/consumables';
@@ -97,7 +97,7 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className={`grid h-14 w-14 shrink-0 place-items-center border-2 text-3xl font-black ${visualTone}`} style={panelClip}>
-                    <PxIcon name={consumable.visual.icon} size={26} />
+                    <PixelConsumable type={consumable.id} size={52} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">Consumable Inspect</div>
