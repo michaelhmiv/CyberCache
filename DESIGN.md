@@ -313,6 +313,22 @@ replace the canonical one. (Tap depths are governed by §9.)
 
 - **Buy** — player listings, filters in one sheet, price history/guidance; the
   seller prints as a hunter name.
+- **The Buy/Mine lists are true lists** (owner ruling 2026-11-04, the
+  Inventory list's sibling): ONE line per listing on a 46px row — the
+  same anatomy as the Gear list (rarity spine, thumb with the element
+  corner badge, level, rarity-colored name) with the market
+  substitutions. The headline slot carries the listing PRICE (the
+  number rows are compared by); the item's own stat headline leads a
+  fact line under the name, which also carries what a listing has
+  and an owned item does not: the seller (a hunter name, labelled),
+  the recent-sales median + trend as text (no sparkline drawing at
+  row size), and the listing's AGE — listings never expire, so age
+  is the only time fact a row can print. Mine rows print "Listed
+  {age}" + the net-proceeds line instead. Stat pills, badge lines
+  and the compare block live behind inspect (the poster, The Trade,
+  Market Intelligence). The Sell desk's candidate cards keep their
+  form (price input, guidance, fee line) under the same compact
+  identity line.
 - **Sell** — list an item; "Mine" segment = My Listings; "History" segment =
   Market History.
 - **Vendor** — NPC storefront: staples at flat 100%, rotation + Item of the Day
