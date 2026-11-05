@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { StandingsGalleryDemo } from './demo/StandingsGalleryDemo';
 import { AccountStorageBoundary } from './auth/AccountStorageBoundary';
 import { AuthProvider } from './auth/AuthProvider';
 import { GlobalErrorBoundary } from './components/debug/GlobalErrorBoundary';
@@ -34,8 +35,22 @@ window.addEventListener('unhandledrejection', (event) => {
   renderErrorToRoot(event.reason, 'unhandledrejection');
 });
 
+// PROTOTYPE (design/hunter-subpages-standings-c): /standings-gallery
+// mounts the Standings Showcase fixture harness instead of the app —
+// fixture payloads, no Chef session. This branch dies with the
+// prototype; it is never a shipped route.
+const isStandingsGallery =
+  typeof window !== 'undefined' && window.location.pathname.startsWith('/standings-gallery');
+
 try {
   createRoot(document.getElementById('root')!).render(
+    isStandingsGallery ? (
+      <StrictMode>
+        <GlobalErrorBoundary>
+          <StandingsGalleryDemo />
+        </GlobalErrorBoundary>
+      </StrictMode>
+    ) : (
     <StrictMode>
       <GlobalErrorBoundary>
         <AuthProvider>
@@ -44,7 +59,8 @@ try {
           </AccountStorageBoundary>
         </AuthProvider>
       </GlobalErrorBoundary>
-    </StrictMode>,
+    </StrictMode>
+    ),
   );
 } catch (error) {
   console.error('[createRoot] failed to render:', error);
