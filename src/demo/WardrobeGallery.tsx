@@ -68,7 +68,7 @@ const HAIRLINE = 'rgba(245,239,230,0.16)';
 const FRAME_SHADOW = '0 18px 40px rgba(0,0,0,0.45), 0 3px 10px rgba(0,0,0,0.5)';
 const DISPLAY: React.CSSProperties = { fontFamily: "'Bebas Neue', 'Chakra Petch', sans-serif" };
 const SPOTLIGHT =
-  'radial-gradient(ellipse 78% 52% at 50% 34%, rgba(255,160,50,0.10), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 88%, rgba(255,144,0,0.05), transparent 70%)';
+  'radial-gradient(ellipse 78% 52% at 50% 42%, rgba(255,160,50,0.10), transparent 70%), radial-gradient(ellipse 60% 40% at 50% 88%, rgba(255,144,0,0.05), transparent 70%)';
 
 const SLOT_LABELS: Record<CosmeticSlot, string> = {
   head: 'Head',
@@ -145,7 +145,7 @@ function usePartLook(part: CosmeticPartItemView) {
 function partFacts(part: CosmeticPartItemView): string {
   const tint = part.tintPaletteId ? tintPaletteById(part.tintPaletteId) : undefined;
   return [
-    `${FINISH_LABELS[finishTierForQuality(part.quality)]} finish · Q${part.quality}`,
+    `${FINISH_LABELS[finishTierForQuality(part.quality)]} · Q${part.quality}`,
     tint ? `${tint.name} tint` : null,
     skinSetById(part.setId)?.name ?? part.setId,
     part.runtimeState === 'locked' ? 'Locked' : null,
@@ -259,7 +259,7 @@ export const WardrobeGallery: React.FC<WardrobeGalleryProps> = ({
         <HunterPortrait
           look={look}
           weaponInput={FIXTURE_WEAPON_INPUT}
-          className="relative h-[430px]"
+          className="relative h-[396px]"
           testId="wardrobe-centerpiece-portrait"
         />
         {/* The gallery floor: one hairline the figure stands on. */}
