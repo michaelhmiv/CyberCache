@@ -344,6 +344,26 @@ replace the canonical one. (Tap depths are governed by §9.)
   earns it; affixes, maker, type, source and secondary stats live
   behind inspect. The GRID keeps the full card face — stats, badges,
   and the instance's real affix lines.
+- **Inventory sort** (owner ruling 2026-11-05) — ONE dropdown in the
+  § Inventory toolbar, structured as the player thinks: the **General**
+  group first (Best Overall is the default; rarity, item level,
+  newest, name, activity value, affix count, salvage value — keys
+  that mean something for every item), then one labeled group per
+  kind (**Weapon Stats · Shield Stats · Ordnance Stats · Class Mod
+  Stats · Relic Stats**), each built ONLY from stats that kind really
+  carries — weapon DPS is the dpsChain number itself, never a proxy
+  score wearing its label. **Scoping:** picking a kind-group key
+  scopes the list to that kind (it drives the kind filter — sorting
+  by Shield HP means "show me shields, best first"); the scope is
+  always said out loud (scope bar naming the kind and the sort, the
+  kind rail, the count) with a one-tap **All gear** return, and
+  General keys never scope — one clears a sort-driven scope back to
+  All but never touches a kind filter the player set themselves.
+  Stats read highest-first by default (names A–Z); a direction
+  toggle flips the active sort. The chosen key + direction persist
+  across sessions; the scope derives from the key's group. Sorting
+  is ordering only — rows, cards, and art never change shape under
+  a sort.
 - **Inspect sheet** — tap any item card: stats, compare, equip, reforge/reroll
   action row, and the ◦ deep link to Market → Shield Tech. The compare is
   **The Trade** tape (2026-11-04): candidate vs the equipped piece it would
