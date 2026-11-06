@@ -232,6 +232,17 @@ export interface ClaimRequest {
    * silent settlement bookkeeping, never a visible currency.
    */
   keysRemainder?: number;
+  /**
+   * The profile's settled-tick watermark (profiles.last_claimed_tick)
+   * at claim time: set by the claim routes from the DB — never the
+   * client body, which carries only the tickCount it proposes. The
+   * engine clamps the simulated window to the unsettled suffix
+   * (lastClaimedTick, tickCount] (claim-overlap guard, 2026-11-06):
+   * per-tick RNG is seeded by tick NUMBER, so re-simulating settled
+   * ticks would re-pay them. Absent (direct engine calls) the window
+   * stands exactly as sent.
+   */
+  lastClaimedTick?: number;
   /** Consumable inventory count map (server-authoritative, read from DB by claim route). */
   consumableInventory?: Record<string, number>;
   /**
@@ -690,7 +701,25 @@ export function processRoamingClaim(
 
   // Clamp ticks to maxTicks (foreground: 20; offline settlement: Infinity)
   const maxTicks = request.maxTicks ?? 20;
-  const ticks = Math.max(1, Math.min(requestedTicks, maxTicks));
+  let ticks = Math.max(1, Math.min(requestedTicks, maxTicks));
+
+  // Claim-overlap guard (owner ruling 2026-11-06): the window a claim
+  // simulates is (tickCount − ticks, tickCount], and every per-tick
+  // RNG stream is seeded by tick NUMBER — so a window that reaches
+  // back over already-settled ticks (tickCount − ticks <
+  // lastClaimedTick) re-simulates those ticks and RE-PAYS them: keys,
+  // XP, loot, kills, storm-doubled key ticks, everything. The shipped
+  // client never overlaps (its serial advances by exactly the ticks
+  // it claims), but the server cannot rely on client shape: only the
+  // unsettled suffix simulates and pays. The routes guarantee the
+  // suffix is non-empty — the claim route refuses tickCount <=
+  // lastClaimedTick with the standing 409 before the engine runs, and
+  // offline settlement constructs tickCount = watermark + ticks — so
+  // ticks stays >= 1 here. Honest (non-overlapping) claims are
+  // untouched: their window start is already past the watermark.
+  if (request.lastClaimedTick != null && request.lastClaimedTick > tickCount - ticks) {
+    ticks = tickCount - request.lastClaimedTick;
+  }
 
   // Fractional credits accumulator, seeded from the profile bank (0010).
   let creditsFraction = Math.min(Math.max(request.creditsRemainder ?? 0, 0), 0.999999);
