@@ -108,10 +108,11 @@ describe('bulkScrap queue', () => {
     await flush();
 
     expect(events()).toHaveLength(1);
-    expect(events()[0].kind).toBe('batch');
-    if (events()[0].kind === 'batch') {
-      expect(events()[0].summary.totalItems).toBe(3);
-      expect(events()[0].summary.scrap).toBe(999);
+    const [first] = events();
+    expect(first.kind).toBe('batch');
+    if (first.kind === 'batch') {
+      expect(first.summary.totalItems).toBe(3);
+      expect(first.summary.scrap).toBe(999);
     }
     expect(useInventoryStore.getState().pendingScrapIds).toEqual([]);
     expect(useBulkScrapStore.getState().queue).toHaveLength(0);
@@ -191,10 +192,11 @@ describe('bulkScrap queue', () => {
     expect(useInventoryStore.getState().getById('a')).toBe(a);
     expect(useInventoryStore.getState().pendingScrapIds).toEqual([]);
     expect(events()).toHaveLength(1);
-    expect(events()[0].kind).toBe('batchFailed');
-    if (events()[0].kind === 'batchFailed') {
-      expect(events()[0].totalItems).toBe(2);
-      expect(events()[0].message).toContain('boom');
+    const [failure] = events();
+    expect(failure.kind).toBe('batchFailed');
+    if (failure.kind === 'batchFailed') {
+      expect(failure.totalItems).toBe(2);
+      expect(failure.message).toContain('boom');
     }
     expect(syncRuntimeItemsForUser).not.toHaveBeenCalled();
 
