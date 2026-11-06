@@ -328,15 +328,6 @@ const GearCard = memo(({
 
       <div className="relative flex w-12 shrink-0 items-center justify-center">
         <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} />
-        {/* Level rides the art's bottom-left corner as a tucked chip
-            (owner swap ruling 2026-11-05): the number alone, on a
-            dark plate, over the sprite's emptiest corner. */}
-        <span
-          className="absolute bottom-0 left-0 flex h-[15px] min-w-[18px] -translate-x-[2px] translate-y-[4px] items-center justify-center border border-black/70 bg-[#0b0906]/85 px-[3px] text-[11px] font-black tabular-nums text-text-primary"
-          data-level-chip={item.level}
-        >
-          {item.level}
-        </span>
       </div>
 
       {/* The element badge takes the old level slot — in open space
@@ -359,11 +350,16 @@ const GearCard = memo(({
 
       {equippedSlot && <span className="shrink-0 rounded-full bg-amber px-1.5 py-0.5 text-[11px] font-black text-bg">{LOADOUT_LABELS[equippedSlot as GearLoadoutSlot]}</span>}
 
-      <div className="flex min-w-0 max-w-[38%] shrink items-baseline gap-1">
-        {headline.label && (
-          <span className="shrink-0 text-[11px] font-black uppercase tracking-wide text-text-muted">{headline.label}</span>
-        )}
-        <span className={`min-w-0 truncate text-[13px] font-black tabular-nums ${headline.tone ?? 'text-text-primary'}`}>{headline.value}</span>
+      {/* VARIANT V4 (rendering for owner, 2026-11-05): level stacked
+          under the headline stat in the right block. */}
+      <div className="flex min-w-0 max-w-[38%] shrink flex-col items-end justify-center gap-px leading-none">
+        <div className="flex min-w-0 items-baseline gap-1">
+          {headline.label && (
+            <span className="shrink-0 text-[11px] font-black uppercase tracking-wide text-text-muted">{headline.label}</span>
+          )}
+          <span className={`min-w-0 truncate text-[13px] font-black tabular-nums ${headline.tone ?? 'text-text-primary'}`}>{headline.value}</span>
+        </div>
+        <span className="text-[11px] font-black tabular-nums text-text-muted" data-level-chip={item.level}>Lv {item.level}</span>
       </div>
 
       {!selectMode && (
