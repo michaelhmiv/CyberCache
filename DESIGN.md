@@ -119,6 +119,16 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   sits behind a disclosure after first read. No raw identifiers in player text
   (no scene ids, camelCase trigger tags, or hex seller ids — sellers print as
   hunter names).
+- **No paragraphs on screens (owner, 2026-11-05).** A screen carries NO
+  explanatory sentences or paragraphs — mobile space is too precious. A
+  section gets its label, its controls, and a small **?** icon beside the
+  label; any explanation lives in the pop-up that icon opens (the HelpHint
+  sheet, `src/components/common/HelpHint.tsx`). This generalizes the
+  2026-11-03 card-face rule (Detail behind inspect, below) from cards to
+  every screen and retires the in-flow page-explainer exception that rule
+  carried. State words and labeled numbers are not paragraphs (NO FUEL,
+  "250 tank") — a state prints as a word, a fact as a labeled number,
+  never as a sentence.
 - **Claims never hide.** Claimable things live as chips directly under the Strip
   or as badged doors (see §9).
 
@@ -162,9 +172,11 @@ everywhere:
   prose — the description/purpose paragraph, the quality-range line,
   effect detail — lives one tap away in the item's inspect sheet,
   opened by the info button beside its name, carrying the full text
-  and the full gate/material detail. A single page-level explainer
-  (e.g. the Workshop's quality band key) may stay in flow: it teaches
-  once per page, it is not per-item prose.
+  and the full gate/material detail. Page-level explainers follow the
+  same rule since the no-paragraphs law (2026-11-05, Standing laws
+  above): they sit behind the section's **?** hint, never in flow —
+  the in-flow explainer exception this paragraph once carried is
+  retired.
 
 ### Quotes are hard ceilings (QB-1, 2026-11-03)
 
@@ -273,7 +285,8 @@ replace the canonical one. (Tap depths are governed by §9.)
   correction, 2026-11-03): the equipped vehicle's fuel readout in the belt
   chips' grammar — quiet while fueled, carrying its remedy door (Garage /
   Vendor) when out of fuel or worn out. The vehicle gets no row of its own
-  on Home; its full status line lives in the Garage. Research state is NOT
+  on Home; its full status lives in the Garage (and, at a glance, on
+  the Loadout panel's vehicle button, 2026-11-05). Research state is NOT
   on Home: the education track's chip and completion card left with the
   consolidation — enrollment state lives on Hunter → Research, and a
   finished course reads completed there.
@@ -314,7 +327,11 @@ replace the canonical one. (Tap depths are governed by §9.)
   Hunter → Profile; the DPS/HP hero plate at the stage's foot), the
   three gun slots as full
   rows down the right column (Primary as a poster row), the four
-  accessories as a 2×2 band beneath — then the Garage section, § Inventory,
+  accessories as a 2×2 band beneath, and the belt under the zone —
+  its label (Consumable Belt), the slot chips, and a **?** hint, and
+  nothing else (no-paragraphs law, 2026-11-05: where empty slots
+  load, auto-activation, and the server-side/no-Save facts live in
+  the hint's pop-up) — then the Garage section, § Inventory,
   § Belt & Stacks, and the Workshop status strip at the foot (◦, printing
   the bench at a glance — jobs running / queued / ready, Craft active or
   paused; the bench's canonical home is Home's Craft workspace since the
@@ -366,9 +383,17 @@ replace the canonical one. (Tap depths are governed by §9.)
   2026-11-04): the bench's canonical home is Home's Craft workspace (§3
   Home). The Loadout page's foot keeps the ◦ status strip.
 - **Garage (vehicle section of the Loadout page)** — the page's vehicle
-  slot expands in place into the full Garage: vehicles, fuel cells +
-  refuel, condition + self-repair with patch kits. Not a rail stop (owner
-  ruling 2026-11-02, §11 F1).
+  slot is a **button in the Loadout panel's header**, in the top-right
+  gap above the primary weapon row (owner ruling 2026-11-05): the
+  equipped vehicle's name, its effective yield factor, the labeled
+  tank, and its condition — state words when the bonus is dead (NO
+  FUEL / WORN OUT), never sentences; on foot it reads "On foot". The
+  button expands the full Garage in place under the panel: vehicles,
+  fuel cells + refuel, condition + self-repair with patch kits. The
+  full-width status strip that used to head this section (status
+  sentence + out-of-fuel/worn paragraphs + its own Open Garage
+  button) is **deleted** under the no-paragraphs law. Not a rail
+  stop (owner ruling 2026-11-02, §11 F1).
 
 ### Market
 
@@ -925,6 +950,12 @@ implementation corrects them instead of copying them:
   Grid and Items stops into the Loadout page as sections — the rail
   now carries two stops, Loadout · Workshop; §2/§3 carry the current
   state.)
+  (Follow-on, 2026-11-05: the section's header — the full-width
+  vehicle status line carrying the status sentence and the
+  out-of-fuel / worn-out paragraphs — is deleted under the
+  no-paragraphs law; the vehicle slot is a button in the Loadout
+  panel's header and the button toggles the same in-place
+  expansion. §3 carries the current state.)
   The v1 garage *content* design — sprite drawn from the actual
   vehicle instance, fuel and condition gauges, patch-kit repair —
   stands unchanged as what the in-Loadout vehicle section contains.
