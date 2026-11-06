@@ -135,6 +135,15 @@ describe('wikiCorpus search', () => {
     expect(hits.map((h) => h.page.id)).toContain('Getting-Started');
   });
 
+  it('snippets never leak raw HTML (img-tag lines read as text)', () => {
+    const hits = searchWikiText('siltglass');
+    expect(hits.length).toBeGreaterThan(0);
+    for (const hit of hits) {
+      expect(hit.snippet).not.toContain('<');
+      expect(hit.snippet.toLowerCase()).toContain('siltglass');
+    }
+  });
+
   it('returns nothing for a term the wiki never uses', () => {
     expect(searchWikiText('zzz-no-such-term-zzz')).toEqual([]);
   });

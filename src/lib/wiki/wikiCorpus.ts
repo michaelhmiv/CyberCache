@@ -296,6 +296,7 @@ function snippetOf(markdown: string, lowerQuery: string): string | null {
     const idx = rawLine.toLowerCase().indexOf(lowerQuery);
     if (idx === -1) continue;
     const line = rawLine
+      .replace(/<[^>]+>/g, ' ')
       .replace(/\[\[([^\]|]+)\|([^\]]*)\]\]/g, '$2')
       .replace(/\[\[([^\]]+)\]\]/g, '$1')
       .replace(/[#>*`]/g, '')
