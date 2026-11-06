@@ -26,13 +26,13 @@ const ELEMENT_GLYPHS: Partial<Record<Element, PxIconName>> = {
   [Element.Void]: 'ringDot',
 };
 
-export function ElementBadge({ element }: { element: string | null | undefined }) {
+export function ElementBadge({ element, inline = false }: { element: string | null | undefined; inline?: boolean }) {
   const def = element ? ELEMENT_DEFS[element as Element] : undefined;
   const glyph = element ? ELEMENT_GLYPHS[element as Element] : undefined;
   if (!def || !glyph) return null;
   return (
     <span
-      className="absolute bottom-0 left-0 flex h-4 w-4 items-center justify-center border border-black/70"
+      className={`${inline ? 'relative' : 'absolute bottom-0 left-0'} flex h-4 w-4 shrink-0 items-center justify-center border border-black/70`}
       style={{ backgroundColor: def.color }}
       title={def.name}
       data-element-badge={def.id}
