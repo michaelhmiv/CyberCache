@@ -283,7 +283,7 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **Return Sheet:** the level chip reopens it (§10 covers its motion). The level
   pop-up holds level specifics only — the recap lives on the Return Sheet, nowhere
   else.
-- **Login streak:** the flame chip in the claim row opens the streak sheet. The
+- **Login streak:** the calendar chip in the claim row opens the streak sheet. The
   check-in is the day's first state read — it records the day server-side and
   holds the reward UNPAID (migration 0079, the true claim — owner decision
   2026-11-04, overruling this section's earlier announcement model). While
@@ -332,18 +332,33 @@ replace the canonical one. (Tap depths are governed by §9.)
 - **§ Inventory** (section of the Loadout page; the Grid stop retired into
   it, 2026-11-03) — the item grid + salvage/recycle, its header and
   toolbar sticky at the page's scroll top.
-- **The Inventory LIST is a true list** (owner ruling 2026-11-04): ONE
-  line per item on a 46px row — the thumb (weapons composed at the §8
-  stage density, the detail-level-0 grid; other kinds at thumb
-  density), the element as a corner badge on the thumb (element-color
-  field, sheet glyph — never the element word), level, the name in
-  its rarity color, the equipped slot chip and lock glyph, and ONE
-  headline stat per kind (weapon DPS · shield HP · ordnance DMG ·
-  class-mod Boost · relic top affix). Rarity rides color (the name
-  and the row's spine), never the rarity word. Text is only what
-  earns it; affixes, maker, type, source and secondary stats live
-  behind inspect. The GRID keeps the full card face — stats, badges,
-  and the instance's real affix lines.
+- **The Inventory LIST is a true list** (owner ruling 2026-11-04;
+  row anatomy revised 2026-11-05): ONE line per item on a 46px row —
+  the LEVEL leads as its own column (LV caption over the number),
+  then the thumb (weapons composed at the §8 stage density, the
+  detail-level-0 grid; other kinds at thumb density) carrying
+  NOTHING on it, the element as a badge beside the thumb in open
+  space (element-color field, sheet glyph — never the element word;
+  the corner-badge era ended when the badge covered the gun, and the
+  level's brief stay as a chip on the art ended the same day — the
+  art stays bare for the future sprite pass), the name in its rarity
+  color WRAPPING TO TWO LINES rather than truncating (the end of a
+  name carries what the item is), the equipped slot chip and lock
+  glyph, and ONE headline stat per kind (weapon DPS · shield HP ·
+  ordnance DMG · class-mod Boost · relic top affix). Rarity rides
+  color (the name and the row's spine), never the rarity word. Text
+  is only what earns it; affixes, maker, type, source and secondary
+  stats live behind inspect. The GRID keeps the full card face —
+  stats, badges, and the instance's real affix lines.
+- **The row's compare button** (owner ruling 2026-11-05): the ⇄
+  button keeps its small visual size but its hit area reaches
+  ~45px — a tap anywhere near it is compare intent. Tapping it
+  COMPLETES a pair: first tap arms the item (amber button + a
+  "Comparing X — tap another item" bar, so the state is said out
+  loud), a tap on a second item's button opens the comparison, a
+  second tap on the armed item disarms. (The shipped bug this
+  replaced: the button only ever re-armed the first pick, so
+  button→button looped forever and nothing showed the state.)
 - **Inventory sort** (owner ruling 2026-11-05) — ONE dropdown in the
   § Inventory toolbar, structured as the player thinks: the **General**
   group first (Best Overall is the default; rarity, item level,
@@ -682,7 +697,8 @@ that hand does not ship.
 | `pick` | Extract |
 | `hammer` | Craft |
 | `pin` | Area |
-| `flame` | Login streak |
+| `flame` | Fire element · hot-area marker · loadout presets |
+| `calendar` | Login streak |
 | `orders` | Contracts |
 | `crate` | Parts Crate |
 | `signal` | Dispatch |
@@ -708,6 +724,7 @@ that hand does not ship.
 | `lock` | Locked (sign-in locks on transacting actions) |
 | `check` | Met / done |
 | `chevR` | Go (row navigation) |
+| `help` | Help hints (the ? beside a section label; its pop-up carries the explanation) |
 
 *Hunter & combat data*
 

@@ -169,15 +169,19 @@ Loadout page. Everything below is on it, in one scroll:
   header and toolbar stick to the top while you scroll. Two views:
   the **Grid** shows each item as a card — headline stats and the
   item's own rolled affix lines — while the **List** is one line
-  per item for fast scanning: the item's picture with its element
-  as a small badge in the picture's corner (the badge's color and
-  symbol are the element; it is never spelled out), its level, its
-  name in its rarity color, and the one number that kind is judged
-  by (a weapon's DPS, a shield's HP, ordnance damage, a class
-  mod's boost, a relic's top affix). Equipped items carry their
-  slot chip; locked items carry the lock. Everything else about
-  an item — affixes, maker, source, the rest of its stats — is on
-  its inspect sheet, one tap away.
+  per item for fast scanning: its level in a small LV column, the
+  item's picture (kept bare), its element as a small badge beside
+  the picture (the badge's color and symbol are the element; it is
+  never spelled out), its full name in its rarity color — long
+  names wrap onto a second line rather than cutting off — and the
+  one number that kind is judged by (a weapon's DPS, a shield's
+  HP, ordnance damage, a class mod's boost, a relic's top affix).
+  Equipped items carry their slot chip; locked items carry the
+  lock. Everything else about an item — affixes, maker, source,
+  the rest of its stats — is on its inspect sheet, one tap away.
+  The ⇄ button on a row starts a comparison: tap it on one item,
+  then on another, and the two open side by side (tap it again on
+  the same item to cancel).
 - **Sorting** — one dropdown at the top of the inventory. The
   **General** group comes first — Best Overall, Rarity, Item
   Level, Newest, Name, Activity Value, Affix Count, Salvage

@@ -6,16 +6,24 @@
  * line, six stat pills, badge line, two affix lines — ~3 rows per
  * phone screen. The list is now ONE line per item:
  *
- *   [thumb + element corner badge] Lv · rarity-colored name ·
- *   [equipped chip] [lock] — ONE headline stat per kind
+ *   [LV column] [thumb, bare] [element badge] · rarity-colored
+ *   name (wraps to two lines) · [equipped chip] [lock] — ONE
+ *   headline stat per kind
  *
  * Pins:
  *  1. Anatomy per kind: level, name in the rarity color, the
  *     kind's headline stat (weapon DPS · shield HP · ordnance DMG ·
  *     class-mod Boost · relic top affix) from gearRowHeadline.
- *  2. The element rides a corner badge on the thumb (element-color
- *     field + data-element-badge), never the element word; kinds
- *     without an element (class mod, relic) carry no badge.
+ *  2. The element rides a badge beside the thumb in open space
+ *     (element-color field + data-element-badge), never the element
+ *     word, never on top of the sprite (owner swap ruling
+ *     2026-11-05 — the corner badge covered the gun); kinds without
+ *     an element (class mod, relic) carry no badge. The LEVEL leads
+ *     the row as its own column — LV caption over the bare number
+ *     (data-level-chip) — picked from four renderings the same day;
+ *     the art carries nothing. Names wrap to two lines rather than
+ *     truncating (same ruling): the end of a name carries what the
+ *     item is.
  *  3. What left the face stays off it: no affix lines, no maker /
  *     type meta, no secondary stat pills in list rows.
  *  4. Equipped slot chip + lock glyph render on the one line.
@@ -127,10 +135,17 @@ describe('gear list row — one-line anatomy', () => {
     const row = rowOf('Ember Sidearm');
 
     const name = screen.getByText('Ember Sidearm');
-    expect(name.className).toContain('truncate');
+    // Names wrap to two lines (line-clamp-2), never truncate.
+    expect(name.className).toContain('line-clamp-2');
+    expect(name.className).not.toContain('truncate');
     expect(name.style.color).toBe(hexToRgb(RARITIES[Rarity.Epic].color));
 
-    expect(row.textContent).toContain('Lv 12');
+    // Level: the bare number in the lead LV column (data-level-chip),
+    // the art itself carrying nothing.
+    const chip = row.querySelector('[data-level-chip]');
+    expect(chip?.getAttribute('data-level-chip')).toBe('12');
+    expect(chip?.textContent).toBe('12');
+    expect(row.textContent).not.toContain('Lv 12');
     expect(row.textContent).toContain('DPS');
     expect(row.textContent).toContain('50');
 
@@ -236,6 +251,35 @@ describe('gear list row — render cost (freeze investigation guard)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle inventory layout' }));
     expect(document.querySelector('[data-density="card"]')).not.toBeNull();
+  });
+});
+
+describe('compare flow — the button completes the pair (owner bug 2026-11-05)', () => {
+  // The shipped bug: the compare button only ever (re)armed the first
+  // pick, so button→button reset forever and the sheet never opened;
+  // nothing showed the armed state either. These legs pin the fix.
+  const pair = () => [
+    makeWeapon(),
+    makeWeapon({ id: 'w-2', name: 'Frost Sidearm', element: Element.Cryo }),
+  ];
+
+  it('button → button opens the Compare Gear sheet', () => {
+    renderHub(pair());
+    fireEvent.click(screen.getByRole('button', { name: 'Compare Ember Sidearm' }));
+    expect(screen.getByText(/Comparing Ember Sidearm/)).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Compare Ember Sidearm' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Compare Frost Sidearm' }));
+    expect(screen.getByText('Compare Gear')).not.toBeNull();
+  });
+
+  it('button → same button disarms (no sheet, hint bar leaves)', () => {
+    renderHub(pair());
+    const btn = screen.getByRole('button', { name: 'Compare Ember Sidearm' });
+    fireEvent.click(btn);
+    expect(screen.getByText(/Comparing Ember Sidearm/)).not.toBeNull();
+    fireEvent.click(btn);
+    expect(screen.queryByText(/Comparing Ember Sidearm/)).toBeNull();
+    expect(screen.queryByText('Compare Gear')).toBeNull();
   });
 });
 
