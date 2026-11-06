@@ -1,434 +1,438 @@
-import React, { useMemo, useState } from 'react';
-import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
+/**
+ * HelpScreen — the Field Manual (owner option 3, 2026-11-05).
+ *
+ * The manual stopped being hand-written help text: this screen
+ * renders the game's own wiki (repo `wiki/*.md`, bundled at build
+ * time — see src/lib/wiki/wikiCorpus.ts) natively, in Register B —
+ * Instrument Panel — the register the owner picked for every Hunter
+ * sub-page: the Operator Console masthead, LCD bank and channel
+ * rows, adapted to a reading surface. The hand-written sections
+ * and the guided tour that used to live in this file are retired —
+ * the wiki is the manual now, and there is no state of the app
+ * with neither.
+ *
+ * Navigation is a real in-app stack: the index lists every wiki
+ * page grouped by the wiki's own _Sidebar; tapping a row — or any
+ * [[wikilink]] inside an article — pushes that page; BACK pops;
+ * INDEX resets. Prev / Next keys walk the sidebar order. Android
+ * hardware back walks the same stack and, at the index, leaves the
+ * sub-screen through the host's onExit — the same contract the
+ * sub-screen header's Back button offers.
+ *
+ * Deep links: the host routes 'help' (index) and 'help:<Page>'
+ * (straight to that page) here via initialPageId/intentSeq.
+ */
+import React from 'react';
+import { Capacitor } from '@capacitor/core';
+import type { PluginListenerHandle } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import { PxIcon } from '@/components/pixelArt/PxIcon';
 import {
-  ChevronDown,
-  ChevronUp,
-  ArrowRight,
-  Search,
-  X,
-} from 'lucide-react';
-import { MobileCard } from '@/components/layout/MobileCard';
-import { getNavSigil } from '@/constants/navSigils';
+  ConsoleStyles,
+  Lamp,
+  Lcd,
+  PushBtn,
+  Rack,
+  RackHead,
+  Readout,
+} from '@/components/profile/manualConsoleKit';
+import { CK } from '@/components/profile/manualConsoleTokens';
+import {
+  WIKI_GROUPS,
+  WIKI_ORDER,
+  WIKI_STATS,
+  getLoadedWikiPage,
+  getWikiLinkCount,
+  loadWikiPage,
+  preloadWikiCorpus,
+  resolveWikiPage,
+  searchWikiText,
+  subscribeWikiCorpus,
+  wikiCorpusReady,
+  type WikiPage,
+} from '@/lib/wiki/wikiCorpus';
+import { renderWikiMarkdown } from '@/lib/wiki/wikiMarkdown';
 
-type TabId = 'home' | 'gear' | 'market' | 'hunter';
+const GROUP_OF = new Map<string, string>();
+for (const g of WIKI_GROUPS) for (const p of g.pages) GROUP_OF.set(p.id, g.label);
+const ORDER_INDEX = new Map(WIKI_ORDER.map((p, i) => [p.id, i]));
 
-interface HelpItem {
-  term: string;
-  body: string;
+export interface HelpScreenProps {
+  /** Deep-link target: a wiki page id or title, or null for the index. */
+  initialPageId?: string | null;
+  /** Bumped by the host on every 'help' navigation; a change re-applies initialPageId. */
+  intentSeq?: number;
+  /** Leave the sub-screen (the host's Back). Hardware back at the index calls this. */
+  onExit?: () => void;
 }
 
-interface HelpSection {
-  id: string;
-  title: string;
-  blurb: string;
-  icon: PxIconName;
-  color: string;
-  items: HelpItem[];
-}
+export const HelpScreen: React.FC<HelpScreenProps> = ({ initialPageId = null, intentSeq = 0, onExit }) => {
+  const start = initialPageId ? resolveWikiPage(initialPageId) : null;
+  const [stack, setStack] = React.useState<string[]>(start ? [start.id] : []);
+  const [query, setQuery] = React.useState('');
+  const rootRef = React.useRef<HTMLDivElement>(null);
 
-interface TourStep {
-  id: string;
-  title: string;
-  body: string;
-  target: { tab: TabId; label: string; icon: PxIconName };
-  // The on-screen element to spotlight, used by the tour overlay when active.
-  spotlight: string;
-  cta: string;
-}
+  // Corpus convergence: the background preload lands H1 titles, the
+  // link count and search readiness after first paint — re-render
+  // as each arrives.
+  const [, setCorpusTick] = React.useState(0);
+  React.useEffect(() => subscribeWikiCorpus(() => setCorpusTick((t) => t + 1)), []);
+  React.useEffect(() => {
+    void preloadWikiCorpus();
+  }, []);
 
-// One guided step per major gameplay phase. Each step names a real tab and
-// describes what the player should be looking at, so the manual is a real tour
-// rather than a static reference card.
-const TOUR_STEPS: TourStep[] = [
-  {
-    id: 'pick-turf',
-    title: '1. Pick an area',
-    body:
-      'Open Home. The Choose Area panel lists the seven roaming areas. Each one has a danger rating and a per-tick XP multiplier shown in the chip. Every area is open from Level 1 — nothing is gated. Start with Dustwaste Frontier while you gear up; later areas hit harder and pay better, and the danger rating is a warning, never a wall.',
-    target: { tab: 'home', label: 'Home', icon: 'home' },
-    spotlight: 'Choose Area panel',
-    cta: 'Go to Home',
-  },
-  {
-    id: 'start-roam',
-    title: '2. Start a roam',
-    body:
-      'On Home, tap an area, then Start Roam on the stage. The 3-second tick awards credits, scrap, XP, and an occasional gear drop. Bosses are never triggered by roaming — a boss attempt is deliberate: open Boss Prep from the same stage, read the intel, and launch the attempt yourself when you are ready.',
-    target: { tab: 'home', label: 'Home', icon: 'crosshair' },
-    spotlight: 'Roaming activity card',
-    cta: 'Open Home',
-  },
-  {
-    id: 'inspect-loot',
-    title: '3. Inspect loot',
-    body:
-      'Open Gear and tap any item card to bring up the inspect sheet. The "vs standard target" DPS at the top is your baseline. The Matchup Chip at the bottom shows effective DPS against the boss you are prepping, factoring in element, manufacturer, and legendary effects.',
-    target: { tab: 'gear', label: 'Gear', icon: 'grid' },
-    spotlight: 'Gear grid',
-    cta: 'Open Gear',
-  },
-  {
-    id: 'build-loadout',
-    title: '4. Build a loadout',
-    body:
-      'Boss damage is computed from the seven equipped slots, not the full backpack. Equip your best weapon, shield, class mod, and relic before any boss attempt. Class Mods unlock Skill Tree keystones; Relics grant affixes. Both stack with weapon affixes in the DPS chain.',
-    target: { tab: 'gear', label: 'Gear', icon: 'diamondIn' },
-    spotlight: 'Loadout panel',
-    cta: 'Open Gear',
-  },
-  {
-    id: 'check-identity',
-    title: '5. Read your Build Identity',
-    body:
-      'The Hunter tab shows your Build Identity — the weapon type you actually rack kills with, pulled from combat stats. It is not based on what you own. If it shows "No data yet", patrol an area for a few minutes; the system needs a stable winner in killsByWeaponType.',
-    target: { tab: 'hunter', label: 'Hunter', icon: 'person' },
-    spotlight: 'Build Identity card',
-    cta: 'Open Hunter',
-  },
-  {
-    id: 'sell-buy',
-    title: '6. Trade at the Market',
-    body:
-      'Sell duplicates for credits, and use the Vendor to roll for gear you can afford. Locked items never get sold or salvaged. The Market uses server-minted credits only, so a successful sale reflects in your balance on the next 3s tick.',
-    target: { tab: 'market', label: 'Market', icon: getNavSigil('market').icon },
-    spotlight: 'Market tabs',
-    cta: 'Open Market',
-  },
-  {
-    id: 'mastery-constellation',
-    title: '7. Track Mastery',
-    body:
-      'The Mastery screen (Field Manual → Mastery) renders six orbits — Combat, Weapons, Inventory, Locations, Economy, Services. Each satellite dot is a track. The constellation is server-tracked; the local fallback only fires when the server is unreachable.',
-    target: { tab: 'hunter', label: 'Hunter', icon: 'star' },
-    spotlight: 'Mastery constellation',
-    cta: 'Open Mastery',
-  },
-];
+  // Deep-link intents after mount (the host keeps this screen
+  // mounted while the sub-screen is open).
+  const lastIntentSeq = React.useRef(intentSeq);
+  React.useEffect(() => {
+    if (intentSeq === lastIntentSeq.current) return;
+    lastIntentSeq.current = intentSeq;
+    const target = initialPageId ? resolveWikiPage(initialPageId) : null;
+    setStack(target ? [target.id] : []);
+  }, [intentSeq, initialPageId]);
 
-// Section content reflects the post-PR-#52-to-#58 reality: single-tick loop,
-// per-area XP multiplier, new curve, server-minted rewards, build identity
-// from kill stats. The old "auto-salvage clutter" copy is gone.
-const SECTIONS: HelpSection[] = [
-  {
-    id: 'start',
-    title: 'Getting Started',
-    blurb: 'First 10 minutes on the Frontier.',
-    icon: 'crosshair',
-    color: '#F59E0B',
-    items: [
-      { term: 'Pick an area', body: 'Home\'s Choose Area panel shows the seven roaming areas. Each one scales: later areas drop better loot and award more XP per tick.' },
-      { term: 'Tap an area, then Start Roam', body: 'Selecting an area and hitting Start Roam on Home\'s stage starts a roaming_loot activity. While it\'s active, the single 3-second tick awards credits, scrap, XP, and the occasional gear drop.' },
-      { term: 'Equip before you push bosses', body: 'The boss simulator uses your equipped loadout (7 slots), not your full backpack. Open Loadout and slot your best weapon, shield, class mod, and relic before any boss attempt.' },
-    ],
-  },
-  {
-    id: 'loot',
-    title: 'Weapons & Loot',
-    blurb: 'Rarities, roll quality, and the loot pipeline.',
-    icon: 'grid',
-    color: '#A855F7',
-    items: [
-      { term: 'Rarity & roll quality', body: 'Every weapon has a rarity (Common → Legendary) and a roll quality band. Higher bands boost base stats. God rolls start at 96+.' },
-      { term: 'DPS modifier chain', body: 'A weapon\'s effective DPS is raw damage × signature × manufacturer × affixes × legendary effect × element matchup × boss resistance. The gear inspector shows "vs standard target"; the dashboard chip shows the dynamic DPS against the selected boss.' },
-      { term: 'Lock before salvage', body: 'Use the lock badge on any gear card to protect it from auto-salvage. Locked items survive cleanup passes and are excluded from the vendor list.' },
-      { term: 'Server-minted drops', body: 'Credits, scrap, XP, cache keys, materials, and essences are all server-minted. Your client rolls gear drops for immediate visual feedback, and the server reconciles economy stats every 3s.' },
-      { term: 'Per-area XP', body: 'Each area has its own idle XP multiplier (1.0 → 2.4). Home shows the multiplier on the area card; high-danger areas reward more XP per tick, not just better loot.' },
-    ],
-  },
-  {
-    id: 'loadout',
-    title: 'Loadout',
-    blurb: 'Seven slots define the loadout.',
-    icon: 'diamondIn',
-    color: '#3B82F6',
-    items: [
-      { term: 'Slots', body: 'Primary, Secondary, Heavy, Ordnance, Shield, Class Mod, Relic. Equipping is gated only by item kind — if you own it and it fits the slot, you can equip it at any level.' },
-      { term: 'Build identity', body: 'Your Hunter tab\'s "Build Identity" is the weapon type you actually rack kills with, pulled from combat stats. It\'s not based on what you own — it reflects what you *use*.' },
-      { term: 'Class Mods & Relics', body: 'These are build identity pieces, not filler stats. Class Mods grant skill-tree nodes; Relics grant affixes. Both stack with weapon affixes for the DPS chain.' },
-    ],
-  },
-  {
-    id: 'bosses',
-    title: 'Boss Fights',
-    blurb: 'Survival, break, DPS, and mechanics.',
-    icon: 'bolt',
-    color: '#EF4444',
-    items: [
-      { term: 'Phases', body: 'Bosses run through survival, break, DPS, and mechanic checks. You can attempt a boss any number of times; failed attempts do not consume resources.' },
-      { term: 'Element matchup', body: 'Each boss has elemental weaknesses. Hitting a weakness with a matching element is a damage multiplier; hitting a resistance is a penalty. The dashboard diorama shows your current effective DPS against the selected boss.' },
-      { term: 'Pity counter', body: 'Repeated failures improve future odds. The pity counter resets on a kill.' },
-    ],
-  },
-  {
-    id: 'economy',
-    title: 'Economy',
-    blurb: 'Credits, scrap, cache keys, materials, essences.',
-    icon: 'chart',
-    color: '#22C55E',
-    items: [
-      { term: 'Credits', body: 'Earned passively while roaming, plus boss wins and vendor sales. Used for vendor purchases and some workshop recipes.' },
-      { term: 'Scrap & materials', body: 'Salvage gear to get Scrap + materials. Materials are area-biased: each roaming area prefers different material kinds. Use the Workshop to convert them into combat utility.' },
-      { term: 'Cache Keys', body: 'Keys open Data Caches for high-rarity gear. Every opening costs one key or one watched ad — no daily limit. Keys are rare: roaming drops a whole key now and then, and the login streak, contracts, and leaderboards pay them too.' },
-    ],
-  },
-  {
-    id: 'skills',
-    title: 'Skill Trees',
-    blurb: 'Gunslinger, Demolition, Scavenger.',
-    icon: 'star5',
-    color: '#06B6D4',
-    items: [
-      { term: 'Three trees', body: 'Gunslinger boosts weapons; Demolition boosts ordnance; Scavenger boosts materials and salvage yield. Each tree is gated by level and class mod.' },
-      { term: 'Spend points', body: 'One skill point per level starting at level 2. Unspent points are visible on the Hunter and Board HUDs.' },
-      { term: 'Nodes & keystones', body: 'Small nodes feed majors; majors unlock keystones. Keystones are build-defining (e.g. "free reload on kill") and are why loadout matters.' },
-    ],
-  },
-  {
-    id: 'mastery',
-    title: 'Mastery & Constellations',
-    blurb: 'Server-tracked ranks across 6 categories.',
-    icon: 'star',
-    color: '#FF4B5C',
-    items: [
-      { term: '6 categories', body: 'Combat, Weapons, Inventory, Locations, Economy, Services. Each category has tracks that ascend through Dormant → Active → Pulsar → Nova.' },
-      { term: 'Constellation map', body: 'The Mastery screen renders your categories as a constellation — each orbit node is a category, satellite dots are the tracks. The map visualizes the spread of your progression, not just a single number.' },
-      { term: 'Mastery score', body: 'Read directly from the server\'s `mastery_xp` total. Local fallbacks only appear when the server is unreachable.' },
-    ],
-  },
-  {
-    id: 'tips',
-    title: 'Pro Tips',
-    blurb: 'Things the dashboard won\'t tell you.',
-    icon: 'grid',
-    color: '#F59E0B',
-    items: [
-      { term: 'Element over rarity', body: 'A Common weapon with the right element is better than a Legendary with the wrong one. Match first, rarify later.' },
-      { term: 'DPS label', body: 'The gear inspector\'s "vs standard target" DPS is a baseline. Your effective DPS in any fight depends on the boss\'s weakness / resistance profile.' },
-      { term: 'Build Identity lag', body: 'Build Identity only updates after you rack enough kills for a stable winner in `killsByWeaponType`. If it shows "No data yet", patrol an area for a few minutes.' },
-      { term: 'Offline catchup', body: 'Roaming ticks claim rewards on a 3s cadence. Coming back from a long break shows a single summary card (kills, XP, credits), not a per-tick animation replay.' },
-    ],
-  },
-];
+  const currentId = stack.length > 0 ? stack[stack.length - 1] : null;
+  const currentMeta = currentId ? resolveWikiPage(currentId) : null;
 
-interface HelpScreenProps {
-  // Optional callback for the guided tour's "Go to ..." buttons. If the host
-  // app (App.tsx) wires this up, the tour can switch tabs for the player.
-  onTourJump?: (tab: TabId) => void;
-}
+  // The open page's body: cached pages render instantly (the cache
+  // read is a pure Map lookup, and the corpus subscription above
+  // re-renders when a load lands); a cold page shows the receiving
+  // state until its chunk arrives through the async path.
+  const [asyncPage, setAsyncPage] = React.useState<WikiPage | null>(null);
+  React.useEffect(() => {
+    if (!currentId || getLoadedWikiPage(currentId)) return undefined;
+    let live = true;
+    void loadWikiPage(currentId).then((page) => {
+      if (live) setAsyncPage(page);
+    });
+    return () => {
+      live = false;
+    };
+  }, [currentId]);
+  const loaded: WikiPage | null = currentId
+    ? (getLoadedWikiPage(currentId) ?? (asyncPage && asyncPage.id === currentId ? asyncPage : null))
+    : null;
 
-const SectionCard: React.FC<{ section: HelpSection; open: boolean; onToggle: () => void; query: string }> = ({ section, open, onToggle, query }) => {
-  const sectionIcon = section.icon;
-  const lower = query.toLowerCase();
-  const filtered = query.trim().length === 0
-    ? section.items
-    : section.items.filter((it) => it.term.toLowerCase().includes(lower) || it.body.toLowerCase().includes(lower));
-  if (query && filtered.length === 0) return null;
-  return (
-    <MobileCard rarityColor={section.color}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center gap-2 text-left transition-transform active:scale-[0.98]"
-      >
-        <div className="bl-icon-plate flex h-9 w-9 shrink-0 items-center justify-center" style={{ backgroundColor: `${section.color}18` }}>
-          <PxIcon name={sectionIcon} size={17} style={{ color: section.color }} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-black uppercase tracking-wide text-text-primary">{section.title}</div>
-          <div className="text-[9px] uppercase tracking-[0.16em] text-text-muted">{section.blurb}</div>
-        </div>
-        <div className="text-[9px] font-black uppercase tracking-widest text-text-muted">{filtered.length}</div>
-        {open ? <ChevronUp size={16} className="text-text-muted" /> : <ChevronDown size={16} className="text-text-muted" />}
-      </button>
-      {open && (
-        <div className="mt-2 space-y-2 border-t-2 border-border pt-2">
-          {filtered.map((item) => (
-            <div key={item.term} className="border-l-2 pl-2" style={{ borderColor: section.color }}>
-              <div className="text-[11px] font-black uppercase tracking-wide text-text-primary">{item.term}</div>
-              <div className="mt-0.5 text-[11px] leading-snug text-text-secondary">{item.body}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </MobileCard>
-  );
-};
-
-const TourStepCard: React.FC<{
-  step: TourStep;
-  index: number;
-  total: number;
-  isCurrent: boolean;
-  onJump: (tab: TabId) => void;
-}> = ({ step, index, isCurrent, onJump }) => {
-  const stepIcon = step.target.icon;
-  return (
-    <div
-      className={`relative border-2 p-3 transition-all ${
-        isCurrent ? 'border-amber bg-amber/10' : 'border-border bg-surface/40'
-      }`}
-      style={{ clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' }}
-    >
-      <div className="flex items-start gap-2">
-        <div className={`bl-icon-plate flex h-7 w-7 shrink-0 items-center justify-center ${isCurrent ? 'bg-amber text-bg' : 'bg-bg text-amber'}`}>
-          <span className="text-[10px] font-black">{index + 1}</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[12px] font-black uppercase tracking-wide text-text-primary">{step.title}</div>
-          <div className="mt-1 text-[11px] leading-snug text-text-secondary">{step.body}</div>
-          <div className="mt-2 flex items-center gap-2">
-            <div className="flex items-center gap-1 border border-border bg-bg/70 px-1.5 py-0.5">
-              <PxIcon name={stepIcon} size={13} className="text-amber" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-text-secondary">{step.target.label}</span>
-            </div>
-            <span className="text-[9px] text-text-muted">·</span>
-            <span className="text-[9px] uppercase tracking-wide text-text-muted">{step.spotlight}</span>
-          </div>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => onJump(step.target.tab)}
-        className="mt-2 flex w-full items-center justify-center gap-1.5 border-2 border-border bg-bg py-1.5 text-[10px] font-black uppercase tracking-widest text-amber transition-transform active:scale-[0.97]"
-        style={{ clipPath: 'polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)' }}
-      >
-        {step.cta}
-        <ArrowRight size={11} />
-      </button>
-    </div>
-  );
-};
-
-export const HelpScreen: React.FC<HelpScreenProps> = ({ onTourJump }) => {
-  const [openId, setOpenId] = useState<string | null>('start');
-  const [query, setQuery] = useState('');
-  const [tourStep, setTourStep] = useState<number>(0);
-  const [tourOpen, setTourOpen] = useState<boolean>(true);
-
-  // When searching, auto-open every section that has a hit so the user
-  // doesn't have to click through each one.
-  const effectiveOpenId = useMemo(() => (query.trim().length > 0 ? '__all__' : openId), [query, openId]);
-
-  const handleTourJump = (tab: TabId) => {
-    if (onTourJump) {
-      onTourJump(tab);
-    } else {
-      // Fallback: surface a clear hint if the host hasn't wired onTourJump.
-      // We don't try to fake a tab switch because the BottomNav state lives
-      // in App.tsx and the screens are mounted by tab.
-      console.warn('[HelpScreen] onTourJump not wired; cannot switch to', tab);
+  React.useEffect(() => {
+    // Guarded: scrollIntoView is absent in some hosts (tests, SSR).
+    const el = rootRef.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'start' });
     }
-    // Advance the cursor so the player sees progress when they return.
-    setTourStep((prev) => Math.min(prev + 1, TOUR_STEPS.length - 1));
-  };
+  }, [stack]);
 
-  const resetTour = () => {
-    setTourStep(0);
-    setTourOpen(true);
-  };
+  const openPage = React.useCallback((id: string) => {
+    setStack((s) => (s[s.length - 1] === id ? s : [...s, id]));
+  }, []);
+  const goBack = React.useCallback(() => setStack((s) => s.slice(0, -1)), []);
+  const goIndex = React.useCallback(() => setStack([]), []);
+
+  // Android hardware back: pop the reading stack first; at the
+  // index, hand the press to the host (leaves the sub-screen). The
+  // listener registers once; refs (kept fresh by an every-render
+  // effect) carry the current stack and exit callback into it.
+  const backRef = React.useRef<() => boolean>(() => false);
+  const exitRef = React.useRef(onExit);
+  React.useEffect(() => {
+    backRef.current = () => {
+      if (stack.length > 0) {
+        goBack();
+        return true;
+      }
+      return false;
+    };
+    exitRef.current = onExit;
+  });
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    let handle: PluginListenerHandle | undefined;
+    let live = true;
+    void CapacitorApp.addListener('backButton', () => {
+      if (!backRef.current()) exitRef.current?.();
+    }).then((h) => {
+      if (live) handle = h;
+      else void h.remove();
+    });
+    return () => {
+      live = false;
+      if (handle) void handle.remove();
+    };
+  }, []);
+
+  const ctx = React.useMemo(() => ({ openPage }), [openPage]);
+  const articleBody = React.useMemo(
+    () => (loaded && loaded.id === currentId ? renderWikiMarkdown(loaded.markdown, ctx) : null),
+    [loaded, currentId, ctx],
+  );
+
+  const q = query.trim().toLowerCase();
+  const visibleGroups = WIKI_GROUPS.map((g) => ({
+    ...g,
+    pages: q ? g.pages.filter((p) => p.title.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)) : g.pages,
+  })).filter((g) => g.pages.length > 0);
+  const titleMatchedIds = React.useMemo(
+    () => new Set(visibleGroups.flatMap((g) => g.pages.map((p) => p.id))),
+    [visibleGroups],
+  );
+  const visibleCount = visibleGroups.reduce((n, g) => n + g.pages.length, 0);
+  const corpusReady = wikiCorpusReady();
+  const textHits = q && corpusReady
+    ? searchWikiText(query).filter((hit) => !titleMatchedIds.has(hit.page.id))
+    : [];
+  const linkCount = getWikiLinkCount();
 
   return (
-    <div className="bl-page space-y-4 p-4 pb-20">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="bl-title text-3xl leading-none text-text-primary">Field Manual</div>
-          <div className="text-xs text-text-muted">Pinned notes for loot, combat, caches, and buildcraft.</div>
-        </div>
-        <div className="bl-icon-plate flex h-12 w-12 shrink-0 -rotate-2 items-center justify-center text-amber">
-          <PxIcon name="book" size={26} />
-        </div>
-      </div>
+    <div ref={rootRef} className="flex flex-col gap-3 p-3 pb-6">
+      <ConsoleStyles />
 
-      <MobileCard rarityColor="#FF4B5C">
-        <button
-          type="button"
-          onClick={() => setTourOpen((o) => !o)}
-          className="flex w-full items-center gap-2 text-left transition-transform active:scale-[0.98]"
+      {/* ── Masthead: the unit plate ─────────────────────────── */}
+      <Rack>
+        <div
+          className="flex min-h-[36px] items-center gap-2 px-3"
+          style={{ borderBottom: `1px solid ${CK.bezel}`, boxShadow: '0 1px 0 rgba(0,0,0,0.6)' }}
         >
-          <div className="bl-icon-plate flex h-9 w-9 shrink-0 items-center justify-center bg-[#FF4B5C]/15">
-            <PxIcon name="pin" size={17} className="text-[#FF4B5C]" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-black uppercase tracking-wide text-text-primary">Guided Tour</div>
-            <div className="text-[9px] uppercase tracking-[0.16em] text-text-muted">
-              Step {tourStep + 1} of {TOUR_STEPS.length} — {TOUR_STEPS[tourStep].title.replace(/^\d+\.\s*/, '')}
-            </div>
-          </div>
-          <div className="text-[9px] font-black uppercase tracking-widest text-text-muted">
-            {Math.round(((tourStep + 1) / TOUR_STEPS.length) * 100)}%
-          </div>
-          {tourOpen ? <ChevronUp size={16} className="text-text-muted" /> : <ChevronDown size={16} className="text-text-muted" />}
-        </button>
-        {tourOpen && (
-          <div className="mt-2 space-y-2 border-t-2 border-border pt-2">
-            <TourStepCard
-              step={TOUR_STEPS[tourStep]}
-              index={tourStep}
-              total={TOUR_STEPS.length}
-              isCurrent
-              onJump={handleTourJump}
-            />
-            <div className="flex items-center justify-between gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setTourStep((s) => Math.max(0, s - 1))}
-                disabled={tourStep === 0}
-                className="border-2 border-border bg-bg px-2 py-1 text-[10px] font-black uppercase tracking-widest text-text-secondary transition-transform active:scale-[0.97] disabled:opacity-30"
-              >
-                ← Back
-              </button>
-              <button
-                type="button"
-                onClick={resetTour}
-                className="border-2 border-border bg-bg px-2 py-1 text-[10px] font-black uppercase tracking-widest text-text-muted transition-transform active:scale-[0.97]"
-              >
-                Restart
-              </button>
-              <button
-                type="button"
-                onClick={() => setTourStep((s) => Math.min(TOUR_STEPS.length - 1, s + 1))}
-                disabled={tourStep === TOUR_STEPS.length - 1}
-                className="border-2 border-amber bg-amber/20 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-amber transition-transform active:scale-[0.97] disabled:opacity-30"
-              >
-                Next →
-              </button>
-            </div>
-          </div>
-        )}
-      </MobileCard>
-
-      <div className="relative">
-        <Search size={14} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search the manual..."
-          className="w-full border-2 border-border bg-bg/80 py-1.5 pl-7 pr-7 text-xs text-text-primary placeholder:text-text-muted focus:border-amber focus:outline-none"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={() => setQuery('')}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-primary"
-            aria-label="Clear search"
+          <Lamp state="ok" />
+          <span className="flex-1 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: CK.boneDim }}>
+            Unit FM-09 · Field Manual
+          </span>
+          <Readout color={CK.green}>Wiki Uplink</Readout>
+        </div>
+        <div className="flex items-center gap-3 px-4 pt-3">
+          <PxIcon name="book" size={30} style={{ color: CK.bone }} />
+          <h1
+            className="flex-1"
+            style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, lineHeight: 1, letterSpacing: '0.03em', color: CK.bone }}
           >
-            <X size={12} />
-          </button>
-        )}
-      </div>
+            Field Manual
+          </h1>
+        </div>
+        <p className="px-4 pb-3 pt-1.5 text-[13px] leading-snug" style={{ color: CK.boneDim }}>
+          The game&apos;s wiki, rendered natively — the same pages the GitHub wiki publishes, read off the rig.
+        </p>
+        <div className="grid grid-cols-3 gap-2 px-3 pb-3">
+          <Lcd label="Pages" value={WIKI_STATS.pages} />
+          <Lcd label="Links" value={linkCount ?? '—'} />
+          <Lcd label="Source" value="Wiki/*.md" valueColor={CK.amber} />
+        </div>
+      </Rack>
 
-      <div className="space-y-2">
-        {SECTIONS.map((section) => (
-          <SectionCard
-            key={section.id}
-            section={section}
-            open={effectiveOpenId === '__all__' || openId === section.id}
-            onToggle={() => setOpenId((prev) => (prev === section.id ? null : section.id))}
-            query={query}
-          />
-        ))}
-      </div>
+      {currentId === null ? (
+        <>
+          {/* ── Search: titles instantly, body text once indexed ── */}
+          <Rack testId="wiki-filter">
+            <RackHead
+              icon={<PxIcon name="search" size={15} style={{ color: CK.label }} />}
+              label="Index Query"
+              readout={
+                <Readout>
+                  {q
+                    ? `${visibleCount} pages · ${corpusReady ? `${textHits.length} text hits` : 'indexing…'}`
+                    : `Showing ${visibleCount}/${WIKI_STATS.pages}`}
+                </Readout>
+              }
+            />
+            <div className="p-3">
+              <div
+                className="flex items-center px-3"
+                style={{
+                  background: CK.lcd,
+                  boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.05)',
+                }}
+              >
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Filter pages…"
+                  aria-label="Filter wiki pages"
+                  className="min-h-[44px] w-full bg-transparent text-[15px] font-semibold outline-none"
+                  style={{ color: CK.bone, caretColor: CK.amber }}
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery('')}
+                    aria-label="Clear filter"
+                    className="flex min-h-[44px] min-w-[44px] items-center justify-center"
+                  >
+                    <PxIcon name="x" size={14} style={{ color: CK.label }} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </Rack>
+
+          {/* ── Body-text hits ────────────────────────────────── */}
+          {q && textHits.length > 0 && (
+            <Rack testId="wiki-search-hits">
+              <RackHead
+                icon={<PxIcon name="search" size={15} style={{ color: CK.label }} />}
+                label="In the Text"
+                readout={<Readout>{`${textHits.length} hit${textHits.length === 1 ? '' : 's'}`}</Readout>}
+              />
+              <div className="px-3 py-2">
+                {textHits.map((hit) => {
+                  const seq = (ORDER_INDEX.get(hit.page.id) ?? 0) + 1;
+                  return (
+                    <button
+                      key={hit.page.id}
+                      type="button"
+                      data-page={hit.page.id}
+                      onClick={() => openPage(hit.page.id)}
+                      className="flex min-h-[52px] w-full items-start gap-3 px-1.5 py-2 text-left"
+                      style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                    >
+                      <span className="ck-num w-[52px] shrink-0 pt-0.5 text-[12px] font-bold tracking-[0.08em]" style={{ color: CK.label }}>
+                        {`PG-${String(seq).padStart(2, '0')}`}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] font-semibold leading-snug" style={{ color: CK.bone }}>
+                          {hit.page.title}
+                        </span>
+                        <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-snug" style={{ color: CK.boneDim }}>
+                          {hit.snippet}
+                        </span>
+                      </span>
+                      <PxIcon name="chevR" size={13} style={{ color: CK.label, flexShrink: 0, marginTop: 4 }} />
+                    </button>
+                  );
+                })}
+              </div>
+            </Rack>
+          )}
+
+          {/* ── Index: channel select over the sidebar groups ── */}
+          <Rack testId="wiki-index">
+            <RackHead
+              icon={<PxIcon name="book" size={15} style={{ color: CK.label }} />}
+              label="Contents — Page Select"
+              readout={<Readout>{q ? `${visibleCount} match${visibleCount === 1 ? '' : 'es'}` : 'Awaiting select'}</Readout>}
+            />
+            <div className="px-3 py-2">
+              {visibleGroups.length === 0 && (
+                <p className="py-4 text-[13px]" style={{ color: CK.label }}>
+                  No page matches that query. Clear the filter to see the full index.
+                </p>
+              )}
+              {visibleGroups.map((group) => (
+                <div key={group.label} className="py-1.5">
+                  <div className="flex items-baseline gap-2 pb-1 pt-2">
+                    <span className="flex-1 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: CK.amber }}>
+                      {group.label}
+                    </span>
+                    <Readout>{`${group.pages.length} pages`}</Readout>
+                  </div>
+                  {group.pages.map((page) => {
+                    const seq = (ORDER_INDEX.get(page.id) ?? 0) + 1;
+                    return (
+                      <button
+                        key={page.id}
+                        type="button"
+                        data-page={page.id}
+                        onClick={() => openPage(page.id)}
+                        className="flex min-h-[52px] w-full items-center gap-3 px-1.5 text-left"
+                        style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                      >
+                        <span className="ck-num w-[52px] shrink-0 text-[12px] font-bold tracking-[0.08em]" style={{ color: CK.label }}>
+                          {`PG-${String(seq).padStart(2, '0')}`}
+                        </span>
+                        <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug" style={{ color: CK.bone }}>
+                          {page.title}
+                        </span>
+                        {page.generated && <Readout color={CK.amber}>Data</Readout>}
+                        <PxIcon name="chevR" size={13} style={{ color: CK.label, flexShrink: 0 }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </Rack>
+        </>
+      ) : (
+        <>
+          {/* ── Article controls ─────────────────────────────── */}
+          <Rack>
+            <div className="flex items-stretch gap-2 p-2.5">
+              <PushBtn onClick={goBack} className="shrink-0" ariaLabel={stack.length > 1 ? 'Back to previous page' : 'Back to index'}>
+                <PxIcon name="chevL" size={13} />
+                {stack.length > 1 ? 'Back' : 'Index'}
+              </PushBtn>
+              <div
+                className="flex min-w-0 flex-1 flex-col justify-center px-3"
+                style={{
+                  background: CK.lcd,
+                  boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.05)',
+                }}
+              >
+                <span className="text-[11px] font-semibold uppercase leading-none tracking-[0.14em]" style={{ color: CK.label }}>
+                  {`Doc · ${GROUP_OF.get(currentId) ?? 'Wiki'}`}
+                </span>
+                <span className="ck-num mt-1 truncate text-[15px] font-bold leading-none" style={{ color: CK.amber }}>
+                  {currentId}
+                </span>
+              </div>
+              <PushBtn onClick={goIndex} className="shrink-0" ariaLabel="Back to the index">
+                <PxIcon name="book" size={14} />
+                Index
+              </PushBtn>
+            </div>
+          </Rack>
+
+          {/* ── Article body ─────────────────────────────────── */}
+          <Rack testId="wiki-article">
+            {articleBody ? (
+              <>
+                <div className="px-4 py-4">{articleBody}</div>
+                <div
+                  className="flex items-center gap-2 px-3 py-2.5"
+                  style={{ borderTop: `1px solid ${CK.bezel}` }}
+                >
+                  <Lamp state="ok" size={8} />
+                  <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: CK.label }}>
+                    End of page — source wiki/{currentId}.md
+                  </span>
+                  <Readout>{`${(ORDER_INDEX.get(currentId) ?? 0) + 1} of ${WIKI_ORDER.length}`}</Readout>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2.5 px-4 py-6" data-testid="wiki-loading">
+                <Lamp state="live" />
+                <span className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: CK.boneDim }}>
+                  {`Receiving ${currentMeta?.title ?? currentId}…`}
+                </span>
+              </div>
+            )}
+          </Rack>
+
+          {/* ── Prev / Next along the sidebar order ──────────── */}
+          <div className="flex gap-2">
+            <PushBtn
+              className="flex-1"
+              disabled={(ORDER_INDEX.get(currentId) ?? 0) === 0}
+              onClick={() => {
+                const prev = WIKI_ORDER[(ORDER_INDEX.get(currentId) ?? 0) - 1];
+                if (prev) {
+                  setStack((s) => [...s.slice(0, -1), prev.id]);
+                }
+              }}
+            >
+              <PxIcon name="chevL" size={13} /> Prev page
+            </PushBtn>
+            <PushBtn
+              className="flex-1"
+              disabled={(ORDER_INDEX.get(currentId) ?? 0) >= WIKI_ORDER.length - 1}
+              onClick={() => {
+                const next = WIKI_ORDER[(ORDER_INDEX.get(currentId) ?? 0) + 1];
+                if (next) {
+                  setStack((s) => [...s.slice(0, -1), next.id]);
+                }
+              }}
+            >
+              Next page <PxIcon name="chevR" size={13} />
+            </PushBtn>
+          </div>
+        </>
+      )}
     </div>
   );
 };
