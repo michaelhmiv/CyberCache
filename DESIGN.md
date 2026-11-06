@@ -821,9 +821,11 @@ trades register-match for richness, register wins.
   quarter-grid thumb.
 - **Author AT the grid.** No oversampling, no sub-texel features;
   the minimum feature is 1 texel.
-- **Five-tone ramp per hue** — shade toward black, highlight
-  toward white, warm near-black outline (the duotone manner of §7
-  applied to item bodies).
+- **Five-tone ramp per hue** — hue-shifted steps anchored to the
+  base hex: darker steps rotate toward blue-violet, lighter steps
+  toward warm yellow (the pxl manner, §8.1); the base tone itself
+  is always the game's exact hex. Warm near-black outline (the
+  duotone manner of §7 applied to item bodies).
 - **Identity comes from silhouette + saturated colorway.** Detail
   is silhouette breaks, panel blocks, and single-texel rivets,
   vents, and stripes; wear happens at texel scale; glow is
@@ -836,6 +838,36 @@ In code: weapons compose through `weaponCompositor.ts` /
 `weaponCardCompositor.ts`; the other gear kinds compose through
 the shared plate engine `gearCardCompositor.ts` (+ `PixelGear`),
 whose detail kit enforces the thumb discipline structurally.
+
+### 8.1 The pxl craft standard (owner-approved sweep, 2026-11-06)
+
+Composited item art follows the pxl craft discipline (hue-shifted
+ramps, selective outline, cluster discipline), adopted under the
+owner's five rulings: training slices before authored bases;
+densities stay per-surface (§8); the payload ceiling is held —
+craft grows in code, never in baked bytes; and **palette law:
+the game's hexes are the identity — pxl supplies the shift
+method only, every ramp's base tone stays byte-exact.**
+
+**S1 (2026-11-06) — ramp root + weapon selout + dead lift
+deleted.** The shared tone derivation (`hueLerp`, beside
+`hexLerp` in `weaponCardCompositor.ts`) keeps the straight
+lerp's lightness path and rotates hue while it travels —
+shadows toward 250°, highlights toward 55°, max ~24° scaled by
+the step's fraction of the lightness range; achromatic bases
+stay on the straight lerp. It feeds the weapon card palette,
+the gear five-tone ramp, consumable and material art. The loot
+FX kit (PixelFx) deliberately keeps the legacy straight ramp:
+it is flat-by-law (§7 register) and its tones do not move. Both
+weapon outlines are selective now — a silhouette cell takes the
+shade two ramp steps darker than the form cell it borders
+(pxl selout), ink remaining against dark faces. The mint/
+godroll top-edge lift is DELETED on both weapon paths: measured
+dead — the outline pass caps every column first, so the lift
+converted zero cells (card path md5-verified identical with it
+disabled, 2026-11-06). Wear and godroll sparkles are live and
+stay. Remaining sweep slices (lint gate, gear-engine pass,
+small-item unification, authored-base pilot) land separately.
 
 ---
 

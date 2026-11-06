@@ -201,19 +201,38 @@ function rect(grid: Grid, x: number, y: number, w: number, h: number, shade: Pix
   }
 }
 
-/** One-cell outline pass: empty cells touching a filled cell become outline. */
+/**
+ * Selective outline shades (pxl selout, sweep S1): an outline cell
+ * takes the shade two ramp steps darker than the interior shade it
+ * borders. The maker ramp is D < P < L, so light and primary faces
+ * get the maker's own dark tone; dark faces and the ramp-less
+ * shades (element, rarity) fall back to ink 'K'. Exported for the
+ * S1 craft tests.
+ */
+export const PIXEL_SELOUT_DARKER: Partial<Record<PixelShade, PixelShade>> = {
+  L: 'D',
+  P: 'D',
+};
+
+/**
+ * One-cell outline pass: empty cells touching a filled cell become
+ * outline — selectively (S1): each takes the darker shade of the
+ * interior cell it borders, pxl neighbor preference below, above,
+ * right, left, instead of the uniform ink frame this pass used to
+ * paint.
+ */
 function outline(grid: Grid) {
-  const additions: { x: number; y: number }[] = [];
+  const additions: { x: number; y: number; shade: PixelShade }[] = [];
   for (let y = 0; y < PIXEL_WEAPON_HEIGHT; y += 1) {
     for (let x = 0; x < PIXEL_WEAPON_WIDTH; x += 1) {
       if (grid[y][x] !== '.') continue;
-      const touches = [
-        grid[y - 1]?.[x], grid[y + 1]?.[x], grid[y]?.[x - 1], grid[y]?.[x + 1],
-      ].some((c) => c && c !== '.');
-      if (touches) additions.push({ x, y });
+      // pxl neighbor preference: below, above, right, left.
+      const neighbors = [grid[y + 1]?.[x], grid[y - 1]?.[x], grid[y]?.[x + 1], grid[y]?.[x - 1]];
+      const hit = neighbors.find((c) => c && c !== '.');
+      if (hit) additions.push({ x, y, shade: PIXEL_SELOUT_DARKER[hit as PixelShade] ?? 'K' });
     }
   }
-  for (const { x, y } of additions) grid[y][x] = 'K';
+  for (const { x, y, shade } of additions) grid[y][x] = shade;
 }
 
 export function composePixelWeapon(input: PixelWeaponInput): PixelWeaponRender {
@@ -409,9 +428,15 @@ export function composePixelWeapon(input: PixelWeaponInput): PixelWeaponRender {
   }
 
   // ── Condition grade (overhaul §4.2d) ──────────────────────────────────────
-  // Roll quality renders as wear/sheen on the pixel path, from the same
+  // Roll quality renders as wear on the pixel path, from the same
   // conditionFromRoll the card path uses. Wear erases a seeded speckle
-  // of body cells; sheen lifts the top edge toward the light shade.
+  // of body cells; godroll adds sparkle cells. The mint/godroll
+  // top-edge "sheen lift" that used to sit here was DELETED (pxl craft
+  // sweep S1, owner ruling 2026-11-06): it was dead code — the outline
+  // pass caps every column with an outline cell first, so the lift's
+  // scan never reached a 'P' cell (measured 2026-11-06: 'L' cell
+  // counts identical between godroll and mid-roll renders). Mint is
+  // now a clean no-op grade.
   const condition = conditionFromRoll(typeof input.rollQuality === 'number' ? input.rollQuality : 50);
   if (condition === 'beat-up' || condition === 'field-used') {
     const wearRate = condition === 'beat-up' ? 0.06 : 0.025;
@@ -424,25 +449,14 @@ export function composePixelWeapon(input: PixelWeaponInput): PixelWeaponRender {
         }
       }
     }
-  } else if (condition === 'mint' || condition === 'godroll') {
-    for (let x = 0; x < PIXEL_WEAPON_WIDTH; x += 1) {
-      for (let y = 0; y < PIXEL_WEAPON_HEIGHT; y += 1) {
-        if (grid[y][x] === 'P') {
-          grid[y][x] = 'L';
-          break;
-        }
-        if (grid[y][x] !== '.') break;
-      }
-    }
-    if (condition === 'godroll') {
-      const sparkleRng = seededRandom(visualSeed ^ 0x90d15);
-      let placed = 0;
-      for (let y = 0; y < PIXEL_WEAPON_HEIGHT && placed < 5; y += 1) {
-        for (let x = 0; x < PIXEL_WEAPON_WIDTH && placed < 5; x += 1) {
-          if (grid[y][x] === 'P' && sparkleRng() < 0.05) {
-            grid[y][x] = 'G';
-            placed += 1;
-          }
+  } else if (condition === 'godroll') {
+    const sparkleRng = seededRandom(visualSeed ^ 0x90d15);
+    let placed = 0;
+    for (let y = 0; y < PIXEL_WEAPON_HEIGHT && placed < 5; y += 1) {
+      for (let x = 0; x < PIXEL_WEAPON_WIDTH && placed < 5; x += 1) {
+        if (grid[y][x] === 'P' && sparkleRng() < 0.05) {
+          grid[y][x] = 'G';
+          placed += 1;
         }
       }
     }

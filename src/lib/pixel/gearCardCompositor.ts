@@ -4,7 +4,7 @@ import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { getElementVisual } from '@/constants/visualAssets';
 import { hashString } from '@/lib/utils/rng';
 import { seededRandom } from '@/lib/weaponArt/decalSpec';
-import { hexLerp } from './weaponCardCompositor';
+import { hexLerp, hueLerp } from './weaponCardCompositor';
 
 /**
  * gearCardCompositor — the shared gear plate engine (gear marriage,
@@ -117,7 +117,7 @@ export function gearGridFor(grammar: GearGrammar, density: GearDensity): { width
 }
 
 /* ------------------------------------------------------------------ */
-/* Five-tone ramp (DESIGN.md §8: shade to black, highlight to white)   */
+/* Five-tone ramp (DESIGN.md §8: hue-shifted steps off the base hex)   */
 /* ------------------------------------------------------------------ */
 
 export interface FiveToneRamp {
@@ -128,13 +128,25 @@ export interface FiveToneRamp {
   pale: string;
 }
 
-export function fiveToneRamp(base: string): FiveToneRamp {
+/**
+ * Ramp derivation mode. 'hue' (the default, sweep S1) derives each
+ * step through hueLerp — same lightness path as the old straight
+ * lerp, with pxl-style hue/saturation movement (shadows cool,
+ * highlights warm). 'straight' is the legacy black/white lerp,
+ * retained for the one consumer whose register is flat by law:
+ * the loot FX kit (PixelFx), whose beams/rays are owner-approved
+ * hard flat tones and must not drift with the item-art training.
+ */
+export type RampMode = 'hue' | 'straight';
+
+export function fiveToneRamp(base: string, mode: RampMode = 'hue'): FiveToneRamp {
+  const derive = mode === 'hue' ? hueLerp : hexLerp;
   return {
-    deep: hexLerp(base, '#000000', 0.58),
-    dark: hexLerp(base, '#000000', 0.30),
+    deep: derive(base, '#000000', 0.58),
+    dark: derive(base, '#000000', 0.30),
     base,
-    light: hexLerp(base, '#FFFFFF', 0.36),
-    pale: hexLerp(base, '#FFFFFF', 0.66),
+    light: derive(base, '#FFFFFF', 0.36),
+    pale: derive(base, '#FFFFFF', 0.66),
   };
 }
 
@@ -160,9 +172,9 @@ export function gearColorsFor(input: GearComposeInput): Partial<Record<GearShade
     T: '#9AA3B2',
     E: elVisual ? elVisual.color : ramp.base,
     e: elVisual ? elVisual.accentColor : ramp.light,
-    c: elVisual ? hexLerp(elVisual.color, '#0B0B0E', 0.55) : ramp.deep,
+    c: elVisual ? hueLerp(elVisual.color, '#0B0B0E', 0.55) : ramp.deep,
     F: frame.color,
-    f: hexLerp(frame.color, '#FFFFFF', 0.45),
+    f: hueLerp(frame.color, '#FFFFFF', 0.45),
   };
 }
 

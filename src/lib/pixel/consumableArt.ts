@@ -5,7 +5,7 @@ import { ConsumableType } from '@/types/game';
 type ConsFrame = ConsumableDef['visual']['frame'];
 import { hashString } from '@/lib/utils/rng';
 import { seededRandom } from '@/lib/weaponArt/decalSpec';
-import { hexLerp } from './weaponCardCompositor';
+import { hueLerp } from './weaponCardCompositor';
 
 /**
  * consumableArt — real item art for consumables (owner complaint
@@ -230,11 +230,11 @@ interface Ramp { deep: string; shade: string; base: string; lite: string; hot: s
 
 function ramp(base: string): Ramp {
   return {
-    deep: hexLerp(base, '#000000', 0.52),
-    shade: hexLerp(base, '#000000', 0.26),
+    deep: hueLerp(base, '#000000', 0.52),
+    shade: hueLerp(base, '#000000', 0.26),
     base,
-    lite: hexLerp(base, '#FFFFFF', 0.34),
-    hot: hexLerp(base, '#FFFFFF', 0.60),
+    lite: hueLerp(base, '#FFFFFF', 0.34),
+    hot: hueLerp(base, '#FFFFFF', 0.60),
   };
 }
 
@@ -1079,7 +1079,7 @@ export function composeConsumable(id: string, density: ConsumableDensity = 'obje
   // Pass 2: the body is the row's pinned colorway material. The
   // fallback derivation survives only for unlisted future types,
   // and even it no longer drains the accent halfway to gray.
-  const bodyHex = row.body ?? hexLerp(accentHex, '#4A443C', 0.30);
+  const bodyHex = row.body ?? hueLerp(accentHex, '#4A443C', 0.30);
   const frame: ConsFrame = def?.visual.frame ?? 'standard';
   const icon = def?.visual.icon ?? 'dot';
 
@@ -1092,7 +1092,7 @@ export function composeConsumable(id: string, density: ConsumableDensity = 'obje
     S: '#0805026E',
     W: '#FFFFFF',
     D: body.deep, d: body.shade, P: body.base, p: body.lite, L: body.hot,
-    A: contents.base, a: hexLerp(accentHex, '#000000', 0.30), E: contents.lite,
+    A: contents.base, a: hueLerp(accentHex, '#000000', 0.30), E: contents.lite,
     B: brass.base, b: brass.shade,
     M: casing.base, m: casing.shade,
     X: row.extras?.[0], Y: row.extras?.[1], Z: row.extras?.[2],

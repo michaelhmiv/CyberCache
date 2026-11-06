@@ -161,28 +161,72 @@ describe('card compositor — element current (the golden the SVG never had)', (
 
 describe('card compositor — rarity is finish only', () => {
   const formInput = base({ weaponType: WeaponType.Shotgun, manufacturer: Manufacturer.BlastForge, id: 'form-probe' });
-  // FORM cells only: the outline shades (K outline, k anti-step) are
-  // a finish artifact whose exact footprint legitimately shifts when
-  // a trim recolors the top-edge cell it hugs. The law is that the
-  // gun's body — every non-outline filled cell — never changes.
-  const formMaskOf = (render: WeaponCardRender) =>
-    render.rows.map((r) => [...r].map((c) => (c === '.' || c === 'K' || c === 'k' ? '0' : '1')).join('')).join('/');
+  // FORM vs OUTLINE BAND. The law: rarity finishes never change the
+  // gun's body. The band — the outline ring, its anti-step cells and
+  // the notch pockets between them — is finish territory: its exact
+  // footprint legitimately shifts when a trim recolors the top-edge
+  // cell it hugs, and since S1 (selective outline) band cells carry
+  // shades derived from the bordered finish cell, so band SHADES are
+  // rarity-dependent by design. The band is therefore identified
+  // geometrically from the PAIR of renders under comparison: on the
+  // union silhouette, band cells sit within ortho-distance 2 of
+  // empty space. Everything deeper is body, and body must coincide.
+  const unionDist = (a: WeaponCardRender, b: WeaponCardRender) => {
+    const Hh = a.rows.length;
+    const Ww = a.rows[0].length;
+    const inU = (x: number, y: number) => a.rows[y][x] !== '.' || b.rows[y][x] !== '.';
+    const dist = new Int16Array(Ww * Hh).fill(-1);
+    const q: number[] = [];
+    for (let y = 0; y < Hh; y++) for (let x = 0; x < Ww; x++) {
+      if (!inU(x, y)) { dist[y * Ww + x] = 0; q.push(y * Ww + x); }
+    }
+    for (let i = 0; i < q.length; i++) {
+      const cx = q[i] % Ww;
+      const cy = Math.floor(q[i] / Ww);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= Ww || ny >= Hh || dist[ny * Ww + nx] >= 0 || !inU(nx, ny)) continue;
+        dist[ny * Ww + nx] = dist[q[i]] + 1;
+        q.push(ny * Ww + nx);
+      }
+    }
+    return dist;
+  };
+  /** Deep-form mask of `render` against a comparison render: filled
+   *  in both, past the band, and not an ink detail shade. */
+  const deepFormMaskOf = (render: WeaponCardRender, other: WeaponCardRender) => {
+    const dist = unionDist(render, other);
+    const Ww = render.rows[0].length;
+    return render.rows.map((r, y) => [...r].map((c, x) => (
+      c !== '.' && c !== 'K' && c !== 'k' && other.rows[y][x] !== '.' && dist[y * Ww + x] >= 3 ? '1' : '0'
+    )).join('')).join('/');
+  };
 
   it('Common and Uncommon share the exact form mask', () => {
     const common = composeWeaponCard({ ...formInput, rarity: Rarity.Common });
     const uncommon = composeWeaponCard({ ...formInput, rarity: Rarity.Uncommon });
-    expect(formMaskOf(uncommon)).toBe(formMaskOf(common));
+    // Silhouette differences, if any, live entirely in the band.
+    const dist = unionDist(common, uncommon);
+    const Ww = common.rows[0].length;
+    for (let y = 0; y < CARD_WEAPON_HEIGHT; y++) {
+      for (let x = 0; x < CARD_WEAPON_WIDTH; x++) {
+        const cf = common.rows[y][x] !== '.';
+        const uf = uncommon.rows[y][x] !== '.';
+        if (cf !== uf) expect(dist[y * Ww + x], `silhouette diff at ${x},${y} must be band`).toBeLessThanOrEqual(2);
+      }
+    }
+    expect(deepFormMaskOf(uncommon, common)).toBe(deepFormMaskOf(common, uncommon));
     expect(uncommon.signature).not.toBe(common.signature); // finish differs
   });
 
   it('Legendary keeps every Common form cell and adds the halo outside', () => {
     const common = composeWeaponCard({ ...formInput, rarity: Rarity.Common });
     const legendary = composeWeaponCard({ ...formInput, rarity: Rarity.Legendary });
-    const cm = formMaskOf(common).split('/');
-    const lm = formMaskOf(legendary).split('/');
+    const cm = deepFormMaskOf(common, legendary).split('/');
     for (let y = 0; y < CARD_WEAPON_HEIGHT; y++) {
       for (let x = 0; x < CARD_WEAPON_WIDTH; x++) {
-        if (cm[y][x] === '1') expect(lm[y][x], `form cell ${x},${y}`).toBe('1');
+        if (cm[y][x] === '1') expect(legendary.rows[y][x], `form cell ${x},${y}`).not.toBe('.');
       }
     }
     expect(countShade(legendary, 'G')).toBeGreaterThan(30); // halo + pooled glow
@@ -273,14 +317,14 @@ describe('card compositor — golden signature pins', () => {
   // Regression tripwires: any intentional art change re-pins these
   // deliberately (and the capture sheets get re-read).
   const GOLDENS: Record<string, string> = {
-    'Redline Sniper Kinetic Common': '402e3b1c',
-    'Ironwood Sniper Fire Rare': '6698394c',
-    'BlastForge Shotgun Kinetic Legendary': '3b102dbf',
-    'Prismatek Beam Void Epic': '75fae972',
-    'ThrowTech Pistol Shock Uncommon': '45ebb094',
-    'HelixWorks Launcher Cryo Rare': '5c4691f7',
-    'Redline Pistol Corrosive Common': 'b981dba5',
-    'HelixWorks SMG Kinetic Common': 'a48c9f43',
+    'Redline Sniper Kinetic Common': '72260cb0',
+    'Ironwood Sniper Fire Rare': '44adc260',
+    'BlastForge Shotgun Kinetic Legendary': '4a3401ec',
+    'Prismatek Beam Void Epic': '9280078f',
+    'ThrowTech Pistol Shock Uncommon': '41427e42',
+    'HelixWorks Launcher Cryo Rare': '31e8cd37',
+    'Redline Pistol Corrosive Common': '144299c',
+    'HelixWorks SMG Kinetic Common': 'a74d18f0',
   };
   const CASES: Record<string, PixelWeaponInput> = {
     'Redline Sniper Kinetic Common': base({ weaponType: WeaponType.Sniper, manufacturer: Manufacturer.Redline, id: 'gold-1' }),
@@ -301,14 +345,14 @@ describe('card compositor — golden signature pins', () => {
   // The same matrix at STAGE density: the marriage does not touch
   // the stage engine, and these pins prove it stays byte-identical.
   const STAGE_GOLDENS: Record<string, string> = {
-    'Redline Sniper Kinetic Common': 'c9179794',
-    'Ironwood Sniper Fire Rare': 'c6f9a15e',
-    'BlastForge Shotgun Kinetic Legendary': '2249896a',
-    'Prismatek Beam Void Epic': 'b8cadc26',
-    'ThrowTech Pistol Shock Uncommon': '67355e4b',
-    'HelixWorks Launcher Cryo Rare': '7f372f3c',
-    'Redline Pistol Corrosive Common': 'fd9704df',
-    'HelixWorks SMG Kinetic Common': '739549e',
+    'Redline Sniper Kinetic Common': '7527e806',
+    'Ironwood Sniper Fire Rare': '74d41590',
+    'BlastForge Shotgun Kinetic Legendary': '9f1e8365',
+    'Prismatek Beam Void Epic': '1fa98bcd',
+    'ThrowTech Pistol Shock Uncommon': '8ee4272f',
+    'HelixWorks Launcher Cryo Rare': '11d98e64',
+    'Redline Pistol Corrosive Common': '4c7a9c93',
+    'HelixWorks SMG Kinetic Common': 'ba976903',
   };
   for (const [name, input] of Object.entries(CASES)) {
     it(`pins stage ${name}`, () => {

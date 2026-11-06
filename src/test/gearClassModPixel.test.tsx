@@ -313,19 +313,19 @@ describe('class-mod marriage — golden signature pins', () => {
   // intentional art change re-pins these deliberately (and the
   // capture sheets get re-read).
   const GOLDENS: Record<string, string> = {
-    'gunslinger-epic-boosted': '3bc85e0e',
-    'gunslinger-legendary-boosted': '37646577',
-    'gunslinger-common-plain': 'f01c12db',
-    'demolition-rare-boosted': 'b7a64ad3',
-    'demolition-common-plain': '28a2ab3',
-    'demolition-legendary-boosted': 'ba99d865',
-    'scavenger-uncommon-boosted': 'a69fabd9',
-    'scavenger-epic-plain': '6ecda35f',
-    'scavenger-common-plain': '85c1486a',
-    'scavenger-legendary-boosted': 'f1c8015c',
-    'fixer-epic-boosted': 'b945e9b9',
-    'fixer-common-plain': '15fe9265',
-    'fixer-legendary-boosted': '93e17f70',
+    'gunslinger-epic-boosted': '571da90',
+    'gunslinger-legendary-boosted': '22c1d54c',
+    'gunslinger-common-plain': '2e5fc0fc',
+    'demolition-rare-boosted': 'b12fcd5',
+    'demolition-common-plain': 'e75bf2dd',
+    'demolition-legendary-boosted': '5cbb6304',
+    'scavenger-uncommon-boosted': 'ae68fc60',
+    'scavenger-epic-plain': '3097f066',
+    'scavenger-common-plain': 'e6a079e9',
+    'scavenger-legendary-boosted': '542c4fe7',
+    'fixer-epic-boosted': '492151b6',
+    'fixer-common-plain': 'd626a21d',
+    'fixer-legendary-boosted': 'db8fc812',
   };
   for (const [name, sig] of Object.entries(GOLDENS)) {
     it(`pins ${name} (card)`, () => {
@@ -334,8 +334,8 @@ describe('class-mod marriage — golden signature pins', () => {
   }
 
   const THUMB_GOLDENS: Record<string, string> = {
-    'gunslinger-epic-boosted': '9eeff1e6',
-    'fixer-epic-boosted': '2842de39',
+    'gunslinger-epic-boosted': '8ce9ad3e',
+    'fixer-epic-boosted': 'bccf8ac8',
   };
   for (const [name, sig] of Object.entries(THUMB_GOLDENS)) {
     it(`pins ${name} (thumb)`, () => {

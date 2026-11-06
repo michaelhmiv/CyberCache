@@ -142,18 +142,18 @@ describe('shield grammar — golden signature pins', () => {
   // art change re-pins these deliberately (and re-shoots the
   // capture sheets with scripts/render-shield-fixtures.ts).
   const GOLDENS: Record<string, string> = {
-    'standard Kinetic Common card': 'cb3de3f1',
-    'standard Void Epic card': '497fb4db',
-    'nova Fire Epic card': 'b709b1b3',
-    'nova Shock Common card': 'c8b39c1d',
-    'absorb Void Legendary card': '61afdc1e',
-    'absorb Cryo Rare card': 'af3fcd43',
-    'amp Shock Legendary card': '72d4d460',
-    'amp Corrosive Uncommon card': '84ba0e17',
-    'turtle Kinetic Rare card': 'dc18ad7f',
-    'turtle Fire Legendary card': '2fa2f0a1',
-    'nova Fire Epic thumb': '1459b2bd',
-    'turtle Kinetic Rare thumb': '76531c9d',
+    'standard Kinetic Common card': 'c5b1ecac',
+    'standard Void Epic card': 'c9411d8b',
+    'nova Fire Epic card': 'eb811352',
+    'nova Shock Common card': '2fbf070a',
+    'absorb Void Legendary card': '44493f96',
+    'absorb Cryo Rare card': '2cdfcac2',
+    'amp Shock Legendary card': '7aa93f09',
+    'amp Corrosive Uncommon card': '97baa78b',
+    'turtle Kinetic Rare card': '106a822',
+    'turtle Fire Legendary card': '565b8a17',
+    'nova Fire Epic thumb': 'a62753f3',
+    'turtle Kinetic Rare thumb': '136badee',
   };
   const CASES: Record<string, { input: GearComposeInput; density: 'card' | 'thumb' }> = {
     'standard Kinetic Common card': { input: input({ variant: 'standard', element: Element.Kinetic, rarity: Rarity.Common, seed: 101, pips: 0 }), density: 'card' },

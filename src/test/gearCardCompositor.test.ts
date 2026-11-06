@@ -142,8 +142,19 @@ describe('gear core — rarity is finish only', () => {
 });
 
 describe('gear core — colorways', () => {
-  it('five-tone ramp: shade toward black, highlight toward white', () => {
+  it('five-tone ramp: hue-shifted steps off the base hex (S1); straight mode keeps the legacy ramp', () => {
+    // S1 (pxl craft sweep): the default derivation is hueLerp — the
+    // base stays the game's exact hex, the steps gain hue movement
+    // (shadow cools toward red-violet, highlights warm to gold).
     expect(fiveToneRamp('#FF9000')).toEqual({
+      deep: '#6b2400',
+      dark: '#b35000',
+      base: '#FF9000',
+      light: '#f6cc65',
+      pale: '#f6eab1',
+    });
+    // The legacy straight lerp survives as the FX kit's flat ramp.
+    expect(fiveToneRamp('#FF9000', 'straight')).toEqual({
       deep: '#6b3c00',
       dark: '#b36500',
       base: '#FF9000',
@@ -220,12 +231,12 @@ describe('gear core — golden signature pins', () => {
   // Regression tripwires: any intentional art change re-pins
   // these deliberately (and the capture sheets get re-read).
   const GOLDENS: Record<string, string> = {
-    'block Fire Epic card': '3e52b2cc',
-    'block Kinetic Common card': '28ec5e89',
-    'block Fire Epic thumb': '73c0a29c',
-    'block Void Rare thumb': 'f89d4926',
-    'slab Shock Rare card': '7422f6d1',
-    'slab Kinetic Legendary card': '9e3ffb97',
+    'block Fire Epic card': '2e10720',
+    'block Kinetic Common card': 'ace3970b',
+    'block Fire Epic thumb': '92727b59',
+    'block Void Rare thumb': '895b9a65',
+    'slab Shock Rare card': '5d06f70f',
+    'slab Kinetic Legendary card': 'bf12b5a0',
   };
   const CASES: Record<string, { input: GearComposeInput; grammar: typeof fixtureBlockGrammar; density: 'card' | 'thumb' }> = {
     'block Fire Epic card': { input: block({ element: Element.Fire, rarity: Rarity.Epic }), grammar: fixtureBlockGrammar, density: 'card' },
