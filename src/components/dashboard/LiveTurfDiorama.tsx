@@ -35,6 +35,7 @@ import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadout
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
+import { BossFightStage } from '@/components/pixelArt/BossFightStage';
 import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMoment';
 import { ELEMENT_PROJECTILE, getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore } from '@/store';
@@ -702,6 +703,12 @@ const PixelSceneLayer: React.FC<{
   const groundY = background?.anchors.groundLine?.y ?? 0.86;
   const showEnemy = mode === 'roaming' || mode === 'bossFight';
   const bossMode = mode === 'bossFight';
+  // Boss prep (One-Stage Law, owner ruling 2026-11-06): the
+  // challenged boss STANDS on the stage while the player preps —
+  // presence without combat. Beats and HP plates stay keyed to
+  // showEnemy; only the boss actor joins the scene.
+  const showBossPrep = mode === 'bossPrep' && !!bossSpriteId;
+  const bossOnStage = bossMode || showBossPrep;
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
   const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
@@ -800,10 +807,10 @@ const PixelSceneLayer: React.FC<{
   // else the current target monster's archetype sprite, else the brute.
   const targetArchetype = currentTargetId ? getMonster(currentTargetId)?.archetype : undefined;
   const enemySpriteId =
-    (bossMode ? bossSpriteId : undefined) ?? pixelEnemySpriteForArchetype(targetArchetype) ?? 'brute';
+    (bossOnStage ? bossSpriteId : undefined) ?? pixelEnemySpriteForArchetype(targetArchetype) ?? 'brute';
   const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
   const hunterPlacement: ActorPlacement = { xPct: 22, heightPct: 57, groundY };
-  const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: bossMode && bossSpriteId ? 80 : 66, groundY };
+  const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: bossOnStage && bossSpriteId ? 80 : 66, groundY };
   const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
   const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
   const hunterMass = partsAnchorPoint(hunterLayout.joints.mass, hunterPlacement);
@@ -815,7 +822,7 @@ const PixelSceneLayer: React.FC<{
   const shakeKey =
     combatBeat && (combatBeat.kind === 'shot' || combatBeat.kind === 'crit' || combatBeat.kind === 'kill')
       ? event?.id
-      : enemyLanded && bossMode && !reduced
+      : enemyLanded && bossOnStage && !reduced
         ? 'enemy-land'
         : undefined;
   const shakeIntensity = combatBeat?.kind === 'crit' ? 7 : combatBeat?.kind === 'kill' ? 5 : combatBeat?.kind === 'shot' ? 3 : 5;
@@ -923,7 +930,7 @@ const PixelSceneLayer: React.FC<{
           <PixelActor spriteId="set-extract-crates" xPct={86} heightPct={24} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-extract-crates" />
         </>
       )}
-      {!showEnemy && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && mode !== 'extraction' && (
+      {!showEnemy && !showBossPrep && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && mode !== 'extraction' && (
         <PixelActor spriteId="crate" xPct={63} heightPct={21} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-crate-prop" />
       )}
 
@@ -1074,8 +1081,10 @@ const PixelSceneLayer: React.FC<{
       )}
 
       {/* Enemy — drops in for boss fights (dust + shake on landing),
-          walks in roaming; lunges on damage beats; hit/kill reactions */}
-      {showEnemy && (
+          walks in roaming; lunges on damage beats; hit/kill reactions.
+          In boss prep the boss already stands here (bossOnStage):
+          the same drop-in, but no beats answer it — presence only. */}
+      {(showEnemy || showBossPrep) && (
         <motion.div
           className="absolute inset-0"
           style={{ transformOrigin: `${enemyPlacement.xPct}% ${groundY * 100}%` }}
@@ -1088,14 +1097,14 @@ const PixelSceneLayer: React.FC<{
             animate={reduced ? undefined : enemyHitControls}
             style={{ transformOrigin: `${enemyPlacement.xPct}% ${groundY * 100}%` }}
           >
-            {bossMode || (isEliteEvent && visuals.eliteSpriteId) ? (
+            {bossOnStage || (isEliteEvent && visuals.eliteSpriteId) ? (
               <PixelActor
                 spriteId={isEliteEvent && visuals.eliteSpriteId ? visuals.eliteSpriteId : enemySprite.id}
                 {...enemyPlacement}
                 heightPct={isEliteEvent ? 74 : enemyPlacement.heightPct}
                 reduced={reduced}
                 breatheDuration={3.1}
-                entrance={bossMode ? 'drop' : 'walk'}
+                entrance={bossOnStage ? 'drop' : 'walk'}
                 enterFrom="right"
                 onLanded={() => setEnemyLanded(true)}
                 testId="pixel-enemy"
@@ -1137,7 +1146,7 @@ const PixelSceneLayer: React.FC<{
       )}
 
       {/* Landing dust when the boss drops in */}
-      {enemyLanded && bossMode && !reduced && <DustPuff xPct={enemyFeet.xPct} yPct={enemyFeet.yPct} width={96} />}
+      {enemyLanded && bossOnStage && !reduced && <DustPuff xPct={enemyFeet.xPct} yPct={enemyFeet.yPct} width={96} />}
 
       {/* Combat beat FX — positioned from manifest anchors */}
       {combatBeat && event && (
@@ -1273,7 +1282,7 @@ const PixelSceneLayer: React.FC<{
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, boss, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls }) => {
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the SVG fight can react.
@@ -1285,7 +1294,17 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // bespoke pixel sprite through the boss def id (P4 wave 1).
   const stageBossDef = bossName ? REGION_1_BOSSES.find((b) => b.name === bossName) : undefined;
   const stageBossSpriteId = pixelBossSpriteForBoss(stageBossDef?.id);
-  const mode = modeFromActivity(activityKind);
+  const mode = modeFromActivity(activityKind, bossPhase);
+  // One-Stage Law (owner ruling 2026-11-06): while the encounter
+  // panel plays back a Chef-decided attempt, it publishes the
+  // fight presentation to the boss store and THIS stage renders
+  // the animated fight from it — the panel mounts no fight stage
+  // of its own, so exactly one animated fight exists. Guarded to
+  // the challenged boss so a stale presentation can never wear
+  // the wrong arena. (F5 closed: the phase reaches the mode here,
+  // and the screen passes it — see ActionScreenContextual.)
+  const fightPresentation = useBossStore((state) => state.fightPresentation);
+  const showFightStage = mode === 'bossFight' && !!fightPresentation && !!boss && fightPresentation.bossId === boss.id;
   const copy = modeInfo[mode];
   const safeId = safeSvgId(`${scene.id}-${weapon?.id ?? 'unarmed'}-${mode}`);
   const element = weapon?.element ?? Element.Kinetic;
@@ -1322,7 +1341,24 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
 
   return (
     <section className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
-      {pixelBackgroundId ? (
+      {showFightStage && fightPresentation ? (
+        /* The boss fight's animated home (One-Stage Law): the
+           decided fight plays HERE, on the main stage, in place of
+           the ambient scene — the encounter panel below keeps the
+           readouts. The boss HP plate and the stage controls keep
+           riding this section's overlay layer as always. */
+        <div className="absolute inset-0" data-testid="diorama-boss-fight">
+          <BossFightStage
+            embedded
+            timeline={fightPresentation.timeline}
+            phases={fightPresentation.phases}
+            bossId={fightPresentation.bossId}
+            weapon={fightPresentation.weapon}
+            reduced={reduced}
+            signatureFire={fightPresentation.signatureFire ?? null}
+          />
+        </div>
+      ) : pixelBackgroundId ? (
         <PixelSceneLayer backgroundId={pixelBackgroundId} bossSpriteId={stageBossSpriteId} weapon={weapon} mode={mode} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
       ) : (
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 420 286" role="img" aria-label={`${copy.label} activity visualization`}>

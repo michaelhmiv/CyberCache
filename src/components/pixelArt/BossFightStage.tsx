@@ -77,9 +77,16 @@ export interface BossFightStageProps {
    *  tree's color under the phase chip + the sigil chip). The outcome
    *  was decided by the Chef; this is presentation only. */
   signatureFire?: SkillTreeType | null;
+  /** One-Stage Law (owner ruling 2026-11-06): the stage is embedded
+   *  in Home's main stage instead of the encounter card. The host
+   *  stage's frame replaces the card frame (no border, fills the
+   *  host's box), and the top-left chips drop below the host's own
+   *  corner furniture (the Stop control owns that corner). Card
+   *  mounts (Endless) leave this unset — geometry unchanged. */
+  embedded?: boolean;
 }
 
-export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false, backgroundId, depthBadge, signatureFire }) => {
+export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false, backgroundId, depthBadge, signatureFire, embedded = false }) => {
   // Unique arena per boss (Q3 ruling): the boss's own arena art + its
   // signature prop; the home area informs palette only.
   const arena = bossArena(bossId);
@@ -234,7 +241,9 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
 
   return (
     <div
-      className="relative h-[228px] w-full overflow-hidden border-2 border-border bg-bg"
+      className={embedded
+        ? 'relative h-full w-full overflow-hidden bg-bg'
+        : 'relative h-[228px] w-full overflow-hidden border-2 border-border bg-bg'}
       data-testid="boss-fight-stage"
       data-phase={presentingIndex}
       data-finished={finished}
@@ -271,9 +280,10 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
           <PixelActor spriteId={arena.propId} xPct={50} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} testId="boss-arena-prop" />
         )}
 
-        {/* Phase chip */}
+        {/* Phase chip — embedded mounts drop it below the host
+            stage's Stop corner (the host owns top-left). */}
         {currentPhase && (
-          <div className="pointer-events-none absolute left-2 top-2 z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">
+          <div className={`pointer-events-none absolute left-2 ${embedded ? 'top-[60px]' : 'top-2'} z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber`}>
             {finished ? (victory ? 'Victory' : 'Defeat') : `Phase ${presentingIndex + 1} — ${currentPhase.phaseName}`}
           </div>
         )}
@@ -293,7 +303,7 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
               data-testid="boss-signature-beam"
             />
             <div
-              className="pointer-events-none absolute left-2 top-11 z-20 flex items-center gap-1.5 border-2 bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide"
+              className={`pointer-events-none absolute left-2 ${embedded ? 'top-[92px]' : 'top-11'} z-20 flex items-center gap-1.5 border-2 bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide`}
               style={{ borderColor: getSkillTreeVisual(signatureFire).color, color: getSkillTreeVisual(signatureFire).color }}
               data-testid="boss-signature-fire"
             >
