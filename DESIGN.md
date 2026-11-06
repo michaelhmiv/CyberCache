@@ -193,6 +193,17 @@ visible: a feed line per item, a summary in the claim response and
 the offline recap, and an Activity Log record marked as an
 auto-salvage. Nothing about the rule may happen silently.
 
+### Dismiss-on-confirm for bulk salvage (owner, 2026-11-05)
+
+Bulk salvage confirms and dismisses in the same tap: the rarity
+sheet closes immediately, the chosen items leave the grid at once,
+and the settlement completes in the background — the player is
+never held on a busy sheet while a big inventory settles. Awards
+(scrap, cores, materials, and the ONE summary card) come only
+from the server's response, never from a client projection. A
+failed settlement restores the items and reports through the
+salvage feed: nothing silently vanishes.
+
 ---
 
 ## 2. Navigation — four tabs
