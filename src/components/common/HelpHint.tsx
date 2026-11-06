@@ -17,12 +17,17 @@
  *
  * The sheet is the app's bottom-sheet grammar (ConsumableLedger):
  * backdrop, spring rise, clipped panel, close on backdrop tap,
- * the X, or Escape.
+ * the X, or Escape. It renders through SheetPortal (the F17 fix):
+ * tab screens live inside ScreenWrapper's transformed container,
+ * where a `position: fixed` sheet anchors to the container and
+ * opens off-screen on long pages — the portal removes that whole
+ * class by construction.
  */
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { SheetPortal } from '@/components/common/SheetPortal';
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 
@@ -64,6 +69,7 @@ export const HelpHint: React.FC<{
           <PxIcon name="help" size={13} />
         </span>
       </button>
+      <SheetPortal>
       <AnimatePresence>
         {open && (
           <motion.div
@@ -105,6 +111,7 @@ export const HelpHint: React.FC<{
           </motion.div>
         )}
       </AnimatePresence>
+      </SheetPortal>
     </>
   );
 };

@@ -88,6 +88,18 @@ describe('de-texted belt — label, slots, and a "?" (owner ruling 2026-11-05)',
     await waitFor(() => expect(screen.queryByTestId('help-hint-sheet')).toBeNull());
   });
 
+  it('the sheet renders through the portal at the document root (F17)', async () => {
+    // Tab screens live inside ScreenWrapper's transformed
+    // container, where a fixed sheet anchors to the container and
+    // opens off-screen on long pages. The sheet must escape the
+    // render container entirely — document root, not a descendant.
+    const { container } = render(<ActionLoadout />);
+    fireEvent.click(screen.getByRole('button', { name: 'About Consumable Belt' }));
+    const sheet = await screen.findByTestId('help-hint-sheet');
+    expect(container.contains(sheet)).toBe(false);
+    expect(document.body.contains(sheet)).toBe(true);
+  });
+
   it('a loaded belt shows its chips loaded — still with no sentences', () => {
     useLoadoutStore.setState({
       consumables: { PreFight: 'MedKit', MidFight: null, Emergency: null },
