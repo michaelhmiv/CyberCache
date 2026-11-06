@@ -2,9 +2,13 @@
  * Garage fuel/condition clarity (owner feedback 2026-11-02) + the
  * equip gate's client death (owner ruling 2026-11-02):
  *
- *   - The status line prints the TANK (units) and the CELLS CARRIED
- *     (count) as the two different numbers they are — a bare
- *     "fuel 0" read as either and left the player stuck.
+ *   - The vehicle surface prints the TANK (units) and the CELLS
+ *     CARRIED (count) as the two different numbers they are — a
+ *     bare "fuel 0" read as either and left the player stuck.
+ *     (Successor, owner ruling 2026-11-05: the Loadout's status
+ *     line is now the header VehicleButton, whose face carries
+ *     the tank alone — labeled "tank", never a cells count — and
+ *     the Garage carries both numbers in full.)
  *   - The Garage's out-of-fuel state carries its remedy IN the
  *     block: the Load buttons when cells are on hand (rendered
  *     exactly once — they move out of the tank panel), tappable
@@ -23,7 +27,7 @@ import { DropSource, Rarity } from '@/types/game';
 import { useLoadoutStore, usePlayerStore } from '@/store';
 import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
 import { GaragePanel } from '@/components/gear/GaragePanel';
-import { VehicleStatusLine } from '@/components/gear/VehicleStatusLine';
+import { VehicleButton } from '@/components/gear/VehicleButton';
 
 vi.mock('@/lib/api/verifiedOps', () => ({
   verifiedOps: {
@@ -73,24 +77,26 @@ function seed(opts: {
   useVehicleStore.setState({ vehicles: opts.vehicles, lastClaimStatus: null });
 }
 
-describe('status line — tank and cells are different numbers', () => {
-  it('prints tank units and carried cells, labeled, with the load remedy when cells are on hand', () => {
+describe('vehicle button — the tank is the tank, never the cells', () => {
+  it('an empty tank reads NO FUEL — the carried cells never pose as tank units', () => {
     seed({ fuel: 0, consumables: { GenericFuelCell: 2 }, vehicles: [bike()] });
-    render(<VehicleStatusLine />);
-    const status = screen.getByTestId('vehicle-status');
-    expect(status.textContent).toContain('tank');
-    expect(status.textContent).toContain('0 units');
-    expect(status.textContent).toContain('2 fuel cells carried');
-    expect(status.textContent).toContain('Load a fuel cell in the Garage');
+    render(<VehicleButton expanded={false} onToggle={vi.fn()} />);
+    const button = screen.getByTestId('vehicle-button');
+    expect(button.dataset.state).toBe('out-of-fuel');
+    expect(button.textContent).toContain('NO FUEL');
+    // The 2 carried cells are a Garage number (its Load buttons
+    // below carry the remedy); the button face must not print
+    // them anywhere the tank belongs.
+    expect(button.textContent).not.toContain('2 tank');
   });
 
-  it('with zero cells the remedy names where to get them', () => {
-    seed({ fuel: 0, consumables: {}, vehicles: [bike()] });
-    render(<VehicleStatusLine />);
-    const status = screen.getByTestId('vehicle-status');
-    expect(status.textContent).toContain('0 fuel cells carried');
-    expect(status.textContent).toContain('No fuel cells carried');
-    expect(status.textContent).toContain('Vendor in the Market');
+  it('a fueled tank prints its units, labeled tank', () => {
+    seed({ fuel: 250, consumables: { GenericFuelCell: 2 }, vehicles: [bike()] });
+    render(<VehicleButton expanded={false} onToggle={vi.fn()} />);
+    const button = screen.getByTestId('vehicle-button');
+    expect(button.dataset.state).toBe('ok');
+    expect(button.textContent).toContain('250');
+    expect(button.textContent).toContain('tank');
   });
 });
 
