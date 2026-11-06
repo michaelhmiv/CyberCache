@@ -52,7 +52,7 @@ Extraction is the gathering occupation: dedicated material work at a site in any
 
 ## Boss fights and endless runs
 
-Discrete fights use the slot differently: a [[Bosses|boss attempt]] takes the slot for its resolution, and an [[Endless Mode]] run **holds the slot for the whole run** — starting a run settles your current action, and the Chamber stays your action until you bank, die, or abandon.
+Discrete fights use the slot differently: a [[Bosses|boss attempt]] takes the slot for its resolution — the fight plays out on Home's stage while it resolves — and an [[Endless Mode]] run **holds the slot for the whole run** — starting a run settles your current action, and the Chamber stays your action until you bank, die, or abandon.
 
 ## Dispatch
 
