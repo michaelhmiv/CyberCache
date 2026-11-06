@@ -102,6 +102,10 @@ function App() {
   // ON the Profile-embedded SkillTreeScreen (scrolled into view), not
   // at the top of the Profile page (device feedback r2).
   const [profileFocus, setProfileFocus] = useState<'skills' | 'research' | 'wardrobe' | null>(null);
+  // Field Manual deep-link intent: 'help' opens the manual at its
+  // index; 'help:<Page>' opens it straight on that wiki page. `seq`
+  // makes a repeat intent re-apply even while the manual is mounted.
+  const [helpIntent, setHelpIntent] = useState<{ page: string | null; seq: number }>({ page: null, seq: 0 });
   // Tab intent for the gear home (flow audit F2): every "loadout"
   // door must open Inventory ON its Loadout stop — the one equip
   // surface — not on the item grid. `seq` makes a repeat intent
@@ -282,6 +286,17 @@ function App() {
       setSubScreen(null);
       return;
     }
+    if (screen === 'help' || screen.startsWith('help:')) {
+      // Field Manual (wiki-native, 2026-11-05): 'help' lands on the
+      // index; 'help:<Page>' deep-links one wiki page. The manual
+      // owns its internal reading stack from there.
+      setHelpIntent({
+        page: screen.startsWith('help:') ? screen.slice('help:'.length) : null,
+        seq: Date.now(),
+      });
+      setSubScreen('help');
+      return;
+    }
     setSubScreen(screen as SubScreen);
   };
 
@@ -295,10 +310,9 @@ function App() {
       settings: <SettingsScreen />,
       help: (
         <HelpScreen
-          onTourJump={(tab) => {
-            setActiveTab(tab);
-            setSubScreen(null);
-          }}
+          initialPageId={helpIntent.page}
+          intentSeq={helpIntent.seq}
+          onExit={handleBack}
         />
       ),
       collections: <CollectionsScreen />,
