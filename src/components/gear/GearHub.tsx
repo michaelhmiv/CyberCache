@@ -365,7 +365,7 @@ const GearCard = memo(({
           {item.isLocked && <Lock size={10} className="text-red" />}
         </div>
         <div className="flex h-14 items-center justify-center">
-          <GearIllustration item={item} size={50} showBadges={false} />
+          <GearIllustration item={item} size={50} showBadges={false} defer />
         </div>
         <div className="min-w-0">
           <div className="truncate text-[11px] font-black" style={{ color }}>{item.name}</div>
@@ -394,7 +394,10 @@ const GearCard = memo(({
   // GRID above keeps the full card face. Freeze discipline (perf
   // audit 2026-11-02 + freeze investigation 2026-11-04): memoized,
   // no `layout` prop, weapons compose at stage density here — the
-  // card-density list row was ~26 ms of compose per weapon.
+  // card-density list row was ~26 ms of compose per weapon. Cold-
+  // load discipline (2026-11-05): art composes viewport-deferred
+  // (`defer`) — a cold mount otherwise pays one compose + paint per
+  // item inside the mount commit before anything can paint.
   const headline = gearRowHeadline(item, summary);
   const elementName = itemElement(item);
 
@@ -421,7 +424,7 @@ const GearCard = memo(({
       )}
 
       <div className="relative flex w-12 shrink-0 items-center justify-center">
-        <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} />
+        <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} defer />
         <ElementBadge element={elementName} />
       </div>
 
