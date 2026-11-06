@@ -81,6 +81,7 @@ ALLOWED_TIMERS=(
   "$SRC/components/activity/useActionHeartbeat.ts:live-action sync poll (3s tick-aligned owner cadence; fetches server-authoritative action state, computes and mutates nothing locally)"
   "$SRC/components/fight/BossPrepModal.tsx:fight animation delay (display-only)"
   "$SRC/components/pixelArt/LootMoment.tsx:loot celebration pacing (display-only; advances presentation state, drops already awarded)"
+  "$SRC/components/pixelArt/useDeferredArt.ts:setTimeout fallback for the rAF art-activation pump (display-only; schedules when item art paints, computes and mutates nothing)"
   "$SRC/components/profile/UsernameSetupModal.tsx:username availability debounce (form validation)"
   "$SRC/hooks/useNow.ts:shared reactive clock hook"
   "$SRC/lib/activity/useActionStageOrchestrator.ts:animation beat pacing (display-only)"

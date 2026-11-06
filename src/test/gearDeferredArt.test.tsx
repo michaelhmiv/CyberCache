@@ -16,7 +16,7 @@
  *     every row while composing NONE of them.
  */
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
