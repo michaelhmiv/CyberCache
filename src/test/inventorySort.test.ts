@@ -44,7 +44,7 @@ function weapon(overrides: Partial<Weapon> = {}): Weapon {
     name: 'Test Gun',
     level: 10,
     rarity: Rarity.Rare,
-    weaponType: WeaponType.Rifle,
+    weaponType: WeaponType.SMG,
     manufacturer: Manufacturer.BlastForge,
     element: Element.Kinetic,
     rollQuality: 50,
