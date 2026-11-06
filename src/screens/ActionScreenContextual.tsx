@@ -830,6 +830,7 @@ export const ActionScreenContextual: React.FC<{
           playerLevel={player.level}
           equippedCount={equippedCount}
           activityKind={currentKind}
+          bossPhase={bossPhase}
           stageControls={stageControls}
         />
         <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />

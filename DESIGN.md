@@ -962,6 +962,32 @@ pilot brief (2026-11-06, "everything you recommend"):
   owner watches the before/after fixture-fight recordings and
   rules; a Changelog entry is owed at merge, not before.
 
+### The boss fight's home is the main stage (owner ruling, 2026-11-06)
+
+The pilot shipped into the encounter card — and the owner's first
+device pass exposed why that was wrong: he launched a boss from
+Roam and the main stage never changed. Diagnosis found the stage's
+boss scene had been unreachable for far longer than the pilot:
+`bossPhase` was dropped at two hops (the screen never passed it to
+the diorama; the diorama's own mode call never passed it on), so
+`boss_fight` always computed the prep picture — backdrop, idle
+hunter, crate — and the stage's boss HP plate could never light.
+That was tracked follow-up F5, one layer deeper than recorded;
+**F5 is closed.**
+
+The ruling (Option A, the One-Stage Law of §1 applied to fights):
+**the animated boss fight plays on the main stage.** The encounter
+panel keeps what is panel work — boss select and intel, prep,
+stances, launch, and the resolved/result state — and no longer
+mounts a fight stage of its own. While an attempt plays back, the
+panel publishes each decided timeline snapshot to the boss store
+(`fightPresentation`) and drives the store's live-fight read; the
+diorama renders the fight (the §10 Pixi stage, DOM fallback kept)
+from that presentation and the boss HP plate rides the stage as
+§3 describes. Exactly one animated fight exists. In prep, the
+challenged boss stands on the main stage — presence without
+combat: no beats, no plates — while the player prepares below.
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in

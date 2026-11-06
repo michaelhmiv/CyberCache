@@ -20,7 +20,6 @@ import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapt
 import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSurvivalStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
-import { BossFightStage } from '../pixelArt/BossFightStage';
 import { LootMoment } from '../pixelArt/LootMoment';
 import { GhostHpBar } from '../pixelArt/PixelFx';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
@@ -29,7 +28,6 @@ import { BossStamp } from '@/components/common/BossStamp';
 import { BossCell } from '@/components/common/BossCell';
 import { BossArenaPlate } from '@/components/common/BossArenaPlate';
 import { REGION_1_BOSSES } from '../../constants/bosses';
-import type { Weapon } from '../../types/items';
 
 /**
  * BossEncounterPanel — the shipped boss flow (Phase 0, Slice 1).
@@ -98,17 +96,23 @@ const BossVitals: React.FC<{ boss: BossDef }> = ({ boss }) => {
   );
 };
 
-/** Animated fight card — presentation of the Chef's already-decided outcome. */
+/**
+ * Fight card — the readouts of the Chef's already-decided outcome
+ * (charge track, HP bars, phase line, damage popups). The animated
+ * fight itself no longer mounts here: under the One-Stage Law
+ * (owner ruling 2026-11-06) it plays on the MAIN STAGE, fed by the
+ * presentation this panel publishes to the boss store per timeline
+ * snapshot — exactly one animated fight exists.
+ */
 const FightCard: React.FC<{
   timeline: FightTimeline;
   phases: PhaseAnalysis[];
   bossName: string;
   bossId: string;
   reducedMotion: boolean | null;
-  weapon?: Weapon;
   /** Action skill (0030): the attempt's decided fire facts, if any —
-   *  the stage treatment + the charge track draining to its
-   *  post-attempt value. Presentation only. */
+   *  the charge track draining to its post-attempt value.
+   *  Presentation only. */
   actionSkillFire?: { tree: SkillTreeType; fired: boolean; chargeAfter: number } | null;
   /**
    * DATA-01 (audit fix A): the hunter's REAL account HP from the
@@ -120,7 +124,7 @@ const FightCard: React.FC<{
    */
   accountHp: number;
   accountHpMax: number;
-}> = ({ timeline, phases, bossName, bossId, reducedMotion, weapon, actionSkillFire, accountHp, accountHpMax }) => {
+}> = ({ timeline, phases, bossName, bossId, reducedMotion, actionSkillFire, accountHp, accountHpMax }) => {
   const playerPct = accountHpMax > 0 ? (accountHp / accountHpMax) * 100 : 0;
   const bossPct = timeline.bossHpMax > 0 ? (timeline.bossHp / timeline.bossHpMax) * 100 : 0;
   const currentPhase = phases[Math.min(timeline.currentPhaseIndex, phases.length - 1)];
@@ -132,14 +136,6 @@ const FightCard: React.FC<{
         <PxIcon name="crosshair" size={13} />
         Combat Resolution
       </div>
-      <BossFightStage
-        timeline={timeline}
-        phases={phases}
-        bossId={bossId}
-        weapon={weapon}
-        reduced={reducedMotion === true}
-        signatureFire={actionSkillFire?.fired ? actionSkillFire.tree : null}
-      />
       {actionSkillFire && fireVisual && (
         <div className="space-y-1" data-testid="fight-action-skill-charge">
           <div className="flex items-center justify-between text-[10px] text-text-muted">
@@ -256,6 +252,11 @@ export const BossEncounterPanel: React.FC<{
   // this panel by boss id, so a target change remounts it fresh.
   useEffect(() => () => {
     animationCancelRef.current.cancelled = true;
+    // One-Stage Law: leaving the encounter retires the main stage's
+    // fight presentation and the live-fight read the boss HP plate
+    // rides — a stale fight must never outlive its panel.
+    useBossStore.getState().clearFightPresentation();
+    useBossStore.getState().clearLiveFight();
   }, []);
 
   const primary = loadout.getWeapon('primary') ?? null;
@@ -347,6 +348,9 @@ export const BossEncounterPanel: React.FC<{
     }
 
     let outcome: ChefVerifyBossResult;
+    // The attempt's decided signature facts — the fight presentation
+    // published below carries the fired tree to the main stage.
+    let skillFire: { tree: SkillTreeType; fired: boolean; chargeAfter: number } | null = null;
     try {
       // Intent only (trust hardening, Phase 0 Slice 6): the Chef
       // derives the loadout, skill bonuses, level, credits, and pity
@@ -361,13 +365,14 @@ export const BossEncounterPanel: React.FC<{
         fireActionSkill: fireArmed,
       });
       setFireArmed(false);
-      setFightActionSkill(outcome.result.actionSkill
+      skillFire = outcome.result.actionSkill
         ? {
             tree: outcome.result.actionSkill.tree as SkillTreeType,
             fired: outcome.result.actionSkill.fired,
             chargeAfter: outcome.actionSkill?.charge ?? actionSkillView?.charge ?? 0,
           }
-        : null);
+        : null;
+      setFightActionSkill(skillFire);
       // Refresh the signature state from the server's own view —
       // the attempt changed the charge (spent on a fire, or accrued).
       loadActionSkill();
@@ -406,7 +411,25 @@ export const BossEncounterPanel: React.FC<{
       extraLoot: outcome.extraLoot,
     };
     const initialTimeline = buildInitialTimeline(fightOutcome, boss.health, player.level, shield?.hp ?? 0);
-    setFightTimeline(initialTimeline);
+    // One-Stage Law (owner ruling 2026-11-06): the animated fight
+    // plays on the MAIN STAGE, not in this card. Every timeline
+    // snapshot is published to the boss store — the diorama renders
+    // the fight from it — and mirrored into the store's live-fight
+    // read so the stage's boss HP plate drains with the walk. This
+    // card keeps only the readouts below.
+    const publishTimeline = (snapshot: FightTimeline) => {
+      setFightTimeline(snapshot);
+      bossStore.setFightPresentation({
+        timeline: snapshot,
+        phases: animationPhases,
+        bossId: boss.id,
+        weapon: primary ?? undefined,
+        signatureFire: skillFire?.fired ? skillFire.tree : null,
+      });
+      bossStore.applyLiveTick({ bossHp: snapshot.bossHp, medkitsConsumed: 0, damageDealt: 0 });
+    };
+    bossStore.startLiveFight(boss.id, initialTimeline.bossHpMax);
+    publishTimeline(initialTimeline);
     const cancel = { cancelled: false };
     animationCancelRef.current = cancel;
     const finalTimeline = await runFightAnimation(
@@ -414,10 +437,11 @@ export const BossEncounterPanel: React.FC<{
       animationPhases,
       reducedMotion === true,
       cancel,
-      (snapshot) => setFightTimeline(snapshot),
+      publishTimeline,
     );
     if (cancel.cancelled) return;
-    setFightTimeline(finalTimeline);
+    publishTimeline(finalTimeline);
+    bossStore.endLiveFight(outcome.result.victory ? 'victory' : 'defeat');
     // CONS-03 (audit fix A): the attempt has resolved — complete the
     // encounter on the activity record (client store + server row)
     // BEFORE the result shows, so no read surface (Profile CURRENT
@@ -437,6 +461,11 @@ export const BossEncounterPanel: React.FC<{
       // The result screen still shows; the next staging write or
       // activity clear corrects the label.
     }
+    // The walk is over: retire the stage presentation with the
+    // result. The phase record is 'resolved' now, so the stage
+    // returns to the boss's prep presence — a finished fight must
+    // never linger as a stale mount if the phase is re-staged.
+    bossStore.clearFightPresentation();
     setResult(outcome);
     setStage('result');
   };
@@ -449,6 +478,8 @@ export const BossEncounterPanel: React.FC<{
     setFightTimeline(null);
     setFightActionSkill(null);
     setLootMomentDone(false);
+    bossStore.clearFightPresentation();
+    bossStore.clearLiveFight();
     setStage('prep');
     activity.setBossPhase('prep');
     // CONS-03: persist the return to prep too — the resolved record
@@ -537,7 +568,6 @@ export const BossEncounterPanel: React.FC<{
           bossName={boss.name}
           bossId={boss.id}
           reducedMotion={reducedMotion}
-          weapon={primary ?? undefined}
           actionSkillFire={fightActionSkill}
           accountHp={accountHp}
           accountHpMax={accountHpMax}

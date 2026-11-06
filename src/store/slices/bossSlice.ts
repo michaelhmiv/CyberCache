@@ -1,7 +1,27 @@
 import { create } from 'zustand';
-import { BossAttemptResult } from '../../types/boss';
-import { RiskSetting } from '../../types/game';
+import { BossAttemptResult, type PhaseAnalysis } from '../../types/boss';
+import { RiskSetting, type SkillTreeType } from '../../types/game';
 import type { LoadoutConsumables } from './loadoutSlice';
+import type { FightTimeline } from '../../lib/animation/fightTimeline';
+import type { Weapon } from '../../types/items';
+
+/**
+ * The live boss fight's presentation (One-Stage Law, owner ruling
+ * 2026-11-06): while a Chef-decided attempt plays back, the panel
+ * that owns the playback publishes each timeline snapshot here and
+ * the MAIN STAGE (LiveTurfDiorama) renders the animated fight from
+ * it — exactly one animated fight exists, on the stage, while the
+ * encounter panel keeps prep, launch, and the result. Presentation
+ * only: the timeline is the Chef's already-decided outcome walked
+ * for display; nothing here produces gameplay state.
+ */
+export interface BossFightPresentation {
+  timeline: FightTimeline;
+  phases: PhaseAnalysis[];
+  bossId: string;
+  weapon?: Weapon;
+  signatureFire?: SkillTreeType | null;
+}
 
 export type BossFightStatus = 'idle' | 'active' | 'victory' | 'defeat';
 
@@ -54,6 +74,10 @@ export interface BossState extends BossFightState {
   applyLiveTick: (patch: { bossHp: number; medkitsConsumed: number; damageDealt: number }) => void;
   endLiveFight: (status: 'victory' | 'defeat') => void;
   clearLiveFight: () => void;
+  // One-Stage Law (2026-11-06) — the main stage's fight presentation
+  fightPresentation: BossFightPresentation | null;
+  setFightPresentation: (presentation: BossFightPresentation) => void;
+  clearFightPresentation: () => void;
 }
 
 const initialFight: BossFightState = {
@@ -142,4 +166,8 @@ export const useBossStore = create<BossState>()((set) => ({
     })),
   endLiveFight: (status) => set({ activeStatus: status }),
   clearLiveFight: () => set({ ...initialFight }),
+
+  fightPresentation: null,
+  setFightPresentation: (presentation) => set({ fightPresentation: presentation }),
+  clearFightPresentation: () => set({ fightPresentation: null }),
 }));

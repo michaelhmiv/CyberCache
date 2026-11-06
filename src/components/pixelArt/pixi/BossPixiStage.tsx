@@ -1114,7 +1114,9 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
 
   return (
     <div
-      className="relative h-[228px] w-full overflow-hidden border-2 border-border bg-bg"
+      className={props.embedded
+        ? 'relative h-full w-full overflow-hidden bg-bg'
+        : 'relative h-[228px] w-full overflow-hidden border-2 border-border bg-bg'}
       data-testid="boss-fight-stage"
       data-phase={presentingIndex}
       data-finished={finished}
@@ -1130,7 +1132,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
           </div>
         )}
         {currentPhase && (
-          <div className="pointer-events-none absolute left-2 top-2 z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber">
+          <div className={`pointer-events-none absolute left-2 ${props.embedded ? 'top-[60px]' : 'top-2'} z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-amber`}>
             {finished ? (victory ? 'Victory' : 'Defeat') : `Phase ${presentingIndex + 1} — ${currentPhase.phaseName}`}
           </div>
         )}
@@ -1145,7 +1147,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
               data-testid="boss-signature-beam"
             />
             <div
-              className="pointer-events-none absolute left-2 top-11 z-20 flex items-center gap-1.5 border-2 bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide"
+              className={`pointer-events-none absolute left-2 ${props.embedded ? 'top-[92px]' : 'top-11'} z-20 flex items-center gap-1.5 border-2 bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide`}
               style={{ borderColor: getSkillTreeVisual(props.signatureFire).color, color: getSkillTreeVisual(props.signatureFire).color }}
               data-testid="boss-signature-fire"
             >
