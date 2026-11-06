@@ -179,6 +179,22 @@ Loadout page. Everything below is on it, in one scroll:
   slot chip; locked items carry the lock. Everything else about
   an item — affixes, maker, source, the rest of its stats — is on
   its inspect sheet, one tap away.
+- **Sorting** — one dropdown at the top of the inventory. The
+  **General** group comes first — Best Overall, Rarity, Item
+  Level, Newest, Name, Activity Value, Affix Count, Salvage
+  Value — and applies to everything you own. Below it, one
+  labeled group per kind carries that kind's real stats: weapon
+  DPS, damage, crit chance and crit damage, status, attack
+  speed, boss and farm power; shield HP, mitigation, recharge;
+  ordnance payload, shield damage, armor damage; class mod node
+  boosts; relic idle, drop, and scrap values. Picking a kind's
+  stat also narrows the list to that kind — sorting by shield
+  HP means you are looking at shields — and a banner under the
+  toolbar says so, with a one-tap **All gear** return. General
+  sorts always cover the full list again. Sorts run highest
+  first (names run A–Z), with a direction toggle beside the
+  menu, and your choice is remembered between sessions.
+  Equipped items stay pinned at the top either way.
 - **Belt & Stacks** — your belt, plus every stack you carry:
   consumable batches with their quality % printed, materials,
   and essences. (Up in the Loadout panel, the belt's three slots
