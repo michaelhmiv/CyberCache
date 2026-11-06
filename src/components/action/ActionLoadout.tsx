@@ -686,10 +686,14 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
             <div className="text-[11px] font-bold text-text-muted">Tap a slot to equip</div>
           </div>
         </div>
-        {/* The header's right column: the vehicle door on top (owner
-            ruling 2026-11-05 — it takes the dead space above the
-            primary weapon card), the build identity beneath it. */}
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
+        {/* The header's right column: the vehicle door (owner ruling
+            2026-11-05 — it takes the dead space above the primary
+            weapon card), the build identity beneath it. The column
+            stretches to the header's full height and centers its
+            contents vertically in that gap (owner ruling 2026-11-05,
+            evening: the button sits centered in its gap, not docked
+            to the top). */}
+        <div className="flex shrink-0 flex-col items-end justify-center gap-1.5 self-stretch">
           {vehicleDoor}
           {buildIdentity && (
             <div className="text-right">
