@@ -937,6 +937,31 @@ game feels alive between loot moments; a static claimable is a missed
 hook. **Reduced motion is respected** by collapsing this UI motion —
 never by retiming the loot moment or the fight beats.
 
+### The Pixi stage pilot (owner rulings, 2026-11-06)
+
+The boss fight stage gains a second renderer: a PixiJS v8 (MIT)
+WebGL stage that executes this section's law continuously instead of
+through DOM layers. The rulings that govern it, from the approved
+pilot brief (2026-11-06, "everything you recommend"):
+
+- **Scope is the boss fight stage only.** The Home roam stage is a
+  later slice, gated on this pilot's approval. Characters' look is
+  settled — this is motion work only: same sprites, same compositor
+  output, same placements, zero art changes, zero layout changes.
+- **Hit-stop is absorbed inside the 1150ms phase.** A brief freeze
+  of the phase clock at impact (60ms normal / 100ms crit / +120ms
+  at the death beat) makes hits land with weight; total fight
+  duration and `FIGHT_TOTAL_BUDGET_MS` are unchanged, and
+  `movement.ts` itself is unmodified — the Pixi stage executes its
+  values as written.
+- **The DOM stage stays as the automatic fallback.** No WebGL
+  context, reduced motion, or any Pixi failure renders the fight
+  exactly as the DOM stage does today; it is deleted only in a
+  later slice if the pilot earns it.
+- **Approval is by video.** The pilot PR stays unmerged until the
+  owner watches the before/after fixture-fight recordings and
+  rules; a Changelog entry is owed at merge, not before.
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in
