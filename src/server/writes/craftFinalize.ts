@@ -17,7 +17,7 @@
  */
 import type { Pool } from 'pg';
 import { Rarity } from '../../types/game.js';
-import { generateCraftedGearItem, type CraftGearSlot } from './craftGear.js';
+import { CRAFT_GEAR_KIND_BY_SLOT, generateCraftedGearItem, type CraftGearSlot } from './craftGear.js';
 import { buildCosmeticPartPayload } from '../../content/skins.js';
 
 export async function finalizePendingCraftedGear(
@@ -28,6 +28,19 @@ export async function finalizePendingCraftedGear(
   const { rows } = await pool.query('select * from public.cc_pending_crafted_gear($1)', [playerId]);
   let finalized = 0;
   for (const row of rows as Array<Record<string, unknown>>) {
+    // Defense in depth (0085): a pending output whose slot matches
+    // no known gear kind is not this finalizer's to mint — before
+    // 0085, cosmetic completions arrived here with slot NULL and
+    // the generator's fallthrough threw, 500ing the whole workshop
+    // on every touch. Skip + log instead: the output stays pending
+    // for its own finalizer, and the rest of the queue still drains.
+    if (!(String(row.slot ?? '') in CRAFT_GEAR_KIND_BY_SLOT)) {
+      console.error(
+        `[writes] finalizePendingCraftedGear: skipping pending output with unknown slot ` +
+          `(player ${playerId}, job ${String(row.job_id)}, unit ${String(row.unit)}, slot ${String(row.slot)})`,
+      );
+      continue;
+    }
     // Material catalyst (economy brief §9.1, 0067): the SQL settler
     // stamps the unit's catalyst-shifted bounds onto the pending
     // output; generation rolls each candidate inside them, exactly
