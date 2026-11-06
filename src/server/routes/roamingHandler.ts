@@ -207,6 +207,12 @@ export function createClaimHandler(
         creditsRemainder: profile.credits_remainder,
         xpRemainder: profile.xp_remainder,
         keysRemainder: profile.cache_key_remainder,
+        // Claim-overlap guard (2026-11-06): the settled-tick
+        // watermark from the same profile read that fed the 409
+        // guard above — the engine clamps the simulated window to
+        // the unsettled suffix, so a claim window reaching back
+        // over settled ticks cannot re-pay them.
+        lastClaimedTick: profile.last_claimed_tick,
         consumableInventory,
         consumableQualityProfile,
         roamingConsumableState: body.roamingConsumableState,

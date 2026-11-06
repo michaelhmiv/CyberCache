@@ -493,6 +493,12 @@ export function createSettleOfflineHandler(
         areaId: area.id,
         ticks: ticksRequested,
         tickCount: (profile.last_claimed_tick || 0) + ticksRequested,
+        // Claim-overlap guard (2026-11-06): settlement's window
+        // starts exactly at the watermark by construction (tickCount
+        // = watermark + ticks), so the engine's suffix clamp is a
+        // no-op here — the stamp keeps the invariant uniform across
+        // both engine callers.
+        lastClaimedTick: profile.last_claimed_tick || 0,
         playerLevel: profile.player_level || 1,
         maxTicks: Infinity, // NO 20-TICK CLAMP for offline settlement
         effectiveDps: 0,
