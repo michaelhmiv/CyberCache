@@ -65,9 +65,6 @@ import {
   isRelic,
   colorOf,
   affixesOf,
-  affixValue,
-  topActivityModule,
-  sumNodeBoosts,
   gearCardSummary,
   gearRowHeadline,
   type CardStat

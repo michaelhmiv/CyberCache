@@ -220,6 +220,7 @@ echo -n "Rule 6: No unapproved localStorage usage... "
 ALLOWED_STORAGE=(
   "$SRC/lib/activity/activitySettlement.ts:cross-tab lock (coordination, not progression)"
   "$SRC/components/action/ActionLoadout.tsx:UI collapse preference (not progression)"
+  "$SRC/components/gear/GearHub.tsx:UI inventory sort preference — sort key + direction only (display ordering, not progression)"
   "$SRC/components/pixelArt/LootMoment.tsx:UI celebration seen-preference for tap-to-skip (not progression)"
   "$SRC/store/slices/offlineRecapSlice.ts:display-only copy of already-settled offline rewards so the summary can be re-opened after dismissal (not progression; server settlement stays the only economy truth)"
   "$SRC/lib/pixel/headParts.ts:reads the device-local hunter head-variant cosmetic preference (not progression)"
