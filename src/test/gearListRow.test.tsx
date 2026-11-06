@@ -6,16 +6,20 @@
  * line, six stat pills, badge line, two affix lines — ~3 rows per
  * phone screen. The list is now ONE line per item:
  *
- *   [thumb + element corner badge] Lv · rarity-colored name ·
- *   [equipped chip] [lock] — ONE headline stat per kind
+ *   [thumb + level corner chip] [element badge] · rarity-colored
+ *   name · [equipped chip] [lock] — ONE headline stat per kind
  *
  * Pins:
  *  1. Anatomy per kind: level, name in the rarity color, the
  *     kind's headline stat (weapon DPS · shield HP · ordnance DMG ·
  *     class-mod Boost · relic top affix) from gearRowHeadline.
- *  2. The element rides a corner badge on the thumb (element-color
- *     field + data-element-badge), never the element word; kinds
- *     without an element (class mod, relic) carry no badge.
+ *  2. The element rides a badge in the old level slot, beside the
+ *     thumb in open space (element-color field + data-element-badge),
+ *     never the element word, never on top of the sprite (owner swap
+ *     ruling 2026-11-05 — the corner badge covered the gun); kinds
+ *     without an element (class mod, relic) carry no badge. The
+ *     LEVEL moved the other way: the bare number on a dark chip at
+ *     the thumb's bottom-left corner (data-level-chip), no "Lv".
  *  3. What left the face stays off it: no affix lines, no maker /
  *     type meta, no secondary stat pills in list rows.
  *  4. Equipped slot chip + lock glyph render on the one line.
@@ -130,7 +134,11 @@ describe('gear list row — one-line anatomy', () => {
     expect(name.className).toContain('truncate');
     expect(name.style.color).toBe(hexToRgb(RARITIES[Rarity.Epic].color));
 
-    expect(row.textContent).toContain('Lv 12');
+    // Level: the bare number on the art's corner chip, no "Lv" text.
+    const chip = row.querySelector('[data-level-chip]');
+    expect(chip?.getAttribute('data-level-chip')).toBe('12');
+    expect(chip?.textContent).toBe('12');
+    expect(row.textContent).not.toContain('Lv 12');
     expect(row.textContent).toContain('DPS');
     expect(row.textContent).toContain('50');
 

@@ -213,6 +213,7 @@ interface GearCardProps {
   selected: boolean;
   equippedSlot: LoadoutSlot | null;
   selectMode: boolean;
+  compareArmed: boolean;
   onTap: (item: GearItem) => void;
   onCompareStart: (id: string) => void;
 }
@@ -240,6 +241,7 @@ const GearCard = memo(({
   selectMode,
   onTap,
   onCompareStart,
+  compareArmed,
 }: GearCardProps) => {
   const equipped = !!equippedSlot;
   const color = colorOf(item);
@@ -314,7 +316,7 @@ const GearCard = memo(({
       data-testid="gear-list-row"
       data-kind={kindOf(item)}
       className={`relative flex min-h-[46px] w-full items-center gap-2 rounded-lg border bg-surface px-2 text-left ${
-        selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
+        selected || compareArmed ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
       }`}
       style={{ borderLeftColor: color, borderLeftWidth: 4 }}
     >
@@ -326,10 +328,24 @@ const GearCard = memo(({
 
       <div className="relative flex w-12 shrink-0 items-center justify-center">
         <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} />
-        <ElementBadge element={elementName} />
+        {/* Level rides the art's bottom-left corner as a tucked chip
+            (owner swap ruling 2026-11-05): the number alone, on a
+            dark plate, over the sprite's emptiest corner. */}
+        <span
+          className="absolute bottom-0 left-0 flex h-[15px] min-w-[18px] items-center justify-center border border-black/70 bg-[#0b0906]/85 px-[3px] text-[11px] font-black tabular-nums text-text-primary"
+          data-level-chip={item.level}
+        >
+          {item.level}
+        </span>
       </div>
 
-      <span className="w-10 shrink-0 text-[11px] font-black tabular-nums text-text-muted">Lv {item.level}</span>
+      {/* The element badge takes the old level slot — in open space
+          beside the art, never on top of the sprite (owner swap
+          ruling 2026-11-05). Fixed-width slot: element-less items
+          keep the same name alignment. */}
+      <span className="flex w-5 shrink-0 items-center justify-center">
+        <ElementBadge element={elementName} inline />
+      </span>
 
       {/* Name block: flexes, but with a floor — the equipped chip
           rides as a row-level sibling (not inside this block) and
@@ -354,8 +370,11 @@ const GearCard = memo(({
         <button
           type="button"
           onClick={(event) => { event.stopPropagation(); onCompareStart(item.id); }}
-          className="shrink-0 rounded-lg border border-border bg-surface p-1.5 text-text-muted"
+          className={`relative shrink-0 rounded-lg border p-1.5 after:absolute after:-inset-[9px] after:content-[''] ${
+            compareArmed ? 'border-amber text-amber' : 'border-border bg-surface text-text-muted'
+          }`}
           aria-label={`Compare ${item.name}`}
+          aria-pressed={compareArmed}
         >
           <ArrowLeftRight size={13} />
         </button>
@@ -714,10 +733,24 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     setInspectItem(item);
   }, [selectMode, compareA, toggleSelect]);
 
-  const startCompare = useCallback((id: string) => {
+  // Compare taps (owner fix 2026-11-05): the button must be able to
+  // COMPLETE a pair — the old startCompare only ever (re)armed A, so
+  // button→button silently reset forever and the sheet never opened.
+  // Now: no A → arm A; A armed + different item → that's B (sheet
+  // opens); A armed + same item → disarm.
+  const handleCompareTap = useCallback((id: string) => {
+    if (compareA !== null && compareA !== id) {
+      setCompareB(id);
+      return;
+    }
+    if (compareA === id) {
+      setCompareA(null);
+      setCompareB(null);
+      return;
+    }
     setCompareA(id);
     setCompareB(null);
-  }, []);
+  }, [compareA]);
 
   const activeFilterLabels = [
     activeKind !== 'all' ? KIND_DEFS.find((kind) => kind.id === activeKind)?.short ?? 'Kind' : null,
@@ -922,6 +955,24 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         </div>
       )}
 
+      {/* Compare armed: the state is said out loud (it used to be
+          invisible — the other half of the dead-button report). */}
+      {compareA && !compareB && compareItemA && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber/40 bg-amber/10 px-2.5 py-1">
+          <ArrowLeftRight size={13} className="shrink-0 text-amber" />
+          <span className="flex-1 truncate text-[11px] font-black text-amber">
+            Comparing {compareItemA.name} — tap another item
+          </span>
+          <button
+            type="button"
+            onClick={() => { setCompareA(null); setCompareB(null); }}
+            className="flex min-h-[44px] items-center rounded-md px-2 text-[11px] font-black text-amber underline underline-offset-2"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
       {/* Active filters: one horizontal row, never a wrapped wall. */}
       {activeFilterLabels.length > 0 && (
         <div className="-mx-4 overflow-x-auto px-4">
@@ -997,8 +1048,9 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             selected={selectedIds.has(item.id)}
             equippedSlot={loadoutSlotFor(item.id, slots)}
             selectMode={selectMode}
+            compareArmed={compareA === item.id}
             onTap={handleItemTap}
-            onCompareStart={startCompare}
+            onCompareStart={handleCompareTap}
           />
         ))}
       </div>
