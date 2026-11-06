@@ -271,7 +271,7 @@ const GearCard = memo(({
           {item.isLocked && <Lock size={10} className="text-red" />}
         </div>
         <div className="flex h-14 items-center justify-center">
-          <GearIllustration item={item} size={50} showBadges={false} />
+          <GearIllustration item={item} size={50} showBadges={false} defer />
         </div>
         <div className="min-w-0">
           <div className="truncate text-[11px] font-black" style={{ color }}>{item.name}</div>
@@ -300,7 +300,10 @@ const GearCard = memo(({
   // GRID above keeps the full card face. Freeze discipline (perf
   // audit 2026-11-02 + freeze investigation 2026-11-04): memoized,
   // no `layout` prop, weapons compose at stage density here — the
-  // card-density list row was ~26 ms of compose per weapon.
+  // card-density list row was ~26 ms of compose per weapon. Cold-
+  // load discipline (2026-11-05): art composes viewport-deferred
+  // (`defer`) — a cold mount otherwise pays one compose + paint per
+  // item inside the mount commit before anything can paint.
   const headline = gearRowHeadline(item, summary);
   const elementName = itemElement(item);
 
@@ -329,14 +332,17 @@ const GearCard = memo(({
       {/* Level leads the row as its own column (owner ruling
           2026-11-05, picked from four renderings): LV caption over
           the number, before the art. The art carries nothing — no
-          badge, no chip — so a future sprite pass starts clean. */}
+          badge, no chip — so a future sprite pass starts clean.
+          (defer is #423's deferred compose, kept through the merge;
+          the corner ElementBadge master's side carried is the one
+          this change moves beside the art — it does not come back.) */}
       <div className="flex w-9 shrink-0 flex-col items-center justify-center leading-none">
         <span className="text-[11px] font-black tracking-widest text-text-muted">LV</span>
         <span className="text-[15px] font-black tabular-nums text-text-primary" data-level-chip={item.level}>{item.level}</span>
       </div>
 
       <div className="relative flex w-12 shrink-0 items-center justify-center">
-        <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} />
+        <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} defer />
       </div>
 
       {/* The element badge takes the old level slot — in open space

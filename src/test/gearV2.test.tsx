@@ -12,9 +12,11 @@
  *  - F1 successor (owner ruling 2026-11-02, superseding the
  *    original §11 F1): the Garage is NOT a rail stop — it folds
  *    into the Loadout page as the vehicle section. The Loadout
- *    carries the vehicle slot's status line, whose Open Garage
- *    toggle expands the full Garage panel in place; a garage
- *    intent lands on Loadout with the section already expanded.
+ *    carries the vehicle slot as a BUTTON in the panel header
+ *    (owner ruling 2026-11-05, superseding the status line),
+ *    whose Open Garage toggle expands the full Garage panel in
+ *    place; a garage intent lands on Loadout with the section
+ *    already expanded.
  *  - Grid cards print the item instance's REAL affixes on the card
  *    face (real-item invariant), not just affix counts.
  *  - The Belt & Stacks section prints the stacks with quality %
@@ -84,16 +86,16 @@ describe('Gear v2 — the merged page, no rail', () => {
     expect(screen.getByTestId('gear-workshop-strip')).toBeTruthy();
   });
 
-  it('opens on the Loadout page; the Garage folds in under the vehicle line (F1 successor — owner ruling 2026-11-02)', async () => {
+  it('opens on the Loadout page; the Garage folds in under the panel (F1 successor — owner ruling 2026-11-02)', async () => {
     render(<InventoryScreen onNavigate={vi.fn()} />);
     // F5 successor landmark: the Loadout page's old intro sentence
     // ("Your seven gear slots…") was removed per the fidelity audit;
     // the panel header's "Tap a slot to equip" hint is its marker now.
     expect(await screen.findByText('Tap a slot to equip')).toBeTruthy();
     // Collapsed: the Garage panel is not rendered yet — the vehicle
-    // slot shows as its status line with the expansion toggle.
+    // slot shows as its header button with the expansion toggle.
     expect(screen.queryByTestId('garage-panel')).toBeNull();
-    expect(screen.getByTestId('vehicle-status')).toBeTruthy();
+    expect(screen.getByTestId('vehicle-button')).toBeTruthy();
     // One tap expands the full Garage IN PLACE — there is no
     // Garage stop to navigate to.
     fireEvent.click(screen.getByRole('button', { name: 'Open Garage' }));

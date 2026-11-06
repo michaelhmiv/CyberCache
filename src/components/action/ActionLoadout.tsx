@@ -34,6 +34,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useLoadoutStore, usePlayerStore, useInventoryStore, useSkillStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { ConsumablesChips } from '@/components/action/ConsumablesChips';
+import { HelpHint } from '@/components/common/HelpHint';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
 import { SwapUndoToast } from '@/components/action/SwapUndoToast';
@@ -414,6 +415,15 @@ export interface ActionLoadoutProps {
    * door the owner placed on the stage).
    */
   onOpenWardrobe?: () => void;
+  /**
+   * Manage mode: the vehicle door rendered in the header's top-
+   * right gap, above the primary weapon card (owner ruling
+   * 2026-11-05 — the vehicle slot is a button there now, and the
+   * bottom status strip is deleted). The gear home composes it
+   * (VehicleButton + the Garage expansion state it toggles); this
+   * panel only gives it the seat.
+   */
+  vehicleDoor?: React.ReactNode;
 }
 
 export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
@@ -423,6 +433,7 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
   requestedPickerSlot = null,
   pickerRequest = null,
   onOpenWardrobe,
+  vehicleDoor,
 }) => {
   const loadout = useLoadoutStore();
   const inventory = useInventoryStore();
@@ -675,17 +686,27 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
             <div className="text-[11px] font-bold text-text-muted">Tap a slot to equip</div>
           </div>
         </div>
-        {buildIdentity && (
-          <div className="shrink-0 text-right">
-            <div className="text-[11px] font-black uppercase tracking-widest text-text-muted">Build</div>
-            <div className="flex items-center justify-end gap-1.5">
-              {activePreset && (
-                <PxIcon name={resolveBuildIcon(activePreset.icon)} size={13} className="shrink-0 text-amber" />
-              )}
-              <div className="text-[13px] font-bold text-text-primary">{buildIdentity}</div>
+        {/* The header's right column: the vehicle door (owner ruling
+            2026-11-05 — it takes the dead space above the primary
+            weapon card), the build identity beneath it. The column
+            stretches to the header's full height and centers its
+            contents vertically in that gap (owner ruling 2026-11-05,
+            evening: the button sits centered in its gap, not docked
+            to the top). */}
+        <div className="flex shrink-0 flex-col items-end justify-center gap-1.5 self-stretch">
+          {vehicleDoor}
+          {buildIdentity && (
+            <div className="text-right">
+              <div className="text-[11px] font-black uppercase tracking-widest text-text-muted">Build</div>
+              <div className="flex items-center justify-end gap-1.5">
+                {activePreset && (
+                  <PxIcon name={resolveBuildIcon(activePreset.icon)} size={13} className="shrink-0 text-amber" />
+                )}
+                <div className="text-[13px] font-bold text-text-primary">{buildIdentity}</div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       )}
 
@@ -854,13 +875,20 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
             {/* The belt, under the doll (merged-page order). The chips are a
                 quick count view of the slotted items only: roaming
                 auto-activates ALL owned roaming consumables, slotted
-                or not — the caption says so plainly, and carries the
-                server-side fact the old Gear intro sentence held. */}
+                or not. The section prints its label and the chips —
+                nothing else (no-paragraphs law, owner ruling
+                2026-11-05): those facts, and where empty slots get
+                loaded, live behind the label's "?" (HelpHint). */}
             <div className="mt-3">
-              <ConsumablesChips className="text-[11px]" />
-              <div className="mt-1 text-[11px] font-bold text-text-muted">
-                Belt — all owned consumables auto-activate while roaming. Changes verify server-side; no Save button.
+              <div className="flex items-center gap-1.5">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">Consumable Belt</div>
+                <HelpHint title="Consumable Belt">
+                  <p>Empty belt slots load at the Loadout Bench — Gear tab.</p>
+                  <p>All owned consumables auto-activate while roaming.</p>
+                  <p>Changes verify server-side; no Save button.</p>
+                </HelpHint>
               </div>
+              <ConsumablesChips className="mt-1.5 text-[11px]" />
             </div>
           </motion.div>
         )}

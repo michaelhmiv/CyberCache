@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { getVisualAsset } from '@/constants/visualAssets';
-import type { SalvageBatchFeedEvent, SalvageFeedEvent } from '@/store/slices/salvageFeedSlice';
+import type { SalvageBatchFailedFeedEvent, SalvageBatchFeedEvent, SalvageFeedEvent } from '@/store/slices/salvageFeedSlice';
 
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
 
@@ -169,6 +169,59 @@ const SalvageBatchToastItem: React.FC<{ event: SalvageBatchFeedEvent }> = ({ eve
   );
 };
 
+/**
+ * The failure card for a background batch settlement. The sheet
+ * that started the batch closed on confirm (dismiss-on-confirm),
+ * so this card is the whole report: the batch op is atomic —
+ * nothing was scrapped — and the runner has already put the
+ * items back in the inventory.
+ */
+const SalvageBatchFailedToastItem: React.FC<{ event: SalvageBatchFailedFeedEvent }> = ({ event }) => {
+  const dismiss = useSalvageFeedStore((s) => s.dismiss);
+
+  useEffect(() => {
+    const timer = setTimeout(() => dismiss(event.id), 10000);
+    return () => clearTimeout(timer);
+  }, [event.id, dismiss]);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: -20, scale: 0.94 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.94 }}
+      transition={{ duration: 0.2 }}
+      className="pointer-events-auto w-full border-2 border-red/50 bg-surface/95 shadow-[0_10px_28px_rgba(0,0,0,0.75)]"
+      style={signClip}
+      data-testid="salvage-batch-failed"
+      role="alert"
+    >
+      <div className="flex items-start gap-3 p-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-border bg-red/15">
+          <PxIcon name="recycle" size={17} className="text-red" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">
+            Bulk salvage failed
+          </div>
+          <div className="mt-0.5 text-[11px] font-bold leading-snug text-text-muted">
+            Nothing was scrapped — {event.totalItems} item{event.totalItems === 1 ? ' is' : 's are'} back in your
+            inventory.
+          </div>
+          <div className="mt-1 text-[11px] font-bold leading-snug text-red-light">{event.message}</div>
+        </div>
+        <button
+          type="button"
+          onClick={() => dismiss(event.id)}
+          className="shrink-0 p-1 text-text-muted hover:text-text-primary"
+        >
+          <X size={14} />
+        </button>
+      </div>
+    </motion.div>
+  );
+};
+
 const RARITY_ORDER_INDEX: Record<string, number> = {
   Common: 0,
   Uncommon: 1,
@@ -189,6 +242,8 @@ export const SalvageToastContainer: React.FC = () => {
           {events.map((event) =>
             event.kind === 'batch' ? (
               <SalvageBatchToastItem key={event.id} event={event} />
+            ) : event.kind === 'batchFailed' ? (
+              <SalvageBatchFailedToastItem key={event.id} event={event} />
             ) : (
               <SalvageToastItem key={event.id} event={event} />
             ),

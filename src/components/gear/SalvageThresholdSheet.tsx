@@ -9,6 +9,15 @@
  * the whole eligible set in ONE call (verifiedOps.recycleBatch), and
  * exactly ONE summary lands in the salvage feed.
  *
+ * Dismissal contract (owner ruling, 2026-11-05): confirming a
+ * ceiling CLOSES this sheet on the same tap. The settlement itself
+ * can take a while on a big inventory, so it runs in the background
+ * at store level (bulkScrapSlice): the chosen items leave the grid
+ * immediately, the player is back to scrolling at once, and the ONE
+ * summary lands in the salvage feed when the server answers. If the
+ * settlement fails, nothing was scrapped (the batch is atomic) —
+ * the items return and a failure card in the feed says so.
+ *
  * Rules baked into this sheet:
  *   - Counts are live and honest: they count the eligible set the
  *     server will resolve (unlocked, unequipped gear at or under the
@@ -19,15 +28,11 @@
  *     they salvage one at a time from the item card.
  *   - A ceiling with nothing under it is shown disabled WITH its
  *     reason ("None in inventory") — every 'no' carries its reason.
- *   - Failure is plain and in place: nothing was scrapped, the sheet
- *     stays open, and the message says so.
  */
 import React, { useMemo, useState } from 'react';
 import { PickerSheet } from '@/components/common/PickerSheet';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { verifiedOps } from '@/lib/api/verifiedOps';
-import { formatRpcError } from '@/lib/api/rpcError';
-import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
+import { useBulkScrapStore } from '@/store/slices/bulkScrapSlice';
 import type { GearItem } from '@/types/items';
 
 const SALVAGE_RARITY_RANK: Record<string, number> = {
@@ -58,7 +63,11 @@ interface SalvageThresholdSheetProps {
   /** The eligible set: unlocked + unequipped gear (GearHub's junk set). */
   eligibleItems: GearItem[];
   onClose: () => void;
-  /** Fired after a successful settlement (hub clears selection state). */
+  /**
+   * Fired at CONFIRM time (the hub clears selection state). The
+   * settlement continues in the background — this is not a
+   * settlement callback anymore.
+   */
   onSettled: () => void;
 }
 
@@ -68,8 +77,6 @@ export const SalvageThresholdSheet: React.FC<SalvageThresholdSheetProps> = ({
   onSettled,
 }) => {
   const [confirmingEpic, setConfirmingEpic] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     const byCeiling: Record<string, number> = {};
@@ -87,38 +94,28 @@ export const SalvageThresholdSheet: React.FC<SalvageThresholdSheetProps> = ({
     [eligibleItems],
   );
 
-  const settle = async (ceiling: SalvageCeiling) => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await verifiedOps.recycleBatch(ceiling);
-      // Exactly ONE feed event for the whole settlement.
-      useSalvageFeedStore.getState().pushBatch({
-        maxRarity: typeof result.max_rarity === 'string' ? result.max_rarity : ceiling,
-        totalItems: Number(result.scrapped_count ?? 0),
-        countsByRarity: (result.counts_by_rarity as Record<string, number> | undefined) ?? {},
-        scrap: Number(result.scrap_award ?? 0),
-        cores: Number(result.cores_award ?? 0),
-        bonusMaterials: (result.bonus_materials as Record<string, number> | undefined) ?? {},
-      });
-      onSettled();
-      onClose();
-    } catch (err) {
-      setError(`Scrapping failed — nothing was scrapped. ${formatRpcError(err)}`);
-    } finally {
-      setBusy(false);
-    }
+  /**
+   * The whole contract in one synchronous step: hand the snapshot
+   * to the background queue (which removes the items from the grid
+   * in the same state update), let the hub clear its selection, and
+   * close. Nothing here awaits the network.
+   */
+  const confirm = (ceiling: SalvageCeiling) => {
+    const rank = SALVAGE_RARITY_RANK[ceiling];
+    const snapshot = eligibleItems.filter(
+      (item) => (SALVAGE_RARITY_RANK[item.rarity] ?? 99) <= rank,
+    );
+    useBulkScrapStore.getState().enqueueBulkScrap(ceiling, snapshot);
+    onSettled();
+    onClose();
   };
 
   const onCeilingTap = (ceiling: SalvageCeiling) => {
-    if (busy) return;
     if (ceiling === 'Epic') {
-      setError(null);
       setConfirmingEpic(true);
       return;
     }
-    void settle(ceiling);
+    confirm(ceiling);
   };
 
   return (
@@ -127,12 +124,6 @@ export const SalvageThresholdSheet: React.FC<SalvageThresholdSheetProps> = ({
       subtitle="One tap scraps everything at or under the level you pick — settled in a single moment, with one summary."
       onClose={onClose}
     >
-      {error && (
-        <div className="mb-3 border border-red/40 bg-red/10 p-2 text-[11px] font-bold text-red-light" role="alert">
-          {error}
-        </div>
-      )}
-
       {confirmingEpic ? (
         <div data-testid="salvage-epic-confirm">
           <div className="text-sm font-black text-text-primary">
@@ -145,15 +136,13 @@ export const SalvageThresholdSheet: React.FC<SalvageThresholdSheetProps> = ({
           <div className="mt-3 flex gap-2">
             <button
               type="button"
-              disabled={busy}
-              onClick={() => void settle('Epic')}
+              onClick={() => confirm('Epic')}
               className="flex-1 rounded-lg border border-red/40 bg-red/10 px-3 py-2.5 text-xs font-black text-red disabled:opacity-50"
             >
-              {busy ? 'Scrapping…' : `Scrap all ${counts.Epic}`}
+              {`Scrap all ${counts.Epic}`}
             </button>
             <button
               type="button"
-              disabled={busy}
               onClick={() => setConfirmingEpic(false)}
               className="flex-1 rounded-lg border border-border bg-surface px-3 py-2.5 text-xs font-black text-text-muted disabled:opacity-50"
             >
@@ -165,7 +154,7 @@ export const SalvageThresholdSheet: React.FC<SalvageThresholdSheetProps> = ({
         <div className="space-y-2">
           {SALVAGE_CEILINGS.map((ceiling) => {
             const count = counts[ceiling.value];
-            const disabled = busy || count === 0;
+            const disabled = count === 0;
             return (
               <button
                 key={ceiling.value}

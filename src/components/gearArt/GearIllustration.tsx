@@ -46,6 +46,13 @@ interface GearIllustrationProps {
    * rows at ~26 ms of compose per weapon on a cold cache.
    */
   weaponDensity?: 'stage' | 'card';
+  /**
+   * Viewport-deferred composition (Gear cold-load fix): list
+   * surfaces pass this so off-screen items mount at final geometry
+   * and compose only when scrolled near. On-screen surfaces
+   * (loadout slots, inspect) omit it — they compose immediately.
+   */
+  defer?: boolean;
 }
 
 /**
@@ -67,10 +74,11 @@ export const GearIllustration: React.FC<GearIllustrationProps> = React.memo(({
   size = 'card',
   className = '',
   weaponDensity = 'card',
+  defer = false,
 }: GearIllustrationProps) => {
   if (isWeaponItem(item)) {
     const pixelSize = typeof size === 'number' ? size : PIXEL_SIZE_PX[size];
-    return <PixelWeapon weapon={item} size={pixelSize} className={className} density={weaponDensity} />;
+    return <PixelWeapon weapon={item} size={pixelSize} className={className} density={weaponDensity} defer={defer} />;
   }
   const kind = gearKindOf(item);
   if (kind === 'weapon') return null; // unreachable — handled above
@@ -79,5 +87,5 @@ export const GearIllustration: React.FC<GearIllustrationProps> = React.memo(({
   const density = typeof size === 'number'
     ? (size <= PIXEL_SIZE_PX.thumb ? 'thumb' : 'card')
     : PIXEL_GEAR_DENSITY[size];
-  return <PixelGear item={item} grammar={grammar} size={pixelSize} className={className} density={density} />;
+  return <PixelGear item={item} grammar={grammar} size={pixelSize} className={className} density={density} defer={defer} />;
 });

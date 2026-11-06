@@ -159,12 +159,13 @@ Loadout page. Everything below is on it, in one scroll:
   so on. Rarity and element are read by color — the name's color
   is the rarity, the icon's tint is the element — never spelled
   out in the line. Tap any block to open the **slot picker** for
-  that slot. Your vehicle slot lives here too: its status line —
-  equipped vehicle, yield, fuel, condition — heads the **Garage
-  section**, which expands in place right under the doll zone
-  with everything vehicle: equip, refuel, and repair (see
-  [[Vehicles and the Garage]]). (Your credits, scrap, keys, and
-  item count print once, in the strip at the top of the tab.)
+  that slot. Your vehicle slot lives here too: it is the
+  **button** in the panel's top-right corner — equipped vehicle,
+  yield, tank, condition — and it opens the **Garage**, which
+  expands in place under the panel with everything vehicle:
+  equip, refuel, and repair (see [[Vehicles and the Garage]]).
+  (Your credits, scrap, keys, and item count print once, in the
+  strip at the top of the tab.)
 - **Inventory** — everything you own, with salvage/recycle. Its
   header and toolbar stick to the top while you scroll. Two views:
   the **Grid** shows each item as a card — headline stats and the
@@ -200,7 +201,11 @@ Loadout page. Everything below is on it, in one scroll:
   Equipped items stay pinned at the top either way.
 - **Belt & Stacks** — your belt, plus every stack you carry:
   consumable batches with their quality % printed, materials,
-  and essences.
+  and essences. (Up in the Loadout panel, the belt's three slots
+  print under a **Consumable Belt** label with a **?** beside it —
+  the ? carries the belt's explanation: slots load at the Loadout
+  Bench, all owned consumables auto-activate while roaming, and
+  changes verify server-side with no Save button.)
 - **The Workshop status strip** — at the page's foot, printing the
   bench at a glance (jobs running / queued / ready, and whether
   Craft holds your action slot); it opens the **Workshop** on the
@@ -264,9 +269,12 @@ never come from salvage — roam for those, or buy them.
 **Bulk salvage** clears space in one move. The salvage button on the
 Gear tab opens a rarity sheet — **Commons only**, **Uncommon & under**,
 **Rare & under**, or **Epic & under** — with the live count each level
-would take. Pick one and everything eligible at or under that rarity
-is scrapped in a single instant settlement, followed by one summary
-card showing the totals you gained. **Epic & under** asks you to
+would take. Pick one and the sheet closes right away: everything
+eligible at or under that rarity leaves your inventory immediately
+and the settlement finishes in the background, followed by one summary
+card showing the totals you gained when it lands. If a settlement
+ever fails, nothing is scrapped — the items come back and a notice
+says so. **Epic & under** asks you to
 confirm first, with the epic count stated. Locked and equipped items
 are always left alone, and **Legendaries are never bulk-scrapped** —
 they are salvaged one at a time from the item's inspect sheet.

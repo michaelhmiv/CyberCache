@@ -242,17 +242,19 @@ describe('F5 successor — the Garage folds into Loadout (owner ruling 2026-11-0
     expect(existsSync(resolve(__dirname, '../components/gear/GearRail.tsx'))).toBe(false);
   });
 
-  it('the Loadout vehicle section starts collapsed behind its status line, summary visible', () => {
+  it('the Loadout vehicle section starts collapsed behind its header button, summary visible', () => {
     seedGarageLoadout(scrapBike());
     render(<SyncedLoadoutScreen />);
-    // The section header prints the summary the mock keeps visible:
-    // vehicle name, fuel, condition.
-    const status = screen.getByTestId('vehicle-status');
-    expect(status.textContent).toContain('Scrap Bike');
-    expect(status.textContent).toContain('fuel');
-    expect(status.textContent).toContain('250 units');
-    expect(status.textContent).toContain('condition');
-    expect(status.textContent).toContain('100%');
+    // The vehicle button in the panel header prints the glanceable
+    // summary (owner ruling 2026-11-05, superseding the status
+    // line): vehicle name, yield factor, the labeled tank, and
+    // condition — numbers and labels, no sentences.
+    const button = screen.getByTestId('vehicle-button');
+    expect(button.textContent).toContain('Scrap Bike');
+    expect(button.textContent).toContain('×1.15');
+    expect(button.textContent).toContain('250');
+    expect(button.textContent).toContain('tank');
+    expect(button.textContent).toContain('100%');
     expect(screen.queryByTestId('garage-panel')).toBeNull();
   });
 

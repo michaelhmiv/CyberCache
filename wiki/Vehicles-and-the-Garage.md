@@ -122,12 +122,14 @@ use one:
 
 ## The Garage
 
-Your Garage is the vehicle section of the Loadout stop: **Gear →
-Loadout**, directly under your gear slots. Your vehicle slot's status
-line — the equipped vehicle, its yield, fuel, and condition — heads
-the section, and one tap on **Open Garage** expands the whole Garage
-in place right there. (Garage doors elsewhere land you on Loadout
-with the section already expanded.) On Home, your vehicle's status
+Your Garage lives under the Loadout stop: **Gear → Loadout**,
+directly under your gear slots. Your vehicle slot is a **button**
+in the Loadout panel's top-right corner — the equipped vehicle, its
+yield, its tank, and its condition at a glance — and one tap on it
+expands the whole Garage in place under the panel. With no vehicle
+equipped the button reads **On foot** and opens the same Garage.
+(Garage doors elsewhere land you on Loadout with the Garage already
+expanded.) On Home, your vehicle's status
 rides the **consumable belt** as a chip in the belt row: while it is
 fueled it reads quietly — vehicle, fuel units, yield — and when it
 runs out of fuel or wears out, the chip itself becomes the door:

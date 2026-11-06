@@ -5,6 +5,17 @@ import { useSkillStore } from './skillSlice';
 
 export interface InventoryState {
   items: GearItem[];
+  /**
+   * Ids of items inside an in-flight bulk scrap (bulkScrapSlice).
+   * They are already removed from `items`; full-replace syncs
+   * (setItems / receiveServerItems) must not resurrect them while
+   * the batch settles in the background — the server still holds
+   * them until the batch transaction lands, so an unfiltered
+   * hydration would flash them back into the grid mid-flight.
+   */
+  pendingScrapIds: string[];
+  beginPendingScrap: (ids: string[]) => void;
+  endPendingScrap: (ids: string[]) => void;
   setItems: (items: GearItem[]) => void;
   upsertItem: (item: GearItem) => void;
   addItem: (item: GearItem) => void;
@@ -18,10 +29,26 @@ export interface InventoryState {
   getById: (id: string) => GearItem | undefined;
 }
 
+const withoutPendingScrap = (items: GearItem[], pendingScrapIds: string[]): GearItem[] =>
+  pendingScrapIds.length === 0
+    ? items
+    : items.filter((item) => !pendingScrapIds.includes(item.id));
+
 export const useInventoryStore = create<InventoryState>()((set, get) => ({
   items: [],
+  pendingScrapIds: [],
 
-  setItems: (items) => set({ items }),
+  beginPendingScrap: (ids) =>
+    set((s) => ({
+      pendingScrapIds: [...new Set([...s.pendingScrapIds, ...ids])],
+    })),
+
+  endPendingScrap: (ids) =>
+    set((s) => ({
+      pendingScrapIds: s.pendingScrapIds.filter((id) => !ids.includes(id)),
+    })),
+
+  setItems: (items) => set((s) => ({ items: withoutPendingScrap(items, s.pendingScrapIds) })),
 
   upsertItem: (item) => set((s) => {
     const exists = s.items.some((current) => current.id === item.id);
@@ -60,7 +87,8 @@ export const useInventoryStore = create<InventoryState>()((set, get) => ({
       items: s.items.map((i) => (i.id === id ? { ...i, isLocked: false } : i)),
     })),
 
-  receiveServerItems: (items) => set({ items }),
+  receiveServerItems: (items) =>
+    set((s) => ({ items: withoutPendingScrap(items, s.pendingScrapIds) })),
 
   getWeapons: () => get().items.filter((i) => 'weaponType' in i) as Weapon[],
   getById: (id) => get().items.find((i) => i.id === id),

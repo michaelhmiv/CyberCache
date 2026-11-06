@@ -3,16 +3,19 @@
  *
  * From the 2026-11-01 UX audit's live production walk (fresh guest):
  *
- *  CONS-01 — the Action-tab vehicle banner (VehicleStatusLine) read
- *    its fuel from the vehicle store's lastClaimStatus — a snapshot
- *    of the LAST claim — in preference to the server profile's
- *    vehicle_fuel. After the player loaded a fuel cell, the Garage
- *    (which reads the profile) showed "Fuel tank 100 units · ×1.15"
- *    while the banner kept reading "fuel 0 units · out of fuel"
- *    through the refuel, a boss fight, and a reload. Fixed: banner
- *    and Garage read ONE source — the player store's profile mirror
- *    (vehicleFuel); the claim block is history only (its mid-claim
- *    line), never the tank.
+ *  CONS-01 — the Action-tab vehicle banner (VehicleStatusLine,
+ *    superseded by the VehicleButton in the Loadout panel header —
+ *    owner ruling 2026-11-05) read its fuel from the vehicle
+ *    store's lastClaimStatus — a snapshot of the LAST claim — in
+ *    preference to the server profile's vehicle_fuel. After the
+ *    player loaded a fuel cell, the Garage (which reads the
+ *    profile) showed "Fuel tank 100 units · ×1.15" while the banner
+ *    kept reading "fuel 0 units · out of fuel" through the refuel,
+ *    a boss fight, and a reload. Fixed: the vehicle surface and
+ *    the Garage read ONE source — the player store's profile
+ *    mirror (vehicleFuel); the claim block is history only, never
+ *    the tank. The button carries the same discipline: it never
+ *    reads lastClaimStatus at all.
  *  UX-06 — the Garage was an unlabeled-feeling section buried in
  *    the Loadout scroll while the banner directed players to "the
  *    Garage" by name. Fixed then: the section carried the labeled
@@ -53,7 +56,7 @@ import { useLoadoutStore, usePlayerStore } from '@/store';
 import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import type { ChefVehicleStatus } from '@/lib/chef/chefClient';
-import { VehicleStatusLine } from '@/components/gear/VehicleStatusLine';
+import { VehicleButton } from '@/components/gear/VehicleButton';
 import { GaragePanel } from '@/components/gear/GaragePanel';
 import { InventoryScreen } from '@/screens/InventoryScreen';
 
@@ -150,7 +153,7 @@ beforeEach(() => {
 
 // ── CONS-01 — one tank truth ─────────────────────────────────────
 
-describe('audit B — CONS-01: the banner reads the profile tank, not the last claim', () => {
+describe('audit B — CONS-01: the vehicle button reads the profile tank, not the last claim', () => {
   it('a refuel is reflected even though the last claim ended out of fuel', async () => {
     seedStores({ fuel: 0 });
     useVehicleStore.setState({
@@ -159,17 +162,21 @@ describe('audit B — CONS-01: the banner reads the profile tank, not the last c
         activeTicks: 0, inactiveReason: 'out_of_fuel',
       }),
     });
-    render(<VehicleStatusLine />);
-    expect(screen.getByText(/Out of fuel — vehicle bonus inactive/)).toBeTruthy();
-    expect(screen.getByText('0 units')).toBeTruthy();
+    render(<VehicleButton expanded={false} onToggle={vi.fn()} />);
+    const button = screen.getByTestId('vehicle-button');
+    expect(button.dataset.state).toBe('out-of-fuel');
+    expect(button.textContent).toContain('NO FUEL');
+    expect(button.textContent).toContain('×1.00');
 
     // The refuel's verified sync lands the new profile fuel — the
     // exact store write syncVerifiedResult performs for the op.
     usePlayerStore.setState({ vehicleFuel: 100 });
 
-    await screen.findByText('100 units');
-    expect(screen.queryByText(/Out of fuel/)).toBeNull();
-    expect(screen.getByText('×1.15')).toBeTruthy();
+    await screen.findByText('×1.15');
+    expect(button.dataset.state).toBe('ok');
+    expect(button.textContent).not.toContain('NO FUEL');
+    expect(button.textContent).toContain('100');
+    expect(button.textContent).toContain('tank');
   });
 
   it('an optimistic claim block cannot resurrect an empty tank', () => {
@@ -178,27 +185,30 @@ describe('audit B — CONS-01: the banner reads the profile tank, not the last c
     // profile says 0 — the profile is the tank.
     seedStores({ fuel: 0 });
     useVehicleStore.setState({ lastClaimStatus: claimStatus({ fuelUnitsRemaining: 100 }) });
-    render(<VehicleStatusLine />);
-    expect(screen.getByText(/Out of fuel — vehicle bonus inactive/)).toBeTruthy();
-    expect(screen.getByText('0 units')).toBeTruthy();
-    expect(screen.getByText('×1.00')).toBeTruthy();
+    render(<VehicleButton expanded={false} onToggle={vi.fn()} />);
+    const button = screen.getByTestId('vehicle-button');
+    expect(button.dataset.state).toBe('out-of-fuel');
+    expect(button.textContent).toContain('NO FUEL');
+    expect(button.textContent).toContain('×1.00');
   });
 
-  it('the claim block still owns its history line (ran dry mid-claim)', () => {
+  it('claim history never reaches the button face (no mid-claim line)', () => {
     seedStores({ fuel: 50 });
     useVehicleStore.setState({ lastClaimStatus: claimStatus({ activeTicks: 4, ticks: 10 }) });
-    render(<VehicleStatusLine />);
-    expect(screen.getByText(/Bonus active for 4 of the last 10 ticks/)).toBeTruthy();
-    expect(screen.getByText('50 units')).toBeTruthy();
+    render(<VehicleButton expanded={false} onToggle={vi.fn()} />);
+    const button = screen.getByTestId('vehicle-button');
+    expect(button.textContent).toContain('50');
+    expect(button.textContent).toContain('tank');
+    expect(button.textContent).not.toContain('Bonus active');
   });
 });
 
 // ── Copy — the class echo ────────────────────────────────────────
 
-describe('audit B — banner names the vehicle once', () => {
+describe('audit B — the button names the vehicle once', () => {
   it('no class echo when the name IS the class name', () => {
     seedStores({ fuel: 100 });
-    const { container } = render(<VehicleStatusLine />);
+    const { container } = render(<VehicleButton expanded={false} onToggle={vi.fn()} />);
     expect(container.textContent).not.toContain('Scrap Bike (Scrap Bike)');
     expect(container.textContent).toContain('Scrap Bike');
   });
@@ -206,28 +216,29 @@ describe('audit B — banner names the vehicle once', () => {
   it('the class still shows when the vehicle carries its own name', () => {
     seedStores({ fuel: 100 });
     useVehicleStore.setState({ vehicles: [scrapBike({ name: 'Rust Runner' })] });
-    const { container } = render(<VehicleStatusLine />);
+    const { container } = render(<VehicleButton expanded={false} onToggle={vi.fn()} />);
     expect(container.textContent).toContain('Rust Runner (Scrap Bike)');
   });
 });
 
 // ── UX-06 — the Garage door ──────────────────────────────────────
 
-describe('audit B — UX-06: the Garage is labeled and reachable from the banner', () => {
-  it('the banner offers an Open Garage door with a vehicle equipped', () => {
+describe('audit B — UX-06: the Garage is labeled and reachable from the vehicle button', () => {
+  it('the button offers an Open Garage door with a vehicle equipped', () => {
     seedStores({ fuel: 0 });
-    const onOpenGarage = vi.fn();
-    render(<VehicleStatusLine onOpenGarage={onOpenGarage} />);
+    const onToggle = vi.fn();
+    render(<VehicleButton expanded={false} onToggle={onToggle} />);
     fireEvent.click(screen.getByRole('button', { name: 'Open Garage' }));
-    expect(onOpenGarage).toHaveBeenCalledTimes(1);
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('the banner offers the same door on foot (no vehicle equipped)', () => {
+  it('the button offers the same door on foot (no vehicle equipped)', () => {
     seedStores({ withVehicle: false });
-    const onOpenGarage = vi.fn();
-    render(<VehicleStatusLine onOpenGarage={onOpenGarage} />);
+    const onToggle = vi.fn();
+    render(<VehicleButton expanded={false} onToggle={onToggle} />);
+    expect(screen.getByTestId('vehicle-button').dataset.state).toBe('on-foot');
     fireEvent.click(screen.getByRole('button', { name: 'Open Garage' }));
-    expect(onOpenGarage).toHaveBeenCalledTimes(1);
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it('the Garage panel is labeled and carries its panel anchor', () => {
