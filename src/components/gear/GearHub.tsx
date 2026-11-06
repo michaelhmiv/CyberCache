@@ -332,7 +332,7 @@ const GearCard = memo(({
             (owner swap ruling 2026-11-05): the number alone, on a
             dark plate, over the sprite's emptiest corner. */}
         <span
-          className="absolute bottom-0 left-0 flex h-[15px] min-w-[18px] items-center justify-center border border-black/70 bg-[#0b0906]/85 px-[3px] text-[11px] font-black tabular-nums text-text-primary"
+          className="absolute bottom-0 left-0 flex h-[15px] min-w-[18px] -translate-x-[2px] translate-y-[4px] items-center justify-center border border-black/70 bg-[#0b0906]/85 px-[3px] text-[11px] font-black tabular-nums text-text-primary"
           data-level-chip={item.level}
         >
           {item.level}
@@ -353,7 +353,7 @@ const GearCard = memo(({
           can never starve the name to zero width again (the first
           capture's Echo Stone row lost its name entirely that way). */}
       <div className="flex min-w-16 flex-1 items-center gap-1.5">
-        <span className="min-w-0 truncate text-[13px] font-black leading-tight" style={{ color }}>{item.name}</span>
+        <span className="min-w-0 line-clamp-2 text-[13px] font-black leading-tight" style={{ color }}>{item.name}</span>
         {item.isLocked && <Lock size={12} className="shrink-0 text-red" />}
       </div>
 
