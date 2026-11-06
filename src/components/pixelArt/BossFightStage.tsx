@@ -34,6 +34,7 @@ import type { Weapon } from '@/types/items';
 import { ACTION_SKILL_DEFS } from '@/content/actionSkills';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import type { SkillTreeType } from '@/types/game';
+import { detectWebGL } from './pixi/detectWebGL';
 
 /**
  * BossFightStage (P2) — the pixel staging of a boss fight inside the
@@ -55,7 +56,7 @@ import type { SkillTreeType } from '@/types/game';
 const HUNTER_PLACEMENT: ActorPlacement = { xPct: 20, heightPct: 62, groundY: 0.86 };
 const BOSS_PLACEMENT: ActorPlacement = { xPct: 76, heightPct: 80, groundY: 0.86 };
 
-interface BossFightStageProps {
+export interface BossFightStageProps {
   timeline: FightTimeline;
   phases: PhaseAnalysis[];
   /** Boss def id (src/constants/bosses.ts) — selects the boss's bespoke
@@ -78,7 +79,7 @@ interface BossFightStageProps {
   signatureFire?: SkillTreeType | null;
 }
 
-export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false, backgroundId, depthBadge, signatureFire }) => {
+export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false, backgroundId, depthBadge, signatureFire }) => {
   // Unique arena per boss (Q3 ruling): the boss's own arena art + its
   // signature prop; the home area informs palette only.
   const arena = bossArena(bossId);
@@ -414,5 +415,30 @@ export const BossFightStage: React.FC<BossFightStageProps> = ({ timeline, phases
         )}
       </PixelStage>
     </div>
+  );
+};
+
+// ── Pixi motion pilot (2026-11-06) ──────────────────────────────────
+// BossFightStage is now a renderer switch: when WebGL is available
+// the Pixi stage (code-split, lazy-loaded on first boss fight)
+// carries the fight; the DOM stage above remains the automatic
+// fallback — reduced motion, no WebGL context, or any Pixi
+// init/texture failure renders the fight exactly as before. Both
+// renderers consume the same decided FightTimeline and the same
+// movement.ts law; the pilot's PR carries the A/B evidence.
+const BossPixiStageLazy = React.lazy(() =>
+  import('./pixi/BossPixiStage').then((m) => ({ default: m.BossPixiStage })),
+);
+
+export const BossFightStage: React.FC<BossFightStageProps> = (props) => {
+  const webgl = useMemo(() => detectWebGL(), []);
+  const [pixiFailed, setPixiFailed] = useState(false);
+  if (props.reduced || !webgl || pixiFailed) {
+    return <BossFightStageDom {...props} />;
+  }
+  return (
+    <React.Suspense fallback={<BossFightStageDom {...props} />}>
+      <BossPixiStageLazy {...props} onPixiError={() => setPixiFailed(true)} />
+    </React.Suspense>
   );
 };
