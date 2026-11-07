@@ -8,6 +8,12 @@
  *           panel-craft | panel-repair | panel-shield
  *   state   working (a running job in the lane) | rest (no job) |
  *           complete (a unit settles ~1.8s after load)
+ *   kind    consumable (default) | gear | relic — the crafting
+ *           job's family (M4b: the seat on the bench differs per
+ *           family — the real consumable, the slot+rarity frame,
+ *           the named relic's form). The job carries a REAL
+ *           recipe id so the seat resolution runs the production
+ *           path, exactly as the live stage does.
  *   weapon  1 (default; the fixture weapon is passed — bench
  *           modes sling it, other modes hold it) | 0
  *
@@ -29,6 +35,17 @@ const params = new URLSearchParams(window.location.search);
 const mode = params.get('mode') ?? 'crafting';
 const state = params.get('state') ?? 'working';
 const withWeapon = params.get('weapon') !== '0';
+const kindParam = params.get('kind') ?? 'consumable';
+
+/** The crafting job per family — real catalog recipes, so the
+ *  M4b seat resolution (recipeId → catalog → compositor) runs
+ *  exactly as it does on the live stage. */
+const jobForKind = (service: boolean): Partial<WorkshopJobView> => {
+  if (service) return { kind: 'repair' };
+  if (kindParam === 'gear') return { kind: 'gear', recipeId: 'frame_shield', name: 'Shield Frame', gearRarity: 'Rare' };
+  if (kindParam === 'relic') return { kind: 'gear', recipeId: 'tool_precision_calipers', name: 'Precision Calipers', gearRarity: 'Epic' };
+  return { kind: 'consumable', recipeId: 'recipe_patch_kit', name: 'Patch Kit' };
+};
 
 const FIXTURE_WEAPON: Weapon = {
   id: 'bench-harness-weapon',
@@ -54,7 +71,7 @@ const harnessJob = (over: Partial<WorkshopJobView>): WorkshopJobView => ({
   id: 'harness-job-1',
   bench: 0,
   kind: 'consumable',
-  recipeId: 'harness-recipe',
+  recipeId: 'recipe_patch_kit',
   name: 'Patch Kit',
   state: 'running',
   unitsTotal: 2,
@@ -86,7 +103,7 @@ const baseView = (over: Partial<WorkshopServerView>): WorkshopServerView => ({
 
 const completionEntry = (unit: number) => ({
   jobId: 'harness-job-1',
-  recipeId: 'harness-recipe',
+  recipeId: 'recipe_patch_kit',
   name: 'Patch Kit',
   unit,
   completedAtMs: 1_700_000_000_000 + unit * 60_000,
@@ -95,15 +112,15 @@ const completionEntry = (unit: number) => ({
 
 function seedWorkshop() {
   const service = mode === 'workshopService';
-  const kind = service ? 'repair' : 'consumable';
+  const family = jobForKind(service);
   if (state === 'working') {
     useWorkshopStore.setState({
-      server: baseView({ jobs: [harnessJob({ kind })], activeActionKind: service ? 'workshop_service' : 'crafting' }),
+      server: baseView({ jobs: [harnessJob({ ...family })], activeActionKind: service ? 'workshop_service' : 'crafting' }),
     });
   } else if (state === 'rest') {
     useWorkshopStore.setState({ server: baseView({}) });
   } else if (state === 'complete') {
-    const done = harnessJob({ kind, state: 'complete', unitsCompleted: 1 });
+    const done = harnessJob({ ...family, state: 'complete', unitsCompleted: 1 });
     useWorkshopStore.setState({
       server: baseView({ jobs: [done], recentCompletions: [completionEntry(0)] }),
     });
@@ -124,7 +141,13 @@ export const BenchHarnessPage: React.FC = () => (
   <div style={{ minHeight: '100vh', background: '#0B0B10', padding: 12, boxSizing: 'border-box' }}>
     <div style={{ width: 390, margin: '0 auto' }} data-testid="bench-harness-root">
       {mode === 'panel-craft' ? (
-        <CraftingBenchScene progress={0.45} causeLabel="Tempering · Patch Kit" buysLabel="→ Patch Kit ×1" working={state !== 'rest'} />
+        <CraftingBenchScene
+          progress={0.45}
+          causeLabel="Tempering · Patch Kit"
+          buysLabel="→ Patch Kit ×1"
+          working={state !== 'rest'}
+          seatJob={state === 'working' ? harnessJob({ ...jobForKind(false) }) : null}
+        />
       ) : mode === 'panel-repair' ? (
         <RepairBayScene progress={0.45} causeLabel="Repairing · Dune Runner" buysLabel="2 kits used" working={state !== 'rest'} />
       ) : mode === 'panel-shield' ? (
