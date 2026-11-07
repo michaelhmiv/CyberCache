@@ -1,11 +1,26 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Application, Assets, Container, Sprite, Texture } from 'pixi.js';
+import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { motion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { CritFlash, DamageNumber } from '../PixelFx';
-import { PART_POSES, PART_SLOTS, PARTS_FEET_X, PRIMARY_ANCHOR, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
+import { PART_POSES, PARTS_FEET_X, PRIMARY_ANCHOR, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
+import {
+  PART_PAINT_ORDER,
+  STAGE_RESOLUTION,
+  circleTexture,
+  ellipseTexture,
+  loadTexture,
+  partSlotTweenDurationMs,
+  radialTexture,
+  ringTexture,
+  solidTexture,
+  starTexture,
+  tracerTexture,
+  weaponTextureForWeapon,
+  type PartNode,
+} from './stageCore';
 
-const PAINT_ORDER = new Map(PART_SLOTS.map((s) => [s.slot, s.paintOrder]));
+const PAINT_ORDER = PART_PAINT_ORDER;
 import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
 import { layoutPartSet, type PartSetLayout } from '@/lib/pixel/partsCompositor';
 import {
@@ -15,7 +30,6 @@ import {
   partsWeaponFractionsFor,
 } from '@/lib/pixel/partsStage';
 import {
-  bespokeSpriteIdForWeapon,
   getPixelSprite,
   pixelBossSpriteForBoss,
   requirePixelSprite,
@@ -23,10 +37,6 @@ import {
 } from '@/lib/pixel/manifest';
 import { paletteSpriteUrl } from '@/lib/pixel/paletteSwap';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
-import {
-  composeWeaponCardCached,
-  paintWeaponCard,
-} from '@/lib/pixel/weaponCardCompositor';
 import { bossArena, endlessBandTint } from '@/content/areaPalettes';
 import {
   MOVEMENT,
@@ -85,14 +95,9 @@ const HUNTER_PLACEMENT: ActorPlacement = { xPct: 20, heightPct: 62, groundY: 0.8
 const BOSS_PLACEMENT: ActorPlacement = { xPct: 76, heightPct: 80, groundY: 0.86 };
 const DEG = Math.PI / 180;
 
-/** Stage resolution pin: 1.0, nearest-sampled — the same rendering
- *  contract the DOM stage's pixelated <img>s use. A half-resolution
- *  backing store was tried first (integer 2× upscale), but Chromium
- *  bilinear-upscales WebGL canvases regardless of
- *  `image-rendering: pixelated`, smearing the texel grid (A/B
- *  captures in the pilot evidence dir); at 1.0 with nearest
- *  filtering the render is texel-identical to the DOM stage. */
-const STAGE_RESOLUTION = 1;
+/* Stage resolution: STAGE_RESOLUTION from stageCore (1.0,
+ * nearest-sampled — the pilot's pin; see stageCore for the
+ * half-res experiment's evidence). */
 
 interface PhaseModel {
   presentingIndex: number;
@@ -112,18 +117,6 @@ interface PhaseModel {
   playerDamage: number;
   hitStops: HitStopWindow[];
   shake?: { key: string; intensity: number; durationMs: number };
-}
-
-interface PartNode {
-  slot: string;
-  container: Container;
-  sprite: Sprite;
-  anchorStage: { x: number; y: number };
-  primaryLocal: { x: number; y: number };
-  width: number;
-  height: number;
-  rotationDeg: number;
-  tween?: { from: number; to: number; startMs: number; durationMs: number; overshoot: boolean };
 }
 
 interface Scene {
@@ -153,133 +146,6 @@ interface Scene {
   emberSpecs: ReturnType<typeof particleField>;
   bossSpriteDef: PixelSprite;
   readyAt: number;
-}
-
-function nearest(tex: Texture): Texture {
-  // Nearest on every filter path + no mipmaps: the sprites are
-  // minified into the half-resolution stage, and v8's default
-  // linear/mipmap minification is what would soften the texel grid.
-  tex.source.scaleMode = 'nearest';
-  tex.source.magFilter = 'nearest';
-  tex.source.minFilter = 'nearest';
-  tex.source.mipmapFilter = 'nearest';
-  tex.source.autoGenerateMipmaps = false;
-  return tex;
-}
-
-async function loadTexture(src: string): Promise<Texture> {
-  if (src.startsWith('data:')) {
-    const img = new Image();
-    img.src = src;
-    await img.decode();
-    return nearest(Texture.from(img));
-  }
-  return nearest(await Assets.load<Texture>(src));
-}
-
-function canvasTexture(draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void, w: number, h: number): Texture {
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  if (ctx) draw(ctx, w, h);
-  return nearest(Texture.from(canvas));
-}
-
-/** The muzzle star, drawn from the DOM kit's STAR_CLIP polygon. */
-function starTexture(): Texture {
-  const pts: [number, number][] = [
-    [50, 0], [61, 35], [98, 35], [68, 57], [79, 91], [50, 70], [21, 91], [32, 57], [2, 35], [39, 35],
-  ];
-  return canvasTexture((ctx, w, h) => {
-    ctx.beginPath();
-    pts.forEach(([x, y], i) => {
-      if (i === 0) ctx.moveTo((x / 100) * w, (y / 100) * h);
-      else ctx.lineTo((x / 100) * w, (y / 100) * h);
-    });
-    ctx.closePath();
-    ctx.fillStyle = '#FFE9A8';
-    ctx.fill();
-  }, 68, 68);
-}
-
-function radialTexture(): Texture {
-  return canvasTexture((ctx, w, h) => {
-    const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
-    g.addColorStop(0, 'rgba(255,75,92,0.4)');
-    g.addColorStop(0.7, 'rgba(255,75,92,0)');
-    g.addColorStop(1, 'rgba(255,75,92,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-  }, 110, 110);
-}
-
-function ellipseTexture(color: string): Texture {
-  return canvasTexture((ctx, w, h) => {
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-  }, 128, 41);
-}
-
-function ringTexture(): Texture {
-  return canvasTexture((ctx, w, h) => {
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h / 2, w / 2 - 2, h / 2 - 2, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = '#D8B988';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-  }, 30, 12);
-}
-
-function circleTexture(color: string): Texture {
-  return canvasTexture((ctx, w, h) => {
-    ctx.beginPath();
-    ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-  }, 32, 32);
-}
-
-function tracerTexture(): Texture {
-  return canvasTexture((ctx, w, h) => {
-    const g = ctx.createLinearGradient(0, 0, w, 0);
-    g.addColorStop(0, 'rgba(255,215,106,0)');
-    g.addColorStop(0.55, '#FFD76A');
-    g.addColorStop(1, '#FFFFFF');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-  }, 64, 3);
-}
-
-function solidTexture(color: string): Texture {
-  return canvasTexture((ctx, w, h) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(0, 0, w, h);
-  }, 4, 4);
-}
-
-/** The held weapon's texture: the bespoke manifest sprite, or the
- *  card compositor's HELD-mode render painted to a canvas (One
- *  Grammar, 2026-11-06) — the same pixels PixelWeapon shows at
- *  'held' density on the DOM stage. */
-async function weaponTexture(props: BossFightStageProps): Promise<Texture | null> {
-  if (!props.weapon) return null;
-  const input = pixelWeaponInputFromWeapon(props.weapon);
-  const bespokeId = bespokeSpriteIdForWeapon(input);
-  if (bespokeId) {
-    const sprite = getPixelSprite(bespokeId);
-    if (sprite) return loadTexture(sprite.url);
-  }
-  const render = composeWeaponCardCached(input, undefined, { held: true });
-  const canvas = document.createElement('canvas');
-  canvas.width = render.width;
-  canvas.height = render.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-  paintWeaponCard(ctx, render, 1);
-  return nearest(Texture.from(canvas));
 }
 
 interface StageModel {
@@ -379,13 +245,6 @@ function derivePhaseModel(
   };
 }
 
-function slotTweenDurationMs(slot: string): number {
-  if (slot === 'armUpperN' || slot === 'armForeN' || slot === 'armFar') return MOVEMENT.SEGMENT.ARM_RAISE_MS;
-  if (slot === 'head') return MOVEMENT.SEGMENT.HEAD_TRACK_MS;
-  return MOVEMENT.SEGMENT.STEP_BOB_MS;
-}
-
-
 // ── Stage runtime: the mutable scene state, owned outside React ────
 // The Pixi scene graph is imperative by design (it is a game stage,
 // not a view tree): all per-frame state lives in this one runtime
@@ -454,7 +313,7 @@ function applyPose(rt: StageRuntime, model: PhaseModel, now: number): void {
       from: node.rotationDeg,
       to: placement.rotationDeg,
       startMs: now,
-      durationMs: slotTweenDurationMs(node.slot),
+      durationMs: partSlotTweenDurationMs(node.slot),
       overshoot: model.poseName === 'recoil' && isArm,
     };
   }
@@ -887,7 +746,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
         loadTexture(background.url),
         propSprite ? loadTexture(propSprite.url) : Promise.resolve(null),
         loadTexture(stage.bossSprite.url),
-        weaponTexture(initialProps),
+        weaponTextureForWeapon(initialProps.weapon),
       ]);
       // Part textures for the pilot pose layout (the set is fixed for
       // the fight's duration; palettes resolve exactly as the DOM

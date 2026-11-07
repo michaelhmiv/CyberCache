@@ -46,6 +46,12 @@ import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadout
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
+import { detectWebGL } from '@/components/pixelArt/pixi/detectWebGL';
+import type { RoamPixiStageProps } from '@/components/pixelArt/pixi/RoamPixiStage';
+
+const RoamPixiStageLazy = React.lazy(() =>
+  import('@/components/pixelArt/pixi/RoamPixiStage').then((m) => ({ default: m.RoamPixiStage })),
+);
 import { BossFightStage } from '@/components/pixelArt/BossFightStage';
 import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMoment';
 import { DROP_RISE_GRIDS, dropRisePalette } from '@/lib/pixel/dropRiseIcons';
@@ -321,7 +327,7 @@ const BenchRiseIcon: React.FC<{ entry: WorkshopCompletionView }> = ({ entry }) =
   return <BenchItemRender plan={benchRisePlanForEntry(entry, items)} testId="bench-rise-render" />;
 };
 
-const PixelSceneLayer: React.FC<{
+const PixelSceneLayerDom: React.FC<{
   backgroundId: string;
   /** Bespoke boss sprite id for boss fights (resolved by the parent from
    *  the challenged boss's def); roaming targets resolve by archetype. */
@@ -1088,6 +1094,97 @@ const PixelSceneLayer: React.FC<{
   );
 };
 
+// ── Scene renderer switch (Motion Reboot M2, 2026-11-07) ─────────────
+// PixelSceneLayer is now a renderer switch on the BossFightStage
+// pattern: when the mode is ROAMING, WebGL is available, and motion
+// is not reduced, the Pixi stage (code-split, lazy-loaded on first
+// roam) carries the scene; every other mode — and roaming under
+// reduced motion, no WebGL context, or any Pixi init/texture
+// failure — renders the DOM scene above, byte-identical to before
+// M2. Both renderers consume the same stores, the same tick events,
+// and the same movement.ts law; the M2 PR carries the A/B evidence.
+const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>> = (props) => {
+  const webgl = React.useMemo(() => detectWebGL(), []);
+  const [pixiFailed, setPixiFailed] = useState(false);
+  const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
+  const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
+  // The DOM scene resolves mounted gear from the loadout/inventory
+  // stores itself; the Pixi scene receives the same resolution as a
+  // prop (its derivation lives beside the component).
+  const loadoutConsumables = useLoadoutStore((state) => state.consumables);
+  const equippedShieldId = useLoadoutStore((state) => state.slots.shield);
+  const equippedRelicId = useLoadoutStore((state) => state.slots.relic);
+  const equippedClassModId = useLoadoutStore((state) => state.slots.classMod);
+  const shieldItem = useInventoryStore((state) =>
+    equippedShieldId ? state.items.find((i) => i.id === equippedShieldId) : undefined,
+  );
+  const relicItem = useInventoryStore((state) =>
+    equippedRelicId ? state.items.find((i) => i.id === equippedRelicId) : undefined,
+  );
+  const classModItem = useInventoryStore((state) =>
+    equippedClassModId ? state.items.find((i) => i.id === equippedClassModId) : undefined,
+  );
+  const mountedGear = React.useMemo(
+    () =>
+      mountedGearForLoadout({
+        shield: isShieldItem(shieldItem) ? shieldItem : undefined,
+        relic: isRelicItem(relicItem) ? relicItem : undefined,
+        classMod: isClassModItem(classModItem) ? classModItem : undefined,
+        consumables: [loadoutConsumables.PreFight, loadoutConsumables.MidFight, loadoutConsumables.Emergency],
+      }),
+    [shieldItem, relicItem, classModItem, loadoutConsumables],
+  );
+  if (props.mode !== 'roaming' || props.reduced || !webgl || pixiFailed) {
+    return <PixelSceneLayerDom {...props} />;
+  }
+  const pixiProps: RoamPixiStageProps = {
+    backgroundId: props.backgroundId,
+    weapon: props.weapon,
+    event: props.event,
+    areaId: props.areaId,
+    hot: props.hot,
+    targetMaxHp,
+    currentTargetId: currentTargetId ?? undefined,
+    mountedGear,
+    onPixiError: () => setPixiFailed(true),
+  };
+  return (
+    <React.Suspense fallback={<PixelSceneLayerDom {...props} />}>
+      <RoamPixiStageLazy {...pixiProps} />
+      {/* DOM companions the Pixi scene does not carry: the hunter
+          HP plate (a sibling of the hunter wrapper in the DOM
+          scene, anchored to his placement) — rendered here so it
+          rides the Pixi path identically. */}
+      <RoamHunterHpPlate groundY={getPixelSprite(props.backgroundId)?.anchors.groundLine?.y ?? 0.86} />
+    </React.Suspense>
+  );
+};
+
+/** The hunter HP plate for the Pixi roam path — the identical
+ *  plate PixelSceneLayer renders in the DOM scene (same placement,
+ *  same lift, same store), as a sibling of the scene so canvas
+ *  beats never drag it. */
+const RoamHunterHpPlate: React.FC<{ groundY: number }> = ({ groundY }) => {
+  const hunterHp = useSurvivalStore((state) => state.currentHp);
+  const hunterMaxHp = useSurvivalStore((state) => state.maxHp);
+  const hunterHpRatio = hunterMaxHp > 0 ? Math.max(0, Math.min(1, hunterHp / hunterMaxHp)) : 1;
+  const hunterHpColor = hunterHpRatio >= 0.6 ? '#4ADE80' : hunterHpRatio >= 0.3 ? '#FF9000' : '#F87171';
+  return (
+    <div
+      data-testid="diorama-hunter-hp"
+      className="pointer-events-none absolute z-20 w-[104px] border-2 border-border bg-bg/85 px-1.5 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
+      style={{ ...signClip, left: '22%', top: `${(groundY - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
+    >
+      <div className="mb-0.5 flex items-baseline justify-between gap-1 text-[11px] font-black leading-none">
+        <span className="text-text-muted">HP</span>
+        <span style={{ color: hunterHpColor }}>{Math.round(hunterHp)}/{Math.round(hunterMaxHp)}</span>
+      </div>
+      <GhostHpBar pct={hunterHpRatio * 100} color={hunterHpColor} barClassName="h-[9px]" testId="diorama-hunter-hp-bar" />
+    </div>
+  );
+};
+
+
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
 export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, boss, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls }) => {
@@ -1099,8 +1196,9 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const scene = getLiveTurfScene(area);
   // SVG-closure (2026-11-07): the vector fallback scene is deleted —
   // every roaming area resolves a pixel background (CI-asserted in
-  // pixelWave1.test), and an unmapped id takes the Dustwaste default,
-  // the same idiom ExtractionPanel and ChestScreen already use.
+  // pixelWave1.test); an unmapped id resolves to undefined and NO
+  // scene renders — the stage shell and its overlays only (PR #446
+  // semantics, pinned by pixelDiorama.test.tsx).
   const pixelBackgroundId = pixelBackgroundForArea(area.id);
   // The diorama identifies the challenged boss by name; resolve its
   // bespoke pixel sprite through the boss def id (P4 wave 1).
