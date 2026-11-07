@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
 import {
   CritFlash,
