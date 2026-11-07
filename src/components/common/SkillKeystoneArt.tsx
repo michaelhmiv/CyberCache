@@ -1,15 +1,24 @@
 /**
- * SkillKeystoneArt — high-detail procedural SVG for skill tree nodes.
+ * SkillKeystoneArt — skill tree node art (pixel conversion, 2026-11-07).
  *
- * Renders a 60×60 SVG with node-type-specific shapes (hexagon for minor,
- * octagon for major, 12-pointed star for keystone), connection stubs,
- * lock indicators, and animated glow for unlocked keystones.
+ * Was a procedural SVG (hexagon/octagon/12-point star paths, gradient
+ * glow, stroke stubs). Under the owner's SVG-closure ruling it is now
+ * authored texel data: the three node shapes are checked-in 30×30
+ * grids (outline key 'E' takes the form's own border color — selout;
+ * fill 'F', connection stubs 'S', inner marks 'A', radiating ticks
+ * 'T', glow bands 'G'/'g'/'h'), painted on canvas by PixelGridCanvas.
+ * The tree sigil and the lock mark are the game's PX_ICONS rect data,
+ * composited over the grid exactly where the SVG embedded them.
  *
- * All colors derive from the SkillTreeVisual registry — nothing hardcoded.
+ * All colors derive from the SkillTreeVisual registry — nothing hardcoded
+ * except the locked-state greys, as before.
  */
-import React, { useId } from 'react';
-import { PxIconGlyph } from '@/components/pixelArt/PxIcon';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { PixelGridCanvas, type PixelGridPalette } from '@/components/pixelArt/PixelGridCanvas';
+import { PX_ICONS, PX_ICON_TONE_FILLS, type PxIconName } from '@/lib/pixel/icons';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
+import { buildKeystoneGrid } from '@/lib/pixel/keystoneArt';
 import type { SkillTreeType } from '@/types/game';
 
 type NodeType = 'small' | 'major' | 'keystone';
@@ -29,24 +38,28 @@ interface SkillKeystoneArtProps {
   animate?: boolean;
 }
 
-// Node shape paths centered at (30,30) in a 60×60 viewBox
-const NODE_SHAPES: Record<NodeType, string> = {
-  // Hexagon (small)
-  small: 'M30 10 L48 20 L48 40 L30 50 L12 40 L12 20 Z',
-  // Octagon (major)
-  major: 'M22 10 L38 10 L50 22 L50 38 L38 50 L22 50 L10 38 L10 22 Z',
-  // 12-pointed star (keystone)
-  keystone:
-    'M30 6 L34 14 L42 12 L40 20 L48 24 L42 30 L48 36 L40 40 L42 48 L34 46 L30 54 L26 46 L18 48 L20 40 L12 36 L18 30 L12 24 L20 20 L18 12 L26 14 Z',
-};
 
-// Connection stub endpoints (4 directions from node edges)
-const STUBS = [
-  { x1: 30, y1: 10, x2: 30, y2: 4 },   // top
-  { x1: 48, y1: 30, x2: 54, y2: 30 },   // right
-  { x1: 30, y1: 50, x2: 30, y2: 56 },   // bottom
-  { x1: 12, y1: 30, x2: 6, y2: 30 },    // left
-];
+/** Paint PX_ICONS rect data onto a canvas in grid coordinates. */
+function paintGlyph(
+  ctx: CanvasRenderingContext2D,
+  name: PxIconName,
+  originX: number,
+  originY: number,
+  scale: number,
+  color: string,
+  alpha: number,
+): void {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (const r of PX_ICONS[name]) {
+    const tone = r[4];
+    const toneFill = tone ? PX_ICON_TONE_FILLS[tone] : undefined;
+    ctx.globalAlpha = alpha * (toneFill ? toneFill.opacity : 1);
+    ctx.fillStyle = toneFill ? toneFill.fill : color;
+    ctx.fillRect(originX + r[0] * scale, originY + r[1] * scale, r[2] * scale, r[3] * scale);
+  }
+  ctx.restore();
+}
 
 export const SkillKeystoneArt: React.FC<SkillKeystoneArtProps> = ({
   tree,
@@ -59,107 +72,72 @@ export const SkillKeystoneArt: React.FC<SkillKeystoneArtProps> = ({
   animate = false,
 }) => {
   const visual = getSkillTreeVisual(tree);
-  const uid = useId().replace(/[:]/g, '');
-  const glowGradId = `skillGlow-${uid}`;
-  const pulseName = `skillPulse-${uid}`;
-  const shape = NODE_SHAPES[nodeType];
-  const strokeWidth = nodeType === 'keystone' ? 2 : nodeType === 'major' ? 1.5 : 1;
+  const { rows, glowRows } = buildKeystoneGrid(nodeType, unlocked);
+
+  const palette: PixelGridPalette = unlocked
+    ? {
+        F: { color: visual.color, alpha: 0.25 },
+        E: { color: visual.color, alpha: 0.9 },
+        S: { color: visual.color, alpha: 0.6 },
+        A: { color: visual.accentColor, alpha: 0.8 },
+        T: { color: visual.accentColor, alpha: 0.6 },
+      }
+    : {
+        F: { color: '#3a3a4e', alpha: 0.5 },
+        E: { color: '#666666', alpha: 0.5 },
+        S: { color: '#555555', alpha: 0.3 },
+        A: { color: '#888888', alpha: 0.8 },
+        T: { color: '#888888', alpha: 0.6 },
+      };
+  const glowPalette: PixelGridPalette = {
+    G: { color: visual.accentColor, alpha: 0.5 },
+    g: { color: visual.accentColor, alpha: 0.3 },
+    h: { color: visual.accentColor, alpha: 0.15 },
+  };
+
+  const paintOver = (ctx: CanvasRenderingContext2D) => {
+    if (nodeType === 'keystone') {
+      // Tree sigil: the SVG embedded the glyph at translate(22 22)
+      // in the 60-box — grid origin (11, 11), half a texel per unit.
+      paintGlyph(ctx, visual.sigil, 11, 11, 0.5, unlocked ? visual.accentColor : '#888888', 0.95);
+    }
+    if (locked) {
+      // Lock mark: was the 'x' glyph at translate(23 23) scale(.875).
+      paintGlyph(ctx, 'x', 11.5, 11.5, 0.4375, '#999999', 0.6);
+    }
+  };
+
+  const glow = unlocked ? (
+    <PixelGridCanvas rows={glowRows} palette={glowPalette} className="absolute inset-0 block h-full w-full" aria-hidden="true" />
+  ) : null;
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 60 60"
-      className={className}
+    <span
+      className={`relative inline-block ${className}`}
+      style={{ width: size, height: size }}
       role="img"
       aria-label={`${visual.label} ${nodeType} node${spentPoints !== undefined ? (spentPoints > 0 ? ' (unlocked)' : unlocked ? ' (available)' : ' (locked)') : unlocked ? ' (unlocked)' : ' (locked)'}`}
-      xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
-        <radialGradient id={glowGradId} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor={visual.accentColor} stopOpacity="0.7" />
-          <stop offset="60%" stopColor={visual.accentColor} stopOpacity="0.2" />
-          <stop offset="100%" stopColor={visual.accentColor} stopOpacity="0" />
-        </radialGradient>
-        {animate && unlocked && (
-          <style>{`
-            @keyframes ${pulseName} {
-              0%, 100% { opacity: 0.4; transform: scale(1); }
-              50% { opacity: 0.8; transform: scale(1.12); }
-            }
-          `}</style>
-        )}
-      </defs>
-
-      {/* Glow background (unlocked only) */}
-      {unlocked && (
-        <circle
-          cx="30"
-          cy="30"
-          r="26"
-          fill={`url(#${glowGradId})`}
-          style={
-            animate
-              ? { animation: `${pulseName} 2.5s ease-in-out infinite`, transformBox: 'fill-box', transformOrigin: 'center' }
-              : undefined
-          }
-        />
+      {animate && unlocked ? (
+        <motion.span
+          className="absolute inset-0 block"
+          animate={{ opacity: [0.55, 1, 0.55], scale: [1, 1.1, 1] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          {glow}
+        </motion.span>
+      ) : (
+        glow
       )}
-
-      {/* Connection stubs */}
-      {STUBS.map((s, i) => (
-        <line
-          key={i}
-          x1={s.x1}
-          y1={s.y1}
-          x2={s.x2}
-          y2={s.y2}
-          stroke={unlocked ? visual.color : '#555'}
-          strokeWidth="1.5"
-          strokeOpacity={unlocked ? 0.6 : 0.3}
-        />
-      ))}
-
-      {/* Node background shape */}
-      <path
-        d={shape}
-        fill={unlocked ? visual.color : '#3a3a4e'}
-        fillOpacity={unlocked ? 0.25 : 0.5}
-        stroke={unlocked ? visual.color : '#666'}
-        strokeWidth={strokeWidth}
-        strokeOpacity={unlocked ? 0.9 : 0.5}
+      <PixelGridCanvas
+        rows={rows}
+        palette={palette}
+        paintOver={paintOver}
+        className="absolute inset-0 block h-full w-full"
+        aria-hidden="true"
       />
-
-      {/* Inner pattern by node type */}
-      {nodeType === 'small' && (
-        <circle cx="30" cy="30" r="3" fill={unlocked ? visual.accentColor : '#888'} fillOpacity="0.8" />
-      )}
-
-      {nodeType === 'major' && (
-        <>
-          <line x1="30" y1="22" x2="30" y2="38" stroke={unlocked ? visual.accentColor : '#888'} strokeWidth="2" strokeOpacity="0.8" />
-          <line x1="22" y1="30" x2="38" y2="30" stroke={unlocked ? visual.accentColor : '#888'} strokeWidth="2" strokeOpacity="0.8" />
-        </>
-      )}
-
-      {nodeType === 'keystone' && (
-        <>
-          {/* Tree sigil as pixel icon */}
-          <g transform="translate(22 22)" opacity={0.95}>
-            <PxIconGlyph name={visual.sigil} color={unlocked ? visual.accentColor : '#888'} />
-          </g>
-          {/* Radiating lines */}
-          <line x1="30" y1="10" x2="30" y2="6" stroke={unlocked ? visual.accentColor : '#888'} strokeWidth="1" strokeOpacity="0.6" />
-          <line x1="30" y1="50" x2="30" y2="54" stroke={unlocked ? visual.accentColor : '#888'} strokeWidth="1" strokeOpacity="0.6" />
-        </>
-      )}
-
-      {/* Lock indicator */}
-      {locked && (
-        <g transform="translate(23 23) scale(0.875)" opacity={0.6}>
-          <PxIconGlyph name="x" color="#999" />
-        </g>
-      )}
-    </svg>
+    </span>
   );
 };
+
+export default SkillKeystoneArt;

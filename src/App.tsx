@@ -11,7 +11,6 @@ import { ProfileScreen } from './screens/ProfileScreen';
 import { LeaderboardsScreen } from './screens/LeaderboardsScreen';
 import { TabErrorBoundary } from './components/layout/TabErrorBoundary';
 import { DeathOverlay } from './components/action/DeathOverlay';
-import { SharedDefsMount } from './components/gearArt/SharedDefs';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HelpScreen } from './screens/HelpScreen';
 import { CollectionsScreen } from './screens/CollectionsScreen';
@@ -397,10 +396,6 @@ function App() {
       )}
 
       <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); setHomeCraftIntent(null); }} />
-      {/* One document-level copy of the shared SVG surface filters;
-          every gear illustration references them by ID (gear-grid
-          perf audit, 2026-11-02 — they were duplicated per item). */}
-      <SharedDefsMount />
       <DeathOverlay />
       <SalvageToastContainer />
       {/* The offline recap no longer mounts here: it lives in the

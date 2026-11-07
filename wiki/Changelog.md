@@ -14,6 +14,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **One lane for the maker helms** — the six manufacturer helmets leave the crafting shelf and live only in the Standing picks, where they always also belonged (they are visor recolors, and the catalog now says so — part labels tell the truth about palette vs shaped). If you already crafted one, nothing changes: yours still equips, wears, and trades exactly as before, and any already-listed helm completes its sale. The Hood is a real hood now — a shaped cowl instead of the old flat slab.
 - **Item art is lint-checked now** — every procedurally drawn item in the game (weapons, gear, consumables, materials — 366 renders across every system) is checked in CI against the pixel craft standard: hue-shifted ramps, selective outlines, cluster discipline, and a ban on banded shading. The standard that made item art read richer yesterday now fails the build if it ever regresses.
 - **Dead weight overboard** — the stage's retired vector fallback scene and an unused area-background component are deleted outright: the pixel stage is the only stage now, with no dormant second scene waiting behind it. The game's logo file also ships at a quarter of its old weight (the lossless master stays in the repo for store use) — same logo, same picture, less to download.
+- **The last smooth-vector art is gone** — skill-tree nodes, your profile trend lines, the consumable ring, the workbench's spark bursts, and the little icons that rise off a kill when loot lands are all drawn in the game's pixel hand now, and they lint under the same craft standard as item art. They show exactly what they showed before — they just finally match everything around them. A long-retired fallback stage that had been riding in the build unused went out the same door.
 
 ## 2026-11-06 — Gear reads faster, the Manual moves in
 
@@ -170,9 +171,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 180 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 182 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-07** — 8 merges
+**2026-11-07** — 10 merges
 
 - #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
 - #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
@@ -182,6 +183,8 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #440 — docs(wiki): Changelog — One Grammar, work cycle, maker-helm lane
 - #441 — Migration 0086: retire maker-helm recipes from the craft catalog (H1 follow-through)
 - #442 — Pxl Craft Sweep S4 — small items unified onto one core + thumb form pass
+- #443 — S5: authored bases pilot — the sniper (Pxl Craft Sweep)
+- #444 — Pxl S3: gear-engine craft pass — selout, broken-edge toolkit, wear ladder, Absorb rewrite
 
 **2026-11-06** — 10 merges
 

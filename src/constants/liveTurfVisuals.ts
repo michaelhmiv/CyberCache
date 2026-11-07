@@ -1,4 +1,4 @@
-import { Element, Manufacturer } from '@/types/game';
+import { Manufacturer } from '@/types/game';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 
 export type LiveTurfSceneVisual = {
@@ -118,15 +118,6 @@ export const MANUFACTURER_SCENE_ACCENT: Record<Manufacturer, string> = {
   [Manufacturer.Prismatek]: '#A855F7',
   [Manufacturer.ThrowTech]: '#06B6D4',
   [Manufacturer.HelixWorks]: '#3B82F6',
-};
-
-export const ELEMENT_PROJECTILE: Record<Element, { color: string; glow: string; label: string }> = {
-  [Element.Kinetic]: { color: '#F5F5F5', glow: '#B8B0A8', label: 'rounds' },
-  [Element.Fire]: { color: '#FF4B1F', glow: '#FFEA3A', label: 'burn' },
-  [Element.Shock]: { color: '#3B82F6', glow: '#A5F3FC', label: 'arc' },
-  [Element.Corrosive]: { color: '#22C55E', glow: '#C4FF2F', label: 'acid' },
-  [Element.Cryo]: { color: '#06B6D4', glow: '#E0F2FE', label: 'frost' },
-  [Element.Void]: { color: '#8B5CF6', glow: '#FF9DF5', label: 'void' },
 };
 
 export function getLiveTurfScene(area: RoamingAreaDef): LiveTurfSceneVisual {

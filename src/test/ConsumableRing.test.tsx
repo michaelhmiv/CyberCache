@@ -3,12 +3,19 @@ import { render, fireEvent } from '@testing-library/react';
 import { ConsumableRing } from '@/components/stats/ConsumableRing';
 import { ConsumableType } from '@/types/game';
 
+// The ring renders on canvas (pixel conversion, 2026-11-07); the
+// loaded slices are carried as a `slot:id` list on the canvas.
+const sliceCount = (container: HTMLElement): number => {
+  const attr = container.querySelector('[data-consumable-slices]')?.getAttribute('data-consumable-slices');
+  return attr ? attr.split(',').filter(Boolean).length : 0;
+};
+
 describe('ConsumableRing', () => {
   it('renders an empty ring with no slices when no consumables are loaded', () => {
     const { container } = render(
       <ConsumableRing consumables={{ PreFight: null, MidFight: null, Emergency: null }} onClick={() => {}} />
     );
-    expect(container.querySelectorAll('[data-consumable-slice]')).toHaveLength(0);
+    expect(sliceCount(container)).toBe(0);
     expect(container.querySelector('[data-consumable-empty]')).toBeInTheDocument();
   });
 
@@ -19,7 +26,7 @@ describe('ConsumableRing', () => {
         onClick={() => {}}
       />
     );
-    expect(container.querySelectorAll('[data-consumable-slice]')).toHaveLength(2);
+    expect(sliceCount(container)).toBe(2);
   });
 
   it('invokes onClick when the ring is tapped', () => {
@@ -41,7 +48,7 @@ describe('ConsumableRing', () => {
         onClick={() => {}}
       />
     );
-    expect(container.querySelectorAll('[data-consumable-slice]')).toHaveLength(3);
+    expect(sliceCount(container)).toBe(3);
   });
 
   it('ignores invalid consumable IDs without crashing', () => {
@@ -54,10 +61,10 @@ describe('ConsumableRing', () => {
         onClick={() => {}}
       />
     );
-    expect(container.querySelectorAll('[data-consumable-slice]')).toHaveLength(1);
+    expect(sliceCount(container)).toBe(1);
   });
 
-  it('honors the size prop for the SVG viewport', () => {
+  it('honors the size prop for the canvas box', () => {
     const { container } = render(
       <ConsumableRing
         consumables={{ PreFight: null, MidFight: null, Emergency: null }}
@@ -65,9 +72,9 @@ describe('ConsumableRing', () => {
         size={80}
       />
     );
-    const svg = container.querySelector('svg');
-    expect(svg?.getAttribute('width')).toBe('80');
-    expect(svg?.getAttribute('height')).toBe('80');
+    const canvas = container.querySelector('canvas');
+    expect(canvas?.style.width).toBe('80px');
+    expect(canvas?.style.height).toBe('80px');
   });
 
   it('shows an active pulse when active buffs are supplied', () => {
