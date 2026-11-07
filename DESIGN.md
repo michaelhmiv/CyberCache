@@ -869,6 +869,36 @@ disabled, 2026-11-06). Wear and godroll sparkles are live and
 stay. Remaining sweep slices (lint gate, gear-engine pass,
 small-item unification, authored-base pilot) land separately.
 
+**S2 (2026-11-06) — the lint gate.** The standard above now has
+teeth in CI: `src/test/pxlCraftLintGate.test.ts` runs the ported
+pxl lint (orphan / jaggy / pillow / colors / near-duplicate —
+upstream semantics, `src/test/pixelLint.ts`) plus the homegrown
+banding rule over a seeded corpus of 366 real generated items
+spanning every composited system at every shipped density
+(weapons stage + card; shields, ordnance, class mods, relics at
+plate + thumb; all consumables and materials at object + thumb).
+Banding — the one rule upstream pxl lacks — is defined in the
+lint source and checks both faces of the defect: marching strips
+whose tones step in lightness only, and the latent form, a ramp
+whose used tones travel < 4° of hue (a straight lerp travels
+exactly 0°). Calibrated honestly, not absolutely: banding
+asserts ZERO and demonstrably bites — the identical corpus
+rendered by pre-S1 code (master `a49d9e5`) produces 386 banding
+findings and fails 7 of the gate's 8 system suites. Orphan and
+jaggy assert per-system budgets pinned at the S1-trained
+baseline's per-render maxima, because §8's own detail language
+(single-texel rivets, vents, stripes; the relic SALVAGE scatter)
+sanctions the single cells an absolute-zero rule would condemn —
+the gate freezes the trained noise ceiling instead, and any new
+stray cell beyond it fails. Pillow and near-duplicate assert
+zero with a short named allowlist (the Shock Legendary conduit
+cores are emissive by design; two identity-hex pairs sit within
+the metric's distance and palette law forbids moving either
+side). The weapon pixel path answers to the pxl rules but sits
+out banding: its palette is the master mapping S1 pinned
+byte-exact, and its forms retire with One Grammar (§10), which
+moves the stage onto the card grammar this gate already covers.
+
 ---
 
 ## 9. Surfacing — one canonical door per feature
