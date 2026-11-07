@@ -47,12 +47,15 @@ describe('manifest completeness (§4)', () => {
     }
   });
 
-  it('every archetype resolves its sprite, rig kit, and death poses', () => {
+  it('every archetype resolves its sprite and rig kit', () => {
+    // The baked death-pose sprites (death-{archetype}-{a,b}) were
+    // deleted in the 2026-11-07 hero ship slice: nothing ever rendered
+    // them — stage death is played by the rig's `death` pose — and they
+    // cost 244,492 B of payload. Do not re-add them here; if death
+    // poses return, they are authored on the rig, not baked flats.
     for (const archetype of ['fodder', 'runner', 'brute', 'sniper', 'elite']) {
       const rig = enemyRig(archetype);
       for (const seg of rig.segments) expect(has(seg.spriteId), seg.spriteId).toBe(true);
-      expect(has(`death-${archetype}-a`)).toBe(true);
-      expect(has(`death-${archetype}-b`)).toBe(true);
     }
     for (const part of Object.values(STANDARD_ISSUE.parts)) {
       if (part) expect(has(part.spriteId), part.spriteId).toBe(true);
@@ -222,6 +225,16 @@ describe('performance + payload budgets (§4.9)', () => {
     // wave-1 total 11,602,851 B. The new ceiling leaves ~17 KB of
     // headroom — the next skin lands with its own accounting and
     // its own deliberate raise, exactly like this one.
+    // Hero pxl ship (2026-11-07): the character conversion REPLACED
+    // the 39 baked character sprites (413,061 B on this tree) with
+    // pxl-authored renders — 38 ship (34,483 B incl. the retained H1
+    // hood cowl; the pxl hood was excluded by owner ruling) for
+    // −378,578 B — and the 10 never-rendered death-pose sprites were
+    // deleted (−244,492 B). Post-ship total 10,971,493 B. The ceiling
+    // is NOT lowered: it stays 11,620,000 by owner ruling (held
+    // deliberately, 2026-11-06), and the freed ~649 KB is headroom
+    // for the bestiary conversion, which lands with its own
+    // accounting exactly like this one.
     expect(total).toBeLessThan(11_620_000);
   });
 });
