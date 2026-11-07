@@ -132,6 +132,9 @@ function paintPlaque(canvas: GearCanvas, lay: GearLayout, input: GearComposeInpu
     Math.min(input.pips ?? 0, PIP_TOTAL),
     PIP_TOTAL,
   );
+  // The plaque carries the affix read — a data surface the core
+  // wear ladder may never land on (S3 floor 7).
+  canvas.protect(lay.plaqueX - 1, lay.plaqueY - 1, lay.plaqueW + 2, lay.plaqueH + 2);
 }
 
 /* ------------------------------------------------------------------ */
@@ -154,16 +157,26 @@ const paintSpike: FormPaint = (canvas, _input, lay) => {
   const r0 = rBody * 0.80;
   const r1 = rBody * (1.42 + spikeGrow * 0.05);
 
-  // Stabilizer pods, left and right, with outward spikes.
-  const podLen = Math.round(lay.playW * 0.20);
-  const podH = Math.max(3, Math.round(lay.u * 0.30));
-  const podY = cy - Math.floor(podH / 2);
+  // Stabilizer pods, left and right, with outward spikes — the
+  // pair DIVERGES per side now (S3-5): length, height, and the
+  // stripe seat are drawn per pod from the stream.
   const spikeLen = Math.round(lay.u * 0.15);
   for (const side of [-1, 1] as const) {
+    const podLen = Math.round(lay.playW * 0.20) + (canvas.pick(3) - 1) * 3;
+    const podH = Math.max(3, Math.round(lay.u * 0.30)) + (canvas.pick(3) - 1) * 2;
+    const podY = cy - Math.floor(podH / 2);
     const housingEdge = lay.cx + side * (rBody + 4);
     const hx = side < 0 ? housingEdge - podLen : housingEdge;
     canvas.rect(hx, podY, podLen, podH, 'd');
     canvas.rect(hx, podY + Math.floor(podH * 0.3), podLen, Math.max(1, Math.floor(podH * 0.4)), 'P');
+    // Deep foot band: the pod sits IN its mount shadow. (At
+    // thumb the pod's lower 'd' section plus its selout row
+    // otherwise stacks into a flat d/D march — the S2 gate
+    // flagged it. The foot's edge is JITTERED, not straight:
+    // a straight deep band at card merely moves the march to
+    // the foot's own rows, as the gate also showed.)
+    const footH = Math.max(1, Math.round(podH * 0.25));
+    canvas.bandJittered(hx, podY + podH - footH, podLen, footH, 'D');
     const tipX = side < 0 ? hx - spikeLen : hx + podLen + spikeLen;
     canvas.poly(
       [
@@ -195,12 +208,19 @@ const paintSpike: FormPaint = (canvas, _input, lay) => {
       'd',
     );
   }
-  // Casing, frag groove, panel, stepped core.
+  // Casing, frag groove, panel, seated core (S3-5): the lit core
+  // sits a texel off-axis in its panel and the accent step is an
+  // off-center cluster, not a concentric disc pair.
   canvas.disc(lay.cx, cy, rBody, 'P');
   canvas.ring(lay.cx, cy, rBody * 0.8, rBody * 0.87, 'c', true);
   canvas.disc(lay.cx, cy, Math.round(rBody * 0.62), 'd');
-  canvas.disc(lay.cx, cy, Math.round(rBody * 0.4), 'E');
-  canvas.disc(lay.cx, cy, Math.round(rBody * 0.22), 'e');
+  const hubX = lay.cx + (canvas.pick(3) - 1);
+  const hubY = cy + (canvas.pick(3) - 1);
+  canvas.disc(hubX, hubY, Math.round(rBody * 0.4), 'E');
+  const clX = hubX - Math.max(1, Math.round(rBody * 0.07));
+  const clY = hubY - Math.max(1, Math.round(rBody * 0.07));
+  canvas.disc(clX, clY, Math.max(1, Math.round(rBody * 0.13)), 'e');
+  if (rBody >= 10) canvas.set(clX, clY, 'W');
   // Detail: seams out from the panel, wear at the rim.
   canvas.seam(lay.cx - rBody + 3, cy - Math.round(rBody * 0.5), lay.cx - Math.round(rBody * 0.66), cy - Math.round(rBody * 0.3));
   canvas.seam(lay.cx + Math.round(rBody * 0.66), cy + Math.round(rBody * 0.3), lay.cx + rBody - 3, cy + Math.round(rBody * 0.5));
@@ -238,24 +258,37 @@ const paintDisc: FormPaint = (canvas, _input, lay) => {
   // Dome: pale crown, base mid, deep skirt.
   ellipseRows(lay.cx, cyD, rx, ry, (f) => (f < -0.45 ? 'p' : f < 0.25 ? 'P' : 'D'));
   // Groove ring in element-deep: only texels whose normalized
-  // radius lands in the groove band, and only over the dome.
+  // radius lands in the groove band, and only over the dome. The
+  // band edge now JITTERs per angle from the stream (S3-5) — the
+  // groove is machined, not compass-drawn.
+  const grooveJit: number[] = [];
+  for (let i = 0; i < 32; i++) grooveJit.push((canvas.pick(3) - 1) * 0.03);
   for (let dy = -ry; dy <= ry; dy++) {
     for (let dx = -rx; dx <= rx; dx++) {
       const rn = Math.sqrt((dx / rx) ** 2 + (dy / ry) ** 2);
-      if (rn >= grooveJitter && rn <= grooveJitter + 0.09) canvas.over(lay.cx + dx, cyD + dy, 'c');
+      const bucket = Math.floor(((Math.atan2(dy / ry, dx / rx) + Math.PI) / (Math.PI * 2)) * 32) % 32;
+      const edge = grooveJitter + grooveJit[bucket];
+      if (rn >= edge && rn <= edge + 0.09) canvas.over(lay.cx + dx, cyD + dy, 'c');
     }
   }
-  // Hub + core.
+  // Hub + core, SEATED (S3-5): a dark socket ellipse, the hub a
+  // texel off-axis, the accent an off-center cluster — the flat
+  // emitter keeps its concentric identity, its steps are broken.
+  const hubX = lay.cx + (canvas.pick(3) - 1);
   const hubCy = cyD - Math.round(ry * 0.18);
-  ellipseRows(lay.cx, hubCy, Math.round(rx * 0.27), Math.max(2, Math.round(ry * 0.42)), () => 'd');
+  ellipseRows(hubX, hubCy, Math.round(rx * 0.31), Math.max(2, Math.round(ry * 0.48)), () => 'D');
+  ellipseRows(hubX, hubCy, Math.round(rx * 0.27), Math.max(2, Math.round(ry * 0.42)), () => 'd');
   const coreR = Math.max(2, Math.round(lay.u * 0.075));
-  canvas.disc(lay.cx, hubCy, coreR, 'E');
-  canvas.disc(lay.cx, hubCy, Math.max(1, Math.round(coreR * 0.5)), 'e');
+  canvas.disc(hubX, hubCy, coreR, 'E');
+  const clX = hubX - Math.max(1, Math.round(coreR * 0.4));
+  const clY = hubCy - Math.max(1, Math.round(coreR * 0.4));
+  canvas.disc(clX, clY, Math.max(1, Math.round(coreR * 0.45)), 'e');
+  if (coreR >= 5) canvas.set(clX, clY, 'W');
   // Detail: radial seams from the hub, rim rivets.
   for (let i = 0; i < 5; i++) {
     const a = seamRot + (i * Math.PI * 2) / 5;
     canvas.seam(
-      lay.cx + Math.round(Math.cos(a) * rx * 0.4), cyD + Math.round(Math.sin(a) * ry * 0.4),
+      hubX + Math.round(Math.cos(a) * rx * 0.4), cyD + Math.round(Math.sin(a) * ry * 0.4),
       lay.cx + Math.round(Math.cos(a) * rx * 0.92), cyD + Math.round(Math.sin(a) * ry * 0.92),
     );
   }
@@ -275,12 +308,15 @@ const paintDart: FormPaint = (canvas, _input, lay) => {
   const spineY = lay.playTop + Math.round(lay.playH * 0.46);
   const halfH = Math.max(3, Math.round(lay.u * 0.17));
 
-  // Tail fins (behind the body), swept and dark.
+  // Tail fins (behind the body), swept and dark — the pair's
+  // sweep DIVERGES per side from the seed now (S3-5).
   const finTop = Math.max(2, Math.round(halfH * 2.4));
+  const finReachTop = finTop + (canvas.pick(3) - 1) * 2;
+  const finReachBottom = finTop + (canvas.pick(3) - 1) * 2;
   canvas.poly(
     [
       [x0 + Math.round(L * 0.03), spineY - Math.round(halfH * 0.8)],
-      [x0 - Math.round(L * 0.015), spineY - finTop],
+      [x0 - Math.round(L * 0.015), spineY - finReachTop],
       [x0 + Math.round(L * 0.22), spineY - Math.round(halfH * 0.9)],
     ],
     'd',
@@ -288,7 +324,7 @@ const paintDart: FormPaint = (canvas, _input, lay) => {
   canvas.poly(
     [
       [x0 + Math.round(L * 0.03), spineY + Math.round(halfH * 0.8)],
-      [x0 - Math.round(L * 0.015), spineY + finTop],
+      [x0 - Math.round(L * 0.015), spineY + finReachBottom],
       [x0 + Math.round(L * 0.22), spineY + Math.round(halfH * 0.9)],
     ],
     'd',
@@ -317,7 +353,11 @@ const paintDart: FormPaint = (canvas, _input, lay) => {
   const eyeX = x0 + Math.round(L * (0.76 + eyeShift));
   const eyeR = Math.max(2, Math.round(halfH * 0.52));
   canvas.disc(eyeX, spineY, eyeR, 'E');
-  canvas.disc(eyeX, spineY, Math.max(1, Math.round(eyeR * 0.5)), 'e');
+  // The eye's bright heart is an off-center cluster (S3-5).
+  canvas.disc(
+    eyeX - Math.max(1, Math.round(eyeR * 0.35)), spineY - Math.max(1, Math.round(eyeR * 0.35)),
+    Math.max(1, Math.round(eyeR * 0.45)), 'e',
+  );
   // Detail: spine seam, fin stripe, tail vents.
   canvas.seam(x0 + Math.round(L * 0.1), spineY - halfH + 1, x0 + Math.round(L * 0.5), spineY - halfH + 1);
   canvas.stripe(x0 + Math.round(L * 0.05), spineY - finTop + Math.round(finTop * 0.4), Math.round(L * 0.08), 'e');
@@ -347,11 +387,12 @@ const paintCanister: FormPaint = (canvas, _input, lay) => {
     const inset = Math.round(wC * 0.18 * (1 - i / shoulderH));
     canvas.rect(x0 + inset, yTop + i, wC - inset * 2, 1, i === 0 ? 'p' : 'P');
   }
-  // Body + bands + deep base + edge rails.
+  // Body + bands + deep base + edge rails. The two body bands
+  // break per column now (S3-5, the core bandJittered move).
   canvas.rect(x0, yTop + shoulderH, wC, hC - shoulderH, 'P');
   const bandH = Math.max(2, Math.round(hC * 0.07));
-  canvas.rect(x0, yTop + Math.round(hC * 0.24), wC, bandH, 'd');
-  canvas.rect(x0, yTop + Math.round(hC * 0.76), wC, bandH, 'd');
+  canvas.bandJittered(x0, yTop + Math.round(hC * 0.24), wC, bandH, 'd');
+  canvas.bandJittered(x0, yTop + Math.round(hC * 0.76), wC, bandH, 'd');
   canvas.rect(x0, yBot - Math.max(2, Math.round(hC * 0.06)), wC, Math.max(2, Math.round(hC * 0.06)), 'D');
   const railW = Math.max(2, Math.round(wC * 0.07));
   canvas.rect(x0 + Math.round(wC * 0.06), yTop + shoulderH, railW, hC - shoulderH, 'd');
@@ -389,6 +430,7 @@ export const ordnanceGrammar: GearGrammar = {
   id: 'ordnance',
   kind: 'ordnance',
   plate: GEAR_CARD_PLATES.ordnance, // 240×120
+  wearLadder: true,
   paint(canvas, input) {
     const lay = layout(canvas);
     const form = (input.variant as OrdnanceFormId) in ORDNANCE_FORM_ROWS

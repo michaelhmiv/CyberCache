@@ -72,6 +72,16 @@ const cellDistance = (a: GearRender, b: GearRender) => {
   }
   return diff;
 };
+/** Cells where two renders' form masks disagree. */
+const formMaskDelta = (a: GearRender, b: GearRender) => {
+  const ma = formMaskOf(a).split('/');
+  const mb = formMaskOf(b).split('/');
+  let diff = 0;
+  for (let y = 0; y < ma.length; y++) for (let x = 0; x < ma[y].length; x++) {
+    if (ma[y][x] !== mb[y][x]) diff++;
+  }
+  return diff;
+};
 
 describe('shield grammar — registration + dispatch', () => {
   it('the shield grammar is registered in the total dispatch table', () => {
@@ -141,19 +151,23 @@ describe('shield grammar — golden signature pins', () => {
   // the four owner-approved v3 reference combos. Any intentional
   // art change re-pins these deliberately (and re-shoots the
   // capture sheets with scripts/render-shield-fixtures.ts).
+  // S3 re-pin (2026-11-07): broken-band casings, the Absorb
+    // rewrite, broken vents + scorch clusters, the wear ladder,
+    // and selective outline (S3-1..S3-4, S3-8). Acceptance corpus
+    // + form-diff report: cybercache-prep pxl-craft-sweep/s3-evidence/.
   const GOLDENS: Record<string, string> = {
-    'standard Kinetic Common card': 'c5b1ecac',
-    'standard Void Epic card': 'c9411d8b',
-    'nova Fire Epic card': 'eb811352',
-    'nova Shock Common card': '2fbf070a',
-    'absorb Void Legendary card': '44493f96',
-    'absorb Cryo Rare card': '2cdfcac2',
-    'amp Shock Legendary card': '7aa93f09',
-    'amp Corrosive Uncommon card': '97baa78b',
-    'turtle Kinetic Rare card': '106a822',
-    'turtle Fire Legendary card': '565b8a17',
-    'nova Fire Epic thumb': 'a62753f3',
-    'turtle Kinetic Rare thumb': '136badee',
+    'standard Kinetic Common card': 'c8af1228',
+    'standard Void Epic card': '65626e79',
+    'nova Fire Epic card': 'b66a98fc',
+    'nova Shock Common card': 'b623e66d',
+    'absorb Void Legendary card': 'a6c97fca',
+    'absorb Cryo Rare card': 'c871bb35',
+    'amp Shock Legendary card': '68ef2f07',
+    'amp Corrosive Uncommon card': '77d07702',
+    'turtle Kinetic Rare card': 'b92a648',
+    'turtle Fire Legendary card': '1b861a7c',
+    'nova Fire Epic thumb': '1c94886c',
+    'turtle Kinetic Rare thumb': 'a9f49fde',
   };
   const CASES: Record<string, { input: GearComposeInput; density: 'card' | 'thumb' }> = {
     'standard Kinetic Common card': { input: input({ variant: 'standard', element: Element.Kinetic, rarity: Rarity.Common, seed: 101, pips: 0 }), density: 'card' },
@@ -213,13 +227,32 @@ describe('shield grammar — family invariants', () => {
     }
   });
 
-  it('rarity is finish only: the form mask never changes with rarity', () => {
+  it('rarity is finish only: thumbs byte-identical across rarities; card form moves only inside the wear footprint', () => {
+    // S3-8 re-argument (the relic precedent, extended): pre-S3
+    // this asserted ONE form mask for all rarities, which held
+    // because the old finish (frame + ink outline) never touched
+    // a form cell. S3's finishes do, deliberately: the wear
+    // ladder (grill ruling 2) bites silhouette-edge cells at
+    // card density, and selective outline (S3-1) reclassifies an
+    // outline cell's mask membership when wear darkening moves
+    // its lightest neighbor across the deep-accent boundary.
+    // The invariant's intent — form never branches on rarity —
+    // is therefore pinned where it is exact and bounded where
+    // the finish legitimately reaches:
+    //   · thumb: byte-identical rows across rarities (the
+    //     ladder never runs at detail level 0);
+    //   · card: form-mask delta ≤ 96 cells (measured worst case
+    //     50 across the family × seed matrix, standard/7 — the
+    //     bound is that measurement with headroom, not a hope).
     for (const variant of BEHAVIORS) {
       const common = composeGear(input({ variant, rarity: Rarity.Common }), shieldGrammar);
       const legendary = composeGear(input({ variant, rarity: Rarity.Legendary }), shieldGrammar);
-      expect(formMaskOf(legendary)).toBe(formMaskOf(common));
       expect(legendary.signature).not.toBe(common.signature);
       expect(countShade(legendary, 'F')).toBeGreaterThan(countShade(common, 'F'));
+      expect(formMaskDelta(common, legendary)).toBeLessThanOrEqual(96);
+      const commonT = composeGear(input({ variant, rarity: Rarity.Common }), shieldGrammar, 'thumb');
+      const legendaryT = composeGear(input({ variant, rarity: Rarity.Legendary }), shieldGrammar, 'thumb');
+      expect(legendaryT.rows).toEqual(commonT.rows);
     }
   });
 });
