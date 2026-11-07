@@ -1082,6 +1082,70 @@ remaining five weapon types (~89 further pieces) is the
 owner's call on this slice's judgment package; S5 does not
 pre-decide it.
 
+**Hero ship (2026-11-07) — the character converts to pxl,
+whole.** The Pxl Everything program's character phase lands:
+all three part sets (Standard Issue, Bulwark, Dreadplate) and
+the head lane replace their baked AI paintings with renders
+authored in the pxl tool — palette ramps as swap keys, parts on
+the shared anchors, shapes as data — under the owner's ruling
+that the whole character converts as ONE build (no per-family
+gates, no converted pieces judged on the old art). Same sprite
+ids, same canvases, same PartDef anchors; the composed rig was
+proven whole before shipping (the integration pass: 18/18 set
+definitions — 3 sets, 5 cross-set mixes, 10 head swaps —
+lint-clean through the repo compositor, all 8 PART_POSES
+executing on pure and mixed rigs). Mix-and-match is the point:
+parts were never set-locked, and the conversion keeps every
+cross-set combination legal. **The Hood is excluded by owner
+ruling** — the pxl-authored cowl read wrong to the owner, so
+the hood slot keeps the H1 production cowl byte-for-byte (its
+md5 is unchanged in this slice's diff); the other 38 sprites
+ship. **Ink/emitter unification folds in:** one blue-black ink
+`#070b14` for SI, Bulwark, and the head lane; the emitter hot
+steps unified on the SI values (`V #3ce9f5`, `W #c8fcfb`, base
+`v #0397b2` already shared); the glint key `G #fdf394` declared
+in all three palettes. Dreadplate is exempt — its warm ink and
+red family are its approved identity. Two craft notes, both
+recorded in the sources: Bulwark's shades()-generated steel
+floor is pinned darker (`#06060f` → `#02030a`) because it sits
+inside the pxl lint's near-duplicate distance of the unified
+ink — the lint's own push-apart remedy, ramp order unchanged,
+alpha untouched (the Bulwark head still measures IoU 0.9641
+against the shipped helm) — and one valve-wheel hub pixel on
+the Bulwark back settles to the wheel tone for the same
+contrast reason. **Payload:** character art 413,061 B →
+34,483 B on this tree (−378,578 B; against the pre-H1 census
+frame, 414,796 B → 27,846 B for all 39 conversions); the
+ceiling stays 11,620,000 B by owner ruling — the dividend is
+headroom, not a raise. **Rider: the 10 baked death-pose
+sprites are deleted** (244,492 B) — nothing ever rendered them
+(stage death is the rig's `death` pose; the bestiary census
+proved the only reference was a test asserting existence, and
+that assertion is retired with the reason recorded in the
+test). Post-ship sprite payload: 10,971,493 B, ~649 KB of
+headroom for the bestiary conversion (enemies, then the 13
+bosses), which lands with its own accounting. The ranked
+polish list (Bulwark helm dome first, now that the Hood item
+is moot) runs as its own slice after this ship. The `.px.js`
+authoring sources live with the program record in the
+prep archive (`cybercache-prep/hero-pass/`, batches H2d/H2e/
+H2f/H2g + integration) — the game ships the renders, exactly
+as it shipped the previous generation's bakes.
+
+**V5 (2026-11-07) — the SVG ban's enforcement surface.** The
+total-SVG ban (sole exception: the Google "G" sign-in glyph)
+now holds on the stage itself: the LiveTurfDiorama's dormant
+inline-SVG fallback diorama — the vector scene that rendered
+for areas with no pixel background, owner-ruled killed
+2026-11-07 — is deleted, together with its only-serving
+silhouette component and the consumer-less procedural-SVG
+`AreaBackground`. The DOM pixel stage is the only ambient
+stage; an area with no pixel background renders the stage
+shell and its overlays only, and `pixelDiorama.test.tsx` pins
+exactly that. The loot-rise material glyph keeps its small
+inline SVG inside the pixel scene — that is the pixel
+stage's own FX vocabulary, not a fallback scene.
+
 **S5 scale-up batch 2 (2026-11-07) — authored bases: the
 launcher and the beam.** The pilot scales to the last two of
 the five remaining weapon types in declaration order (Pistol,
