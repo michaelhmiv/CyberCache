@@ -42,7 +42,7 @@ import { useLoadoutStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
-import { isClassModItem, isRelicItem, isShieldItem, isWeaponItem } from '@/lib/loadout/loadoutReadModel';
+import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadoutReadModel';
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
