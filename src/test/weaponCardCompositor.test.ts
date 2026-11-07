@@ -319,13 +319,15 @@ describe('card compositor — golden signature pins', () => {
   // sniper pins moved in S5 (the authored-bases pilot): the
   // sniper's form now comes from authored part bases, so its card
   // renders changed by design; every other pin is untouched.
+  // The Beam and Launcher pins moved in the S5 scale-up batch 2
+  // for the same reason — those two forms are authored now too.
   const GOLDENS: Record<string, string> = {
     'Redline Sniper Kinetic Common': 'f3a25e41',
     'Ironwood Sniper Fire Rare': 'b4b7658d',
     'BlastForge Shotgun Kinetic Legendary': '4a3401ec',
-    'Prismatek Beam Void Epic': '9280078f',
+    'Prismatek Beam Void Epic': '9de2c5f',
     'ThrowTech Pistol Shock Uncommon': '41427e42',
-    'HelixWorks Launcher Cryo Rare': '31e8cd37',
+    'HelixWorks Launcher Cryo Rare': 'bab4709d',
     'Redline Pistol Corrosive Common': '144299c',
     'HelixWorks SMG Kinetic Common': 'a74d18f0',
   };

@@ -1082,6 +1082,64 @@ remaining five weapon types (~89 further pieces) is the
 owner's call on this slice's judgment package; S5 does not
 pre-decide it.
 
+**S5 scale-up batch 2 (2026-11-07) — authored bases: the
+launcher and the beam.** The pilot scales to the last two of
+the five remaining weapon types in declaration order (Pistol,
+SMG, and Shotgun are the sibling batch). For the LAUNCHER and
+the BEAM, the card compositor's procedural form passes are
+replaced by authored pieces drawn in pxl under this standard
+and checked in as grid data
+(`src/lib/pixel/launcherAuthoredData.ts`,
+`src/lib/pixel/beamAuthoredData.ts`), generated from the
+archived authoring sources by deterministic converters
+(`scripts/convert-launcher-authored-bases.mjs`,
+`scripts/convert-beam-authored-bases.mjs` — re-running each
+reproduces its data byte-for-byte; the .px.js sources live
+with the batch evidence). The launcher ships 17 piece slots;
+the beam ships 19 pieces. Assembly is untouched, exactly as
+in the pilot, and every living pass runs over the authored
+forms as it ran over procedural ones. The type rulings, each
+forced by the type's own shipped code. (1) **Collapses follow
+production's effective forms:** the launcher's Magazine data
+is [drum, box, drum] — production draws two effective forms
+across the three rolls (variant 1 the box; variants 0 and 2
+the feed drum) — and its Sight is a single piece, the carry
+handle the procedural barrel pass draws over the body (its
+sight pass draws nothing for this type). The beam collapses
+nothing: its Sight is authored ×3 (iron posts / reflex box /
+aperture tower), the one slot where it needs more grids than
+the sniper did. (2) **The Kinetic window rule extends by the
+type's own current path:** the launcher's chamber window
+remaps exactly as the sniper's; for the beam the element
+current IS the form (the current pass skips it — "the core
+is the current"), so the remap covers the whole path — the
+layout's spine-channel row, the chamber window, and the
+power cell's charge gauge — and a Kinetic beam carries no
+element texels at all, its channel reading as warm conduit
+in the maker's tones. (3) **The beam's Prismatek crystal
+chamber is superseded**, as the sniper's was: one authored
+chamber family serves all makers. (4) **Brass is a form key
+for these two types** — collar rings, channel ticks, the
+drum hub, cell bolts; the procedural passes draw them in the
+form — admitted by their converters on top of the pilot's
+key set. The launcher's warhead tip is likewise form, drawn
+in the glow key; its converter disambiguates the pxl tool's
+G/g ascii collision (the two keys share the reference hex)
+so the tip can never resolve to the rarity trim color.
+(5) **Anchors and muzzle seats keep production's values:**
+the launcher's muzzle keeps the warhead's reach (bodyFront +
+barrelLen + 9), its current bed derives from the shipped
+radius profile exactly as the procedural barrel pass
+computes it, and the beam's muzzle keeps the emitter tip's
+front edge (tipX + 3). Held mode and grip seating are
+unchanged — both authored grip families satisfy their
+declared grip fractions under the held-mode audit, all
+makers. Containment is pinned by test: of 864 swept renders
+(every type × maker × element × rarity at both densities),
+exactly the 144 launcher and beam card renders move; every
+other render is byte-identical to the pre-batch sweep, and
+the payload delta is 0.
+
 ---
 
 ## 9. Surfacing — one canonical door per feature
