@@ -28,6 +28,15 @@
  *    s5-evidence/renders/containment-baseline.json). Any future
  *    change that moves one of those renders fails here and
  *    re-pins deliberately, the way the card goldens do.
+ *    RE-PINNED by the S5 scale-up batch 2 (Launcher + Beam): the
+ *    launcher and beam card renders are authored now, so they
+ *    leave this pin — the sweep drops to 648 signatures (the
+ *    three still-procedural types' card renders + every
+ *    pixel-path render), re-hashed over the same pre-S5 baseline
+ *    values (evidence: cybercache-prep/pxl-craft-sweep/
+ *    scaleup-batch2/renders/containment-baseline.json). The
+ *    batch-2 test file (launcherBeamAuthoredBases.test.ts) pins
+ *    the complementary invariant set.
  *  - The living passes land on authored bases: rarity overlays by
  *    tier (exact landed cell counts at the overlay coordinates),
  *    godroll sparkles, wear erasure, affix decals, the Kinetic
@@ -257,7 +266,7 @@ describe('S5 authored bases — the living passes land', () => {
 });
 
 describe('S5 authored bases — containment', () => {
-  it('non-sniper card renders and all pixel renders are byte-identical to the pre-S5 sweep', () => {
+  it('still-procedural card renders and all pixel renders are byte-identical to the pre-S5 sweep', () => {
     const sigs: Record<string, string> = {};
     for (const type of Object.values(WeaponType)) {
       for (const manufacturer of Object.values(Manufacturer)) {
@@ -267,16 +276,23 @@ describe('S5 authored bases — containment', () => {
               weaponType: type, manufacturer, element, rarity,
               rollQuality: 75, pixelSeed: 4242, id: `contain-${type}-${manufacturer}-${element}-${rarity}`,
             };
-            if (type !== WeaponType.Sniper) sigs[`card/${type}/${manufacturer}/${element}/${rarity}`] = composeWeaponCard(input).signature;
+            // Batch 2: the authored types (Sniper from S5;
+            // Launcher and Beam from the scale-up) are outside
+            // this pin — their renders are characterized by their
+            // own suites. What remains pinned here: the three
+            // still-procedural types' cards + every pixel render.
+            if (type !== WeaponType.Sniper && type !== WeaponType.Launcher && type !== WeaponType.Beam) {
+              sigs[`card/${type}/${manufacturer}/${element}/${rarity}`] = composeWeaponCard(input).signature;
+            }
             sigs[`pixel/${type}/${manufacturer}/${element}/${rarity}`] = composePixelWeapon(input).signature;
           }
         }
       }
     }
-    expect(Object.keys(sigs)).toHaveLength(792);
+    expect(Object.keys(sigs)).toHaveLength(648);
     let h = 0x811c9dc5;
     const joined = Object.keys(sigs).sort().map((k) => `${k}=${sigs[k]}`).join('\n');
     for (let i = 0; i < joined.length; i++) h = Math.imul(h ^ joined.charCodeAt(i), 0x01000193);
-    expect((h >>> 0).toString(16).padStart(8, '0')).toBe('b30349f7');
+    expect((h >>> 0).toString(16).padStart(8, '0')).toBe('81e59cb6');
   }, 120_000);
 });
