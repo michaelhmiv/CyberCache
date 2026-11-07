@@ -161,7 +161,15 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 172 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 177 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-07** — 5 merges
+
+- #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
+- #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
+- #437 — Hero Pass H1: head-system unification — maker helms delisted to the Standing lane, Hood re-authored
+- #438 — Motion Reboot M1: the work cycle — bench modes work the bench
+- #439 — docs(wiki): Changelog catch-up — 2026-11-07 entry for #435
 
 **2026-11-06** — 10 merges
 

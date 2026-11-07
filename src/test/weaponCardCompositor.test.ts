@@ -315,10 +315,13 @@ describe('card compositor — real-item derivations match the stage sources', ()
 
 describe('card compositor — golden signature pins', () => {
   // Regression tripwires: any intentional art change re-pins these
-  // deliberately (and the capture sheets get re-read).
+  // deliberately (and the capture sheets get re-read). The two
+  // sniper pins moved in S5 (the authored-bases pilot): the
+  // sniper's form now comes from authored part bases, so its card
+  // renders changed by design; every other pin is untouched.
   const GOLDENS: Record<string, string> = {
-    'Redline Sniper Kinetic Common': '72260cb0',
-    'Ironwood Sniper Fire Rare': '44adc260',
+    'Redline Sniper Kinetic Common': 'f3a25e41',
+    'Ironwood Sniper Fire Rare': 'b4b7658d',
     'BlastForge Shotgun Kinetic Legendary': '4a3401ec',
     'Prismatek Beam Void Epic': '9280078f',
     'ThrowTech Pistol Shock Uncommon': '41427e42',
