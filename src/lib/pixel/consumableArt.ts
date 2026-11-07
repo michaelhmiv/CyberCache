@@ -6,6 +6,27 @@ type ConsFrame = ConsumableDef['visual']['frame'];
 import { hashString } from '@/lib/utils/rng';
 import { seededRandom } from '@/lib/weaponArt/decalSpec';
 import { hueLerp } from './weaponCardCompositor';
+import {
+  ACCENT_SHADES,
+  GROUND_SHADOW_HEX,
+  HARD_WHITE_HEX,
+  OUTLINE_HEX,
+  RAMP_SHADES,
+  SmallItemPlate,
+  accentDark,
+  choice,
+  finishPass,
+  fiveToneRamp,
+  paintSmallItemRows,
+  rint,
+  smallItemCached,
+  thumbGroundRow,
+  toneNoise,
+  type AccentShades,
+  type RampShades,
+  type Rng,
+  type SmallItemWear,
+} from './smallItemCore';
 
 /**
  * consumableArt — real item art for consumables (owner complaint
@@ -17,6 +38,13 @@ import { hueLerp } from './weaponCardCompositor';
  * object, built exactly the way STUFF built materials
  * (materialArt.ts): runtime-composed on a texel grid, zero sprite
  * payload, compose-then-cache.
+ *
+ * S4 (2026-11-07): the machinery the header describes as "exactly
+ * the way STUFF built materials" is no longer a parallel copy —
+ * both systems now build on the one shared core,
+ * smallItemCore.ts (ramp, plate, finish, cache, painter). This
+ * file keeps the consumable art table, motifs, frame treatments,
+ * and painters.
  *
  * THE GRAMMAR (impeccable pass, Operate mode — the bolder hand:
  * a flat surface is one that opted out of the system's strongest
@@ -212,7 +240,11 @@ export function consumableArtRow(id: string): ConsumableArtRow {
 }
 
 /* ------------------------------------------------------------------ */
-/* Ramps                                                               */
+/* Ramps — the shared small-item core (S4): the five-tone builder,    */
+/* the plate, the seeded helpers, the finish pass, the thumb ground   */
+/* row, the cache, and the painter all live in smallItemCore.ts now.  */
+/* What stays here is consumables' own: the art table, the motif      */
+/* system, the frame treatments, the painters, the colorways.         */
 /* ------------------------------------------------------------------ */
 
 /** Shade alphabet: D/d/P/p/L = body ramp deep→hot, A/a/E = contents
@@ -226,102 +258,12 @@ export function consumableArtRow(id: string): ConsumableArtRow {
 // never consulted for it.
 export type ConsShade = 'K' | 'S' | 'W' | 'D' | 'd' | 'P' | 'p' | 'L' | 'A' | 'a' | 'E' | 'B' | 'b' | 'M' | 'm' | 'X' | 'Y' | 'Z' | '.';
 
-interface Ramp { deep: string; shade: string; base: string; lite: string; hot: string }
-
-function ramp(base: string): Ramp {
-  return {
-    deep: hueLerp(base, '#000000', 0.52),
-    shade: hueLerp(base, '#000000', 0.26),
-    base,
-    lite: hueLerp(base, '#FFFFFF', 0.34),
-    hot: hueLerp(base, '#FFFFFF', 0.60),
-  };
-}
-
-const RAMP_SHADES = { deep: 'D', shade: 'd', base: 'P', lite: 'p', hot: 'L' } as const;
-const ACCENT_SHADES = { base: 'A', dark: 'a', hot: 'E' } as const;
-type R = typeof RAMP_SHADES;
-type A = typeof ACCENT_SHADES;
+type R = RampShades;
+type A = AccentShades;
 
 const BRASS = '#C9962E';
-const GROUND_Y = 21;
 
-/* ------------------------------------------------------------------ */
-/* Plate (the STUFF plate discipline, consumables' own hand)           */
-/* ------------------------------------------------------------------ */
-
-type Pt = [number, number];
-
-class ConsPlate {
-  readonly n: number;
-  cells: string[][];
-
-  constructor(n: number) {
-    this.n = n;
-    this.cells = Array.from({ length: n }, () => new Array<string>(n).fill('.'));
-  }
-
-  in(x: number, y: number) { return x >= 0 && x < this.n && y >= 0 && y < this.n; }
-  get(x: number, y: number): string { return this.in(x, y) ? this.cells[y][x] : '.'; }
-  set(x: number, y: number, s: ConsShade) { if (this.in(x, y)) this.cells[y][x] = s; }
-  over(x: number, y: number, s: ConsShade) { if (this.get(x, y) !== '.') this.set(x, y, s); }
-  filled(x: number, y: number) { return this.get(x, y) !== '.'; }
-  rows(): string[] { return this.cells.map((r) => r.join('')); }
-
-  rect(x: number, y: number, w: number, h: number, s: ConsShade) {
-    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) this.set(xx, yy, s);
-  }
-
-  poly(pts: Pt[], s: ConsShade) {
-    const ys = pts.map((p) => p[1]);
-    const y0 = Math.max(0, Math.floor(Math.min(...ys)));
-    const y1 = Math.min(this.n - 1, Math.ceil(Math.max(...ys)));
-    for (let y = y0; y <= y1; y++) {
-      const xs: number[] = [];
-      for (let i = 0; i < pts.length; i++) {
-        const [ax, ay] = pts[i];
-        const [bx, by] = pts[(i + 1) % pts.length];
-        if ((ay <= y && by > y) || (by <= y && ay > y)) xs.push(ax + ((y - ay) / (by - ay)) * (bx - ax));
-      }
-      xs.sort((a, b) => a - b);
-      for (let i = 0; i + 1 < xs.length; i += 2) {
-        for (let x = Math.round(xs[i]); x <= Math.round(xs[i + 1]); x++) this.set(x, y, s);
-      }
-    }
-  }
-
-  ellipse(cx: number, cy: number, rx: number, ry: number, s: ConsShade) {
-    const x0 = Math.floor(cx - rx - 1); const x1 = Math.ceil(cx + rx + 1);
-    const y0 = Math.floor(cy - ry - 1); const y1 = Math.ceil(cy + ry + 1);
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const dx = (x - cx) / (rx + 0.5); const dy = (y - cy) / (ry + 0.5);
-      if (dx * dx + dy * dy <= 1) this.set(x, y, s);
-    }
-  }
-
-  ellipseRing(cx: number, cy: number, rx: number, ry: number, thickness: number, s: ConsShade) {
-    const x0 = Math.floor(cx - rx - 1); const x1 = Math.ceil(cx + rx + 1);
-    const y0 = Math.floor(cy - ry - 1); const y1 = Math.ceil(cy + ry + 1);
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const dxo = (x - cx) / (rx + 0.5); const dyo = (y - cy) / (ry + 0.5);
-      if (dxo * dxo + dyo * dyo > 1) continue;
-      const irx = rx - thickness; const iry = ry - thickness;
-      if (irx > 0 && iry > 0) {
-        const dxi = (x - cx) / (irx + 0.5); const dyi = (y - cy) / (iry + 0.5);
-        if (dxi * dxi + dyi * dyi <= 1) continue;
-      }
-      this.set(x, y, s);
-    }
-  }
-
-  bodyMask(): boolean[][] {
-    return this.cells.map((row) => row.map((c) => c !== '.'));
-  }
-}
-
-type Rng = () => number;
-const rint = (rng: Rng, lo: number, hi: number) => lo + Math.floor(rng() * (hi - lo + 1));
-function choice<T>(rng: Rng, arr: readonly T[]): T { return arr[Math.floor(rng() * arr.length)]; }
+type ConsPlate = SmallItemPlate;
 
 /* ------------------------------------------------------------------ */
 /* Motifs — the def's icon, drawn as the emblem on the object's face   */
@@ -436,7 +378,7 @@ function paintMotif(cv: ConsPlate, icon: string, cx: number, cy: number, A: A) {
 /* Finish — wear keyed by frame + the frame's physical treatment       */
 /* ------------------------------------------------------------------ */
 
-const WEAR: Record<ConsFrame, { chipP: number; scratches: number; noise: number }> = {
+const WEAR: Record<ConsFrame, SmallItemWear> = {
   standard: { chipP: 0.07, scratches: 1, noise: 0.14 },
   reinforced: { chipP: 0.02, scratches: 0, noise: 0.07 },
   volatile: { chipP: 0.11, scratches: 1, noise: 0.18 },
@@ -501,50 +443,8 @@ function signalArcs(cv: ConsPlate, frame: ConsFrame, A: A) {
   cv.set(cx, Math.max(0, y0 - 2), A.hot);
 }
 
-function toneNoise(cv: ConsPlate, frame: ConsFrame, rng: Rng) {
-  const { noise } = WEAR[frame];
-  for (let y = 0; y < cv.n; y++) for (let x = 0; x < cv.n; x++) {
-    if (cv.get(x, y) === 'P' && rng() < noise) cv.set(x, y, choice(rng, ['d', 'p'] as const));
-  }
-}
-
-function finishPass(cv: ConsPlate, frame: ConsFrame, rng: Rng) {
-  const { chipP, scratches } = WEAR[frame];
-  const n = cv.n;
-  let mask = cv.bodyMask();
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    if (!mask[y][x]) continue;
-    const edge = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(
-      ([dx, dy]) => !(x + dx >= 0 && x + dx < n && y + dy >= 0 && y + dy < n && mask[y + dy][x + dx]),
-    );
-    if (edge && rng() < chipP) {
-      if (rng() < 0.45) cv.cells[y][x] = '.';
-      else cv.set(x, y, 'D');
-    }
-  }
-  const body: Pt[] = [];
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (cv.filled(x, y)) body.push([x, y]);
-  for (let i = 0; i < scratches && body.length > 0; i++) {
-    const [sx, sy] = body[Math.floor(rng() * body.length)];
-    const len = rint(rng, 2, 4);
-    for (let k = 0; k < len; k++) if (cv.filled(sx + k, sy)) cv.set(sx + k, sy, 'D');
-  }
-  mask = cv.bodyMask();
-  const ring: Pt[] = [];
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    if (mask[y][x]) continue;
-    const near = ([[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const).some(
-      ([dx, dy]) => x + dx >= 0 && x + dx < n && y + dy >= 0 && y + dy < n && mask[y + dy][x + dx],
-    );
-    if (near) ring.push([x, y]);
-  }
-  for (const [x, y] of ring) cv.set(x, y, 'K');
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    if (cv.filled(x, y)) continue;
-    const dx = (x - 12) / 8.5; const dy = (y - (GROUND_Y + 1)) / 1.5;
-    if (dx * dx + dy * dy <= 1) cv.set(x, y, 'S');
-  }
-}
+/* toneNoise + finishPass are the shared core's now (smallItemCore):
+ * the frame's WEAR profile supplies { chipP, scratches, noise }. */
 
 /* ------------------------------------------------------------------ */
 /* Chassis — object density (24 grid). Painters receive the body       */
@@ -969,13 +869,29 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
       // The identity band survives at thumb size (brass on the
       // refined kit, contents-dark on the base kit and the tin).
       cv.rect(2, 6, 8, 1, variant === 'kitPro' ? 'B' : 'a');
-      cv.set(6, 7, A.base); cv.set(6, 8, A.base); cv.set(5, 8, A.base); cv.set(7, 8, A.base); cv.set(6, 9, A.hot);
+      if (variant === 'tin') {
+        // S4: the tin's cross was contents-base on rust and died at
+        // 48px — it rides in the contents' hot tone now, white-hot
+        // at the core, so the patch identity survives the thumb.
+        cv.set(6, 7, A.hot); cv.set(6, 8, 'W'); cv.set(5, 8, A.hot); cv.set(7, 8, A.hot); cv.set(6, 9, A.hot);
+      } else {
+        cv.set(6, 7, A.base); cv.set(6, 8, A.base); cv.set(5, 8, A.base); cv.set(7, 8, A.base); cv.set(6, 9, A.hot);
+      }
       return;
     }
-    cv.rect(5, 2, 3, 2, 'd');
+    // S4: the field and master patch bottles were anonymous brown
+    // bottles at thumb — both now carry the patch cross on the
+    // glass, and the master adds its brass collar + base strap
+    // (the same marks its object painter wears).
+    cv.rect(5, 2, 3, 2, variant === 'master' ? 'B' : 'd');
     cv.rect(4, 4, 5, 7, 'P');
     cv.rect(4, 8, 5, 3, A.base);
-    cv.set(6, 6, A.hot);
+    if (variant === 'field' || variant === 'master') {
+      cv.set(6, 5, A.hot); cv.set(5, 6, A.hot); cv.set(6, 6, 'W'); cv.set(7, 6, A.hot); cv.set(6, 7, A.hot);
+      if (variant === 'master') cv.rect(4, 10, 5, 1, 'B');
+    } else {
+      cv.set(6, 6, A.hot);
+    }
   },
   cell: (cv, R, A, variant) => {
     if (variant === 'core') {
@@ -999,7 +915,20 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
     cv.set(6, 6, A.hot);
     for (const [x, y] of [[2, 3], [10, 3], [3, 9], [9, 9]] as const) { cv.ellipse(x, y, 1.2, 1.2, 'P'); cv.set(x, y, A.base); }
   },
-  syringe: (cv, R, A) => {
+  syringe: (cv, R, A, variant) => {
+    if (variant === 'stim') {
+      // S4: AdrenalineShot's dose was 3 cells of red on a dark
+      // red-brown barrel — it scanned as a bottle with a nub. The
+      // stim painter is the wide barrel (its object form): dose at
+      // full barrel width under a hot meniscus line reads as an
+      // injector at 48px.
+      cv.rect(4, 1, 5, 1, 'P');
+      cv.rect(4, 3, 5, 7, 'P');
+      cv.rect(4, 6, 5, 1, A.hot);
+      cv.rect(4, 7, 5, 3, A.base);
+      cv.set(6, 10, 'K'); cv.set(6, 11, 'K');
+      return;
+    }
     cv.rect(4, 1, 5, 1, 'P');
     cv.rect(5, 3, 3, 6, 'P');
     cv.rect(5, 6, 3, 3, A.base);
@@ -1018,6 +947,15 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
       cv.rect(4, 6, 6, 5, 'P');
       cv.rect(4, 9, 6, 2, A.base);
       cv.set(9, 3, A.hot);
+      if (variant === 'coatPrism') {
+        // S4: Prism's defining flecks (X/Y/Z) never reached the
+        // thumb — the pot read as plain lavender. A 2-cell cluster
+        // per hue on the pot's face keeps the fleck read at 48px
+        // (clusters, per the craft standard — never lone cells).
+        cv.set(5, 6, 'X'); cv.set(6, 6, 'X');
+        cv.set(8, 7, 'Y'); cv.set(8, 8, 'Y');
+        cv.set(5, 8, 'Z'); cv.set(6, 8, 'Z');
+      }
       return;
     }
     for (const x of [3, 6, 9]) {
@@ -1026,17 +964,98 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
       cv.rect(x - 1, 5, 3, 6, 'M'); // casing metal, as the object grid
     }
   },
-  grenade: (cv, R, A) => {
+  grenade: (cv, R, A, variant) => {
+    // S4 form pass: one stamp served all seven charges and members
+    // separated on color alone. Each charge now carries its 24×24
+    // form at thumb: ring, horseshoe, ghost, crack, reticle, brass
+    // band — the plain frag keeps the original stamp as baseline.
+    if (variant === 'magnet') {
+      // The horseshoe rides on top of the body; pole faces lit.
+      cv.rect(3, 2, 2, 3, A.base); cv.rect(8, 2, 2, 3, A.base);
+      cv.rect(3, 2, 7, 2, A.base);
+      cv.set(3, 4, A.hot); cv.set(4, 4, A.hot); cv.set(8, 4, A.hot); cv.set(9, 4, A.hot);
+      cv.ellipse(6, 8, 3.4, 2.8, 'P');
+      cv.set(6, 8, A.hot);
+      return;
+    }
+    if (variant === 'emp') {
+      // The ring IS the body, core glowing through the middle.
+      cv.rect(5, 1, 3, 2, 'd');
+      cv.ellipseRing(6, 7, 3.4, 3.2, 1, 'P');
+      cv.set(6, 6, A.base); cv.set(5, 7, A.base); cv.set(6, 7, A.hot); cv.set(7, 7, A.base); cv.set(6, 8, A.base);
+      return;
+    }
+    if (variant === 'phase') {
+      // The ghost: the same body struck twice, offset.
+      cv.rect(6, 1, 3, 2, 'd');
+      cv.ellipse(8, 5, 2.8, 2.8, 'D');
+      cv.ellipse(5, 7, 3.2, 3.2, 'P');
+      cv.rect(2, 6, 7, 1, 'a');
+      cv.set(5, 7, A.hot);
+      return;
+    }
     cv.rect(5, 2, 3, 2, 'd');
     cv.ellipse(6, 7, 3.4, 3.2, 'P');
-    cv.rect(3, 6, 7, 1, 'a'); // contents band — identity at thumb size too
-    cv.set(6, 8, A.hot);
+    if (variant === 'chargePro') {
+      // The demo charge's brass band, carried at full width.
+      cv.rect(3, 6, 7, 1, 'B');
+      cv.rect(3, 7, 7, 1, 'b');
+      cv.set(6, 9, A.hot);
+    } else if (variant === 'acid') {
+      // The reticle rides the shell (its object's acid sight).
+      cv.set(6, 5, A.base); cv.set(5, 6, A.base); cv.set(6, 6, A.hot); cv.set(7, 6, A.base); cv.set(6, 7, A.base);
+    } else if (variant === 'forge') {
+      // Molten crack walking down the charcoal shell.
+      cv.set(5, 4, A.hot); cv.set(5, 5, A.base); cv.set(6, 6, A.base); cv.set(6, 7, A.hot); cv.set(7, 8, A.base);
+    } else {
+      // charge — the plain frag keeps the baseline stamp.
+      cv.rect(3, 6, 7, 1, 'a'); // contents band — identity at thumb size too
+      cv.set(6, 8, A.hot);
+    }
   },
-  scanner: (cv, R, A) => {
-    cv.set(9, 1, A.hot); cv.rect(9, 2, 1, 2, 'd');
+  scanner: (cv, R, A, variant) => {
+    // S4 form pass: one box + screen + antenna stamp served all
+    // five devices. Silhouettes now differ the way the 24×24
+    // painters differ — whip antenna, lit screen, twin-antenna
+    // block, emission ticks, skimmer dish.
+    if (variant === 'skimmer') {
+      // The dish rides on top; the box drops a row to carry it.
+      cv.ellipse(6, 2, 2.8, 1.3, A.base);
+      cv.set(6, 1, A.hot);
+      cv.rect(6, 3, 1, 1, 'd');
+      cv.rect(3, 4, 7, 7, 'P');
+      cv.rect(4, 5, 5, 3, 'a');
+      cv.set(6, 6, A.hot);
+      cv.rect(4, 9, 1, 2, 'd'); cv.rect(6, 9, 1, 2, 'd');
+      return;
+    }
+    if (variant === 'painter') {
+      cv.set(2, 1, A.hot); cv.rect(2, 2, 1, 2, 'd'); // the long whip
+    } else {
+      cv.set(9, 1, A.hot); cv.rect(9, 2, 1, 2, 'd');
+    }
+    if (variant === 'jammer') {
+      cv.set(3, 1, A.hot); cv.rect(3, 2, 1, 2, 'd'); // twin antenna
+      cv.rect(2, 3, 8, 8, 'P'); // the blockier housing
+      cv.rect(3, 4, 6, 3, 'a');
+      cv.set(4, 5, A.base); cv.set(5, 5, A.base); cv.set(7, 4, A.hot); // static
+      cv.rect(3, 8, 1, 2, 'd'); cv.rect(5, 8, 1, 2, 'd'); cv.rect(7, 8, 1, 2, 'd');
+      return;
+    }
     cv.rect(3, 3, 7, 8, 'P');
-    cv.rect(4, 4, 5, 3, 'a');
-    cv.set(6, 5, A.hot);
+    if (variant === 'scanner') {
+      cv.rect(4, 4, 5, 3, A.base); // the LIT screen (pale survey glass)
+      cv.set(6, 5, A.hot);
+    } else {
+      cv.rect(4, 4, 5, 3, 'a');
+      cv.set(6, 5, A.hot);
+    }
+    if (variant === 'painter') {
+      cv.set(5, 5, A.base); cv.set(7, 5, A.base); // reticle ticks on the screen
+    }
+    if (variant === 'scrambler') {
+      cv.set(10, 2, A.base); cv.set(11, 3, A.hot); // broken emission
+    }
     cv.rect(4, 8, 1, 2, 'd'); cv.rect(6, 8, 1, 2, 'd');
   },
   beacon: (cv, R, A, variant) => {
@@ -1051,9 +1070,19 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
     if (variant === 'token') { cv.ellipse(6, 6, 2.4, 2.4, A.base); cv.set(6, 6, A.hot); }
     else { cv.rect(3, 3, 7, 1, A.base); cv.rect(4, 6, 5, 1, 'd'); cv.rect(4, 8, 4, 1, 'd'); }
   },
-  ticket: (cv, R, A) => {
+  ticket: (cv, R, A, variant) => {
     cv.rect(1, 4, 10, 5, 'P');
     cv.set(4, 5, 'K'); cv.set(4, 7, 'K');
+    if (variant === 'calib') {
+      // S4: the calibration kit was a blank pale slab at thumb —
+      // its dial now rides the ticket the way it does at 24×24:
+      // a ring in the contents base, hot at the center, with the
+      // stub tick beside the perforation.
+      cv.ellipseRing(8, 6, 1.7, 1.7, 1, A.base);
+      cv.set(8, 6, A.hot);
+      cv.set(2, 6, A.base);
+      return;
+    }
     cv.set(8, 6, A.hot); cv.set(7, 6, A.base); cv.set(9, 6, A.base);
   },
 };
@@ -1083,40 +1112,35 @@ export function composeConsumable(id: string, density: ConsumableDensity = 'obje
   const frame: ConsFrame = def?.visual.frame ?? 'standard';
   const icon = def?.visual.icon ?? 'dot';
 
-  const body = ramp(bodyHex);
-  const contents = ramp(accentHex);
-  const brass = ramp(BRASS);
-  const casing = ramp(row.casing ?? BRASS);
+  const body = fiveToneRamp(bodyHex);
+  const contents = fiveToneRamp(accentHex);
+  const brass = fiveToneRamp(BRASS);
+  const casing = fiveToneRamp(row.casing ?? BRASS);
   const colors: Partial<Record<ConsShade, string>> = {
-    K: '#1A110A',
-    S: '#0805026E',
-    W: '#FFFFFF',
+    K: OUTLINE_HEX,
+    S: GROUND_SHADOW_HEX,
+    W: HARD_WHITE_HEX,
     D: body.deep, d: body.shade, P: body.base, p: body.lite, L: body.hot,
-    A: contents.base, a: hueLerp(accentHex, '#000000', 0.30), E: contents.lite,
+    A: contents.base, a: accentDark(accentHex), E: contents.lite,
     B: brass.base, b: brass.shade,
     M: casing.base, m: casing.shade,
     X: row.extras?.[0], Y: row.extras?.[1], Z: row.extras?.[2],
   };
 
   const grid = density === 'object' ? 24 : 12;
-  const plate = new ConsPlate(grid);
+  const plate = new SmallItemPlate(grid);
   const rng = seededRandom(hashString(density === 'object' ? `cons:${id}` : `cons:${id}:thumb`));
   if (density === 'object') {
     OBJECT_PAINTERS[row.chassis](plate, RAMP_SHADES, ACCENT_SHADES, row.variant, icon, rng);
     frameTreatment(plate, frame);
-    toneNoise(plate, frame, rng);
-    finishPass(plate, frame, rng);
+    toneNoise(plate, WEAR[frame].noise, rng);
+    finishPass(plate, WEAR[frame], rng);
     // Signal arcs ride antenna'd chassis only — over a grenade body
     // they detach and read as confetti (contact-sheet verdict).
     if (row.chassis !== 'grenade') signalArcs(plate, frame, ACCENT_SHADES);
   } else {
     THUMB_PAINTERS[row.chassis](plate, RAMP_SHADES, ACCENT_SHADES, row.variant, icon);
-    const mask = plate.bodyMask();
-    for (let x = 0; x < grid; x++) {
-      let lowest = -1;
-      for (let y = 0; y < grid; y++) if (mask[y][x]) lowest = y;
-      if (lowest >= 0) plate.set(x, Math.min(lowest + 1, grid - 1), 'K');
-    }
+    thumbGroundRow(plate);
   }
 
   const rows = plate.rows();
@@ -1128,14 +1152,12 @@ export function composeConsumable(id: string, density: ConsumableDensity = 'obje
 
 const consumableCache = new Map<string, ConsumableRender>();
 
-/** Cached compose, mirroring the gear/material compositors. */
+/** Cached compose. Input-keyed since S4 (the shared core helper):
+ *  the old signature-keyed lookup composed in full before every
+ *  check, so it never hit — composeConsumable is a pure function
+ *  of (id, density), so the pair is an exact key. */
 export function composeConsumableCached(id: string, density: ConsumableDensity = 'object'): ConsumableRender {
-  const composed = composeConsumable(id, density);
-  const cached = consumableCache.get(composed.signature);
-  if (cached) return cached;
-  if (consumableCache.size > 400) consumableCache.clear();
-  consumableCache.set(composed.signature, composed);
-  return composed;
+  return smallItemCached(consumableCache, `${density}|${id}`, () => composeConsumable(id, density));
 }
 
 /** Paint a consumable render into a 2D context at integer scale. */
@@ -1144,22 +1166,5 @@ export function paintConsumable(
   render: ConsumableRender,
   scale: number,
 ): void {
-  const { rows, colors, width, height } = render;
-  for (let y = 0; y < height; y++) {
-    const rowStr = rows[y];
-    let runShade = '';
-    let runStart = 0;
-    const flush = (endX: number) => {
-      if (!runShade || runShade === '.') return;
-      const color = colors[runShade as ConsShade];
-      if (!color) return;
-      ctx2d.fillStyle = color;
-      ctx2d.fillRect(runStart * scale, y * scale, (endX - runStart) * scale, scale);
-    };
-    for (let x = 0; x < width; x++) {
-      const shade = rowStr[x];
-      if (shade !== runShade) { flush(x); runShade = shade; runStart = x; }
-    }
-    flush(width);
-  }
+  paintSmallItemRows(ctx2d, render.rows, render.colors, render.width, render.height, scale);
 }

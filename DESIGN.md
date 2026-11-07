@@ -957,6 +957,43 @@ thumbs, where the card compose is too heavy to run per row
 (the 2026-11-04 Gear freeze law) — other surfaces keep their
 densities, per Amendment 1.
 
+**S4 (2026-11-07) — small items unified, thumbs get form.**
+Consumables and materials were one system written twice:
+`consumableArt.ts` was a parallel copy of `materialArt.ts`, not
+a sibling on shared code (~400 lines of duplicated machinery —
+the five-tone ramp, the plate class, the shade alphabet, the
+seeded helpers, toneNoise/finishPass, the thumb ground-row, the
+run-length painter). All of it now lives once in
+`smallItemCore.ts`; both systems keep only their art tables,
+painters, and treatments (frame treatments + motif for
+consumables, band finishes for materials). The divergences were
+parameterized, not unified away (tone-noise density resolves
+frame-keyed vs band-keyed before the shared loop), seed prefixes
+are preserved verbatim (`cons:` / bare), and the unification is
+proven render-identical: the full-set signature manifest (all
+69 icons × both densities, rows + colors) matched master
+byte-for-byte at the phase boundary. One real defect died in
+the move: consumableArt's cache was signature-keyed — it
+composed in full before every lookup and never hit; both
+systems now share the core's input-keyed cache (compose-counter
+pinned). On top of the unified core, a thumb-led FORM pass
+(owner-authorized at the S4 grill: the audit's weak reads were
+form failures, not ramp failures) — every grenade and scanner
+now carries its object form's silhouette at 12×12 instead of
+one variant-blind stamp per chassis; the patch family's cross
+survives at thumb (white-hot on the tin, carried on both
+bottles); the Helix ticket wears its calibration dial; Prism
+keeps its fleck clusters; AdrenalineShot takes the wide-barrel
+injector form; CompositePlating stacks as four thin offset
+seamed slabs against RefinedAlloy's three thick aligned ones,
+and Voidweave weaves in horizontal courses against
+WovenCircuits' checker. Object renders are byte-identical to
+before; the named confusion pairs are pinned pairwise-distinct
+BY FORM at thumb density in the art suites. The Field Manual's
+consumable plates re-pointed in the same slice from the retired
+PX_ICONS glyphs to the consumable compositor — the Manual now
+shows the formed objects the game itself draws.
+
 ---
 
 ## 9. Surfacing — one canonical door per feature

@@ -16,11 +16,11 @@
  *     procedural SVG illustrations; gear marriage slice 5 retired
  *     that island and re-pointed these plates at the compositor, the
  *     same generator approach as the weapon plates above.
- *   - Consumables: src/lib/pixel/icons.ts (PX_ICONS rect lists +
- *     PX_ICON_TONE_FILLS), painted exactly as PxIcon.tsx paints them
- *     (list order, source-over, currentColor = the consumable's accent
- *     from getConsumableVisual in src/constants/visualAssets.ts), over
- *     the defs in src/constants/consumables.ts.
+ *   - Consumables: the game's consumable compositor
+ *     (src/lib/pixel/consumableArt.ts) — the formed object each
+ *     consumable renders as in game, over the defs in
+ *     src/constants/consumables.ts. (S4 re-point: these plates
+ *     used to digitize the retired PX_ICONS glyphs.)
  *   - Materials / essences: the game's STUFF compositor
  *     (src/lib/pixel/materialArt.ts) — the formed object each good
  *     renders as in game, composed from the registry colorways in
@@ -60,10 +60,9 @@ import { CONSUMABLES } from '../../src/constants/consumables';
 import {
   ESSENCE_VISUALS,
   MATERIAL_VISUALS,
-  getConsumableVisual,
   type VisualAsset,
 } from '../../src/constants/visualAssets';
-import { PX_ICONS, PX_ICON_TONE_FILLS } from '../../src/lib/pixel/icons';
+import { composeConsumable } from '../../src/lib/pixel/consumableArt';
 import { composeMaterial, materialArtRow } from '../../src/lib/pixel/materialArt';
 import { SHIELD_BEHAVIORS, type ShieldBehaviorId } from '../../src/lib/combat/shieldBehaviors';
 import { SKILL_NODES } from '../../src/constants/skillTrees';
@@ -79,7 +78,7 @@ import { CLASS_MOD_TREE_ORDER, classModGrammar } from '../../src/lib/pixel/class
 import { RELIC_FORM_ROWS, relicGrammar } from '../../src/lib/pixel/relicGrammar';
 import type { ShowcaseItemPayload } from '../../src/lib/api/verifiedOps';
 import { showcaseWeaponInput } from '../../src/lib/pixel/showcaseWeaponInput';
-import { encodePng, type RgbaImage } from '../../src/lib/pixel/pngCodec';
+import { encodePng } from '../../src/lib/pixel/pngCodec';
 import { DropSource, Element, Rarity } from '../../src/types/game';
 import type { ClassMod, Ordnance, Relic, Shield } from '../../src/types/items';
 import { hashString } from '../../src/lib/utils/rng';
@@ -472,79 +471,67 @@ export const gearPlatesBlock: GenBlock = {
 };
 
 /* ------------------------------------------------------------------ */
-/* Consumable icons (PX_ICONS, painted as PxIcon paints them)          */
+/* Consumable objects (the consumableArt compositor render)           */
 /* ------------------------------------------------------------------ */
 
-function hexToRgb(hex: string): [number, number, number] {
-  const m = /^#([0-9a-f]{6})$/i.exec(hex);
-  if (!m) throw new Error(`images-w5: bad hex color "${hex}"`);
-  return [parseInt(m[1].slice(0, 2), 16) / 255, parseInt(m[1].slice(2, 4), 16) / 255, parseInt(m[1].slice(4, 6), 16) / 255];
-}
-
 /**
- * Paint one consumable's PX_ICONS rect list the way PxIcon.tsx does:
- * rects in list order, untinted rects in currentColor (here the
- * consumable's accent), toned rects in their tone fill at their tone
- * opacity, source-over onto transparency — composited on the 16x16
- * grid in premultiplied floats, then expanded 8x nearest (the game's
- * crispEdges) and quantized once.
+ * The consumable's formed object at plate size: the game's own
+ * compositor (src/lib/pixel/consumableArt.ts) on its 24-texel
+ * grid, scaled x4 — the texel = 4 law — with alpha preserved (the
+ * ground shadow is a translucent shade). Deterministic by
+ * construction: the compositor seeds from the consumable id.
+ *
+ * S4 (2026-11-07): these plates used to digitize the retired
+ * PX_ICONS glyphs — monochrome pictograms for items the game
+ * itself draws as formed objects. They now come from the same
+ * compositor as the material plates below, and consumableArt is
+ * a wiki owner for the consumables page.
  */
-function consumableIconPng(id: string): Uint8Array {
-  const visual = getConsumableVisual(id);
-  if (!visual.icon) throw new Error(`images-w5: consumable "${id}" has no PxIcon in its visual`);
-  const rects = PX_ICONS[visual.icon];
-  if (!rects) throw new Error(`images-w5: PxIcon "${visual.icon}" missing from PX_ICONS`);
-  const accent = hexToRgb(visual.color);
-  const GRID = 16;
-  const CELL = 8;
-  const buf = new Float32Array(GRID * GRID * 4);
-  for (const rect of rects) {
-    const [rx, ry, rw, rh, tone] = rect;
-    const toneFill = tone ? PX_ICON_TONE_FILLS[tone] : undefined;
-    const [fr, fg, fb] = toneFill ? hexToRgb(toneFill.fill) : accent;
-    const a = toneFill ? toneFill.opacity : 1;
-    for (let y = ry; y < ry + rh; y++) {
-      for (let x = rx; x < rx + rw; x++) {
-        if (x < 0 || y < 0 || x >= GRID || y >= GRID) continue;
-        const o = (y * GRID + x) * 4;
-        const keep = 1 - a;
-        buf[o] = fr * a + buf[o] * keep;
-        buf[o + 1] = fg * a + buf[o + 1] * keep;
-        buf[o + 2] = fb * a + buf[o + 2] * keep;
-        buf[o + 3] = a + buf[o + 3] * keep;
-      }
-    }
+function consumableObjectPng(id: string): Uint8Array {
+  const render = composeConsumable(id, 'object');
+  const SCALE = 4;
+  const width = render.width * SCALE;
+  const height = render.height * SCALE;
+  const data = new Uint8Array(width * height * 4);
+  const rgbaByShade = new Map<string, [number, number, number, number] | null>();
+  for (const [shade, color] of Object.entries(render.colors)) {
+    const hex = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(color ?? '');
+    rgbaByShade.set(
+      shade,
+      hex
+        ? [
+            parseInt(hex[1].slice(0, 2), 16),
+            parseInt(hex[1].slice(2, 4), 16),
+            parseInt(hex[1].slice(4, 6), 16),
+            hex[2] ? parseInt(hex[2], 16) : 255,
+          ]
+        : null,
+    );
   }
-  const size = GRID * CELL;
-  const data = new Uint8Array(size * size * 4);
-  for (let gy = 0; gy < GRID; gy++) {
-    for (let gx = 0; gx < GRID; gx++) {
-      const o = (gy * GRID + gx) * 4;
-      const pa = buf[o + 3];
-      const r = pa > 0 ? Math.round((buf[o] / pa) * 255) : 0;
-      const g = pa > 0 ? Math.round((buf[o + 1] / pa) * 255) : 0;
-      const b = pa > 0 ? Math.round((buf[o + 2] / pa) * 255) : 0;
-      const alpha = Math.round(pa * 255);
-      for (let dy = 0; dy < CELL; dy++) {
-        for (let dx = 0; dx < CELL; dx++) {
-          const p = ((gy * CELL + dy) * size + (gx * CELL + dx)) * 4;
-          data[p] = r;
-          data[p + 1] = g;
-          data[p + 2] = b;
-          data[p + 3] = alpha;
+  for (let y = 0; y < render.height; y++) {
+    const row = render.rows[y];
+    for (let x = 0; x < render.width; x++) {
+      const rgba = rgbaByShade.get(row[x]);
+      if (!rgba) continue;
+      for (let dy = 0; dy < SCALE; dy++) {
+        for (let dx = 0; dx < SCALE; dx++) {
+          const o = ((y * SCALE + dy) * width + (x * SCALE + dx)) * 4;
+          data[o] = rgba[0];
+          data[o + 1] = rgba[1];
+          data[o + 2] = rgba[2];
+          data[o + 3] = rgba[3];
         }
       }
     }
   }
-  const img: RgbaImage = { width: size, height: size, data };
-  return encodePng(img);
+  return encodePng({ width, height, data });
 }
 
 export function consumablePlates(): GenAsset[] {
   return sortAssets(
     Object.keys(CONSUMABLES).map((id) => ({
       path: `${CONSUMABLE_PLATE_DIR}/${kebab(id)}.png`,
-      bytes: consumableIconPng(id),
+      bytes: consumableObjectPng(id),
     })),
   );
 }
@@ -646,7 +633,7 @@ function materialsBody(): string {
 
 export const materialsBlock: GenBlock = {
   id: 'materials',
-  owners: ['src/constants/visualAssets.ts'],
+  owners: ['src/constants/visualAssets.ts', 'src/lib/pixel/materialArt.ts', 'src/lib/pixel/smallItemCore.ts'],
   render: materialsBody,
   assets: materialPlates,
 };

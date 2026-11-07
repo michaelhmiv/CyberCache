@@ -32,7 +32,7 @@ function consumablesBody(): string {
 
 export const consumablesBlock: GenBlock = {
   id: 'consumables',
-  owners: ['src/constants/consumables.ts', 'src/lib/pixel/icons.ts', 'src/constants/visualAssets.ts'],
+  owners: ['src/constants/consumables.ts', 'src/lib/pixel/consumableArt.ts', 'src/lib/pixel/smallItemCore.ts', 'src/constants/visualAssets.ts'],
   render: consumablesBody,
   assets: consumablePlates,
 };

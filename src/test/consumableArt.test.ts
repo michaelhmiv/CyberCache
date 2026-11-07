@@ -68,6 +68,37 @@ describe('consumableArt — recognizability', () => {
     }
   });
 
+  it('S4: the grenade and scanner chassis separate by FORM at thumb density', () => {
+    // Pre-S4 both chassis used one variant-blind thumb stamp: every
+    // member's rows were identical and only the colorway separated
+    // them. Rows are shade letters, so identical rows = identical
+    // form — this pin fails if a stamp ever goes variant-blind again.
+    const grenades = [
+      'Grenade', 'OrdnanceCharge', 'EMPCharge', 'CorrosiveCharge',
+      'PhaseShiftGrenade', 'MagnetizedPayload', 'ForgeheartCharge',
+    ];
+    const scanners = ['TargetPainter', 'BossScanner', 'Jammer', 'SignalScrambler', 'DataSkimmer'];
+    for (const set of [grenades, scanners]) {
+      const forms = set.map((id) => composeConsumable(id, 'thumb').rows.join('/'));
+      expect(new Set(forms).size, set.join(', ')).toBe(set.length);
+    }
+    // The brief's named confusion pairs, pinned explicitly.
+    const thumb = (id: string) => composeConsumable(id, 'thumb').rows.join('/');
+    expect(thumb('EMPCharge')).not.toBe(thumb('MagnetizedPayload'));
+    expect(thumb('FieldPatchKit')).not.toBe(thumb('MasterPatchKit'));
+    expect(thumb('HelixCalibrationKit')).not.toBe(thumb('WorkshopRushTicket'));
+  });
+
+  it('S4: the named weak icons carry their identity marks at thumb density', () => {
+    // PatchKit's cross rides white-hot at the core so it survives
+    // the rust body at 12×12; PrismCoating keeps all three fleck
+    // shades (X/Y/Z) on the pot's face at thumb.
+    const patch = composeConsumable('PatchKit', 'thumb').rows.join('');
+    expect(patch).toContain('W');
+    const prism = composeConsumable('PrismCoating', 'thumb').rows.join('');
+    for (const fleck of ['X', 'Y', 'Z']) expect(prism).toContain(fleck);
+  });
+
   it('every render is a grounded, outlined object (filled band + K outline present)', () => {
     for (const id of ALL_IDS) {
       const r = composeConsumable(id);
