@@ -1595,6 +1595,58 @@ M4b finishes the bench:
   stroke burst and blurred gradient divs are gone; one canvas
   node replaces up to five DOM nodes in the animated count.
 
+### The roam stage on Pixi — Motion Reboot M2 (2026-11-07)
+
+The pilot's ruling was "Pixi where motion is dense" — M2 brings
+the Home ROAM scene to the pilot standard, on the pilot's own
+machinery:
+
+- **One shared stage core.** The texture helpers, procedural FX
+  textures, and parts-node machinery the boss stage grew are
+  extracted verbatim into `pixi/stageCore.ts` — one implementation
+  of the pilot's rendering contract (resolution 1.0, nearest
+  sampling, the held-weapon texture from the One Grammar card
+  render). The boss stage consumes the core unchanged in behavior;
+  the roam stage is a sibling on the same patterns, not a second
+  Pixi implementation.
+- **The switch is the pilot's switch.** Roaming renders through
+  Pixi when WebGL is available; reduced motion, no WebGL context,
+  or any Pixi failure renders the DOM scene exactly as before —
+  the existing roam tests are the contract, and every other mode
+  (bench, extraction, camp, boss prep) keeps the DOM scene. The
+  Pixi chunk stays lazy.
+- **Pose blending includes position.** Where the pilot's parts
+  snapped position and tweened rotation, the roam parts lerp
+  their anchor points over the same SEGMENT slot durations — the
+  brief's standard, applied to roam only; the boss stage's
+  execution is untouched. Mounted gear rides its mount part's
+  live transform; the held weapon sways on PixelSway's own track.
+- **Beats are the DOM's tables, sampled.** The roam tick beats
+  execute through pure samplers (`roamChoreography.ts`) carrying
+  PixelSceneLayer's keyframe tables value-for-value — the dodge
+  and lunge, the hit reaction, the kill collapse — durations from
+  movement.ts where the DOM reads movement.ts, the DOM's own
+  literals where it uses literals. No hit-stop in roam: the
+  absorbed hit-stop ruling was scoped to the boss phase, and the
+  DOM roam stage has none. movement.ts is unmodified.
+- **The pilot's DOM split holds.** Damage numbers and the crit
+  flash stay DOM; ALL loot stays DOM and untouched — the rises
+  and the LootMoment render over the canvas on their own clocks,
+  exactly as over the DOM stage. The vista stack renders in the
+  canvas with the DOM's own drift tracks (the widened-band true
+  pan is V1's slice, not this one); the near layer's mask fade is
+  the same gradient, baked into its texture. Enemies keep their
+  current shipped art — the band rigs with the area palette wash,
+  the bespoke elite flats — the bestiary conversion is a separate
+  track.
+- **Node accounting, honestly.** On the pilot's formula the
+  full-dress roam scene counts 53 animated nodes against the
+  boss fight's 40 — because the DOM scene it replaces animates at
+  least as many framer-driven elements. The count is reported,
+  never trimmed: trimming it would drop scene elements the DOM
+  shows, which is a behavior change, not an optimization. Pools
+  are pre-allocated; nothing spawns per frame.
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in
