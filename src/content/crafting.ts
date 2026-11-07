@@ -29,7 +29,7 @@ import { CONSUMABLES } from '../constants/consumables';
 import { ROAMING_AREAS } from '../constants/roamingAreas';
 import { MaterialType, Rarity } from '../types/game';
 import type { Affix } from '../types/items';
-import { SKIN_PARTS, TINT_PALETTES } from './skins';
+import { SKIN_PARTS, TINT_PALETTES, skinPartDelisted } from './skins';
 
 // ─── Levers (§2.10; registered in src/server/economy/config.ts) ─────
 
@@ -741,6 +741,16 @@ const RECIPE_BY_ID = new Map(ALL_CRAFT_RECIPES.map((r) => [r.id, r]));
 
 export function getCraftRecipe(id: string): CraftRecipe | undefined {
   return RECIPE_BY_ID.get(id);
+}
+
+/** True when the recipe produces a DELISTED cosmetic part (Hero
+ *  Pass H1, Q2): the recipe STAYS in the registry — in-flight and
+ *  queued jobs must keep resolving and settling — but no NEW job
+ *  may start. Derived from the part catalog's `delisted` flag at
+ *  read time; the recipe object itself carries no marker, so the
+ *  SQL-catalog parity pins (0053/0056) are untouched. */
+export function isDelistedRecipe(recipe: CraftRecipe): boolean {
+  return !!recipe.cosmeticPartId && skinPartDelisted(recipe.cosmeticPartId);
 }
 
 /** Every craft recipe (any kind) that consumes the given material or

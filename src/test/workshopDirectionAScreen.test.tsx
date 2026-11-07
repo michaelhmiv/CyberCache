@@ -12,7 +12,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkshopScreen } from '../screens/WorkshopScreen';
 import { usePlayerStore, useWorkshopStore } from '../store';
-import { ALL_CRAFT_RECIPES } from '../content/crafting';
+import { ALL_CRAFT_RECIPES, isDelistedRecipe } from '../content/crafting';
 import { countCraftableNow, type WorkshopPlayerContext } from '../lib/workshop/readiness';
 
 // jsdom has no IntersectionObserver; ChipRail needs one. Same stub
@@ -110,10 +110,14 @@ describe('Workshop Direction A — the page at the mock fixture', { timeout: 60_
     render(<WorkshopScreen onNavigate={vi.fn()} />);
     expect(screen.getByText(/Turn raw drops into kits, ammo and real gear/)).toBeTruthy();
     expect(screen.getByText(/over 100% beats the Vendor’s flat 100/)).toBeTruthy();
-    const expected = countCraftableNow(ALL_CRAFT_RECIPES.filter((r) => !r.tintCraft), fixtureCtx());
+    // The screen's counts cover the BROWSABLE catalog: delisted
+    // recipes (Hero Pass H1 — the retired maker helms) leave the
+    // shelf and the counts while staying resolvable by id.
+    const browsable = ALL_CRAFT_RECIPES.filter((r) => !isDelistedRecipe(r));
+    const expected = countCraftableNow(browsable.filter((r) => !r.tintCraft), fixtureCtx());
     const chip = await screen.findByTestId('craftable-now-chip');
     expect(chip.textContent).toContain(`Craftable now ${expected}`);
-    expect(screen.getByTestId('all-recipes-chip').textContent).toContain(`All ${ALL_CRAFT_RECIPES.length}`);
+    expect(screen.getByTestId('all-recipes-chip').textContent).toContain(`All ${browsable.length}`);
     expect(screen.getByPlaceholderText('Search name, job or material…')).toBeTruthy();
   });
 

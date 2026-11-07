@@ -49,6 +49,8 @@ import { gearCategoryFromPayload } from '../../lib/market/identityKey.js';
 import type { ServiceReaderFacts, SupplyBatch } from './boardRequirements.js';
 import { resolveEconomyConfigValues, resolveRecipeScrapCosts } from '../economy/config.js';
 import type { DiscoveryRecord } from '../../content/collections.js';
+import { skinPartDelisted } from '../../content/skins.js';
+import { getCraftRecipe, isDelistedRecipe } from '../../content/crafting.js';
 import {
   applyReforgeToItem,
   isReforgeableAffix,
@@ -117,6 +119,20 @@ export const NPC_VENDOR_WEAPON_REFUSAL =
  */
 export const FRAGMENT_REFUSAL =
   'Cache fragments no longer exist — cache keys are the only cache currency';
+
+/**
+ * Delisted cosmetic parts (Hero Pass H1, Q2 — owner-ruled
+ * 2026-11-06): the six crafted manufacturer helms retired to the
+ * Standing pick lane. No NEW crafts and no NEW listings; owned
+ * copies and live listings are untouched (grandfathering is
+ * absolute). Both write stores refuse with these exact sentences,
+ * driven by the catalog's `delisted` flag (content/skins.ts) —
+ * availability is data, never an id list in this layer.
+ */
+export const DELISTED_COSMETIC_CRAFT_REFUSAL =
+  'This design was retired — the maker helms are earned as a Standing rank-3 head pick now';
+export const DELISTED_COSMETIC_LISTING_REFUSAL =
+  "Retired designs can't be listed for sale — the maker helms live at the Rep Desk now";
 
 /** True when an item is an NPC-vendor weapon (see the ruling above). */
 export function isNpcVendorWeapon(item: {
@@ -1552,6 +1568,15 @@ export class PgWriteStore implements WriteStore {
     }
   }
   async enqueueCraftJob(playerId: string, nonce: string, input: EnqueueCraftJobInput): Promise<Json> {
+    // Delisted cosmetic parts (Hero Pass H1): refuse at this seam,
+    // before the SQL call — the SQL recipe catalog still resolves
+    // the retired recipes (in-flight jobs must settle), so the
+    // no-new-crafts gate lives here and in the in-memory core,
+    // driven by the catalog flag. The SQL-catalog restatement
+    // that retires the rows at the authority layer is a separate,
+    // parent-run migration (flagged in H1's PR).
+    const recipe = getCraftRecipe(input.recipeId);
+    if (recipe && isDelistedRecipe(recipe)) throw writeError(DELISTED_COSMETIC_CRAFT_REFUSAL);
     const bonus = await this.consumableEfficiencyBonus(playerId);
     const result = await this.callJson(
       'select public.cc_enqueue_craft_job($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) as result',
@@ -2041,6 +2066,16 @@ export class PgWriteStore implements WriteStore {
           payload: (row.payload as Record<string, unknown> | null) ?? null,
         })) {
           throw writeError(NPC_VENDOR_WEAPON_REFUSAL);
+        }
+        // Delisted cosmetic parts (Hero Pass H1): no NEW listings
+        // of a retired design. The refusal rides this same seam;
+        // listings already live are never touched here — they
+        // complete or cancel through their own paths.
+        if (row && (row.kind as string | null) === 'cosmetic') {
+          const partId = (row.payload as Record<string, unknown> | null)?.partId;
+          if (typeof partId === 'string' && skinPartDelisted(partId)) {
+            throw writeError(DELISTED_COSMETIC_LISTING_REFUSAL);
+          }
         }
       } catch (err) {
         return translatePgError(err);
