@@ -1029,6 +1029,59 @@ consumable plates re-pointed in the same slice from the retired
 PX_ICONS glyphs to the consumable compositor — the Manual now
 shows the formed objects the game itself draws.
 
+**S5 (2026-11-07) — authored bases pilot: the sniper.** The
+first authored-bases slice. For the SNIPER only, the card
+compositor's procedural form passes are replaced by 17
+authored pieces (1 layout piece + 16 slot-variant grids; the
+Sight slot ships one coded scope — scope 6) drawn in pxl under
+this standard and checked in as grid data
+(`src/lib/pixel/sniperAuthoredData.ts`), generated from the
+archived authoring sources by a deterministic converter
+(`scripts/convert-sniper-authored-bases.mjs` — re-running it
+reproduces the data byte-for-byte; the .px.js sources live
+with the sweep evidence, the One Grammar pattern). Assembly
+is untouched: `partVariant()` still selects each slot's
+variant from the part's full modifier map, and palette
+resolution, the maker detail pass, element current/finish,
+wear, rarity finish, selout, decals, and condition all run
+over the authored forms exactly as they ran over procedural
+ones. The chamber and magazine part-anchors are data in the
+same module; the barrel's current-bed row is derived from the
+stamped piece. Five grill rulings land here. (1)
+**Maker-neutral authorship:** one form language for all six
+makers; maker identity rides palette plus the detail pass.
+Ironwood reaches the wood ramp by a stamp-time remap (metal
+D/d/P/p/L → v/v/w/w/u) — a test pins that no metal body cells
+survive on an Ironwood card. Two procedural shape behaviors
+are superseded for the sniper and recorded here: Prismatek's
+crystal chamber form, and the Wasteland-bone theme's shape
+overrides (its palette law still applies; its cracks draw
+over the authored stock). (2) **The Kinetic window rule is
+production law:** Kinetic has no element color in game data,
+so the authored chamber window's element keys resolve onto
+the body ramp's light steps at stamp time (base step → 'p',
+the game's own Kinetic chamber fill; glint → 'L'; dark step →
+'d') and the window reads as warm glass in the maker's tones.
+The scope lens keeps its glass glints — the production lens
+behavior, unchanged. (3) **Rarity geometry is overlay data,**
+not baked grids: the three tier-gated shapes (magazine
+stripe, Uncommon+; receiver line, Rare+; chamber line, Epic+)
+stamp from cell lists in the rarity trim shade; Common
+carries none of the three. (4) **Checked-in grid data plus a
+deterministic converter,** never build-time compilation. (5)
+**Element-ramp steps stay derived** (the S1 hueLerp
+precedent), never hand-pinned. Held mode and grip seating are
+unchanged — the authored grip cluster satisfies the declared
+sniper grip fraction, and the held-mode census re-measured on
+the authored form (godroll fixture: opaque 5,383 → 3,543
+held; gold 850 → 10). Containment is pinned by test: 792
+render signatures (every non-sniper card render, every
+pixel-path render) byte-identical to the pre-S5 sweep, and
+the payload delta is 0. Whether authored bases scale to the
+remaining five weapon types (~89 further pieces) is the
+owner's call on this slice's judgment package; S5 does not
+pre-decide it.
+
 ---
 
 ## 9. Surfacing — one canonical door per feature

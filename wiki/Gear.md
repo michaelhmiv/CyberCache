@@ -110,11 +110,18 @@ and HelixWorks a rounded **coil** wrapped in brass rings. Within a
 maker and type, the rolled parts still vary the gun — chambers,
 magazines, sights, and barrels differ from item to item.
 
+Snipers are drawn from hand-authored part art: every chamber,
+magazine, sight, and barrel variant is a drawn piece, assembled by
+the same rules — the rolled parts still pick which pieces your gun
+is built from, and maker, element, and rarity dress them exactly
+as described here.
+
 The element shows as a lit current that runs from the chamber along
 the barrel to the muzzle, in the element's color. Kinetic has no
 current at all — plain machined metal, honestly unlit. Rarity
-changes the finish, never the shape: trim lines on Uncommon and
-Rare, an edge glow on Epic, and a gold halo on Legendary (in hand,
+changes the finish, never the shape: trim lines that arrive as
+rarity climbs (on a sniper: a magazine stripe at Uncommon, a
+receiver line at Rare, a chamber line at Epic), an edge glow on Epic, and a gold halo on Legendary (in hand,
 a Legendary keeps its gold trim; the halo ring itself is card
 display only). Named legendaries keep their own bespoke art on
 every surface.
