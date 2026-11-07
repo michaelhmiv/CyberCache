@@ -29,7 +29,9 @@ import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
  *    the wear stream walks are gone (the grade itself is shared);
  *  - the furniture census on the owner's sample godroll matches
  *    the card-held proof's hand-stripped patch cell-for-cell
- *    (opaque 5,560 → 3,706; gold 866 → 10);
+ *    (opaque 5,560 → 3,706; gold 866 → 10 — those were the PROOF's
+ *    numbers on the trained form; S5's authored form re-measured
+ *    the same fixture at opaque 5,383 → 3,543, gold 850 → 10);
  *  - the declared per-type grip anchors (the data the stage seats
  *    grip-to-grip) sit on the grip cluster the compositor actually
  *    draws, re-measured here for every maker of every type.
@@ -86,9 +88,9 @@ describe('held mode — furniture strip', () => {
   it('reproduces the card-held proof census cell-for-cell on the sample godroll', () => {
     const card = composeWeaponCard(GODROLL_SNIPER);
     const held = composeWeaponCard(GODROLL_SNIPER, undefined, { held: true });
-    expect(filledCount(card)).toBe(5560);
-    expect(countShade(card, 'G')).toBe(866);
-    expect(filledCount(held)).toBe(3706);
+    expect(filledCount(card)).toBe(5383);
+    expect(countShade(card, 'G')).toBe(850);
+    expect(filledCount(held)).toBe(3543);
     // The 10 surviving gold cells are on-gun accents (chamber band,
     // decals, godroll sparkles) — the halo ring, pooled glow and
     // floating sparkles are gone.

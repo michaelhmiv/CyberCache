@@ -199,7 +199,7 @@ A shield's form IS its rolled behavior — the plate draws the device the behavi
 | --- | --- | --- | --- |
 | <img src="images/gear/shield-standard.png" alt="Standard shield" width="240"> | **Standard** | balanced housing + top fins + hex emitter + side pods | No special behavior. |
 | <img src="images/gear/shield-nova.png" alt="Nova shield" width="240"> | **Nova** | shutter ring around a stepped core + vented back plate | When this shield breaks, it erupts in a burst of damage. |
-| <img src="images/gear/shield-absorb.png" alt="Absorb shield" width="240"> | **Absorb** | concentric shell plates + orb + side shell stacks | Chance to fully absorb a hit and restore shield. |
+| <img src="images/gear/shield-absorb.png" alt="Absorb shield" width="240"> | **Absorb** | uneven shell plates around a seated core + side shell stacks | Chance to fully absorb a hit and restore shield. |
 | <img src="images/gear/shield-amp.png" alt="Amp shield" width="240"> | **Amp** | twin capacitor towers + coil console + bolt | Bonus damage while the shield is at full charge. |
 | <img src="images/gear/shield-turtle.png" alt="Turtle shield" width="240"> | **Turtle** | wide riveted bulwark slab + segmented emitter slit | Oversized capacity, slow recharge. |
 

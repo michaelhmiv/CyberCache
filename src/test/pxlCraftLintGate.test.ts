@@ -37,6 +37,19 @@
  * transitions created as many thin components as they removed.
  * It guards forward.)
  *
+ * S3 RE-TRAIN (2026-11-07): the gear budgets below were
+ * re-measured on the S3 branch and re-pinned at its maxima,
+ * zero headroom, same convention. The orphan rise on the three
+ * manufactured-gear systems is the slice's deliberate texture:
+ * the wear ladder + broken-band strays give shields, ordnance,
+ * and class mods the single-tone-cell wear the relic SALVAGE
+ * pass always had (relic orphan budget 185 is the standing
+ * scale for that texture; shield's new maximum, 152, sits
+ * under it). Relic jaggy moved 3 → 4 through the gear core's
+ * selective outline alone (S3-7: relic form code untouched,
+ * silhouette delta 0). Banding stayed at zero on every system
+ * through the re-train — the hard rule did not move.
+ *
  * Pillow asserts zero EXCEPT the three allowlisted renders
  * below. Near-duplicate asserts zero EXCEPT the two allowlisted
  * key pairs below. Every allowlist entry names its reason; an
@@ -60,14 +73,16 @@ for (const entry of corpus) {
   bySystem.set(entry.system, list);
 }
 
-/** Per-render orphan / jaggy ceilings — post-S1 measured maxima. */
+/** Per-render orphan / jaggy ceilings — measured maxima,
+ *  zero headroom (S1 training; gear systems re-trained on S3,
+ *  see the header note). */
 const BUDGETS: Record<string, { orphan: number; jaggy: number }> = {
   'weapon-pixel': { orphan: 4, jaggy: 0 },
   'weapon-card': { orphan: 20, jaggy: 6 },
-  'gear-shield': { orphan: 11, jaggy: 3 },
-  'gear-ordnance': { orphan: 2, jaggy: 0 },
-  'gear-classMod': { orphan: 9, jaggy: 0 },
-  'gear-relic': { orphan: 185, jaggy: 3 },
+  'gear-shield': { orphan: 152, jaggy: 3 },
+  'gear-ordnance': { orphan: 42, jaggy: 2 },
+  'gear-classMod': { orphan: 31, jaggy: 0 },
+  'gear-relic': { orphan: 185, jaggy: 4 },
   consumable: { orphan: 11, jaggy: 3 },
   material: { orphan: 15, jaggy: 0 },
 };

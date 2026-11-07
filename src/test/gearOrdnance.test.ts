@@ -71,6 +71,16 @@ const filledCount = (render: GearRender) =>
 /** Form cells only: frame (F/f) and outline (K/k) are finishes. */
 const formMaskOf = (render: GearRender) =>
   render.rows.map((r) => [...r].map((c) => (c === '.' || c === 'F' || c === 'f' || c === 'K' || c === 'k' ? '0' : '1')).join('')).join('/');
+/** Cells where two renders' form masks disagree. */
+const formMaskDelta = (a: GearRender, b: GearRender) => {
+  const ma = formMaskOf(a).split('/');
+  const mb = formMaskOf(b).split('/');
+  let diff = 0;
+  for (let y = 0; y < ma.length; y++) for (let x = 0; x < ma[y].length; x++) {
+    if (ma[y][x] !== mb[y][x]) diff++;
+  }
+  return diff;
+};
 
 const EXPECTED: Record<string, OrdnanceFormId> = {
   'Fragmentation: +15% area damage': 'spike',
@@ -156,12 +166,24 @@ describe('ordnance grammar — form identity', () => {
     expect(new Set(masks).size).toBe(4);
   });
 
-  it('rarity is finish only: form mask identical Common → Legendary per form', () => {
+  it('rarity is finish only: thumbs byte-identical across rarities; card form moves only inside the wear footprint', () => {
+    // S3-8 re-argument (same shape as the shield file): the
+    // wear ladder bites silhouette edges at card density and
+    // selective outline reclassifies outline cells when wear
+    // darkening crosses the deep-accent boundary, so the old
+    // exact-mask claim is pinned where exact (thumb rows are
+    // byte-identical across rarities — the ladder never runs
+    // at detail 0) and bounded where the finish reaches (card
+    // form-mask delta ≤ 72; measured worst case 35 across the
+    // form × seed matrix, dart/777).
     for (const f of forms) {
       const common = composeGear(input({ variant: f, rarity: Rarity.Common }), ordnanceGrammar);
       const legendary = composeGear(input({ variant: f, rarity: Rarity.Legendary }), ordnanceGrammar);
-      expect(formMaskOf(legendary)).toBe(formMaskOf(common));
+      expect(formMaskDelta(common, legendary)).toBeLessThanOrEqual(72);
       expect(countShade(legendary, 'F')).toBeGreaterThan(countShade(common, 'F'));
+      const commonT = composeGear(input({ variant: f, rarity: Rarity.Common }), ordnanceGrammar, 'thumb');
+      const legendaryT = composeGear(input({ variant: f, rarity: Rarity.Legendary }), ordnanceGrammar, 'thumb');
+      expect(legendaryT.rows).toEqual(commonT.rows);
     }
   });
 
@@ -236,20 +258,23 @@ describe('ordnance grammar — thumb is detail level 0', () => {
 describe('ordnance grammar — golden signature pins', () => {
   // Regression tripwires: any intentional art change re-pins
   // these deliberately (and the capture sheets get re-read).
+  // S3 re-pin (2026-11-07): seated cores, divergent pods/fins,
+    // the jittered groove + body bands, the wear ladder, and
+    // selective outline (S3-1, S3-5, S3-8).
   const GOLDENS: Record<string, string> = {
-    'spike Kinetic Common card': 'a994b18f',
-    'spike Fire Epic card': '62e897c5',
-    'spike Void Legendary card': '7738a87e',
-    'disc Shock Rare card': '640fcfb4',
-    'disc Cryo Epic card': 'e4caf3cc',
-    'dart Fire Rare card': '83f945bc',
-    'dart Kinetic Legendary card': '345a4ea6',
-    'canister Corrosive Epic card': 'f586abee',
-    'canister Void Common card': '858e3e40',
-    'spike Fire Rare thumb': 'ad67b81b',
-    'disc Shock Rare thumb': 'd0844e8a',
-    'dart Void Rare thumb': 'b3c1e700',
-    'canister Kinetic Rare thumb': 'f73ce015',
+    'spike Kinetic Common card': '81c6155b',
+    'spike Fire Epic card': 'dc42eb55',
+    'spike Void Legendary card': 'c93d431e',
+    'disc Shock Rare card': '527d0f84',
+    'disc Cryo Epic card': '6e16d752',
+    'dart Fire Rare card': '4bf756a0',
+    'dart Kinetic Legendary card': '2232d877',
+    'canister Corrosive Epic card': 'edb7798c',
+    'canister Void Common card': 'ea1df10b',
+    'spike Fire Rare thumb': 'e6445a44',
+    'disc Shock Rare thumb': '58290203',
+    'dart Void Rare thumb': '3eb5254',
+    'canister Kinetic Rare thumb': 'cea0d89e',
   };
   const CASES: Record<string, { input: GearComposeInput; density: 'card' | 'thumb' }> = {
     'spike Kinetic Common card': { input: input({ variant: 'spike', element: Element.Kinetic, rarity: Rarity.Common, pips: 0 }), density: 'card' },

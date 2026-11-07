@@ -28,6 +28,13 @@ import {
   type ShapeSet,
   type WeaponTheme,
 } from './weaponGrammarData';
+import {
+  SNIPER_AUTHORED_CHAMBER_ANCHORS,
+  SNIPER_AUTHORED_MAGAZINE_ANCHORS,
+  SNIPER_AUTHORED_OVERLAYS,
+  SNIPER_AUTHORED_PIECES,
+  type AuthoredPiece,
+} from './sniperAuthoredData';
 
 /**
  * weaponCardCompositor — the CARD-density weapon renderer (240×88),
@@ -798,6 +805,117 @@ function barrel(ctx: Ctx) {
 }
 
 /* ------------------------------------------------------------------ */
+/* S5 — the sniper's authored form (authored-bases pilot)              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The authored-bases pilot (Pxl Craft Sweep S5): for the SNIPER
+ * only, the form passes above are replaced by authored part bases —
+ * 17 pieces drawn in pxl under the pxl-craft standard (sources +
+ * converter: sniperAuthoredData.ts), one per effective slot-variant,
+ * seated by the same CARD_LAYOUTS row the procedural passes read.
+ * Assembly is unchanged: partVariant() still picks each slot's
+ * variant from the item's own rolled modifier map; palettes resolve
+ * through the same color map; the maker detail pass, element
+ * current/finish, wear, rarity finish, outline, decals, and
+ * condition all run after this pass exactly as they do over
+ * procedural forms. Authorship is maker-neutral (sweep grill 1):
+ * one form language, maker carried by palette + the detail pass;
+ * Ironwood reaches the wood ramp by the stamp remap below, the way
+ * every procedural pass treats it.
+ */
+const AUTHORED_WOOD_REMAP: Partial<Record<CardShade, CardShade>> = { D: 'v', d: 'v', P: 'w', p: 'w', L: 'u' };
+/**
+ * Kinetic window rule (sweep grill 2, adopted from the hybrid
+ * proof): Kinetic has no element color in game data — the
+ * procedural chamber fills it with the maker's light tone. The
+ * authored window's element keys resolve onto the body ramp's
+ * light steps, so a Kinetic window reads as warm glass in the
+ * maker's own tones: base step onto 'p' (the game's own fill),
+ * glint onto 'L', dark step onto 'd'.
+ */
+const AUTHORED_KINETIC_REMAP: Partial<Record<CardShade, CardShade>> = { c: 'd', E: 'p', e: 'L' };
+
+function stampAuthoredPiece(ctx: Ctx, piece: AuthoredPiece, remap?: Partial<Record<CardShade, CardShade>>) {
+  const { g } = ctx;
+  const [sx, sy] = piece.seat;
+  piece.rows.forEach((row, dy) => {
+    for (let dx = 0; dx < row.length; dx++) {
+      const ch = row[dx] as CardShade | '.';
+      if (ch === '.') continue;
+      g.set(sx + dx, sy + dy, remap?.[ch] ?? ch);
+    }
+  });
+}
+
+function authoredSniperForm(ctx: Ctx) {
+  const { g, input, L } = ctx;
+  const wood = isWood(input.manufacturer);
+  const remap = wood ? AUTHORED_WOOD_REMAP : undefined;
+  const kinetic = !input.element || input.element === Element.Kinetic;
+  const barrelV = ctx.variant('Barrel');
+  const gripV = ctx.variant('Grip');
+  const coreV = ctx.variant('Core');
+  const magV = ctx.variant('Magazine');
+  const chamberV = ctx.variant('Chamber');
+
+  stampAuthoredPiece(ctx, SNIPER_AUTHORED_PIECES.layout, remap);
+  stampAuthoredPiece(ctx, SNIPER_AUTHORED_PIECES.core[coreV], remap);
+  stampAuthoredPiece(ctx, SNIPER_AUTHORED_PIECES.chamber[chamberV],
+    kinetic ? { ...remap, ...AUTHORED_KINETIC_REMAP } : remap);
+  stampAuthoredPiece(ctx, SNIPER_AUTHORED_PIECES.barrel[barrelV], remap);
+  stampAuthoredPiece(ctx, SNIPER_AUTHORED_PIECES.sight, remap);
+  stampAuthoredPiece(ctx, SNIPER_AUTHORED_PIECES.grip[gripV], remap);
+  stampAuthoredPiece(ctx, SNIPER_AUTHORED_PIECES.magazine[magV], remap);
+
+  // Maker mark, stamped in the receiver's dark tone — the same
+  // detail the procedural receiver pass stamps, at the same seat.
+  stampMark(g, MAKER_MARKS[input.manufacturer], L.bodyX + 6, ctx.bodyTop + L.bodyH - 9, wood ? 'v' : 'D');
+
+  // Rarity-gated geometry (overlay data, sweep scope 5): the three
+  // shapes the game gates by tier, stamped in the rarity trim
+  // shade — magazine stripe (Uncommon+), receiver line (Rare+),
+  // chamber line (Epic+). Common carries none of the three.
+  const rarity = input.rarity as Rarity;
+  const stampCells = (cells: [number, number][]) => { for (const [x, y] of cells) g.over(x, y, 'g'); };
+  if (rarity !== Rarity.Common) stampCells(SNIPER_AUTHORED_OVERLAYS.magStripe[magV]);
+  if (rarity === Rarity.Rare || rarity === Rarity.Epic || rarity === Rarity.Legendary) {
+    stampCells(SNIPER_AUTHORED_OVERLAYS.receiverLine);
+  }
+  if (rarity === Rarity.Epic || rarity === Rarity.Legendary) {
+    stampCells(SNIPER_AUTHORED_OVERLAYS.chamberLine[chamberV]);
+  }
+
+  // Anchors, and the barrel's bottom inner row per column (the
+  // element current rides it) — derived from the stamped barrel
+  // piece with the procedural tube's convention (bottom row − 1).
+  const [chAx, chAy] = SNIPER_AUTHORED_CHAMBER_ANCHORS[chamberV];
+  ctx.anchors.Chamber = { x: chAx * TEXEL, y: chAy * TEXEL };
+  const [mgAx, mgAy] = SNIPER_AUTHORED_MAGAZINE_ANCHORS[magV];
+  ctx.anchors.Magazine = { x: mgAx * TEXEL, y: mgAy * TEXEL };
+  ctx.anchors.Stock = { x: (L.bodyX - L.stockLen + 4) * TEXEL, y: SPINE * TEXEL };
+  const barrel = SNIPER_AUTHORED_PIECES.barrel[barrelV];
+  barrel.rows.forEach((row, dy) => {
+    for (let dx = 0; dx < row.length; dx++) {
+      if (row[dx] !== '.') ctx.tubeBottom.set(barrel.seat[0] + dx, barrel.seat[1] + dy - 1);
+    }
+  });
+  ctx.muzzleX = L.bodyX + L.bodyLen + L.barrelLen;
+
+  // Bipod: card presentation furniture, as in the procedural barrel
+  // pass — drawn here, never baked into an authored grid, and
+  // omitted in held mode (One Grammar).
+  if (!ctx.held) {
+    const fx = ctx.bodyFront;
+    const bx2 = fx + Math.round(L.barrelLen * 0.62);
+    g.thickLine(bx2, SPINE + 2, bx2 - 7, SPINE + 13, 1, 'D');
+    g.thickLine(bx2 + 3, SPINE + 2, bx2 + 10, SPINE + 13, 1, 'D');
+    g.set(bx2 - 8, SPINE + 13, 'K');
+    g.set(bx2 + 11, SPINE + 13, 'K');
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Pass 7 — manufacturer hand (details that ride the grammar)          */
 /* ------------------------------------------------------------------ */
 
@@ -1378,12 +1496,18 @@ export function composeWeaponCard(rawInput: PixelWeaponInput, themeId?: string, 
     variant: (slot, variants) => partVariant(input, slot as PixelPartSlot, variants),
   };
 
-  stockAndGrip(ctx);
-  magazine(ctx);
-  receiver(ctx);
-  chamber(ctx);
-  sight(ctx);
-  barrel(ctx);
+  // S5: the sniper's form comes from authored bases (see
+  // authoredSniperForm); every other type composes procedurally.
+  if (input.weaponType === WeaponType.Sniper) {
+    authoredSniperForm(ctx);
+  } else {
+    stockAndGrip(ctx);
+    magazine(ctx);
+    receiver(ctx);
+    chamber(ctx);
+    sight(ctx);
+    barrel(ctx);
+  }
   manufacturerPass(ctx);
   elementCurrent(ctx);
   elementFinish(ctx);

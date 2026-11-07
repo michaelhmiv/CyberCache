@@ -123,10 +123,22 @@ const cardOf = (item: ClassMod): GearRender => composeGear(classModInputFromItem
 const thumbOf = (item: ClassMod): GearRender => composeGear(classModInputFromItem(item), classModGrammar, 'thumb');
 /** Form cells only: frame (F/f) and outline (K/k) are finishes —
  *  the core test's mask. (This grammar also uses k/K structurally,
- *  but those cells are seed-identical across rarities, so the mask
- *  still isolates exactly the frame delta.) */
+ *  but those cells are seed-identical across rarities. Since S3
+ *  the mask no longer isolates ONLY the frame delta: the wear
+ *  ladder and selective outline move a bounded number of mask
+ *  cells — see the rarity test's re-argument.) */
 const formMaskOf = (render: GearRender) =>
   render.rows.map((r) => [...r].map((c) => (c === '.' || c === 'F' || c === 'f' || c === 'K' || c === 'k' ? '0' : '1')).join('')).join('/');
+/** Cells where two renders' form masks disagree. */
+const formMaskDelta = (a: GearRender, b: GearRender) => {
+  const ma = formMaskOf(a).split('/');
+  const mb = formMaskOf(b).split('/');
+  let diff = 0;
+  for (let y = 0; y < ma.length; y++) for (let x = 0; x < ma[y].length; x++) {
+    if (ma[y][x] !== mb[y][x]) diff++;
+  }
+  return diff;
+};
 
 describe('class-mod marriage — registration + dispatch', () => {
   it('the grammar is registered in the total dispatch table', () => {
@@ -297,14 +309,26 @@ describe('class-mod marriage — determinism + density discipline', () => {
     }
   });
 
-  it('rarity is finish only: Common and Legendary share the form mask', () => {
+  it('rarity is finish only: thumbs byte-identical across rarities; card form moves only inside the wear footprint', () => {
     // Same input, only the rarity changes — the seed (which drives
-    // wear and fin picks) is held fixed so the frame is the ONLY delta.
+    // wear and fin picks) is held fixed so the finishes are the
+    // ONLY delta. S3-8 re-argument: pre-S3 the form mask was
+    // exactly shared, because the old finish never touched a form
+    // cell. The wear ladder (card only) and selective outline now
+    // move a bounded number of mask cells (measured worst case 24
+    // across the tree × boost matrix at fixed seed; bound 48).
+    // Where the claim can stay exact it does: thumb rows are
+    // byte-identical across rarities, and the node deck — the one
+    // true data surface — is pinned cell-for-cell in the S3 suite
+    // (gearCraftS3.test.ts) via NODE_DECK_ORIGINS.
     const base = classModInputFromItem(FIXTURES['gunslinger-common-plain']);
     const common = composeGear({ ...base, rarity: Rarity.Common }, classModGrammar, 'card');
     const legendary = composeGear({ ...base, rarity: Rarity.Legendary }, classModGrammar, 'card');
-    expect(formMaskOf(legendary)).toBe(formMaskOf(common));
+    expect(formMaskDelta(common, legendary)).toBeLessThanOrEqual(48);
     expect(legendary.signature).not.toBe(common.signature);
+    const commonT = composeGear({ ...base, rarity: Rarity.Common }, classModGrammar, 'thumb');
+    const legendaryT = composeGear({ ...base, rarity: Rarity.Legendary }, classModGrammar, 'thumb');
+    expect(legendaryT.rows).toEqual(commonT.rows);
   });
 });
 
@@ -312,20 +336,24 @@ describe('class-mod marriage — golden signature pins', () => {
   // Regression tripwires over the reviewed capture set: any
   // intentional art change re-pins these deliberately (and the
   // capture sheets get re-read).
+  // S3 re-pin (2026-11-07): broken casing shading, the cluster
+  // wear conversion, the wear ladder, and selective outline
+  // (S3-1, S3-6, S3-8). The node deck is pinned cell-for-cell
+  // across rarities in gearCraftS3.test.ts (floor 7).
   const GOLDENS: Record<string, string> = {
-    'gunslinger-epic-boosted': '571da90',
-    'gunslinger-legendary-boosted': '22c1d54c',
-    'gunslinger-common-plain': '2e5fc0fc',
-    'demolition-rare-boosted': 'b12fcd5',
-    'demolition-common-plain': 'e75bf2dd',
-    'demolition-legendary-boosted': '5cbb6304',
-    'scavenger-uncommon-boosted': 'ae68fc60',
-    'scavenger-epic-plain': '3097f066',
-    'scavenger-common-plain': 'e6a079e9',
-    'scavenger-legendary-boosted': '542c4fe7',
-    'fixer-epic-boosted': '492151b6',
-    'fixer-common-plain': 'd626a21d',
-    'fixer-legendary-boosted': 'db8fc812',
+    'gunslinger-epic-boosted': 'ae55be3f',
+    'gunslinger-legendary-boosted': 'd78fd550',
+    'gunslinger-common-plain': 'ae9fffcf',
+    'demolition-rare-boosted': '20f07c74',
+    'demolition-common-plain': 'f305f3ce',
+    'demolition-legendary-boosted': '45aba8c5',
+    'scavenger-uncommon-boosted': '55568f6a',
+    'scavenger-epic-plain': '79cd2fd',
+    'scavenger-common-plain': 'bc939361',
+    'scavenger-legendary-boosted': '7a096055',
+    'fixer-epic-boosted': 'f92f0526',
+    'fixer-common-plain': '9acb0820',
+    'fixer-legendary-boosted': 'd24bdcbb',
   };
   for (const [name, sig] of Object.entries(GOLDENS)) {
     it(`pins ${name} (card)`, () => {
@@ -334,8 +362,8 @@ describe('class-mod marriage — golden signature pins', () => {
   }
 
   const THUMB_GOLDENS: Record<string, string> = {
-    'gunslinger-epic-boosted': '8ce9ad3e',
-    'fixer-epic-boosted': 'bccf8ac8',
+    'gunslinger-epic-boosted': '72420fc3',
+    'fixer-epic-boosted': '1aeec2f5',
   };
   for (const [name, sig] of Object.entries(THUMB_GOLDENS)) {
     it(`pins ${name} (thumb)`, () => {
