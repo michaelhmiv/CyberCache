@@ -14,6 +14,12 @@ section. (Everything you *do* lives on Home; the [[Gear]] tab keeps
 what you *own*, with a status strip at its foot that reads the bench
 at a glance and doors back here.)
 
+While a job runs, you can watch it happen: your hunter works the
+bench on the Home stage — weapon slung, striking the work — and
+the bench scene in the Workshop shows the same work up close.
+Each finished unit rises off the bench in a small celebration;
+the job queue keeps the official record.
+
 ## The one rule: jobs run only while you craft
 
 Workshop jobs advance **only while crafting is your active action**.
