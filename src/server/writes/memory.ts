@@ -9,6 +9,7 @@
  * authority for SQL-exact behavior.
  */
 import type { ProfileRowData } from '../reads/store.js';
+import { skinPartDelisted } from '../../content/skins.js';
 import { SkillTreeType } from '../../types/game.js';
 import {
   MARKET_FEE_RATE,
@@ -201,6 +202,7 @@ import {
   validateShowcasePins,
   validateUsername,
   writeError,
+  DELISTED_COSMETIC_LISTING_REFUSAL,
   FRAGMENT_REFUSAL,
   NPC_VENDOR_WEAPON_REFUSAL,
   isNpcVendorWeapon,
@@ -4254,8 +4256,13 @@ export class InMemoryWriteStore implements WriteStore {
           && j.kind === 'cosmetic' && j.snapshot.tint?.itemId === item.id,
       );
       if (tintActive) throw writeError('Part is being tinted');
-      this.unequipCosmeticIfWorn(playerId, item);
+      // Delisted parts (Hero Pass H1): no NEW listings of a
+      // retired design — refused BEFORE the auto-unequip below,
+      // so a refused listing never changes what the hunter wears
+      // or owns. Listings already live are untouched.
       const partId = typeof payload.partId === 'string' ? payload.partId : '';
+      if (partId && skinPartDelisted(partId)) throw writeError(DELISTED_COSMETIC_LISTING_REFUSAL);
+      this.unequipCosmeticIfWorn(playerId, item);
       const cosmeticListing: WriteListingData = {
         id: this.uuid(),
         seller_user_id: playerId,

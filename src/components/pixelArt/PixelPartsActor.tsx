@@ -578,7 +578,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
             }}
           >
             <PixelSway reduced={reduced}>
-              <PixelWeapon weapon={weapon} input={weapon ? undefined : weaponInput} fluid testId={weaponTestId} />
+              <PixelWeapon weapon={weapon} input={weapon ? undefined : weaponInput} fluid testId={weaponTestId} density="held" />
             </PixelSway>
           </div>
         )}

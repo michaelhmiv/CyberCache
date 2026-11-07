@@ -144,6 +144,10 @@ The unified Workshop catalog holds **88 recipes**:
 - **27 cosmetic recipes** — the [[Skins and Cosmetics]] catalog:
   26 scrap-led skin parts (no stats, ever) in the Skin Parts lane,
   plus the item-targeted **tint craft** run from the Tinting lane.
+  Six of the 26 — the manufacturer helms — are **retired**: their
+  recipes no longer start (the maker look lives in the
+  [[Manufacturer Standing]] rank-3 head pick now), though a helm
+  job already running when they retired still finishes.
 - **1 Chromaweave refine** — Myco-Steel Fiber + Void Essence woven
   into Chromaweave, the tint material (see [[Skins and Cosmetics]]).
 

@@ -36,13 +36,18 @@ Wave 1 ships **26 parts** in three tiers:
   job, 45 minutes each, 600–700 Scrap per part (6,100 the set)
   plus one or two materials.
 - **Manufacturer heads** — the six makers' heads (Redline,
-  Ironwood, BlastForge, Prismatek, ThrowTech, HelixWorks) are in
-  the normal pool like everything else: bench 2, 1,800
-  Scrap + 2 of the maker's signature material, 90 minutes.
+  Ironwood, BlastForge, Prismatek, ThrowTech, HelixWorks) are
+  **retired from the craft pool**: the look now lives in one
+  lane, the [[Manufacturer Standing]] rank-3 head pick (below).
+  No new copies can be crafted, and the helms can't be newly
+  listed for sale. Copies crafted before the retirement are
+  grandfathered absolutely — they still wear, equip, and render
+  exactly as before, and a listing that was already live trades
+  as normal.
 
 Every slot is covered from day one: head, torso, both arms
 (upper + forearm near, far arm), both legs (thigh + lower leg —
-the boot is part of the lower leg), and back. Everything is
+the boot is part of the lower leg), and back. Everything else is
 permanently available; there are no limited-time windows yet.
 
 <!-- GENERATED from src/content/skins.ts, src/lib/pixel/skinParts.ts, src/lib/pixel/partsCompositor.ts, src/lib/pixel/standardIssue.ts — do not edit by hand -->
@@ -91,7 +96,7 @@ Standard Issue silhouettes repainted in bone plate and crimson trim, with a red 
 
 ### Manufacturer Heads
 
-The six manufacturer helmets, crafted like everything else. Standing-earned heads stay wearable.
+The six maker helmets now live in one lane: the Standing rank-3 head pick, earned at the Rep Desk. Crafted copies from the old pool are retired — no new crafts, no new listings — and copies already owned wear forever.
 
 The heads are single parts, so each is shown worn on the standard frame — the second column is the first column on a hunter.
 
@@ -124,7 +129,10 @@ The **Wardrobe** has its own stop on the Hunter tab, behind the
 Wardrobe door at the foot of the Hunter menu: a showcase stage
 with your hunter wearing his current look (weapon included), your
 owned parts by slot, and the full craftable catalog with its
-costs. Those costs are live: a part's Scrap price is tuned per
+costs. The weapon on that stage — and on every stage — is the
+item's own full-detail drawing, the same picture as its Gear
+card with the display furniture folded away (see [[Gear]] § How
+a weapon looks). Those costs are live: a part's Scrap price is tuned per
 recipe (see [[Economy]]), and the Wardrobe always quotes the
 price that will actually be charged. Each craftable row also
 prints the part's real craft time beside its inputs — the same
@@ -138,8 +146,9 @@ The **head pick** works alongside parts: the four free head
 variants (Visor, Optic, Hood, Fin) apply whenever no head *part*
 is worn. Manufacturer heads earned through [[Manufacturer
 Standing]] (rank 3 on a maker's ladder) stay wearable as picks
-forever — earning one is never revoked — and the same heads can
-also be crafted as parts and worn as items. A worn head part
+forever — earning one is never revoked. Crafted helm *parts*
+from before the retirement still exist and wear as items the
+same way; no new ones can be crafted or listed. A worn head part
 overrides the pick while it's on.
 
 ## Tinting and Chromaweave
@@ -179,6 +188,10 @@ is the exact item. Rules that keep the market honest:
   the same motion — a listed part is never still on a hunter.
 - **Locked** parts can't be listed; unlock first.
 - A part **mid-tint** can't be listed until the tint lands.
+- **Retired designs** — the six manufacturer helms — can't be
+  newly listed at all; their crafted run has ended. A helm
+  listing that was already live when they retired still trades
+  as normal, and owned helms still wear forever.
 - Buying a part puts it in your inventory, ready to wear from the
   Wardrobe.
 

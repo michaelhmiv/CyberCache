@@ -25,6 +25,7 @@ import {
   catalystForRecipe,
   craftQualityBounds,
   craftUnitXp,
+  isDelistedRecipe,
   isMaterialInput,
   refineOutputCount,
   refineOutputRange,
@@ -412,7 +413,11 @@ export const WorkshopScreen: React.FC<{
     [player.level, player.scrap, player.materials, player.essences, player.consumables, benchesOwned, masteries, standingRanks, researchCompletedIds, activeJobs, server],
   );
 
-  const genericRecipes = useMemo(() => ALL_CRAFT_RECIPES.filter((r) => !r.tintCraft), []);
+  // The browsable catalog: delisted recipes (Hero Pass H1 — the
+  // retired maker helms) leave the shelf and the counts, while
+  // staying resolvable by id for jobs already in flight.
+  const catalogRecipes = useMemo(() => ALL_CRAFT_RECIPES.filter((r) => !isDelistedRecipe(r)), []);
+  const genericRecipes = useMemo(() => catalogRecipes.filter((r) => !r.tintCraft), [catalogRecipes]);
   const readinessById = useMemo(() => {
     const map = new Map<string, RecipeReadiness>();
     for (const recipe of genericRecipes) map.set(recipe.id, deriveRecipeReadiness(recipe, ctx));
@@ -583,7 +588,7 @@ export const WorkshopScreen: React.FC<{
             className={`shrink-0 px-3 py-2 text-[11px] font-black border ${!craftableOnly ? 'bl-primary border-transparent' : 'border-border bg-surface text-text-secondary'}`}
             style={chipClip}
           >
-            All {ALL_CRAFT_RECIPES.length}
+            All {catalogRecipes.length}
           </button>
           <div className="relative min-w-[140px] flex-1">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
@@ -814,7 +819,7 @@ export const WorkshopScreen: React.FC<{
       <TintPanel onNavigate={onNavigate} onRefineFocus={focusRefineRecipe} />
 
       <div className="text-[11px] text-text-muted">
-        {ALL_CRAFT_RECIPES.length} recipes in the catalog · sorted Craftable → One gate away → Locked. Sorts: Level · Time · Name.
+        {catalogRecipes.length} recipes in the catalog · sorted Craftable → One gate away → Locked. Sorts: Level · Time · Name.
       </div>
 
       {/* The bench stage (§2.9): the bench's station, the hunter at

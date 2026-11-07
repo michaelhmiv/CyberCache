@@ -8,10 +8,10 @@ import {
   partsWeaponFractionsFor,
 } from '@/lib/pixel/partsStage';
 import {
-  composePixelWeapon,
   pixelWeaponInputFromWeapon,
   type PixelWeaponInput,
 } from '@/lib/pixel/weaponCompositor';
+import { composeWeaponCard } from '@/lib/pixel/weaponCardCompositor';
 import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -252,8 +252,9 @@ describe('loadout truth — the DOM actor holds the equipped instance', () => {
     render(<PixelPartsActor {...actorProps} weapon={SNIPER} />);
     const held = screen.getByTestId('fit-held-weapon');
     expect(held.getAttribute('data-signature')).toBe(
-      composePixelWeapon(pixelWeaponInputFromWeapon(SNIPER)).signature,
+      composeWeaponCard(pixelWeaponInputFromWeapon(SNIPER), undefined, { held: true }).signature,
     );
+    expect(held.getAttribute('data-density')).toBe('held');
   });
 
   it('swapping the instance swaps the held render (and a different type reads differently)', () => {
@@ -261,7 +262,7 @@ describe('loadout truth — the DOM actor holds the equipped instance', () => {
     const sniperSig = screen.getByTestId('fit-held-weapon').getAttribute('data-signature');
     rerender(<PixelPartsActor {...actorProps} weapon={SHOTGUN} />);
     const shotgunSig = screen.getByTestId('fit-held-weapon').getAttribute('data-signature');
-    expect(shotgunSig).toBe(composePixelWeapon(pixelWeaponInputFromWeapon(SHOTGUN)).signature);
+    expect(shotgunSig).toBe(composeWeaponCard(pixelWeaponInputFromWeapon(SHOTGUN), undefined, { held: true }).signature);
     expect(shotgunSig).not.toBe(sniperSig);
   });
 
