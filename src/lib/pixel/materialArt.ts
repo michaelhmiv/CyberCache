@@ -2,7 +2,27 @@ import { EssenceType, MaterialType } from '@/types/game';
 import { getMaterialVisual, getResourceVisual } from '@/constants/visualAssets';
 import { hashString } from '@/lib/utils/rng';
 import { seededRandom } from '@/lib/weaponArt/decalSpec';
-import { hueLerp } from './weaponCardCompositor';
+import {
+  ACCENT_SHADES,
+  GROUND_SHADOW_HEX,
+  GROUND_Y,
+  HARD_WHITE_HEX,
+  OUTLINE_HEX,
+  RAMP_SHADES,
+  SmallItemPlate,
+  accentDark,
+  choice,
+  finishPass,
+  fiveToneRamp,
+  paintSmallItemRows,
+  rint,
+  smallItemCached,
+  thumbGroundRow,
+  toneNoise,
+  type AccentShades,
+  type RampShades,
+  type Rng,
+} from './smallItemCore';
 
 /**
  * materialArt — STUFF: the pixel-native material renderer (owner
@@ -38,6 +58,11 @@ import { hueLerp } from './weaponCardCompositor';
  *
  * Runtime-composed: zero sprite payload, same as the gear
  * marriage. Compose-then-cache mirrors gearCardCompositor.
+ *
+ * S4 (2026-11-07): STUFF and consumableArt were one system written
+ * twice; both now build on the one shared core, smallItemCore.ts
+ * (ramp, plate, finish, cache, painter). This file keeps the STUFF
+ * table, the eight family painters, and the band finishes.
  */
 
 export type MaterialFamilyId =
@@ -108,122 +133,27 @@ export function materialArtRow(id: string): MaterialArtRow {
 }
 
 /* ------------------------------------------------------------------ */
-/* Ramps (the STUFF five-tone factors, from the approved exploration) */
+/* Ramps + plate + finish — the shared small-item core (S4). The      */
+/* five-tone builder, the plate class, the seeded helpers, toneNoise, */
+/* finishPass, the thumb ground row, the cache, and the painter all   */
+/* live in smallItemCore.ts now. What stays here is STUFF's own: the  */
+/* table, the eight families, the band-keyed wear profiles.           */
 /* ------------------------------------------------------------------ */
-
-interface StuffRamp { deep: string; shade: string; base: string; lite: string; hot: string }
-
-function stuffRamp(base: string): StuffRamp {
-  return {
-    deep: hueLerp(base, '#000000', 0.52),
-    shade: hueLerp(base, '#000000', 0.26),
-    base,
-    lite: hueLerp(base, '#FFFFFF', 0.34),
-    hot: hueLerp(base, '#FFFFFF', 0.60),
-  };
-}
 
 /** Shade alphabet: D/d/P/p/L = base ramp deep→hot, A/a/E = accent
  *  base / dark / lite, K = warm near-black outline, S = ground
  *  shadow, W = hard white (cryo frost). */
 export type StuffShade = 'K' | 'S' | 'W' | 'D' | 'd' | 'P' | 'p' | 'L' | 'A' | 'a' | 'E';
 
-const RAMP_SHADES = { deep: 'D', shade: 'd', base: 'P', lite: 'p', hot: 'L' } as const;
-const ACCENT_SHADES = { base: 'A', dark: 'a', hot: 'E' } as const;
-type R = typeof RAMP_SHADES;
-type A = typeof ACCENT_SHADES;
+type R = RampShades;
+type A = AccentShades;
 
-/* ------------------------------------------------------------------ */
-/* Plate                                                               */
-/* ------------------------------------------------------------------ */
-
-const GROUND_Y = 21; // objects sit on this row of the 24 grid
-
+type StuffPlate = SmallItemPlate;
 type Pt = [number, number];
 
-class StuffPlate {
-  readonly n: number;
-  cells: string[][];
-
-  constructor(n: number) {
-    this.n = n;
-    this.cells = Array.from({ length: n }, () => new Array<string>(n).fill('.'));
-  }
-
-  in(x: number, y: number) { return x >= 0 && x < this.n && y >= 0 && y < this.n; }
-  get(x: number, y: number): string { return this.in(x, y) ? this.cells[y][x] : '.'; }
-  set(x: number, y: number, s: StuffShade) { if (this.in(x, y)) this.cells[y][x] = s; }
-  /** Set only over already-filled cells. */
-  over(x: number, y: number, s: StuffShade) { if (this.get(x, y) !== '.') this.set(x, y, s); }
-  filled(x: number, y: number) { return this.get(x, y) !== '.'; }
-  rows(): string[] { return this.cells.map((r) => r.join('')); }
-
-  rect(x: number, y: number, w: number, h: number, s: StuffShade) {
-    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) this.set(xx, yy, s);
-  }
-
-  /** Scanline polygon fill (the gear plate engine's approach). */
-  poly(pts: Pt[], s: StuffShade) {
-    const ys = pts.map((p) => p[1]);
-    const y0 = Math.max(0, Math.floor(Math.min(...ys)));
-    const y1 = Math.min(this.n - 1, Math.ceil(Math.max(...ys)));
-    for (let y = y0; y <= y1; y++) {
-      const xs: number[] = [];
-      for (let i = 0; i < pts.length; i++) {
-        const [ax, ay] = pts[i];
-        const [bx, by] = pts[(i + 1) % pts.length];
-        if ((ay <= y && by > y) || (by <= y && ay > y)) xs.push(ax + ((y - ay) / (by - ay)) * (bx - ax));
-      }
-      xs.sort((a, b) => a - b);
-      for (let i = 0; i + 1 < xs.length; i += 2) {
-        for (let x = Math.round(xs[i]); x <= Math.round(xs[i + 1]); x++) this.set(x, y, s);
-      }
-    }
-  }
-
-  /** Filled ellipse by texel-center test (bbox = center ± radii). */
-  ellipse(cx: number, cy: number, rx: number, ry: number, s: StuffShade) {
-    const x0 = Math.floor(cx - rx - 1); const x1 = Math.ceil(cx + rx + 1);
-    const y0 = Math.floor(cy - ry - 1); const y1 = Math.ceil(cy + ry + 1);
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const dx = (x - cx) / (rx + 0.5); const dy = (y - cy) / (ry + 0.5);
-      if (dx * dx + dy * dy <= 1) this.set(x, y, s);
-    }
-  }
-
-  /** Ellipse ring: inside the outer ellipse, outside the shrunk one. */
-  ellipseRing(cx: number, cy: number, rx: number, ry: number, thickness: number, s: StuffShade) {
-    const x0 = Math.floor(cx - rx - 1); const x1 = Math.ceil(cx + rx + 1);
-    const y0 = Math.floor(cy - ry - 1); const y1 = Math.ceil(cy + ry + 1);
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const dxo = (x - cx) / (rx + 0.5); const dyo = (y - cy) / (ry + 0.5);
-      if (dxo * dxo + dyo * dyo > 1) continue;
-      const irx = rx - thickness; const iry = ry - thickness;
-      if (irx > 0 && iry > 0) {
-        const dxi = (x - cx) / (irx + 0.5); const dyi = (y - cy) / (iry + 0.5);
-        if (dxi * dxi + dyi * dyi <= 1) continue;
-      }
-      this.set(x, y, s);
-    }
-  }
-
-  bodyMask(): boolean[][] {
-    return this.cells.map((row) => row.map((c) => c !== '.'));
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Seeded helpers (mulberry stream via the decal spec's rng)           */
-/* ------------------------------------------------------------------ */
-
-type Rng = () => number;
-const rint = (rng: Rng, lo: number, hi: number) => lo + Math.floor(rng() * (hi - lo + 1));
-function choice<T>(rng: Rng, arr: readonly T[]): T { return arr[Math.floor(rng() * arr.length)]; }
-
-/* ------------------------------------------------------------------ */
-/* Finish pass — wear + outline, shared by every family                */
-/* ------------------------------------------------------------------ */
-
+/** Band-keyed wear (the finish axis): the core's finishPass takes
+ *  { chipP, scratches }; the tone-noise density is band-keyed too —
+ *  raw and signature goods are noisier than the aligned bands. */
 const WEAR: Record<MaterialBandId, { chipP: number; scratches: number }> = {
   raw: { chipP: 0.13, scratches: 2 },
   signature: { chipP: 0.07, scratches: 1 },
@@ -232,56 +162,7 @@ const WEAR: Record<MaterialBandId, { chipP: number; scratches: number }> = {
   essence: { chipP: 0.05, scratches: 0 },
 };
 
-function toneNoise(cv: StuffPlate, band: MaterialBandId, rng: Rng) {
-  const density = band === 'raw' || band === 'signature' ? 0.16 : 0.07;
-  for (let y = 0; y < cv.n; y++) for (let x = 0; x < cv.n; x++) {
-    if (cv.get(x, y) === 'P' && rng() < density) cv.set(x, y, choice(rng, ['d', 'p'] as const));
-  }
-}
-
-function finishPass(cv: StuffPlate, band: MaterialBandId, rng: Rng) {
-  const { chipP, scratches } = WEAR[band];
-  const n = cv.n;
-  let mask = cv.bodyMask();
-  // Chips: knock out or darken silhouette-edge texels.
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    if (!mask[y][x]) continue;
-    const edge = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(
-      ([dx, dy]) => !(x + dx >= 0 && x + dx < n && y + dy >= 0 && y + dy < n && mask[y + dy][x + dx]),
-    );
-    if (edge && rng() < chipP) {
-      if (rng() < 0.45) cv.cells[y][x] = '.';
-      else cv.set(x, y, 'D');
-    }
-  }
-  // Scratches: short dark runs across the body.
-  const body: Pt[] = [];
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (cv.filled(x, y)) body.push([x, y]);
-  for (let i = 0; i < scratches && body.length > 0; i++) {
-    const [sx, sy] = body[Math.floor(rng() * body.length)];
-    const len = rint(rng, 2, 4);
-    for (let k = 0; k < len; k++) if (cv.filled(sx + k, sy)) cv.set(sx + k, sy, 'D');
-  }
-  // Outline: warm near-black ring on empty texels adjacent to body.
-  mask = cv.bodyMask();
-  const ring: Pt[] = [];
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    if (mask[y][x]) continue;
-    const near = ([[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const).some(
-      ([dx, dy]) => x + dx >= 0 && x + dx < n && y + dy >= 0 && y + dy < n && mask[y + dy][x + dx],
-    );
-    if (near) ring.push([x, y]);
-  }
-  for (const [x, y] of ring) cv.set(x, y, 'K');
-  // Ground shadow: a hard dark smudge under the object's footprint,
-  // visible only where the object is not (the exploration's
-  // composite order: shadow first, object over it).
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    if (cv.filled(x, y)) continue;
-    const dx = (x - 12) / 8.5; const dy = (y - (GROUND_Y + 1)) / 1.5;
-    if (dx * dx + dy * dy <= 1) cv.set(x, y, 'S');
-  }
-}
+const bandNoise = (band: MaterialBandId) => (band === 'raw' || band === 'signature' ? 0.16 : 0.07);
 
 /* ------------------------------------------------------------------ */
 /* Families — object density (24 grid)                                 */
@@ -798,39 +679,32 @@ export interface MaterialRender {
 export function composeMaterial(id: string, density: MaterialDensity = 'object'): MaterialRender {
   const row = materialArtRow(id);
   const visual = id === 'Scrap' ? getResourceVisual('scrap') : getMaterialVisual(id);
-  const baseRamp = stuffRamp(visual.color);
-  const accentRamp = stuffRamp(visual.accentColor);
+  const baseRamp = fiveToneRamp(visual.color);
+  const accentRamp = fiveToneRamp(visual.accentColor);
   const colors: Partial<Record<StuffShade, string>> = {
-    K: '#1A110A',
-    S: '#0805026E',
-    W: '#FFFFFF',
+    K: OUTLINE_HEX,
+    S: GROUND_SHADOW_HEX,
+    W: HARD_WHITE_HEX,
     D: baseRamp.deep,
     d: baseRamp.shade,
     P: baseRamp.base,
     p: baseRamp.lite,
     L: baseRamp.hot,
     A: accentRamp.base,
-    a: hueLerp(visual.accentColor, '#000000', 0.30),
+    a: accentDark(visual.accentColor),
     E: accentRamp.lite,
   };
 
   const grid = density === 'object' ? 24 : 12;
-  const plate = new StuffPlate(grid);
+  const plate = new SmallItemPlate(grid);
   const rng = seededRandom(hashString(density === 'object' ? id : `${id}:thumb`));
   if (density === 'object') {
     OBJECT_PAINTERS[row.family](plate, RAMP_SHADES, ACCENT_SHADES, row.variant, row.band, rng);
-    toneNoise(plate, row.band, rng);
-    finishPass(plate, row.band, rng);
+    toneNoise(plate, bandNoise(row.band), rng);
+    finishPass(plate, WEAR[row.band], rng);
   } else {
     THUMB_PAINTERS[row.family](plate, RAMP_SHADES, ACCENT_SHADES, row.variant, rng);
-    // Thumb discipline: a single dark ground row under each column
-    // (bold silhouette read), no micro-detail.
-    const mask = plate.bodyMask();
-    for (let x = 0; x < grid; x++) {
-      let lowest = -1;
-      for (let y = 0; y < grid; y++) if (mask[y][x]) lowest = y;
-      if (lowest >= 0) plate.set(x, Math.min(lowest + 1, grid - 1), 'K');
-    }
+    thumbGroundRow(plate);
   }
 
   const rows = plate.rows();
@@ -842,19 +716,12 @@ export function composeMaterial(id: string, density: MaterialDensity = 'object')
 
 const materialCache = new Map<string, MaterialRender>();
 
-/** Cached compose, mirroring the gear/weapon compositors. */
+/** Cached compose (the shared core's input-keyed helper):
+ *  composeMaterial is a pure function of (id, density), so the
+ *  pair is an exact key — a signature-keyed lookup would compose
+ *  in full before every check and never hit. */
 export function composeMaterialCached(id: string, density: MaterialDensity = 'object'): MaterialRender {
-  // Input-derived cache key (see composeWeaponCardCached):
-  // composeMaterial is a pure function of (id, density), so the
-  // pair is an exact key — the old signature-keyed lookup composed
-  // in full before every check and never hit.
-  const key = `${density}|${id}`;
-  const cached = materialCache.get(key);
-  if (cached) return cached;
-  const composed = composeMaterial(id, density);
-  if (materialCache.size > 400) materialCache.clear();
-  materialCache.set(key, composed);
-  return composed;
+  return smallItemCached(materialCache, `${density}|${id}`, () => composeMaterial(id, density));
 }
 
 /** Paint a material render into a 2D context at integer scale. */
@@ -863,22 +730,5 @@ export function paintMaterial(
   render: MaterialRender,
   scale: number,
 ): void {
-  const { rows, colors, width, height } = render;
-  for (let y = 0; y < height; y++) {
-    const rowStr = rows[y];
-    let runShade = '';
-    let runStart = 0;
-    const flush = (endX: number) => {
-      if (!runShade || runShade === '.') return;
-      const color = colors[runShade as StuffShade];
-      if (!color) return;
-      ctx2d.fillStyle = color;
-      ctx2d.fillRect(runStart * scale, y * scale, (endX - runStart) * scale, scale);
-    };
-    for (let x = 0; x < width; x++) {
-      const shade = rowStr[x];
-      if (shade !== runShade) { flush(x); runShade = shade; runStart = x; }
-    }
-    flush(width);
-  }
+  paintSmallItemRows(ctx2d, render.rows, render.colors, render.width, render.height, scale);
 }
