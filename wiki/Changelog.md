@@ -4,6 +4,8 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-07 — The craft standard gets a gate
 
+- **Small items read at belt size now** — the icons you tap most got a form pass at their smallest size: every grenade type now has its own silhouette (the EMP ring, the magnet's horseshoe, the forge charge's molten crack), every scanner device reads differently (whip antenna, dish, twin-antenna jammer), the patch kits carry their cross where you can see it, and the calibration kit wears its dial. Two materials that were pale twins — Refined Alloy and Composite Plating — now stack visibly differently, and Voidweave's cloth no longer borrows the circuit board's checker.
+- **The Field Manual shows real consumables** — the Manual's consumable pictures were monochrome pictograms from a retired icon set; they now show the same formed objects the game itself draws.
 - **Item art is lint-checked now** — every procedurally drawn item in the game (weapons, gear, consumables, materials — 366 renders across every system) is checked in CI against the pixel craft standard: hue-shifted ramps, selective outlines, cluster discipline, and a ban on banded shading. The standard that made item art read richer yesterday now fails the build if it ever regresses.
 
 ## 2026-11-06 — Gear reads faster, the Manual moves in
@@ -161,7 +163,15 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 172 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 177 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-07** — 5 merges
+
+- #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
+- #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
+- #437 — Hero Pass H1: head-system unification — maker helms delisted to the Standing lane, Hood re-authored
+- #438 — Motion Reboot M1: the work cycle — bench modes work the bench
+- #439 — docs(wiki): Changelog catch-up — 2026-11-07 entry for #435
 
 **2026-11-06** — 10 merges
 

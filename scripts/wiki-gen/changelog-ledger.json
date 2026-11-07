@@ -3,6 +3,31 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-07",
+      "merges": [
+        {
+          "number": 435,
+          "title": "test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders"
+        },
+        {
+          "number": 436,
+          "title": "feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage"
+        },
+        {
+          "number": 437,
+          "title": "Hero Pass H1: head-system unification — maker helms delisted to the Standing lane, Hood re-authored"
+        },
+        {
+          "number": 438,
+          "title": "Motion Reboot M1: the work cycle — bench modes work the bench"
+        },
+        {
+          "number": 439,
+          "title": "docs(wiki): Changelog catch-up — 2026-11-07 entry for #435"
+        }
+      ]
+    },
+    {
       "date": "2026-11-06",
       "merges": [
         {
