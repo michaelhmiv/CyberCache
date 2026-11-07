@@ -13,6 +13,14 @@ import {
   type PartsPoseName,
 } from '@/lib/pixel/parts';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
+import {
+  composeWorkPose,
+  sampleWorkCycle,
+  WORK_CYCLE_PERIOD_MS,
+  WORK_CYCLE_START_DELAY_MS,
+  type WorkCycleSpec,
+} from '@/lib/pixel/workCycle';
+import type { PartPose } from '@/lib/pixel/parts';
 import { GEAR_PAINT_ORDER, resolveGearMount, type MountedGearItem } from '@/lib/pixel/gearMounts';
 import {
   armedActorExtents,
@@ -78,6 +86,15 @@ interface PixelPartsActorProps {
    *  stage edge like a portrait; for the Gear Loadout doll, whose
    *  subject is the hunter, not the gun's full length. */
   fitMode?: 'stage' | 'doll';
+  /** Work-cycle execution (Motion Reboot M1): when present, the
+   *  actor executes the given choreography SPEC (data — see
+   *  lib/pixel/workCycle.ts) as pose deltas composed onto the
+   *  'work' pose while `active`. The spec is looked up from the
+   *  registry by the caller; the actor never branches on which
+   *  family it is. Absent = no cycle, byte-identical behavior.
+   *  Reduced motion never cycles: the held 'work' pose is the
+   *  whole picture, exactly as before M1. */
+  workCycle?: { spec: WorkCycleSpec; active: boolean };
   children?: React.ReactNode;
 }
 
@@ -109,6 +126,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   testId,
   gear,
   fitMode = 'stage',
+  workCycle,
   children,
 }) => {
   const [, setSwapTick] = useState(0);
@@ -187,9 +205,77 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     [heldInput],
   );
 
+  // ── Work cycle (M1) ──────────────────────────────────────────
+  // While the cycle runs, the actor samples the choreography spec
+  // on a rAF clock and the parts follow the sampled pose DIRECTLY
+  // (per-part transition duration 0 — the Pixi stage's execution
+  // shape, on the DOM). Engagement follows the brief's beats: the
+  // SEGMENT pose transition into 'work' plays first
+  // (WORK_CYCLE_START_DELAY_MS = STEP_BOB_MS), then amplitude ramps
+  // 0→1 across one period, so the first cycle spools up out of
+  // the held pose instead of snapping into mid-swing. Disengaging
+  // ramps amplitude back down across one period before the held
+  // pose resumes. The cycle pose only ever composes onto the
+  // 'work' pose: any other pose (the completion beat's
+  // 'celebrate', a mode switch) clears it at once and the SEGMENT
+  // transitions take over again.
+  const wcSpec = workCycle?.spec;
+  const wcActive = workCycle?.active ?? false;
+  const [cyclePose, setCyclePose] = useState<PartPose | null>(null);
+  const cycleRunRef = useRef<{ start: number | null; stopAt: number | null; ampAtStop: number }>({
+    start: null,
+    stopAt: null,
+    ampAtStop: 0,
+  });
+  useEffect(() => {
+    if (!wcSpec || reduced || pose !== 'work') {
+      cycleRunRef.current = { start: null, stopAt: null, ampAtStop: 0 };
+      setCyclePose(null);
+      return;
+    }
+    let raf = 0;
+    const run = cycleRunRef.current;
+    const tick = (now: number) => {
+      if (wcActive) {
+        run.stopAt = null;
+        if (run.start === null) run.start = now + WORK_CYCLE_START_DELAY_MS;
+        if (now >= run.start) {
+          const elapsed = now - run.start;
+          const amp = Math.min(1, elapsed / WORK_CYCLE_PERIOD_MS);
+          setCyclePose(composeWorkPose(sampleWorkCycle(wcSpec, elapsed, amp)));
+        }
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      // Disengaging: keep the phase clock, ramp amplitude to zero
+      // across one period, then hand the pose back to the SEGMENT
+      // system (held work pose = between-jobs rest stance).
+      if (run.start === null || now < run.start) {
+        run.start = null;
+        setCyclePose(null);
+        return;
+      }
+      if (run.stopAt === null) {
+        run.stopAt = now;
+        run.ampAtStop = Math.min(1, (now - run.start) / WORK_CYCLE_PERIOD_MS);
+      }
+      const amp = run.ampAtStop * Math.max(0, 1 - (now - run.stopAt) / WORK_CYCLE_PERIOD_MS);
+      if (amp <= 0) {
+        run.start = null;
+        run.stopAt = null;
+        setCyclePose(null);
+        return;
+      }
+      setCyclePose(composeWorkPose(sampleWorkCycle(wcSpec, now - run.start, amp)));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [wcSpec, wcActive, reduced, pose]);
+
   const layout = useMemo(
-    () => layoutPartSet(set, PART_POSES[pose], weaponFractions),
-    [set, pose, weaponFractions],
+    () => layoutPartSet(set, pose === 'work' && cyclePose ? cyclePose : PART_POSES[pose], weaponFractions),
+    [set, pose, cyclePose, weaponFractions],
   );
 
   // Loadout truth, the width law: an ARMED actor is height-sized
@@ -296,13 +382,18 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
             : sprite.url;
         const primaryLocal = part.anchors[PRIMARY_ANCHOR[slot]];
         const isArm = slot === 'armUpperN' || slot === 'armForeN' || slot === 'armFar';
-        const duration = reduced
+        // While the work cycle drives, parts follow the sampled
+        // pose directly (duration 0); the SEGMENT tween durations
+        // govern pose-to-pose transitions only.
+        const duration = cyclePose
           ? 0
-          : (isArm
-              ? MOVEMENT.SEGMENT.ARM_RAISE_MS
-              : slot === 'head'
-                ? MOVEMENT.SEGMENT.HEAD_TRACK_MS
-                : MOVEMENT.SEGMENT.STEP_BOB_MS) / 1000;
+          : reduced
+            ? 0
+            : (isArm
+                ? MOVEMENT.SEGMENT.ARM_RAISE_MS
+                : slot === 'head'
+                  ? MOVEMENT.SEGMENT.HEAD_TRACK_MS
+                  : MOVEMENT.SEGMENT.STEP_BOB_MS) / 1000;
         return [
           {
             slot,
@@ -319,7 +410,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
           },
         ];
       }),
-    [layout, palette, partPalettes, reduced],
+    [layout, palette, partPalettes, reduced, cyclePose],
   );
 
   // Mounted gear (M3): every item resolves against THIS actor's
@@ -387,6 +478,8 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
       data-testid={testId}
       data-rig={set.id}
       data-armed={heldInput ? 'true' : 'false'}
+      data-work-cycle={wcSpec?.id}
+      data-cycle-active={cyclePose ? 'true' : undefined}
       data-fit={dollFit ? 'doll' : widthFit ? 'width' : undefined}
       style={
         dollFit
