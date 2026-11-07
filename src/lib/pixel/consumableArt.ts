@@ -264,7 +264,6 @@ type A = AccentShades;
 const BRASS = '#C9962E';
 
 type ConsPlate = SmallItemPlate;
-type Pt = [number, number];
 
 /* ------------------------------------------------------------------ */
 /* Motifs — the def's icon, drawn as the emblem on the object's face   */

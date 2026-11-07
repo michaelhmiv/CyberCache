@@ -78,7 +78,7 @@ import { CLASS_MOD_TREE_ORDER, classModGrammar } from '../../src/lib/pixel/class
 import { RELIC_FORM_ROWS, relicGrammar } from '../../src/lib/pixel/relicGrammar';
 import type { ShowcaseItemPayload } from '../../src/lib/api/verifiedOps';
 import { showcaseWeaponInput } from '../../src/lib/pixel/showcaseWeaponInput';
-import { encodePng, type RgbaImage } from '../../src/lib/pixel/pngCodec';
+import { encodePng } from '../../src/lib/pixel/pngCodec';
 import { DropSource, Element, Rarity } from '../../src/types/game';
 import type { ClassMod, Ordnance, Relic, Shield } from '../../src/types/items';
 import { hashString } from '../../src/lib/utils/rng';
