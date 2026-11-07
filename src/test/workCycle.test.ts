@@ -57,13 +57,17 @@ describe('work cycle — law anchoring', () => {
     }
   });
 
-  it('the family accents are data: only forge/crush spark; only calibration sweeps', () => {
+  it('the family accents are data: forge/crush/sift spark; only calibration sweeps', () => {
     expect(WORK_CYCLE_SPECS.forge.sparks).not.toBeNull();
     expect(WORK_CYCLE_SPECS.crush.sparks).not.toBeNull();
+    // M4a: the sift's burst is grit off the screen — a dust color,
+    // not a metal spark — declared in its spec row like any accent.
+    expect(WORK_CYCLE_SPECS.sift.sparks).toEqual({ color: '#C9B18C' });
     expect(WORK_CYCLE_SPECS.assembly.sparks).toBeNull();
     expect(WORK_CYCLE_SPECS.calibration.sparks).toBeNull();
     expect(WORK_CYCLE_SPECS.calibration.sweepSteps).toBe(3);
     expect(WORK_CYCLE_SPECS.forge.sweepSteps).toBe(0);
+    expect(WORK_CYCLE_SPECS.sift.sweepSteps).toBe(0);
   });
 
   it('mode and scene bindings are data rows naming registry specs', () => {
@@ -71,6 +75,10 @@ describe('work cycle — law anchoring', () => {
       crafting: 'forge',
       salvaging: 'crush',
       workshopService: 'assembly',
+      // M4a supersedes the M1-era pin that extraction never
+      // cycles: the site-work variant is a registry row, executed
+      // by the same engine (motion audit §2.3 / slice M4a).
+      extraction: 'sift',
     });
     expect(WORK_CYCLE_SPEC_BY_SCENE).toEqual({
       craftingBench: 'forge',
@@ -80,9 +88,8 @@ describe('work cycle — law anchoring', () => {
     for (const id of [...Object.values(WORK_CYCLE_SPEC_BY_MODE), ...Object.values(WORK_CYCLE_SPEC_BY_SCENE)]) {
       expect(WORK_CYCLE_SPECS[id]).toBeDefined();
     }
-    // Not tenants: market listing is M4; extraction/roam/boss never cycle.
+    // Not tenants: market listing is M4c's; roam/boss never cycle.
     expect(WORK_CYCLE_SPEC_BY_MODE.marketListing).toBeUndefined();
-    expect(WORK_CYCLE_SPEC_BY_MODE.extraction).toBeUndefined();
     expect(WORK_CYCLE_SPEC_BY_MODE.roaming).toBeUndefined();
   });
 });

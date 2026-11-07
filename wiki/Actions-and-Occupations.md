@@ -44,6 +44,7 @@ a broader yield than the one that landed.
 Extraction is the gathering occupation: dedicated material work at a site in any area, and the supply lane the crafting economy eats from.
 
 - Work is priced in **10-minute passes** at one site and method. Passes run back-to-back while extraction is your active action; accrued time carries across pauses, and changing site or method takes effect at the next pass boundary.
+- While extraction holds the action slot, the Home stage shows the work itself: your hunter works the site's sift rig in a steady dig-and-sift rhythm, and when a pass lands, its finds rise off the rig on the stage — each material and essence pictured at the count it settled — while the workspace's Just landed card keeps the written record of the same pass.
 - A pass yields **materials and essences only** — no gear, no credits, no scrap, no legendaries. At full rate a pass performs draws at **192 draws per hour**, twice roaming's byproduct drip, because gathering is the whole job.
 - Yield scales with a **gear factor**: how safely your current loadout can work that site, priced from your real HP pool against the damage the site would deal over a pass. Under-geared gathering is slower, never impossible — the factor has a floor of 0.4.
 - Extraction pays player XP at **0.75× roaming's rate** (the same peg machinery as crafting), and each completed pass grants **20 XP to the `gathering.extraction` mastery track**. Mastery widens yield by 0.5% per level past 1, up to +25%.
