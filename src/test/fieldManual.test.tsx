@@ -18,7 +18,9 @@ describe('Field Manual (HelpScreen)', () => {
     expect(row).toBeTruthy();
     expect(within(row as HTMLElement).getByText('PG-02')).toBeTruthy();
     // The background preload converges the Links LCD to a number.
-    expect(await screen.findByText('313', {}, { timeout: 10000 })).toBeTruthy();
+    // (313 → 314 with One Grammar, 2026-11-06: Skins-and-Cosmetics
+    // gained a [[Gear]] cross-reference for the held-weapon rule.)
+    expect(await screen.findByText('314', {}, { timeout: 10000 })).toBeTruthy();
   });
 
   it('carries no trace of the retired guided tour or hand-written sections', () => {

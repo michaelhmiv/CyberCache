@@ -94,9 +94,13 @@ multiplier; hitting a resistance pays ×0.7.
 
 Every weapon picture in the game is drawn from the actual item — its
 type, manufacturer, element, rarity, rolled parts, affixes, and roll
-quality — never a generic icon. The same drawing appears at two
-sizes: compact in your hunter's hands on the stage, and at double
-resolution on cards (inventory, market, loot, inspect, collections).
+quality — never a generic icon. One drawing serves every surface:
+the gun in your hunter's hands on the stage is the same full-detail
+picture as its card (inventory, market, loot, inspect, collections),
+with the card's display furniture folded away — no halo ring, no
+pooled glow, and a sniper's bipod stays folded in hand. Compact
+list rows and feed thumbnails use a smaller, lighter drawing of
+the same item.
 
 Each manufacturer owns a signature silhouette, readable by shape
 before color: Redline is a swept **wedge** with a skeleton stock,
@@ -110,8 +114,10 @@ The element shows as a lit current that runs from the chamber along
 the barrel to the muzzle, in the element's color. Kinetic has no
 current at all — plain machined metal, honestly unlit. Rarity
 changes the finish, never the shape: trim lines on Uncommon and
-Rare, an edge glow on Epic, and a gold halo on Legendary. Named
-legendaries keep their own bespoke art on every surface.
+Rare, an edge glow on Epic, and a gold halo on Legendary (in hand,
+a Legendary keeps its gold trim; the halo ring itself is card
+display only). Named legendaries keep their own bespoke art on
+every surface.
 
 ## Rarity and affixes
 

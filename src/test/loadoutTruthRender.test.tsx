@@ -7,10 +7,10 @@ import {
   compositorWeaponFractions,
   layoutPartSet,
   PARTS_WEAPON_TARGET_W,
-  rasterizeWeaponRaster,
+  rasterizeWeaponCardRaster,
   type PartsRender,
 } from '@/lib/pixel/partsCompositor';
-import { composePixelWeapon } from '@/lib/pixel/weaponCompositor';
+import { composeWeaponCard } from '@/lib/pixel/weaponCardCompositor';
 import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import { decodePng } from '@/lib/pixel/pngCodec';
 import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
@@ -134,15 +134,16 @@ function renderLayered(render: PartsRender, place: { xPct: number; heightPct: nu
 }
 
 /** The weapon layer, built independently of composePartSet's weapon
- *  path: the instance's own compositor raster, blitted onto an empty
- *  frame at the resolved grip joint with the layout's fractions. */
+ *  path: the instance's own HELD card raster (One Grammar), blitted
+ *  onto an empty frame at the resolved grip joint with the layout's
+ *  fractions. */
 function buildWeaponLayer(weapon: PixelWeaponInput): RgbaImage {
   const render = composePartSet(STANDARD_ISSUE, PART_POSES.aim, loadSprite, {
     weapon: { kind: 'compositor', input: weapon },
   });
   const fractions = compositorWeaponFractions(weapon);
   const layout = layoutPartSet(STANDARD_ISSUE, PART_POSES.aim, fractions);
-  const raster = rasterizeWeaponRaster(composePixelWeapon(weapon));
+  const raster = rasterizeWeaponCardRaster(composeWeaponCard(weapon, undefined, { held: true }));
   const targetW = PARTS_WEAPON_TARGET_W;
   const targetH = Math.round((targetW * raster.height) / raster.width);
   const layer = newCanvas(render.image.width, render.image.height);
