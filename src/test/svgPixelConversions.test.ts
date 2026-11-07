@@ -17,10 +17,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import { lintBanding, lintRender, type LintFinding, type LintRender } from './pixelLint';
-import { buildKeystoneGrid } from '@/components/common/SkillKeystoneArt';
+import { buildKeystoneGrid } from '@/lib/pixel/keystoneArt';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import { SkillTreeType } from '@/types/game';
-import { buildConsumableRingGrid } from '@/components/stats/ConsumableRing';
+import { buildConsumableRingGrid } from '@/lib/pixel/consumableRing';
 import { buildStarConnectorGrid } from '@/lib/pixel/starConnectors';
 import { DROP_RISE_GRIDS, dropRisePalette } from '@/lib/pixel/dropRiseIcons';
 
