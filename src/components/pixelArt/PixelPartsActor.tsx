@@ -230,8 +230,11 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   useEffect(() => {
     if (!wcSpec || reduced || pose !== 'work') {
       cycleRunRef.current = { start: null, stopAt: null, ampAtStop: 0 };
-      setCyclePose(null);
-      return;
+      // Clear on the next frame, not synchronously (the render
+      // derivation below already ignores a stale cycle pose the
+      // moment the cycle's conditions lapse — this is hygiene).
+      const id = requestAnimationFrame(() => setCyclePose(null));
+      return () => cancelAnimationFrame(id);
     }
     let raf = 0;
     const run = cycleRunRef.current;
@@ -273,9 +276,13 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     return () => cancelAnimationFrame(raf);
   }, [wcSpec, wcActive, reduced, pose]);
 
+  // A sampled cycle pose drives the figure ONLY while the cycle's
+  // conditions hold right now (spec present, work pose, motion
+  // allowed) — a pose sampled by a finished run is inert data.
+  const cycleDrives = !!cyclePose && !reduced && pose === 'work';
   const layout = useMemo(
-    () => layoutPartSet(set, pose === 'work' && cyclePose ? cyclePose : PART_POSES[pose], weaponFractions),
-    [set, pose, cyclePose, weaponFractions],
+    () => layoutPartSet(set, cycleDrives && cyclePose ? cyclePose : PART_POSES[pose], weaponFractions),
+    [set, pose, cycleDrives, cyclePose, weaponFractions],
   );
 
   // Loadout truth, the width law: an ARMED actor is height-sized
@@ -385,7 +392,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
         // While the work cycle drives, parts follow the sampled
         // pose directly (duration 0); the SEGMENT tween durations
         // govern pose-to-pose transitions only.
-        const duration = cyclePose
+        const duration = cycleDrives
           ? 0
           : reduced
             ? 0
@@ -410,7 +417,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
           },
         ];
       }),
-    [layout, palette, partPalettes, reduced, cyclePose],
+    [layout, palette, partPalettes, reduced, cycleDrives],
   );
 
   // Mounted gear (M3): every item resolves against THIS actor's
@@ -479,7 +486,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
       data-rig={set.id}
       data-armed={heldInput ? 'true' : 'false'}
       data-work-cycle={wcSpec?.id}
-      data-cycle-active={cyclePose ? 'true' : undefined}
+      data-cycle-active={cycleDrives ? 'true' : undefined}
       data-fit={dollFit ? 'doll' : widthFit ? 'width' : undefined}
       style={
         dollFit
