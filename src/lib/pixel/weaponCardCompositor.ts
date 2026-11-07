@@ -1083,6 +1083,26 @@ function rarityFinish(ctx: Ctx) {
 /* Pass 13 — outline (crisp silhouette + step shading)                 */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Selective outline map (pxl craft sweep S1): the silhouette cell
+ * takes the shade TWO ramp steps darker than the form cell it
+ * borders — L→P, p→d, P→D, d→D on the maker ramp (D<d<P<p<L), u→v
+ * and w→v on the wood ramp (v<w<u), e→c and E→c on the element ramp
+ * (c<E<e). Anything else (ink details, trim, gems, frame gold)
+ * falls back to the flat ink 'K', so dark faces keep the hard
+ * silhouette they always had.
+ */
+export const CARD_SELOUT_DARKER: Partial<Record<CardShade, CardShade>> = {
+  L: 'P',
+  p: 'd',
+  P: 'D',
+  d: 'D',
+  u: 'v',
+  w: 'v',
+  e: 'c',
+  E: 'c',
+};
+
 function outlinePass(ctx: Ctx) {
   const { g } = ctx;
   // Adjacency is tested against a SNAPSHOT of the pre-outline form —
@@ -1097,12 +1117,22 @@ function outlinePass(ctx: Ctx) {
   // top-edge accent) don't grow step shading — they are sparkles,
   // not slopes.
   const isAccent = (s: string) => s === 'G' || s === 'g';
+  // Selout: an ortho outline cell is shaded from the form cell it
+  // borders, in pxl's neighbor preference (below, above, right,
+  // left), read from the pre-outline snapshot.
+  const seloutFor = (x: number, y: number): CardShade => {
+    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+      const s = wasShade(x + dx, y + dy);
+      if (s !== '.') return CARD_SELOUT_DARKER[s as CardShade] ?? 'K';
+    }
+    return 'K';
+  };
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (wasFilled(x, y)) continue;
     const diag = (wasFilled(x + 1, y + 1) && !isAccent(wasShade(x + 1, y + 1))) || (wasFilled(x - 1, y + 1) && !isAccent(wasShade(x - 1, y + 1)))
       || (wasFilled(x + 1, y - 1) && !isAccent(wasShade(x + 1, y - 1))) || (wasFilled(x - 1, y - 1) && !isAccent(wasShade(x - 1, y - 1)));
     const ortho = wasFilled(x + 1, y) || wasFilled(x - 1, y) || wasFilled(x, y + 1) || wasFilled(x, y - 1);
-    if (ortho) g.set(x, y, 'K');
+    if (ortho) g.set(x, y, seloutFor(x, y));
     else if (diag) g.set(x, y, 'k');
   }
   // Top light line: first form cell per column catches light.
@@ -1156,10 +1186,20 @@ function decalsAndCondition(ctx: Ctx, render: { decals: WeaponVisualDecal[]; con
   render.decals = decals;
 
   // Roll-quality condition: the same grade the stage derives
-  // (conditionFromRoll) with the stage's wear/sheen behavior —
-  // wear erases a seeded speckle of main/dark body cells (the
-  // card alphabet adds the wood shades w/v to the stage's P/D),
-  // mint/godroll lift the top edge and godroll sparkles.
+  // (conditionFromRoll) with the stage's wear behavior — wear
+  // erases a seeded speckle of main/dark body cells (the card
+  // alphabet adds the wood shades w/v to the stage's P/D), and
+  // godroll sparkles. Mint is a no-op grade.
+  //
+  // S1 (pxl craft sweep): the old mint/godroll TOP-EDGE LIFT that
+  // lived here is DELETED — measured dead on this path too
+  // (2026-11-06): the loop breaks at the first filled cell per
+  // column, and after the outline pass that cell is always an
+  // outline cell, never the 'P'/'w' form cell it meant to lift;
+  // disabling it left the two sample godrolls' renders byte-
+  // identical (md5-verified at rollQuality 99 and 85). The live
+  // top light is the outline pass's own top-light line. Godroll
+  // sparkles below are live and stay.
   const condition = conditionFromRoll(typeof input.rollQuality === 'number' ? input.rollQuality : 50);
   render.condition = condition;
   if (condition === 'beat-up' || condition === 'field-used') {
@@ -1169,22 +1209,12 @@ function decalsAndCondition(ctx: Ctx, render: { decals: WeaponVisualDecal[]; con
       const c = g.get(x, y);
       if ((c === 'P' || c === 'D' || c === 'w' || c === 'v') && wearRng() < wearRate) g.set(x, y, '.' as CardShade);
     }
-  } else if (condition === 'mint' || condition === 'godroll') {
-    for (let x = 0; x < W; x++) {
-      for (let y = 0; y < H; y++) {
-        const c = g.get(x, y);
-        if (c === 'P') { g.set(x, y, 'L'); break; }
-        if (c === 'w') { g.set(x, y, 'u'); break; }
-        if (g.filled(x, y)) break;
-      }
-    }
-    if (condition === 'godroll') {
-      const sparkleRng = seededRandom(ctx.seed ^ 0x90d15);
-      let placed = 0;
-      for (let y = 0; y < H && placed < 10; y++) for (let x = 0; x < W && placed < 10; x++) {
-        const c = g.get(x, y);
-        if ((c === 'P' || c === 'w') && sparkleRng() < 0.05) { g.set(x, y, 'G'); placed++; }
-      }
+  } else if (condition === 'godroll') {
+    const sparkleRng = seededRandom(ctx.seed ^ 0x90d15);
+    let placed = 0;
+    for (let y = 0; y < H && placed < 10; y++) for (let x = 0; x < W && placed < 10; x++) {
+      const c = g.get(x, y);
+      if ((c === 'P' || c === 'w') && sparkleRng() < 0.05) { g.set(x, y, 'G'); placed++; }
     }
   }
 }
@@ -1215,16 +1245,16 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
     K: '#0B0B0E',
     k: '#3A3F4A',
     D: mfrStyle.dark,
-    d: hexLerp(mfrStyle.dark, mfrStyle.primary, 0.45),
+    d: hueLerp(mfrStyle.dark, mfrStyle.primary, 0.45),
     P: mfrStyle.primary,
     p: mfrStyle.light,
-    L: hexLerp(mfrStyle.light, '#FFFFFF', 0.55),
+    L: hueLerp(mfrStyle.light, '#FFFFFF', 0.55),
     W: '#FFFFFF',
     T: '#9AA3B2',
     G: '#FFEA3A',
     E: elVisual ? elVisual.color : frame.color,
     e: elVisual ? elVisual.accentColor : frameAccent,
-    c: elVisual ? hexLerp(elVisual.color, '#0B0B0E', 0.55) : mfrStyle.dark,
+    c: elVisual ? hueLerp(elVisual.color, '#0B0B0E', 0.55) : mfrStyle.dark,
     v: '#5A4028',
     w: '#8A6136',
     u: '#C89B62',
@@ -1377,4 +1407,77 @@ export function hexLerp(a: string, b: string, t: number): string {
   const gg = Math.round(((pa >> 8) & 255) + (((pb >> 8) & 255) - ((pa >> 8) & 255)) * t);
   const bb = Math.round((pa & 255) + ((pb & 255) - (pa & 255)) * t);
   return `#${((r << 16) | (gg << 8) | bb).toString(16).padStart(6, '0')}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hue-shifted derivation (pxl craft sweep S1)                         */
+/*                                                                     */
+/* hexLerp walks a straight line in RGB: shadows go muddy, highlights  */
+/* go chalky. hueLerp keeps hexLerp's exact lightness path but rotates */
+/* the hue pxl-style while it travels — darker steps swing toward      */
+/* blue-violet (250°), lighter steps toward warm yellow (55°), with    */
+/* saturation pushed up in shadow and eased off in light. The BASE     */
+/* tone (t = 0) is untouched: palette law says the game's hexes are    */
+/* the identity, only the derived steps gain the hue movement.         */
+/* ------------------------------------------------------------------ */
+
+function hexToHsl(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const mx = Math.max(r, g, b);
+  const mn = Math.min(r, g, b);
+  const l = (mx + mn) / 2;
+  const d = mx - mn;
+  if (!d) return [0, 0, l];
+  const s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  const h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const hn = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((hn / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] = hn < 60 ? [c, x, 0] : hn < 120 ? [x, c, 0] : hn < 180 ? [0, c, x]
+    : hn < 240 ? [0, x, c] : hn < 300 ? [x, 0, c] : [c, 0, x];
+  const to = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+/** Rotate `from` toward `target` along the shortest arc by `deg`. */
+function hueToward(from: number, target: number, deg: number): number {
+  const diff = ((target - from + 540) % 360) - 180;
+  const step = Math.sign(diff) * Math.min(Math.abs(diff), deg);
+  return from + step;
+}
+
+export function hueLerp(a: string, b: string, t: number): string {
+  const straight = hexLerp(a, b, t);
+  if (t <= 0) return straight;
+  const [ah, as, al] = hexToHsl(a);
+  if (as < 0.04) return straight; // achromatic base: no hue to rotate
+  const [, , bl] = hexToHsl(b);
+  // Saturation rides on the straight result's own saturation (the
+  // lerp toward black/white already spends some), pushed further
+  // by the pxl multipliers — NOT on the base's, which would clamp
+  // saturated bases to full saturation at every step.
+  const [, ss, targetL] = hexToHsl(straight);
+  // Fraction of the available lightness range this step travels —
+  // the shift scales with it, capped at pxl's ~24°.
+  const range = bl > al ? 1 - al : al;
+  const frac = range > 0 ? Math.min(1, Math.abs(targetL - al) / range) : 0;
+  const shift = 24 * frac;
+  let h = ah;
+  let s = ss;
+  if (targetL < al) {
+    h = hueToward(ah, 250, shift);
+    s = Math.min(1, ss * (1 + 0.15 * frac));
+  } else if (targetL > al) {
+    h = hueToward(ah, 55, shift);
+    s = ss * (1 - 0.3 * frac);
+  }
+  return hslToHex(h, s, targetL);
 }

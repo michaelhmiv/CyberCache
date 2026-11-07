@@ -473,7 +473,9 @@ function paintLootBeamFrame(
   tMs: number,
   opts: LootBeamPaintOpts,
 ): void {
-  const ramp = fiveToneRamp(opts.color);
+  // FX register is flat by law (DESIGN.md §8): the beam keeps the legacy
+  // straight ramp — the S1 hue training is item-art only.
+  const ramp = fiveToneRamp(opts.color, 'straight');
   const cx = (opts.xPct / 100) * wCells;
   const ground = (opts.groundYPct / 100) * hCells;
   const ignition = easeOutCubic(tMs / MOVEMENT.LOOT_BEAM_IN_MS);
@@ -602,7 +604,7 @@ export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> =
   const drawRef = useRef<SteppedDraw>(() => {});
   useEffect(() => {
     drawRef.current = (ctx, wCells, hCells, tMs) => {
-    const ramp = fiveToneRamp('#FFEA3A');
+    const ramp = fiveToneRamp('#FFEA3A', 'straight'); // legacy flat ramp — see paintLootBeamFrame
     const cx = wCells / 2;
     const cy = hCells / 2;
     const radius = Math.min(wCells, hCells) / 2;
@@ -660,7 +662,7 @@ export const ShockwaveRing: React.FC<LootPoint & { color?: string }> = ({ xPct, 
     drawRef.current = (ctx, wCells, hCells, tMs) => {
     const p = tMs / MOVEMENT.LOOT_SHOCKWAVE_MS;
     if (p >= 1) return;
-    const ramp = fiveToneRamp(color);
+    const ramp = fiveToneRamp(color, 'straight'); // legacy flat ramp — see paintLootBeamFrame
     const cx = wCells / 2;
     const cy = hCells / 2;
     const rx = 6 + (46 - 6) * easeOutCubic(p);

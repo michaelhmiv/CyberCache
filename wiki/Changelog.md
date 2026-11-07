@@ -155,9 +155,20 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 136 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 170 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-05** — 8 merges
+**2026-11-06** — 8 merges
+
+- #425 — Fix cosmetic-craft workshop brick: migration 0085 kind filter + finalizer defense
+- #426 — Field Manual: the repo wiki, rendered natively in-app (guided tour retired)
+- #427 — Changelog 2026-11-06 — Field Manual, gear rows, workshop jam fix
+- #428 — Claim-overlap guard: overlapping claim windows pay only the unsettled suffix
+- #429 — Pixi Motion Pilot: WebGL boss fight stage (DOM fallback kept) — DO NOT MERGE, owner video approval pending
+- #430 — Changelog: Pixi boss stage (for #429)
+- #431 — fix(boss): the boss fight's home is the main stage (One-Stage Law, F5 closed)
+- #432 — Changelog: boss fights on the main stage (for #431)
+
+**2026-11-05** — 34 merges
 
 - #386 — Daily login streak: TRUE CLAIM — record holds, tap Claim pays (migration 0079)
 - #391 — The Trade: equip comparison in the inspect sheet + class-mod truth fix
@@ -167,6 +178,32 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #396 — Changelog: 2026-11-05 entry (streak claim, pulse, pure market, one-page reveal)
 - #397 — Cache lane rebuild: daily budget dies, fragments abolished, keys are the only cache currency (migration 0082)
 - #398 — Fix combat-stats saves dying on fractional play seconds (bigint)
+- #399 — Playtest papercut batch — nine verified items (copy, formatting, error truth) + migration 0084
+- #400 — Home two buttons + offline earnings HOLD-AND-CLAIM (migration 0083)
+- #401 — Hunter tab: Arena Plates menu (owner pick A)
+- #402 — Fix claim row crushing CACHE/OFFLINE in badged states (wrap + content floors)
+- #403 — Claim row goes icon-only on one line (owner ruling, supersedes #402 wrap)
+- #404 — Collections in Register B (Instrument Panel) — Hunter sub-page real build
+- #405 — Profile & Record in Register B — Service Telemetry (Instrument Panel)
+- #406 — Hunter Research stop — Instrument Panel register (owner pick B)
+- #407 — Cache Rank in the Instrument Panel register (owner pick B)
+- #408 — Standings in the Instrument Panel register (owner pick B)
+- #409 — Wardrobe in Register B — The Fitting Console (Instrument Panel)
+- #410 — Claim row design fix: one instrument rail, 26px hero icons in their keys' accents
+- #411 — chore: make the TypeScript gate real — triage 530 latent app errors (node 204, server 64)
+- #412 — Fix Workshop bench cause bar NaN — real progress + recipe label (F7)
+- #413 — F2: fragment refusal carries a real error code in the Pg write store
+- #414 — Fix Standings channel crash: units from canonical LEADERBOARD_METRIC_UNITS (F4)
+- #415 — fix(F3): cache-key remainder round-trips through the gameplay stores
+- #416 — Fix cache-rank golden beam: add the missing GRAMMAR.beamWidthPx.low tier (F8)
+- #417 — fix(auth): F1+F6 — restore auth failure-path diagnostics (triage #411)
+- #418 — Redraw the streak flame glyph so it reads as a flame at 20px
+- #419 — Give the daily streak its own icon: a pixel calendar
+- #420 — Bulk scrap: dismiss on confirm, settle in the background
+- #421 — feat(gear): grouped inventory sort taxonomy with kind scoping
+- #422 — Loadout de-texting: vehicle header button, belt ? hint, no-paragraphs law
+- #423 — perf(gear): viewport-deferred art composition for inventory lists
+- #424 — Gear list row V1 (LV column, bare art, badge beside thumb) + compare button fix
 
 **2026-11-04** — 18 merges
 

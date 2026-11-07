@@ -237,19 +237,19 @@ describe('ordnance grammar — golden signature pins', () => {
   // Regression tripwires: any intentional art change re-pins
   // these deliberately (and the capture sheets get re-read).
   const GOLDENS: Record<string, string> = {
-    'spike Kinetic Common card': 'f8792032',
-    'spike Fire Epic card': '554eae6a',
-    'spike Void Legendary card': '34ff9dcf',
-    'disc Shock Rare card': '6b60622e',
-    'disc Cryo Epic card': 'fa4d7f5c',
-    'dart Fire Rare card': '6b81978d',
-    'dart Kinetic Legendary card': '3fd3f424',
-    'canister Corrosive Epic card': 'd3ea6c29',
-    'canister Void Common card': 'a7ce29f6',
-    'spike Fire Rare thumb': 'da541453',
-    'disc Shock Rare thumb': '6dda4d32',
-    'dart Void Rare thumb': '1341cad6',
-    'canister Kinetic Rare thumb': '7bb3a8d3',
+    'spike Kinetic Common card': 'a994b18f',
+    'spike Fire Epic card': '62e897c5',
+    'spike Void Legendary card': '7738a87e',
+    'disc Shock Rare card': '640fcfb4',
+    'disc Cryo Epic card': 'e4caf3cc',
+    'dart Fire Rare card': '83f945bc',
+    'dart Kinetic Legendary card': '345a4ea6',
+    'canister Corrosive Epic card': 'f586abee',
+    'canister Void Common card': '858e3e40',
+    'spike Fire Rare thumb': 'ad67b81b',
+    'disc Shock Rare thumb': 'd0844e8a',
+    'dart Void Rare thumb': 'b3c1e700',
+    'canister Kinetic Rare thumb': 'f73ce015',
   };
   const CASES: Record<string, { input: GearComposeInput; density: 'card' | 'thumb' }> = {
     'spike Kinetic Common card': { input: input({ variant: 'spike', element: Element.Kinetic, rarity: Rarity.Common, pips: 0 }), density: 'card' },

@@ -2,7 +2,7 @@ import { EssenceType, MaterialType } from '@/types/game';
 import { getMaterialVisual, getResourceVisual } from '@/constants/visualAssets';
 import { hashString } from '@/lib/utils/rng';
 import { seededRandom } from '@/lib/weaponArt/decalSpec';
-import { hexLerp } from './weaponCardCompositor';
+import { hueLerp } from './weaponCardCompositor';
 
 /**
  * materialArt — STUFF: the pixel-native material renderer (owner
@@ -115,11 +115,11 @@ interface StuffRamp { deep: string; shade: string; base: string; lite: string; h
 
 function stuffRamp(base: string): StuffRamp {
   return {
-    deep: hexLerp(base, '#000000', 0.52),
-    shade: hexLerp(base, '#000000', 0.26),
+    deep: hueLerp(base, '#000000', 0.52),
+    shade: hueLerp(base, '#000000', 0.26),
     base,
-    lite: hexLerp(base, '#FFFFFF', 0.34),
-    hot: hexLerp(base, '#FFFFFF', 0.60),
+    lite: hueLerp(base, '#FFFFFF', 0.34),
+    hot: hueLerp(base, '#FFFFFF', 0.60),
   };
 }
 
@@ -810,7 +810,7 @@ export function composeMaterial(id: string, density: MaterialDensity = 'object')
     p: baseRamp.lite,
     L: baseRamp.hot,
     A: accentRamp.base,
-    a: hexLerp(visual.accentColor, '#000000', 0.30),
+    a: hueLerp(visual.accentColor, '#000000', 0.30),
     E: accentRamp.lite,
   };
 
