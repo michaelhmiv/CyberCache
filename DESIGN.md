@@ -900,6 +900,41 @@ out banding: its palette is the master mapping S1 pinned
 byte-exact, and its forms retire with One Grammar (§10), which
 moves the stage onto the card grammar this gate already covers.
 
+**S3 (2026-11-07) — the gear-engine craft pass.** The four gear
+grammars (shield, ordnance, class mod, relic) now answer to the
+standard the weapons met in S1. The gear core owns: selective
+outline (the §8.1 weapon rule ported — an outline cell takes the
+shade two ramp steps darker than the form cell it borders,
+neighbor preference below/above/right/left, ink only at the ramp
+floor and off-ramp faces); the broken-edge toolkit modeled on
+the relic SALVAGE pass (jittered tone-boundary bands, broken-tone
+region shading, cluster wear, broken vents) as shared core code,
+never per-grammar copies; protected zones — a grammar declares
+its data surfaces and every wear operation refuses them; and the
+manufactured-gear wear ladder (owner-ruled: half the relic
+budget, card density only — Common 7 chips / 0.28 grime down to
+Legendary 1 / 0.05). Absorb was rewritten inside its ring-of-
+plates silhouette (owner-ruled latitude): seeded uneven sectors,
+per-side shell stacks, a seated core in a dark socket. Ordnance
+cores are seated, pods/fins diverge per side, grooves and body
+bands jitter. Class-mod casings shade broken; the node deck is a
+protected zone and its origin is declared data
+(`NODE_DECK_ORIGINS`). Relics were audited only (S3-7): renders
+changed solely through the core outline (measured silhouette
+delta 0 across the 64-item corpus); no row reads pristine — the
+nearest, Neural Key and Circuit Totem, are named in the slice PR
+with the evidence. The rarity invariant was re-argued, not
+relaxed: thumbs are byte-identical across rarities (the ladder
+never runs at detail 0), card form deltas are bounded by the
+finish's own footprint with measured maxima stated in the tests,
+and the deck is pinned byte-identical across all five rarities.
+The S2 gate re-trained on this slice: banding stayed at zero;
+orphan budgets for the three manufactured systems rose to the
+wear texture's measured maxima (shield 152, under the relic
+SALVAGE scale of 185). Acceptance evidence (157-item corpus,
+before/after sheets, form-diff report) lives in the prep folder
+`pxl-craft-sweep/s3-evidence/`.
+
 **Hero Pass H1 (2026-11-06) — head-system unification.** The
 hero adopts the same discipline under the Hero Pass brief (all
 12 grill items ruled as recommended, plus the flexibility law:

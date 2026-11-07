@@ -194,6 +194,20 @@ const DECK_H = 30;
 const FIELD_PITCH = 6;
 
 /**
+ * The node deck's design-space origin per tree row — declared
+ * data (flexibility law), consumed by the family painters and
+ * by the S3 pip-integrity pin, which reads the deck rect from
+ * here instead of re-deriving the painters' layout.
+ */
+export const NODE_DECK_ORIGINS: Record<SkillTreeType, { x: number; y: number }> = {
+  [SkillTreeType.Gunslinger]: { x: 122, y: 33 },
+  [SkillTreeType.Demolition]: { x: 120, y: 36 },
+  [SkillTreeType.Scavenger]: { x: 77, y: 37 },
+  [SkillTreeType.Fixer]: { x: 100, y: 44 },
+};
+export const NODE_DECK_SIZE = { w: DECK_W, h: DECK_H };
+
+/**
  * The node field: a recessed deck window (silhouette layer — it
  * shapes the device face at every density) holding the 4×12
  * socket field. Sockets and lit pips are detail: at thumb the
@@ -207,6 +221,14 @@ function paintNodeDeck(p: DesignPainter, x: number, y: number, input: ClassModCo
   // recess, so the socket grid sits on an instrument face, not in
   // a black pit (silhouette layer: it shapes the thumb too).
   p.rect(x + 3, y + 3, DECK_W - 6, DECK_H - 6, 'd');
+  // The deck is the gear engine's one true DATA surface: its
+  // whole rect is protected — no wear, jitter, or grime the core
+  // applies may ever land on it (S3 floor 7).
+  {
+    const cx0 = p.X(x);
+    const cy0 = p.Y(y);
+    p.canvas.protect(cx0 - 1, cy0 - 1, p.X(x + DECK_W) - cx0 + 2, p.Y(y + DECK_H) - cy0 + 2);
+  }
   if (!p.detail) return;
   const lit = new Map<string, number>();
   for (const m of input.boosts) lit.set(`${m.row}:${m.col}`, m.value);
@@ -248,6 +270,12 @@ function paintAffixRail(p: DesignPainter, cx: number, y: number, count: number) 
   const w = Math.max(64, count * 5 + 18);
   p.rect(cx - w / 2, y, w, 9, 'd');
   p.rect(cx - w / 2, y, w, 1, 'k');
+  // The rail carries the affix read — protected like the deck.
+  {
+    const cx0 = p.X(cx - w / 2);
+    const cy0 = p.Y(y);
+    p.canvas.protect(cx0 - 1, cy0 - 1, p.X(cx + w / 2) - cx0 + 2, p.Y(y + 9) - cy0 + 2);
+  }
   if (!p.detail || count <= 0) return;
   let sx = cx - (count * 5 - 2) / 2;
   for (let i = 0; i < count; i++) {
@@ -256,13 +284,20 @@ function paintAffixRail(p: DesignPainter, cx: number, y: number, count: number) 
   }
 }
 
-/** Seeded wear: a few texel chips on the housing (detail only). */
+/**
+ * Seeded wear on the casing (detail only). S3-6: the hand-placed
+ * single-texel chips were audited row by row and converted to
+ * seeded CLUSTER wear (the core toolkit) — same casing spots,
+ * worn as patches of named cause. The spots stay casing-only by
+ * construction, and clusterWear itself refuses protected cells,
+ * so the node deck can never be touched from here.
+ */
 function paintWear(p: DesignPainter, spots: [number, number][]) {
   if (!p.detail) return;
   const n = 2 + p.canvas.pick(3);
   for (let i = 0; i < n; i++) {
     const [x, y] = spots[p.canvas.pick(spots.length)];
-    p.canvas.chip(p.X(x), p.Y(y));
+    p.canvas.clusterWear(p.X(x), p.Y(y), 3 + p.canvas.pick(3));
   }
 }
 
@@ -283,6 +318,11 @@ function paintCore(p: DesignPainter, input: ClassModComposeInput) {
   p.rect(118, 22, 86, 6, 'P'); // header strip over the deck housing
   p.rect(32, 34, 12, 32, 'd'); // left pod — a darker side module
   p.rect(32, 34, 12, 5, 'P');
+  // Casing shading breaks (S3-6): the flat 'P' masses resolve
+  // into jittered patches (brokenTone touches 'P' cells only —
+  // the deck and bullseye tones are physically unreachable).
+  p.canvas.brokenToneRegion(p.X(48), p.Y(22), p.X(114) - p.X(48), p.Y(78) - p.Y(22));
+  p.canvas.brokenToneRegion(p.X(118), p.Y(22), p.X(204) - p.X(118), p.Y(28) - p.Y(22));
   // Bullseye (the tree's sigil, worn as hardware): seat, ring, heart.
   p.disc(81, 53, 19, 'k');
   p.disc(81, 53, 17, 'E');
@@ -290,7 +330,7 @@ function paintCore(p: DesignPainter, input: ClassModComposeInput) {
   p.disc(81, 53, 11, 'p');
   p.disc(81, 53, 5, 'W');
   p.disc(81, 53, 2, 'E');
-  paintNodeDeck(p, 122, 33, input);
+  paintNodeDeck(p, NODE_DECK_ORIGINS[SkillTreeType.Gunslinger].x, NODE_DECK_ORIGINS[SkillTreeType.Gunslinger].y, input);
   // Edge contacts under the puck + bracket struts.
   for (let i = 0; i < 6; i++) {
     p.rect(64 + i * 18, 88, 9, 7, 'k');
@@ -329,6 +369,9 @@ function paintDrive(p: DesignPainter, input: ClassModComposeInput) {
   p.rect(95, 46, 12, 16, 'K'); // spine gauge window
   p.rect(99, 52, 4, 4, 'E');
   p.rect(18, 76, 196, 12, 'k'); // foot chassis band (hazard rides it)
+  // Casing shading breaks (S3-6) over the flat 'P' panels.
+  p.canvas.brokenToneRegion(p.X(26), p.Y(28), p.X(84) - p.X(26), p.Y(82) - p.Y(28));
+  p.canvas.brokenToneRegion(p.X(90), p.Y(28), p.X(112) - p.X(90), p.Y(36) - p.Y(28));
   // Side capacitor drums.
   p.rect(8, 36, 10, 34, 'k');
   p.rect(8, 44, 10, 7, 'P');
@@ -340,7 +383,7 @@ function paintDrive(p: DesignPainter, input: ClassModComposeInput) {
   p.poly([[60, 38], [75, 55], [60, 72], [45, 55]], 'E');
   p.poly([[60, 46], [67, 55], [60, 64], [53, 55]], 'p');
   p.rect(59, 54, 2, 2, 'W');
-  paintNodeDeck(p, 120, 36, input);
+  paintNodeDeck(p, NODE_DECK_ORIGINS[SkillTreeType.Demolition].x, NODE_DECK_ORIGINS[SkillTreeType.Demolition].y, input);
   p.rect(60, 88, 8, 4, 'd');
   p.rect(164, 88, 8, 4, 'd');
   paintAffixRail(p, 116, 92, input.pips ?? 0);
@@ -362,19 +405,25 @@ function paintChip(p: DesignPainter, input: ClassModComposeInput) {
   const inner: [number, number][] = [[50, 20], [182, 20], [197, 35], [197, 69], [182, 84], [50, 84], [35, 69], [35, 35]];
   p.poly(board, 'k');
   p.poly(inner, 'D');
-  // Memory blocks flanking the die — dark cans, tree-color lids.
-  p.rect(40, 40, 30, 26, 'k');
-  p.rect(42, 42, 26, 22, 'd');
-  p.rect(42, 42, 26, 5, 'P');
-  p.rect(162, 40, 30, 26, 'k');
-  p.rect(164, 42, 26, 22, 'd');
-  p.rect(164, 42, 26, 5, 'P');
-  // Corner capacitor blocks on the top edge.
-  p.rect(44, 24, 18, 10, 'k');
-  p.rect(44, 24, 18, 3, 'P');
-  p.rect(170, 24, 18, 10, 'k');
-  p.rect(170, 24, 18, 3, 'P');
-  paintNodeDeck(p, 77, 37, input);
+  // Memory blocks flanking the die — dark cans whose faces now
+  // shade as broken bands (S3-6): lid mass, body, deep foot,
+  // boundaries jittered per column.
+  for (const bx of [40, 162]) {
+    p.rect(bx, 40, 30, 26, 'k');
+    p.canvas.brokenBands(
+      p.X(bx + 2), p.Y(42), p.X(bx + 28) - p.X(bx + 2), p.Y(64) - p.Y(42),
+      'P', 'd', 'D', 0.24, 0.82,
+    );
+  }
+  // Corner capacitor blocks on the top edge — broken lids too.
+  for (const bx of [44, 170]) {
+    p.rect(bx, 24, 18, 10, 'k');
+    p.canvas.brokenBands(
+      p.X(bx), p.Y(24), p.X(bx + 18) - p.X(bx), p.Y(27) - p.Y(24),
+      'P', 'P', 'P', 0.5, 1,
+    );
+  }
+  paintNodeDeck(p, NODE_DECK_ORIGINS[SkillTreeType.Scavenger].x, NODE_DECK_ORIGINS[SkillTreeType.Scavenger].y, input);
   // Split edge-connector pins (the bracket rides between them).
   for (const px of [42, 54, 66]) {
     p.rect(px, 88, 7, 7, 'k');
@@ -423,14 +472,20 @@ function paintRelayRig(p: DesignPainter, input: ClassModComposeInput) {
   p.rect(188, 66, 18, 24, 'D');
   p.rect(26, 78, 180, 12, 'k'); // lower chassis band (panels overpaint it)
   // Armor panels: top band, the coil's panel, the jaw blocks.
-  p.rect(26, 26, 180, 12, 'P');
-  p.rect(26, 26, 180, 4, 'p');
+  // The top band's light strip breaks per column (S3-6); the jaw
+  // blocks take brokenTone over their flat 'P'.
+  p.canvas.brokenBands(
+    p.X(26), p.Y(26), p.X(206) - p.X(26), p.Y(38) - p.Y(26),
+    'p', 'P', 'P', 0.34, 1,
+  );
   p.rect(84, 26, 2, 12, 'k'); // panel seams across the top band
   p.rect(150, 26, 2, 12, 'k');
   p.rect(34, 44, 58, 40, 'k');
   p.rect(36, 46, 54, 36, 'd'); // dark panel — the coil's E winding pops on it
   p.rect(188, 38, 18, 12, 'P');
   p.rect(188, 66, 18, 12, 'P');
+  p.canvas.brokenToneRegion(p.X(188), p.Y(38), p.X(206) - p.X(188), p.Y(50) - p.Y(38));
+  p.canvas.brokenToneRegion(p.X(188), p.Y(66), p.X(206) - p.X(188), p.Y(78) - p.Y(66));
   p.rect(187, 50, 2, 16, 'k'); // the jaw's inner face
   // The bolt the jaw grips.
   p.disc(186, 58, 6, 'T');
@@ -447,7 +502,7 @@ function paintRelayRig(p: DesignPainter, input: ClassModComposeInput) {
   border(52, 54, 22, 20, 2, 'd');
   p.rect(60, 61, 6, 6, 'p');
   p.rect(62, 63, 2, 2, 'W');
-  paintNodeDeck(p, 100, 44, input);
+  paintNodeDeck(p, NODE_DECK_ORIGINS[SkillTreeType.Fixer].x, NODE_DECK_ORIGINS[SkillTreeType.Fixer].y, input);
   // Cable run from the coil toward the deck (one hard diagonal).
   p.canvas.thickLine(p.X(80), p.Y(84), p.X(116), p.Y(92), 1, 'K');
   p.rect(40, 90, 30, 6, 'k');
@@ -475,6 +530,7 @@ export const classModGrammar: GearGrammar = {
   id: 'class-mod',
   kind: 'classMod',
   plate: GEAR_CARD_PLATES.classMod, // 240×120
+  wearLadder: true,
   paint(canvas, input) {
     const cm = input as ClassModComposeInput;
     const resolved: ClassModComposeInput = {

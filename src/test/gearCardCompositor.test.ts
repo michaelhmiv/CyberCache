@@ -230,13 +230,16 @@ describe('gear core — default input derivation', () => {
 describe('gear core — golden signature pins', () => {
   // Regression tripwires: any intentional art change re-pins
   // these deliberately (and the capture sheets get re-read).
+  // S3 re-pin (2026-11-07): the core outline finish is selective
+    // now (S3-1) — fixture renders changed ONLY in outline shades;
+    // form, frame, and counts are pinned unchanged elsewhere here.
   const GOLDENS: Record<string, string> = {
-    'block Fire Epic card': '2e10720',
-    'block Kinetic Common card': 'ace3970b',
-    'block Fire Epic thumb': '92727b59',
-    'block Void Rare thumb': '895b9a65',
-    'slab Shock Rare card': '5d06f70f',
-    'slab Kinetic Legendary card': 'bf12b5a0',
+    'block Fire Epic card': 'ae1d90ab',
+    'block Kinetic Common card': '9605ce07',
+    'block Fire Epic thumb': 'c8724053',
+    'block Void Rare thumb': '993feeb1',
+    'slab Shock Rare card': 'bdc061c0',
+    'slab Kinetic Legendary card': '13c1cef1',
   };
   const CASES: Record<string, { input: GearComposeInput; grammar: typeof fixtureBlockGrammar; density: 'card' | 'thumb' }> = {
     'block Fire Epic card': { input: block({ element: Element.Fire, rarity: Rarity.Epic }), grammar: fixtureBlockGrammar, density: 'card' },
