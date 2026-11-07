@@ -1145,6 +1145,110 @@ shell and its overlays only, and `pixelDiorama.test.tsx` pins
 exactly that. The loot-rise material glyph keeps its small
 inline SVG inside the pixel scene — that is the pixel
 stage's own FX vocabulary, not a fallback scene.
+**SVG closure (2026-11-07) — the vector exceptions are
+closed; the fallback diorama is deleted.** The owner's ruling:
+the three live SVG exceptions the full-asset census found
+(SkillKeystoneArt, Sparkline, ConsumableRing) convert to
+pixel; the dormant inline-SVG fallback diorama inside
+LiveTurfDiorama is killed; no named SVG exceptions survive.
+Conversions, same component APIs, sizes, and information —
+form only: keystone nodes are authored 30×30 texel grids
+(edge cells take the form's own border color — selout; the
+tree sigil and lock mark stay PX_ICONS rect data, composited
+on canvas where the SVG embedded them); the profile /
+progression sparkline is a stepped texel line on canvas over
+its unchanged geometry lib (the MARKET sparkline chart stays
+retired per the owner's 2026-11-05 ruling — it was never
+this component's surface); the consumable ring is a 28×28
+texel raster (slice accents, ink seams, a dash-block pulse,
+a 3×5 texel count digit); the BenchFx spark burst's
+vector form is closed (authored here as a 20×20 texel
+grid; in the merged tree the bench slice's canvas FX
+vehicle, PR #447, carries the burst and supersedes the
+grid — M1's specs and timing are untouched either way);
+the loadout star
+connectors are rasterized dashed texel lines on a canvas
+reproducing the old viewBox meet geometry; the diorama's
+loot-rise drop icons are authored 15×15 grids shaded per
+drop through the shared hueLerp ramp root. The fallback
+diorama was verified dormant before deletion — every
+roaming area resolves a pixel background (CI-asserted in
+pixelWave1.test) and both mounts pass registry areas — and
+is DELETED with its fallback-only overlays; an unmapped
+area id renders no scene at all — the stage shell and its
+overlays only — per the V5 slice's kill semantics
+(PR #446), which this merge keeps over this slice's
+Dustwaste-default variant. Orphaned by
+the kill and deleted with it: the enemy silhouettes, the
+resource silhouettes, ELEMENT_PROJECTILE, PxIconGlyph.
+The same census's dead code went too: AreaBackground (zero
+consumers), the SharedDefs filter mount (zero references
+to any of its filter ids remained), and common/WeaponCard
+(zero production importers). What remains, stated exactly:
+the only vector-drawn graphic in the app is the Google "G"
+sign-in glyph on the auth screen — a brand mark, not game
+art. `<PxIcon>` is not an exception: it renders 16×16
+rect-grid data, the pixel icon system itself (§7). The
+converted grids lint at zero findings in CI
+(`svgPixelConversions.test.ts`) beside the S2 gate.
+
+**S5 scale-up batch 2 (2026-11-07) — authored bases: the
+launcher and the beam.** The pilot scales to the last two of
+the five remaining weapon types in declaration order (Pistol,
+SMG, and Shotgun are the sibling batch). For the LAUNCHER and
+the BEAM, the card compositor's procedural form passes are
+replaced by authored pieces drawn in pxl under this standard
+and checked in as grid data
+(`src/lib/pixel/launcherAuthoredData.ts`,
+`src/lib/pixel/beamAuthoredData.ts`), generated from the
+archived authoring sources by deterministic converters
+(`scripts/convert-launcher-authored-bases.mjs`,
+`scripts/convert-beam-authored-bases.mjs` — re-running each
+reproduces its data byte-for-byte; the .px.js sources live
+with the batch evidence). The launcher ships 17 piece slots;
+the beam ships 19 pieces. Assembly is untouched, exactly as
+in the pilot, and every living pass runs over the authored
+forms as it ran over procedural ones. The type rulings, each
+forced by the type's own shipped code. (1) **Collapses follow
+production's effective forms:** the launcher's Magazine data
+is [drum, box, drum] — production draws two effective forms
+across the three rolls (variant 1 the box; variants 0 and 2
+the feed drum) — and its Sight is a single piece, the carry
+handle the procedural barrel pass draws over the body (its
+sight pass draws nothing for this type). The beam collapses
+nothing: its Sight is authored ×3 (iron posts / reflex box /
+aperture tower), the one slot where it needs more grids than
+the sniper did. (2) **The Kinetic window rule extends by the
+type's own current path:** the launcher's chamber window
+remaps exactly as the sniper's; for the beam the element
+current IS the form (the current pass skips it — "the core
+is the current"), so the remap covers the whole path — the
+layout's spine-channel row, the chamber window, and the
+power cell's charge gauge — and a Kinetic beam carries no
+element texels at all, its channel reading as warm conduit
+in the maker's tones. (3) **The beam's Prismatek crystal
+chamber is superseded**, as the sniper's was: one authored
+chamber family serves all makers. (4) **Brass is a form key
+for these two types** — collar rings, channel ticks, the
+drum hub, cell bolts; the procedural passes draw them in the
+form — admitted by their converters on top of the pilot's
+key set. The launcher's warhead tip is likewise form, drawn
+in the glow key; its converter disambiguates the pxl tool's
+G/g ascii collision (the two keys share the reference hex)
+so the tip can never resolve to the rarity trim color.
+(5) **Anchors and muzzle seats keep production's values:**
+the launcher's muzzle keeps the warhead's reach (bodyFront +
+barrelLen + 9), its current bed derives from the shipped
+radius profile exactly as the procedural barrel pass
+computes it, and the beam's muzzle keeps the emitter tip's
+front edge (tipX + 3). Held mode and grip seating are
+unchanged — both authored grip families satisfy their
+declared grip fractions under the held-mode audit, all
+makers. Containment is pinned by test: of 864 swept renders
+(every type × maker × element × rarity at both densities),
+exactly the 144 launcher and beam card renders move; every
+other render is byte-identical to the pre-batch sweep, and
+the payload delta is 0.
 **Batch 1 (2026-11-07) — authored bases scale-up: pistol,
 SMG, shotgun.** The owner ruled the scale-up ("everything
 done", 2026-11-07), and the S5 pattern is replicated for the
@@ -1203,7 +1307,7 @@ the payload delta is 0. Each batch-1 type yields 131,220
 combinations (3⁶ part-variant combos × 6 makers × 6
 elements × 5 rarities) from its 19 pieces; authored
 coverage across the library is now 437,400 of 787,320
-combinations from 74 pieces.
+combinations from 74 pieces. At the reconciliation merge with batch 2 (PR #450), the registry absorbed batch 2's per-type forms as data (per-set stamp order, Kinetic-remap slots, current-bed mode, muzzle overhang, single-piece slots), the batch-1 containment pin was re-scoped to the 504 signatures it shares with batch 2's suite (pin 868d8adf), and the S5 sweep was jointly re-based to the 432 pixel-only renders (pin ae034c1d) — no render moved in any of it.
 
 **Pistol form swap (2026-11-07, parent audit).** The
 pistol's authored form is not batch 1's own authoring: it
@@ -1428,10 +1532,68 @@ recommended) — replaces the statue with work:
   on the law's loot-rise duration (`LOOT_RISE_MS`), once per
   settled unit, never replayed from the mirror's existing
   contents. The panel scenes keep their existing result flash.
+  (Salvaging joins this beat in M4b — see the next section.)
 - **Reduced motion** collapses the bench to the held `work` pose
   with no cycle and no FX — the pre-M1 picture exactly. The
   animated-node accounting (parts + FX + embers + rise) stays
   inside `MAX_ANIMATED_NODES`, asserted in the M1 tests.
+
+### The item on the bench — Motion M4b + the V2 bench re-author (2026-11-07)
+
+M1 set the hunter working, but the bench itself stayed empty: the
+item being crafted appeared in no scene, a finished unit of any
+kind but a weapon rose as a generic gold disc, and salvaging —
+whose completion beat was forced null — got no ceremony at all.
+M4b finishes the bench:
+
+- **The bench family is authored art now (V2).** The three bench
+  tiers (`set-bench-basic` 61×60, `set-bench-forge` 67×60,
+  `set-bench-lab` 63×60) were re-authored in the pxl tool under
+  the pxl-craft standard (lint 0; sources archived with the
+  slice's evidence): hue-shifted ramps, selout, cluster
+  discipline, the forge family's glow in the work-cycle spec's
+  own hexes. Same sprite ids, canvases, and manifest anchors —
+  each tier's work surface sits at its own anchor point, so the
+  M1 work point means the same place it always did. Together the
+  family sheds ~23.7 KB of painterly sprite payload (25,117 B →
+  1,395 B) and reads as a bench at stage scale instead of a dark
+  glittery block.
+- **The seat is truthful (benchSeat.ts).** While a job runs, its
+  output picture sits AT the work point — the same anchor the
+  set-piece FX burst from, so the sparks land on the work itself.
+  Resolution is a pure function of state the client already
+  holds: recipe-specified outputs (consumable, material,
+  cosmetic part) render through their real compositors; a named
+  relic renders its grammar form at its fixed rarity (name +
+  rarity are set at enqueue — only the instance seed is minted
+  at completion, and the seat never claims it); service jobs seat
+  the target record itself. A generic gear job's item DOES NOT
+  EXIST mid-job — the server rolls it at the completion instant —
+  so its seat is the honest maximum: an empty frame in the
+  snapshotted rarity's color with the slot's glyph. Fabricating
+  an item render for that seat fails review.
+- **Every completion rises as itself.** The rise resolves the
+  settled unit's own output: consumable, material, cosmetic part,
+  or the minted inventory item of any gear kind (weapons were the
+  only kind that rose as themselves before). The glow disc
+  remains only for completions with no picture of their own —
+  service work, or an item already gone from the inventory.
+- **Salvaging celebrates.** A recycle settling while salvaging
+  holds the stage earns the same beat grammar — celebrate pose,
+  work cycle held, and the yield rising off the crusher (Scrap,
+  the one thing every recycle pays; the destroyed item never
+  rises). The signal is the salvage feed every recycle result
+  already pushes to; a failed batch settled nothing and earns
+  no beat. Seen-set discipline matches the craft lanes: history
+  never replays, reduced motion silences the beat.
+- **BenchFx speaks texel now.** The set-piece FX vehicle is a
+  quarter-resolution canvas in the loot light kit's grammar —
+  stepped concentric glow ellipses, texel spark rays, flat
+  five-tone ramps (the FX register is flat by law, §8) — sampled
+  from the same work-cycle sampler on the same start delay, so
+  timings are M1's exactly (movement.ts untouched). The SVG
+  stroke burst and blurred gradient divs are gone; one canvas
+  node replaces up to five DOM nodes in the animated count.
 
 ### The streak claim moment
 

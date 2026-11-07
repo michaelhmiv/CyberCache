@@ -31,13 +31,22 @@
  *    the Ironwood wood-ramp remap (grill 1). The shotgun carries no
  *    Magazine anchor and the pistol no Stock anchor (procedural
  *    parity, both pinned here).
- *  - Containment: everything batch 1 must NOT move — the sniper,
- *    Launcher, and Beam card renders plus every pixel-path render —
- *    pinned as one super-hash over 648 render signatures swept on
- *    the pre-batch-1 master (evidence: cybercache-prep/
+ *  - Containment: everything batch 1 must NOT move — the sniper
+ *    card renders plus every pixel-path render — pinned as one
+ *    super-hash over 504 render signatures swept on the
+ *    pre-batch-1 master (evidence: cybercache-prep/
  *    pxl-craft-sweep/scaleup-batch1/renders/containment-baseline
  *    .json). The S5 test's own containment sweep was re-based in
  *    this slice to the complementary 576-signature partition.
+ *    RE-SCOPED at the batch 1 + batch 2 reconciliation merge: the
+ *    sweep originally also carried the Launcher and Beam card
+ *    renders (648 signatures, super-hash bbd1dd68) — those types
+ *    are batch 2's deliberate target, authored by PR #449, so
+ *    their card renders leave this sweep exactly as batch 1's own
+ *    types left the S5 sweep, and batch 2's suite (which pins the
+ *    identical 504-signature set, super-hash 868d8adf) is the
+ *    standing guard for them. No batch-1 render moved: this
+ *    suite's lint, assembly, and living-pass pins are unchanged.
  *
  * PISTOL FORM SWAP (2026-11-07, parent audit): the pistol's form is
  * the owner-approved authored package from the S5 scale-up final
@@ -415,8 +424,7 @@ describe('Batch 1 authored bases — pistol barrel variants, composed', () => {
 });
 
 describe('Batch 1 authored bases — containment', () => {
-  it('every render outside batch 1 is byte-identical to the pre-batch-1 sweep', () => {
-    const BATCH1 = new Set<string>([WeaponType.Pistol, WeaponType.SMG, WeaponType.Shotgun]);
+  it('the sniper card renders and every pixel render are byte-identical to the pre-batch-1 sweep (batch-2 types excluded by their own slice)', () => {
     const sigs: Record<string, string> = {};
     for (const type of Object.values(WeaponType)) {
       for (const manufacturer of Object.values(Manufacturer)) {
@@ -426,16 +434,22 @@ describe('Batch 1 authored bases — containment', () => {
               weaponType: type, manufacturer, element, rarity,
               rollQuality: 75, pixelSeed: 4242, id: `contain-${type}-${manufacturer}-${element}-${rarity}`,
             };
-            if (!BATCH1.has(type)) sigs[`card/${type}/${manufacturer}/${element}/${rarity}`] = composeWeaponCard(input).signature;
+            // Re-scoped at the reconciliation merge (see the
+            // header): batch 2's card types (Launcher, Beam) are
+            // outside this pin — their renders are batch 2's
+            // deliberate target, characterized by their own
+            // suite. What remains pinned here: the sniper's card
+            // renders + every pixel render.
+            if (type === WeaponType.Sniper) sigs[`card/${type}/${manufacturer}/${element}/${rarity}`] = composeWeaponCard(input).signature;
             sigs[`pixel/${type}/${manufacturer}/${element}/${rarity}`] = composePixelWeapon(input).signature;
           }
         }
       }
     }
-    expect(Object.keys(sigs)).toHaveLength(648);
+    expect(Object.keys(sigs)).toHaveLength(504);
     let h = 0x811c9dc5;
     const joined = Object.keys(sigs).sort().map((k) => `${k}=${sigs[k]}`).join('\n');
     for (let i = 0; i < joined.length; i++) h = Math.imul(h ^ joined.charCodeAt(i), 0x01000193);
-    expect((h >>> 0).toString(16).padStart(8, '0')).toBe('bbd1dd68');
+    expect((h >>> 0).toString(16).padStart(8, '0')).toBe('868d8adf');
   }, 120_000);
 });

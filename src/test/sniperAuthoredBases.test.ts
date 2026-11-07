@@ -28,14 +28,21 @@
  *    s5-evidence/renders/containment-baseline.json). Any future
  *    change that moves one of those renders fails here and
  *    re-pins deliberately, the way the card goldens do.
- *    RE-BASED by authored-bases batch 1 (Pistol/SMG/Shotgun): those
- *    three types' card renders are batch 1's deliberate target, so
- *    they leave this sweep; the narrowed sweep (576 signatures:
- *    Launcher/Beam cards + every pixel render) is pinned to the
- *    pre-batch-1 master sweep (super-hash 3f554080; evidence:
- *    cybercache-prep/pxl-craft-sweep/scaleup-batch1/renders/
- *    containment-baseline.json). Batch 1's own test pins the
- *    complementary 648-signature sweep (sniper cards included).
+ *    RE-BASED twice by the authored-bases scale-up, then JOINTLY
+ *    at the two batches' reconciliation merge: batch 1 (Pistol/
+ *    SMG/Shotgun) narrowed this sweep to 576 signatures
+ *    (super-hash 3f554080; evidence: cybercache-prep/pxl-craft-
+ *    sweep/scaleup-batch1/renders/containment-baseline.json);
+ *    batch 2 (Launcher + Beam) narrowed its own line to 648
+ *    signatures (super-hash 81e59cb6; evidence: cybercache-prep/
+ *    pxl-craft-sweep/scaleup-batch2/renders/containment-baseline
+ *    .json). With all five scale-up types authored, every card
+ *    render is pinned by its own suite, so the joint sweep is
+ *    the 432 pixel-path signatures alone (super-hash ae034c1d),
+ *    re-hashed over the same pre-S5 baseline values — both
+ *    parent pins reproduce exactly from those values, and every
+ *    signature in the joint sweep is byte-identical to the value
+ *    the original 792 sweep pinned.
  *  - The living passes land on authored bases: rarity overlays by
  *    tier (exact landed cell counts at the overlay coordinates),
  *    godroll sparkles, wear erasure, affix decals, the Kinetic
@@ -265,8 +272,7 @@ describe('S5 authored bases — the living passes land', () => {
 });
 
 describe('S5 authored bases — containment', () => {
-  it('non-sniper card renders and all pixel renders are byte-identical to the pre-S5 sweep (batch-1 types excluded by their own slice)', () => {
-    const BATCH1 = new Set<string>([WeaponType.Pistol, WeaponType.SMG, WeaponType.Shotgun]);
+  it('all pixel renders are byte-identical to the pre-S5 sweep (every card type is authored now, each pinned by its own suite)', () => {
     const sigs: Record<string, string> = {};
     for (const type of Object.values(WeaponType)) {
       for (const manufacturer of Object.values(Manufacturer)) {
@@ -276,16 +282,22 @@ describe('S5 authored bases — containment', () => {
               weaponType: type, manufacturer, element, rarity,
               rollQuality: 75, pixelSeed: 4242, id: `contain-${type}-${manufacturer}-${element}-${rarity}`,
             };
-            if (type !== WeaponType.Sniper && !BATCH1.has(type)) sigs[`card/${type}/${manufacturer}/${element}/${rarity}`] = composeWeaponCard(input).signature;
+            // Joint re-base (batch 1 + batch 2 reconciliation):
+            // every card type is authored now — the sniper from
+            // S5, Pistol/SMG/Shotgun from batch 1, Launcher/Beam
+            // from batch 2 — and each type's card renders are
+            // pinned by its own suite. What remains pinned here
+            // is the pixel path alone, the one render family
+            // neither batch touched.
             sigs[`pixel/${type}/${manufacturer}/${element}/${rarity}`] = composePixelWeapon(input).signature;
           }
         }
       }
     }
-    expect(Object.keys(sigs)).toHaveLength(576);
+    expect(Object.keys(sigs)).toHaveLength(432);
     let h = 0x811c9dc5;
     const joined = Object.keys(sigs).sort().map((k) => `${k}=${sigs[k]}`).join('\n');
     for (let i = 0; i < joined.length; i++) h = Math.imul(h ^ joined.charCodeAt(i), 0x01000193);
-    expect((h >>> 0).toString(16).padStart(8, '0')).toBe('3f554080');
+    expect((h >>> 0).toString(16).padStart(8, '0')).toBe('ae034c1d');
   }, 120_000);
 });

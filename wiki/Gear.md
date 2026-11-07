@@ -110,11 +110,21 @@ and HelixWorks a rounded **coil** wrapped in brass rings. Within a
 maker and type, the rolled parts still vary the gun — chambers,
 magazines, sights, and barrels differ from item to item.
 
-Snipers, pistols, SMGs, and shotguns are drawn from hand-authored part art: every chamber,
-magazine, sight, barrel, grip, and receiver variant is a drawn piece, assembled by
-the same rules — the rolled parts still pick which pieces your gun
-is built from, and maker, element, and rarity dress them exactly
-as described here.
+Snipers, pistols, SMGs, shotguns, launchers, and beam rifles are
+drawn from hand-authored part art: every chamber, magazine,
+sight, barrel, grip, and receiver variant is a drawn piece,
+assembled by the same rules — the rolled parts still pick which
+pieces your gun is built from, and maker, element, and rarity
+dress them exactly as described here. A launcher's magazine is
+its feed drum or box and its sight the carry handle over the
+receiver; a beam rifle's element runs in the lit channel along
+its spine — on a Kinetic beam the channel stays dark, warm
+conduit in the maker's tones.
+
+All of the game's art renders as pixels on canvas — item art,
+icons, and interface marks alike. No vector-drawn art remains in
+the game; the only vector mark anywhere is the Google "G" on the
+sign-in button, which is Google's brand glyph, not game art.
 
 The element shows as a lit current that runs from the chamber along
 the barrel to the muzzle, in the element's color. Kinetic has no

@@ -1,5 +1,15 @@
 # Live Turf Diorama
 
+> **Status (2026-11-07, SVG closure):** the SVG scene this document
+> describes is DELETED. The fallback was verified dormant (every
+> roaming area resolves a pixel background; both mounts pass registry
+> areas) and removed with its SVG subcomponents; `LiveTurfDiorama`
+> renders the pixel stage (`PixelSceneLayer`) unconditionally, with
+> 'zone-dustwaste-bg' as the unmapped-area default. The "SVG-first
+> asset rule" below is historical — the game's art is pixel-only now
+> (sole vector graphic: the Google "G" sign-in glyph). Record:
+> DESIGN.md §8.1, "SVG closure (2026-11-07)".
+
 The dashboard hero panel is now treated as a non-authoritative idle visualization layer: it shows what the player is already doing in the current CyberCache loop without adding new controls, rewards, or combat resolution.
 
 ## Product intent

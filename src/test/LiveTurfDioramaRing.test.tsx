@@ -8,7 +8,7 @@ const weapon = { id: 'w1', name: 'Test Gun' } as unknown as Weapon;
 const area = getRoamingArea(DEFAULT_ROAMING_AREA_ID);
 
 describe('LiveTurfDiorama — visualization-only surface', () => {
-  it('renders the SVG scene without the HUD overlays (ring, stat bar moved to DashboardScreen)', { timeout: 20_000 }, () => {
+  it('renders the scene without the HUD overlays (ring, stat bar moved to DashboardScreen)', { timeout: 20_000 }, () => {
     render(
       <LiveTurfDiorama
         area={area}
@@ -24,7 +24,7 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
     // The consumable ring and stat bar are now in DashboardScreen, not the diorama
     expect(screen.queryByTestId('active-buff-pills')).not.toBeInTheDocument();
     expect(screen.queryByTestId('hunter-totals-bar')).not.toBeInTheDocument();
-    // Diorama still renders its core SVG scene (at least one role="img")
+    // Diorama still renders its core scene (at least one role="img")
     expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(1);
     // Drift-fix F2: the stage is visualization-only — the in-stage
     // action bar is gone (the mode's actions live in the workspace

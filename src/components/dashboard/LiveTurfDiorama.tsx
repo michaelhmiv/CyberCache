@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
 import {
   CritFlash,
@@ -19,8 +19,13 @@ import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } fro
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { BenchFx } from '@/components/pixelArt/BenchFx';
-import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
-import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
+import { BenchItemRender } from '@/components/pixelArt/BenchSeat';
+import {
+  benchRisePlanForEntry,
+  benchSeatPlanForJob,
+  salvageRisePlanForEntry,
+  type BenchRisePlan,
+} from '@/lib/pixel/benchSeat';
 import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_MODE } from '@/lib/pixel/workCycle';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import type { WorkshopCompletionView } from '@/store/slices/workshopSlice';
@@ -37,19 +42,20 @@ import { useLoadoutStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
-import { isClassModItem, isRelicItem, isShieldItem, isWeaponItem } from '@/lib/loadout/loadoutReadModel';
+import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadoutReadModel';
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { BossFightStage } from '@/components/pixelArt/BossFightStage';
 import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMoment';
+import { DROP_RISE_GRIDS, dropRisePalette } from '@/lib/pixel/dropRiseIcons';
 import { getLiveTurfScene } from '@/constants/liveTurfVisuals';
-import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore } from '@/store';
+import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore, useSalvageFeedStore } from '@/store';
 import { MONSTERS, getMonster } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { Rarity } from '@/types/game';
 import { MATERIAL_VISUALS, ESSENCE_VISUALS, RESOURCE_VISUALS } from '@/constants/visualAssets';
-import { pickResourceSilhouette, type ResourceSilhouetteId } from '@/constants/resourceSilhouettes';
+import { PixelGridCanvas } from '@/components/pixelArt/PixelGridCanvas';
 import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
@@ -88,6 +94,7 @@ interface LiveTurfDioramaProps {
 
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 const signClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
+
 const modeFromActivity = (kind?: ActivityKind, bossPhase?: BossPhase): DioramaMode => {
   if (kind === 'roaming_loot') return 'roaming';
   if (kind === 'boss_fight') return bossPhase === 'fight' ? 'bossFight' : 'bossPrep';
@@ -125,99 +132,56 @@ const dropAssetColor = (typeName: string): string => {
   return '#A5A7B5'; // fallback gray
 };
 
-// ── Drop Visual Icons (type-specific SVG shapes for non-weapon drops) ────────────
 
-/** Renders a distinct SVG icon for each drop type: material, essence, fragment, scrap, credits */
-const DropVisualIcon: React.FC<{ tone: string; label: string; x: number; y: number; size?: number }> = ({ tone, label, x, y, size = 28 }) => {
-  const half = size / 2;
-  const color = dropAssetColor(parseDropType(label));
-
-  // Helper to pick a deterministic silhouette variant
-  const pickSil = (resourceId: string) => {
-    const seed = label.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
-    return pickResourceSilhouette(resourceId as ResourceSilhouetteId, seed);
-  };
-
-  if (tone === 'material') {
-    // Crystal / gem shape for materials
-    return (
-      <g transform={`translate(${x}, ${y})`}>
-        <rect x={-half + 2} y={-half + 2} width={size - 4} height={size - 4} rx="3" fill={color} fillOpacity="0.3" stroke={color} strokeWidth="2" />
-        <path d={`M${-half + 6} 0L0 ${-half + 6}L${half - 6} 0L0 ${half - 6}Z`} fill={color} stroke="#000" strokeWidth="1.5" />
-        <text x="0" y={half + 10} textAnchor="middle" fill={color} fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
-          {parseDropType(label).slice(0, 4).toUpperCase()}
-        </text>
-      </g>
-    );
-  }
-
-  if (tone === 'essence') {
-    // Glowing orb / droplet for essences
-    return (
-      <g transform={`translate(${x}, ${y})`}>
-        <circle cx="0" cy="0" r={half - 2} fill={color} fillOpacity="0.35" stroke={color} strokeWidth="2" />
-        <circle cx="0" cy="0" r={half - 6} fill={color} fillOpacity="0.7" />
-        <circle cx={-half * 0.3} cy={-half * 0.3} r="2.5" fill="#FFFFFF" opacity="0.7" />
-        <text x="0" y={half + 10} textAnchor="middle" fill={color} fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
-          {parseDropType(label).slice(0, 4).toUpperCase()}
-        </text>
-      </g>
-    );
-  }
-
-  if (tone === 'fragment') {
-    // Key shard for cache keys
-    const sil = pickSil('cacheFragment');
-    return (
-      <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
-        <path d={sil.body} fill="#2196F3" fillOpacity="0.8" stroke="#000" strokeWidth="1.5" />
-        {sil.core && <path d={sil.core} fill="#90CAF9" opacity="0.6" />}
-        <text x="0" y={half + 10} textAnchor="middle" fill="#2196F3" fontSize="8" fontWeight="900" stroke="#000" strokeWidth="2">
-          FRAG
-        </text>
-      </g>
-    );
-  }
-
-  if (tone === 'cash') {
-    // If label contains "scrap", show scrap icon; otherwise credits
-    const isScrap = label.toLowerCase().includes('scrap');
-    if (isScrap) {
-      const sil = pickSil('scrap');
-      return (
-        <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
-          <path d={sil.body} fill="#FF5722" fillOpacity="0.8" stroke="#000" strokeWidth="1.5" />
-          {sil.core && <path d={sil.core} fill="#FF8A65" opacity="0.5" />}
-        </g>
-      );
-    }
-    // Credits coin
-    const sil = pickSil('credits');
-    return (
-      <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
-        <path d={sil.body} fill="#FFD700" fillOpacity="0.85" stroke="#000" strokeWidth="1.5" />
-        {sil.core && <path d={sil.core} fill="#FFA000" opacity="0.5" />}
-      </g>
-    );
-  }
-
-  // Default: loot crate
-  const sil = pickSil('loot');
+export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, label }) => {
+  const isScrap = label.toLowerCase().includes('scrap');
+  const kind: keyof typeof DROP_RISE_GRIDS =
+    tone === 'material' || tone === 'essence' || tone === 'fragment'
+      ? tone
+      : tone === 'cash'
+        ? isScrap
+          ? 'scrap'
+          : 'credits'
+        : 'crate';
+  const base =
+    kind === 'fragment'
+      ? '#2196F3'
+      : kind === 'scrap'
+        ? '#FF5722'
+        : kind === 'credits'
+          ? '#FFD700'
+          : dropAssetColor(parseDropType(label));
+  const tag =
+    kind === 'material' || kind === 'essence'
+      ? parseDropType(label).slice(0, 4).toUpperCase()
+      : kind === 'fragment'
+        ? 'FRAG'
+        : null;
   return (
-    <g transform={`translate(${x}, ${y}) scale(${size / 24})`}>
-      <path d={sil.body} fill={color} fillOpacity="0.7" stroke="#000" strokeWidth="1.5" />
-    </g>
+    <div className="flex h-full flex-col items-center" style={{ paddingTop: 9 }}>
+      <PixelGridCanvas
+        rows={DROP_RISE_GRIDS[kind]}
+        palette={dropRisePalette(base)}
+        style={{ width: 30, height: 30 }}
+        aria-hidden="true"
+      />
+      {tag ? (
+        <span
+          style={{
+            color: base,
+            fontSize: 8,
+            fontWeight: 900,
+            lineHeight: 1.4,
+            textShadow: '1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000',
+          }}
+        >
+          {tag}
+        </span>
+      ) : null}
+    </div>
   );
 };
 
-// ── Target HP Overlay (HTML — the only HP bar since the SVG
-//    fallback diorama was killed, owner ruling 2026-11-07) ──
-
-/** How far the in-stage HP plates ride ABOVE the ground line, as a
- *  fraction of stage height. The hunter's plate and the roaming
- *  target's plate share this one lift so the pair always reads
- *  level — one constant, so they can never drift apart. */
-const HP_PLATE_LIFT = 0.185;
 
 /**
  * Target HP plate (owner rulings 2026-11-02, amended 2026-11-03):
@@ -238,6 +202,12 @@ const HP_PLATE_LIFT = 0.185;
  * plate does NOT share this lift (see BossHpOverlay): its
  * ground-line anchor was owner-ruled to stay.
  */
+/** How far the in-stage HP plates ride ABOVE the ground line, as a
+ *  fraction of stage height. The hunter's plate and the roaming
+ *  target's plate share this one lift so the pair always reads
+ *  level — one constant, so they can never drift apart. */
+const HP_PLATE_LIFT = 0.185;
+
 const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYPct: number; reduced?: boolean }> = ({ active, accentColor, groundYPct, reduced = false }) => {
   const currentHp = useKillCycleStore((state) => state.currentTargetHp);
   const maxHp = useKillCycleStore((state) => state.currentTargetHpMax);
@@ -336,25 +306,19 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYPct
 const benchCompletionKey = (c: WorkshopCompletionView): string =>
   `${c.jobId}:${String(c.unit ?? '')}:${String(c.completedAtMs ?? '')}`;
 
-/** The finished unit's picture for the completion rise: the
- *  consumable or material the bench produced, or the gear piece
- *  itself. Service work (a repaired vehicle, a flipped shield)
- *  has no item picture — the rise runs as a glow beat over the
- *  set piece and the celebrate pose carries it. */
+/** The finished unit's picture for the completion rise, resolved
+ *  by benchRisePlanForEntry (M4b): the consumable or material the
+ *  bench produced, the cosmetic part itself, or the minted gear
+ *  piece of ANY kind — weapons, shields, relics, class mods,
+ *  ordnance all rise as themselves. (Pre-M4b only weapons did;
+ *  every other gear kind and every cosmetic fell through to the
+ *  disc despite the item being right there in the inventory.)
+ *  Service work (a repaired vehicle, a flipped shield) still has
+ *  no item picture — the rise runs as a glow beat over the set
+ *  piece and the celebrate pose carries it. */
 const BenchRiseIcon: React.FC<{ entry: WorkshopCompletionView }> = ({ entry }) => {
-  const itemId = typeof entry.itemId === 'string' ? entry.itemId : undefined;
-  const item = useInventoryStore((state) => (itemId ? state.items.find((i) => i.id === itemId) : undefined));
-  const consumableType = typeof entry.consumableType === 'string' ? entry.consumableType : undefined;
-  const outputMaterial = typeof entry.outputMaterial === 'string' ? entry.outputMaterial : undefined;
-  if (consumableType) return <PixelConsumable type={consumableType} size={40} />;
-  if (outputMaterial) return <PixelMaterial id={outputMaterial} size={40} />;
-  if (isWeaponItem(item)) return <PixelWeapon weapon={item} size={44} />;
-  return (
-    <div
-      className="h-8 w-8 rounded-full"
-      style={{ background: 'radial-gradient(circle, rgba(255,214,120,0.95) 0%, rgba(255,170,60,0.35) 55%, transparent 75%)' }}
-    />
-  );
+  const items = useInventoryStore((state) => state.items);
+  return <BenchItemRender plan={benchRisePlanForEntry(entry, items)} testId="bench-rise-render" />;
 };
 
 const PixelSceneLayer: React.FC<{
@@ -530,6 +494,49 @@ const PixelSceneLayer: React.FC<{
   }, [benchCompletion]);
   const activeBenchCompletion = mode === 'salvaging' ? null : benchCompletion;
 
+  // ── Item on the bench (Motion M4b) ────────────────────────────
+  // The running job in this mode's lane seats its truthful output
+  // picture at the work point (benchSeat.ts): the real consumable
+  // / material / part / relic-form render, the slot+rarity frame
+  // for gear that does not exist yet, the service target itself.
+  const benchLaneJob = benchSpec && mode !== 'salvaging'
+    ? (workshopJobs ?? []).find(
+        (job) => job.state === 'running' && isServiceLaneJob(job) === benchServiceLane,
+      )
+    : undefined;
+  const seatPlan = benchSeatPlanForJob(benchLaneJob);
+  // Salvage completion beat (M4b): salvaging has no workshop
+  // mirror, so its completions arrive on the salvage feed — the
+  // store every recycle result already pushes to. A fresh settled
+  // recycle (or one batch summary) earns the same beat grammar as
+  // a craft completion: celebrate pose + the yield rising off the
+  // crusher. The seen-set initializes from the first feed view so
+  // history never replays; a failed batch settled nothing and
+  // earns no beat (salvageRisePlanForEntry returns null for it).
+  const salvageEvents = useSalvageFeedStore((state) => state.events);
+  const [salvageBeat, setSalvageBeat] = useState<{ key: string; plan: BenchRisePlan } | null>(null);
+  const seenSalvageRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const keys = new Set(salvageEvents.map((e) => e.id));
+    if (seenSalvageRef.current === null) {
+      seenSalvageRef.current = keys;
+      return;
+    }
+    const fresh = salvageEvents.filter((e) => !seenSalvageRef.current!.has(e.id));
+    seenSalvageRef.current = keys;
+    if (mode !== 'salvaging' || reduced || fresh.length === 0) return;
+    const plan = salvageRisePlanForEntry(fresh[0]);
+    if (plan) setSalvageBeat({ key: fresh[0].id, plan });
+  }, [salvageEvents, mode, reduced]);
+  useEffect(() => {
+    if (!salvageBeat) return;
+    const timer = setTimeout(() => setSalvageBeat(null), MOVEMENT.LOOT_RISE_MS);
+    return () => clearTimeout(timer);
+  }, [salvageBeat]);
+  /** Either lane's completion beat is live: the hunter celebrates
+   *  and the work cycle + set-piece FX hold for the rise. */
+  const benchCelebrating = !!activeBenchCompletion || !!salvageBeat;
+
   // Enemy sprite from data: the boss's bespoke sprite in boss fights,
   // else the current target monster's archetype sprite, else the brute.
   const targetArchetype = currentTargetId ? getMonster(currentTargetId)?.archetype : undefined;
@@ -667,12 +674,26 @@ const PixelSceneLayer: React.FC<{
       {benchSpec && (
         <BenchFx
           spec={benchSpec}
-          active={benchWorking && !activeBenchCompletion}
+          active={benchWorking && !benchCelebrating}
           reduced={reduced}
           xPct={60}
           yPct={(groundY - 0.17) * 100}
           testId="bench-fx"
         />
+      )}
+      {/* The item on the bench (M4b): the running job's output
+          picture seated AT the work point — the same anchor the
+          FX burst from, so the sparks land on the work itself.
+          It clears while a completion beat lifts the finished
+          unit off the bench. */}
+      {benchSpec && seatPlan && !benchCelebrating && (
+        <div
+          data-testid="bench-seat"
+          className="pointer-events-none absolute z-20 flex items-center justify-center"
+          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+        >
+          <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+        </div>
       )}
       {/* Completion rise (M1): the finished unit lifts off the
           bench on the law's loot-rise duration while the hunter
@@ -688,6 +709,23 @@ const PixelSceneLayer: React.FC<{
           transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
         >
           <BenchRiseIcon entry={activeBenchCompletion} />
+        </motion.div>
+      )}
+      {/* Salvage completion rise (M4b): the recycle's yield lifts
+          off the crusher on the same rise the craft lanes use,
+          while the hunter celebrates — salvaging's beat was
+          forced null before this slice. */}
+      {benchSpec && salvageBeat && (
+        <motion.div
+          key={`salvage-rise-${salvageBeat.key}`}
+          data-testid="salvage-completion-rise"
+          className="pointer-events-none absolute z-30 flex items-end justify-center"
+          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 46, height: 46, marginTop: -40 }}
+          initial={false}
+          animate={{ x: '-50%', y: [6, -14, -26, -30], opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
+          transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
+        >
+          <BenchItemRender plan={salvageBeat.plan} testId="salvage-rise-render" />
         </motion.div>
       )}
 
@@ -785,8 +823,8 @@ const PixelSceneLayer: React.FC<{
             partPalettes={look.partPalettes}
             {...hunterPlacement}
             reduced={reduced}
-            pose={activeBenchCompletion ? 'celebrate' : 'work'}
-            workCycle={{ spec: benchSpec, active: benchWorking && !activeBenchCompletion }}
+            pose={benchCelebrating ? 'celebrate' : 'work'}
+            workCycle={{ spec: benchSpec, active: benchWorking && !benchCelebrating }}
             testId="pixel-hunter"
           />
         ) : mode === 'extraction' ? (
@@ -994,8 +1032,8 @@ const PixelSceneLayer: React.FC<{
       {/* Loot rises (visual honesty): the rise at the enemy's loot point
           pictures the grant the tick actually carried — key shard for a
           cache fragment, the material/essence icon for a find, a scrap
-          rise for a kill payout. Icons reuse the scene's drop vocabulary
-          (DropVisualIcon / resource silhouettes). The cache crate below
+          rise for a kill payout. Icons are the drop rise grids
+          (DropRiseIcon). The cache crate below
           rises ONLY on a real cache grant (tone 'cache'); roaming ticks
           never carry one, so the crate no longer appears while roaming.
           Gear drops keep their LootMoment further down. */}
@@ -1010,15 +1048,10 @@ const PixelSceneLayer: React.FC<{
           animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
           transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
         >
-          <svg viewBox="-24 -26 48 62" className="block h-full w-full" aria-hidden="true">
-            <DropVisualIcon
-              tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
-              label={lootRise === 'scrap' ? 'scrap' : event.label}
-              x={0}
-              y={0}
-              size={30}
-            />
-          </svg>
+          <DropRiseIcon
+            tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
+            label={lootRise === 'scrap' ? 'scrap' : event.label}
+          />
         </motion.div>
       )}
       {lootRise === 'crate' && crate && (
@@ -1064,6 +1097,10 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // Hunter Totals computation has been lifted to DashboardScreen.
   // statSummary prop is provided by the parent; diorama uses it directly.
   const scene = getLiveTurfScene(area);
+  // SVG-closure (2026-11-07): the vector fallback scene is deleted —
+  // every roaming area resolves a pixel background (CI-asserted in
+  // pixelWave1.test), and an unmapped id takes the Dustwaste default,
+  // the same idiom ExtractionPanel and ChestScreen already use.
   const pixelBackgroundId = pixelBackgroundForArea(area.id);
   // The diorama identifies the challenged boss by name; resolve its
   // bespoke pixel sprite through the boss def id (P4 wave 1).

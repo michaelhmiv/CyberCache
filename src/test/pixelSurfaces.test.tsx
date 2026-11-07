@@ -2,7 +2,6 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
-import { WeaponCard } from '@/components/common/WeaponCard';
 import { ActionFeed } from '@/components/action/ActionWorkspace';
 import { composePixelWeapon, type PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 import { composeWeaponCard } from '@/lib/pixel/weaponCardCompositor';
@@ -14,13 +13,15 @@ import type { ClassMod, Relic, Shield as ShieldItem, Weapon } from '@/types/item
 /**
  * P5 — pixel weapons everywhere: the inventory (GearHub), market
  * (MarketScreen mini-cards), inspect sheet and chest surfaces all draw
- * weapons through GearIllustration; WeaponCard and the ActionFeed loot
- * log draw them directly. All of them must resolve to the ONE pixel
+ * weapons through GearIllustration; the ActionFeed loot log draws
+ * them directly. (The legacy common/WeaponCard surface was deleted
+ * 2026-11-07 — no production importer remained; GearIllustration is
+ * the one card surface.) All of them must resolve to the ONE pixel
  * renderer: bespoke sprite for named legendaries, the deterministic
  * parts-kit compositor for everything else.
  *
- * Weapon marriage (slice 1): CARD surfaces (GearIllustration,
- * WeaponCard) render at card density (240×88 card compositor) and
+ * Weapon marriage (slice 1): CARD surfaces (GearIllustration)
+ * render at card density (240×88 card compositor) and
  * share the CARD signature; the ActionFeed loot log keeps the stage
  * density (120×44) and the stage signature. Within each density,
  * every surface agrees exactly.
@@ -100,7 +101,7 @@ const sharedInput = (weapon: Weapon) => ({
 
 /** Stage-density signature (ActionFeed loot log). */
 const compositorSignature = (weapon: Weapon) => composePixelWeapon(sharedInput(weapon)).signature;
-/** Card-density signature (GearIllustration / WeaponCard surfaces). */
+/** Card-density signature (GearIllustration card surfaces). */
 const cardCompositorSignature = (weapon: Weapon) => composeWeaponCard(sharedInput(weapon)).signature;
 
 describe('GearIllustration — weapon branch renders pixel (inventory/market/inspect/chest path)', () => {
@@ -164,23 +165,6 @@ describe('GearIllustration — weapon branch renders pixel (inventory/market/ins
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
     expect(canvas?.getAttribute('data-density')).toBe('thumb');
-  });
-});
-
-describe('WeaponCard — pixel render', () => {
-  it('renders the same compositor signature as GearIllustration for the same weapon', () => {
-    const { container: card } = render(<WeaponCard weapon={proceduralWeapon} />);
-    const { container: hub } = render(<GearIllustration item={proceduralWeapon} size={50} showBadges={false} />);
-    expect(card.querySelector('canvas')?.getAttribute('data-signature')).toBe(
-      hub.querySelector('canvas')?.getAttribute('data-signature'),
-    );
-    expect(card.querySelector('canvas')?.style.width).toBe('70px');
-  });
-
-  it('renders a named legendary as its bespoke sprite', () => {
-    const { container } = render(<WeaponCard weapon={legendaryWeapon} />);
-    expect(container.querySelector('img')?.getAttribute('data-pixel-sprite')).toBe('legendary-glass-sun');
-    expect(container.querySelector('canvas')).toBeNull();
   });
 });
 
