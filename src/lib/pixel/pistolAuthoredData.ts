@@ -29,65 +29,35 @@ export const PISTOL_AUTHORED_PIECES: {
 } = {
  "layout": {
   "seat": [
-   68,
-   22
+   74,
+   37
   ],
   "rows": [
-   ".ppppp",
-   "DPPPPP",
-   "DPPPPP",
-   "DPPPPP",
-   "DPPPPP",
-   "ddddd",
-   "",
-   "",
-   "",
-   "",
-   "",
-   "..DPPP",
-   "..DPPP",
-   "..DPPP",
-   "..DPPP",
-   "..DPPP",
-   "..DPPP",
-   "..dddd",
-   "..DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
-   "..ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+   "ddd",
+   "DLD",
+   "DDD",
+   "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+   "DDdddddddddddddddddddddddddddddddddddddddddddddddddddd"
   ]
  },
  "barrel": [
   {
    "seat": [
     130,
-    26
+    25
    ],
    "rows": [
-    "LLLLLLppLLL",
-    "ppppppDDpppLLLLLLLLLLLLLLLLLpp",
-    "PPPPPPDDPPPpppppppppppppppppDD",
-    "PPPPPPDDPPPPPPPPPPPPPPPPPPPPDD",
-    "PPPPPPDDPPPPPPPPPPPPPPPPPPPPDK",
-    "PPPPPPDDPPPPPPPPPPPPPPPPPPPPDK",
-    "PPPPPPDDPPPdddddddddddddddddDD",
-    "ddddddDDdddDDDDDDDDDDDDDDDDDDD",
-    "DDDDDDDDDDD"
-   ]
-  },
-  {
-   "seat": [
-    130,
-    26
-   ],
-   "rows": [
-    "LLLLLppLLLL",
-    "pppppDDppppLLLLLppLLLLLDLDLDpp",
-    "PPPPPDDPPPPpppppDDpppppDpDpDDD",
-    "PPPPPDDPPPPPPPPPDDPPPPPDPDPDDD",
-    "PPPPPDDPPPPPPPPPDDPPPPPDPDPDDK",
-    "PPPPPDDPPPPPPPPPDDPPPPPDPDPDDK",
-    "PPPPPDDPPPPdddddDDdddddDDDDDDD",
-    "dddddDDddddDDDDDDDDDDDDDDDDDDD",
-    "DDDDDDDDDDD"
+    "LL",
+    "LLLLLLDDLLLLLLLLLLLDDLL",
+    "ppppppDDpppppppppppDDppLLLLLLpp",
+    "PPPPPPDDPPPPPPPPPPPDDPPppppppDD",
+    "PPPPPPDDPPPPPPPPPPPDDPPPPPPPPKK",
+    "PPPPPPDDPPPPPPPPPPPDDPPPPPPPPKK",
+    "PPPPPPDDPPPPPPPPPPPDDPPPPPPPPDD",
+    "PPPPPPDDPPPPPPPPPPPDDPPddddddDD",
+    "ddddddDDdddddddddddDDddDDDDDDDD",
+    "DDDDDDDDDDDDDDDDDDDDDDD",
+    "DD"
    ]
   },
   {
@@ -96,88 +66,106 @@ export const PISTOL_AUTHORED_PIECES: {
     25
    ],
    "rows": [
-    "........LLLLDLLLLDLLddddddddpp",
-    "LLLLLLLLppppDppppDppddddddddDD",
-    "ppppppppPPPPPPPPPPPPDDDDDDDDDD",
-    "PPPPPPPPPPPPPPPPPPPPDDDDDDDDDD",
-    "PPPPPPPPPPPPPPPPPPPPDDDDDDDDDD",
-    "PPPPPPPPPPPPPPPPPPPPDDDDDDDDKK",
-    "PPPPPPPPPPPPPPPPPPPPDDDDDDDDKK",
-    "PPPPPPPPPPPPPPPPPPPPDDDDDDDDDD",
-    "ddddddddPPPPPPPPPPPPDDDDDDDDDD",
-    "DDDDDDDDddddDddddDddDDDDDDDDDD",
-    "........DDDDDDDDDDDDDDDDDDDDDD",
-    "........DDDDDDDDDDDDDDDDDDDDDD"
+    "LL................LLLLLLLLLLLpp",
+    "LLLLLLDDLLLLLLLLLLpppppppppppDD",
+    "ppppppDDppppppppppPPPPPPPPPPPDD",
+    "PPPPPPDDPPPPPPPPPPPPKKPPPPPPPDD",
+    "PPPPPPDDPPPPPPPPPPPPKKPPPPPPPKK",
+    "PPPPPPDDPPPPPPPPPPPPKKPPPPPPPKK",
+    "PPPPPPDDPPPPPPPPPPPPKKPPPPPPPDD",
+    "PPPPPPDDPPPPPPPPPPPPKKPPPPPPPDD",
+    "ddddddDDddddddddddPPPPPPPPPPPDD",
+    "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+    "DD................DDDDDDDDDDDDD"
+   ]
+  },
+  {
+   "seat": [
+    130,
+    25
+   ],
+   "rows": [
+    "LL....................ppppppppp",
+    "LLLLLLDDLLLLLLLLLLLLLLdddddddDD",
+    "ppppppDDppppppppppppppdddddddDD",
+    "PPPPPPDDPPPPPPPPPPPPPPddKKdKKDD",
+    "PPPPPPDDPPPPPPPPPPPPPPddKKdKKKK",
+    "PPPPPPDDPPPPPPPPPPPPPPddKKdKKKK",
+    "PPPPPPDDPPPPPPPPPPPPPPddKKdKKDD",
+    "PPPPPPDDPPPPPPPPPPPPPPddKKdKKDD",
+    "ddddddDDdddddddddddddddddddddDD",
+    "DDDDDDDDDDDDDDDDDDDDDDdddddddDD",
+    "DD....................DDDDDDDDD"
    ]
   }
  ],
  "grip": [
   {
    "seat": [
-    91,
+    92,
     38
    ],
    "rows": [
     ".DDDDDDDDDDDD",
-    ".DDDDDDDDDDDDDD",
-    "DdPPPPPPPPPPDDD",
-    "DdPPPPPPPPPPDDD",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPDDDDDDDDDP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPDDDDDDDDDP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPDDDDDDDDDP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    "DdPPPPPPPPPPP",
-    ".ddddddddddd",
-    ".PPPPPPPPPPP",
-    ".PPPPPPPPPPP",
-    "DDDDDDDDDDDDD"
+    ".DDDDDDDDDDDDD",
+    "DDPPPPPPPPPDDD",
+    "DDPPPPPPPPPDDD",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDDDDDDDDDDDP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDDDDDDDDDDDP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDDDDDDDDDDDP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    ".DDDDDDDDDDD",
+    "..DDDDDDDDDD",
+    "...DDDDDDDD",
+    "....DDDDDD"
    ]
   },
   {
    "seat": [
-    90,
+    89,
     38
    ],
    "rows": [
     "...DDDDDDDDDDDD",
-    "...DDDDDDDDDDDDD",
-    "...DdPPPPPPPPDDD",
-    "...DdPPPPPPPPDDD",
-    "...DdPPPPPPPPPD",
-    "...DdPPPPPPPPPD",
-    "..DdPPPPPPPPPD",
-    "..DdPPPPPPPPPD",
-    "..DdPPPPPPPPPD",
-    "..DdPPPPPPPPPD",
-    "..DdPPPPPPPPPD",
-    "..DdPPPPPPPPPD",
-    ".DdPPPPPPPPPD",
-    ".DdPPPPPPPPPD",
-    ".DdPPPPPPPPPD",
-    ".DdPPPPPPPPPD",
-    ".DdPPPPPPPPPD",
-    ".DdPPPPPPPPPD",
-    "DdPPPPPPPPPD",
-    "DdPPPPPPPPPD",
-    "DdPPPPPPPPPD",
-    "DdPPPPPPPPPD",
-    "dddddddddddd",
-    "PPPPPPPPPPPP",
-    "PPPPPPPPPPPP",
-    "DDDDDDDDDDDDD"
+    "...DDDDDDDDDDDDDD",
+    ".....DDPPPPPPPPPP",
+    ".....DDPPPPPPPPPP",
+    "....DDPPPPPPPPPP",
+    "....DDPPPPPPPPPP",
+    "....DDPPPPPPPPPP",
+    "....DDPPPPPPPPPP",
+    "...DDDDDDDDDDDP",
+    "...DDPPPPPPPPPP",
+    "...DDPPPPPPPPPP",
+    "...DDPPPPPPPPPP",
+    "..DDPPPPPPPPPP",
+    "..DDDDDDDDDDDP",
+    "..DDPPPPPPPPPP",
+    "..DDPPPPPPPPPP",
+    ".DDPPPPPPPPPP",
+    ".DDPPPPPPPPPP",
+    ".DDDDDDDDDDDP",
+    ".DDPPPPPPPPPP",
+    "DDPPPPPPPPPP",
+    "DDPPPPPPPPPP",
+    ".DDDDDDDDDDDD",
+    "..DDDDDDDDDD",
+    "...DDDDDDDD",
+    "....DDDDDD"
    ]
   },
   {
@@ -186,32 +174,32 @@ export const PISTOL_AUTHORED_PIECES: {
     38
    ],
    "rows": [
-    "DDDDDDDDDDD",
-    "DDDDDDDDDDDDDD",
-    "DPPPPPPPPPDDDD",
-    "DPPPPPPPPPDDDD",
-    "DPPPPPPPPPD",
-    "DPPPPPPPPPD",
-    "LLLLLLLLLLL",
-    "ddddddddddd",
-    "DPPPPPPPPPD",
-    "DPPPPPPPPPD",
-    "DPPPPPPPPPD",
-    "DPPPPPPPPPD",
-    "LLLLLLLLLLL",
-    "ddddddddddd",
-    "DPPPPPPPPPD",
-    "DPPPPPPPPPD",
-    "DPPPPPPPPPD",
-    "DPPPPPPPPPD",
-    "LLLLLLLLLLL",
-    "ddddddddddd",
-    "DPPPPPPPPPD",
-    "DPPPPPPPPPD",
-    ".ddddddddd",
-    ".PPPPPPPPP",
-    ".PPPPPPPPP",
-    "DDDDDDDDDDD"
+    ".DDDDDDDDDDDD",
+    ".DDDDDDDDDDDDD",
+    "DDPPPPPPPPPDDD",
+    "DDPPPPPPPPPDDD",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "LLLLLLLLLLLLL",
+    "ddddddddddddd",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "LLLLLLLLLLLLL",
+    "ddddddddddddd",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "LLLLLLLLLLLLL",
+    "ddddddddddddd",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    "DDPPPPPPPPPPP",
+    ".DDDDDDDDDDD",
+    "..DDDDDDDDDD",
+    "...DDDDDDDD",
+    "....DDDDDD"
    ]
   }
  ],
@@ -225,18 +213,46 @@ export const PISTOL_AUTHORED_PIECES: {
     ".LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
     "pppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
     "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "PPPDPDPDPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPLLLLLLLLLLPPLDPPPP",
-    "PPPDPDPDPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPDDDDDDDDDDPPDDPPPP",
-    "PPPDPDPDPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPDDDDDDDDDDPPPPPPPP",
-    "PPPDPDPDPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPDDDDDDDDDDPPPPPPPP",
-    "PPPDPDPDPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPddddddddddPPPPPPPP",
-    "PPPDPDPDPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "PPPDPDPDPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "PPPDPDPDPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "PPPDPDPDPPPPPPPPPPPPLDPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "PPPPPPPPPPPPPPPPPPPPDDPPPPPPPPDPPPPPPPPPPPPPPPLDPPPPPPPP",
-    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPDDPPPPPPPP",
+    "PPPDLPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPPPPDLPPPP",
+    "PPPDDPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPLLLLLLLLLLDDPPPP",
+    "PPPPPPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPDDDDDDDDDDDPPPPP",
+    "PPPPPPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPDdddddddddDPPPPP",
+    "PPPPPPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPDDDDDDDDDDDPPPPP",
+    "PPPPPPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPDLPPPDPPPPPPPPPPPPPDPPPPPPPDLPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPDDPPPPPPPPPPPPPPPPPDPPPPPPPDDPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPPPPPPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPPPPPPPPPPPPPPPPPPDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "ddddddddddddddddddddddDddddddddddddddddddddddddddddddddd",
+    "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+    ".DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
+   ]
+  },
+  {
+   "seat": [
+    74,
+    20
+   ],
+   "rows": [
+    ".LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+    "pppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPppppppppppppppP",
+    "PPPPPPPPDPPPPPddddddddddddddddddddddddddPppppppppppppppP",
+    "PPPPPPPPDPPPPPdppppppppppppppppppppppppdPddddddddddddddP",
+    "PPPPPPPPDPPPPPdpDLpppppppppppppppppDLppdPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPdPDDPPPPPPPPPPPPPPPPPDDPPdPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPdPPPPPPPPPPPPPPPPPPPPPPPPdPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPdPPPPPPPPPPPPPPPPPPPPPPPPdPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPdPDLPPPPPPPPPPPPPPPPPDLPPdPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPdPDDPPPPPPPPPPPPPPPPPDDPPdPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPdPPPPPPPPPPPPPPPPPPPPPPPPdPPPPPPPPPPPPPPPP",
+    "PPPPPPPPDPPPPPddddddddddddddddddddddddddPPPPPPPPPPPPPPPP",
+    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
     "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
     "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
     "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
@@ -252,47 +268,19 @@ export const PISTOL_AUTHORED_PIECES: {
    "rows": [
     ".LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
     "pppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
-    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPppppppppppppPP",
-    "PPPDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPppppppppppppPP",
-    "PPPDPPPPPPPPPPdddddddddddddddddddddddddPPPddddddddddddPP",
-    "PPPDPPPPPPPPPPdpppppppppppppppppppppppdPPPPPPPPPPPPPPPPP",
-    "PPPDPPPPPPPPPPdpLDpppppppppppppppppLDpdPPPPPPPPPPPPPPPPP",
-    "PPPDPPPPPPPPPPdPDDPPPPPPPPPPPPPPPPPDDPdPPPPPPPPPPPPPPPPP",
-    "PPPDPPPPPPPPPPdPPPPPPPPPPPPPPPPPPPPPPPdPPPPPPPPPPPPPPPPP",
-    "PPPDPPPPPPPPPPdPPPPPPPPPPPPPPPPPPPPPPPdPPPPPPPPPPPPPPPPP",
-    "PPPDPPPPPPPPPPdPLDPPPPPPPPPPPPPPPPPLDPdPPPPPPPPPPPPPPPPP",
-    "PPPDPPPPPPPPPPdPDDPPPPPPPPPPPPPPPPPDDPdPPPPPPPPPPPPPPPPP",
-    "PPPDPPPPPPPPPPdPPPPPPPPPPPPPPPPPPPPPPPdPPPPPPPPPPPPPPPPP",
-    "PPPDPPPPPPPPPPdddddddddddddddddddddddddPPPPPPPPPPPPPPPPP",
     "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-    "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-    "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
-    ".DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"
-   ]
-  },
-  {
-   "seat": [
-    74,
-    20
-   ],
-   "rows": [
-    ".LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
-    "pppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
-    "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
-    "PPPPPPPPPPddddddddddddddddddddddddddddddddddddDPPPPPPPPP",
-    "PPPPPPPPPPPPDDDPPPPDDDPPPPDDDPPPPDDDPPPPPPPPPPDPPPPPPPPP",
-    "PPPPPPPPPPPPDKDPPPPDKDPPPPDKDPPPPDKDPPPPPPPPPPDPPPLDPPPP",
-    "PPPPPPPPPPPPDKDPPPPDKDPPPPDKDPPPPDKDPPPPPPPPPPDPPPDDPPPP",
-    "PPPPPPPPPPPPDKDPPPPDKDPPPPDKDPPPPDKDPPPPPPPPPPDPPPPPPPPP",
-    "PPPPPPPPPPPPDKDPPPPDKDPPPPDKDPPPPDKDPPPPPPPPPPDPPPPPPPPP",
-    "PPPPPPPPPPPPDKDPPPPDKDPPPPDKDPPPPDKDPPPPPPPPPPDPPPPPPPPP",
-    "PPPPPPPPPPPPDKDPPPPDKDPPPPDKDPPPPDKDPPPPPPPPPPDPPPPPPPPP",
-    "PPPPPPPPPPPPDDDPPPPDDDPPPPDDDPPPPDDDPPPPPPPPPPDPPPPPPPPP",
-    "PPPPPPPPPPddddddddddddddddddddddddddddddddddddDPPPPPPPPP",
-    "PPPPLDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPDPPPPPPPPP",
-    "PPPPDDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDddddddddddddddddddddddddddPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDPDDDPPPDDDPPPDDDPPPDDDPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDPDKDPPPDKDPPPDKDPPPDKDPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDPDKDPPPDKDPPPDKDPPPDKDPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDPDKDPPPDKDPPPDKDPPPDKDPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDPDKDPPPDKDPPPDKDPPPDKDPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDPDKDPPPDKDPPPDKDPPPDKDPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDPDKDPPPDKDPPPDKDPPPDKDPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDPDDDPPPDDDPPPDDDPPPDDDPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPPPDdddddddddddddddddddddddddddPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPDLPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+    "PPPDDPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
     "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
     "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
     "dddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
@@ -305,96 +293,100 @@ export const PISTOL_AUTHORED_PIECES: {
   {
    "seat": [
     103,
-    37
+    35
    ],
    "rows": [
-    ".dddddddd",
-    ".dddddddd",
+    ".ddddddd",
+    ".ddddddd",
+    "DPPPPPPPD",
+    "DPPPPPPPD",
     "DPPPPPPPD",
     "DPPPPPPPD",
     "DPPPPPPPD",
     "DPPPPPPPD",
     "DDDDDDDDD",
-    "DPPPPPPPD",
     ".DPPPPPPPD",
+    ".DPPPPPKKD",
     ".DPPPPPPPD",
     ".DPPPPPPPD",
     ".DPPPPPPPD",
     ".DPPPPPPPD",
     ".DDDDDDDDD",
     ".DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DDDDDDDDDD"
+    ".DPPPPPPPD",
+    ".DPPPPPKKD",
+    ".DPPPPPPPD",
+    ".DPPPPPPD",
+    ".DPPPPPPD",
+    ".DDDDDDDD",
+    "..DPPPPPPD",
+    "..DDDDDDDD"
    ]
   },
   {
    "seat": [
     103,
-    37
+    35
    ],
    "rows": [
-    ".dddddddd",
-    ".dddddddd",
-    "DPPPPPPPD",
-    "DPPPPPPPD",
-    "DPPPPPPPD",
-    "DPPPPPPPD",
-    "DDDDDDDDD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
+    ".ddddddd",
+    ".ddddddd",
+    "DPPPdPPPD",
+    "DPPPdPPPD",
+    "DPPPdPPPD",
+    "DPPPdPPPD",
+    "DPPPdPPPD",
+    ".DPPddPPPD",
+    ".DDDDDDDDD",
+    ".DPPPdPPPD",
+    ".DPPPdPKKD",
+    ".DPPPdPPPD",
+    ".DPPPdPPPD",
+    ".DPPPdPPPD",
+    ".DPPPdPPPD",
     "..DDDDDDDDD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "..DPPPPPPPD",
-    "...DDDDDDDDD",
-    "...DPPPPPPPD",
-    "...DPPPPPPPD",
-    "...DPPPPPPPD",
-    "...DPPPPPPPD",
-    "...DDDDDDDDDD"
+    "..DPPPdPPPD",
+    "..DPPPdPPPD",
+    "..DPPPdPKKD",
+    "..DPPPdPPPD",
+    "..DPPPdPPD",
+    "..DPPPdPPD",
+    "..DDDDDDDD",
+    "...DPPddPPD",
+    "...DDDDDDDD"
    ]
   },
   {
    "seat": [
     103,
-    37
+    35
    ],
    "rows": [
-    ".dddddddd",
-    ".dddddddd",
+    ".ddddddd",
+    ".ddddddd",
+    "DPPPPPPPD",
+    "DPPPPPPPD",
     "DPPPPPPPD",
     "DPPPPPPPD",
     "DPPPPPPPD",
     "DPPPPPPPD",
     "DDDDDDDDD",
+    "DdddddddD",
+    "DPPPPPKKD",
     "DPPPPPPPD",
     "DPPPPPPPD",
     "DPPPPPPPD",
     "DPPPPPPPD",
+    "DDDDDDDDD",
+    "DdddddddD",
     "DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DDDDDDDDD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DPPPPPPPD",
-    ".DDDDDDDDDD"
+    "DPPPPPKKD",
+    "DPPPPPPPD",
+    "DPPPPPPD",
+    ".DPPPPPPD",
+    ".DDDDDDDD",
+    ".DPPPPPPD",
+    ".DDDDDDDD"
    ]
   }
  ],
@@ -425,8 +417,8 @@ export const PISTOL_AUTHORED_PIECES: {
     ".dddddddddddddddddd",
     "DDDDDDDDDDDDDDDDDDDD",
     "DDeeeeeEEEEEEEEEEEDD",
-    "DDeeeEEEEEEEEEEEEEDD",
-    "DDccccccccccccccccDD",
+    "DDeEEEEEEEEEEEEEEEDD",
+    "DDcccccccccccccccDLD",
     "DDDDDDDDDDDDDDDDDDDD",
     ".DDDDDDDDDDDDDDDDDD"
    ]
@@ -437,17 +429,17 @@ export const PISTOL_AUTHORED_PIECES: {
     26
    ],
    "rows": [
-    ".dddddddddd",
-    "DDDDDDDDDDDD",
-    "DDeeeeEEEEDD..DDDD",
-    "DDeeeEEEEEDD..DeED",
-    "DDEEEEEEEEDDDDDEED",
-    "DDEEEEEEEEDDDDDccD",
-    "DDEEEEEEEEDD..DDDD",
-    "DDEEEEEEEEDD..DDDD",
-    "DDccccccccDD",
-    "DDDDDDDDDDDD",
-    ".DDDDDDDDDD"
+    ".ddddddddddd",
+    "DDDDDDDDDDDDD",
+    "DDeeeeEEEEEDD...DDDDDD",
+    "DDeeeEEEEEEDD...DeEEED",
+    "DDEEEEEEEEEDDDDDDEEEED",
+    "DDEEEEEEEEEDDDDDDccccD",
+    "DDEEEEEEEEEDD...DDDDDD",
+    "DDEEEEEEEEEDD...DDDDDD",
+    "DDcccccccccDD",
+    "DDDDDDDDDDDDD",
+    ".DDDDDDDDDDD"
    ]
   }
  ],
@@ -458,29 +450,28 @@ export const PISTOL_AUTHORED_PIECES: {
     14
    ],
    "rows": [
-    ".............................KK",
-    ".............................DD",
-    "D..D.........................DD",
-    "D..D.........................DD",
-    "D..D.........................DD",
-    "DDDD.........................DD"
+    "..............................K",
+    "............................DDDD",
+    "pppp........................DDDD",
+    "DDDD........................DDDD",
+    "DDDD........................DDDD",
+    "DDDD........................DDDD"
    ]
   },
   {
    "seat": [
     91,
-    11
+    12
    ],
    "rows": [
-    "LLLLLLLLLLLLLL",
-    "DPPPPPPPPPPPPD",
+    ".LLLLLLLLLLLL",
+    "DpppeeeeeepppD",
     "DPPPeeeeeePPPD",
-    "DPPPeWWeeePPPD",
-    "DPPPeWWeeePPPD",
+    "DPPPeeWWeePPPD",
     "DPPPeeeeeePPPD",
     "DPPPeeeeeePPPD",
-    "DPPPPPPPPPPPPD",
-    "DDDDDDDDDDDDDD"
+    "DDDDDDDDDDDDDD",
+    "...DDDDDDDD"
    ]
   },
   {
@@ -489,7 +480,7 @@ export const PISTOL_AUTHORED_PIECES: {
     8
    ],
    "rows": [
-    "LLLLLLLL",
+    ".LLLLLL",
     "DPPPPPPD",
     "DPPKKPPD",
     "DPPKKPPD",
@@ -498,8 +489,8 @@ export const PISTOL_AUTHORED_PIECES: {
     "DPPKKPPD",
     "DPPPPPPD",
     "DPPPPPPD",
-    "DPPPPPPD",
-    "DPPPPPPD",
+    "DddddddD",
+    "DDDDDDDD",
     "DDDDDDDD"
    ]
   }
@@ -523,59 +514,59 @@ export const PISTOL_AUTHORED_OVERLAYS: {
   [
    [
     105,
-    52
+    54
    ],
    [
     106,
-    52
+    54
    ],
    [
     107,
-    52
+    54
    ],
    [
     108,
-    52
+    54
    ],
    [
     109,
-    52
+    54
    ],
    [
     110,
-    52
+    54
    ],
    [
     111,
-    52
+    54
    ],
    [
     105,
-    53
+    55
    ],
    [
     106,
-    53
+    55
    ],
    [
     107,
-    53
+    55
    ],
    [
     108,
-    53
+    55
    ],
    [
     109,
-    53
+    55
    ],
    [
     110,
-    53
+    55
    ],
    [
     111,
-    53
+    55
    ]
   ],
   [
@@ -638,60 +629,60 @@ export const PISTOL_AUTHORED_OVERLAYS: {
   ],
   [
    [
-    105,
-    52
-   ],
-   [
-    106,
-    52
-   ],
-   [
-    107,
-    52
-   ],
-   [
-    108,
-    52
-   ],
-   [
-    109,
-    52
-   ],
-   [
-    110,
-    52
-   ],
-   [
-    111,
-    52
+    104,
+    54
    ],
    [
     105,
-    53
+    54
    ],
    [
     106,
-    53
+    54
    ],
    [
     107,
-    53
+    54
    ],
    [
     108,
-    53
+    54
    ],
    [
     109,
-    53
+    54
    ],
    [
     110,
-    53
+    54
    ],
    [
-    111,
-    53
+    104,
+    55
+   ],
+   [
+    105,
+    55
+   ],
+   [
+    106,
+    55
+   ],
+   [
+    107,
+    55
+   ],
+   [
+    108,
+    55
+   ],
+   [
+    109,
+    55
+   ],
+   [
+    110,
+    55
    ]
   ]
  ],
@@ -806,6 +797,14 @@ export const PISTOL_AUTHORED_OVERLAYS: {
   ],
   [
    103,
+   37
+  ],
+  [
+   124,
+   37
+  ],
+  [
+   125,
    37
   ],
   [
@@ -972,11 +971,23 @@ export const PISTOL_AUTHORED_OVERLAYS: {
     28
    ],
    [
-    123,
+    118,
+    28
+   ],
+   [
+    125,
     29
    ],
    [
-    124,
+    126,
+    29
+   ],
+   [
+    127,
+    29
+   ],
+   [
+    128,
     29
    ]
   ]
@@ -985,7 +996,7 @@ export const PISTOL_AUTHORED_OVERLAYS: {
 
 /** Chamber window centers per chamber variant (card-grid texels) —
  *  decal/anchor data, declared here rather than derived in code. */
-export const PISTOL_AUTHORED_CHAMBER_ANCHORS: [[number, number], [number, number], [number, number]] = [[116,30],[118,29],[112,31]];
+export const PISTOL_AUTHORED_CHAMBER_ANCHORS: [[number, number], [number, number], [number, number]] = [[116,30.5],[118,29.5],[114.5,31.5]];
 
 /** Magazine visual centers per magazine variant (card-grid texels). */
-export const PISTOL_AUTHORED_MAGAZINE_ANCHORS: [[number, number], [number, number], [number, number]] = [[108,48],[108,49],[107,48]];
+export const PISTOL_AUTHORED_MAGAZINE_ANCHORS: [[number, number], [number, number], [number, number]] = [[108,48],[108,48],[108,48]];

@@ -65,6 +65,13 @@ for (const typeName of typeNames) {
   };
   const SEATS = blockJson('SEATS');
   const ANCHORS = blockJson('ANCHORS');
+  // Anchor blocks are declared either as variant arrays
+  // ([v0, v1, v2]) or as index-keyed objects ({"0": v0, ...}) —
+  // the S5 scale-up batches used the object form. Normalize to the
+  // array form the data module declares.
+  const asTriple = (v) => (Array.isArray(v) ? v : [v['0'], v['1'], v['2']]);
+  ANCHORS.chamber = asTriple(ANCHORS.chamber);
+  if (ANCHORS.magazine) ANCHORS.magazine = asTriple(ANCHORS.magazine);
 
   /** Extract one sprite's key grid via the tool's own ascii dump. */
   function asciiGrid(name) {

@@ -11,7 +11,14 @@
  *    part roll) on every rule the S2 gate asserts at zero (banding,
  *    jaggy, pillow, colors, near-duplicate). Orphan is the budgeted
  *    rule (S2 doctrine): weapon-card orphan ≤ 20 stray cells per
- *    render; the authored matrices observe 15–17.
+ *    render; the authored matrices observe maxima of 13–17 across
+ *    the three types. ONE documented exception, pistol only: the
+ *    Shock renders carry a single jaggy cell at (120, 28) — the
+ *    production element-current thread stepping around the chamber,
+ *    downstream-pass geometry rather than authored form (the
+ *    approved package's own matrix evidence records the same class
+ *    of cell; the S2 gate budgets weapon-card jaggy at 6/render).
+ *    It is allowlisted by exact coordinate below, nothing else is.
  *  - Assembly integrity: partVariant() pinned value-for-value per
  *    type, and swapping ANY form slot's variant changes the composed
  *    render — batch 1 has no coded collapse: these types' Sight slot
@@ -31,6 +38,19 @@
  *    pxl-craft-sweep/scaleup-batch1/renders/containment-baseline
  *    .json). The S5 test's own containment sweep was re-based in
  *    this slice to the complementary 576-signature partition.
+ *
+ * PISTOL FORM SWAP (2026-11-07, parent audit): the pistol's form is
+ * the owner-approved authored package from the S5 scale-up final
+ * batch (cybercache-prep/pxl-craft-sweep/s5-scaleup/pistol/ —
+ * approved by the owner from its matrix sheet), converted through
+ * this batch's generalized converter; batch 1's own pistol
+ * authoring is superseded (archived as
+ * scaleup-batch1/sources/pistol-authored-batch1-superseded.px.js).
+ * The pistol matrix roll below is that package's evidence roll
+ * (Barrel 1 / Grip 1 / Core 1 / Magazine 1 / Sight 1 / Chamber 2),
+ * so this suite's matrix is the exact composition the owner
+ * approved. The swap moved no other type: the containment
+ * super-hash above is unchanged.
  */
 import { describe, expect, it } from 'vitest';
 import { Element, Manufacturer, Rarity, WeaponType } from '../types/game';
@@ -76,6 +96,10 @@ interface TypeSpec {
   /** Decal-case seed: the seed whose decal positions land on this
    *  type's silhouette (see the decal test's note). */
   decalSeed: number;
+  /** Documented downstream-pass jaggy cells tolerated in the
+   *  composed matrix (exact coordinates; see the header note).
+   *  Absent = jaggy asserts at absolute zero, as authored. */
+  jaggyAllowance?: [number, number][];
 }
 
 const SPECS: TypeSpec[] = [
@@ -88,12 +112,18 @@ const SPECS: TypeSpec[] = [
       Magazine: [0.851, 0.85, 0.853], Sight: [0.85, 0.851, 0.853], Chamber: [0.85, 0.853, 0.851],
     },
     defaults: [0, 0, 2, 1, 1, 2],
-    matrixRoll: [2, 1, 2, 0, 1, 0],
+    // The approved package's evidence roll (see the header's swap
+    // note): Barrel 1 / Grip 1 / Core 1 / Magazine 1 / Sight 1 /
+    // Chamber 2.
+    matrixRoll: [1, 1, 1, 1, 1, 2],
     barrelZone: [130, 160, 24, 37],
     receiverZone: [74, 130, 20, 40],
     windowBox: [108, 124, 26, 35],
     lensBox: [91, 105, 11, 20],
     decalSeed: 4,
+    // The Shock element-current thread's step around the chamber —
+    // downstream-pass geometry, documented in the header.
+    jaggyAllowance: [[120, 28]],
   },
   {
     type: WeaponType.SMG,
@@ -185,7 +215,12 @@ for (const spec of SPECS) {
         for (const rarity of Object.values(Rarity)) {
           const render = composeWeaponCard(base(spec, { element, rarity, id: `b1-matrix-${spec.type}-${element}-${rarity}` }));
           const found = allFindings(render, `${spec.type}-matrix/${element}/${rarity}`);
-          const zeroRule = found.filter((f) => f.rule !== 'orphan');
+          const zeroRule = found.filter((f) => f.rule !== 'orphan').filter((f) => {
+            // The spec's documented downstream jaggy cells (exact
+            // coordinates only) are the single tolerated exception.
+            if (f.rule !== 'jaggy' || !spec.jaggyAllowance) return true;
+            return !(f.at ?? []).every(([x, y]) => spec.jaggyAllowance!.some(([ax, ay]) => ax === x && ay === y));
+          });
           expect(zeroRule, `${element}/${rarity}: ${JSON.stringify(zeroRule)}`).toEqual([]);
           const orphanCells = found.filter((f) => f.rule === 'orphan')
             .reduce((n, f) => n + (f.at?.length ?? 0), 0);
@@ -344,6 +379,39 @@ describe('Batch 1 authored bases — anchor parity', () => {
     expect(composeWeaponCard(input).rows[22][187]).toBe('G');
     expect(composeWeaponCard(input, undefined, { held: true }).rows[22][187]).toBe('G');
   });
+});
+
+describe('Batch 1 authored bases — pistol barrel variants, composed', () => {
+  // The matrix roll exercises the braked barrel (variant 1). The
+  // other two composed barrels lint here at the S2 gate's own
+  // weapon-card standard: zero on banding / pillow / colors /
+  // near-duplicate, orphan ≤ 20, jaggy within the gate's budget of
+  // 6 cells per render. Measured on the approved form: the plain
+  // barrel is clean; the suppressed can's composed outline carries
+  // 2 doubled corners at its shoulder step (152, 26) plus, under
+  // Shock, the element bed's step at (158, 27) — form-in-composition
+  // geometry the approved package's matrix (braked roll) never
+  // exercised, recorded here rather than re-authored away: the
+  // owner approved the form as authored.
+  it('all three barrels compose within the S2 weapon-card budgets', () => {
+    const spec = SPECS[0];
+    for (let barrelV = 0; barrelV < 3; barrelV++) {
+      for (const [element, rarity] of [[Element.Kinetic, Rarity.Common], [Element.Shock, Rarity.Legendary]] as const) {
+        const render = composeWeaponCard(base(spec, {
+          element, rarity,
+          parts: partsFor(spec, [barrelV, 1, 1, 1, 1, 2]),
+          id: `b1-barrels-Pistol-${barrelV}-${element}-${rarity}`,
+        }));
+        const found = allFindings(render, `Pistol-barrels/${barrelV}/${element}/${rarity}`);
+        const hardZero = found.filter((f) => f.rule !== 'orphan' && f.rule !== 'jaggy');
+        expect(hardZero, `barrel ${barrelV} ${element}/${rarity}: ${JSON.stringify(hardZero)}`).toEqual([]);
+        const orphanCells = found.filter((f) => f.rule === 'orphan').reduce((n, f) => n + (f.at?.length ?? 0), 0);
+        expect(orphanCells, `barrel ${barrelV} ${element}/${rarity} orphan cells`).toBeLessThanOrEqual(20);
+        const jaggyCells = found.filter((f) => f.rule === 'jaggy').reduce((n, f) => n + (f.at?.length ?? 0), 0);
+        expect(jaggyCells, `barrel ${barrelV} ${element}/${rarity} jaggy cells`).toBeLessThanOrEqual(6);
+      }
+    }
+  }, 120_000);
 });
 
 describe('Batch 1 authored bases — containment', () => {

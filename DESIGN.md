@@ -1205,6 +1205,34 @@ elements × 5 rarities) from its 19 pieces; authored
 coverage across the library is now 437,400 of 787,320
 combinations from 74 pieces.
 
+**Pistol form swap (2026-11-07, parent audit).** The
+pistol's authored form is not batch 1's own authoring: it
+is the owner-approved package from the S5 scale-up final
+batch (cybercache-prep/pxl-craft-sweep/s5-scaleup/pistol/),
+approved by the owner from that package's matrix sheet the
+same day. Its source is archived byte-for-byte at
+scaleup-batch1/sources/pistol-authored.px.js (batch 1's own
+pistol source is superseded, kept as
+pistol-authored-batch1-superseded.px.js) and converted by
+the same generalized converter — extended to normalize the
+scale-up batches' index-keyed ANCHORS dialect — and the
+resulting module's pieces, overlays, and anchors are
+byte-identical to the approved package's own converter
+output. The pistol-specific form facts recorded above for
+batch 1's authoring (the suppressor's scorch collar) no
+longer apply; the SMG and shotgun facts stand. The approved
+form's anchors are the procedural pass's exact chamber
+window centers (fractional texels), superseding batch 1's
+rounded values, and its matrix composition is the package's
+evidence roll (Barrel 1 / Grip 1 / Core 1 / Magazine 1 /
+Sight 1 / Chamber 2), pinned in the batch-1 suite with its
+one documented downstream jaggy cell (the Shock current
+thread at (120, 28); the S2 gate budgets weapon-card jaggy
+at 6 per render, and the suppressed barrel's composed
+outline measures 2 cells at its can shoulder — both
+recorded in the suite, neither re-authored: the owner
+approved the form as authored).
+
 ---
 
 ## 9. Surfacing — one canonical door per feature
