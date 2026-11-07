@@ -24,6 +24,10 @@ hold at most **3 self-repair jobs at once** (one per vehicle).
 Either way, repair is timed work, never instant. Work only accrues while
 the job is your active Workshop Service activity — see [[Actions and Occupations]].
 
+The work is visible while it runs: the board's repair bay scene — and
+the Home stage during Workshop Service — shows the hunter at the lift,
+fitting parts until the job settles.
+
 ## Patch kits
 
 Kits are the consumable both lanes burn. At 100% quality:

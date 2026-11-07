@@ -344,6 +344,7 @@ export const ShieldTechBoard: React.FC<{
       {transactLockPrompt}
 
       <ShieldTechBayScene
+        working={!!activeWork}
         progress={activeWork ? activeWork.progress : lastCompleted ? 1 : 0}
         causeLabel={sceneJob ? `${shieldLabel(sceneJob)} — ${swapLabel(sceneJob)}` : 'Calibration rig'}
         buysLabel={sceneJob ? `${sceneJob.kitsConsumed.length} cores used` : 'awaiting a job'}

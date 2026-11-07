@@ -54,8 +54,15 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
     );
     // crafting metrics now live in DashboardScreen — not inside the diorama
     expect(screen.queryByTestId('hud-metric-craftingSpeed')).not.toBeInTheDocument();
-    // Diorama still renders its core SVG scene
-    expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(1);
+    // Diorama still renders its core pixel scene: stage + hunter.
+    // (Motion Reboot M1: this assertion used to count role="img"
+    // elements — the one it found was the held weapon's image.
+    // The bench hunter is unarmed by design now — he works the
+    // bench — so the scene's presence is asserted by its testids,
+    // and the weapon's absence is pinned outright.)
+    expect(screen.getByTestId('pixel-diorama-stage')).toBeTruthy();
+    expect(screen.getByTestId('pixel-hunter')).toBeTruthy();
+    expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     // No in-stage action bar in any mode (drift-fix F2).
     expect(screen.queryAllByRole('button')).toHaveLength(0);
     // No ribbon, and the mode word prints nowhere on the stage

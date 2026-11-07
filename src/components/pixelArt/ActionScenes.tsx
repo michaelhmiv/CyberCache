@@ -2,6 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
 import { PixelPartsActor } from './PixelPartsActor';
+import { BenchFx } from './BenchFx';
+import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_SCENE, type WorkCycleSpec } from '@/lib/pixel/workCycle';
 import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
 import { GRAMMAR } from '@/lib/pixel/grammar';
 import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
@@ -27,7 +29,21 @@ export interface ActionSceneProps {
   /** Crafted quality %: tints the result flash edge (G-6). */
   qualityPct?: number;
   reduced?: boolean;
+  /** Work cycle (Motion Reboot M1): a job is actively working in
+   *  this bay, so the hunter runs the scene family's choreography
+   *  spec. Callers that know their job state pass it explicitly;
+   *  when absent, the scene derives it from progress (mid-job,
+   *  no result flashing). */
+  working?: boolean;
 }
+
+/** The scene's work-cycle read: the caller's explicit signal
+ *  wins; otherwise a mid-flight progress bar with no result on
+ *  screen is a job at work. */
+const sceneWorking = (props: ActionSceneProps): boolean =>
+  props.working ?? (props.progress > 0 && props.progress < 1 && !props.result);
+
+const sceneSpec = (sceneId: string): WorkCycleSpec => WORK_CYCLE_SPECS[WORK_CYCLE_SPEC_BY_SCENE[sceneId]];
 
 const ResultFlash: React.FC<{ result: 'success' | 'failure'; qualityPct?: number }> = ({ result, qualityPct }) => (
   <motion.div
@@ -87,15 +103,19 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
   backgroundId = 'zone-blastforge-bg',
   benchSpriteId = 'set-bench-forge',
   unarmed: _unarmed = false, // retained prop (M2: bench scenes hold no weapon; no-op)
+  working,
   reduced = false,
   ...rest
 }) => {
   const look = useOwnLookWithLoad();
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
+  const spec = sceneSpec('craftingBench');
+  const active = sceneWorking({ ...rest, working });
   return (
     <SceneShell backgroundId={backgroundId} testId="crafting-bench-scene" reduced={reduced} {...rest}>
       <PixelActor spriteId={benchSpriteId} xPct={58} heightPct={36} groundY={groundY} reduced={reduced} breathe={false} testId="crafting-bench-set" />
       <PixelActor spriteId="set-refinery-crusher" xPct={86} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} />
+      <BenchFx spec={spec} active={active} reduced={reduced} xPct={58} yPct={(groundY - 0.19) * 100} testId="crafting-bench-fx" />
       <PixelPartsActor
         set={look.set}
         partPalettes={look.partPalettes}
@@ -104,6 +124,7 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
         groundY={groundY}
         reduced={reduced}
         pose="work"
+        workCycle={{ spec, active }}
         testId="crafting-bench-hunter"
       />
     </SceneShell>
@@ -175,11 +196,14 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
   backgroundId = 'zone-throwtech-bg',
   vehicleSpriteId,
   unarmed: _unarmed = false, // retained prop (M2: bench scenes hold no weapon; no-op)
+  working,
   reduced = false,
   ...rest
 }) => {
   const look = useOwnLookWithLoad();
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
+  const spec = sceneSpec('repairBay');
+  const active = sceneWorking({ ...rest, working });
   // Real-item invariant: no vehicle assigned to the bay renders NO
   // vehicle — the scene never invents a generic stand-in buggy.
   const vehicle = vehicleSpriteId ? getPixelSprite(vehicleSpriteId) : undefined;
@@ -198,6 +222,7 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
         />
       )}
       <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
+      <BenchFx spec={spec} active={active} reduced={reduced} xPct={62} yPct={(groundY - 0.22) * 100} testId="repair-bay-fx" />
       <PixelPartsActor
         set={look.set}
         partPalettes={look.partPalettes}
@@ -206,6 +231,7 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
         groundY={groundY}
         reduced={reduced}
         pose="work"
+        workCycle={{ spec, active }}
         testId="repair-bay-hunter"
       />
     </SceneShell>
@@ -225,11 +251,14 @@ export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: st
   backgroundId = 'zone-throwtech-bg',
   behaviorGlyphId,
   unarmed: _unarmed = false, // retained prop (M2: bench scenes hold no weapon; no-op)
+  working,
   reduced = false,
   ...rest
 }) => {
   const look = useOwnLookWithLoad();
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
+  const spec = sceneSpec('shieldTechBay');
+  const active = sceneWorking({ ...rest, working });
   const glyph = behaviorGlyphId ? getPixelSprite(behaviorGlyphId) : undefined;
   return (
     <SceneShell backgroundId={backgroundId} testId="shieldtech-bay-scene" reduced={reduced} {...rest}>
@@ -246,6 +275,9 @@ export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: st
         />
       )}
       <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
+      {/* The calibration sweep walks its arc around the rig's
+          emitter ring — the glyph's own center. */}
+      <BenchFx spec={spec} active={active} reduced={reduced} xPct={62} yPct={(groundY - 0.28) * 100} testId="shieldtech-bay-fx" />
       <PixelPartsActor
         set={look.set}
         partPalettes={look.partPalettes}
@@ -254,6 +286,7 @@ export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: st
         groundY={groundY}
         reduced={reduced}
         pose="work"
+        workCycle={{ spec, active }}
         testId="shieldtech-bay-hunter"
       />
     </SceneShell>

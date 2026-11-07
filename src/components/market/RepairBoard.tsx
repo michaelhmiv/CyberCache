@@ -328,6 +328,7 @@ export const RepairBoard: React.FC<{
       {transactLockPrompt}
 
       <RepairBayScene
+        working={!!activeWork}
         progress={activeWork ? activeWork.progress : lastCompleted ? 1 : 0}
         causeLabel={sceneJob ? vehicleLabel(sceneJob) : 'Repair bay'}
         buysLabel={sceneJob ? `${sceneJob.kitsConsumed.length} kits used` : 'awaiting a job'}
