@@ -90,6 +90,10 @@ function paintFooter(canvas: GearCanvas, input: GearComposeInput) {
   canvas.rect(railX, railY, railW, 7, 'k');
   canvas.rect(railX, railY, railW, 1, 'T');
   canvas.pipRow(F.cx - 11, railY + 2, input.pips ?? 0, 5);
+  // The footer is a data surface (element chip + affix read):
+  // the core wear ladder may never land on it (S3 floor 7).
+  canvas.protect(chipX - 1, chipY - 1, chipW + 2, chipH + 2);
+  canvas.protect(railX - 1, railY - 1, railW + 2, 9);
 }
 
 /* ------------------------------------------------------------------ */
@@ -111,14 +115,13 @@ function paintStandard(canvas: GearCanvas, input: GearComposeInput) {
     canvas.set(slitX, F.y(0.465), 'W');
   }
 
-  // Housing.
+  // Housing — its full-width light/shade bands now break at
+  // jittered boundaries (S3-4, the core brokenBands move).
   const hx0 = F.x(0.155);
   const hx1 = F.x(0.845);
   const hy0 = F.y(0.125);
   const hy1 = F.y(0.79);
-  canvas.rect(hx0, hy0, hx1 - hx0, hy1 - hy0, 'P');
-  canvas.rect(hx0, hy0, hx1 - hx0, F.h(0.045), 'p'); // top light band
-  canvas.rect(hx0, F.y(0.705), hx1 - hx0, hy1 - F.y(0.705), 'd'); // bottom shade
+  canvas.brokenBands(hx0, hy0, hx1 - hx0, hy1 - hy0, 'p', 'P', 'd', 0.07, 0.87);
   canvas.rect(hx0, hy0, 1, hy1 - hy0, 'd');
   canvas.rect(hx1 - 1, hy0, 1, hy1 - hy0, 'd');
 
@@ -167,8 +170,9 @@ function paintStandard(canvas: GearCanvas, input: GearComposeInput) {
   canvas.rivet(hx0 + 2, hy0 + 2);
   canvas.rivet(hx1 - 4, hy0 + 2);
   canvas.rivet(hx0 + 2, hy1 - 3);
-  canvas.vents(F.x(0.195), F.y(0.615), 4);
-  canvas.vents(F.x(0.72), F.y(0.615), 4);
+  // Vent runs with cluster spacing and one dead slit (S3-4).
+  canvas.ventsBroken(F.x(0.195), F.y(0.615), 4);
+  canvas.ventsBroken(F.x(0.72), F.y(0.615), 4);
   canvas.chip(hx1 - 2, hy1 - 2);
   paintFooter(canvas, input);
 }
@@ -184,10 +188,16 @@ function paintNova(canvas: GearCanvas, input: GearComposeInput) {
   const R = Math.max(5, Math.round(F.min * 0.27));
   const T = Math.max(2, Math.round(R * 0.5));
 
-  // Back plate — dark hot metal under the burst assembly.
-  canvas.rect(F.x(0.075), F.y(0.145), F.w(0.85), F.h(0.66), 'd');
-  canvas.rect(F.x(0.075), F.y(0.145), F.w(0.85), F.h(0.032), 'P');
-  canvas.rect(F.x(0.075), F.y(0.775), F.w(0.85), F.h(0.03), 'D');
+  // Back plate — dark hot metal under the burst assembly; its
+  // band boundaries break per column now (S3-4). The region
+  // reaches the old foot strip's bottom edge: at thumb scale
+  // that strip rounded one row BELOW the plate rect, and the
+  // region must cover it or the row is silently lost.
+  canvas.brokenBands(
+    F.x(0.075), F.y(0.145), F.w(0.85),
+    F.y(0.775) + F.h(0.03) - F.y(0.145),
+    'P', 'd', 'D', 0.05, 0.95,
+  );
 
   // Side pods straddling the plate edges, banded, with lit dots.
   for (const px of [F.x(0.018), F.x(0.907)]) {
@@ -254,18 +264,31 @@ function paintNova(canvas: GearCanvas, input: GearComposeInput) {
     canvas.set(F.cx + Math.round(R * 0.68 * dx), coreY + Math.round(R * 0.68 * dy), 'e');
   }
 
-  // Detail kit: back-plate seams, scorch wear.
+  // Detail kit: back-plate seams; the scorch wear is one seeded
+  // cluster at the plate's foot, not four metronome chips (S3-4).
   canvas.seam(F.x(0.295) + seamShift, F.y(0.19), F.x(0.295) + seamShift, F.y(0.775));
   canvas.seam(F.x(0.705) - seamShift, F.y(0.19), F.x(0.705) - seamShift, F.y(0.775));
-  for (const wx of [F.x(0.18), F.x(0.42), F.x(0.63), F.x(0.82)]) {
-    canvas.chip(wx, F.y(0.795));
-    canvas.set(wx + 1, F.y(0.79), 'K');
-  }
+  const scorchX = F.x(0.28) + canvas.pick(Math.max(1, F.w(0.38)));
+  canvas.clusterWear(scorchX, F.y(0.79), 7, { bite: true });
+  canvas.clusterWear(scorchX + F.w(0.06), F.y(0.795), 4);
   paintFooter(canvas, input);
 }
 
 /* ------------------------------------------------------------------ */
-/* ABSORB — concentric shell plates around an orb, shell stacks        */
+/* ABSORB — shell plates around a seated core, shell stacks            */
+/*                                                                     */
+/* S3-3 register fix: Absorb was the plate engine's one glossy         */
+/* object — mirrored shell stacks, four sectors at exact 90°           */
+/* spacing under a uniform pale rim band, and a core of two            */
+/* perfect concentric discs (a radial falloff with a glint). It        */
+/* now joins its siblings' register: a seated machine component.       */
+/* The stacks draw per side (no mirror), the sectors take seeded       */
+/* unequal spans with per-sector tones, rim light lands as             */
+/* clusters on the lit side only, and the core sits off-center         */
+/* in an irregular socket (the relic socketCore pattern). The          */
+/* ring-of-shell-plates silhouette — the family's identity — is        */
+/* unchanged, and the feed conduit, base block, struts, and            */
+/* footer are untouched.                                               */
 /* ------------------------------------------------------------------ */
 
 function paintAbsorb(canvas: GearCanvas, input: GearComposeInput) {
@@ -274,15 +297,17 @@ function paintAbsorb(canvas: GearCanvas, input: GearComposeInput) {
   const coreY = F.y(0.465);
   const r = Math.max(5, Math.round(F.min * 0.30));
 
-  // Side shell stacks — three stepped plates per side, built in
-  // local space and mirrored so both stacks are the same plates.
+  // Side shell stacks — three stepped plates per side, drawn PER
+  // SIDE from the stream: step depth, plate heights, vertical
+  // placement, and tone phase all diverge (the mirror is dead).
   for (const side of [0, 1] as const) {
     const sx0 = side === 0 ? F.x(0.025) : F.x(0.815);
     const sw = F.w(0.16);
+    const tonePhase = canvas.pick(2);
     for (let i = 0; i < 3; i++) {
-      const py = F.y(0.185 + i * 0.20);
-      const ph = F.h(0.155);
-      const step = Math.round(ph * 0.3);
+      const py = F.y(0.185 + i * 0.20) + (canvas.pick(3) - 1) * Math.max(1, Math.round(F.h(0.012)));
+      const ph = F.h(0.155) + (canvas.pick(3) - 1) * Math.max(1, Math.round(F.h(0.014)));
+      const step = Math.round(ph * (0.24 + canvas.pick(3) * 0.06));
       // Local plate: full outer edge, stepped (chamfered) inner edge.
       const local: [number, number][] = [
         [0, 0], [sw - step, 0], [sw, step], [sw, ph - step], [sw - step, ph], [0, ph],
@@ -291,8 +316,9 @@ function paintAbsorb(canvas: GearCanvas, input: GearComposeInput) {
         side === 0 ? sx0 + u : sx0 + (sw - u),
         py + v,
       ]);
-      canvas.poly(pts, i % 2 === 0 ? 'P' : 'd');
-      canvas.rect(sx0, py, sw, Math.max(1, Math.round(ph * 0.18)), 'p');
+      canvas.poly(pts, (i + tonePhase) % 2 === 0 ? 'P' : 'd');
+      // The lit top edge as a jittered band, not a printed strip.
+      canvas.bandJittered(sx0, py, sw, Math.max(1, Math.round(ph * 0.18)), 'p');
       canvas.rivet(side === 0 ? sx0 + 2 : sx0 + sw - 4, py + Math.round(ph / 2));
     }
   }
@@ -310,7 +336,7 @@ function paintAbsorb(canvas: GearCanvas, input: GearComposeInput) {
   canvas.rect(F.x(0.415), F.y(0.795), F.w(0.17), Math.max(1, F.h(0.02)), 'p');
 
   // Orb assembly: deep field, then four shell PLATES — annulus
-  // sectors with honest gaps between them — then the orb itself.
+  // sectors with honest gaps between them — then the seated core.
   canvas.disc(F.cx, coreY, r, 'c');
   canvas.ring(F.cx, coreY, r * 0.70, r * 0.76, 'K');
   const sector = (a0: number, a1: number, rOut: number, rIn: number): [number, number][] => {
@@ -326,24 +352,69 @@ function paintAbsorb(canvas: GearCanvas, input: GearComposeInput) {
     }
     return pts;
   };
+  // Seeded unequal spans and gaps — the exact 90° rotation is
+  // dead. Tones are drawn per sector (not strictly alternating),
+  // rim light lands as CLUSTERS on the lit side only (top-left
+  // light), and at card density one sector carries a chip bite.
+  const biteSector = canvas.pick(4);
+  let cursor = arcShift;
   for (let seg = 0; seg < 4; seg++) {
-    const a0 = ((seg * 90 + 16 + arcShift) * Math.PI) / 180;
-    const a1 = ((seg * 90 + 74 + arcShift) * Math.PI) / 180;
-    canvas.poly(sector(a0, a1, r, r * 0.76), seg % 2 === 0 ? 'P' : 'd');
-    // Pale outer rim of the plate + a bolt at its midpoint.
-    const rim = sector(a0, a1, r, r * 0.93);
-    canvas.poly(rim, 'p');
+    const span = 46 + canvas.pick(20); // 46–65°
+    const a0 = (cursor * Math.PI) / 180;
+    const a1 = ((cursor + span) * Math.PI) / 180;
+    canvas.poly(sector(a0, a1, r, r * 0.76), canvas.pick(2) === 0 ? 'P' : 'd');
     const mid = (a0 + a1) / 2;
+    const litSide = Math.cos(mid) < 0.15 && Math.sin(mid) < 0.15; // up and/or left of center
+    if (litSide) {
+      // 1–3 short pale runs along the sector's outer edge.
+      const runs = 1 + canvas.pick(3);
+      for (let run = 0; run < runs; run++) {
+        const t0 = 0.12 + canvas.next() * 0.6;
+        const runLen = 2 + canvas.pick(3);
+        for (let s = 0; s < runLen; s++) {
+          const a = a0 + (a1 - a0) * Math.min(0.97, t0 + s * 0.045);
+          canvas.set(Math.round(F.cx + Math.cos(a) * r * 0.965), Math.round(coreY + Math.sin(a) * r * 0.965), 'p');
+        }
+      }
+    } else if (canvas.pick(3) === 0) {
+      canvas.set(Math.round(F.cx + Math.cos(mid) * r * 0.965), Math.round(coreY + Math.sin(mid) * r * 0.965), 'p');
+    }
     if (canvas.detailLevel > 0) {
       canvas.set(Math.round(F.cx + Math.cos(mid) * r * 0.85), Math.round(coreY + Math.sin(mid) * r * 0.85), 'k');
+      if (seg === biteSector) {
+        const ba = a0 + (a1 - a0) * 0.5;
+        canvas.chip(Math.round(F.cx + Math.cos(ba) * r * 0.99), Math.round(coreY + Math.sin(ba) * r * 0.99));
+      }
+    }
+    cursor += span + 24 + canvas.pick(14); // the gap takes the rest
+  }
+
+  // The core, SEATED — not displayed (the relic socketCore move):
+  // an irregular dark socket with worn rim texels, the lit core
+  // offset from center by a texel or two from the seed, its pale
+  // step an off-center cluster rather than a full disc, and the
+  // glint one hard cluster at the core's upper-left. The element
+  // mass is unchanged; the sphere shading is gone.
+  const offX = (canvas.pick(3) - 1) * Math.max(1, Math.round(r * 0.07));
+  const offY = (canvas.pick(3) - 1) * Math.max(1, Math.round(r * 0.07));
+  const coreX = F.cx + offX;
+  const seatedY = coreY + offY;
+  const socketR = Math.round(r * 0.62);
+  canvas.disc(coreX, seatedY, socketR, 'D');
+  if (canvas.detailLevel > 0) {
+    for (let i = 0; i < 3; i++) {
+      const a = canvas.next() * Math.PI * 2;
+      canvas.set(coreX + Math.round(Math.cos(a) * socketR), seatedY + Math.round(Math.sin(a) * socketR * 0.85), 'k');
     }
   }
-  canvas.disc(F.cx, coreY, Math.round(r * 0.58), 'E');
-  canvas.disc(F.cx, coreY, Math.round(r * 0.36), 'e');
-  const gw = r >= 9 ? 2 : 1;
-  canvas.rect(F.cx - Math.round(r * 0.18), coreY - Math.round(r * 0.22), gw, gw, 'W');
+  canvas.disc(coreX, seatedY, Math.round(r * 0.55), 'E');
+  const clusterX = coreX - Math.round(r * 0.17);
+  const clusterY = seatedY - Math.round(r * 0.17);
+  canvas.disc(clusterX, clusterY, Math.max(1, Math.round(r * 0.20)), 'e');
+  canvas.set(clusterX, clusterY, 'W');
+  if (r >= 9) canvas.set(clusterX + 1, clusterY, 'W');
 
-  canvas.vents(F.x(0.445), F.y(0.845), 5);
+  canvas.ventsBroken(F.x(0.445), F.y(0.845), 5);
   paintFooter(canvas, input);
 }
 
@@ -353,7 +424,6 @@ function paintAbsorb(canvas: GearCanvas, input: GearComposeInput) {
 
 function paintAmp(canvas: GearCanvas, input: GearComposeInput) {
   const F = frameOf(canvas);
-  const bandShift = canvas.pick(3); // charge-band row offset per section
 
   // Bolt — steep-toothed arc above the console (2-texel brush).
   const boltY0 = F.y(0.085);
@@ -373,7 +443,9 @@ function paintAmp(canvas: GearCanvas, input: GearComposeInput) {
     prevY = ny;
   }
 
-  // Towers.
+  // Towers — the mirrored pair DIVERGES per side now (S3-4):
+  // section heights, edge widths, and every charge-band row are
+  // drawn per tower from the stream, never one shared offset.
   for (const tcx of [F.x(0.195), F.x(0.805)]) {
     const tw = F.w(0.078);
     // Rarity-finish cap (frame shades — finish, never form).
@@ -382,12 +454,13 @@ function paintAmp(canvas: GearCanvas, input: GearComposeInput) {
     canvas.rect(tcx - Math.round(tw * 0.62), F.y(0.107), Math.round(tw * 1.24), F.h(0.03), 'd');
     let sy = F.y(0.14);
     for (let s = 0; s < 3; s++) {
-      const sh = F.h(0.198);
+      const sh = F.h(0.198) + (canvas.pick(3) - 1) * Math.max(1, Math.round(F.h(0.014)));
+      const edgeW = Math.max(1, Math.round(tw * 0.22)) + canvas.pick(2);
       canvas.rect(tcx - tw, sy, tw * 2, sh, 'P');
-      canvas.rect(tcx - tw, sy, Math.max(1, Math.round(tw * 0.22)), sh, 'd');
-      canvas.rect(tcx + tw - Math.max(1, Math.round(tw * 0.22)), sy, Math.max(1, Math.round(tw * 0.22)), sh, 'd');
+      canvas.rect(tcx - tw, sy, edgeW, sh, 'd');
+      canvas.rect(tcx + tw - edgeW, sy, edgeW, sh, 'd');
       canvas.rect(tcx - 1, sy, 3, sh, 'p');
-      const bandY = sy + Math.round(sh * 0.42) + (s === 1 ? bandShift : 0);
+      const bandY = sy + Math.round(sh * 0.42) + (canvas.pick(3) - 1) * 2;
       canvas.rect(tcx - tw, bandY, tw * 2, Math.max(2, F.h(0.032)), 'E');
       canvas.rect(tcx - 1, bandY, 3, Math.max(2, F.h(0.032)), 'W');
       sy += sh;
@@ -406,14 +479,13 @@ function paintAmp(canvas: GearCanvas, input: GearComposeInput) {
     canvas.rect(bxa, F.y(0.482), bxb - bxa, Math.max(1, F.h(0.016)), 'E');
   }
 
-  // Console.
+  // Console — its top/bottom bands break at jittered boundaries
+  // (S3-4, brokenBands over the console rect).
   const cx0 = F.x(0.365);
   const cx1 = F.x(0.635);
   const cy0 = F.y(0.275);
   const cy1 = F.y(0.80);
-  canvas.rect(cx0, cy0, cx1 - cx0, cy1 - cy0, 'P');
-  canvas.rect(cx0, cy0, cx1 - cx0, F.h(0.04), 'p');
-  canvas.rect(cx0, F.y(0.755), cx1 - cx0, cy1 - F.y(0.755), 'd');
+  canvas.brokenBands(cx0, cy0, cx1 - cx0, cy1 - cy0, 'p', 'P', 'd', 0.08, 0.91);
   // Sight block on top.
   canvas.rect(F.x(0.462), F.y(0.215), F.w(0.076), F.h(0.06), 'd');
   canvas.rect(F.x(0.478), F.y(0.232), F.w(0.044), Math.max(1, F.h(0.02)), 'e');
@@ -466,12 +538,14 @@ function paintTurtle(canvas: GearCanvas, input: GearComposeInput) {
   const edgeW = Math.max(1, F.w(0.009));
   canvas.rect(sx0, sy0, edgeW, sy1 - sy0, 'D');
   canvas.rect(sx1 - edgeW, sy0, edgeW, sy1 - sy0, 'D');
-  canvas.rect(sx0, F.y(0.685), sx1 - sx0, sy1 - F.y(0.685), 'D');
+  // The slab's foot band breaks per column (S3-4).
+  canvas.bandJittered(sx0, F.y(0.685), sx1 - sx0, sy1 - F.y(0.685), 'D');
 
-  // Ribs — raised armor panels, bolted.
+  // Ribs — raised armor panels, bolted; width and step now vary
+  // per rib from the seed instead of four identical copies.
   for (let i = 0; i < 4; i++) {
-    const rx = F.x(0.115 + i * 0.20);
-    const rw = F.w(0.078);
+    const rx = F.x(0.115 + i * 0.20) + (canvas.pick(3) - 1) * Math.max(1, Math.round(F.w(0.006)));
+    const rw = F.w(0.078) + (canvas.pick(3) - 1) * Math.max(1, Math.round(F.w(0.008)));
     canvas.rect(rx, F.y(0.19), rw, F.h(0.515), 'P');
     canvas.rect(rx, F.y(0.19), Math.max(1, Math.round(rw * 0.18)), F.h(0.515), 'p');
     if (canvas.detailLevel > 0) {
@@ -500,15 +574,23 @@ function paintTurtle(canvas: GearCanvas, input: GearComposeInput) {
     canvas.rect(fx, sy1 + F.h(0.085) - Math.max(1, F.h(0.02)), F.w(0.22), Math.max(1, F.h(0.02)), 'D');
   }
 
-  // Detail kit: beam rivet row, serial ticks, sparse dither, wear.
-  for (let rx = F.x(0.075); rx < F.x(0.92); rx += F.w(0.077)) canvas.rivet(rx, F.y(0.088));
+  // Detail kit: the beam's rivet row walks with jittered spacing
+  // and occasional gaps (S3-4); serial ticks; seeded cluster wear
+  // where the fixed dither list used to sit.
+  {
+    let rx = F.x(0.075);
+    while (rx < F.x(0.92)) {
+      if (canvas.pick(6) !== 0) canvas.rivet(rx, F.y(0.088)); // occasional gap
+      rx += F.w(0.077) + (canvas.pick(3) - 1) * 2;
+    }
+  }
   for (let i = 0; i < tickCount; i++) {
     canvas.rect(F.x(0.075 + i * 0.013), F.y(0.175), 1, F.h(0.028), 'P');
   }
   canvas.seam(sx0 + 3, F.y(0.605), sx1 - 4, F.y(0.605));
   if (canvas.detailLevel > 0) {
-    const dither: [number, number][] = [[0, 0], [6, 1], [13, 0], [20, 2], [3, 5], [17, 6], [26, 4], [10, 8]];
-    for (const [dx, dy] of dither) canvas.set(F.x(0.075) + dx, F.y(0.565) + dy, 'D');
+    canvas.clusterWear(F.x(0.10) + canvas.pick(Math.max(1, F.w(0.07))), F.y(0.565) + canvas.pick(6), 5);
+    canvas.clusterWear(F.x(0.17) + canvas.pick(Math.max(1, F.w(0.07))), F.y(0.578) + canvas.pick(6), 4);
     canvas.slope(F.x(0.60), F.y(0.575), F.x(0.665), F.y(0.615), 'p', true);
     canvas.slope(F.x(0.70), F.y(0.63), F.x(0.755), F.y(0.665), 'p', true);
     canvas.slope(F.x(0.085), F.y(0.235), F.x(0.125), F.y(0.265), 'D', true);
@@ -542,7 +624,7 @@ export const SHIELD_FAMILY_ROWS: Record<ShieldBehaviorId, ShieldFamilyRow> = {
   },
   absorb: {
     id: 'absorb',
-    form: 'concentric shell plates + orb + side shell stacks',
+    form: 'uneven shell plates around a seated core + side shell stacks',
     paint: paintAbsorb,
   },
   amp: {
@@ -561,6 +643,7 @@ export const shieldGrammar: GearGrammar = {
   id: 'shield-behavior',
   kind: 'shield',
   plate: GEAR_CARD_PLATES.shield,
+  wearLadder: true,
   paint(canvas, input) {
     const row = SHIELD_FAMILY_ROWS[(input.variant as ShieldBehaviorId) ?? 'standard'] ?? SHIELD_FAMILY_ROWS.standard;
     row.paint(canvas, input);

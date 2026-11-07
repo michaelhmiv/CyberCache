@@ -27,6 +27,8 @@ import {
 } from '@/lib/pixel/weaponCompositor';
 import { composeGearCached } from '@/lib/pixel/gearCardCompositor';
 import { composeMaterialCached } from '@/lib/pixel/materialArt';
+import { composeConsumableCached } from '@/lib/pixel/consumableArt';
+import { smallItemCached } from '@/lib/pixel/smallItemCore';
 import { GEAR_GRAMMARS } from '@/lib/pixel/gearDispatch';
 import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -119,5 +121,29 @@ describe('compositor caches actually hit', () => {
     expect(b).toBe(a);
     const thumb = composeMaterialCached('Scrap', 'thumb');
     expect(thumb).not.toBe(a);
+  });
+
+  it('consumable: identical (id, density) returns the identical render object', () => {
+    const a = composeConsumableCached('MedKit', 'object');
+    const b = composeConsumableCached('MedKit', 'object');
+    expect(b).toBe(a);
+    const thumb = composeConsumableCached('MedKit', 'thumb');
+    expect(thumb).not.toBe(a);
+  });
+
+  it('small-item core cache composes once per input key (S4: the consumable cache fix)', () => {
+    // consumableArt's pre-S4 cache was signature-keyed — it composed
+    // in full before every lookup and never hit. The shared core
+    // helper is input-keyed; this counter pins the mechanism itself,
+    // not just object identity (identity alone passed pre-fix too).
+    const cache = new Map<string, { n: number }>();
+    let composes = 0;
+    const compose = () => ({ n: ++composes });
+    const a = smallItemCached(cache, 'object|MedKit', compose);
+    const b = smallItemCached(cache, 'object|MedKit', compose);
+    expect(b).toBe(a);
+    expect(composes).toBe(1);
+    smallItemCached(cache, 'thumb|MedKit', compose);
+    expect(composes).toBe(2);
   });
 });
