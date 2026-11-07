@@ -120,6 +120,11 @@ over the receiver; a beam rifle's element runs in the lit channel
 along its spine — on a Kinetic beam the channel stays dark, warm
 conduit in the maker's tones.
 
+All of the game's art renders as pixels on canvas — item art,
+icons, and interface marks alike. No vector-drawn art remains in
+the game; the only vector mark anywhere is the Google "G" on the
+sign-in button, which is Google's brand glyph, not game art.
+
 The element shows as a lit current that runs from the chamber along
 the barrel to the muzzle, in the element's color. Kinetic has no
 current at all — plain machined metal, honestly unlit. Rarity

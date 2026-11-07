@@ -13,10 +13,11 @@
  *  2. Cards carry NO framer-motion `layout` prop (source pin — the
  *     layout projection pass over 132 cards was half the freeze and
  *     is invisible in jsdom behavior, so it is pinned at the source).
- *  3. Gear illustrations no longer duplicate the shared SVG filter
- *     defs per item: a rendered grid contains ZERO <defs> copies of
- *     the shared filters (they live in the one document-level
- *     <SharedDefsMount /> at the App root, referenced by ID).
+ *  3. Gear illustrations carry no SVG filter defs: a rendered grid
+ *     contains ZERO <defs>/<filter> copies. (The shared filter set
+ *     itself was deleted 2026-11-07 — nothing referenced its ids
+ *     once gear art went all-canvas, so the App-root
+ *     <SharedDefsMount /> and the defs are gone entirely.)
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -126,10 +127,10 @@ describe('gear grid perf — shared SVG defs are not duplicated per item', () =>
     seedInventory(12);
     const { container } = render(<GearHub onNavigate={vi.fn()} onEquipRequest={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /Toggle inventory layout/ }));
-    // The shared filters (surface-*, bevel-*) exist exactly ONCE in a
-    // document — inside the App-root <SharedDefsMount /> — which this
-    // isolated render does not mount. Per-item copies would show up
-    // here as <filter id="surface-…"> elements inside the cards.
+    // The shared SVG filters (surface-*, bevel-*) were deleted with
+    // SharedDefsMount (2026-11-07) — nothing referenced their ids.
+    // This still guards the grid against per-item <filter> copies
+    // ever coming back.
     const sharedFilters = container.querySelectorAll(
       'filter[id^="surface-"], filter[id^="bevel-"], filter#wear-scratches',
     );

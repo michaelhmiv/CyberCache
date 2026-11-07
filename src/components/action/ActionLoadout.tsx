@@ -28,6 +28,7 @@
  *   Row 3:   (figure)   Relic         Ordnance
  */
 import React, { useCallback, useMemo, useState } from 'react';
+import { buildStarConnectorGrid } from '@/lib/pixel/starConnectors';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -115,28 +116,59 @@ function slotItem(
   }
 }
 
-// ── SVG star connectors (unchanged) ───────────────────────────────
 
-const STAR_LINES: Array<[number, number, number, number]> = [
-  [2,2,1,2], [2,2,2,3], [2,2,3,3], [2,2,3,2], [2,2,2,1], [2,2,1,3],
-  [1,2,2,1], [1,2,1,3], [2,1,3,2], [2,3,3,3], [1,3,2,3], [3,2,3,3],
-];
+const STAR_CONNECTOR_GRID = buildStarConnectorGrid();
 
-function gridPct(row: number, col: number): [number, number] {
-  const xPct = ((col - 1) / 2) * 100;
-  const yPct = ((row - 1) / 2) * 100;
-  return [xPct, yPct];
-}
+const StarConnectors: React.FC = () => {
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
-const StarConnectors: React.FC = () => (
-  <svg className="pointer-events-none absolute inset-0 z-0" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden>
-    {STAR_LINES.map(([r1, c1, r2, c2], i) => {
-      const [x1, y1] = gridPct(r1, c1);
-      const [x2, y2] = gridPct(r2, c2);
-      return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#FF9000" strokeOpacity="0.18" strokeWidth="0.5" strokeDasharray="2 4" />;
-    })}
-  </svg>
-);
+  React.useEffect(() => {
+    const wrap = wrapRef.current;
+    const canvas = canvasRef.current;
+    if (!wrap || !canvas) return;
+    const draw = () => {
+      const { width, height } = wrap.getBoundingClientRect();
+      if (width === 0 || height === 0) return;
+      canvas.width = Math.round(width);
+      canvas.height = Math.round(height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false;
+      // viewBox 0 0 100 100 with preserveAspectRatio "xMidYMid meet":
+      // the 100-unit square scales to the box's smaller side, centered.
+      const scale = Math.min(canvas.width, canvas.height) / 100;
+      const ox = (canvas.width - 100 * scale) / 2;
+      const oy = (canvas.height - 100 * scale) / 2;
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#FF9000';
+      const cell = Math.max(1, scale);
+      for (let y = 0; y < 100; y++) {
+        for (let x = 0; x < 100; x++) {
+          if (STAR_CONNECTOR_GRID[y][x] === 'S') {
+            ctx.fillRect(ox + x * scale, oy + y * scale, cell, cell);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    };
+    draw();
+    // House pattern (LootMoment/PixelFx/PixelPartsActor): jsdom and
+    // older WebViews have no ResizeObserver — draw once and skip the
+    // observer there instead of crashing the loadout.
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(draw);
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+      <canvas ref={canvasRef} className="block h-full w-full" />
+    </div>
+  );
+};
 
 // ── Slot chip (now a button) ──────────────────────────────────────
 
