@@ -1108,6 +1108,55 @@ from that presentation and the boss HP plate rides the stage as
 challenged boss stands on the main stage — presence without
 combat: no beats, no plates — while the player prepares below.
 
+### The work cycle — Motion Reboot M1 (owner rulings, 2026-11-06)
+
+The bench modes were the stage's statues: in crafting, salvaging,
+and workshop service the hunter stood at idle holding his weapon
+in front of a motionless set piece, and a finished craft produced
+no beat on the stage at all. M1 — the first slice of the Motion
+Reboot brief (approved 2026-11-06, all grill items as
+recommended) — replaces the statue with work:
+
+- **One engine, choreography as data.** A work cycle is a SPEC —
+  declared data keyed by id in `src/lib/pixel/workCycle.ts`
+  (`WORK_CYCLE_SPECS`), sampled by one pure engine and executed
+  by the parts actor as pose deltas composed onto the `work`
+  pose. Family feel is spec data, never code: forge (high lift,
+  spark burst, warm glow), crush (deep press, long hold, debris),
+  assembly (low lift, long fit pause, no sparks), calibration
+  (small motions, a three-step sweep). Mode and panel-scene
+  bindings are data rows beside the registry
+  (`WORK_CYCLE_SPEC_BY_MODE` / `WORK_CYCLE_SPEC_BY_SCENE`).
+  **Flexibility law (owner, 2026-11-06):** a future family,
+  activity, or custom gear shape plugs in by adding data against
+  these contracts — a slice that hard-codes a family's motion
+  into the engine fails review.
+- **The period is law.** Every cycle runs on
+  `SEGMENT.WORK_CYCLE_MS` (900ms) read from movement.ts; specs
+  carry no period field, and movement.ts is unmodified. The
+  start beat is `SEGMENT.STEP_BOB_MS`: the pose transition into
+  `work` plays first, then amplitude ramps up across one period;
+  stopping ramps back down. DOM execution (the renderer-strategy
+  ruling: Pixi where motion is dense, DOM where simple).
+- **Tenants.** The Home stage's crafting / salvaging / workshop
+  service modes and the three panel bay scenes (crafting bench,
+  repair bay, shield-tech bay) share the same specs. At the
+  bench the hunter is unarmed — weapon slung, the extraction
+  precedent — and holds the `work` pose between jobs; the cycle
+  runs while a job in the mode's lane is running in the workshop
+  mirror (salvaging has no queue: the mode holding the stage is
+  the work). Between bays the accents differ by data; the
+  shield-tech bay runs calibration, not the repair bay's fit.
+- **Completion beat.** A unit settling in the stage's lane earns
+  the celebrate pose and the finished unit rising off the bench
+  on the law's loot-rise duration (`LOOT_RISE_MS`), once per
+  settled unit, never replayed from the mirror's existing
+  contents. The panel scenes keep their existing result flash.
+- **Reduced motion** collapses the bench to the held `work` pose
+  with no cycle and no FX — the pre-M1 picture exactly. The
+  animated-node accounting (parts + FX + embers + rise) stays
+  inside `MAX_ANIMATED_NODES`, asserted in the M1 tests.
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in

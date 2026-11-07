@@ -841,6 +841,7 @@ export const WorkshopScreen: React.FC<{
         <CraftingBenchScene
           benchSpriteId={stageBench.spriteId}
           unarmed={!hunterWeapon}
+          working={!!runningJob}
           progress={runningJob ? jobProgressFraction(runningJob) : 0}
           causeLabel={runningJob ? runningJob.name : 'The Bench'}
           buysLabel={runningJob ? undefined : 'awaiting a job'}

@@ -12,6 +12,11 @@ Like repair, there is **no NPC shield tech**. The work runs in two lanes:
 the **Shield Tech** board inside [[The Market]], or your own workshop.
 You can hold at most **3 self-lane recalibration jobs at once**.
 
+The work is visible while it runs: the board's bay scene — and the
+Home stage during Workshop Service — shows the hunter at the
+calibration rig, its sweep walking the shield's glyph until the
+job settles.
+
 ## Calibration points and Calibration Cores
 
 The work is measured in **calibration points** — the job size is the
