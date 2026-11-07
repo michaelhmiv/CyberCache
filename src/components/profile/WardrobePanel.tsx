@@ -486,7 +486,10 @@ export const WardrobePanel: React.FC = () => {
         <PanelLabel label="Craft queue — unowned" right="Workshop · Parts lane" />
         <div data-testid="wardrobe-catalog">
           {SKIN_SETS.map((set) => {
-            const rows = SKIN_PARTS.filter((p) => p.setId === set.id && !ownedPartIds.has(p.id));
+            // Delisted parts (Hero Pass H1) leave the craft queue:
+            // they can't be crafted anymore. Owned copies still
+            // show in the bays above — grandfathering is absolute.
+            const rows = SKIN_PARTS.filter((p) => p.setId === set.id && !p.delisted && !ownedPartIds.has(p.id));
             if (rows.length === 0) return null;
             return (
               <div key={set.id} className="mb-3 last:mb-0">
@@ -522,7 +525,7 @@ export const WardrobePanel: React.FC = () => {
               </div>
             );
           })}
-          {SKIN_PARTS.every((p) => ownedPartIds.has(p.id)) && (
+          {SKIN_PARTS.filter((p) => !p.delisted).every((p) => ownedPartIds.has(p.id)) && (
             <div className="text-[11px]" style={{ ...monoStyle, color: FAINT }}>Full catalog owned. Flex responsibly.</div>
           )}
         </div>

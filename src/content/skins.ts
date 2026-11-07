@@ -16,11 +16,19 @@
  *  - Parts never bind: tradeable/sellable once unequipped, and
  *    listing an equipped part unequips it first (the market wiring
  *    enforces it server-side).
- *  - Manufacturer heads are normal scrap-crafting pool parts;
- *    heads earned via Manufacturer Standing stay wearable through
- *    the grandfather exception (the 0043 rank record).
- *  - Everything is permanently available (no availability windows
- *    in wave 1).
+ *  - Manufacturer heads live in ONE lane (Q2, Hero Pass H1,
+ *    owner-ruled 2026-11-06): the Standing rank-3 head pick
+ *    (headParts.ts). The six crafted copies are DELISTED (the
+ *    `delisted` flag below): no new crafts, no new listings.
+ *    Grandfathering is absolute — a crafted copy already owned
+ *    keeps rendering, wearing, and equipping forever, a listing
+ *    already live trades as normal, and the catalog entries STAY
+ *    so owned payloads keep resolving.
+ *  - Availability is declared DATA (the flexibility law): the
+ *    `delisted` flag is read through `skinPartDelisted` by every
+ *    gate — no engine or UI code hard-codes a part-id list.
+ *  - Everything else is permanently available (no availability
+ *    windows in wave 1; retirement happens by ruling, as above).
  *
  * Render-side part definitions (sprites + anchors) live in
  * src/lib/pixel/skinParts.ts; this catalog refers to them by id.
@@ -86,8 +94,8 @@ export const SKIN_SETS: SkinSetDef[] = [
   {
     id: 'manufacturer',
     name: 'Manufacturer Heads',
-    tier: 'shaped',
-    blurb: 'The six manufacturer helmets, crafted like everything else. Standing-earned heads stay wearable.',
+    tier: 'palette',
+    blurb: 'The six maker helmets now live in one lane: the Standing rank-3 head pick, earned at the Rep Desk. Crafted copies from the old pool are retired — no new crafts, no new listings — and copies already owned wear forever.',
   },
 ];
 
@@ -110,6 +118,15 @@ export interface SkinPartCatalogDef {
    *  as, and the manufacturer whose standing record grandfathers it. */
   headVariantId?: string;
   manufacturer?: string;
+  /**
+   * Delisted (Hero Pass H1, Q2): no new crafts of this part and
+   * no new market listings of it. The entry STAYS in the catalog
+   * forever — owned copies keep resolving, rendering, wearing,
+   * and equipping (grandfathering is absolute), and listings
+   * already live are untouched. Availability is data: gates read
+   * this flag through `skinPartDelisted`, never an id list.
+   */
+  delisted?: boolean;
 }
 
 function part(
@@ -118,7 +135,7 @@ function part(
   setId: string,
   slot: CosmeticSlot,
   tier: SkinTier,
-  extra?: { headVariantId?: string; manufacturer?: string },
+  extra?: { headVariantId?: string; manufacturer?: string; delisted?: boolean },
 ): SkinPartCatalogDef {
   return { id, name, setId, slot, tier, recipeId: `recipe_skin_${id.replace(/-/g, '_')}`, ...extra };
 }
@@ -146,30 +163,40 @@ export const SKIN_PARTS: SkinPartCatalogDef[] = [
   part('dread-lower-leg-f', 'Dreadplate Lower Leg (Near)', 'dreadplate', 'lowerLegF', 'repaint'),
   part('dread-lower-leg-b', 'Dreadplate Lower Leg (Far)', 'dreadplate', 'lowerLegB', 'repaint'),
   part('dread-back', 'Dreadplate Back Rig', 'dreadplate', 'back', 'repaint'),
-  // Manufacturer heads (normal scrap-crafting pool, brief §0.6)
-  part('mfr-head-redline', 'Redline Helm', 'manufacturer', 'head', 'shaped', {
+  // Manufacturer heads — DELISTED (Hero Pass H1, Q2): the look
+  // lives in the Standing rank-3 pick lane now. Tier is the
+  // measured truth: a palette re-skin of the stock head (alpha
+  // IoU ≈ 1.00 vs the visor, AUDIT.md), never 'shaped'. Owned
+  // copies are grandfathered absolutely (see header laws).
+  part('mfr-head-redline', 'Redline Helm', 'manufacturer', 'head', 'palette', {
     headVariantId: 'mfr-redline',
     manufacturer: 'Redline',
+    delisted: true,
   }),
-  part('mfr-head-ironwood', 'Ironwood Helm', 'manufacturer', 'head', 'shaped', {
+  part('mfr-head-ironwood', 'Ironwood Helm', 'manufacturer', 'head', 'palette', {
     headVariantId: 'mfr-ironwood',
     manufacturer: 'Ironwood',
+    delisted: true,
   }),
-  part('mfr-head-blastforge', 'BlastForge Helm', 'manufacturer', 'head', 'shaped', {
+  part('mfr-head-blastforge', 'BlastForge Helm', 'manufacturer', 'head', 'palette', {
     headVariantId: 'mfr-blastforge',
     manufacturer: 'BlastForge',
+    delisted: true,
   }),
-  part('mfr-head-prismatek', 'Prismatek Helm', 'manufacturer', 'head', 'shaped', {
+  part('mfr-head-prismatek', 'Prismatek Helm', 'manufacturer', 'head', 'palette', {
     headVariantId: 'mfr-prismatek',
     manufacturer: 'Prismatek',
+    delisted: true,
   }),
-  part('mfr-head-throwtech', 'ThrowTech Helm', 'manufacturer', 'head', 'shaped', {
+  part('mfr-head-throwtech', 'ThrowTech Helm', 'manufacturer', 'head', 'palette', {
     headVariantId: 'mfr-throwtech',
     manufacturer: 'ThrowTech',
+    delisted: true,
   }),
-  part('mfr-head-helixworks', 'HelixWorks Helm', 'manufacturer', 'head', 'shaped', {
+  part('mfr-head-helixworks', 'HelixWorks Helm', 'manufacturer', 'head', 'palette', {
     headVariantId: 'mfr-helixworks',
     manufacturer: 'HelixWorks',
+    delisted: true,
   }),
 ];
 
@@ -193,6 +220,13 @@ const PART_BY_ID = new Map(SKIN_PARTS.map((p) => [p.id, p]));
 
 export function skinPartCatalog(partId: string): SkinPartCatalogDef | undefined {
   return PART_BY_ID.get(partId);
+}
+
+/** True when the part is delisted (Hero Pass H1): no new crafts,
+ *  no new listings — owned copies unaffected. The ONE read every
+ *  gate uses; availability stays catalog data keyed by part id. */
+export function skinPartDelisted(partId: string): boolean {
+  return PART_BY_ID.get(partId)?.delisted === true;
 }
 
 export function skinPartsForSet(setId: string): SkinPartCatalogDef[] {
