@@ -18,6 +18,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Pistols, SMGs, and shotguns are hand-built now too** — following the sniper's lead, three more weapon types are drawn from hand-authored part art: every barrel, grip, receiver, magazine, chamber, and sight variant is a drawn piece, assembled by the same rules. The rolled parts still pick which pieces your gun is built from, and maker, element, and rarity dress them as before — a shotgun's pump is a drawn piece now as well.
 - **The last smooth-vector art is gone** — skill-tree nodes, your profile trend lines, the consumable ring, the workbench's spark bursts, and the little icons that rise off a kill when loot lands are all drawn in the game's pixel hand now, and they lint under the same craft standard as item art. They show exactly what they showed before — they just finally match everything around them. A long-retired fallback stage that had been riding in the build unused went out the same door.
 - **Roaming moves like the boss fights now** — the Home stage while you roam renders on the same WebGL stage (PixiJS) the boss fights use: your hunter's poses blend instead of snapping, shots, dodges, and kills play out as one continuous motion, and the vista drifts behind it all. Same scene, same enemies, same loot beats — only the motion changed. Devices that can't create a WebGL context keep the previous stage automatically.
+- **Extraction works the site now** — while a pass runs, your hunter works the sift rig on the Home stage in a steady dig-and-sift rhythm instead of holding one frozen pose for ten minutes, and when a pass lands, what it dug up rises off the rig — each material and essence shown at the count it settled — while the workspace below keeps the written record as always.
 
 ## 2026-11-06 — Gear reads faster, the Manual moves in
 
@@ -174,9 +175,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 184 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 189 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-07** — 12 merges
+**2026-11-07** — 17 merges
 
 - #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
 - #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
@@ -190,6 +191,11 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #444 — Pxl S3: gear-engine craft pass — selout, broken-edge toolkit, wear ladder, Absorb rewrite
 - #445 — Hero pxl ship: converted character lands (38 sprites), palette unification, death sprites deleted
 - #446 — V5 small fixes: logo recompressed, AreaBackground + SVG fallback diorama deleted
+- #447 — Bench slice: V2 bench re-author + M4b item-on-the-bench (seat, rise, salvage beat)
+- #448 — SVG closure: last vector surfaces to pixel, fallback diorama killed
+- #449 — S5 scale-up batch 2: authored bases — launcher + beam (Pxl Craft Sweep)
+- #450 — Weapon authored bases, batch 1: Pistol, SMG, Shotgun (S5 pattern)
+- #451 — Motion Reboot M2: Home ROAM stage on Pixi (pilot standard)
 
 **2026-11-06** — 10 merges
 

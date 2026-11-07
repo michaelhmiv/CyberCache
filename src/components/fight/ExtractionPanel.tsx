@@ -11,7 +11,7 @@ import { buildExtractionActivity } from '../../lib/activity/activityBuilders';
 import { ROAMING_AREAS, getRoamingArea } from '../../constants/roamingAreas';
 import { signatureMaterialForArea } from '../../content/roamingEvents';
 import { pixelBackgroundForArea, requirePixelSprite } from '../../lib/pixel/manifest';
-import { useIdleStore } from '../../store';
+import { useExtractionFeedStore, useIdleStore } from '../../store';
 import { useNow } from '../../hooks/useNow';
 import { AreaPickerList, CurrentAreaChip } from '../common/AreaPicker';
 import { MobileCard } from '../layout/MobileCard';
@@ -30,6 +30,12 @@ import { MobileCard } from '../layout/MobileCard';
  * The countdown is a display interpolation of the server's accrued
  * figure, refreshed on every read — when it runs out the panel
  * re-reads instead of inventing an outcome.
+ *
+ * Settled passes are also republished to the extraction feed
+ * (extractionFeedSlice) — the panel is the settle's only client
+ * recipient, and the Home stage's pass presentation (M4a) reads
+ * the feed. This panel remains the written record; the stage
+ * appearance is additive and derives from the same payload.
  */
 
 const slashClip = { clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' };
@@ -76,6 +82,16 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
         }
         if (extraction.settled.passes.length > 0) {
           setLastPasses(extraction.settled.passes);
+          // Stage signal (Motion M4a): this read is the settle's
+          // only client recipient, so the panel republishes each
+          // pass it just learned about to the extraction feed —
+          // the Home stage presents the finds rising off the rig
+          // from the same payload this card prints (one source,
+          // two surfaces). The feed dedups by pass index, so a
+          // repeated read can never announce a pass twice.
+          for (const pass of extraction.settled.passes) {
+            useExtractionFeedStore.getState().pushPass(pass);
+          }
           setSessionFinds((prev) => {
             const next = { ...prev };
             for (const [k, v] of Object.entries(extraction.settled.materials)) next[k] = (next[k] ?? 0) + v;

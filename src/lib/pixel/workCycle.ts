@@ -95,6 +95,11 @@ export interface WorkCycleSpec {
  *   a low lift and a long fit pause; no sparks, a cool work light.
  * - calibration: the shield-tech rig. Delicate small motions and
  *   a three-step sweep around the rig; no sparks, violet glow.
+ * - sift: the extraction site (M4a). Site work, not bench work:
+ *   a two-handed lift of the sift screen, a dig that lands late
+ *   in the period, then the long settle while the screen works —
+ *   grit kicking off it at the dig (dust, not metal sparks) and
+ *   the site lamp's warm spill at the rig.
  */
 export const WORK_CYCLE_SPECS: Record<string, WorkCycleSpec> = {
   forge: {
@@ -165,17 +170,38 @@ export const WORK_CYCLE_SPECS: Record<string, WorkCycleSpec> = {
     glowPeak: 0.35,
     sweepSteps: 3,
   },
+  sift: {
+    id: 'sift',
+    liftAt: 0.34,
+    strikeAt: 0.52,
+    holdFrac: 0.16,
+    liftDeg: 12,
+    pressDeg: 6,
+    foreRatio: 1.1,
+    farArmRatio: 0.6,
+    torsoRatio: 0.3,
+    headRatio: 0.32,
+    pressUnits: 1.2,
+    sparks: { color: '#C9B18C' },
+    glowColor: '#FFD9A0',
+    glowPeak: 0.22,
+    sweepSteps: 0,
+  },
 };
 
 /**
  * Home-stage mode → choreography spec id, as data. Modes absent
- * here are not work-cycle tenants (roam, boss, extraction, market
- * listing — the listing's low-amplitude cycle is M4's tenant).
+ * here are not work-cycle tenants (roam, boss, market listing —
+ * the listing's low-amplitude cycle is M4c's tenant). Extraction
+ * joined in M4a: the occupation holds the stage for a whole pass,
+ * so its cycle runs while the mode holds, on the salvaging
+ * precedent (the mode holding the stage IS the work).
  */
 export const WORK_CYCLE_SPEC_BY_MODE: Record<string, string> = {
   crafting: 'forge',
   salvaging: 'crush',
   workshopService: 'assembly',
+  extraction: 'sift',
 };
 
 /**

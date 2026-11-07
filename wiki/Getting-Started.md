@@ -40,6 +40,7 @@ Only **transacting** requires signing in:
 - Buying, selling, or listing on [[The Market]]
 - Posting or accepting jobs on the [[Repair Board]] and [[Shield-Tech]] boards
 - Claiming contract rewards on [[The Board]]
+- Working an extraction site — its finds flow into crafting and trade, so its start gate asks for sign-in like the rest
 
 When a guest taps a locked action, the game says so and offers the Google sign-in right there — with your progress carrying over, per the rule above.
 

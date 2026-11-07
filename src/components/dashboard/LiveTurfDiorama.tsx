@@ -18,6 +18,15 @@ import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEn
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
+import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
+import {
+  EXTRACTION_RISE_STAGGER_MS,
+  extractionBeatDurationMs,
+  extractionRisesForPass,
+  type ExtractionRise,
+} from '@/lib/pixel/extractionRise';
+import { extractionPassFeedId } from '@/store/slices/extractionFeedSlice';
+import type { ChefExtractionPass } from '@/lib/chef/chefClient';
 import { BenchFx } from '@/components/pixelArt/BenchFx';
 import { BenchItemRender } from '@/components/pixelArt/BenchSeat';
 import {
@@ -56,7 +65,7 @@ import { BossFightStage } from '@/components/pixelArt/BossFightStage';
 import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMoment';
 import { DROP_RISE_GRIDS, dropRisePalette } from '@/lib/pixel/dropRiseIcons';
 import { getLiveTurfScene } from '@/constants/liveTurfVisuals';
-import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore, useSalvageFeedStore } from '@/store';
+import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore, useSalvageFeedStore, useExtractionFeedStore } from '@/store';
 import { MONSTERS, getMonster } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { Rarity } from '@/types/game';
@@ -445,7 +454,7 @@ const PixelSceneLayerDom: React.FC<{
     weapon ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(weapon)) : undefined,
   );
 
-  // ── Work cycle (Motion Reboot M1) ─────────────────────────────
+  // ── Work cycle (Motion Reboot M1; extraction M4a) ────────────
   // Bench modes run the work cycle: the hunter WORKS the set piece
   // (pose 'work' + the mode's choreography spec executed by the
   // actor, set-piece FX at the work point) instead of standing at
@@ -456,8 +465,14 @@ const PixelSceneLayerDom: React.FC<{
   // the workshop's own). Salvaging has no job queue: the mode
   // holding the stage IS the work — each recycle is a verified op
   // performed under it.
-  const benchSpecId = WORK_CYCLE_SPEC_BY_MODE[mode];
-  const benchSpec = benchSpecId ? WORK_CYCLE_SPECS[benchSpecId] : undefined;
+  // Extraction (M4a) is a registry tenant too ('sift'), but the
+  // bench machinery below — lane reads, the seat, completion
+  // rises — belongs to the bench lanes only; extraction's spec is
+  // derived separately and drives its own cycle + pass beats.
+  const cycleSpecId = WORK_CYCLE_SPEC_BY_MODE[mode];
+  const cycleSpec = cycleSpecId ? WORK_CYCLE_SPECS[cycleSpecId] : undefined;
+  const benchSpec = mode === 'extraction' ? undefined : cycleSpec;
+  const extractionSpec = mode === 'extraction' ? cycleSpec : undefined;
   const workshopJobs = useWorkshopStore((state) => state.server?.jobs);
   const recentCompletions = useWorkshopStore((state) => state.server?.recentCompletions);
   const benchServiceLane = mode === 'workshopService';
@@ -539,6 +554,76 @@ const PixelSceneLayerDom: React.FC<{
     const timer = setTimeout(() => setSalvageBeat(null), MOVEMENT.LOOT_RISE_MS);
     return () => clearTimeout(timer);
   }, [salvageBeat]);
+
+  // ── Extraction pass appearance (Motion M4a) ───────────────────
+  // Settled passes arrive on the extraction feed — the panel is
+  // the settle's only client recipient and republishes each pass
+  // there (extractionFeedSlice). A pass that settles while
+  // extraction holds the stage earns the bench lanes' beat
+  // grammar: the hunter celebrates, the sift cycle holds, and the
+  // pass's finds rise off the rig — one rise per material /
+  // essence type at its settled count (extractionRise.ts); the
+  // panel's "Just landed" card prints the same payload as the
+  // record, so the two surfaces can never disagree. Seen-set
+  // discipline matches the craft lanes: the feed's contents at
+  // first view are history and never replay; a multi-pass settle
+  // sequences one beat per pass, oldest first; passes settling
+  // while another mode holds the stage are marked seen without a
+  // beat; a pass with no finds earns no beat; reduced motion
+  // silences the presentation entirely.
+  const extractionFeedPasses = useExtractionFeedStore((state) => state.passes);
+  const [extractionBeat, setExtractionBeat] = useState<{ key: string; rises: ExtractionRise[] } | null>(null);
+  const extractionQueueRef = useRef<ChefExtractionPass[]>([]);
+  const seenExtractionRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const keys = new Set(extractionFeedPasses.map((e) => e.id));
+    if (seenExtractionRef.current === null) {
+      seenExtractionRef.current = keys;
+      return;
+    }
+    const fresh = extractionFeedPasses.filter((e) => !seenExtractionRef.current!.has(e.id));
+    seenExtractionRef.current = keys;
+    if (mode !== 'extraction' || reduced || fresh.length === 0) return;
+    // The feed is newest-first; beats play in settlement order.
+    for (const entry of [...fresh].reverse()) {
+      if (extractionRisesForPass(entry.pass).length > 0) {
+        extractionQueueRef.current.push(entry.pass);
+      }
+    }
+  }, [extractionFeedPasses, mode, reduced]);
+  // Leaving the mode retires the live beat on the spot — a
+  // render-phase adjustment (React's sanctioned pattern for
+  // prop-change resets; an effect would retire it a commit
+  // late). Queued beats are dropped by the effect below (refs
+  // only): their passes are already marked seen, so they never
+  // replay on return.
+  const [extractionBeatMode, setExtractionBeatMode] = useState(mode);
+  if (mode !== extractionBeatMode) {
+    setExtractionBeatMode(mode);
+    setExtractionBeat(null);
+  }
+  useEffect(() => {
+    if (mode !== 'extraction') extractionQueueRef.current = [];
+  }, [mode]);
+  // Beat driver: when no beat is live, the next queued pass plays.
+  useEffect(() => {
+    if (extractionBeat || mode !== 'extraction') return;
+    const next = extractionQueueRef.current.shift();
+    if (!next) return;
+    setExtractionBeat({ key: extractionPassFeedId(next), rises: extractionRisesForPass(next) });
+  }, [extractionBeat, mode, extractionFeedPasses]);
+  useEffect(() => {
+    if (!extractionBeat) return;
+    const timer = setTimeout(
+      () => setExtractionBeat(null),
+      extractionBeatDurationMs(extractionBeat.rises.length),
+    );
+    return () => clearTimeout(timer);
+  }, [extractionBeat]);
+  /** A settled pass's beat is live: the hunter celebrates and the
+   *  sift cycle + rig FX hold for the rises. */
+  const extractionCelebrating = !!extractionBeat;
+
   /** Either lane's completion beat is live: the hunter celebrates
    *  and the work cycle + set-piece FX hold for the rise. */
   const benchCelebrating = !!activeBenchCompletion || !!salvageBeat;
@@ -687,6 +772,21 @@ const PixelSceneLayerDom: React.FC<{
           testId="bench-fx"
         />
       )}
+      {/* Extraction set-piece FX (M4a): the sift spec's lamp glow
+          and grit burst at the rig's work point — the same spec
+          the hunter's cycle executes, so FX and figure can never
+          drift — silent while a pass beat celebrates and under
+          reduced motion. */}
+      {extractionSpec && (
+        <BenchFx
+          spec={extractionSpec}
+          active={!extractionCelebrating}
+          reduced={reduced}
+          xPct={58}
+          yPct={(groundY - 0.17) * 100}
+          testId="extraction-fx"
+        />
+      )}
       {/* The item on the bench (M4b): the running job's output
           picture seated AT the work point — the same anchor the
           FX burst from, so the sparks land on the work itself.
@@ -733,6 +833,62 @@ const PixelSceneLayerDom: React.FC<{
         >
           <BenchItemRender plan={salvageBeat.plan} testId="salvage-rise-render" />
         </motion.div>
+      )}
+      {/* Extraction pass rises (M4a): the settled pass's finds lift
+          off the sift rig — one PixelMaterial rise per material /
+          essence type at its settled count, fanned across the rig
+          on the law's loot-rise duration with a small stagger.
+          The panel's "Just landed" card prints the same payload
+          as the record. */}
+      {extractionBeat && (
+        <div
+          key={extractionBeat.key}
+          data-testid="extraction-pass-rises"
+          data-pass-key={extractionBeat.key}
+          className="pointer-events-none absolute inset-0 z-30"
+        >
+          {extractionBeat.rises.map((rise, i) => (
+            <motion.div
+              key={`${rise.kind}-${rise.id}`}
+              data-testid="extraction-pass-rise"
+              data-rise-id={rise.id}
+              data-rise-kind={rise.kind}
+              data-rise-qty={rise.qty}
+              className="pointer-events-none absolute"
+              style={{
+                left: `${58 + (i - (extractionBeat.rises.length - 1) / 2) * 7}%`,
+                top: `${(groundY - 0.17) * 100}%`,
+                width: 46,
+                height: 58,
+                marginLeft: -23,
+                marginTop: -40,
+              }}
+              initial={{ y: 6, opacity: 0, scale: 0.6 }}
+              animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
+              transition={{
+                duration: MOVEMENT.LOOT_RISE_MS / 1000,
+                delay: (i * EXTRACTION_RISE_STAGGER_MS) / 1000,
+                times: [0, 0.2, 0.7, 1],
+                ease: 'easeOut',
+              }}
+            >
+              <div className="flex h-full flex-col items-center" style={{ paddingTop: 9 }}>
+                <PixelMaterial id={rise.id} size={30} />
+                <span
+                  style={{
+                    color: dropAssetColor(rise.id),
+                    fontSize: 9,
+                    fontWeight: 900,
+                    lineHeight: 1.4,
+                    textShadow: '1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000',
+                  }}
+                >
+                  ×{rise.qty}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       )}
 
       {/* Event prop on the loot stage (§3.4): the fired event's named
@@ -833,18 +989,25 @@ const PixelSceneLayerDom: React.FC<{
             workCycle={{ spec: benchSpec, active: benchWorking && !benchCelebrating }}
             testId="pixel-hunter"
           />
-        ) : mode === 'extraction' ? (
-          /* Extraction (one-stage law, 2026-11-04): the hunter
-             WORKS the site on the stage — pose 'work', weapon
-             slung (no held weapon is drawn; this is gathering,
-             not combat), exactly the treatment the retired
-             in-panel scene used. */
+        ) : extractionSpec ? (
+          /* Extraction (one-stage law, 2026-11-04; Motion M4a):
+             the hunter WORKS the site on the stage — pose 'work',
+             weapon slung (no held weapon is drawn; this is
+             gathering, not combat) — and the sift cycle executes
+             while the occupation holds the stage: unlike the
+             bench lanes there is no job mirror to read, so the
+             mode holding the stage IS the work (the salvaging
+             precedent). A pass settling mid-watch switches him
+             to the celebrate beat while its finds rise off the
+             rig; reduced motion holds the work pose, the pre-M4a
+             picture exactly. */
           <PixelPartsActor
             set={hunterSet}
             partPalettes={look.partPalettes}
             {...hunterPlacement}
             reduced={reduced}
-            pose="work"
+            pose={extractionCelebrating ? 'celebrate' : 'work'}
+            workCycle={{ spec: extractionSpec, active: !extractionCelebrating }}
             testId="pixel-hunter"
           />
         ) : weapon ? (

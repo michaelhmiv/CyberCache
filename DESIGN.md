@@ -1647,6 +1647,47 @@ machinery:
   shows, which is a behavior change, not an optimization. Pools
   are pre-allocated; nothing spawns per frame.
 
+### Extraction works — Motion M4a (2026-11-07)
+
+Extraction was the stage's last statue: the hunter tweened into
+the `work` pose and held it for an entire 10-minute pass, and a
+settled pass's finds died in the workspace panel as a text card —
+nothing on the stage ever showed a find landing. M4a closes
+both, with no server change (the settle response already itemizes
+every pass by type and count):
+
+- **The sift cycle.** Extraction joins the work-cycle registry as
+  a data row (`WORK_CYCLE_SPEC_BY_MODE.extraction = 'sift'`): a
+  two-handed lift of the sift screen, a late dig, the long settle
+  while the screen works — grit off the screen at the dig, the
+  site lamp's glow at the rig, executed by the same M1 engine on
+  the same law period. There is no job mirror to read: the mode
+  holding the stage IS the work (the salvaging precedent), so the
+  cycle runs while the occupation holds the slot. The bench
+  lanes' machinery (lane reads, the seat, completion rises) does
+  not extend to it — the registry row is the only coupling.
+- **Finds appear.** The settle's only client recipient is the
+  panel's state read; the panel republishes each settled pass to
+  the extraction feed (`extractionFeedSlice`), and the stage
+  consumes it under the mirror's seen-set discipline — history
+  never replays, passes settling under another mode are marked
+  seen without a beat, a multi-pass settle sequences one beat
+  per pass oldest-first. The beat is the bench grammar: celebrate
+  pose, cycle held, and the pass's finds rising off the rig —
+  one `PixelMaterial` rise per material/essence type at its exact
+  settled count (largest six; the panel's "Just landed" card is
+  the complete record), a pure function of the same payload the
+  panel prints, so stage and card can never disagree. A pass
+  with no finds earns no beat. `LootMoment` is not the vehicle —
+  it is gear/rarity-typed and cannot consume material counts —
+  and no per-draw replay exists: the server folds each pass's
+  draws into per-type counts, so per-type appearance is the
+  honest maximum. Rise timing is the existing `LOOT_RISE_MS`;
+  the loot ladder appears nowhere in this slice, and
+  movement.ts is unmodified.
+- **Reduced motion** restores the pre-M4a picture exactly: held
+  `work` pose, no cycle, no FX, no rises.
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in

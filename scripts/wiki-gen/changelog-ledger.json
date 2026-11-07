@@ -52,6 +52,26 @@
         {
           "number": 446,
           "title": "V5 small fixes: logo recompressed, AreaBackground + SVG fallback diorama deleted"
+        },
+        {
+          "number": 447,
+          "title": "Bench slice: V2 bench re-author + M4b item-on-the-bench (seat, rise, salvage beat)"
+        },
+        {
+          "number": 448,
+          "title": "SVG closure: last vector surfaces to pixel, fallback diorama killed"
+        },
+        {
+          "number": 449,
+          "title": "S5 scale-up batch 2: authored bases — launcher + beam (Pxl Craft Sweep)"
+        },
+        {
+          "number": 450,
+          "title": "Weapon authored bases, batch 1: Pistol, SMG, Shotgun (S5 pattern)"
+        },
+        {
+          "number": 451,
+          "title": "Motion Reboot M2: Home ROAM stage on Pixi (pilot standard)"
         }
       ]
     },
