@@ -28,7 +28,13 @@
  */
 import type { RgbaImage } from './pngCodec';
 import { blit, blitRotated, hexToRgb, newCanvas, type SpriteLoader } from './sceneRenderer';
-import { composePixelWeapon, weaponGripFraction, type PixelWeaponInput } from './weaponCompositor';
+import { WeaponType } from '@/types/game';
+import type { PixelWeaponInput } from './weaponCompositor';
+import {
+  composeWeaponCard,
+  WEAPON_CARD_GRIP_FRACTIONS,
+  type WeaponCardRender,
+} from './weaponCardCompositor';
 import { GEAR_PAINT_ORDER, resolveGearMount, type MountedGearItem } from './gearMounts';
 import { remapPixelData, type PaletteSpec } from './paletteSwap';
 import {
@@ -307,12 +313,20 @@ export function layoutPartSet(set: PartSetDef, pose: PartPose, weapon?: PartsWea
   };
 }
 
-/** Fractions for a compositor (kit) weapon, from its own render:
- *  the grip is the type's grip fraction; the muzzle is the render's
- *  rightmost opaque cell — the same measurement composePartSet
- *  applies to the rasterized render. */
+/** The declared held-mode grip fraction for a weapon type (One
+ *  Grammar): WEAPON_CARD_GRIP_FRACTIONS is the data; the Pistol
+ *  fallback mirrors the compositors' own type normalization. */
+export function cardGripFraction(weaponType: WeaponType): PartPoint {
+  return WEAPON_CARD_GRIP_FRACTIONS[weaponType] ?? WEAPON_CARD_GRIP_FRACTIONS[WeaponType.Pistol];
+}
+
+/** Fractions for a compositor (kit) weapon, from its HELD card
+ *  render (One Grammar, 2026-11-06): the grip is the type's
+ *  declared card anchor; the muzzle is the render's rightmost
+ *  opaque cell — the same measurement composePartSet applies to
+ *  the rasterized render. */
 export function compositorWeaponFractions(input: PixelWeaponInput): PartsWeaponFractions {
-  const render = composePixelWeapon(input);
+  const render = composeWeaponCard(input, undefined, { held: true });
   let bestX = -1;
   let bestY = 0;
   for (let y = 0; y < render.height; y++) {
@@ -325,7 +339,7 @@ export function compositorWeaponFractions(input: PixelWeaponInput): PartsWeaponF
     }
   }
   return {
-    gripFrac: weaponGripFraction(input.weaponType),
+    gripFrac: cardGripFraction(input.weaponType),
     muzzleFrac: bestX < 0 ? { x: 1, y: 0.5 } : { x: (bestX + 0.5) / render.width, y: (bestY + 0.5) / render.height },
     aspect: render.height / render.width,
   };
@@ -400,11 +414,12 @@ function placePartExact(layer: RgbaImage, src: RgbaImage, dx: number, dy: number
   }
 }
 
-/** The kit weapon's render as a plain raster (texel = 1 px) — the
- *  exact image composePartSet blits into the composite. Exported
- *  for the loadout-truth tests, which rebuild the armed render from
- *  its two declared sources (parts + weapon raster) and diff. */
-export function rasterizeWeaponRaster(render: ReturnType<typeof composePixelWeapon>): RgbaImage {
+/** The kit weapon's HELD card render as a plain raster (texel =
+ *  1 px) — the exact image composePartSet blits into the
+ *  composite. Exported for the loadout-truth tests, which rebuild
+ *  the armed render from its two declared sources (parts + weapon
+ *  raster) and diff. */
+export function rasterizeWeaponCardRaster(render: WeaponCardRender): RgbaImage {
   const img = newCanvas(render.width, render.height);
   for (let y = 0; y < render.height; y++) {
     const row = render.rows[y];
@@ -547,9 +562,13 @@ export function composePartSet(
     let gripFrac: PartPoint;
     let muzzleFrac: PartPoint;
     if (opts.weapon.kind === 'compositor') {
-      const render = composePixelWeapon(opts.weapon.input);
-      raster = rasterizeWeaponRaster(render);
-      gripFrac = weaponGripFraction(opts.weapon.input.weaponType);
+      // One Grammar (2026-11-06): the held weapon is the CARD
+      // grammar in held mode — the pixel path no longer seats a
+      // weapon on the stage. Bespoke legendaries keep their own
+      // branch below, untouched.
+      const render = composeWeaponCard(opts.weapon.input, undefined, { held: true });
+      raster = rasterizeWeaponCardRaster(render);
+      gripFrac = cardGripFraction(opts.weapon.input.weaponType);
       muzzleFrac = muzzleFraction(raster);
     } else {
       const sprite = load(opts.weapon.spriteId);

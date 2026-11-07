@@ -3,15 +3,6 @@
   "startDate": "2026-11-01",
   "days": [
     {
-      "date": "2026-11-07",
-      "merges": [
-        {
-          "number": 435,
-          "title": "test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders"
-        }
-      ]
-    },
-    {
       "date": "2026-11-06",
       "merges": [
         {

@@ -19,10 +19,19 @@ import {
  * Barrel, Grip, Core, Magazine, Sight, Chamber — and this compositor renders
  * any such roll as a pixel weapon. Geometry is keyed by (weapon type x part
  * slot); the specific variant inside a slot is a pure function of that part's
- * rolled modifier, so the SAME item always renders the SAME image, on every
- * surface (inventory, market, workshop, diorama). Manufacturer identity comes
- * from palette/finish (MANUFACTURER_WEAPON_STYLES), rarity from trim + glow
+ * rolled modifier, so the SAME item always renders the SAME image.
+ * Manufacturer identity comes from palette/finish
+ * (MANUFACTURER_WEAPON_STYLES), rarity from trim + glow
  * (RARITY_FRAME_STYLES) — the same identity sources the vector art used.
+ *
+ * This 120×44 small grid is the detail-level-0 density (DESIGN.md
+ * §8): compact list rows and feed thumbs compose here because the
+ * 240×88 card compose is too heavy to run per row. Since the One
+ * Grammar ruling (2026-11-06) it no longer renders on any stage —
+ * held weapons come from the card grammar's held mode
+ * (weaponCardCompositor.ts). This module also stays the home of
+ * the shared input contract (PixelWeaponInput, partVariant,
+ * pixelWeaponInputFromWeapon) both weapon grammars read.
  *
  * Presentation only: this module reads item data and produces pixels. It
  * never mutates state and never produces gameplay outcomes.
@@ -114,17 +123,17 @@ function hashString(input: string): number {
   return hash >>> 0;
 }
 
-function normalizeRarity(rarity: Rarity | string): Rarity {
+export function normalizeRarity(rarity: Rarity | string): Rarity {
   return (Object.values(Rarity) as string[]).includes(rarity) ? (rarity as Rarity) : Rarity.Common;
 }
 
-function normalizeType(weaponType: WeaponType): WeaponType {
+export function normalizeType(weaponType: WeaponType): WeaponType {
   return (Object.values(WeaponType) as string[]).includes(weaponType)
     ? weaponType
     : WeaponType.Pistol;
 }
 
-function normalizeManufacturer(manufacturer: Manufacturer): Manufacturer {
+export function normalizeManufacturer(manufacturer: Manufacturer): Manufacturer {
   return (Object.values(Manufacturer) as string[]).includes(manufacturer)
     ? manufacturer
     : Manufacturer.Redline;
@@ -160,20 +169,6 @@ interface TypeLayout {
   magLen: number;
   gripH: number;
   stockLen: number;
-}
-
-/**
- * Where the wielder's hand grips this weapon type, as fractions of the
- * 120×44 render view (overhaul §4.2: held weapons align grip-to-grip
- * with the hunter's manifest grip anchor instead of hard-coded stage
- * percentages). Derived from the type layout's body position.
- */
-export function weaponGripFraction(weaponType: WeaponType): { x: number; y: number } {
-  const layout = TYPE_LAYOUTS[normalizeType(weaponType)];
-  return {
-    x: (layout.bodyX + layout.bodyLen * 0.3) / PIXEL_WEAPON_WIDTH,
-    y: (24 + layout.gripH * 0.35) / PIXEL_WEAPON_HEIGHT,
-  };
 }
 
 const TYPE_LAYOUTS: Record<WeaponType, TypeLayout> = {
