@@ -15,6 +15,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Item art is lint-checked now** — every procedurally drawn item in the game (weapons, gear, consumables, materials — 366 renders across every system) is checked in CI against the pixel craft standard: hue-shifted ramps, selective outlines, cluster discipline, and a ban on banded shading. The standard that made item art read richer yesterday now fails the build if it ever regresses.
 - **Launchers and beam rifles are hand-drawn now** — the last two weapon families get the sniper's authored treatment: the launcher's feed drum, box magazine, carry handle, and warhead, and the beam rifle's lit spine channel, twin prongs, and power cells are drawn once, well, and assembled from your actual part rolls. Every variant, element, and rarity of both families is refreshed — in your bag, on the big inspect card, and in your hunter's hands — and the Field Manual's pictures match.
 - **Dead weight overboard** — the stage's retired vector fallback scene and an unused area-background component are deleted outright: the pixel stage is the only stage now, with no dormant second scene waiting behind it. The game's logo file also ships at a quarter of its old weight (the lossless master stays in the repo for store use) — same logo, same picture, less to download.
+- **Pistols, SMGs, and shotguns are hand-built now too** — following the sniper's lead, three more weapon types are drawn from hand-authored part art: every barrel, grip, receiver, magazine, chamber, and sight variant is a drawn piece, assembled by the same rules. The rolled parts still pick which pieces your gun is built from, and maker, element, and rarity dress them as before — a shotgun's pump is a drawn piece now as well.
 - **The last smooth-vector art is gone** — skill-tree nodes, your profile trend lines, the consumable ring, the workbench's spark bursts, and the little icons that rise off a kill when loot lands are all drawn in the game's pixel hand now, and they lint under the same craft standard as item art. They show exactly what they showed before — they just finally match everything around them. A long-retired fallback stage that had been riding in the build unused went out the same door.
 
 ## 2026-11-06 — Gear reads faster, the Manual moves in
@@ -172,9 +173,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 182 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 184 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-07** — 10 merges
+**2026-11-07** — 12 merges
 
 - #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
 - #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
@@ -186,6 +187,8 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #442 — Pxl Craft Sweep S4 — small items unified onto one core + thumb form pass
 - #443 — S5: authored bases pilot — the sniper (Pxl Craft Sweep)
 - #444 — Pxl S3: gear-engine craft pass — selout, broken-edge toolkit, wear ladder, Absorb rewrite
+- #445 — Hero pxl ship: converted character lands (38 sprites), palette unification, death sprites deleted
+- #446 — V5 small fixes: logo recompressed, AreaBackground + SVG fallback diorama deleted
 
 **2026-11-06** — 10 merges
 

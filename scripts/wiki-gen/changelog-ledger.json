@@ -44,6 +44,14 @@
         {
           "number": 444,
           "title": "Pxl S3: gear-engine craft pass — selout, broken-edge toolkit, wear ladder, Absorb rewrite"
+        },
+        {
+          "number": 445,
+          "title": "Hero pxl ship: converted character lands (38 sprites), palette unification, death sprites deleted"
+        },
+        {
+          "number": 446,
+          "title": "V5 small fixes: logo recompressed, AreaBackground + SVG fallback diorama deleted"
         }
       ]
     },

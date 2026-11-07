@@ -36,6 +36,23 @@ import {
   type AuthoredPiece,
 } from './sniperAuthoredData';
 import {
+  PISTOL_AUTHORED_CHAMBER_ANCHORS,
+  PISTOL_AUTHORED_MAGAZINE_ANCHORS,
+  PISTOL_AUTHORED_OVERLAYS,
+  PISTOL_AUTHORED_PIECES,
+} from './pistolAuthoredData';
+import {
+  SMG_AUTHORED_CHAMBER_ANCHORS,
+  SMG_AUTHORED_MAGAZINE_ANCHORS,
+  SMG_AUTHORED_OVERLAYS,
+  SMG_AUTHORED_PIECES,
+} from './smgAuthoredData';
+import {
+  SHOTGUN_AUTHORED_CHAMBER_ANCHORS,
+  SHOTGUN_AUTHORED_OVERLAYS,
+  SHOTGUN_AUTHORED_PIECES,
+} from './shotgunAuthoredData';
+import {
   LAUNCHER_AUTHORED_CHAMBER_ANCHORS,
   LAUNCHER_AUTHORED_MAGAZINE_ANCHORS,
   LAUNCHER_AUTHORED_OVERLAYS,
@@ -928,7 +945,7 @@ function authoredSniperForm(ctx: Ctx) {
 }
 
 /* ------------------------------------------------------------------ */
-/* S5 scale-up batch 2 — the Launcher's and Beam's authored forms      */
+/* Authored bases — the registry (batch 1 + batch 2, reconciled)       */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -957,45 +974,158 @@ function authoredTubeBottom(ctx: Ctx) {
   }
 }
 
+type AuthoredSlot = 'layout' | 'barrel' | 'grip' | 'core' | 'magazine' | 'chamber' | 'sight';
+
 /**
- * The authored-bases scale-up (batch 2): for the LAUNCHER, the
- * form passes are replaced by authored part bases — 17 piece
- * slots drawn in pxl under the pxl-craft standard (sources +
- * converters archived with the batch evidence), seated by the
- * same CARD_LAYOUTS row the procedural passes read. Deltas from
- * the sniper pilot, all forced by the launcher's own code:
- *  - the Magazine data is [drum, box, drum]: production draws
- *    two effective forms across the three rolls (variant 1 the
- *    box; variants 0 and 2 the feed drum), so one drum drawing
- *    holds two seats in the roll space;
- *  - the Sight slot is a single piece — the carry handle, which
- *    the procedural barrel pass draws over the body (its sight
- *    pass draws nothing for this type);
- *  - the muzzle seat keeps the warhead's reach (bodyFront +
- *    barrelLen + 9), as production's barrel pass sets it.
- * Assembly is unchanged, exactly as in the pilot.
+ * One type's authored base set: the checked-in piece grids +
+ * overlay data + anchors, keyed by weapon type (shapes are data).
+ * The remaining fields are the types' own form facts, declared as
+ * data rather than as per-type code paths:
+ *  - stampOrder: the order the slots stamp in. Stamps overwrite,
+ *    so the order is part of the form — the shotgun's pump seats
+ *    UNDER its barrel (its magazine stamps before the barrel, as
+ *    the procedural pass order did); the launcher seats grip and
+ *    magazine ahead of its core and chamber, barrel last.
+ *  - kineticSlots: which slots take the Kinetic remap (grill 2).
+ *    Every type remaps its chamber window; the Beam remaps its
+ *    whole current path — the layout's spine row, the chamber
+ *    window, the magazine's cell gauge — because for the Beam the
+ *    element current IS the form (elementCurrent skips Beam:
+ *    "the core is the current").
+ *  - tubeBed: how the element current's bed (ctx.tubeBottom) is
+ *    derived — 'barrelPiece': from the stamped barrel piece
+ *    (bottom row − 1 per column, as for the sniper); 'profile':
+ *    from the shipped radius profile (the launcher, exactly as
+ *    its procedural barrel pass computes it); 'none': no bed is
+ *    derived (the Beam — the current pass never reads one).
+ *  - muzzleOverhang: extra muzzle reach past the layout's barrel
+ *    end (the launcher keeps its warhead's reach, +9; the beam
+ *    keeps the emitter tip's front edge, +3).
+ *  - stockAnchorAlways: the batch-2 forms seat the Stock anchor
+ *    unconditionally; the batch-1 forms seat it only where the
+ *    layout carries a stock (stockLen > 0).
+ *  - beadAndPorts (shotgun): the bead + heat holes stay drawn in
+ *    code where the procedural barrel pass put them, in both
+ *    modes — gun form, not presentation furniture.
+ * A slot's pieces may be a single piece instead of a variant
+ * triple: the launcher's Sight is one carry handle (the
+ * procedural barrel pass draws it over the body; its sight pass
+ * draws nothing), so its roll selects nothing. The launcher's
+ * Magazine data is [drum, box, drum]: production draws two
+ * effective forms across the three rolls, so one drum drawing
+ * holds two seats in the roll space. The shotgun authors no
+ * magazine anchor (procedural parity — the pump takes no decal
+ * anchor).
  */
-function authoredLauncherForm(ctx: Ctx) {
+interface AuthoredBaseSet {
+  pieces: Record<AuthoredSlot, AuthoredPiece | [AuthoredPiece, AuthoredPiece, AuthoredPiece]>;
+  overlays: {
+    magStripe: [[number, number][], [number, number][], [number, number][]];
+    receiverLine: [number, number][];
+    chamberLine: [[number, number][], [number, number][], [number, number][]];
+  };
+  chamberAnchors: [[number, number], [number, number], [number, number]];
+  magazineAnchors: [[number, number], [number, number], [number, number]] | null;
+  stampOrder: AuthoredSlot[];
+  kineticSlots: AuthoredSlot[];
+  tubeBed: 'barrelPiece' | 'profile' | 'none';
+  muzzleOverhang?: number;
+  stockAnchorAlways?: boolean;
+  beadAndPorts?: boolean;
+}
+
+const AUTHORED_BASE_SETS: Partial<Record<WeaponType, AuthoredBaseSet>> = {
+  [WeaponType.Pistol]: {
+    pieces: PISTOL_AUTHORED_PIECES,
+    overlays: PISTOL_AUTHORED_OVERLAYS,
+    chamberAnchors: PISTOL_AUTHORED_CHAMBER_ANCHORS,
+    magazineAnchors: PISTOL_AUTHORED_MAGAZINE_ANCHORS,
+    stampOrder: ['layout', 'core', 'chamber', 'barrel', 'sight', 'grip', 'magazine'],
+    kineticSlots: ['chamber'],
+    tubeBed: 'barrelPiece',
+  },
+  [WeaponType.SMG]: {
+    pieces: SMG_AUTHORED_PIECES,
+    overlays: SMG_AUTHORED_OVERLAYS,
+    chamberAnchors: SMG_AUTHORED_CHAMBER_ANCHORS,
+    magazineAnchors: SMG_AUTHORED_MAGAZINE_ANCHORS,
+    stampOrder: ['layout', 'core', 'chamber', 'barrel', 'sight', 'grip', 'magazine'],
+    kineticSlots: ['chamber'],
+    tubeBed: 'barrelPiece',
+  },
+  [WeaponType.Shotgun]: {
+    pieces: SHOTGUN_AUTHORED_PIECES,
+    overlays: SHOTGUN_AUTHORED_OVERLAYS,
+    chamberAnchors: SHOTGUN_AUTHORED_CHAMBER_ANCHORS,
+    magazineAnchors: null,
+    stampOrder: ['layout', 'core', 'chamber', 'magazine', 'barrel', 'sight', 'grip'],
+    kineticSlots: ['chamber'],
+    tubeBed: 'barrelPiece',
+    beadAndPorts: true,
+  },
+  [WeaponType.Launcher]: {
+    pieces: LAUNCHER_AUTHORED_PIECES,
+    overlays: LAUNCHER_AUTHORED_OVERLAYS,
+    chamberAnchors: LAUNCHER_AUTHORED_CHAMBER_ANCHORS,
+    magazineAnchors: LAUNCHER_AUTHORED_MAGAZINE_ANCHORS,
+    stampOrder: ['layout', 'grip', 'magazine', 'core', 'chamber', 'sight', 'barrel'],
+    kineticSlots: ['chamber'],
+    tubeBed: 'profile',
+    muzzleOverhang: 9,
+    stockAnchorAlways: true,
+  },
+  [WeaponType.Beam]: {
+    pieces: BEAM_AUTHORED_PIECES,
+    overlays: BEAM_AUTHORED_OVERLAYS,
+    chamberAnchors: BEAM_AUTHORED_CHAMBER_ANCHORS,
+    magazineAnchors: BEAM_AUTHORED_MAGAZINE_ANCHORS,
+    stampOrder: ['layout', 'core', 'chamber', 'barrel', 'sight', 'grip', 'magazine'],
+    kineticSlots: ['layout', 'chamber', 'magazine'],
+    tubeBed: 'none',
+    muzzleOverhang: 3,
+    stockAnchorAlways: true,
+  },
+};
+
+/**
+ * The S5 authored-form assembly, generalized over a type's base
+ * set: the slots stamp in the set's declared order (single-piece
+ * slots stamp their one piece), then the maker mark, the rarity
+ * overlays, the anchors, the tube bed, and the muzzle. Every
+ * living pass runs after, unchanged. Batch 1 (Pistol / SMG /
+ * Shotgun) introduced the registry; the batch-2 reconciliation
+ * folded the Launcher and Beam in as registry rows — their
+ * per-type form functions are gone, their form facts live in
+ * their rows above. Unlike the sniper — whose procedural sight
+ * pass collapsed its variants into one coded scope — these
+ * types' Sight slots carry authored forms (the launcher's single
+ * carry handle excepted).
+ */
+function authoredSetForm(ctx: Ctx, set: AuthoredBaseSet) {
   const { g, input, L } = ctx;
-  const P = LAUNCHER_AUTHORED_PIECES;
-  const O = LAUNCHER_AUTHORED_OVERLAYS;
   const wood = isWood(input.manufacturer);
   const remap = wood ? AUTHORED_WOOD_REMAP : undefined;
   const kinetic = !input.element || input.element === Element.Kinetic;
-  const barrelV = ctx.variant('Barrel');
-  const gripV = ctx.variant('Grip');
-  const coreV = ctx.variant('Core');
-  const magV = ctx.variant('Magazine');
-  const chamberV = ctx.variant('Chamber');
+  const kinRemap = kinetic ? { ...remap, ...AUTHORED_KINETIC_REMAP } : remap;
+  const variantOf: Record<AuthoredSlot, number> = {
+    layout: 0,
+    barrel: ctx.variant('Barrel'),
+    grip: ctx.variant('Grip'),
+    core: ctx.variant('Core'),
+    magazine: ctx.variant('Magazine'),
+    sight: ctx.variant('Sight'),
+    chamber: ctx.variant('Chamber'),
+  };
 
-  stampAuthoredPiece(ctx, P.layout, remap);
-  stampAuthoredPiece(ctx, P.grip[gripV], remap);
-  stampAuthoredPiece(ctx, P.magazine[magV], remap);
-  stampAuthoredPiece(ctx, P.core[coreV], remap);
-  stampAuthoredPiece(ctx, P.chamber[chamberV],
-    kinetic ? { ...remap, ...AUTHORED_KINETIC_REMAP } : remap);
-  stampAuthoredPiece(ctx, P.sight, remap);
-  stampAuthoredPiece(ctx, P.barrel[barrelV], remap);
+  const stamped = {} as Record<AuthoredSlot, AuthoredPiece>;
+  for (const slot of set.stampOrder) {
+    const entry = set.pieces[slot];
+    const piece = Array.isArray(entry) ? entry[variantOf[slot]] : entry;
+    stamped[slot] = piece;
+    stampAuthoredPiece(ctx, piece, set.kineticSlots.includes(slot) ? kinRemap : remap);
+  }
+  const magV = variantOf.magazine;
+  const chamberV = variantOf.chamber;
 
   // Maker mark, stamped in the receiver's dark tone — the same
   // detail the procedural receiver pass stamps, at the same seat.
@@ -1004,88 +1134,48 @@ function authoredLauncherForm(ctx: Ctx) {
   // Rarity-gated geometry (overlay data, sweep scope 5): magazine
   // stripe (Uncommon+), receiver line (Rare+), chamber line (Epic+).
   const rarity = input.rarity as Rarity;
-  if (rarity !== Rarity.Common) stampAuthoredOverlayCells(ctx, O.magStripe[magV]);
+  if (rarity !== Rarity.Common) stampAuthoredOverlayCells(ctx, set.overlays.magStripe[magV]);
   if (rarity === Rarity.Rare || rarity === Rarity.Epic || rarity === Rarity.Legendary) {
-    stampAuthoredOverlayCells(ctx, O.receiverLine);
+    stampAuthoredOverlayCells(ctx, set.overlays.receiverLine);
   }
   if (rarity === Rarity.Epic || rarity === Rarity.Legendary) {
-    stampAuthoredOverlayCells(ctx, O.chamberLine[chamberV]);
+    stampAuthoredOverlayCells(ctx, set.overlays.chamberLine[chamberV]);
   }
 
-  const [chAx, chAy] = LAUNCHER_AUTHORED_CHAMBER_ANCHORS[chamberV];
+  // Anchors. The Stock anchor seats where the layout carries a
+  // stock, or always where the set declares it (batch 2).
+  const [chAx, chAy] = set.chamberAnchors[chamberV];
   ctx.anchors.Chamber = { x: chAx * TEXEL, y: chAy * TEXEL };
-  const [mgAx, mgAy] = LAUNCHER_AUTHORED_MAGAZINE_ANCHORS[magV];
-  ctx.anchors.Magazine = { x: mgAx * TEXEL, y: mgAy * TEXEL };
-  ctx.anchors.Stock = { x: (L.bodyX - L.stockLen + 4) * TEXEL, y: SPINE * TEXEL };
-  authoredTubeBottom(ctx);
-  ctx.muzzleX = ctx.bodyFront + L.barrelLen + 9;
-}
-
-/**
- * The authored-bases scale-up (batch 2): for the BEAM, the form
- * passes are replaced by authored part bases — 19 pieces drawn
- * in pxl under the pxl-craft standard (sources + converters
- * archived with the batch evidence), seated by the same
- * CARD_LAYOUTS row the procedural passes read. Deltas from the
- * sniper pilot, all forced by the beam's own code:
- *  - the Sight slot is authored x3 (the generic sight pass reads
- *    the beam's variant — iron / reflex / tower; nothing
- *    collapses);
- *  - the Kinetic remap (grill 2) covers the gun's whole current
- *    path — the layout's spine row, the chamber window, the cell
- *    gauge — because for this type the element current IS the
- *    form (elementCurrent skips Beam: "the core is the current");
- *    the core shells carry no element keys and the channel shows
- *    through their slit in the layout's row;
- *  - muzzleX keeps the procedural beam's seat (the emitter tip's
- *    front edge, tipX + 3); there is no bipod furniture to draw,
- *    and no tube bed to derive — the current pass never reads
- *    one for this type.
- * Assembly is unchanged, exactly as in the pilot.
- */
-function authoredBeamForm(ctx: Ctx) {
-  const { g, input, L } = ctx;
-  const wood = isWood(input.manufacturer);
-  const remap = wood ? AUTHORED_WOOD_REMAP : undefined;
-  const kinetic = !input.element || input.element === Element.Kinetic;
-  const kinRemap = kinetic ? { ...remap, ...AUTHORED_KINETIC_REMAP } : remap;
-  const barrelV = ctx.variant('Barrel');
-  const gripV = ctx.variant('Grip');
-  const coreV = ctx.variant('Core');
-  const magV = ctx.variant('Magazine');
-  const chamberV = ctx.variant('Chamber');
-  const sightV = ctx.variant('Sight');
-
-  stampAuthoredPiece(ctx, BEAM_AUTHORED_PIECES.layout, kinRemap);
-  stampAuthoredPiece(ctx, BEAM_AUTHORED_PIECES.core[coreV], remap);
-  stampAuthoredPiece(ctx, BEAM_AUTHORED_PIECES.chamber[chamberV], kinRemap);
-  stampAuthoredPiece(ctx, BEAM_AUTHORED_PIECES.barrel[barrelV], remap);
-  stampAuthoredPiece(ctx, BEAM_AUTHORED_PIECES.sight[sightV], remap);
-  stampAuthoredPiece(ctx, BEAM_AUTHORED_PIECES.grip[gripV], remap);
-  stampAuthoredPiece(ctx, BEAM_AUTHORED_PIECES.magazine[magV], kinRemap);
-
-  // Maker mark, stamped in the receiver's dark tone — the same
-  // detail the procedural receiver pass stamps, at the same seat.
-  stampMark(g, MAKER_MARKS[input.manufacturer], L.bodyX + 6, ctx.bodyTop + L.bodyH - 9, wood ? 'v' : 'D');
-
-  // Rarity-gated geometry (overlay data, sweep scope 5): cell
-  // stripe (Uncommon+), receiver line (Rare+), chamber line (Epic+).
-  const rarity = input.rarity as Rarity;
-  if (rarity !== Rarity.Common) stampAuthoredOverlayCells(ctx, BEAM_AUTHORED_OVERLAYS.magStripe[magV]);
-  if (rarity === Rarity.Rare || rarity === Rarity.Epic || rarity === Rarity.Legendary) {
-    stampAuthoredOverlayCells(ctx, BEAM_AUTHORED_OVERLAYS.receiverLine);
+  if (set.magazineAnchors) {
+    const [mgAx, mgAy] = set.magazineAnchors[magV];
+    ctx.anchors.Magazine = { x: mgAx * TEXEL, y: mgAy * TEXEL };
   }
-  if (rarity === Rarity.Epic || rarity === Rarity.Legendary) {
-    stampAuthoredOverlayCells(ctx, BEAM_AUTHORED_OVERLAYS.chamberLine[chamberV]);
+  if (L.stockLen > 0 || set.stockAnchorAlways) {
+    ctx.anchors.Stock = { x: (L.bodyX - L.stockLen + 4) * TEXEL, y: SPINE * TEXEL };
   }
 
-  const [chAx, chAy] = BEAM_AUTHORED_CHAMBER_ANCHORS[chamberV];
-  ctx.anchors.Chamber = { x: chAx * TEXEL, y: chAy * TEXEL };
-  const [mgAx, mgAy] = BEAM_AUTHORED_MAGAZINE_ANCHORS[magV];
-  ctx.anchors.Magazine = { x: mgAx * TEXEL, y: mgAy * TEXEL };
-  ctx.anchors.Stock = { x: (L.bodyX - L.stockLen + 4) * TEXEL, y: SPINE * TEXEL };
-  // The procedural beam's muzzle seat: the emitter tip's front edge.
-  ctx.muzzleX = L.bodyX + L.bodyLen + L.barrelLen + 3;
+  // The element current's bed, per the set's declared derivation;
+  // 'none' derives nothing (the Beam's current pass reads no bed).
+  if (set.tubeBed === 'barrelPiece') {
+    const barrel = stamped.barrel;
+    barrel.rows.forEach((row, dy) => {
+      for (let dx = 0; dx < row.length; dx++) {
+        if (row[dx] !== '.') ctx.tubeBottom.set(barrel.seat[0] + dx, barrel.seat[1] + dy - 1);
+      }
+    });
+  } else if (set.tubeBed === 'profile') {
+    authoredTubeBottom(ctx);
+  }
+  ctx.muzzleX = L.bodyX + L.bodyLen + L.barrelLen + (set.muzzleOverhang ?? 0);
+
+  // Shotgun bead + barrel heat holes: drawn in code exactly where
+  // the procedural barrel pass drew them (both modes — they are gun
+  // form, not presentation furniture).
+  if (set.beadAndPorts) {
+    const fx = ctx.bodyFront;
+    g.set(fx + L.barrelLen - 3, SPINE - 8, 'G');
+    for (let x = fx + 8; x < fx + L.barrelLen - 8; x += 9) g.set(x, SPINE - 5, 'K');
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1669,15 +1759,17 @@ export function composeWeaponCard(rawInput: PixelWeaponInput, themeId?: string, 
     variant: (slot, variants) => partVariant(input, slot as PixelPartSlot, variants),
   };
 
-  // S5 + scale-up batch 2: the sniper, launcher, and beam forms
-  // come from authored bases (see the authored*Form functions);
-  // every other type composes procedurally.
+  // S5: the sniper's form comes from authored bases (see
+  // authoredSniperForm). The scale-up batches (batch 1: Pistol,
+  // SMG, Shotgun; batch 2: Launcher, Beam) extend the same
+  // treatment to the other five types via authoredSetForm and
+  // the AUTHORED_BASE_SETS registry; a type without a registry
+  // row composes procedurally.
+  const authoredSet = AUTHORED_BASE_SETS[input.weaponType];
   if (input.weaponType === WeaponType.Sniper) {
     authoredSniperForm(ctx);
-  } else if (input.weaponType === WeaponType.Launcher) {
-    authoredLauncherForm(ctx);
-  } else if (input.weaponType === WeaponType.Beam) {
-    authoredBeamForm(ctx);
+  } else if (authoredSet) {
+    authoredSetForm(ctx, authoredSet);
   } else {
     stockAndGrip(ctx);
     magazine(ctx);

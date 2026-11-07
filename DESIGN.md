@@ -1249,6 +1249,93 @@ makers. Containment is pinned by test: of 864 swept renders
 exactly the 144 launcher and beam card renders move; every
 other render is byte-identical to the pre-batch sweep, and
 the payload delta is 0.
+**Batch 1 (2026-11-07) — authored bases scale-up: pistol,
+SMG, shotgun.** The owner ruled the scale-up ("everything
+done", 2026-11-07), and the S5 pattern is replicated for the
+first three of the five remaining types (declaration order;
+the sniper is done, a sibling batch takes Launcher and
+Beam): 19 authored pieces per type — a layout piece plus
+three variants for each of Barrel, Grip, Core, Magazine,
+Chamber, and Sight — checked in as grid data
+(`src/lib/pixel/{pistol,smg,shotgun}AuthoredData.ts`) and
+generated from the archived .px.js sources by the
+generalized deterministic converter
+(`scripts/convert-authored-bases.mjs`; re-running it
+reproduces each module byte-for-byte). Three batch-1 facts
+differ from the pilot. (1) **The Sight slot carries three
+authored forms** — these types' procedural sight pass read
+the rolled variant, where the sniper's collapsed to one
+coded scope (its scope-6 ruling stays the sniper's own).
+(2) **The shotgun's Magazine slot authors its pump and
+magazine tube**: the pump stamps before the barrel (the
+barrel overdraws the tube row near the root, as the
+procedural pass order did), the type seats no Magazine
+anchor (procedural parity), and its bead and barrel heat
+holes stay drawn in code exactly where the procedural
+barrel pass put them, in both modes. (3) **Form robustness
+against the living passes is designed, not lucky**: the
+pistol suppressor's end wears a dark scorch collar because
+BlastForge's deterministic muzzle scorch (a K lattice over
+the muzzle's last ten columns) shreds any bright field it
+lands on, and the shotgun's under-receiver rail reads solid
+D on its underside because element drips hang off that edge
+and the outline pass shades their flanks from the row
+above. The shotgun receiver's belly shade likewise steps
+in broken clusters rather than a straight band: remapped
+to the near-hue-flat wood ramp, six uniform full-width
+belly rows trip the banding gate's tone march, and the
+broken step splits the stack. The SMG suppressor can also stands one row
+slimmer than the procedural can: Ironwood's brass barrel
+bands ride one cell proud of the tube profile, a
+band-height can would swallow them, and with maker
+furniture shapes superseded the bands are what keep
+Ironwood's SMG silhouette distinct from BlastForge's —
+the 36-identity silhouette law is pinned by test and was
+the deciding audit for the can's height. Supersessions for these types, under grill ruling 1
+(maker-neutral authorship): Prismatek's crystal chamber
+form (all three types), ThrowTech's canister magazine
+(pistol and SMG — the canister becomes palette, not form),
+BlastForge's procedural barrel shroud (absorbed as an
+authored barrel variant), and the Wasteland-bone theme's
+shape overrides (its palette law still applies; its cracks
+draw over the authored forms). Assembly is untouched,
+every living pass runs as before, and containment is
+pinned by test: 648 render signatures outside the batch
+byte-identical to the pre-batch-1 sweep, the S5 containment
+sweep re-based in this slice to the complementary 576, and
+the payload delta is 0. Each batch-1 type yields 131,220
+combinations (3⁶ part-variant combos × 6 makers × 6
+elements × 5 rarities) from its 19 pieces; authored
+coverage across the library is now 437,400 of 787,320
+combinations from 74 pieces. At the reconciliation merge with batch 2 (PR #450), the registry absorbed batch 2's per-type forms as data (per-set stamp order, Kinetic-remap slots, current-bed mode, muzzle overhang, single-piece slots), the batch-1 containment pin was re-scoped to the 504 signatures it shares with batch 2's suite (pin 868d8adf), and the S5 sweep was jointly re-based to the 432 pixel-only renders (pin ae034c1d) — no render moved in any of it.
+
+**Pistol form swap (2026-11-07, parent audit).** The
+pistol's authored form is not batch 1's own authoring: it
+is the owner-approved package from the S5 scale-up final
+batch (cybercache-prep/pxl-craft-sweep/s5-scaleup/pistol/),
+approved by the owner from that package's matrix sheet the
+same day. Its source is archived byte-for-byte at
+scaleup-batch1/sources/pistol-authored.px.js (batch 1's own
+pistol source is superseded, kept as
+pistol-authored-batch1-superseded.px.js) and converted by
+the same generalized converter — extended to normalize the
+scale-up batches' index-keyed ANCHORS dialect — and the
+resulting module's pieces, overlays, and anchors are
+byte-identical to the approved package's own converter
+output. The pistol-specific form facts recorded above for
+batch 1's authoring (the suppressor's scorch collar) no
+longer apply; the SMG and shotgun facts stand. The approved
+form's anchors are the procedural pass's exact chamber
+window centers (fractional texels), superseding batch 1's
+rounded values, and its matrix composition is the package's
+evidence roll (Barrel 1 / Grip 1 / Core 1 / Magazine 1 /
+Sight 1 / Chamber 2), pinned in the batch-1 suite with its
+one documented downstream jaggy cell (the Shock current
+thread at (120, 28); the S2 gate budgets weapon-card jaggy
+at 6 per render, and the suppressed barrel's composed
+outline measures 2 cells at its can shoulder — both
+recorded in the suite, neither re-authored: the owner
+approved the form as authored).
 
 ---
 
