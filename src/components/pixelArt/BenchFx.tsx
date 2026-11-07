@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useRef } from 'react';
+import { fiveToneRamp } from '@/lib/pixel/gearCardCompositor';
 import {
-  workCycleFxTracks,
+  sampleWorkCycle,
   WORK_CYCLE_PERIOD_MS,
   WORK_CYCLE_START_DELAY_MS,
   type WorkCycleSpec,
@@ -19,112 +19,200 @@ interface BenchFxProps {
   reduced?: boolean;
   /** Work point as % of the stage box (the bench face, the crusher
    *  mouth, the rig's arc center — the caller's set piece decides
-   *  where work happens; the FX kit only executes the spec). */
+   *  where work happens; the FX kit only executes the spec). In the
+   *  bench scenes this point IS the seated item's center (M4b):
+   *  the sparks land on the work, not near it. */
   xPct: number;
   yPct: number;
   testId?: string;
 }
 
-/** Spark burst geometry (static): eight radiating strokes of
- *  varying length around the impact point — the ActivityProp
- *  vocabulary as a one-shot burst the strike envelope drives. */
-const SPARK_RAYS = [4, 11, 7, 13, 5, 10, 6, 12];
+/** Quarter-resolution canvas, the loot light kit's texel (PixelFx):
+ *  FX paint in texels and scale with image-rendering: pixelated, so
+ *  light speaks the same stepped language as the sprites it plays
+ *  over. The canvas spans 112×96 CSS px around the work point —
+ *  the footprint the retired DOM kit (64×30 glow + 40px burst +
+ *  sweep arc) already occupied. */
+const TEXEL_PX = 4;
+const CANVAS_W_PX = 112;
+const CANVAS_H_PX = 96;
+/** Work point inside the canvas, texel coords. */
+const POINT = { x: 14, y: 13 };
+/** Spark burst center rides a breath above the point, where the
+ *  retired SVG burst sat. */
+const BURST = { x: 14, y: 11.5 };
+/** Spark ray lengths in texels, the retired burst's proportions. */
+const SPARK_RAYS = [1, 3, 2, 3, 1, 3, 2, 3];
 
-const SparkBurst: React.FC<{ color: string }> = ({ color }) => (
-  <svg viewBox="0 0 40 40" className="h-full w-full" aria-hidden="true">
-    {SPARK_RAYS.map((len, i) => {
-      const a = (i / SPARK_RAYS.length) * Math.PI * 2 - Math.PI / 2;
-      const x1 = 20 + Math.cos(a) * 4;
-      const y1 = 20 + Math.sin(a) * 4;
-      const x2 = 20 + Math.cos(a) * (4 + len);
-      const y2 = 20 + Math.sin(a) * (4 + len);
-      return (
-        <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={2} strokeLinecap="round" />
-      );
-    })}
-    <circle cx={20} cy={20} r={2.6} fill={color} />
-  </svg>
-);
+function tryGet2dContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
+  try {
+    return canvas.getContext('2d');
+  } catch {
+    return null; // jsdom / unsupported — the element still renders inert
+  }
+}
+
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+/** Fill a stepped ellipse of texels (texel-center sampling — the
+ *  light kit's concentric-step shape, never a smooth gradient). */
+function fillSteppedEllipse(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+) {
+  const x0 = Math.floor(cx - rx);
+  const x1 = Math.ceil(cx + rx);
+  const y0 = Math.floor(cy - ry);
+  const y1 = Math.ceil(cy + ry);
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const dx = (x + 0.5 - cx) / rx;
+      const dy = (y + 0.5 - cy) / ry;
+      if (dx * dx + dy * dy <= 1) ctx.fillRect(x, y, 1, 1);
+    }
+  }
+}
 
 /**
- * Work-cycle set-piece FX (Motion Reboot M1) — the bench's half of
- * the choreography: a work-point glow that brightens into the
- * strike, a spark burst on families whose spec carries one, and
- * sweep dots walking the arc on sweep families. Every track is
- * DERIVED from the work-cycle sampler (workCycleFxTracks), looped
- * at the law period on the same start delay the actor observes,
- * so FX and figure can never drift apart. Node cost is counted by
- * workCycleFxNodeCount against MAX_ANIMATED_NODES.
+ * Work-cycle set-piece FX (Motion Reboot M1; vehicle replaced in
+ * M4b) — the bench's half of the choreography: a work-point glow
+ * that brightens into the strike, a spark burst on families whose
+ * spec carries one, and sweep dots walking the arc on sweep
+ * families. Every frame is DERIVED from the work-cycle sampler
+ * (sampleWorkCycle) on the same start delay the actor observes,
+ * so FX and figure can never drift apart.
+ *
+ * The vehicle is a quarter-res canvas in the loot light kit's
+ * grammar (stepped shapes, flat five-tone ramps — the FX register
+ * is flat by law, DESIGN.md §8), replacing M1's SVG-stroke burst
+ * and blurred gradient divs, which spoke a different visual
+ * language than the texel world they played over. One canvas node
+ * total — the animated-node accounting only shrinks.
  */
 export const BenchFx: React.FC<BenchFxProps> = React.memo(({ spec, active, reduced = false, xPct, yPct, testId }) => {
-  const tracks = useMemo(() => workCycleFxTracks(spec), [spec]);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (!active || reduced) return undefined;
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const ctx = tryGet2dContext(canvas);
+    if (!ctx) return undefined;
+    const wCells = CANVAS_W_PX / TEXEL_PX;
+    const hCells = CANVAS_H_PX / TEXEL_PX;
+    if (canvas.width !== wCells) canvas.width = wCells;
+    if (canvas.height !== hCells) canvas.height = hCells;
+    const glowRamp = fiveToneRamp(spec.glowColor, 'straight');
+    const sparkRamp = spec.sparks ? fiveToneRamp(spec.sparks.color, 'straight') : null;
+    let raf = 0;
+    let stopped = false;
+    const startedAt = performance.now();
+
+    const paint = () => {
+      if (stopped) return;
+      const elapsed = performance.now() - startedAt;
+      ctx.clearRect(0, 0, wCells, hCells);
+      const local = elapsed - WORK_CYCLE_START_DELAY_MS;
+      if (local >= 0) {
+        // Engagement ramp: the container fade M1 ran over one
+        // period after the start delay, folded into the sampler's
+        // own amplitude so glow, sparks, and the actor's pose all
+        // breathe in together.
+        const amplitude = clamp01(local / WORK_CYCLE_PERIOD_MS);
+        const frame = sampleWorkCycle(spec, local, amplitude);
+
+        // Work-point glow: concentric stepped ellipses, tones from
+        // the spec color's flat ramp, alpha on the sampler's glow.
+        const rings: Array<[number, number, string, number]> = [
+          [8, 4, glowRamp.dark, 0.5],
+          [6, 3, glowRamp.base, 0.75],
+          [3.5, 2, glowRamp.light, 1],
+        ];
+        for (const [rx, ry, tone, weight] of rings) {
+          ctx.globalAlpha = clamp01(frame.glow * 1.5 * weight);
+          ctx.fillStyle = tone;
+          fillSteppedEllipse(ctx, POINT.x, POINT.y, rx, ry);
+        }
+
+        // Spark burst at the strike envelope.
+        if (sparkRamp && frame.strike > 0.01) {
+          ctx.globalAlpha = frame.strike;
+          ctx.fillStyle = sparkRamp.pale;
+          ctx.fillRect(BURST.x, Math.round(BURST.y), 1, 1);
+          ctx.fillStyle = sparkRamp.base;
+          for (let i = 0; i < SPARK_RAYS.length; i++) {
+            const a = (i / SPARK_RAYS.length) * Math.PI * 2 - Math.PI / 2;
+            const steps = Math.max(0, Math.round(SPARK_RAYS[i] * frame.strike));
+            const drawn = new Set<string>();
+            for (let sIdx = 1; sIdx <= steps; sIdx++) {
+              const x = Math.round(BURST.x + Math.cos(a) * (0.75 + sIdx * 0.75));
+              const y = Math.round(BURST.y + Math.sin(a) * (0.75 + sIdx * 0.75));
+              const key = `${x},${y}`;
+              if (drawn.has(key)) continue;
+              drawn.add(key);
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+        }
+
+        // Calibration sweep: every step's dot ghosts on the arc;
+        // the sampler's active step burns.
+        if (spec.sweepSteps > 0 && frame.sweepStep >= 0) {
+          const n = spec.sweepSteps;
+          for (let s = 0; s < n; s++) {
+            const angle = ((-50 + (n > 1 ? (100 / (n - 1)) * s : 0)) * Math.PI) / 180;
+            const x = Math.round(POINT.x + (Math.sin(angle) * 30) / TEXEL_PX);
+            const y = Math.round(POINT.y - (Math.cos(angle) * 24) / TEXEL_PX);
+            if (s === frame.sweepStep) {
+              ctx.globalAlpha = 0.95;
+              ctx.fillStyle = glowRamp.light;
+              ctx.fillRect(x - 1, y - 1, 2, 2);
+              ctx.fillStyle = glowRamp.pale;
+              ctx.fillRect(x, y, 1, 1);
+            } else {
+              ctx.globalAlpha = 0.22;
+              ctx.fillStyle = glowRamp.base;
+              ctx.fillRect(x, y, 1, 1);
+            }
+          }
+        }
+        ctx.globalAlpha = 1;
+      }
+      raf = requestAnimationFrame(paint);
+    };
+    raf = requestAnimationFrame(paint);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [spec, active, reduced]);
+
   if (!active || reduced) return null;
-  const loop = {
-    duration: WORK_CYCLE_PERIOD_MS / 1000,
-    repeat: Infinity,
-    ease: 'linear' as const,
-    times: tracks.times,
-    delay: WORK_CYCLE_START_DELAY_MS / 1000,
-  };
   return (
-    <motion.div
+    <div
       data-testid={testId}
       data-bench-fx={spec.id}
+      data-fx-vehicle="canvas"
       className="pointer-events-none absolute z-20"
       style={{ left: `${xPct}%`, top: `${yPct}%`, width: 0, height: 0 }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: WORK_CYCLE_PERIOD_MS / 1000, delay: WORK_CYCLE_START_DELAY_MS / 1000 }}
     >
-      {/* Work-point glow: an ellipse seated on the set piece. */}
-      <motion.div
-        className="absolute rounded-full"
+      <canvas
+        ref={canvasRef}
+        width={CANVAS_W_PX / TEXEL_PX}
+        height={CANVAS_H_PX / TEXEL_PX}
+        className="absolute"
         style={{
-          width: 64,
-          height: 30,
-          left: -32,
-          top: -15,
-          background: `radial-gradient(ellipse at center, ${spec.glowColor} 0%, transparent 70%)`,
-          filter: 'blur(2px)',
+          width: CANVAS_W_PX,
+          height: CANVAS_H_PX,
+          left: -CANVAS_W_PX / 2,
+          top: -CANVAS_H_PX / 2,
+          imageRendering: 'pixelated',
         }}
-        initial={false}
-        animate={{ opacity: tracks.glow }}
-        transition={loop}
+        aria-hidden="true"
       />
-      {spec.sparks && (
-        <motion.div
-          className="absolute"
-          style={{ width: 40, height: 40, left: -20, top: -26 }}
-          initial={false}
-          animate={{ opacity: tracks.sparkOpacity, scale: tracks.sparkScale }}
-          transition={loop}
-        >
-          <SparkBurst color={spec.sparks.color} />
-        </motion.div>
-      )}
-      {tracks.sweepOpacity.map((keys, s) => {
-        const n = tracks.sweepOpacity.length;
-        const angle = ((-50 + (n > 1 ? (100 / (n - 1)) * s : 0)) * Math.PI) / 180;
-        const dx = Math.sin(angle) * 30;
-        const dy = -Math.cos(angle) * 24;
-        return (
-          <motion.div
-            key={s}
-            className="absolute rounded-full"
-            style={{
-              width: 6,
-              height: 6,
-              left: dx - 3,
-              top: dy - 3,
-              background: spec.glowColor,
-              boxShadow: `0 0 6px ${spec.glowColor}`,
-            }}
-            initial={false}
-            animate={{ opacity: keys }}
-            transition={loop}
-          />
-        );
-      })}
-    </motion.div>
+    </div>
   );
 });

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
-import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
 import {
   CritFlash,
@@ -19,8 +19,13 @@ import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } fro
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { BenchFx } from '@/components/pixelArt/BenchFx';
-import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
-import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
+import { BenchItemRender } from '@/components/pixelArt/BenchSeat';
+import {
+  benchRisePlanForEntry,
+  benchSeatPlanForJob,
+  salvageRisePlanForEntry,
+  type BenchRisePlan,
+} from '@/lib/pixel/benchSeat';
 import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_MODE } from '@/lib/pixel/workCycle';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import type { WorkshopCompletionView } from '@/store/slices/workshopSlice';
@@ -37,14 +42,14 @@ import { useLoadoutStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
-import { isClassModItem, isRelicItem, isShieldItem, isWeaponItem } from '@/lib/loadout/loadoutReadModel';
+import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadoutReadModel';
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { BossFightStage } from '@/components/pixelArt/BossFightStage';
 import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMoment';
 import { getLiveTurfScene } from '@/constants/liveTurfVisuals';
-import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore } from '@/store';
+import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore, useSalvageFeedStore } from '@/store';
 import { MONSTERS, getMonster } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { Rarity } from '@/types/game';
@@ -336,25 +341,19 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYPct
 const benchCompletionKey = (c: WorkshopCompletionView): string =>
   `${c.jobId}:${String(c.unit ?? '')}:${String(c.completedAtMs ?? '')}`;
 
-/** The finished unit's picture for the completion rise: the
- *  consumable or material the bench produced, or the gear piece
- *  itself. Service work (a repaired vehicle, a flipped shield)
- *  has no item picture — the rise runs as a glow beat over the
- *  set piece and the celebrate pose carries it. */
+/** The finished unit's picture for the completion rise, resolved
+ *  by benchRisePlanForEntry (M4b): the consumable or material the
+ *  bench produced, the cosmetic part itself, or the minted gear
+ *  piece of ANY kind — weapons, shields, relics, class mods,
+ *  ordnance all rise as themselves. (Pre-M4b only weapons did;
+ *  every other gear kind and every cosmetic fell through to the
+ *  disc despite the item being right there in the inventory.)
+ *  Service work (a repaired vehicle, a flipped shield) still has
+ *  no item picture — the rise runs as a glow beat over the set
+ *  piece and the celebrate pose carries it. */
 const BenchRiseIcon: React.FC<{ entry: WorkshopCompletionView }> = ({ entry }) => {
-  const itemId = typeof entry.itemId === 'string' ? entry.itemId : undefined;
-  const item = useInventoryStore((state) => (itemId ? state.items.find((i) => i.id === itemId) : undefined));
-  const consumableType = typeof entry.consumableType === 'string' ? entry.consumableType : undefined;
-  const outputMaterial = typeof entry.outputMaterial === 'string' ? entry.outputMaterial : undefined;
-  if (consumableType) return <PixelConsumable type={consumableType} size={40} />;
-  if (outputMaterial) return <PixelMaterial id={outputMaterial} size={40} />;
-  if (isWeaponItem(item)) return <PixelWeapon weapon={item} size={44} />;
-  return (
-    <div
-      className="h-8 w-8 rounded-full"
-      style={{ background: 'radial-gradient(circle, rgba(255,214,120,0.95) 0%, rgba(255,170,60,0.35) 55%, transparent 75%)' }}
-    />
-  );
+  const items = useInventoryStore((state) => state.items);
+  return <BenchItemRender plan={benchRisePlanForEntry(entry, items)} testId="bench-rise-render" />;
 };
 
 const PixelSceneLayer: React.FC<{
@@ -530,6 +529,49 @@ const PixelSceneLayer: React.FC<{
   }, [benchCompletion]);
   const activeBenchCompletion = mode === 'salvaging' ? null : benchCompletion;
 
+  // ── Item on the bench (Motion M4b) ────────────────────────────
+  // The running job in this mode's lane seats its truthful output
+  // picture at the work point (benchSeat.ts): the real consumable
+  // / material / part / relic-form render, the slot+rarity frame
+  // for gear that does not exist yet, the service target itself.
+  const benchLaneJob = benchSpec && mode !== 'salvaging'
+    ? (workshopJobs ?? []).find(
+        (job) => job.state === 'running' && isServiceLaneJob(job) === benchServiceLane,
+      )
+    : undefined;
+  const seatPlan = benchSeatPlanForJob(benchLaneJob);
+  // Salvage completion beat (M4b): salvaging has no workshop
+  // mirror, so its completions arrive on the salvage feed — the
+  // store every recycle result already pushes to. A fresh settled
+  // recycle (or one batch summary) earns the same beat grammar as
+  // a craft completion: celebrate pose + the yield rising off the
+  // crusher. The seen-set initializes from the first feed view so
+  // history never replays; a failed batch settled nothing and
+  // earns no beat (salvageRisePlanForEntry returns null for it).
+  const salvageEvents = useSalvageFeedStore((state) => state.events);
+  const [salvageBeat, setSalvageBeat] = useState<{ key: string; plan: BenchRisePlan } | null>(null);
+  const seenSalvageRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const keys = new Set(salvageEvents.map((e) => e.id));
+    if (seenSalvageRef.current === null) {
+      seenSalvageRef.current = keys;
+      return;
+    }
+    const fresh = salvageEvents.filter((e) => !seenSalvageRef.current!.has(e.id));
+    seenSalvageRef.current = keys;
+    if (mode !== 'salvaging' || reduced || fresh.length === 0) return;
+    const plan = salvageRisePlanForEntry(fresh[0]);
+    if (plan) setSalvageBeat({ key: fresh[0].id, plan });
+  }, [salvageEvents, mode, reduced]);
+  useEffect(() => {
+    if (!salvageBeat) return;
+    const timer = setTimeout(() => setSalvageBeat(null), MOVEMENT.LOOT_RISE_MS);
+    return () => clearTimeout(timer);
+  }, [salvageBeat]);
+  /** Either lane's completion beat is live: the hunter celebrates
+   *  and the work cycle + set-piece FX hold for the rise. */
+  const benchCelebrating = !!activeBenchCompletion || !!salvageBeat;
+
   // Enemy sprite from data: the boss's bespoke sprite in boss fights,
   // else the current target monster's archetype sprite, else the brute.
   const targetArchetype = currentTargetId ? getMonster(currentTargetId)?.archetype : undefined;
@@ -667,12 +709,26 @@ const PixelSceneLayer: React.FC<{
       {benchSpec && (
         <BenchFx
           spec={benchSpec}
-          active={benchWorking && !activeBenchCompletion}
+          active={benchWorking && !benchCelebrating}
           reduced={reduced}
           xPct={60}
           yPct={(groundY - 0.17) * 100}
           testId="bench-fx"
         />
+      )}
+      {/* The item on the bench (M4b): the running job's output
+          picture seated AT the work point — the same anchor the
+          FX burst from, so the sparks land on the work itself.
+          It clears while a completion beat lifts the finished
+          unit off the bench. */}
+      {benchSpec && seatPlan && !benchCelebrating && (
+        <div
+          data-testid="bench-seat"
+          className="pointer-events-none absolute z-20 flex items-center justify-center"
+          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+        >
+          <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+        </div>
       )}
       {/* Completion rise (M1): the finished unit lifts off the
           bench on the law's loot-rise duration while the hunter
@@ -688,6 +744,23 @@ const PixelSceneLayer: React.FC<{
           transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
         >
           <BenchRiseIcon entry={activeBenchCompletion} />
+        </motion.div>
+      )}
+      {/* Salvage completion rise (M4b): the recycle's yield lifts
+          off the crusher on the same rise the craft lanes use,
+          while the hunter celebrates — salvaging's beat was
+          forced null before this slice. */}
+      {benchSpec && salvageBeat && (
+        <motion.div
+          key={`salvage-rise-${salvageBeat.key}`}
+          data-testid="salvage-completion-rise"
+          className="pointer-events-none absolute z-30 flex items-end justify-center"
+          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 46, height: 46, marginTop: -40 }}
+          initial={false}
+          animate={{ x: '-50%', y: [6, -14, -26, -30], opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
+          transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
+        >
+          <BenchItemRender plan={salvageBeat.plan} testId="salvage-rise-render" />
         </motion.div>
       )}
 
@@ -785,8 +858,8 @@ const PixelSceneLayer: React.FC<{
             partPalettes={look.partPalettes}
             {...hunterPlacement}
             reduced={reduced}
-            pose={activeBenchCompletion ? 'celebrate' : 'work'}
-            workCycle={{ spec: benchSpec, active: benchWorking && !activeBenchCompletion }}
+            pose={benchCelebrating ? 'celebrate' : 'work'}
+            workCycle={{ spec: benchSpec, active: benchWorking && !benchCelebrating }}
             testId="pixel-hunter"
           />
         ) : mode === 'extraction' ? (

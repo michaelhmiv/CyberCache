@@ -840,6 +840,7 @@ export const WorkshopScreen: React.FC<{
             under an empty label.) */}
         <CraftingBenchScene
           benchSpriteId={stageBench.spriteId}
+          seatJob={runningJob ?? null}
           unarmed={!hunterWeapon}
           working={!!runningJob}
           progress={runningJob ? jobProgressFraction(runningJob) : 0}
