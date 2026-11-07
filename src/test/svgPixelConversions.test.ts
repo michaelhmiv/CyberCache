@@ -21,7 +21,7 @@ import { buildKeystoneGrid } from '@/components/common/SkillKeystoneArt';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import { SkillTreeType } from '@/types/game';
 import { buildConsumableRingGrid } from '@/components/stats/ConsumableRing';
-import { buildStarConnectorGrid } from '@/components/action/ActionLoadout';
+import { buildStarConnectorGrid } from '@/lib/pixel/starConnectors';
 import { DROP_RISE_GRIDS, dropRisePalette } from '@/lib/pixel/dropRiseIcons';
 
 function findings(render: LintRender, name: string): LintFinding[] {
