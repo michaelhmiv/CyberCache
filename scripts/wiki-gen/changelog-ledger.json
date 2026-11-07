@@ -36,6 +36,10 @@
         {
           "number": 432,
           "title": "Changelog: boss fights on the main stage (for #431)"
+        },
+        {
+          "number": 433,
+          "title": "feat(pixel): pxl craft sweep S1 — hue-shifted ramp root, selective outline, dead sheen lift deleted"
         }
       ]
     },
