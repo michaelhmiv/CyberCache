@@ -3,6 +3,43 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-06",
+      "merges": [
+        {
+          "number": 425,
+          "title": "Fix cosmetic-craft workshop brick: migration 0085 kind filter + finalizer defense"
+        },
+        {
+          "number": 426,
+          "title": "Field Manual: the repo wiki, rendered natively in-app (guided tour retired)"
+        },
+        {
+          "number": 427,
+          "title": "Changelog 2026-11-06 — Field Manual, gear rows, workshop jam fix"
+        },
+        {
+          "number": 428,
+          "title": "Claim-overlap guard: overlapping claim windows pay only the unsettled suffix"
+        },
+        {
+          "number": 429,
+          "title": "Pixi Motion Pilot: WebGL boss fight stage (DOM fallback kept) — DO NOT MERGE, owner video approval pending"
+        },
+        {
+          "number": 430,
+          "title": "Changelog: Pixi boss stage (for #429)"
+        },
+        {
+          "number": 431,
+          "title": "fix(boss): the boss fight's home is the main stage (One-Stage Law, F5 closed)"
+        },
+        {
+          "number": 432,
+          "title": "Changelog: boss fights on the main stage (for #431)"
+        }
+      ]
+    },
+    {
       "date": "2026-11-05",
       "merges": [
         {
@@ -36,6 +73,110 @@
         {
           "number": 398,
           "title": "Fix combat-stats saves dying on fractional play seconds (bigint)"
+        },
+        {
+          "number": 399,
+          "title": "Playtest papercut batch — nine verified items (copy, formatting, error truth) + migration 0084"
+        },
+        {
+          "number": 400,
+          "title": "Home two buttons + offline earnings HOLD-AND-CLAIM (migration 0083)"
+        },
+        {
+          "number": 401,
+          "title": "Hunter tab: Arena Plates menu (owner pick A)"
+        },
+        {
+          "number": 402,
+          "title": "Fix claim row crushing CACHE/OFFLINE in badged states (wrap + content floors)"
+        },
+        {
+          "number": 403,
+          "title": "Claim row goes icon-only on one line (owner ruling, supersedes #402 wrap)"
+        },
+        {
+          "number": 404,
+          "title": "Collections in Register B (Instrument Panel) — Hunter sub-page real build"
+        },
+        {
+          "number": 405,
+          "title": "Profile & Record in Register B — Service Telemetry (Instrument Panel)"
+        },
+        {
+          "number": 406,
+          "title": "Hunter Research stop — Instrument Panel register (owner pick B)"
+        },
+        {
+          "number": 407,
+          "title": "Cache Rank in the Instrument Panel register (owner pick B)"
+        },
+        {
+          "number": 408,
+          "title": "Standings in the Instrument Panel register (owner pick B)"
+        },
+        {
+          "number": 409,
+          "title": "Wardrobe in Register B — The Fitting Console (Instrument Panel)"
+        },
+        {
+          "number": 410,
+          "title": "Claim row design fix: one instrument rail, 26px hero icons in their keys' accents"
+        },
+        {
+          "number": 411,
+          "title": "chore: make the TypeScript gate real — triage 530 latent app errors (node 204, server 64)"
+        },
+        {
+          "number": 412,
+          "title": "Fix Workshop bench cause bar NaN — real progress + recipe label (F7)"
+        },
+        {
+          "number": 413,
+          "title": "F2: fragment refusal carries a real error code in the Pg write store"
+        },
+        {
+          "number": 414,
+          "title": "Fix Standings channel crash: units from canonical LEADERBOARD_METRIC_UNITS (F4)"
+        },
+        {
+          "number": 415,
+          "title": "fix(F3): cache-key remainder round-trips through the gameplay stores"
+        },
+        {
+          "number": 416,
+          "title": "Fix cache-rank golden beam: add the missing GRAMMAR.beamWidthPx.low tier (F8)"
+        },
+        {
+          "number": 417,
+          "title": "fix(auth): F1+F6 — restore auth failure-path diagnostics (triage #411)"
+        },
+        {
+          "number": 418,
+          "title": "Redraw the streak flame glyph so it reads as a flame at 20px"
+        },
+        {
+          "number": 419,
+          "title": "Give the daily streak its own icon: a pixel calendar"
+        },
+        {
+          "number": 420,
+          "title": "Bulk scrap: dismiss on confirm, settle in the background"
+        },
+        {
+          "number": 421,
+          "title": "feat(gear): grouped inventory sort taxonomy with kind scoping"
+        },
+        {
+          "number": 422,
+          "title": "Loadout de-texting: vehicle header button, belt ? hint, no-paragraphs law"
+        },
+        {
+          "number": 423,
+          "title": "perf(gear): viewport-deferred art composition for inventory lists"
+        },
+        {
+          "number": 424,
+          "title": "Gear list row V1 (LV column, bare art, badge beside thumb) + compare button fix"
         }
       ]
     },
