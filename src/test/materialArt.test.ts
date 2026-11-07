@@ -173,4 +173,23 @@ describe('materialArt — the swatch family separates on structure, not color al
     const thumbs = woven.map((id) => composeMaterial(id, 'thumb').signature);
     expect(new Set(thumbs).size).toBe(woven.length);
   });
+
+  it('S4: Voidweave weaves in courses, not the circuit checker', () => {
+    // Rows are shade letters: distinct rows = distinct structure.
+    // Pre-S4 both swatches ran the same checker stamp and separated
+    // on value alone.
+    const woven = composeMaterial(MaterialType.WovenCircuits, 'thumb').rows.join('/');
+    const voidweave = composeMaterial(MaterialType.Voidweave, 'thumb').rows.join('/');
+    expect(voidweave).not.toBe(woven);
+  });
+
+  it('S4: CompositePlating separates from RefinedAlloy by stack form at thumb', () => {
+    // The pale-stack twins: the composite's four thin offset slabs
+    // carry the lamination seam (accent-dark 'a') at full width;
+    // the refined stack is three thick aligned slabs with the bolt.
+    const refined = composeMaterial(MaterialType.RefinedAlloy, 'thumb').rows;
+    const composite = composeMaterial(MaterialType.CompositePlating, 'thumb').rows;
+    expect(composite.join('/')).not.toBe(refined.join('/'));
+    expect(composite.join('')).toContain('a');
+  });
 });

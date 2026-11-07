@@ -870,13 +870,29 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
       // The identity band survives at thumb size (brass on the
       // refined kit, contents-dark on the base kit and the tin).
       cv.rect(2, 6, 8, 1, variant === 'kitPro' ? 'B' : 'a');
-      cv.set(6, 7, A.base); cv.set(6, 8, A.base); cv.set(5, 8, A.base); cv.set(7, 8, A.base); cv.set(6, 9, A.hot);
+      if (variant === 'tin') {
+        // S4: the tin's cross was contents-base on rust and died at
+        // 48px — it rides in the contents' hot tone now, white-hot
+        // at the core, so the patch identity survives the thumb.
+        cv.set(6, 7, A.hot); cv.set(6, 8, 'W'); cv.set(5, 8, A.hot); cv.set(7, 8, A.hot); cv.set(6, 9, A.hot);
+      } else {
+        cv.set(6, 7, A.base); cv.set(6, 8, A.base); cv.set(5, 8, A.base); cv.set(7, 8, A.base); cv.set(6, 9, A.hot);
+      }
       return;
     }
-    cv.rect(5, 2, 3, 2, 'd');
+    // S4: the field and master patch bottles were anonymous brown
+    // bottles at thumb — both now carry the patch cross on the
+    // glass, and the master adds its brass collar + base strap
+    // (the same marks its object painter wears).
+    cv.rect(5, 2, 3, 2, variant === 'master' ? 'B' : 'd');
     cv.rect(4, 4, 5, 7, 'P');
     cv.rect(4, 8, 5, 3, A.base);
-    cv.set(6, 6, A.hot);
+    if (variant === 'field' || variant === 'master') {
+      cv.set(6, 5, A.hot); cv.set(5, 6, A.hot); cv.set(6, 6, 'W'); cv.set(7, 6, A.hot); cv.set(6, 7, A.hot);
+      if (variant === 'master') cv.rect(4, 10, 5, 1, 'B');
+    } else {
+      cv.set(6, 6, A.hot);
+    }
   },
   cell: (cv, R, A, variant) => {
     if (variant === 'core') {
@@ -900,7 +916,20 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
     cv.set(6, 6, A.hot);
     for (const [x, y] of [[2, 3], [10, 3], [3, 9], [9, 9]] as const) { cv.ellipse(x, y, 1.2, 1.2, 'P'); cv.set(x, y, A.base); }
   },
-  syringe: (cv, R, A) => {
+  syringe: (cv, R, A, variant) => {
+    if (variant === 'stim') {
+      // S4: AdrenalineShot's dose was 3 cells of red on a dark
+      // red-brown barrel — it scanned as a bottle with a nub. The
+      // stim painter is the wide barrel (its object form): dose at
+      // full barrel width under a hot meniscus line reads as an
+      // injector at 48px.
+      cv.rect(4, 1, 5, 1, 'P');
+      cv.rect(4, 3, 5, 7, 'P');
+      cv.rect(4, 6, 5, 1, A.hot);
+      cv.rect(4, 7, 5, 3, A.base);
+      cv.set(6, 10, 'K'); cv.set(6, 11, 'K');
+      return;
+    }
     cv.rect(4, 1, 5, 1, 'P');
     cv.rect(5, 3, 3, 6, 'P');
     cv.rect(5, 6, 3, 3, A.base);
@@ -919,6 +948,15 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
       cv.rect(4, 6, 6, 5, 'P');
       cv.rect(4, 9, 6, 2, A.base);
       cv.set(9, 3, A.hot);
+      if (variant === 'coatPrism') {
+        // S4: Prism's defining flecks (X/Y/Z) never reached the
+        // thumb — the pot read as plain lavender. A 2-cell cluster
+        // per hue on the pot's face keeps the fleck read at 48px
+        // (clusters, per the craft standard — never lone cells).
+        cv.set(5, 6, 'X'); cv.set(6, 6, 'X');
+        cv.set(8, 7, 'Y'); cv.set(8, 8, 'Y');
+        cv.set(5, 8, 'Z'); cv.set(6, 8, 'Z');
+      }
       return;
     }
     for (const x of [3, 6, 9]) {
@@ -927,17 +965,98 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
       cv.rect(x - 1, 5, 3, 6, 'M'); // casing metal, as the object grid
     }
   },
-  grenade: (cv, R, A) => {
+  grenade: (cv, R, A, variant) => {
+    // S4 form pass: one stamp served all seven charges and members
+    // separated on color alone. Each charge now carries its 24×24
+    // form at thumb: ring, horseshoe, ghost, crack, reticle, brass
+    // band — the plain frag keeps the original stamp as baseline.
+    if (variant === 'magnet') {
+      // The horseshoe rides on top of the body; pole faces lit.
+      cv.rect(3, 2, 2, 3, A.base); cv.rect(8, 2, 2, 3, A.base);
+      cv.rect(3, 2, 7, 2, A.base);
+      cv.set(3, 4, A.hot); cv.set(4, 4, A.hot); cv.set(8, 4, A.hot); cv.set(9, 4, A.hot);
+      cv.ellipse(6, 8, 3.4, 2.8, 'P');
+      cv.set(6, 8, A.hot);
+      return;
+    }
+    if (variant === 'emp') {
+      // The ring IS the body, core glowing through the middle.
+      cv.rect(5, 1, 3, 2, 'd');
+      cv.ellipseRing(6, 7, 3.4, 3.2, 1, 'P');
+      cv.set(6, 6, A.base); cv.set(5, 7, A.base); cv.set(6, 7, A.hot); cv.set(7, 7, A.base); cv.set(6, 8, A.base);
+      return;
+    }
+    if (variant === 'phase') {
+      // The ghost: the same body struck twice, offset.
+      cv.rect(6, 1, 3, 2, 'd');
+      cv.ellipse(8, 5, 2.8, 2.8, 'D');
+      cv.ellipse(5, 7, 3.2, 3.2, 'P');
+      cv.rect(2, 6, 7, 1, 'a');
+      cv.set(5, 7, A.hot);
+      return;
+    }
     cv.rect(5, 2, 3, 2, 'd');
     cv.ellipse(6, 7, 3.4, 3.2, 'P');
-    cv.rect(3, 6, 7, 1, 'a'); // contents band — identity at thumb size too
-    cv.set(6, 8, A.hot);
+    if (variant === 'chargePro') {
+      // The demo charge's brass band, carried at full width.
+      cv.rect(3, 6, 7, 1, 'B');
+      cv.rect(3, 7, 7, 1, 'b');
+      cv.set(6, 9, A.hot);
+    } else if (variant === 'acid') {
+      // The reticle rides the shell (its object's acid sight).
+      cv.set(6, 5, A.base); cv.set(5, 6, A.base); cv.set(6, 6, A.hot); cv.set(7, 6, A.base); cv.set(6, 7, A.base);
+    } else if (variant === 'forge') {
+      // Molten crack walking down the charcoal shell.
+      cv.set(5, 4, A.hot); cv.set(5, 5, A.base); cv.set(6, 6, A.base); cv.set(6, 7, A.hot); cv.set(7, 8, A.base);
+    } else {
+      // charge — the plain frag keeps the baseline stamp.
+      cv.rect(3, 6, 7, 1, 'a'); // contents band — identity at thumb size too
+      cv.set(6, 8, A.hot);
+    }
   },
-  scanner: (cv, R, A) => {
-    cv.set(9, 1, A.hot); cv.rect(9, 2, 1, 2, 'd');
+  scanner: (cv, R, A, variant) => {
+    // S4 form pass: one box + screen + antenna stamp served all
+    // five devices. Silhouettes now differ the way the 24×24
+    // painters differ — whip antenna, lit screen, twin-antenna
+    // block, emission ticks, skimmer dish.
+    if (variant === 'skimmer') {
+      // The dish rides on top; the box drops a row to carry it.
+      cv.ellipse(6, 2, 2.8, 1.3, A.base);
+      cv.set(6, 1, A.hot);
+      cv.rect(6, 3, 1, 1, 'd');
+      cv.rect(3, 4, 7, 7, 'P');
+      cv.rect(4, 5, 5, 3, 'a');
+      cv.set(6, 6, A.hot);
+      cv.rect(4, 9, 1, 2, 'd'); cv.rect(6, 9, 1, 2, 'd');
+      return;
+    }
+    if (variant === 'painter') {
+      cv.set(2, 1, A.hot); cv.rect(2, 2, 1, 2, 'd'); // the long whip
+    } else {
+      cv.set(9, 1, A.hot); cv.rect(9, 2, 1, 2, 'd');
+    }
+    if (variant === 'jammer') {
+      cv.set(3, 1, A.hot); cv.rect(3, 2, 1, 2, 'd'); // twin antenna
+      cv.rect(2, 3, 8, 8, 'P'); // the blockier housing
+      cv.rect(3, 4, 6, 3, 'a');
+      cv.set(4, 5, A.base); cv.set(5, 5, A.base); cv.set(7, 4, A.hot); // static
+      cv.rect(3, 8, 1, 2, 'd'); cv.rect(5, 8, 1, 2, 'd'); cv.rect(7, 8, 1, 2, 'd');
+      return;
+    }
     cv.rect(3, 3, 7, 8, 'P');
-    cv.rect(4, 4, 5, 3, 'a');
-    cv.set(6, 5, A.hot);
+    if (variant === 'scanner') {
+      cv.rect(4, 4, 5, 3, A.base); // the LIT screen (pale survey glass)
+      cv.set(6, 5, A.hot);
+    } else {
+      cv.rect(4, 4, 5, 3, 'a');
+      cv.set(6, 5, A.hot);
+    }
+    if (variant === 'painter') {
+      cv.set(5, 5, A.base); cv.set(7, 5, A.base); // reticle ticks on the screen
+    }
+    if (variant === 'scrambler') {
+      cv.set(10, 2, A.base); cv.set(11, 3, A.hot); // broken emission
+    }
     cv.rect(4, 8, 1, 2, 'd'); cv.rect(6, 8, 1, 2, 'd');
   },
   beacon: (cv, R, A, variant) => {
@@ -952,9 +1071,19 @@ const THUMB_PAINTERS: Record<ConsumableChassis, ThumbPainter> = {
     if (variant === 'token') { cv.ellipse(6, 6, 2.4, 2.4, A.base); cv.set(6, 6, A.hot); }
     else { cv.rect(3, 3, 7, 1, A.base); cv.rect(4, 6, 5, 1, 'd'); cv.rect(4, 8, 4, 1, 'd'); }
   },
-  ticket: (cv, R, A) => {
+  ticket: (cv, R, A, variant) => {
     cv.rect(1, 4, 10, 5, 'P');
     cv.set(4, 5, 'K'); cv.set(4, 7, 'K');
+    if (variant === 'calib') {
+      // S4: the calibration kit was a blank pale slab at thumb —
+      // its dial now rides the ticket the way it does at 24×24:
+      // a ring in the contents base, hot at the center, with the
+      // stub tick beside the perforation.
+      cv.ellipseRing(8, 6, 1.7, 1.7, 1, A.base);
+      cv.set(8, 6, A.hot);
+      cv.set(2, 6, A.base);
+      return;
+    }
     cv.set(8, 6, A.hot); cv.set(7, 6, A.base); cv.set(9, 6, A.base);
   },
 };

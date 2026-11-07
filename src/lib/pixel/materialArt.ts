@@ -490,6 +490,22 @@ const OBJECT_PAINTERS: Record<MaterialFamilyId, (cv: StuffPlate, R: R, A: A, var
 /* ------------------------------------------------------------------ */
 
 function thumbPlates(cv: StuffPlate, R: R, A: A, variant: string) {
+  if (variant === 'laminate') {
+    // S4: CompositePlating was a pale-stack twin of RefinedAlloy —
+    // the lamination seam was sub-texel at 48px. The composite now
+    // stacks as its object form does: FOUR thin slabs, offset
+    // course by course, each carrying its seam row (accent-dark)
+    // at full width — a different stack rhythm from the refined
+    // stack's three thick aligned slabs.
+    [9, 8, 9, 8].forEach((w, i) => {
+      const y = 9 - i * 2;
+      const x = i % 2 === 0 ? 2 : 3;
+      cv.rect(x, y, w, 2, 'P');
+      cv.rect(x, y, w, 1, 'p');
+      cv.rect(x, y + 1, w, 1, A.dark);
+    });
+    return;
+  }
   [9, 10, 9].forEach((w, i) => {
     const y = 8 - i * 3;
     cv.rect(6 - Math.floor(w / 2), y, w, 3, 'P');
@@ -567,19 +583,29 @@ function thumbSwatch(cv: StuffPlate, R: R, A: A, variant: string, rng: Rng) {
     for (const gx of [3, 6, 9]) for (const gy of [3, 6, 9]) cv.set(gx, gy, 'L');
     return;
   }
+  if (variant === 'weave') {
+    // S4: Voidweave shared WovenCircuits' checker stamp and
+    // separated on value alone. Its cloth now weaves in horizontal
+    // courses — deep/shade rows alternating full-width — a
+    // different structure from the circuit board's checker, with
+    // the same sparse accent flecks its object form carries.
+    for (let yy = 3; yy < 10; yy++) {
+      cv.rect(3, yy, 7, 1, yy % 2 === 0 ? 'D' : 'd');
+    }
+    for (let i = 0; i < 3; i++) cv.set(rint(rng, 3, 9), rint(rng, 3, 9), A.base);
+    cv.set(3, 10, 'd'); // fringe
+    cv.set(7, 10, 'd');
+    return;
+  }
   for (let yy = 3; yy < 10; yy++) for (let xx = 3; xx < 10; xx++) {
     const over = (Math.floor((xx - 3) / 2) + Math.floor((yy - 3) / 2)) % 2 === 0;
     let tone: StuffShade;
     if (variant === 'chroma') tone = yy >= 7 ? (over ? A.base : A.dark) : (over ? 'p' : 'd'); // pigment split
-    else if (variant === 'weave') tone = over ? 'D' : 'd'; // deep cloth, not bright checker
     else tone = over ? 'p' : 'd';
     cv.set(xx, yy, tone);
   }
   if (variant === 'circuit') { // node dots at the crossings
     for (const [nx, ny] of [[4, 4], [8, 4], [4, 8], [8, 8]] as const) cv.set(nx, ny, A.hot);
-  }
-  if (variant === 'weave') { // sparse flecks in the deep cloth
-    for (let i = 0; i < 3; i++) cv.set(rint(rng, 3, 9), rint(rng, 3, 9), A.base);
   }
   cv.set(3, 10, 'd'); // fringe
   cv.set(7, 10, 'd');
