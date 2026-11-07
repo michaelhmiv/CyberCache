@@ -1082,6 +1082,69 @@ remaining five weapon types (~89 further pieces) is the
 owner's call on this slice's judgment package; S5 does not
 pre-decide it.
 
+**Hero ship (2026-11-07) — the character converts to pxl,
+whole.** The Pxl Everything program's character phase lands:
+all three part sets (Standard Issue, Bulwark, Dreadplate) and
+the head lane replace their baked AI paintings with renders
+authored in the pxl tool — palette ramps as swap keys, parts on
+the shared anchors, shapes as data — under the owner's ruling
+that the whole character converts as ONE build (no per-family
+gates, no converted pieces judged on the old art). Same sprite
+ids, same canvases, same PartDef anchors; the composed rig was
+proven whole before shipping (the integration pass: 18/18 set
+definitions — 3 sets, 5 cross-set mixes, 10 head swaps —
+lint-clean through the repo compositor, all 8 PART_POSES
+executing on pure and mixed rigs). Mix-and-match is the point:
+parts were never set-locked, and the conversion keeps every
+cross-set combination legal. **The Hood is excluded by owner
+ruling** — the pxl-authored cowl read wrong to the owner, so
+the hood slot keeps the H1 production cowl byte-for-byte (its
+md5 is unchanged in this slice's diff); the other 38 sprites
+ship. **Ink/emitter unification folds in:** one blue-black ink
+`#070b14` for SI, Bulwark, and the head lane; the emitter hot
+steps unified on the SI values (`V #3ce9f5`, `W #c8fcfb`, base
+`v #0397b2` already shared); the glint key `G #fdf394` declared
+in all three palettes. Dreadplate is exempt — its warm ink and
+red family are its approved identity. Two craft notes, both
+recorded in the sources: Bulwark's shades()-generated steel
+floor is pinned darker (`#06060f` → `#02030a`) because it sits
+inside the pxl lint's near-duplicate distance of the unified
+ink — the lint's own push-apart remedy, ramp order unchanged,
+alpha untouched (the Bulwark head still measures IoU 0.9641
+against the shipped helm) — and one valve-wheel hub pixel on
+the Bulwark back settles to the wheel tone for the same
+contrast reason. **Payload:** character art 413,061 B →
+34,483 B on this tree (−378,578 B; against the pre-H1 census
+frame, 414,796 B → 27,846 B for all 39 conversions); the
+ceiling stays 11,620,000 B by owner ruling — the dividend is
+headroom, not a raise. **Rider: the 10 baked death-pose
+sprites are deleted** (244,492 B) — nothing ever rendered them
+(stage death is the rig's `death` pose; the bestiary census
+proved the only reference was a test asserting existence, and
+that assertion is retired with the reason recorded in the
+test). Post-ship sprite payload: 10,971,493 B, ~649 KB of
+headroom for the bestiary conversion (enemies, then the 13
+bosses), which lands with its own accounting. The ranked
+polish list (Bulwark helm dome first, now that the Hood item
+is moot) runs as its own slice after this ship. The `.px.js`
+authoring sources live with the program record in the
+prep archive (`cybercache-prep/hero-pass/`, batches H2d/H2e/
+H2f/H2g + integration) — the game ships the renders, exactly
+as it shipped the previous generation's bakes.
+
+**V5 (2026-11-07) — the SVG ban's enforcement surface.** The
+total-SVG ban (sole exception: the Google "G" sign-in glyph)
+now holds on the stage itself: the LiveTurfDiorama's dormant
+inline-SVG fallback diorama — the vector scene that rendered
+for areas with no pixel background, owner-ruled killed
+2026-11-07 — is deleted, together with its only-serving
+silhouette component and the consumer-less procedural-SVG
+`AreaBackground`. The DOM pixel stage is the only ambient
+stage; an area with no pixel background renders the stage
+shell and its overlays only, and `pixelDiorama.test.tsx` pins
+exactly that. The loot-rise material glyph keeps its small
+inline SVG inside the pixel scene — that is the pixel
+stage's own FX vocabulary, not a fallback scene.
 **SVG closure (2026-11-07) — the vector exceptions are
 closed; the fallback diorama is deleted.** The owner's ruling:
 the three live SVG exceptions the full-asset census found
@@ -1098,9 +1161,12 @@ its unchanged geometry lib (the MARKET sparkline chart stays
 retired per the owner's 2026-11-05 ruling — it was never
 this component's surface); the consumable ring is a 28×28
 texel raster (slice accents, ink seams, a dash-block pulse,
-a 3×5 texel count digit); the BenchFx spark burst is a
-20×20 texel grid (the work scenes' last vector surface —
-M1's specs and timing are untouched); the loadout star
+a 3×5 texel count digit); the BenchFx spark burst's
+vector form is closed (authored here as a 20×20 texel
+grid; in the merged tree the bench slice's canvas FX
+vehicle, PR #447, carries the burst and supersedes the
+grid — M1's specs and timing are untouched either way);
+the loadout star
 connectors are rasterized dashed texel lines on a canvas
 reproducing the old viewBox meet geometry; the diorama's
 loot-rise drop icons are authored 15×15 grids shaded per
@@ -1109,8 +1175,10 @@ diorama was verified dormant before deletion — every
 roaming area resolves a pixel background (CI-asserted in
 pixelWave1.test) and both mounts pass registry areas — and
 is DELETED with its fallback-only overlays; an unmapped
-area id now takes the Dustwaste default, the idiom
-ExtractionPanel and ChestScreen already use. Orphaned by
+area id renders no scene at all — the stage shell and its
+overlays only — per the V5 slice's kill semantics
+(PR #446), which this merge keeps over this slice's
+Dustwaste-default variant. Orphaned by
 the kill and deleted with it: the enemy silhouettes, the
 resource silhouettes, ELEMENT_PROJECTILE, PxIconGlyph.
 The same census's dead code went too: AreaBackground (zero
@@ -1319,10 +1387,68 @@ recommended) — replaces the statue with work:
   on the law's loot-rise duration (`LOOT_RISE_MS`), once per
   settled unit, never replayed from the mirror's existing
   contents. The panel scenes keep their existing result flash.
+  (Salvaging joins this beat in M4b — see the next section.)
 - **Reduced motion** collapses the bench to the held `work` pose
   with no cycle and no FX — the pre-M1 picture exactly. The
   animated-node accounting (parts + FX + embers + rise) stays
   inside `MAX_ANIMATED_NODES`, asserted in the M1 tests.
+
+### The item on the bench — Motion M4b + the V2 bench re-author (2026-11-07)
+
+M1 set the hunter working, but the bench itself stayed empty: the
+item being crafted appeared in no scene, a finished unit of any
+kind but a weapon rose as a generic gold disc, and salvaging —
+whose completion beat was forced null — got no ceremony at all.
+M4b finishes the bench:
+
+- **The bench family is authored art now (V2).** The three bench
+  tiers (`set-bench-basic` 61×60, `set-bench-forge` 67×60,
+  `set-bench-lab` 63×60) were re-authored in the pxl tool under
+  the pxl-craft standard (lint 0; sources archived with the
+  slice's evidence): hue-shifted ramps, selout, cluster
+  discipline, the forge family's glow in the work-cycle spec's
+  own hexes. Same sprite ids, canvases, and manifest anchors —
+  each tier's work surface sits at its own anchor point, so the
+  M1 work point means the same place it always did. Together the
+  family sheds ~23.7 KB of painterly sprite payload (25,117 B →
+  1,395 B) and reads as a bench at stage scale instead of a dark
+  glittery block.
+- **The seat is truthful (benchSeat.ts).** While a job runs, its
+  output picture sits AT the work point — the same anchor the
+  set-piece FX burst from, so the sparks land on the work itself.
+  Resolution is a pure function of state the client already
+  holds: recipe-specified outputs (consumable, material,
+  cosmetic part) render through their real compositors; a named
+  relic renders its grammar form at its fixed rarity (name +
+  rarity are set at enqueue — only the instance seed is minted
+  at completion, and the seat never claims it); service jobs seat
+  the target record itself. A generic gear job's item DOES NOT
+  EXIST mid-job — the server rolls it at the completion instant —
+  so its seat is the honest maximum: an empty frame in the
+  snapshotted rarity's color with the slot's glyph. Fabricating
+  an item render for that seat fails review.
+- **Every completion rises as itself.** The rise resolves the
+  settled unit's own output: consumable, material, cosmetic part,
+  or the minted inventory item of any gear kind (weapons were the
+  only kind that rose as themselves before). The glow disc
+  remains only for completions with no picture of their own —
+  service work, or an item already gone from the inventory.
+- **Salvaging celebrates.** A recycle settling while salvaging
+  holds the stage earns the same beat grammar — celebrate pose,
+  work cycle held, and the yield rising off the crusher (Scrap,
+  the one thing every recycle pays; the destroyed item never
+  rises). The signal is the salvage feed every recycle result
+  already pushes to; a failed batch settled nothing and earns
+  no beat. Seen-set discipline matches the craft lanes: history
+  never replays, reduced motion silences the beat.
+- **BenchFx speaks texel now.** The set-piece FX vehicle is a
+  quarter-resolution canvas in the loot light kit's grammar —
+  stepped concentric glow ellipses, texel spark rays, flat
+  five-tone ramps (the FX register is flat by law, §8) — sampled
+  from the same work-cycle sampler on the same start delay, so
+  timings are M1's exactly (movement.ts untouched). The SVG
+  stroke burst and blurred gradient divs are gone; one canvas
+  node replaces up to five DOM nodes in the animated count.
 
 ### The streak claim moment
 

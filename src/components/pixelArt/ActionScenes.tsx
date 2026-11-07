@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
 import { PixelPartsActor } from './PixelPartsActor';
 import { BenchFx } from './BenchFx';
+import { BenchItemRender } from './BenchSeat';
+import { benchSeatPlanForJob } from '@/lib/pixel/benchSeat';
+import type { WorkshopJobView } from '@/store/slices/workshopSlice';
 import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_SCENE, type WorkCycleSpec } from '@/lib/pixel/workCycle';
 import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
 import { GRAMMAR } from '@/lib/pixel/grammar';
@@ -99,10 +102,11 @@ const SceneShell: React.FC<{
   );
 };
 
-export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: string; benchSpriteId?: string; unarmed?: boolean }> = ({
+export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: string; benchSpriteId?: string; unarmed?: boolean; seatJob?: WorkshopJobView | null }> = ({
   backgroundId = 'zone-blastforge-bg',
   benchSpriteId = 'set-bench-forge',
   unarmed: _unarmed = false, // retained prop (M2: bench scenes hold no weapon; no-op)
+  seatJob,
   working,
   reduced = false,
   ...rest
@@ -111,10 +115,23 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
   const spec = sceneSpec('craftingBench');
   const active = sceneWorking({ ...rest, working });
+  // The item on the bench (M4b): the caller's running job seats
+  // its truthful output picture at the work point — the same
+  // anchor BenchFx bursts from, so the sparks land on the work.
+  const seatPlan = benchSeatPlanForJob(seatJob);
   return (
     <SceneShell backgroundId={backgroundId} testId="crafting-bench-scene" reduced={reduced} {...rest}>
       <PixelActor spriteId={benchSpriteId} xPct={58} heightPct={36} groundY={groundY} reduced={reduced} breathe={false} testId="crafting-bench-set" />
       <PixelActor spriteId="set-refinery-crusher" xPct={86} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} />
+      {seatPlan && (
+        <div
+          data-testid="crafting-bench-seat"
+          className="pointer-events-none absolute z-20 flex items-center justify-center"
+          style={{ left: '58%', top: `${(groundY - 0.19) * 100}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+        >
+          <BenchItemRender plan={seatPlan} testId="crafting-bench-seat-render" />
+        </div>
+      )}
       <BenchFx spec={spec} active={active} reduced={reduced} xPct={58} yPct={(groundY - 0.19) * 100} testId="crafting-bench-fx" />
       <PixelPartsActor
         set={look.set}

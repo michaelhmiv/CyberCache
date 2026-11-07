@@ -21,9 +21,8 @@ import { buildKeystoneGrid } from '@/components/common/SkillKeystoneArt';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import { SkillTreeType } from '@/types/game';
 import { buildConsumableRingGrid } from '@/components/stats/ConsumableRing';
-import { buildSparkBurstGrid } from '@/components/pixelArt/BenchFx';
 import { buildStarConnectorGrid } from '@/components/action/ActionLoadout';
-import { DROP_RISE_GRIDS, dropRisePalette } from '@/components/dashboard/LiveTurfDiorama';
+import { DROP_RISE_GRIDS, dropRisePalette } from '@/lib/pixel/dropRiseIcons';
 
 function findings(render: LintRender, name: string): LintFinding[] {
   return [...lintRender(render, name), ...lintBanding(render, name)];
@@ -82,12 +81,10 @@ describe('SVG pixel conversions — lint', () => {
     }
   });
 
-  it('bench spark burst lints clean', () => {
-    expectClean(
-      { width: 20, height: 20, rows: buildSparkBurstGrid(), colors: { S: '#FFB300' } },
-      'bench spark burst',
-    );
-  });
+  // The bench spark burst's lint case was dropped in the #448/#447
+  // merge: the bench slice's canvas FX vehicle (PR #447) superseded
+  // this slice's buildSparkBurstGrid rasterizer, so the grid no
+  // longer exists to lint.
 
   it('star connectors lint clean', () => {
     expectClean(

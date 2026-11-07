@@ -70,13 +70,22 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
   });
 
-  it('an unmapped area id takes the Dustwaste pixel stage — the vector fallback is deleted (owner ruling 2026-11-07)', () => {
+  it('renders NO scene for areas with no pixel background (SVG fallback killed, owner ruling 2026-11-07)', () => {
+    // The dormant inline-SVG fallback diorama is gone for good: in a
+    // total-SVG-ban game the DOM pixel stage is the only ambient
+    // stage, so an area with no pixel background renders the stage
+    // shell and its overlays only — no pixel stage, and no SVG
+    // scene of any kind (the loot-rise glyph SVG only ever appears
+    // inside the pixel scene, on a loot event).
     const area = { ...getRoamingArea('redline_circuit'), id: 'unconverted_test_zone' };
     const { container } = render(
       <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} playerLevel={5} equippedCount={1} activityKind="roaming_loot" />,
     );
-    expect(screen.getByTestId('pixel-diorama-stage')).toBeTruthy();
+    expect(screen.queryByTestId('pixel-diorama-stage')).toBeNull();
+    expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
     expect(container.querySelector('svg')).toBeNull();
+    // The stage shell and its chrome still render.
+    expect(screen.getByText('1/7 gear')).toBeTruthy();
   });
 });
 

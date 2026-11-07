@@ -167,6 +167,17 @@ job (or counting several). Tap it to come straight here and collect. If
 you are already watching the Workshop when the job lands, no announcement
 appears: you saw it happen.
 
+Watch the bench while a job runs and the work itself is on it: the
+consumable, material, part, or relic taking shape sits at the work
+point under the hunter's hands, and when the unit lands it rises off
+the bench as itself — a finished shield, relic, or skin part rises
+as that piece, not a generic glow. Gear is the one exception that
+proves the rule: a rolled gear piece does not exist until the job
+finishes, so mid-job its seat shows an empty frame in the rarity
+the job rolled, and the real piece appears the moment it lands.
+Salvage gets the same ceremony — when a recycle settles while the
+crusher holds the stage, the scrap it paid rises off the crusher.
+
 ## Bench time
 
 The bench strip at the top of the Workshop carries your **bench
