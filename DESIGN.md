@@ -869,6 +869,37 @@ disabled, 2026-11-06). Wear and godroll sparkles are live and
 stay. Remaining sweep slices (lint gate, gear-engine pass,
 small-item unification, authored-base pilot) land separately.
 
+**Hero Pass H1 (2026-11-06) — head-system unification.** The
+hero adopts the same discipline under the Hero Pass brief (all
+12 grill items ruled as recommended, plus the flexibility law:
+shapes are data — anchors, picks, and part definitions are
+declared data keyed by id; a future custom shape plugs in by
+adding data, never by editing engine code). Three rulings land
+here. (1) **One lane for the maker helms (Q2):** the six crafted
+manufacturer head parts are DELISTED — no new crafts, no new
+listings — and the look lives in the Standing rank-3 head pick.
+Grandfathering is absolute: owned copies keep rendering,
+wearing, and equipping forever; listings already live trade as
+normal; jobs in flight settle. Availability is a `delisted`
+flag in the skins catalog, read through one helper by every
+gate (Workshop shelf, both craft-enqueue seams, both
+market-create seams, the Wardrobe craft queue) — no id lists in
+engine or UI code. The SQL recipe catalog still carries the six
+recipes (in-flight jobs resolve from it); retiring the rows at
+that layer is a separate parent-run migration, rehearsed on
+staging first. (2) **Tier labels tell the measured truth:** the
+maker helms were catalogued 'shaped' but measure as palette
+re-skins of the stock head (alpha IoU ≈ 1.00 vs the visor, the
+AUDIT method) — they and their set are 'palette' now, and a
+test pins the rule: any part labeled 'shaped' must measure
+IoU < 0.90 against the stock part for its slot. (3) **The Hood
+pick is re-authored (Q3)** as a shaped cowl under the pxl-craft
+standard (scripts/author-hood-sprite.py — the art is declared
+span/fold data over the stock head, baked to the same sprite
+id and 86×88 canvas): 3,109 drape cells in 8 tones where the
+old slab had 1,783 cells in 2, and the payload went DOWN
+(hood sprite 9,220 → 7,485 bytes; no ceiling raise).
+
 ---
 
 ## 9. Surfacing — one canonical door per feature

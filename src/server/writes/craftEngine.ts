@@ -97,11 +97,12 @@ import { shieldBehaviorOf, type ShieldBehaviorId } from '../../lib/combat/shield
 import {
   buildCosmeticPartPayload,
   rollCosmeticQuality,
+  skinPartDelisted,
   tintPaletteById,
   type CosmeticPartPayload,
 } from '../../content/skins.js';
 import { Rarity } from '../../types/game.js';
-import { applyXp } from './store.js';
+import { applyXp, DELISTED_COSMETIC_CRAFT_REFUSAL } from './store.js';
 import {
   generateCraftedGearItem,
   type CraftedGearCandidate,
@@ -1151,6 +1152,11 @@ export function enqueueCraftJob(
   // starts only through enqueueTintJob; per-recipe unit caps
   // (prestige crafts) bind here.
   if (r.tintCraft) fail('Tint crafts start from the Tinting action');
+  // Delisted cosmetic parts (Hero Pass H1, Q2): the recipe stays
+  // resolvable so queued/in-flight jobs settle, but no NEW job
+  // starts for a retired design. The Pg store refuses at its own
+  // seam with the same sentence.
+  if (r.cosmeticPartId && skinPartDelisted(r.cosmeticPartId)) fail(DELISTED_COSMETIC_CRAFT_REFUSAL);
   if (r.maxUnits !== undefined && units > r.maxUnits) {
     fail(`This craft runs at most ${r.maxUnits} units at a time`);
   }

@@ -40,6 +40,10 @@
         {
           "number": 433,
           "title": "feat(pixel): pxl craft sweep S1 — hue-shifted ramp root, selective outline, dead sheen lift deleted"
+        },
+        {
+          "number": 434,
+          "title": "docs(changelog): item-art depth entry for S1 (#433)"
         }
       ]
     },

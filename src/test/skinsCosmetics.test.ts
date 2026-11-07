@@ -366,12 +366,18 @@ describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
     });
   });
 
-  it('a level-1 player enqueues a manufacturer head (bench 2, was L12)', async () => {
+  it('a manufacturer head NO LONGER enqueues at any level (Hero Pass H1 delisting supersedes the 0056 pin)', async () => {
+    // Pre-H1 this test pinned the opposite: the maker helms were
+    // normal craft-pool parts and a level-1 player could enqueue
+    // one. Q2 (owner-ruled 2026-11-06) retired them to the
+    // Standing pick lane — the enqueue now refuses, at level 1
+    // and everywhere else. heroPassH1.test.ts carries the full
+    // delisting + grandfathering suite.
     const store = new InMemoryWriteStore(levelOneSeed(3), { now });
     const head = getCraftRecipe(skinPartCatalog('mfr-head-redline')!.recipeId)!;
-    await store.enqueueCraftJob(A, nonce(), {
+    await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 2, recipeId: head.id, units: 1,
-    });
+    })).rejects.toThrow(/retired/);
   });
 
   it('no bench gate binds a cosmetic anymore (slice 9): the dread head enqueues on the one bench', async () => {
