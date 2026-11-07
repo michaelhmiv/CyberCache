@@ -1429,7 +1429,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           animate={eventActive && !reduced ? { x: [-2, 3, 0], y: [0, -2, 0] } : undefined}
           transition={eventActive && !reduced ? { duration: 0.44 } : undefined}
         >
-          <PixelWeapon weapon={weapon} size={106} />
+          <PixelWeapon weapon={weapon} size={106} density="held" />
         </motion.div>
       ) : !weapon ? (
         <div

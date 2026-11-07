@@ -28,11 +28,17 @@ import { useDeferredArt } from './useDeferredArt';
  *   render their fixed sprite instead.
  * - Painting happens once per unique weapon signature; the composed render
  *   is cached module-wide, so re-renders and lists never repaint texels.
- * - `density`: 'stage' (120×44) is the in-scene held weapon; 'card'
- *   (240×88, weaponCardCompositor) is the same composition at card
- *   density for inventory / gear detail / market / loot surfaces.
- *   Both densities share the 30:11 aspect, so swapping never shifts
- *   layout. Bespoke legendary resolution is identical at both.
+ * - `density`: 'card' (240×88, weaponCardCompositor) is the
+ *   inspect composition for inventory / gear detail / market /
+ *   loot surfaces; 'held' is the SAME card grammar in held mode
+ *   (One Grammar, 2026-11-06) — the card composition minus its
+ *   presentation furniture — and is the in-scene held weapon on
+ *   every stage; 'stage' (120×44, weaponCompositor) survives only
+ *   as the detail-level-0 small grid for compact list rows and
+ *   feed thumbs (DESIGN.md §8; the card compose is too heavy to
+ *   run per row). All densities share the 30:11 aspect, so
+ *   swapping never shifts layout. Bespoke legendary resolution
+ *   is identical at every density.
  */
 
 const PAINT_SCALE = 3; // supersampled backing store; CSS size stays exact
@@ -48,8 +54,10 @@ interface PixelWeaponProps {
   fluid?: boolean;
   className?: string;
   testId?: string;
-  /** Composition density: 'stage' 120×44 (default) or 'card' 240×88. */
-  density?: 'stage' | 'card';
+  /** Composition density: 'stage' 120×44 small grid (default,
+   *  list rows / feed thumbs), 'card' 240×88 inspect, or 'held'
+   *  240×88 held mode (the stage's in-hand render). */
+  density?: 'stage' | 'card' | 'held';
   /**
    * Viewport-deferred composition (Gear cold-load fix): when set,
    * the canvas mounts at its final geometry immediately but the
@@ -80,7 +88,7 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
   const bespoke = resolved ? bespokeSpriteIdForWeapon(resolved) : undefined;
   const bespokeSprite = bespoke ? getPixelSprite(bespoke) : undefined;
 
-  const paintScale = density === 'card' ? CARD_PAINT_SCALE : PAINT_SCALE;
+  const paintScale = density === 'stage' ? PAINT_SCALE : CARD_PAINT_SCALE;
 
   const stageRender = useMemo(
     () => (active && resolved && !bespokeSprite && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
@@ -90,16 +98,21 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     () => (active && resolved && !bespokeSprite && density === 'card' ? composeWeaponCardCached(resolved) : undefined),
     [active, resolved, bespokeSprite, density],
   );
-  const render = cardRender ?? stageRender;
+  const heldRender = useMemo(
+    () => (active && resolved && !bespokeSprite && density === 'held' ? composeWeaponCardCached(resolved, undefined, { held: true }) : undefined),
+    [active, resolved, bespokeSprite, density],
+  );
+  const render = heldRender ?? cardRender ?? stageRender;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return; // jsdom / unsupported — element + signature still render
-    if (cardRender) paintWeaponCard(ctx, cardRender, CARD_PAINT_SCALE);
+    if (heldRender) paintWeaponCard(ctx, heldRender, CARD_PAINT_SCALE);
+    else if (cardRender) paintWeaponCard(ctx, cardRender, CARD_PAINT_SCALE);
     else if (stageRender) paintPixelWeapon(ctx, stageRender, PAINT_SCALE);
-  }, [cardRender, stageRender]);
+  }, [heldRender, cardRender, stageRender]);
 
   if (bespokeSprite) {
     const height = Math.round(size * (bespokeSprite.height / bespokeSprite.width));
@@ -126,8 +139,8 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     // the art lands; the rarity glow is rarity-derived, so it can
     // ride the placeholder unchanged.
     if (defer && !active && resolved && !bespokeSprite) {
-      const gridW = density === 'card' ? CARD_WEAPON_WIDTH : PIXEL_WEAPON_WIDTH;
-      const gridH = density === 'card' ? CARD_WEAPON_HEIGHT : PIXEL_WEAPON_HEIGHT;
+      const gridW = density === 'stage' ? PIXEL_WEAPON_WIDTH : CARD_WEAPON_WIDTH;
+      const gridH = density === 'stage' ? PIXEL_WEAPON_HEIGHT : CARD_WEAPON_HEIGHT;
       const height = Math.round(size * (gridH / gridW));
       return (
         <canvas

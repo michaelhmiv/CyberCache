@@ -157,9 +157,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 171 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 172 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-06** — 9 merges
+**2026-11-06** — 10 merges
 
 - #425 — Fix cosmetic-craft workshop brick: migration 0085 kind filter + finalizer defense
 - #426 — Field Manual: the repo wiki, rendered natively in-app (guided tour retired)
@@ -170,6 +170,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #431 — fix(boss): the boss fight's home is the main stage (One-Stage Law, F5 closed)
 - #432 — Changelog: boss fights on the main stage (for #431)
 - #433 — feat(pixel): pxl craft sweep S1 — hue-shifted ramp root, selective outline, dead sheen lift deleted
+- #434 — docs(changelog): item-art depth entry for S1 (#433)
 
 **2026-11-05** — 34 merges
 

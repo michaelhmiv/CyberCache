@@ -816,9 +816,10 @@ trades register-match for richness, register wins.
 
 - **texel = 4** — the manifest law for every sprite, and the grid
   every compositor authors on. Fixed texel grids per density:
-  weapons 120×44 (stage) / 240×88 (card); gear plates 240×140
-  (shield, relic) / 240×120 (class mod, ordnance) at card, with a
-  quarter-grid thumb.
+  weapons 240×88 (card; the stage renders the same grid in held
+  mode, §8.1) / 120×44 (detail-level-0 small grid for list rows);
+  gear plates 240×140 (shield, relic) / 240×120 (class mod,
+  ordnance) at card, with a quarter-grid thumb.
 - **Author AT the grid.** No oversampling, no sub-texel features;
   the minimum feature is 1 texel.
 - **Five-tone ramp per hue** — hue-shifted steps anchored to the
@@ -868,6 +869,32 @@ converted zero cells (card path md5-verified identical with it
 disabled, 2026-11-06). Wear and godroll sparkles are live and
 stay. Remaining sweep slices (lint gate, gear-engine pass,
 small-item unification, authored-base pilot) land separately.
+
+**One Grammar (2026-11-06) — ruling (5) superseded for
+weapons.** The card-held proof put the S1-trained card grammar in
+the hunter's hands on the Home stage: the stage world is already
+mixed-fidelity (painted backdrop, detailed enemies, coarse
+hunter), the card gun reads as the premium object rather than a
+pasted sticker, and the grip lands correctly at the pixel path's
+held length. The owner ruled the unification in ("This looks
+sick. Proceed" — sweep brief Amendment 1). The stage — DOM
+diorama and Pixi boss stage alike — now renders the equipped
+weapon from the CARD grammar in a first-class HELD MODE
+(`composeWeaponCard` with `held: true`): the presentation
+furniture (sniper bipod, Legendary halo ring, pooled glow,
+floating sparkles) is omitted as a compositor pass, never masked
+out of a finished card image; on-body finishes stay. The card
+(inspect) render is byte-identical with held mode off. Grip
+seating is data: `WEAPON_CARD_GRIP_FRACTIONS` declares a measured
+grip anchor per weapon type (grip-cluster centroids across all
+six manufacturers), and the parts actor seats the held render
+grip-to-grip on the skeleton joint from it. The 26 bespoke
+legendary sprites keep their existing path untouched. The
+120×44 compositor no longer renders on any stage; it remains
+the detail-level-0 density for compact list rows and feed
+thumbs, where the card compose is too heavy to run per row
+(the 2026-11-04 Gear freeze law) — other surfaces keep their
+densities, per Amendment 1.
 
 ---
 
