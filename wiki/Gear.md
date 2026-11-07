@@ -110,8 +110,8 @@ and HelixWorks a rounded **coil** wrapped in brass rings. Within a
 maker and type, the rolled parts still vary the gun — chambers,
 magazines, sights, and barrels differ from item to item.
 
-Snipers are drawn from hand-authored part art: every chamber,
-magazine, sight, and barrel variant is a drawn piece, assembled by
+Snipers, pistols, SMGs, and shotguns are drawn from hand-authored part art: every chamber,
+magazine, sight, barrel, grip, and receiver variant is a drawn piece, assembled by
 the same rules — the rolled parts still pick which pieces your gun
 is built from, and maker, element, and rarity dress them exactly
 as described here.

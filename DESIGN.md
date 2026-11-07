@@ -1145,6 +1145,65 @@ shell and its overlays only, and `pixelDiorama.test.tsx` pins
 exactly that. The loot-rise material glyph keeps its small
 inline SVG inside the pixel scene — that is the pixel
 stage's own FX vocabulary, not a fallback scene.
+**Batch 1 (2026-11-07) — authored bases scale-up: pistol,
+SMG, shotgun.** The owner ruled the scale-up ("everything
+done", 2026-11-07), and the S5 pattern is replicated for the
+first three of the five remaining types (declaration order;
+the sniper is done, a sibling batch takes Launcher and
+Beam): 19 authored pieces per type — a layout piece plus
+three variants for each of Barrel, Grip, Core, Magazine,
+Chamber, and Sight — checked in as grid data
+(`src/lib/pixel/{pistol,smg,shotgun}AuthoredData.ts`) and
+generated from the archived .px.js sources by the
+generalized deterministic converter
+(`scripts/convert-authored-bases.mjs`; re-running it
+reproduces each module byte-for-byte). Three batch-1 facts
+differ from the pilot. (1) **The Sight slot carries three
+authored forms** — these types' procedural sight pass read
+the rolled variant, where the sniper's collapsed to one
+coded scope (its scope-6 ruling stays the sniper's own).
+(2) **The shotgun's Magazine slot authors its pump and
+magazine tube**: the pump stamps before the barrel (the
+barrel overdraws the tube row near the root, as the
+procedural pass order did), the type seats no Magazine
+anchor (procedural parity), and its bead and barrel heat
+holes stay drawn in code exactly where the procedural
+barrel pass put them, in both modes. (3) **Form robustness
+against the living passes is designed, not lucky**: the
+pistol suppressor's end wears a dark scorch collar because
+BlastForge's deterministic muzzle scorch (a K lattice over
+the muzzle's last ten columns) shreds any bright field it
+lands on, and the shotgun's under-receiver rail reads solid
+D on its underside because element drips hang off that edge
+and the outline pass shades their flanks from the row
+above. The shotgun receiver's belly shade likewise steps
+in broken clusters rather than a straight band: remapped
+to the near-hue-flat wood ramp, six uniform full-width
+belly rows trip the banding gate's tone march, and the
+broken step splits the stack. The SMG suppressor can also stands one row
+slimmer than the procedural can: Ironwood's brass barrel
+bands ride one cell proud of the tube profile, a
+band-height can would swallow them, and with maker
+furniture shapes superseded the bands are what keep
+Ironwood's SMG silhouette distinct from BlastForge's —
+the 36-identity silhouette law is pinned by test and was
+the deciding audit for the can's height. Supersessions for these types, under grill ruling 1
+(maker-neutral authorship): Prismatek's crystal chamber
+form (all three types), ThrowTech's canister magazine
+(pistol and SMG — the canister becomes palette, not form),
+BlastForge's procedural barrel shroud (absorbed as an
+authored barrel variant), and the Wasteland-bone theme's
+shape overrides (its palette law still applies; its cracks
+draw over the authored forms). Assembly is untouched,
+every living pass runs as before, and containment is
+pinned by test: 648 render signatures outside the batch
+byte-identical to the pre-batch-1 sweep, the S5 containment
+sweep re-based in this slice to the complementary 576, and
+the payload delta is 0. Each batch-1 type yields 131,220
+combinations (3⁶ part-variant combos × 6 makers × 6
+elements × 5 rarities) from its 19 pieces; authored
+coverage across the library is now 437,400 of 787,320
+combinations from 74 pieces.
 
 ---
 

@@ -319,15 +319,19 @@ describe('card compositor — golden signature pins', () => {
   // sniper pins moved in S5 (the authored-bases pilot): the
   // sniper's form now comes from authored part bases, so its card
   // renders changed by design; every other pin is untouched.
+  // Re-pinned 2026-11-07 (authored-bases batch 1): the Shotgun,
+  // Pistol, and SMG goldens moved deliberately — those types' card
+  // forms are authored bases now. The Sniper, Beam, and Launcher
+  // goldens are untouched and still pin byte-identical.
   const GOLDENS: Record<string, string> = {
     'Redline Sniper Kinetic Common': 'f3a25e41',
     'Ironwood Sniper Fire Rare': 'b4b7658d',
-    'BlastForge Shotgun Kinetic Legendary': '4a3401ec',
+    'BlastForge Shotgun Kinetic Legendary': '37825b12',
     'Prismatek Beam Void Epic': '9280078f',
-    'ThrowTech Pistol Shock Uncommon': '41427e42',
+    'ThrowTech Pistol Shock Uncommon': 'c9979330',
     'HelixWorks Launcher Cryo Rare': '31e8cd37',
-    'Redline Pistol Corrosive Common': '144299c',
-    'HelixWorks SMG Kinetic Common': 'a74d18f0',
+    'Redline Pistol Corrosive Common': '9ca344a6',
+    'HelixWorks SMG Kinetic Common': 'f018ce14',
   };
   const CASES: Record<string, PixelWeaponInput> = {
     'Redline Sniper Kinetic Common': base({ weaponType: WeaponType.Sniper, manufacturer: Manufacturer.Redline, id: 'gold-1' }),

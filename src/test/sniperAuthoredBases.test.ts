@@ -28,6 +28,14 @@
  *    s5-evidence/renders/containment-baseline.json). Any future
  *    change that moves one of those renders fails here and
  *    re-pins deliberately, the way the card goldens do.
+ *    RE-BASED by authored-bases batch 1 (Pistol/SMG/Shotgun): those
+ *    three types' card renders are batch 1's deliberate target, so
+ *    they leave this sweep; the narrowed sweep (576 signatures:
+ *    Launcher/Beam cards + every pixel render) is pinned to the
+ *    pre-batch-1 master sweep (super-hash 3f554080; evidence:
+ *    cybercache-prep/pxl-craft-sweep/scaleup-batch1/renders/
+ *    containment-baseline.json). Batch 1's own test pins the
+ *    complementary 648-signature sweep (sniper cards included).
  *  - The living passes land on authored bases: rarity overlays by
  *    tier (exact landed cell counts at the overlay coordinates),
  *    godroll sparkles, wear erasure, affix decals, the Kinetic
@@ -257,7 +265,8 @@ describe('S5 authored bases — the living passes land', () => {
 });
 
 describe('S5 authored bases — containment', () => {
-  it('non-sniper card renders and all pixel renders are byte-identical to the pre-S5 sweep', () => {
+  it('non-sniper card renders and all pixel renders are byte-identical to the pre-S5 sweep (batch-1 types excluded by their own slice)', () => {
+    const BATCH1 = new Set<string>([WeaponType.Pistol, WeaponType.SMG, WeaponType.Shotgun]);
     const sigs: Record<string, string> = {};
     for (const type of Object.values(WeaponType)) {
       for (const manufacturer of Object.values(Manufacturer)) {
@@ -267,16 +276,16 @@ describe('S5 authored bases — containment', () => {
               weaponType: type, manufacturer, element, rarity,
               rollQuality: 75, pixelSeed: 4242, id: `contain-${type}-${manufacturer}-${element}-${rarity}`,
             };
-            if (type !== WeaponType.Sniper) sigs[`card/${type}/${manufacturer}/${element}/${rarity}`] = composeWeaponCard(input).signature;
+            if (type !== WeaponType.Sniper && !BATCH1.has(type)) sigs[`card/${type}/${manufacturer}/${element}/${rarity}`] = composeWeaponCard(input).signature;
             sigs[`pixel/${type}/${manufacturer}/${element}/${rarity}`] = composePixelWeapon(input).signature;
           }
         }
       }
     }
-    expect(Object.keys(sigs)).toHaveLength(792);
+    expect(Object.keys(sigs)).toHaveLength(576);
     let h = 0x811c9dc5;
     const joined = Object.keys(sigs).sort().map((k) => `${k}=${sigs[k]}`).join('\n');
     for (let i = 0; i < joined.length; i++) h = Math.imul(h ^ joined.charCodeAt(i), 0x01000193);
-    expect((h >>> 0).toString(16).padStart(8, '0')).toBe('b30349f7');
+    expect((h >>> 0).toString(16).padStart(8, '0')).toBe('3f554080');
   }, 120_000);
 });
