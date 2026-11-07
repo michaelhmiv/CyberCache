@@ -4,6 +4,8 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-06 — Gear reads faster, the Manual moves in
 
+- **Item art has depth now** — weapons, shields, and gear are shaded with hue-shifted ramps: shadows lean blue-violet, highlights run warm, and an item's outline takes the darker shade of the form it borders instead of one uniform black edge. Same items, same shapes — they read richer, above all on the big inspect and reveal renders. The wiki's item pictures are refreshed to match.
+
 - **Boss fights move like a game now** — the boss fight stage renders on a WebGL stage (PixiJS) instead of layered page elements: poses blend instead of snapping, the gun arm overshoots and settles after recoil, the boss crouches into its telegraph before it strikes, and impacts freeze for a beat inside the phase. Same sprites, same pacing, same outcomes — only the motion changed. Devices that can't create a WebGL context keep the previous stage automatically.
 - **Boss fights play on the main stage now** — the boss stands on Home's stage while you prep, and the fight itself plays up top where you're already looking, boss HP plate riding the stage. The encounter panel below keeps boss selection, stances, and the result. (The stage had been stuck on the roaming picture during boss fights — that wiring is fixed, and a regression test now guards it.)
 
@@ -155,9 +157,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 170 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 171 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-06** — 8 merges
+**2026-11-06** — 9 merges
 
 - #425 — Fix cosmetic-craft workshop brick: migration 0085 kind filter + finalizer defense
 - #426 — Field Manual: the repo wiki, rendered natively in-app (guided tour retired)
@@ -167,6 +169,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #430 — Changelog: Pixi boss stage (for #429)
 - #431 — fix(boss): the boss fight's home is the main stage (One-Stage Law, F5 closed)
 - #432 — Changelog: boss fights on the main stage (for #431)
+- #433 — feat(pixel): pxl craft sweep S1 — hue-shifted ramp root, selective outline, dead sheen lift deleted
 
 **2026-11-05** — 34 merges
 
