@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { PixelGridCanvas } from '@/components/pixelArt/PixelGridCanvas';
 import {
   workCycleFxTracks,
   WORK_CYCLE_PERIOD_MS,
@@ -27,23 +28,46 @@ interface BenchFxProps {
 
 /** Spark burst geometry (static): eight radiating strokes of
  *  varying length around the impact point — the ActivityProp
- *  vocabulary as a one-shot burst the strike envelope drives. */
+ *  vocabulary as a one-shot burst the strike envelope drives.
+ *
+ *  Pixel conversion (2026-11-07, SVG closure): the burst was the
+ *  one FX kit still drawn as smooth SVG strokes inside the texel
+ *  FX world. It is now a 20×20 texel grid (the old 40-unit box at
+ *  texel 2) painted on canvas — same rays, same lengths, same
+ *  center mass; the strike envelope that drives it is untouched. */
 const SPARK_RAYS = [4, 11, 7, 13, 5, 10, 6, 12];
 
+/** Rasterize the burst to a 20×20 grid ('S' = spark cell).
+ *  Exported so the lint test verifies the shipped rasterizer. */
+export function buildSparkBurstGrid(): string[] {
+  const grid: string[][] = Array.from({ length: 20 }, () => Array(20).fill('.'));
+  const plot = (x: number, y: number) => {
+    if (x >= 0 && x < 20 && y >= 0 && y < 20) grid[y][x] = 'S';
+  };
+  SPARK_RAYS.forEach((len, i) => {
+    const a = (i / SPARK_RAYS.length) * Math.PI * 2 - Math.PI / 2;
+    const r0 = 2; // was 4 units from center
+    const r1 = 2 + len / 2;
+    const steps = Math.ceil((r1 - r0) * 4);
+    for (let s = 0; s <= steps; s++) {
+      const r = r0 + ((r1 - r0) * s) / steps;
+      plot(Math.round(10 + Math.cos(a) * r), Math.round(10 + Math.sin(a) * r));
+    }
+  });
+  // Center mass (was an r=2.6 circle): a plus of texels.
+  plot(10, 10); plot(9, 10); plot(11, 10); plot(10, 9); plot(10, 11);
+  return grid.map((r) => r.join(''));
+}
+
+const SPARK_BURST_GRID = buildSparkBurstGrid();
+
 const SparkBurst: React.FC<{ color: string }> = ({ color }) => (
-  <svg viewBox="0 0 40 40" className="h-full w-full" aria-hidden="true">
-    {SPARK_RAYS.map((len, i) => {
-      const a = (i / SPARK_RAYS.length) * Math.PI * 2 - Math.PI / 2;
-      const x1 = 20 + Math.cos(a) * 4;
-      const y1 = 20 + Math.sin(a) * 4;
-      const x2 = 20 + Math.cos(a) * (4 + len);
-      const y2 = 20 + Math.sin(a) * (4 + len);
-      return (
-        <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={2} strokeLinecap="round" />
-      );
-    })}
-    <circle cx={20} cy={20} r={2.6} fill={color} />
-  </svg>
+  <PixelGridCanvas
+    rows={SPARK_BURST_GRID}
+    palette={{ S: { color } }}
+    className="h-full w-full"
+    aria-hidden="true"
+  />
 );
 
 /**

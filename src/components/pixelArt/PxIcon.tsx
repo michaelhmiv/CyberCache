@@ -55,28 +55,3 @@ export const PxIcon: React.FC<PxIconProps> = ({ name, size = 17, className, styl
 };
 
 export default PxIcon;
-
-/**
- * The icon's rect group on its own, for embedding inside a larger SVG
- * (keystone art, stage decorations). Position/scale with a wrapping
- * <g transform={...}>; rects occupy the 16x16 grid.
- */
-export const PxIconGlyph: React.FC<{ name: PxIconName; color?: string }> = ({ name, color }) => (
-  <g fill={color ?? 'currentColor'}>
-    {PX_ICONS[name].map((r, i) => {
-      const tone = r[4];
-      const toneFill = tone ? PX_ICON_TONE_FILLS[tone] : undefined;
-      return (
-        <rect
-          key={i}
-          x={r[0]}
-          y={r[1]}
-          width={r[2]}
-          height={r[3]}
-          fill={toneFill ? toneFill.fill : undefined}
-          opacity={toneFill ? toneFill.opacity : undefined}
-        />
-      );
-    })}
-  </g>
-);

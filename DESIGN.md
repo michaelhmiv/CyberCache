@@ -1082,6 +1082,48 @@ remaining five weapon types (~89 further pieces) is the
 owner's call on this slice's judgment package; S5 does not
 pre-decide it.
 
+**SVG closure (2026-11-07) — the vector exceptions are
+closed; the fallback diorama is deleted.** The owner's ruling:
+the three live SVG exceptions the full-asset census found
+(SkillKeystoneArt, Sparkline, ConsumableRing) convert to
+pixel; the dormant inline-SVG fallback diorama inside
+LiveTurfDiorama is killed; no named SVG exceptions survive.
+Conversions, same component APIs, sizes, and information —
+form only: keystone nodes are authored 30×30 texel grids
+(edge cells take the form's own border color — selout; the
+tree sigil and lock mark stay PX_ICONS rect data, composited
+on canvas where the SVG embedded them); the profile /
+progression sparkline is a stepped texel line on canvas over
+its unchanged geometry lib (the MARKET sparkline chart stays
+retired per the owner's 2026-11-05 ruling — it was never
+this component's surface); the consumable ring is a 28×28
+texel raster (slice accents, ink seams, a dash-block pulse,
+a 3×5 texel count digit); the BenchFx spark burst is a
+20×20 texel grid (the work scenes' last vector surface —
+M1's specs and timing are untouched); the loadout star
+connectors are rasterized dashed texel lines on a canvas
+reproducing the old viewBox meet geometry; the diorama's
+loot-rise drop icons are authored 15×15 grids shaded per
+drop through the shared hueLerp ramp root. The fallback
+diorama was verified dormant before deletion — every
+roaming area resolves a pixel background (CI-asserted in
+pixelWave1.test) and both mounts pass registry areas — and
+is DELETED with its fallback-only overlays; an unmapped
+area id now takes the Dustwaste default, the idiom
+ExtractionPanel and ChestScreen already use. Orphaned by
+the kill and deleted with it: the enemy silhouettes, the
+resource silhouettes, ELEMENT_PROJECTILE, PxIconGlyph.
+The same census's dead code went too: AreaBackground (zero
+consumers), the SharedDefs filter mount (zero references
+to any of its filter ids remained), and common/WeaponCard
+(zero production importers). What remains, stated exactly:
+the only vector-drawn graphic in the app is the Google "G"
+sign-in glyph on the auth screen — a brand mark, not game
+art. `<PxIcon>` is not an exception: it renders 16×16
+rect-grid data, the pixel icon system itself (§7). The
+converted grids lint at zero findings in CI
+(`svgPixelConversions.test.ts`) beside the S2 gate.
+
 ---
 
 ## 9. Surfacing — one canonical door per feature

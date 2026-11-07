@@ -24,6 +24,26 @@
         {
           "number": 439,
           "title": "docs(wiki): Changelog catch-up — 2026-11-07 entry for #435"
+        },
+        {
+          "number": 440,
+          "title": "docs(wiki): Changelog — One Grammar, work cycle, maker-helm lane"
+        },
+        {
+          "number": 441,
+          "title": "Migration 0086: retire maker-helm recipes from the craft catalog (H1 follow-through)"
+        },
+        {
+          "number": 442,
+          "title": "Pxl Craft Sweep S4 — small items unified onto one core + thumb form pass"
+        },
+        {
+          "number": 443,
+          "title": "S5: authored bases pilot — the sniper (Pxl Craft Sweep)"
+        },
+        {
+          "number": 444,
+          "title": "Pxl S3: gear-engine craft pass — selout, broken-edge toolkit, wear ladder, Absorb rewrite"
         }
       ]
     },

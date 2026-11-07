@@ -10,6 +10,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Crafting moves now** — at the bench your hunter actually works: forge, crusher, assembly, and calibration stations each run their own motion cycle while a job progresses, and the finished piece rises in the loot beat when it completes. Salvage and workshop service jobs animate the same way.
 - **One lane for the maker helms** — the six manufacturer helmets leave the crafting shelf and live only in the Standing picks, where they always also belonged (they are visor recolors, and the catalog now says so — part labels tell the truth about palette vs shaped). If you already crafted one, nothing changes: yours still equips, wears, and trades exactly as before, and any already-listed helm completes its sale. The Hood is a real hood now — a shaped cowl instead of the old flat slab.
 - **Item art is lint-checked now** — every procedurally drawn item in the game (weapons, gear, consumables, materials — 366 renders across every system) is checked in CI against the pixel craft standard: hue-shifted ramps, selective outlines, cluster discipline, and a ban on banded shading. The standard that made item art read richer yesterday now fails the build if it ever regresses.
+- **The last smooth-vector art is gone** — skill-tree nodes, your profile trend lines, the consumable ring, the workbench's spark bursts, and the little icons that rise off a kill when loot lands are all drawn in the game's pixel hand now, and they lint under the same craft standard as item art. They show exactly what they showed before — they just finally match everything around them. A long-retired fallback stage that had been riding in the build unused went out the same door.
 
 ## 2026-11-06 — Gear reads faster, the Manual moves in
 
@@ -166,15 +167,20 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 177 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 182 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-07** — 5 merges
+**2026-11-07** — 10 merges
 
 - #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
 - #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
 - #437 — Hero Pass H1: head-system unification — maker helms delisted to the Standing lane, Hood re-authored
 - #438 — Motion Reboot M1: the work cycle — bench modes work the bench
 - #439 — docs(wiki): Changelog catch-up — 2026-11-07 entry for #435
+- #440 — docs(wiki): Changelog — One Grammar, work cycle, maker-helm lane
+- #441 — Migration 0086: retire maker-helm recipes from the craft catalog (H1 follow-through)
+- #442 — Pxl Craft Sweep S4 — small items unified onto one core + thumb form pass
+- #443 — S5: authored bases pilot — the sniper (Pxl Craft Sweep)
+- #444 — Pxl S3: gear-engine craft pass — selout, broken-edge toolkit, wear ladder, Absorb rewrite
 
 **2026-11-06** — 10 merges
 

@@ -115,7 +115,12 @@ function slotItem(
   }
 }
 
-// ── SVG star connectors (unchanged) ───────────────────────────────
+// ── Star connectors (pixel conversion, 2026-11-07) ────────────────
+// Was an SVG of dashed vector lines. The lines are now rasterized
+// onto a 100×100 texel grid (dash pattern walked along each line,
+// as before: 2 units on, 4 off, #FF9000 at 18%) and painted on a
+// canvas that reproduces the old viewBox "meet" letterbox exactly —
+// the star occupies the centered square of the grid box.
 
 const STAR_LINES: Array<[number, number, number, number]> = [
   [2,2,1,2], [2,2,2,3], [2,2,3,3], [2,2,3,2], [2,2,2,1], [2,2,1,3],
@@ -128,15 +133,74 @@ function gridPct(row: number, col: number): [number, number] {
   return [xPct, yPct];
 }
 
-const StarConnectors: React.FC = () => (
-  <svg className="pointer-events-none absolute inset-0 z-0" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden>
-    {STAR_LINES.map(([r1, c1, r2, c2], i) => {
-      const [x1, y1] = gridPct(r1, c1);
-      const [x2, y2] = gridPct(r2, c2);
-      return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#FF9000" strokeOpacity="0.18" strokeWidth="0.5" strokeDasharray="2 4" />;
-    })}
-  </svg>
-);
+/** Rasterize the connector lines to a 100×100 grid ('S' = line cell).
+ *  Exported so the lint test verifies the shipped rasterizer. */
+export function buildStarConnectorGrid(): string[] {
+  const grid: string[][] = Array.from({ length: 100 }, () => Array(100).fill('.'));
+  for (const [r1, c1, r2, c2] of STAR_LINES) {
+    const [x1, y1] = gridPct(r1, c1);
+    const [x2, y2] = gridPct(r2, c2);
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const steps = Math.ceil(len * 2);
+    for (let s = 0; s <= steps; s++) {
+      const d = (s / steps) * len;
+      if (d % 6 >= 2) continue; // dash gap (2 on, 4 off — as the SVG)
+      const x = Math.floor(x1 + ((x2 - x1) * s) / steps);
+      const y = Math.floor(y1 + ((y2 - y1) * s) / steps);
+      if (x >= 0 && x < 100 && y >= 0 && y < 100) grid[y][x] = 'S';
+    }
+  }
+  return grid.map((r) => r.join(''));
+}
+
+const STAR_CONNECTOR_GRID = buildStarConnectorGrid();
+
+const StarConnectors: React.FC = () => {
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+  React.useEffect(() => {
+    const wrap = wrapRef.current;
+    const canvas = canvasRef.current;
+    if (!wrap || !canvas) return;
+    const draw = () => {
+      const { width, height } = wrap.getBoundingClientRect();
+      if (width === 0 || height === 0) return;
+      canvas.width = Math.round(width);
+      canvas.height = Math.round(height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false;
+      // viewBox 0 0 100 100 with preserveAspectRatio "xMidYMid meet":
+      // the 100-unit square scales to the box's smaller side, centered.
+      const scale = Math.min(canvas.width, canvas.height) / 100;
+      const ox = (canvas.width - 100 * scale) / 2;
+      const oy = (canvas.height - 100 * scale) / 2;
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#FF9000';
+      const cell = Math.max(1, scale);
+      for (let y = 0; y < 100; y++) {
+        for (let x = 0; x < 100; x++) {
+          if (STAR_CONNECTOR_GRID[y][x] === 'S') {
+            ctx.fillRect(ox + x * scale, oy + y * scale, cell, cell);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    };
+    draw();
+    const observer = new ResizeObserver(draw);
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="pointer-events-none absolute inset-0 z-0" aria-hidden="true">
+      <canvas ref={canvasRef} className="block h-full w-full" />
+    </div>
+  );
+};
 
 // ── Slot chip (now a button) ──────────────────────────────────────
 

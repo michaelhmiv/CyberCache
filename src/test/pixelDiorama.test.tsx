@@ -70,13 +70,13 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
   });
 
-  it('keeps the vector scene as fallback for areas with no pixel background', () => {
+  it('an unmapped area id takes the Dustwaste pixel stage — the vector fallback is deleted (owner ruling 2026-11-07)', () => {
     const area = { ...getRoamingArea('redline_circuit'), id: 'unconverted_test_zone' };
     const { container } = render(
       <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} playerLevel={5} equippedCount={1} activityKind="roaming_loot" />,
     );
-    expect(screen.queryByTestId('pixel-diorama-stage')).toBeNull();
-    expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeTruthy();
+    expect(screen.getByTestId('pixel-diorama-stage')).toBeTruthy();
+    expect(container.querySelector('svg')).toBeNull();
   });
 });
 

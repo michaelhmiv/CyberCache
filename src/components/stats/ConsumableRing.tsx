@@ -3,6 +3,7 @@ import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 import { useActiveBuffsStore } from '@/store/slices/activeBuffsSlice';
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
+import { PixelGridCanvas, type PixelGridPalette } from '@/components/pixelArt/PixelGridCanvas';
 
 const SLOT_ORDER: Array<keyof LoadoutConsumables> = ['PreFight', 'MidFight', 'Emergency'];
 
@@ -21,6 +22,95 @@ const accentClass: Record<ConsumableVisual['accent'], string> = {
   purple: '#B66BFF',
   blue: '#5AA7FF',
 };
+
+/* ------------------------------------------------------------------ */
+/* Pixel conversion (2026-11-07, SVG closure). The ring was SVG paths */
+/* (annulus slices, dashed pulse circle, SVG text count). It is now   */
+/* rasterized onto a 28×28 texel grid and painted on canvas: slice    */
+/* cells take the slot's accent, rim and seam cells are ink, the      */
+/* pulse is a dashed texel ring, and the count is a 3×5 texel digit.  */
+/* Same data, same aria summary, same size — only the form changed.   */
+/* ------------------------------------------------------------------ */
+
+const RING_GRID = 28;
+
+/** 3×5 texel digits for the loaded count (the ring holds at most 3). */
+export const RING_DIGIT_GRIDS: Record<string, string[]> = {
+  '1': ['.#.', '##.', '.#.', '.#.', '###'],
+  '2': ['###', '..#', '###', '#..', '###'],
+  '3': ['###', '..#', '.##', '..#', '###'],
+};
+
+/**
+ * Rasterize the ring to grid rows. Keys: slice index chars '0'..'2',
+ * 'K' ink (rims + seams), 'D' center disc, 'P' active pulse,
+ * 'N' count digit, 'R' empty-state ring grey.
+ * Exported so the lint test verifies the shipped rasterizer.
+ */
+export function buildConsumableRingGrid(sliceCount: number, active: boolean): string[] {
+  const grid: string[][] = Array.from({ length: RING_GRID }, () => Array(RING_GRID).fill('.'));
+  const put = (x: number, y: number, key: string) => {
+    grid[y][x] = key;
+  };
+
+  if (sliceCount === 0) {
+    // Empty state: two plain rings, as the SVG drew them.
+    for (let y = 0; y < RING_GRID; y++) {
+      for (let x = 0; x < RING_GRID; x++) {
+        const d = Math.hypot(x - 13.5, y - 13.5);
+        if (Math.abs(d - 12) <= 0.8 || Math.abs(d - 8) <= 0.6) put(x, y, 'R');
+      }
+    }
+    return grid.map((r) => r.join(''));
+  }
+
+  const sliceAngle = 360 / sliceCount;
+  for (let y = 0; y < RING_GRID; y++) {
+    for (let x = 0; x < RING_GRID; x++) {
+      const dx = x - 13.5;
+      const dy = y - 13.5;
+      const d = Math.hypot(dx, dy);
+      if (d < 7) {
+        put(x, y, 'D');
+        continue;
+      }
+      if (d < 8 || d > 12) continue;
+      const angleDeg = ((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360;
+      const rel = (angleDeg + 90) % 360;
+      const idx = Math.min(sliceCount - 1, Math.floor(rel / sliceAngle));
+      const toBoundary = Math.min(rel % sliceAngle, sliceAngle - (rel % sliceAngle));
+      const boundaryArc = (toBoundary * Math.PI) / 180 * d;
+      if (d > 11.4 || d < 8.6 || boundaryArc < 0.8) put(x, y, 'K');
+      else put(x, y, String(idx));
+    }
+  }
+
+  if (active) {
+    // Pulse ring inside the disc (was an SVG dashed circle): eight
+    // 2×2 texel dash blocks on the r=5.5 circle — deliberate
+    // clusters, never a 1-px line.
+    for (let k = 0; k < 8; k++) {
+      const a = ((k * 45 + 22.5) * Math.PI) / 180;
+      const cx = Math.floor(13.5 + 5.5 * Math.cos(a));
+      const cy = Math.floor(13.5 + 5.5 * Math.sin(a));
+      put(cx, cy, 'P');
+      put(cx + 1, cy, 'P');
+      put(cx, cy + 1, 'P');
+      put(cx + 1, cy + 1, 'P');
+    }
+  }
+
+  const digit = RING_DIGIT_GRIDS[String(sliceCount)];
+  if (digit) {
+    digit.forEach((row, dy) => {
+      row.split('').forEach((cell, dx) => {
+        if (cell === '#') put(12 + dx, 11 + dy, 'N');
+      });
+    });
+  }
+
+  return grid.map((r) => r.join(''));
+}
 
 export const ConsumableRing = memo(function ConsumableRing({
   consumables,
@@ -47,10 +137,17 @@ export const ConsumableRing = memo(function ConsumableRing({
     (entry): entry is { slot: keyof LoadoutConsumables; def: typeof CONSUMABLES[string] } => Boolean(entry)
   );
 
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = size / 2 - 4;
-  const innerR = r - 8;
+  const rows = buildConsumableRingGrid(loaded.length, activeCount > 0);
+  const palette: PixelGridPalette = {
+    K: { color: '#000000' },
+    D: { color: '#050608' },
+    P: { color: '#FFB300' },
+    N: { color: '#FF9000' },
+    R: { color: '#2A2F3A' },
+  };
+  loaded.forEach(({ def }, i) => {
+    palette[String(i)] = { color: accentClass[def.visual.accent], alpha: 0.78 };
+  });
 
   if (loaded.length === 0) {
     return (
@@ -63,16 +160,10 @@ export const ConsumableRing = memo(function ConsumableRing({
         className="flex shrink-0 items-center justify-center"
         style={{ width: size, height: size }}
       >
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#2A2F3A" strokeWidth="2" />
-          <circle cx={cx} cy={cy} r={innerR} fill="none" stroke="#2A2F3A" strokeWidth="1" />
-        </svg>
+        <PixelGridCanvas rows={rows} palette={palette} style={{ width: size, height: size }} aria-hidden="true" />
       </button>
     );
   }
-
-  const sliceAngle = 360 / loaded.length;
-  let cursor = -90; // start at 12 o'clock
 
   return (
     <button
@@ -84,41 +175,14 @@ export const ConsumableRing = memo(function ConsumableRing({
       className="flex shrink-0 items-center justify-center"
       style={{ width: size, height: size }}
     >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        {loaded.map(({ slot, def }) => {
-          const startRad = (cursor * Math.PI) / 180;
-          const endRad = ((cursor + sliceAngle) * Math.PI) / 180;
-          const x1 = cx + r * Math.cos(startRad);
-          const y1 = cy + r * Math.sin(startRad);
-          const x2 = cx + r * Math.cos(endRad);
-          const y2 = cy + r * Math.sin(endRad);
-          const x3 = cx + innerR * Math.cos(endRad);
-          const y3 = cy + innerR * Math.sin(endRad);
-          const x4 = cx + innerR * Math.cos(startRad);
-          const y4 = cy + innerR * Math.sin(startRad);
-          const largeArc = sliceAngle > 180 ? 1 : 0;
-          const d = `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x4} ${y4} Z`;
-          cursor += sliceAngle;
-          const color = accentClass[def.visual.accent];
-          return (
-            <path
-              key={slot}
-              d={d}
-              fill={color}
-              fillOpacity="0.78"
-              stroke="#000"
-              strokeWidth="1.5"
-              data-consumable-slice={slot}
-              data-consumable-id={def.id}
-            />
-          );
-        })}
-        <circle cx={cx} cy={cy} r={innerR - 2} fill="#050608" />
-        {activeCount > 0 && <circle cx={cx} cy={cy} r={innerR - 5} fill="none" stroke="#FFB300" strokeWidth="2" strokeDasharray="3 2" data-consumable-active-pulse="true" />}
-        <text x={cx} y={cy + 3} textAnchor="middle" fill="#FF9000" fontSize={size * 0.22} fontWeight="900">
-          {loaded.length}
-        </text>
-      </svg>
+      <PixelGridCanvas
+        rows={rows}
+        palette={palette}
+        style={{ width: size, height: size }}
+        aria-hidden="true"
+        data-consumable-slices={loaded.map(({ slot, def }) => `${slot}:${def.id}`).join(',')}
+        {...(activeCount > 0 ? { 'data-consumable-active-pulse': 'true' } : {})}
+      />
     </button>
   );
 });
