@@ -1082,6 +1082,20 @@ remaining five weapon types (~89 further pieces) is the
 owner's call on this slice's judgment package; S5 does not
 pre-decide it.
 
+**V5 (2026-11-07) — the SVG ban's enforcement surface.** The
+total-SVG ban (sole exception: the Google "G" sign-in glyph)
+now holds on the stage itself: the LiveTurfDiorama's dormant
+inline-SVG fallback diorama — the vector scene that rendered
+for areas with no pixel background, owner-ruled killed
+2026-11-07 — is deleted, together with its only-serving
+silhouette component and the consumer-less procedural-SVG
+`AreaBackground`. The DOM pixel stage is the only ambient
+stage; an area with no pixel background renders the stage
+shell and its overlays only, and `pixelDiorama.test.tsx` pins
+exactly that. The loot-rise material glyph keeps its small
+inline SVG inside the pixel scene — that is the pixel
+stage's own FX vocabulary, not a fallback scene.
+
 ---
 
 ## 9. Surfacing — one canonical door per feature
