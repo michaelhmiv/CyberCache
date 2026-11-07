@@ -4,6 +4,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-07 — The craft standard gets a gate
 
+- **Your hunter is re-drawn in the craft standard** — every wearable part — Standard Issue, Bulwark, Dreadplate, and every head in the Wardrobe — has been re-authored by hand in the same pixel craft discipline that gave item art its depth: hue-shifted ramps, selective outline, cluster detail. Same silhouettes, same outfits, same anchors — crisper at the sizes the game actually shows, and because parts are now palette data end to end, mixing sets (a Bulwark helm over Dreadplate legs) reads as one hunter in scavenged kit. The Hood keeps its shaped cowl from the last pass. The game's art payload also shrank by over 600 KB in the swap.
 - **Small items read at belt size now** — the icons you tap most got a form pass at their smallest size: every grenade type now has its own silhouette (the EMP ring, the magnet's horseshoe, the forge charge's molten crack), every scanner device reads differently (whip antenna, dish, twin-antenna jammer), the patch kits carry their cross where you can see it, and the calibration kit wears its dial. Two materials that were pale twins — Refined Alloy and Composite Plating — now stack visibly differently, and Voidweave's cloth no longer borrows the circuit board's checker.
 - **The Field Manual shows real consumables** — the Manual's consumable pictures were monochrome pictograms from a retired icon set; they now show the same formed objects the game itself draws.
 - **The gun in your hands is the gun on the card** — the weapon your hunter holds on the stage is now drawn by the same renderer as the big inspect card, minus the presentation furniture (no bipod, halo, or floating sparkles in-hand). Same gun, same shading, at its best quality everywhere you see it.
@@ -167,15 +168,18 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 177 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 180 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-07** — 5 merges
+**2026-11-07** — 8 merges
 
 - #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
 - #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
 - #437 — Hero Pass H1: head-system unification — maker helms delisted to the Standing lane, Hood re-authored
 - #438 — Motion Reboot M1: the work cycle — bench modes work the bench
 - #439 — docs(wiki): Changelog catch-up — 2026-11-07 entry for #435
+- #440 — docs(wiki): Changelog — One Grammar, work cycle, maker-helm lane
+- #441 — Migration 0086: retire maker-helm recipes from the craft catalog (H1 follow-through)
+- #442 — Pxl Craft Sweep S4 — small items unified onto one core + thumb form pass
 
 **2026-11-06** — 10 merges
 
