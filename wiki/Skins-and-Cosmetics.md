@@ -129,7 +129,10 @@ The **Wardrobe** has its own stop on the Hunter tab, behind the
 Wardrobe door at the foot of the Hunter menu: a showcase stage
 with your hunter wearing his current look (weapon included), your
 owned parts by slot, and the full craftable catalog with its
-costs. Those costs are live: a part's Scrap price is tuned per
+costs. The weapon on that stage — and on every stage — is the
+item's own full-detail drawing, the same picture as its Gear
+card with the display furniture folded away (see [[Gear]] § How
+a weapon looks). Those costs are live: a part's Scrap price is tuned per
 recipe (see [[Economy]]), and the Wardrobe always quotes the
 price that will actually be charged. Each craftable row also
 prints the part's real craft time beside its inputs — the same

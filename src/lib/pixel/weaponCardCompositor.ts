@@ -10,7 +10,7 @@ import {
   type WeaponCondition,
   type WeaponVisualDecal,
 } from '@/lib/weaponArt/decalSpec';
-import { partVariant, type PixelPartSlot, type PixelWeaponInput } from './weaponCompositor';
+import { normalizeManufacturer, normalizeRarity, normalizeType, partVariant, type PixelPartSlot, type PixelWeaponInput } from './weaponCompositor';
 import {
   BARREL_PROFILES,
   CARD_LAYOUTS,
@@ -44,13 +44,18 @@ import {
  * the form's spine (FORGE's finish); Kinetic is honest absence.
  * Rarity escalates finish on the edges only and never changes form.
  *
- * This is the same composition as the stage compositor
+ * This is the same composition as the small-grid compositor
  * (weaponCompositor.ts, 120×44) at card density: 240×88 is exactly
  * 2× the grid at the same aspect, and both engines read the same
  * sources of truth — partVariant() part rolls, the manufacturer /
  * rarity / element palettes, buildDecals(), conditionFromRoll().
- * The stage engine stays the in-scene held-weapon renderer; every
- * weapon CARD (inventory, gear detail, market, loot) renders here.
+ * Every weapon CARD (inventory, gear detail, market, loot) renders
+ * here — and, since the One Grammar ruling (2026-11-06), so does
+ * the in-scene HELD weapon: the stages compose this grammar in
+ * held mode (WeaponCardOptions.held), the card composition minus
+ * its presentation furniture. The 120×44 engine remains the
+ * detail-level-0 density for list rows and feed thumbs (DESIGN.md
+ * §8) but no longer renders on any stage.
  *
  * Runtime-composed: zero sprite payload.
  */
@@ -69,6 +74,66 @@ export type CardShade =
   | 'v' | 'w' | 'u' | 'b' | 'g';
 
 export interface CardAnchor { x: number; y: number }
+
+export interface WeaponCardOptions {
+  /**
+   * Held mode (One Grammar, owner ruling 2026-11-06 — sweep brief
+   * Amendment 1, decision 5 superseded for weapons): the stage's
+   * in-hand render of the SAME card grammar, minus the presentation
+   * furniture — the sniper bipod, the Legendary halo ring, the
+   * pooled glow line, and the floating sparkles are omitted as a
+   * compositor pass (not masked out of the finished image). On-body
+   * finishes (rarity trim, Epic edge glow, decals, condition wear,
+   * godroll sparkles) all stay: they are on the gun in the hand
+   * exactly as they are on the card. With held mode off the render
+   * is byte-identical to the card render this compositor has always
+   * produced.
+   */
+  held?: boolean;
+}
+
+/** Grip box width in texels (the grip template's box in stockAndGrip). */
+const GRIP_W = 15;
+
+/**
+ * The grip's box on the card grid for a weapon type, in texels:
+ * where stockAndGrip draws the grip (layout-derived, identical for
+ * every maker of the type). Exported so the held-mode grip audit
+ * measures the same box the compositor draws.
+ */
+export function cardGripBox(weaponType: WeaponType): { x: number; y: number; w: number; h: number } {
+  const L = CARD_LAYOUTS[weaponType] ?? CARD_LAYOUTS[WeaponType.Pistol];
+  const bodyTop = SPINE - Math.floor(L.bodyH / 2);
+  return {
+    x: L.bodyX + Math.round(L.bodyLen * 0.3),
+    y: bodyTop + L.bodyH - 2,
+    w: GRIP_W,
+    h: L.gripH,
+  };
+}
+
+/**
+ * Declared grip anchor per weapon type for the HELD render, as
+ * fractions of the 240×88 grid — the point the stage seats on the
+ * hunter's grip joint (grip-to-grip, partsCompositor). Measured
+ * 2026-11-06 from held renders: the centroid of the grip cluster
+ * (filled cells inside cardGripBox) across all six manufacturers
+ * at Common/Rare/Legendary — the per-type spread across makers
+ * was ≤0.006 on both axes. The sniper value agrees with the
+ * card-held proof's hand-measured anchor (0.358, 0.554) to within
+ * ~2 texels (the proof's band was drawn slightly wider than the
+ * grip box). The audit in src/test/weaponHeldMode.test.ts
+ * re-measures the cluster for a maker spread and fails if a
+ * declared anchor drifts off the grip.
+ */
+export const WEAPON_CARD_GRIP_FRACTIONS: Record<WeaponType, { x: number; y: number }> = {
+  [WeaponType.Pistol]: { x: 0.41, y: 0.574 },
+  [WeaponType.SMG]: { x: 0.364, y: 0.573 },
+  [WeaponType.Shotgun]: { x: 0.338, y: 0.572 },
+  [WeaponType.Launcher]: { x: 0.368, y: 0.595 },
+  [WeaponType.Sniper]: { x: 0.368, y: 0.539 },
+  [WeaponType.Beam]: { x: 0.38, y: 0.56 },
+};
 
 export interface WeaponCardRender {
   width: number;
@@ -189,6 +254,8 @@ interface Ctx {
   muzzleX: number;
   /** Bottom inner row of the barrel tube per column (spine current). */
   tubeBottom: Map<number, number>;
+  /** Held mode (One Grammar): omit the presentation furniture. */
+  held: boolean;
   anchors: Partial<Record<string, CardAnchor>>;
   // The card's variant vocabulary adds 'Stock' (the furniture pass)
   // to the item part slots: partVariant finds no Stock part and falls
@@ -286,7 +353,7 @@ function stockAndGrip(ctx: Ctx) {
 
   // Grip — its own outline data, rotated slightly by the rake.
   const outline = GRIP_TEMPLATES[shapes.grip];
-  const gripW = 15;
+  const gripW = GRIP_W;
   const gx = ctx.gripX;
   const gy = ctx.gripTop;
   const gh = L.gripH;
@@ -708,8 +775,11 @@ function barrel(ctx: Ctx) {
     for (const px of [hx, hx + 31]) for (let y = ctx.bodyTop - 5; y < ctx.bodyTop; y++) g.set(px, y, 'D');
     // Re-assert the receiver top the handle posts may have crossed.
   }
-  if (input.weaponType === WeaponType.Sniper) {
-    // Bipod: two legs splayed from the barrel underside.
+  if (input.weaponType === WeaponType.Sniper && !ctx.held) {
+    // Bipod: two legs splayed from the barrel underside. Card
+    // furniture — a held sniper has no deployed bipod (One Grammar
+    // held mode omits it; the muzzle-brake slots below are gun
+    // form and stay in both modes).
     const bx2 = fx + Math.round(L.barrelLen * 0.62);
     g.thickLine(bx2, SPINE + 2, bx2 - 7, SPINE + 13, 1, 'D');
     g.thickLine(bx2 + 3, SPINE + 2, bx2 + 10, SPINE + 13, 1, 'D');
@@ -1005,9 +1075,13 @@ function rarityFinish(ctx: Ctx) {
       if (edge && g.get(x, y) === 'P') g.set(x, y, 'e');
     }
   }
-  if (input.rarity === Rarity.Legendary) {
+  if (input.rarity === Rarity.Legendary && !ctx.held) {
     // Halo: gold outline one ring out from the form, pooled glow
     // beneath, sparkles. Components < 40 cells are trim, not form.
+    // All three are card presentation furniture — held mode (One
+    // Grammar) omits the whole block; the Legendary's on-body
+    // finishes (frame colorway, chamber band, decals) are drawn by
+    // the earlier passes and stay in the hand.
     const compId = new Int16Array(W * H).fill(-1);
     const comps: [number, number][][] = [];
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -1225,14 +1299,31 @@ function decalsAndCondition(ctx: Ctx, render: { decals: WeaponVisualDecal[]; con
 
 const cardCache = new Map<string, WeaponCardRender>();
 
-export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): WeaponCardRender {
+export function composeWeaponCard(rawInput: PixelWeaponInput, themeId?: string, options?: WeaponCardOptions): WeaponCardRender {
+  const held = options?.held === true;
+  // Payload-shaped inputs normalize to the fallback item first —
+  // the stage compositor's long-standing contract (normalizeRarity
+  // & friends, weaponCompositor): the input type is deliberately
+  // loose (Rarity | string, store- and payload-shaped sources),
+  // and this compositor's table reads are unguarded. Real items
+  // carry real enums, so normalization is the identity for them
+  // and card output is unchanged; a stub or malformed payload
+  // renders the fallback gun instead of throwing on the frame
+  // read. This matters now that the stage composes held renders
+  // from store-held weapons, whose fixtures are not all real
+  // items (One Grammar regression fix, 2026-11-06).
+  const input: PixelWeaponInput = {
+    ...rawInput,
+    weaponType: normalizeType(rawInput.weaponType),
+    manufacturer: normalizeManufacturer(rawInput.manufacturer),
+    rarity: normalizeRarity(rawInput.rarity),
+  };
   const theme = themeId ? WEAPON_THEMES[themeId] : undefined;
   const L = CARD_LAYOUTS[input.weaponType];
   const mfrStyle = MANUFACTURER_WEAPON_STYLES[input.manufacturer];
   const elVisual = input.element ? getElementVisual(input.element) : null;
-  // PixelWeaponInput.rarity is deliberately loose (Rarity | string —
-  // payload-shaped inputs); real inputs always carry a Rarity and the
-  // frame read is unguarded, exactly as this cast keeps it.
+  // input.rarity is normalized above, so the frame read is safe;
+  // the cast stays because PixelWeaponInput types it loosely.
   const frame = RARITY_FRAME_STYLES[input.rarity as Rarity];
   // RarityFrameStyle carries no accentColor (in type or data), so
   // this reads undefined — as it always has: for non-element weapons
@@ -1274,6 +1365,7 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
   const bodyTop = SPINE - Math.floor(L.bodyH / 2);
   const ctx: Ctx = {
     g, input, L, shapes, theme,
+    held,
     seed: weaponVisualSeed(input),
     bodyTop,
     bodyBot: bodyTop + L.bodyH - 1,
@@ -1322,8 +1414,17 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
   // density marker keeps card signatures disjoint from stage ones;
   // the colors hash keeps palette-only theme variants distinct.
   const signature = hashString(
-    `card2x|${input.weaponType}|${input.manufacturer}|${input.rarity}|${input.element ?? ''}|${theme?.id ?? ''}|${rows.join('/')}|${hashString(JSON.stringify(colors)).toString(16)}`,
+    `${held ? 'cardheld' : 'card2x'}|${input.weaponType}|${input.manufacturer}|${input.rarity}|${input.element ?? ''}|${theme?.id ?? ''}|${rows.join('/')}|${hashString(JSON.stringify(colors)).toString(16)}`,
   ).toString(16);
+  // Held mode's grip anchor is the DECLARED per-type fraction the
+  // stage seats on (WEAPON_CARD_GRIP_FRACTIONS) — in card mode the
+  // grip anchor stays the grip box's bottom-center, as it has been.
+  const gripAnchor: CardAnchor = held
+    ? {
+        x: Math.round((WEAPON_CARD_GRIP_FRACTIONS[input.weaponType] ?? WEAPON_CARD_GRIP_FRACTIONS[WeaponType.Pistol]).x * W * TEXEL),
+        y: Math.round((WEAPON_CARD_GRIP_FRACTIONS[input.weaponType] ?? WEAPON_CARD_GRIP_FRACTIONS[WeaponType.Pistol]).y * H * TEXEL),
+      }
+    : { x: (ctx.gripX + 7) * TEXEL, y: (ctx.gripTop + L.gripH) * TEXEL };
   const render: WeaponCardRender = {
     width: W, height: H,
     rows,
@@ -1333,7 +1434,7 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
     condition: finish.condition,
     anchors: {
       muzzle: { x: ctx.muzzleX * TEXEL, y: SPINE * TEXEL },
-      grip: { x: (ctx.gripX + 7) * TEXEL, y: (ctx.gripTop + L.gripH) * TEXEL },
+      grip: gripAnchor,
       centerMass,
       lootPoint: { x: centerMass.x, y: lootY * TEXEL },
     },
@@ -1353,7 +1454,7 @@ export function composeWeaponCard(input: PixelWeaponInput, themeId?: string): We
  * returns the identical render object, so lists never recompose a
  * weapon they have already drawn.
  */
-export function composeWeaponCardCached(input: PixelWeaponInput, themeId?: string): WeaponCardRender {
+export function composeWeaponCardCached(input: PixelWeaponInput, themeId?: string, options?: WeaponCardOptions): WeaponCardRender {
   // The cache key must be INPUT-derived: the render signature is
   // render-derived (it hashes the composed rows), so keying the
   // lookup on it forces a full compose before every check — the
@@ -1361,10 +1462,10 @@ export function composeWeaponCardCached(input: PixelWeaponInput, themeId?: strin
   // card-density composition for every weapon (the 2026-11-04 Gear
   // tab freeze on deep inventories). Compose is deterministic in
   // (input, themeId), so the serialized input is an exact key.
-  const key = hashString(`cardkey|${themeId ?? ''}|${JSON.stringify(input)}`).toString(16);
+  const key = hashString(`cardkey|${options?.held ? 'held' : 'card'}|${themeId ?? ''}|${JSON.stringify(input)}`).toString(16);
   const cached = cardCache.get(key);
   if (cached) return cached;
-  const composed = composeWeaponCard(input, themeId);
+  const composed = composeWeaponCard(input, themeId, options);
   if (cardCache.size > 400) cardCache.clear();
   cardCache.set(key, composed);
   return composed;

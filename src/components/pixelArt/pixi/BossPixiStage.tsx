@@ -22,11 +22,11 @@ import {
   type PixelSprite,
 } from '@/lib/pixel/manifest';
 import { paletteSpriteUrl } from '@/lib/pixel/paletteSwap';
+import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import {
-  composePixelWeaponCached,
-  paintPixelWeapon,
-  pixelWeaponInputFromWeapon,
-} from '@/lib/pixel/weaponCompositor';
+  composeWeaponCardCached,
+  paintWeaponCard,
+} from '@/lib/pixel/weaponCardCompositor';
 import { bossArena, endlessBandTint } from '@/content/areaPalettes';
 import {
   MOVEMENT,
@@ -261,8 +261,9 @@ function solidTexture(color: string): Texture {
 }
 
 /** The held weapon's texture: the bespoke manifest sprite, or the
- *  parts-kit compositor's own render painted to a canvas — the same
- *  pixels PixelWeapon shows. */
+ *  card compositor's HELD-mode render painted to a canvas (One
+ *  Grammar, 2026-11-06) — the same pixels PixelWeapon shows at
+ *  'held' density on the DOM stage. */
 async function weaponTexture(props: BossFightStageProps): Promise<Texture | null> {
   if (!props.weapon) return null;
   const input = pixelWeaponInputFromWeapon(props.weapon);
@@ -271,13 +272,13 @@ async function weaponTexture(props: BossFightStageProps): Promise<Texture | null
     const sprite = getPixelSprite(bespokeId);
     if (sprite) return loadTexture(sprite.url);
   }
-  const render = composePixelWeaponCached(input);
+  const render = composeWeaponCardCached(input, undefined, { held: true });
   const canvas = document.createElement('canvas');
   canvas.width = render.width;
   canvas.height = render.height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
-  paintPixelWeapon(ctx, render, 1);
+  paintWeaponCard(ctx, render, 1);
   return nearest(Texture.from(canvas));
 }
 

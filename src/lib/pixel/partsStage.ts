@@ -17,9 +17,10 @@ import type { PixelWeaponInput } from './weaponCompositor';
 
 /** Fractions for ANY held weapon input: a bespoke legendary reads
  *  its manifest sprite's measured grip/muzzle anchors; a kit weapon
- *  reads its compositor render. The DOM actor and the stages share
- *  this so the weapon they draw and the muzzle they flash from are
- *  the same geometry. */
+ *  reads its HELD card render (One Grammar, 2026-11-06 — the card
+ *  grammar in held mode, seated by its declared per-type grip
+ *  anchor). The DOM actor and the stages share this so the weapon
+ *  they draw and the muzzle they flash from are the same geometry. */
 export function partsWeaponFractionsFor(input: PixelWeaponInput): PartsWeaponFractions {
   const bespokeId = bespokeSpriteIdForWeapon(input);
   const sprite = bespokeId ? getPixelSprite(bespokeId) : undefined;

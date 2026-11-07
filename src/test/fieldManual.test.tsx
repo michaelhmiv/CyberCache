@@ -18,10 +18,10 @@ describe('Field Manual (HelpScreen)', () => {
     expect(row).toBeTruthy();
     expect(within(row as HTMLElement).getByText('PG-02')).toBeTruthy();
     // The background preload converges the Links LCD to a number.
-    // The pin is the corpus's total [[…]] occurrence count; Hero
-    // Pass H1's wiki updates (Skins + Crafting) added two
-    // [[Manufacturer Standing]] links: 313 → 315.
-    expect(await screen.findByText('315', {}, { timeout: 10000 })).toBeTruthy();
+    // The pin is the corpus's total [[…]] occurrence count: base
+    // 313, +1 One Grammar (Skins [[Gear]] cross-reference), +2 Hero
+    // Pass H1 (Skins + Crafting [[Manufacturer Standing]] links) = 316.
+    expect(await screen.findByText('316', {}, { timeout: 10000 })).toBeTruthy();
   });
 
   it('carries no trace of the retired guided tour or hand-written sections', () => {

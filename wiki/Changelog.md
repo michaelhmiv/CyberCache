@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-07 — The craft standard gets a gate
+
+- **Item art is lint-checked now** — every procedurally drawn item in the game (weapons, gear, consumables, materials — 366 renders across every system) is checked in CI against the pixel craft standard: hue-shifted ramps, selective outlines, cluster discipline, and a ban on banded shading. The standard that made item art read richer yesterday now fails the build if it ever regresses.
+
 ## 2026-11-06 — Gear reads faster, the Manual moves in
 
 - **Item art has depth now** — weapons, shields, and gear are shaded with hue-shifted ramps: shadows lean blue-violet, highlights run warm, and an item's outline takes the darker shade of the form it borders instead of one uniform black edge. Same items, same shapes — they read richer, above all on the big inspect and reveal renders. The wiki's item pictures are refreshed to match.
