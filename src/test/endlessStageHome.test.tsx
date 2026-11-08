@@ -439,8 +439,14 @@ describe('endless stage home — what the stage renders', () => {
     }, { timeout: 8000 });
     const ended = await screen.findByTestId('endless-ended', undefined, { timeout: 20000 });
     expect(ended.textContent).toContain('THE CHAMBER CLAIMS ANOTHER');
-    expect(useBossStore.getState().endlessPresentation).toBeNull();
-    expect(useBossStore.getState().endlessPresence).toBeNull();
+    // The presentation clear is a synchronous store call in the
+    // walk; the PRESENCE clear rides the panel's stage effect —
+    // wait for both to land rather than sampling the store in the
+    // same tick the ended card appears (a race CI caught once).
+    await waitFor(() => {
+      expect(useBossStore.getState().endlessPresentation).toBeNull();
+      expect(useBossStore.getState().endlessPresence).toBeNull();
+    }, { timeout: 5000 });
     expect(screen.queryByTestId('diorama-endless-fight')).toBeNull();
   }, 30000);
 });

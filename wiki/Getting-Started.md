@@ -79,7 +79,7 @@ Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|
    See [[Bosses]] for risk settings, fees, and the dedicated-drop chase.
 6. **Spend your first skill point.** Level 2 earns your first point in the four skill trees. See [[Progression]].
 
-From there, the game opens outward: all seven areas are open from the start — the area picker warns you in real numbers when one outmatches your build, but it never locks you out — the [[The Market|market]] once you sign in, occupations beyond roaming, and eventually bosses, [[Endless Mode]], and [[Collections]].
+From there, the game opens outward: all seven areas are open from the start — the area picker warns you in real numbers when one outmatches your build, but it never locks you out — the [[The Market|market]] once you sign in, occupations beyond roaming, and eventually bosses, [[Endless Mode]], and [[Collections]]. Boss fights and Chamber depths alike play out on the Home stage at the top of the Board, while their panels below carry the prep, the controls, and the result.
 
 ---
 
