@@ -17,8 +17,9 @@ import type { ClassMod, Relic, Shield as ShieldItem, Weapon } from '@/types/item
  * them directly. (The legacy common/WeaponCard surface was deleted
  * 2026-11-07 — no production importer remained; GearIllustration is
  * the one card surface.) All of them must resolve to the ONE pixel
- * renderer: bespoke sprite for named legendaries, the deterministic
- * parts-kit compositor for everything else.
+ * renderer: the bespoke authored set for named legendaries (V4 —
+ * composed by the same compositor, never a baked sprite), the
+ * deterministic parts-kit compositor for everything else.
  *
  * Weapon marriage (slice 1): CARD surfaces (GearIllustration)
  * render at card density (240×88 card compositor) and
@@ -115,12 +116,18 @@ describe('GearIllustration — weapon branch renders pixel (inventory/market/ins
     expect(container.querySelector('svg')).toBeNull();
   });
 
-  it('renders a named legendary as its bespoke sprite, resolved via its effect', () => {
+  it('renders a named legendary as its bespoke authored set, resolved via its effect', () => {
     const { container } = render(<GearIllustration item={legendaryWeapon} size="showcase" showBadges animate />);
-    const img = container.querySelector('img');
-    expect(img).not.toBeNull();
-    expect(img?.getAttribute('data-pixel-sprite')).toBe('legendary-glass-sun');
-    expect(container.querySelector('canvas')).toBeNull();
+    // V4: no baked sprite anywhere — the legendary composes through
+    // the card compositor like every other weapon, and its
+    // signature is the bespoke render of its authored set.
+    expect(container.querySelector('img')).toBeNull();
+    const canvas = container.querySelector('canvas');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.getAttribute('data-signature')).toBe(cardCompositorSignature(legendaryWeapon));
+    expect(canvas?.getAttribute('data-signature')).not.toBe(
+      cardCompositorSignature({ ...legendaryWeapon, legendaryEffectId: undefined } as Weapon),
+    );
   });
 
   it('keeps the compositor fallback for a legendary with no named effect', () => {
@@ -181,13 +188,18 @@ describe('ActionFeed — loot-log weapon thumbs render pixel', () => {
     expect(canvas?.style.width).toBe('46px');
   });
 
-  it('renders the bespoke sprite for a legendary drop entry', () => {
+  it('renders the bespoke authored set for a legendary drop entry', () => {
     const { container } = render(
       <ActionFeed
         entries={[{ id: 'e2', label: 'Legendary drop', detail: 'Glass Sun', gear: legendaryWeapon }]}
       />,
     );
-    expect(container.querySelector('img')?.getAttribute('data-pixel-sprite')).toBe('legendary-glass-sun');
+    // V4: the feed thumb is the stage-density bespoke render — a
+    // canvas with the shared stage signature, never an <img>.
+    expect(container.querySelector('img')).toBeNull();
+    const canvas = container.querySelector('canvas');
+    expect(canvas).not.toBeNull();
+    expect(canvas?.getAttribute('data-signature')).toBe(compositorSignature(legendaryWeapon));
   });
 
   it('still shows the plain feed dot for entries without gear', () => {

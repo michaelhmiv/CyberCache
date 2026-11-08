@@ -11,6 +11,7 @@ import {
   type WeaponVisualDecal,
 } from '@/lib/weaponArt/decalSpec';
 import { normalizeManufacturer, normalizeRarity, normalizeType, partVariant, type PixelPartSlot, type PixelWeaponInput } from './weaponCompositor';
+import { legendaryAuthoredForWeapon } from './legendaryArt';
 import {
   BARREL_PROFILES,
   CARD_LAYOUTS,
@@ -1703,6 +1704,10 @@ export function composeWeaponCard(rawInput: PixelWeaponInput, themeId?: string, 
   const L = CARD_LAYOUTS[input.weaponType];
   const mfrStyle = MANUFACTURER_WEAPON_STYLES[input.manufacturer];
   const elVisual = input.element ? getElementVisual(input.element) : null;
+  // V4: a named legendary resolves to its bespoke authored set — a
+  // fixed identity that takes its own declared palette and form
+  // instead of the rolled manufacturer/element derivation below.
+  const legendarySet = legendaryAuthoredForWeapon(input);
   // input.rarity is normalized above, so the frame read is safe;
   // the cast stays because PixelWeaponInput types it loosely.
   const frame = RARITY_FRAME_STYLES[input.rarity as Rarity];
@@ -1713,32 +1718,36 @@ export function composeWeaponCard(rawInput: PixelWeaponInput, themeId?: string, 
   // up with no further wiring.
   const frameAccent = (frame as { accentColor?: string }).accentColor;
 
-  const colors: Partial<Record<CardShade, string>> = {
-    K: '#0B0B0E',
-    k: '#3A3F4A',
-    D: mfrStyle.dark,
-    d: hueLerp(mfrStyle.dark, mfrStyle.primary, 0.45),
-    P: mfrStyle.primary,
-    p: mfrStyle.light,
-    L: hueLerp(mfrStyle.light, '#FFFFFF', 0.55),
-    W: '#FFFFFF',
-    T: '#9AA3B2',
-    G: '#FFEA3A',
-    E: elVisual ? elVisual.color : frame.color,
-    e: elVisual ? elVisual.accentColor : frameAccent,
-    c: elVisual ? hueLerp(elVisual.color, '#0B0B0E', 0.55) : mfrStyle.dark,
-    v: '#5A4028',
-    w: '#8A6136',
-    u: '#C89B62',
-    b: '#C9A227',
-    g: frame.color,
-  };
-  if (input.rarity === Rarity.Epic) colors.e = frameAccent;
-  if (input.rarity === Rarity.Uncommon) colors.g = '#7CFC00';
+  const colors: Partial<Record<CardShade, string>> = legendarySet
+    ? { ...legendarySet.colors }
+    : {
+        K: '#0B0B0E',
+        k: '#3A3F4A',
+        D: mfrStyle.dark,
+        d: hueLerp(mfrStyle.dark, mfrStyle.primary, 0.45),
+        P: mfrStyle.primary,
+        p: mfrStyle.light,
+        L: hueLerp(mfrStyle.light, '#FFFFFF', 0.55),
+        W: '#FFFFFF',
+        T: '#9AA3B2',
+        G: '#FFEA3A',
+        E: elVisual ? elVisual.color : frame.color,
+        e: elVisual ? elVisual.accentColor : frameAccent,
+        c: elVisual ? hueLerp(elVisual.color, '#0B0B0E', 0.55) : mfrStyle.dark,
+        v: '#5A4028',
+        w: '#8A6136',
+        u: '#C89B62',
+        b: '#C9A227',
+        g: frame.color,
+      };
+  if (!legendarySet) {
+    if (input.rarity === Rarity.Epic) colors.e = frameAccent;
+    if (input.rarity === Rarity.Uncommon) colors.g = '#7CFC00';
 
-  // Theme palette overrides (bone over wood, etc.).
-  if (theme?.palette) {
-    for (const [k, val] of Object.entries(theme.palette)) colors[k as CardShade] = val;
+    // Theme palette overrides (bone over wood, etc.).
+    if (theme?.palette) {
+      for (const [k, val] of Object.entries(theme.palette)) colors[k as CardShade] = val;
+    }
   }
 
   const shapes: ShapeSet = { ...MAKER_SHAPE_SETS[input.manufacturer], ...(theme?.shapes ?? {}) };
@@ -1765,28 +1774,49 @@ export function composeWeaponCard(rawInput: PixelWeaponInput, themeId?: string, 
   // treatment to the other five types via authoredSetForm and
   // the AUTHORED_BASE_SETS registry; a type without a registry
   // row composes procedurally.
-  const authoredSet = AUTHORED_BASE_SETS[input.weaponType];
-  if (input.weaponType === WeaponType.Sniper) {
-    authoredSniperForm(ctx);
-  } else if (authoredSet) {
-    authoredSetForm(ctx, authoredSet);
-  } else {
-    stockAndGrip(ctx);
-    magazine(ctx);
-    receiver(ctx);
-    chamber(ctx);
-    sight(ctx);
-    barrel(ctx);
-  }
-  manufacturerPass(ctx);
-  elementCurrent(ctx);
-  elementFinish(ctx);
-  themePass(ctx);
-  wearPass(ctx);
-  rarityFinish(ctx);
-  outlinePass(ctx);
   const finish: { decals: WeaponVisualDecal[]; condition: WeaponCondition } = { decals: [], condition: 'clean' };
-  decalsAndCondition(ctx, finish);
+  if (legendarySet) {
+    // V4 bespoke form: the legendary's own authored pieces ARE the
+    // form, and its palette above is law — none of the rolled-identity
+    // passes (manufacturer stamps, the element current in the item's
+    // rolled element, theme re-skins, wear) may re-skin a fixed
+    // identity. What still runs is presentation furniture shared with
+    // every other weapon: the Legendary halo block of rarityFinish
+    // (card mode only; it no-ops in held mode by its own gate) and
+    // the form-agnostic outline pass. Decals and condition are
+    // computed as FIELDS (the same derivations decalsAndCondition
+    // uses) but never stamped — the pre-V4 bespoke rendering carried
+    // neither decals nor wear on the art, and the identity plate
+    // stays exact.
+    for (const piece of legendarySet.pieces) stampAuthoredPiece(ctx, piece);
+    ctx.muzzleX = legendarySet.muzzle.x;
+    if (input.rarity === Rarity.Legendary) rarityFinish(ctx);
+    outlinePass(ctx);
+    finish.decals = buildDecals(input.affixes, ctx.seed, input.legendaryEffectId);
+    finish.condition = conditionFromRoll(typeof input.rollQuality === 'number' ? input.rollQuality : 50);
+  } else {
+    const authoredSet = AUTHORED_BASE_SETS[input.weaponType];
+    if (input.weaponType === WeaponType.Sniper) {
+      authoredSniperForm(ctx);
+    } else if (authoredSet) {
+      authoredSetForm(ctx, authoredSet);
+    } else {
+      stockAndGrip(ctx);
+      magazine(ctx);
+      receiver(ctx);
+      chamber(ctx);
+      sight(ctx);
+      barrel(ctx);
+    }
+    manufacturerPass(ctx);
+    elementCurrent(ctx);
+    elementFinish(ctx);
+    themePass(ctx);
+    wearPass(ctx);
+    rarityFinish(ctx);
+    outlinePass(ctx);
+    decalsAndCondition(ctx, finish);
+  }
 
   // Anchors: centroid + topmost filled cell at its column, the
   // same derivation as the stage compositor.
@@ -1813,12 +1843,17 @@ export function composeWeaponCard(rawInput: PixelWeaponInput, themeId?: string, 
   // Held mode's grip anchor is the DECLARED per-type fraction the
   // stage seats on (WEAPON_CARD_GRIP_FRACTIONS) — in card mode the
   // grip anchor stays the grip box's bottom-center, as it has been.
-  const gripAnchor: CardAnchor = held
-    ? {
-        x: Math.round((WEAPON_CARD_GRIP_FRACTIONS[input.weaponType] ?? WEAPON_CARD_GRIP_FRACTIONS[WeaponType.Pistol]).x * W * TEXEL),
-        y: Math.round((WEAPON_CARD_GRIP_FRACTIONS[input.weaponType] ?? WEAPON_CARD_GRIP_FRACTIONS[WeaponType.Pistol]).y * H * TEXEL),
-      }
-    : { x: (ctx.gripX + 7) * TEXEL, y: (ctx.gripTop + L.gripH) * TEXEL };
+  const gripAnchor: CardAnchor = legendarySet
+    ? // V4: the bespoke set's declared grip (its own measured anchor),
+      // in both card and held modes — the per-type fraction describes
+      // the procedural grip cluster, not this weapon's grip.
+      { x: legendarySet.grip.x * TEXEL, y: legendarySet.grip.y * TEXEL }
+    : held
+      ? {
+          x: Math.round((WEAPON_CARD_GRIP_FRACTIONS[input.weaponType] ?? WEAPON_CARD_GRIP_FRACTIONS[WeaponType.Pistol]).x * W * TEXEL),
+          y: Math.round((WEAPON_CARD_GRIP_FRACTIONS[input.weaponType] ?? WEAPON_CARD_GRIP_FRACTIONS[WeaponType.Pistol]).y * H * TEXEL),
+        }
+      : { x: (ctx.gripX + 7) * TEXEL, y: (ctx.gripTop + L.gripH) * TEXEL };
   const render: WeaponCardRender = {
     width: W, height: H,
     rows,
@@ -1827,7 +1862,9 @@ export function composeWeaponCard(rawInput: PixelWeaponInput, themeId?: string, 
     decals: finish.decals,
     condition: finish.condition,
     anchors: {
-      muzzle: { x: ctx.muzzleX * TEXEL, y: SPINE * TEXEL },
+      muzzle: legendarySet
+        ? { x: legendarySet.muzzle.x * TEXEL, y: legendarySet.muzzle.y * TEXEL }
+        : { x: ctx.muzzleX * TEXEL, y: SPINE * TEXEL },
       grip: gripAnchor,
       centerMass,
       lootPoint: { x: centerMass.x, y: lootY * TEXEL },

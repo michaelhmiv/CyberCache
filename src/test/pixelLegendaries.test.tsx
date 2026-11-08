@@ -2,14 +2,20 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
+import { composePixelWeaponCached, pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
 
 /**
  * P4 wave 2 — PixelWeapon bespoke resolution for real drops: a legendary
  * whose rolled name is procedural still renders its named legendary's
- * bespoke sprite via the effect it carries; a legendary with no named
+ * bespoke art via the effect it carries; a legendary with no named
  * effect keeps the compositor canvas.
+ *
+ * V4: the bespoke art is a hand-authored pxl piece set rendered
+ * through the same compositor as every other weapon — a canvas whose
+ * signature equals the compositor's bespoke render (PixelWeapon's
+ * default density is 'stage', so the small compositor pins it).
  */
 
 const BASE_WEAPON: Weapon = {
@@ -32,31 +38,37 @@ const BASE_WEAPON: Weapon = {
 } as Weapon;
 
 describe('PixelWeapon — bespoke legendary resolution (P4 wave 2)', () => {
-  it('renders the bespoke sprite for a procedurally-named legendary via its effect', () => {
-    render(<PixelWeapon weapon={{ ...BASE_WEAPON, legendaryEffectId: 'glass_sun' }} testId="pw-glass-sun" />);
-    const img = screen.getByTestId('pw-glass-sun');
-    expect(img.tagName).toBe('IMG');
-    expect(img.getAttribute('data-pixel-sprite')).toBe('legendary-glass-sun');
+  it("renders the bespoke authored set for a procedurally-named legendary via its effect", () => {
+    const weapon = { ...BASE_WEAPON, legendaryEffectId: 'glass_sun' } as Weapon;
+    render(<PixelWeapon weapon={weapon} testId="pw-glass-sun" />);
+    const el = screen.getByTestId('pw-glass-sun');
+    expect(el.tagName).toBe('CANVAS');
+    expect(el.getAttribute('data-signature')).toBe(
+      composePixelWeaponCached(pixelWeaponInputFromWeapon(weapon)).signature,
+    );
+    // ...and it is NOT the procedural render of the same roll.
+    const procedural = composePixelWeaponCached({
+      ...pixelWeaponInputFromWeapon(weapon),
+      name: 'Unnamed Roll',
+      legendaryEffectId: undefined,
+    });
+    expect(el.getAttribute('data-signature')).not.toBe(procedural.signature);
   });
 
   it('resolves through the input path too (effect id carried on the input)', () => {
-    render(
-      <PixelWeapon
-        input={{
-          weaponType: WeaponType.Launcher,
-          manufacturer: Manufacturer.BlastForge,
-          rarity: Rarity.Legendary,
-          element: Element.Fire,
-          parts: BASE_WEAPON.parts,
-          name: 'Molten BlastForge Tube Custom',
-          legendaryEffectId: 'molten_core',
-        }}
-        testId="pw-molten"
-      />,
-    );
-    const img = screen.getByTestId('pw-molten');
-    expect(img.tagName).toBe('IMG');
-    expect(img.getAttribute('data-pixel-sprite')).toBe('legendary-molten-core');
+    const input = {
+      weaponType: WeaponType.Launcher,
+      manufacturer: Manufacturer.BlastForge,
+      rarity: Rarity.Legendary,
+      element: Element.Fire,
+      parts: BASE_WEAPON.parts,
+      name: 'Molten BlastForge Tube Custom',
+      legendaryEffectId: 'molten_core',
+    };
+    render(<PixelWeapon input={input} testId="pw-molten" />);
+    const el = screen.getByTestId('pw-molten');
+    expect(el.tagName).toBe('CANVAS');
+    expect(el.getAttribute('data-signature')).toBe(composePixelWeaponCached(input).signature);
   });
 
   it('keeps the compositor canvas for a legendary with no named effect (fallback intact)', () => {

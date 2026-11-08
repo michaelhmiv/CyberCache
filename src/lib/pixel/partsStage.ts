@@ -12,25 +12,16 @@ import {
   type PartsWeaponFractions,
 } from './partsCompositor';
 import { STAGE_DESIGN_ASPECT, type ActorPlacement } from './movement';
-import { bespokeSpriteIdForWeapon, getPixelSprite } from './manifest';
 import type { PixelWeaponInput } from './weaponCompositor';
 
-/** Fractions for ANY held weapon input: a bespoke legendary reads
- *  its manifest sprite's measured grip/muzzle anchors; a kit weapon
- *  reads its HELD card render (One Grammar, 2026-11-06 — the card
- *  grammar in held mode, seated by its declared per-type grip
- *  anchor). The DOM actor and the stages share this so the weapon
- *  they draw and the muzzle they flash from are the same geometry. */
+/** Fractions for ANY held weapon input, from its HELD card render
+ *  (One Grammar, 2026-11-06 — the card grammar in held mode, seated
+ *  by its declared grip anchor). A bespoke legendary's authored set
+ *  declares its own grip/muzzle, which compositorWeaponFractions
+ *  honors (V4). The DOM actor and the stages share this so the
+ *  weapon they draw and the muzzle they flash from are the same
+ *  geometry. */
 export function partsWeaponFractionsFor(input: PixelWeaponInput): PartsWeaponFractions {
-  const bespokeId = bespokeSpriteIdForWeapon(input);
-  const sprite = bespokeId ? getPixelSprite(bespokeId) : undefined;
-  if (sprite?.anchors.grip && sprite.anchors.muzzle) {
-    return {
-      gripFrac: { x: sprite.anchors.grip.x, y: sprite.anchors.grip.y },
-      muzzleFrac: { x: sprite.anchors.muzzle.x, y: sprite.anchors.muzzle.y },
-      aspect: sprite.height / sprite.width,
-    };
-  }
   return compositorWeaponFractions(input);
 }
 

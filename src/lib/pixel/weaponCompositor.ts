@@ -10,6 +10,8 @@ import {
   type WeaponCondition,
   type WeaponVisualDecal,
 } from '@/lib/weaponArt/decalSpec';
+import { bespokeSpriteIdForWeapon, legendaryAuthoredSetForId } from './legendaryArt';
+import type { LegendaryAuthoredSet } from './legendaryAuthoredData';
 
 /**
  * Pixel parts-kit weapon compositor (P1).
@@ -58,9 +60,10 @@ export interface PixelWeaponInput {
   /** Roll quality 0..100 — rendered as the condition grade (overhaul §4.2d). */
   rollQuality?: number;
   /** Presentation only: the weapon's legendary effect id, when it carries
-   *  one. The compositor ignores it — PixelWeapon uses it to resolve
-   *  bespoke legendary art (a dropped legendary's rolled name is
-   *  procedural; its effect is its named identity). */
+   *  one. Together with `name` it resolves the bespoke legendary art
+   *  (a dropped legendary's rolled name is procedural; its effect is
+   *  its named identity) — both compositors render the resolved
+   *  authored set (V4). */
   legendaryEffectId?: string;
 }
 
@@ -230,10 +233,91 @@ function outline(grid: Grid) {
   for (const { x, y, shade } of additions) grid[y][x] = shade;
 }
 
+/**
+ * V4 bespoke stage render: a named legendary's converter-derived
+ * stage pieces stamped with its own stage palette, the shared
+ * outline pass, and its declared grip/muzzle anchors. Decals and
+ * condition are computed as fields (the same derivations the
+ * procedural path uses) but never stamped or worn into the fixed
+ * identity — the same rule the card path follows.
+ */
+function composeLegendaryStageWeapon(
+  input: PixelWeaponInput,
+  legendaryId: string,
+  set: LegendaryAuthoredSet,
+  rarity: Rarity,
+): PixelWeaponRender {
+  const grid = makeGrid();
+  for (const piece of set.stagePieces) {
+    const [sx, sy] = piece.seat;
+    piece.rows.forEach((row, dy) => {
+      for (let dx = 0; dx < row.length; dx += 1) {
+        const ch = row[dx] as PixelShade;
+        if (ch === '.') continue;
+        const x = sx + dx;
+        const y = sy + dy;
+        if (x >= 0 && x < PIXEL_WEAPON_WIDTH && y >= 0 && y < PIXEL_WEAPON_HEIGHT) grid[y][x] = ch;
+      }
+    });
+  }
+  outline(grid);
+  const visualSeed = weaponVisualSeed({
+    id: input.id,
+    name: input.name,
+    weaponType: normalizeType(input.weaponType),
+    manufacturer: normalizeManufacturer(input.manufacturer),
+    element: input.element,
+    rarity,
+    pixelSeed: input.pixelSeed,
+  });
+  const decals = buildDecals(input.affixes, visualSeed, input.legendaryEffectId);
+  const condition = conditionFromRoll(typeof input.rollQuality === 'number' ? input.rollQuality : 50);
+  const rows = grid.map((row) => row.join(''));
+  let mass = 0;
+  let mx = 0;
+  let my = 0;
+  let minX = PIXEL_WEAPON_WIDTH;
+  let maxX = 0;
+  let minY = PIXEL_WEAPON_HEIGHT;
+  for (let y = 0; y < PIXEL_WEAPON_HEIGHT; y += 1) {
+    for (let x = 0; x < PIXEL_WEAPON_WIDTH; x += 1) {
+      if (grid[y][x] === '.') continue;
+      mass += 1;
+      mx += x;
+      my += y;
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y);
+    }
+  }
+  const rarityStyle = RARITY_FRAME_STYLES[rarity];
+  return {
+    width: PIXEL_WEAPON_WIDTH,
+    height: PIXEL_WEAPON_HEIGHT,
+    rows,
+    colors: { ...set.stageColors },
+    signature: hashString(`legendary-stage|${legendaryId}|${rows.join('/')}`).toString(16),
+    decals,
+    condition,
+    anchors: {
+      muzzle: { x: set.stageMuzzle.x, y: set.stageMuzzle.y },
+      grip: { x: set.stageGrip.x, y: set.stageGrip.y },
+      centerMass: { x: mass ? Math.round(mx / mass) : 60, y: mass ? Math.round(my / mass) : SPINE_Y },
+      lootPoint: { x: mass ? Math.round((minX + maxX) / 2) : 60, y: mass ? minY : 0 },
+    },
+    rarityColor: rarityStyle.color,
+  };
+}
+
 export function composePixelWeapon(input: PixelWeaponInput): PixelWeaponRender {
   const type = normalizeType(input.weaponType);
   const manufacturer = normalizeManufacturer(input.manufacturer);
   const rarity = normalizeRarity(input.rarity);
+  // V4: a named legendary renders its bespoke authored set at this
+  // density too — one art path at every density.
+  const legendaryId = bespokeSpriteIdForWeapon(input);
+  const legendarySet = legendaryAuthoredSetForId(legendaryId);
+  if (legendaryId && legendarySet) return composeLegendaryStageWeapon(input, legendaryId, legendarySet, rarity);
   const layout = TYPE_LAYOUTS[type];
   const grid = makeGrid();
 

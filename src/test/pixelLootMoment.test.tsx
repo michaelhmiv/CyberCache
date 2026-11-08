@@ -6,6 +6,8 @@ import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { MOVEMENT } from '@/lib/pixel/movement';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Shield, Weapon } from '@/types/items';
+import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
+import { composeWeaponCardCached } from '@/lib/pixel/weaponCardCompositor';
 
 const makeShield = (overrides: Partial<Shield> = {}): Shield =>
   ({
@@ -131,8 +133,12 @@ describe('LootMoment — full mode (stage surface)', () => {
     expect(screen.getByTestId('fx-shockwave-ring')).toBeTruthy();
     expect(screen.getByTestId('fx-twinkles')).toBeTruthy();
     expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
-    // Bespoke sprite, not the compositor, for the named legendary.
-    expect(screen.getByTestId('loot-risen-weapon').getAttribute('data-pixel-sprite')).toBe('legendary-emberfall');
+    // The named legendary rises as its bespoke authored render (V4).
+    const risen = screen.getByTestId('loot-risen-weapon');
+    expect(risen.tagName).toBe('CANVAS');
+    expect(risen.getAttribute('data-signature')).toBe(
+      composeWeaponCardCached(pixelWeaponInputFromWeapon(emberfall)).signature,
+    );
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Emberfall');
     // Deck anatomy: the effect banner carries the effect, the stamp

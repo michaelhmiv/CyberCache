@@ -988,7 +988,10 @@ seating is data: `WEAPON_CARD_GRIP_FRACTIONS` declares a measured
 grip anchor per weapon type (grip-cluster centroids across all
 six manufacturers), and the parts actor seats the held render
 grip-to-grip on the skeleton joint from it. The 26 bespoke
-legendary sprites keep their existing path untouched. The
+legendary sprites keep their existing path untouched —
+superseded 2026-11-08 by the V4 entry at the end of this
+section: the painted sprites are retired and the legendaries
+render from hand-authored sets through this same grammar. The
 120×44 compositor no longer renders on any stage; it remains
 the detail-level-0 density for compact list rows and feed
 thumbs, where the card compose is too heavy to run per row
@@ -1339,6 +1342,43 @@ at 6 per render, and the suppressed barrel's composed
 outline measures 2 cells at its can shoulder — both
 recorded in the suite, neither re-authored: the owner
 approved the form as authored).
+
+**V4 — the 26 bespoke legendaries join the grammar
+(2026-11-08).** The One Grammar carve-out above is retired:
+the 26 painted legendary sprites (1,478,328 B) are deleted,
+and every named legendary is now a hand-authored pxl piece
+set in `legendaryAuthoredData.ts` — one bespoke set per
+legendary id, authored as a single full-canvas form on the
+240×88 card grid (sources in the V4 evidence folder,
+converted by `scripts/convert-legendary-authored.mjs`),
+with a derived 120×44 stage piece and declared grip/muzzle
+anchors per legendary. Resolution is data, not engine
+branches (Flexibility Law): `legendaryArt.ts` holds the
+name/effect → art-id map, and both compositors take a
+bespoke branch that stamps the set with its own full
+identity palette — manufacturer, element, theme, wear, and
+seeded-detail passes do not touch a bespoke identity; the
+shared presentation furniture (selective outline, the
+Legendary halo on card renders) still applies, so a
+legendary reads as itself on every surface and as a
+Legendary everywhere. The stage density keeps its own
+authored derivation (a documented deterministic 2×2
+downsample of the card form), because the held path and
+the list path are different densities by law, not by
+exception. Identities, names, effects, and stats are
+unchanged — art only; no procedural render moved by a
+single cell (the S5 goldens pass unchanged). Silhouette
+fidelity against the retired paintings: IoU 0.385–0.721,
+mean 0.573, measured per weapon in the V4 evidence NOTES
+(Borrowed Time, Bad Decision, and Salvage Rights named
+there as the weakest translations, with the detail the
+texel grid cannot carry — engraved filigree, tally counts,
+receipt print — named per weapon rather than flattened
+silently). Wiki legendary plates now render from the
+compositor on the same representative instances. Payload:
+manifest total 8,260,959 B → 6,782,631 B; the 11,620,000 B
+ceiling is held, not lowered, per the standing owner
+ruling.
 
 ---
 

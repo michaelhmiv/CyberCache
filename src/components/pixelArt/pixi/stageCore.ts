@@ -3,11 +3,7 @@ import { PRIMARY_ANCHOR, PART_SLOTS } from '@/lib/pixel/parts';
 import { MOVEMENT } from '@/lib/pixel/movement';
 import { EASE, easeOutBack } from '@/lib/pixel/pixiChoreography';
 import type { PartSetLayout } from '@/lib/pixel/partsCompositor';
-import {
-  bespokeSpriteIdForWeapon,
-  getPixelSprite,
-  requirePixelSprite,
-} from '@/lib/pixel/manifest';
+import { requirePixelSprite } from '@/lib/pixel/manifest';
 import { paletteSpriteUrl, type PaletteSpec } from '@/lib/pixel/paletteSwap';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import {
@@ -164,18 +160,13 @@ export function solidTexture(color: string): Texture {
   }, 4, 4);
 }
 
-/** The held weapon's texture: the bespoke manifest sprite, or the
- *  card compositor's HELD-mode render painted to a canvas (One
- *  Grammar, 2026-11-06) — the same pixels PixelWeapon shows at
- *  'held' density on the DOM stage. */
+/** The held weapon's texture: the card compositor's HELD-mode render
+ *  painted to a canvas (One Grammar, 2026-11-06) — the same pixels
+ *  PixelWeapon shows at 'held' density on the DOM stage. Bespoke
+ *  legendaries compose through the same held path since V4. */
 export async function weaponTextureForWeapon(weapon: Weapon | undefined): Promise<Texture | null> {
   if (!weapon) return null;
   const input = pixelWeaponInputFromWeapon(weapon);
-  const bespokeId = bespokeSpriteIdForWeapon(input);
-  if (bespokeId) {
-    const sprite = getPixelSprite(bespokeId);
-    if (sprite) return loadTexture(sprite.url);
-  }
   const render = composeWeaponCardCached(input, undefined, { held: true });
   const canvas = document.createElement('canvas');
   canvas.width = render.width;

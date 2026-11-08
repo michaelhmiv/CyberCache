@@ -6,9 +6,9 @@ import {
   BESPOKE_LEGENDARY_SPRITES,
   bespokeSpriteIdForLegendaryEffect,
   bespokeSpriteIdForWeapon,
-  getPixelSprite,
   normalizeLegendaryName,
 } from '@/lib/pixel/manifest';
+import { legendaryAuthoredSetForId } from '@/lib/pixel/legendaryArt';
 import { LEGENDARY_FLAVOR_OVERRIDES, legendaryFlavorOverride, lootCardData, lootFlavor } from '@/lib/pixel/lootMoment';
 
 /**
@@ -65,11 +65,12 @@ describe('named legendary enumeration — game data', () => {
 });
 
 describe('bespoke sprite coverage — every named legendary resolves', () => {
-  it('every legendary effect resolves to a registered weapon-legendary sprite', () => {
+  it('every legendary effect resolves to a registered authored legendary set (V4)', () => {
     for (const effect of LEGENDARY_EFFECTS) {
       const spriteId = bespokeSpriteIdForLegendaryEffect(effect.id);
       expect(spriteId, `${effect.id} (${effect.name}) has no bespoke sprite`).toBeDefined();
-      expect(getPixelSprite(spriteId!)?.kind, `${effect.id} sprite kind`).toBe('weapon-legendary');
+      // V4: the id names an authored pxl data set, not a baked sprite.
+      expect(legendaryAuthoredSetForId(spriteId!), `${effect.id} authored set`).toBeDefined();
     }
   });
 

@@ -31,7 +31,9 @@ export interface LegendaryArtParityRow {
   effectId: string | null;
   /** Display name (the effect's name, or 'Emberfall'). */
   name: string;
-  /** Manifest sprite id (kind 'weapon-legendary'). */
+  /** Legendary art id ('legendary-<slug>'): before V4 a manifest
+   *  sprite id (kind 'weapon-legendary'); since V4 the key of the
+   *  legendary's authored set in LEGENDARY_AUTHORED. Same key space. */
   spriteId: string;
   /** The def's weaponType — null for Emberfall, which has no def. */
   defType: WeaponType | null;

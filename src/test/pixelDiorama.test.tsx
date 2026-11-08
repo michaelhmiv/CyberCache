@@ -9,6 +9,7 @@ import { useSurvivalStore } from '@/store/slices/survivalSlice';
 // The diorama's area prop is required in practice (its siblings always pass one).
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
+import { composePixelWeaponCached, pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 
 vi.mock('@/lib/feedback/sfx', () => ({
   playTone: vi.fn(),
@@ -205,10 +206,13 @@ describe('PixelWeapon component', () => {
     expect(screen.getByTestId('pw').getAttribute('data-signature')).toBe(signature);
   });
 
-  it('renders the bespoke sprite for the Emberfall legendary', () => {
-    render(<PixelWeapon weapon={{ ...DIORAMA_WEAPON, name: 'Emberfall' }} testId="pw-legendary" />);
-    const img = screen.getByTestId('pw-legendary');
-    expect(img.tagName).toBe('IMG');
-    expect(img.getAttribute('data-pixel-sprite')).toBe('legendary-emberfall');
+  it('renders the Emberfall authored set for the Emberfall legendary (V4)', () => {
+    const weapon = { ...DIORAMA_WEAPON, name: 'Emberfall' };
+    render(<PixelWeapon weapon={weapon} testId="pw-legendary" />);
+    const art = screen.getByTestId('pw-legendary');
+    expect(art.tagName).toBe('CANVAS');
+    expect(art.getAttribute('data-signature')).toBe(
+      composePixelWeaponCached(pixelWeaponInputFromWeapon(weapon)).signature,
+    );
   });
 });
