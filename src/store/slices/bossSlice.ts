@@ -23,6 +23,56 @@ export interface BossFightPresentation {
   signatureFire?: SkillTreeType | null;
 }
 
+/**
+ * The live ENDLESS fight's presentation (Motion Reboot M3, the
+ * #431 pattern carried to the Chaos Chamber): while the Endless
+ * panel walks a Chef-decided encounter, it publishes each timeline
+ * snapshot here and the MAIN STAGE renders the fight from it —
+ * exactly one animated fight exists, the panel keeps depth,
+ * banking, and result. Identity is the RUN: the diorama renders
+ * this only while the endless_run activity record's targetId (the
+ * server-pinned run id, migration 0028) equals `runId`, so a stale
+ * presentation from a finished or abandoned run can never wear
+ * the stage. Presentation only — the timeline is the Chef's
+ * already-decided outcome walked for display.
+ */
+export interface EndlessFightPresentation {
+  timeline: FightTimeline;
+  phases: PhaseAnalysis[];
+  /** The server-owned run row id (cc_start_endless_run). */
+  runId: string;
+  /** The depth being fought (run.depth_reached + 1 at publish). */
+  depth: number;
+  /** The encounter's sim id (boss kit id, or `endless_pack_<areaId>`). */
+  encounterId: string;
+  /** Pack depths fight on their rotation area's ground, not a boss
+   *  arena — the backdrop override BossFightStage already honors. */
+  backgroundId?: string;
+  /** Escalation band for this depth (endlessDepthBand) — the fight
+   *  stage's tint + depth badge read it. */
+  band: number;
+  weapon?: Weapon;
+  signatureFire?: SkillTreeType | null;
+}
+
+/**
+ * The endless run's stage PRESENCE between fights (M3): the next
+ * encounter standing on the main stage in its own arena, the way
+ * the challenged boss stands during prep. The panel publishes it
+ * while a run is live; the diorama honors it only when `runId`
+ * matches the activity record's targetId (same guard as the fight
+ * presentation). The panel is the only publisher — it clears the
+ * presence when the run ends or the panel unmounts.
+ */
+export interface EndlessPresence {
+  runId: string;
+  encounterId: string;
+  encounterKind: 'pack' | 'boss';
+  areaId: string;
+  depth: number;
+  band: number;
+}
+
 export type BossFightStatus = 'idle' | 'active' | 'victory' | 'defeat';
 
 export interface BossFightState {
@@ -78,6 +128,13 @@ export interface BossState extends BossFightState {
   fightPresentation: BossFightPresentation | null;
   setFightPresentation: (presentation: BossFightPresentation) => void;
   clearFightPresentation: () => void;
+  // Motion Reboot M3 — the endless fight + presence on the main stage
+  endlessPresentation: EndlessFightPresentation | null;
+  setEndlessPresentation: (presentation: EndlessFightPresentation) => void;
+  clearEndlessPresentation: () => void;
+  endlessPresence: EndlessPresence | null;
+  setEndlessPresence: (presence: EndlessPresence) => void;
+  clearEndlessPresence: () => void;
 }
 
 const initialFight: BossFightState = {
@@ -170,4 +227,10 @@ export const useBossStore = create<BossState>()((set) => ({
   fightPresentation: null,
   setFightPresentation: (presentation) => set({ fightPresentation: presentation }),
   clearFightPresentation: () => set({ fightPresentation: null }),
+  endlessPresentation: null,
+  setEndlessPresentation: (presentation) => set({ endlessPresentation: presentation }),
+  clearEndlessPresentation: () => set({ endlessPresentation: null }),
+  endlessPresence: null,
+  setEndlessPresence: (presence) => set({ endlessPresence: presence }),
+  clearEndlessPresence: () => set({ endlessPresence: null }),
 }));

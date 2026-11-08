@@ -44,7 +44,7 @@ import { useCosmeticsStore, useOwnLook } from '@/store/slices/cosmeticsSlice';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
 import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
-import { areaVisuals } from '@/content/areaPalettes';
+import { areaVisuals, bossArena } from '@/content/areaPalettes';
 import { isHotArea } from '@/content/hotArea';
 import { elementDialect, shotCadence } from '@/lib/pixel/elementFx';
 import { useLoadoutStore } from '@/store';
@@ -80,7 +80,7 @@ import type { TickEvent } from '@/store/slices/tickSlice';
 
 export type LiveTurfFeedEvent = TickEvent;
 
-type DioramaMode = 'idle' | 'roaming' | 'bossPrep' | 'bossFight' | 'crafting' | 'salvaging' | 'workshopService' | 'marketListing' | 'extraction';
+type DioramaMode = 'idle' | 'roaming' | 'bossPrep' | 'bossFight' | 'crafting' | 'salvaging' | 'workshopService' | 'marketListing' | 'extraction' | 'endless';
 
 interface LiveTurfDioramaProps {
   area: RoamingAreaDef;
@@ -91,6 +91,11 @@ interface LiveTurfDioramaProps {
   equippedCount: number;
   activityKind?: ActivityKind;
   bossPhase?: BossPhase;
+  /** Motion Reboot M3: the endless_run activity record's targetId —
+   *  the server-pinned run id (migration 0028). The stage renders
+   *  the panel's published endless fight/presence only when its
+   *  run id matches this one, the #431 bossId guard's analogue. */
+  endlessRunId?: string | null;
   statSummary?: CharacterStatSummary;
   /** Owner ruling 2026-11-02: the running action's control
    *  floats ON the stage as a chip in the plates' language —
@@ -124,6 +129,12 @@ const modeFromActivity = (kind?: ActivityKind, bossPhase?: BossPhase): DioramaMo
   // through to the idle camp vista while the panel duplicated
   // the scene below.
   if (kind === 'extraction') return 'extraction';
+  // Endless (Motion Reboot M3): a run holding the action slot maps
+  // to a real stage mode — the run's presence between fights, its
+  // published fight during one. Before this mapping the kind fell
+  // through to the idle camp vista for the run's whole duration
+  // (the PR #384 follow-up) while the panel ran a second stage.
+  if (kind === 'endless_run') return 'endless';
   return 'idle';
 };
 
@@ -357,8 +368,10 @@ const PixelSceneLayerDom: React.FC<{
   // Boss prep (One-Stage Law, owner ruling 2026-11-06): the
   // challenged boss STANDS on the stage while the player preps —
   // presence without combat. Beats and HP plates stay keyed to
-  // showEnemy; only the boss actor joins the scene.
-  const showBossPrep = mode === 'bossPrep' && !!bossSpriteId;
+  // showEnemy; only the boss actor joins the scene. Endless
+  // presence (Motion Reboot M3) takes the same treatment: the
+  // run's next encounter stands on the stage between fights.
+  const showBossPrep = (mode === 'bossPrep' || mode === 'endless') && !!bossSpriteId;
   const bossOnStage = bossMode || showBossPrep;
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
@@ -755,7 +768,7 @@ const PixelSceneLayerDom: React.FC<{
           <PixelActor spriteId="set-extract-crates" xPct={86} heightPct={24} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-extract-crates" />
         </>
       )}
-      {!showEnemy && !showBossPrep && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && mode !== 'extraction' && (
+      {!showEnemy && !showBossPrep && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && mode !== 'extraction' && mode !== 'endless' && (
         <PixelActor spriteId="crate" xPct={63} heightPct={21} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-crate-prop" />
       )}
 
@@ -1350,7 +1363,7 @@ const RoamHunterHpPlate: React.FC<{ groundY: number }> = ({ groundY }) => {
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
-export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, boss, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, stageControls }) => {
+export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, boss, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, endlessRunId, stageControls }) => {
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the stage can react.
@@ -1378,6 +1391,34 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   // and the screen passes it — see ActionScreenContextual.)
   const fightPresentation = useBossStore((state) => state.fightPresentation);
   const showFightStage = mode === 'bossFight' && !!fightPresentation && !!boss && fightPresentation.bossId === boss.id;
+  // Motion Reboot M3 — endless comes home (the #431 pattern): the
+  // Endless panel publishes its fight walk and the run's presence
+  // to the same store. The fight renders here only while the run
+  // on the activity record IS the run that published it (the
+  // record's targetId is the server-pinned run id, migration
+  // 0028) — a stale presentation from a finished or abandoned run
+  // can never wear the stage. Between fights the stage shows the
+  // run's PRESENCE: the next encounter standing in its own arena
+  // (the boss-prep treatment), never the camp vista.
+  const endlessPresentation = useBossStore((state) => state.endlessPresentation);
+  const endlessPresence = useBossStore((state) => state.endlessPresence);
+  const showEndlessFightStage = mode === 'endless' && !!endlessPresentation && !!endlessRunId && endlessPresentation.runId === endlessRunId;
+  const activeEndlessPresence = mode === 'endless' && !!endlessPresence && !!endlessRunId && endlessPresence.runId === endlessRunId
+    ? endlessPresence
+    : null;
+  // The presence backdrop is the encounter's own ground — the
+  // same derivation the fight stage uses (pack depths: their
+  // rotation area's ground; boss depths: the kit's arena), so
+  // presence and fight share one backdrop across the transition.
+  const endlessPresenceBackgroundId = activeEndlessPresence
+    ? activeEndlessPresence.encounterKind === 'pack'
+      ? `zone-${activeEndlessPresence.areaId.split('_')[0]}-bg`
+      : bossArena(activeEndlessPresence.encounterId).backgroundId
+    : undefined;
+  const endlessPresenceSpriteId = activeEndlessPresence
+    ? (pixelBossSpriteForBoss(activeEndlessPresence.encounterId) ?? 'brute')
+    : undefined;
+  const sceneBackgroundId = endlessPresenceBackgroundId ?? pixelBackgroundId;
   // Stage furniture (DESIGN.md §1, drift-fix F2; owner rulings
   // 2026-11-02, 2026-11-03): the Stage carries the count plate
   // (top-right), the action-control chips (top-left — see
@@ -1421,8 +1462,26 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
             signatureFire={fightPresentation.signatureFire ?? null}
           />
         </div>
-      ) : pixelBackgroundId ? (
-        <PixelSceneLayer backgroundId={pixelBackgroundId} bossSpriteId={stageBossSpriteId} weapon={weapon} mode={mode} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
+      ) : showEndlessFightStage && endlessPresentation ? (
+        /* The endless fight's animated home (Motion Reboot M3):
+           the decided encounter plays HERE, on the main stage —
+           the Chaos Chamber panel below keeps depth, banking,
+           and result, and mounts no fight stage of its own. */
+        <div className="absolute inset-0" data-testid="diorama-endless-fight">
+          <BossFightStage
+            embedded
+            timeline={endlessPresentation.timeline}
+            phases={endlessPresentation.phases}
+            bossId={endlessPresentation.encounterId}
+            backgroundId={endlessPresentation.backgroundId}
+            depthBadge={{ depth: endlessPresentation.depth, band: endlessPresentation.band }}
+            weapon={endlessPresentation.weapon}
+            reduced={reduced}
+            signatureFire={endlessPresentation.signatureFire ?? null}
+          />
+        </div>
+      ) : sceneBackgroundId ? (
+        <PixelSceneLayer backgroundId={sceneBackgroundId} bossSpriteId={mode === 'endless' ? endlessPresenceSpriteId : stageBossSpriteId} weapon={weapon} mode={mode} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
       ) : null}
       {/* No fallback scene (owner ruling 2026-11-07): the inline-SVG
           diorama that used to render for areas with no pixel

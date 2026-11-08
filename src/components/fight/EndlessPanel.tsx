@@ -26,7 +26,6 @@ import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { endlessDepthBand, endlessEncounterForDepth } from '../../content/endless';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
-import { BossFightStage } from '../pixelArt/BossFightStage';
 import { LootMoment } from '../pixelArt/LootMoment';
 import { GhostHpBar } from '../pixelArt/PixelFx';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
@@ -117,13 +116,16 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
   // charge carries across encounters inside a run and resets at run
   // end. `fireArmed` is intent for the NEXT encounter only.
   const [fireArmed, setFireArmed] = useState(false);
-  const [fightActionSkill, setFightActionSkill] = useState<{
-    tree: SkillTreeType; fired: boolean; chargeAfter: number;
-  } | null>(null);
   const actionSkillView: ActionSkillStateView | null = me?.actionSkill ?? null;
 
   useEffect(() => () => {
     animationCancelRef.current.cancelled = true;
+    // Motion Reboot M3: the stage presentation + presence are this
+    // panel's publications — they retire with it, so a stale fight
+    // or a dead run's encounter can never linger on the main stage.
+    const store = useBossStore.getState();
+    store.clearEndlessPresentation();
+    store.clearEndlessPresence();
   }, []);
 
   // Promise-chain shape (the RepairBoard idiom): state lands in
@@ -255,13 +257,6 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
     try {
       outcome = await advanceEndlessEncounter({ nonce: newEndlessNonce('encounter'), fireActionSkill: fireArmed });
       setFireArmed(false);
-      setFightActionSkill(outcome.result?.actionSkill
-        ? {
-            tree: outcome.result.actionSkill.tree as SkillTreeType,
-            fired: outcome.result.actionSkill.fired,
-            chargeAfter: outcome.actionSkill?.charge ?? actionSkillView?.charge ?? 0,
-          }
-        : null);
       if (outcome.actionSkill) {
         const echo = outcome.actionSkill;
         setMe((prev) => {
@@ -303,7 +298,30 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
       extraLoot: false,
     };
     const initialTimeline = buildInitialTimeline(fightOutcome, nextEncounter.health, player.level, shield?.hp ?? 0);
-    setFightTimeline(initialTimeline);
+    // One-Stage Law (Motion Reboot M3, the #431 pattern): the
+    // animated fight plays on the MAIN STAGE, not in this card.
+    // Every timeline snapshot is published to the boss store —
+    // the diorama renders the fight from it, guarded by the run
+    // id — and mirrored into this card's own state for the HP
+    // readouts below. This card mounts no stage of its own.
+    const skillFireTree = outcome.result?.actionSkill?.fired
+      ? (outcome.result.actionSkill.tree as SkillTreeType)
+      : null;
+    const publishTimeline = (snapshot: FightTimeline) => {
+      setFightTimeline(snapshot);
+      bossStore.setEndlessPresentation({
+        timeline: snapshot,
+        phases: animationPhases,
+        runId: run.id,
+        depth: nextDepth,
+        encounterId: nextEncounter.id,
+        backgroundId: nextEncounter.kind === 'pack' ? `zone-${nextEncounter.areaId.split('_')[0]}-bg` : undefined,
+        band: endlessDepthBand(nextDepth),
+        weapon: primary ?? undefined,
+        signatureFire: skillFireTree,
+      });
+    };
+    publishTimeline(initialTimeline);
     const cancel = { cancelled: false };
     animationCancelRef.current = cancel;
     const finalTimeline = await runFightAnimation(
@@ -311,10 +329,14 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
       animationPhases,
       reducedMotion === true,
       cancel,
-      (snapshot) => setFightTimeline(snapshot),
+      publishTimeline,
     );
     if (cancel.cancelled) return;
-    setFightTimeline(finalTimeline);
+    publishTimeline(finalTimeline);
+    // The walk is over: retire the stage presentation with the
+    // resolution. The stage returns to the run's presence (the
+    // next encounter, published below) or clears with the run.
+    bossStore.clearEndlessPresentation();
     setLastEncounter(outcome);
     setBusy(false);
     if (outcome.runStatus !== 'active') {
@@ -367,6 +389,31 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
   const escrow = run
     ? { credits: run.escrow_credits, xp: run.escrow_xp, scrap: run.escrow_scrap }
     : lastEncounter?.escrow;
+
+  // Motion Reboot M3 — the run's stage presence: while a run is
+  // live, the NEXT encounter stands on the main stage in its own
+  // arena (the boss-prep pattern) instead of the stage falling
+  // back to the camp vista for the run's whole duration. The
+  // diorama honors the presence only when its run id matches the
+  // activity record's targetId; the fight presentation above
+  // supersedes it during a walk. Both publications retire when
+  // the run ends (prep/ended) or this panel unmounts.
+  useEffect(() => {
+    const store = useBossStore.getState();
+    if ((stage === 'run' || stage === 'fighting') && run && nextEncounter) {
+      store.setEndlessPresence({
+        runId: run.id,
+        encounterId: nextEncounter.id,
+        encounterKind: nextEncounter.kind,
+        areaId: nextEncounter.areaId,
+        depth: nextDepth,
+        band,
+      });
+    } else if (stage === 'ended' || stage === 'prep') {
+      store.clearEndlessPresence();
+      store.clearEndlessPresentation();
+    }
+  }, [stage, run, nextEncounter, nextDepth, band]);
 
   return (
     <div className="space-y-3" data-testid="endless-panel">
@@ -633,16 +680,10 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
                 <PxIcon name="crosshair" size={13} />
                 Depth {nextDepth} — {nextEncounter.name}
               </div>
-              <BossFightStage
-                timeline={fightTimeline}
-                phases={animationPhases}
-                bossId={nextEncounter.id}
-                backgroundId={nextEncounter.kind === 'pack' ? `zone-${nextEncounter.areaId.split('_')[0]}-bg` : undefined}
-                depthBadge={{ depth: nextDepth, band }}
-                weapon={primary ?? undefined}
-                reduced={reducedMotion === true}
-                signatureFire={fightActionSkill?.fired ? fightActionSkill.tree : null}
-              />
+              {/* The fight itself plays on the MAIN STAGE
+                  (Motion Reboot M3 — published above, rendered by
+                  the diorama). This card keeps the readouts: the
+                  HP bars below walk the same published timeline. */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[10px] text-text-muted">
                   <span className="flex items-center gap-1"><PxIcon name="heart" size={13} className="text-green" /> Player</span>
