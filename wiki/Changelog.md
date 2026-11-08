@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-08 — The named legendaries are hand-drawn
+
+- **The named legendaries are hand-drawn now** — all 26 bespoke legendary weapons have been re-authored in the game's pixel craft, each as its own drawn piece: Armor Eater's vials and maw, Jackpot's reels and coin tray, Void Bargain's portal ring, Borrowed Time's clock face. Same names, same effects, same guns — they now render from the same drawn system as every other weapon, so the legendary you win reads identically in the reveal, on its card, in the inspect sheet, and in your hunter's hands. The swap also retired about 1.5 MB of old sprite files.
+
 ## 2026-11-07 — The craft standard gets a gate
 
 - **Your hunter is re-drawn in the craft standard** — every wearable part — Standard Issue, Bulwark, Dreadplate, and every head in the Wardrobe — has been re-authored by hand in the same pixel craft discipline that gave item art its depth: hue-shifted ramps, selective outline, cluster detail. Same silhouettes, same outfits, same anchors — crisper at the sizes the game actually shows, and because parts are now palette data end to end, mixing sets (a Bulwark helm over Dreadplate legs) reads as one hunter in scavenged kit. The Hood keeps its shaped cowl from the last pass. The game's art payload also shrank by over 600 KB in the swap.
@@ -177,7 +181,11 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 192 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 193 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-08** — 1 merge
+
+- #455 — V4 — the 26 bespoke legendaries join the authored grammar
 
 **2026-11-07** — 20 merges
 

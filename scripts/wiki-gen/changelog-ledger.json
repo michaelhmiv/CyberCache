@@ -3,6 +3,15 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-08",
+      "merges": [
+        {
+          "number": 455,
+          "title": "V4 — the 26 bespoke legendaries join the authored grammar"
+        }
+      ]
+    },
+    {
       "date": "2026-11-07",
       "merges": [
         {
