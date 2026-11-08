@@ -10,6 +10,7 @@ import {
   roamAnimatedNodeCount,
   sampleRoamBeat,
 } from '@/lib/pixel/roamChoreography';
+import { enemyArtKeyFor } from '@/components/pixelArt/pixi/RoamPixiStage';
 import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
 import { useKillCycleStore, useTickFeedStore } from '@/store';
@@ -26,14 +27,21 @@ vi.mock('@/lib/feedback/sfx', () => ({
 
 // The Pixi chunk must never load in jsdom (no WebGL → the wrapper
 // never selects it); mock the lazy module so any accidental import
-// is observable instead of pulling PixiJS into the test env.
+// is observable instead of pulling PixiJS into the test env. The
+// F6 art-key derivation is a pure function, re-exported through
+// the mock from the real choreography/rig seams it composes.
 const roamPixiMounts = vi.fn();
-vi.mock('@/components/pixelArt/pixi/RoamPixiStage', () => ({
-  RoamPixiStage: (props: Record<string, unknown>) => {
-    roamPixiMounts(props);
-    return React.createElement('div', { 'data-testid': 'roam-pixi-stage', 'data-renderer': 'pixi' });
-  },
-}));
+vi.mock('@/components/pixelArt/pixi/RoamPixiStage', async () => {
+  type RoamModel = ReturnType<typeof deriveRoamScene>;
+  return {
+    RoamPixiStage: (props: Record<string, unknown>) => {
+      roamPixiMounts(props);
+      return React.createElement('div', { 'data-testid': 'roam-pixi-stage', 'data-renderer': 'pixi' });
+    },
+    enemyArtKeyFor: (model: RoamModel) =>
+      model.rig ? `rig:${model.rig.id}` : `flat:${model.enemySpriteId}`,
+  };
+});
 
 // WebGL availability is a module seam: the selection tests flip it
 // to prove the wrapper's Pixi direction without a GL context.
@@ -246,6 +254,56 @@ describe('M2 — beat tracks are the DOM stage tables, sampled', () => {
     expect(done.enemyHit.opacity).toBe(0);
     expect(done.enemyHit.y).toBe(24);
     expect(done.hunter.y).toBe(0);
+  });
+});
+
+describe('F6 — the Pixi stage enemy art key follows the target (rig-swap regression)', () => {
+  // The defect (found by M2b's evidence, 2026-11-08): the Pixi
+  // roam stage built its enemy rig once at mount, so every later
+  // target wore the first target's painting under its own name
+  // plate. The tick's swap seam keys the built art by this
+  // derivation — if the key did NOT change with the archetype,
+  // the swap could never fire and the defect would be back.
+  const baseInput = {
+    backgroundId: 'zone-dustwaste-bg',
+    areaId: DEFAULT_ROAMING_AREA_ID,
+    weapon: DIORAMA_WEAPON,
+    targetMaxHp: 100,
+    hunterSet: STANDARD_ISSUE,
+  };
+
+  it('the key names the CURRENT target archetype rig', () => {
+    const raider = deriveRoamScene({ ...baseInput, currentTargetId: 'dustwaste_raider' });
+    const drone = deriveRoamScene({ ...baseInput, currentTargetId: 'dustwaste_drone' });
+    expect(enemyArtKeyFor(raider)).toBe('rig:enemy-fodder');
+    expect(enemyArtKeyFor(drone)).toBe('rig:enemy-runner');
+    expect(enemyArtKeyFor(raider)).not.toBe(enemyArtKeyFor(drone));
+  });
+
+  it('a target sequence A→B→A keys A, B, A — no stale cache in the seam', () => {
+    const keys = ['dustwaste_raider', 'dustwaste_drone', 'dustwaste_raider'].map((id) =>
+      enemyArtKeyFor(deriveRoamScene({ ...baseInput, currentTargetId: id })),
+    );
+    expect(keys).toEqual(['rig:enemy-fodder', 'rig:enemy-runner', 'rig:enemy-fodder']);
+  });
+
+  it('elite-vs-standard for the same target changes the key (rig AND flat paths)', () => {
+    const std = deriveRoamScene({ ...baseInput, currentTargetId: 'dustwaste_raider' });
+    const eliteEvent = { id: 'evt-elite-f6', tone: 'event', label: 'Elite!', family: 'elite' } as unknown as TickEvent;
+    const elite = deriveRoamScene({ ...baseInput, currentTargetId: 'dustwaste_raider', event: eliteEvent });
+    expect(enemyArtKeyFor(std)).not.toBe(enemyArtKeyFor(elite));
+    // dustwaste carries a bespoke elite flat: the elite key is the flat's.
+    if (elite.flatSpriteId) {
+      expect(enemyArtKeyFor(elite)).toBe(`flat:${elite.enemySpriteId}`);
+    } else {
+      expect(enemyArtKeyFor(elite)).toBe('rig:enemy-elite');
+    }
+  });
+
+  it('a same-archetype target change keeps the key (no pointless rebuild)', () => {
+    const a = deriveRoamScene({ ...baseInput, currentTargetId: 'dustwaste_raider' });
+    const b = deriveRoamScene({ ...baseInput, currentTargetId: 'dustwaste_raider', targetMaxHp: 42 });
+    expect(enemyArtKeyFor(a)).toBe(enemyArtKeyFor(b));
   });
 });
 

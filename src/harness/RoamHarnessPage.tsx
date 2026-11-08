@@ -121,6 +121,14 @@ export const RoamHarnessPage: React.FC = () => {
         useKillCycleStore.setState({ currentTargetId: 'dustwaste_drone', currentTargetHp: 60, currentTargetHpMax: 60 });
       }, 60);
     };
+    // F6 rig-swap scripting: set the roam target directly (any
+    // archetype, back-to-back) so the capture can drive target
+    // changes against the mounted Pixi stage and read back which
+    // enemy art the stage actually shows (__cybercacheRoamPixiStage
+    // .enemyRig).
+    w.__setTarget = (id: string, hp = 80, max = 100) => {
+      useKillCycleStore.setState({ currentTargetId: id, currentTargetHp: hp, currentTargetHpMax: max });
+    };
     w.__stopRoam = () => setStopped(true);
     w.__resumeRoam = () => setStopped(false);
   }, [scene]);

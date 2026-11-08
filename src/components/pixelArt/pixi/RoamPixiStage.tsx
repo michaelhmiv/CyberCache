@@ -226,6 +226,10 @@ interface Scene {
   embers: Sprite[];
   emberSpecs: ParticleSpec[];
   enemySpriteDef: PixelSprite;
+  /** Enemy presentation identity the stage art was built for
+   *  (F6): the tick swaps the rig/flat nodes whenever the live
+   *  model's key no longer matches this one. */
+  enemyRigKey: string;
   readyAt: number;
 }
 
@@ -243,6 +247,9 @@ interface RoamRuntime {
    *  advances while this stage is mounted (roaming only). */
   vistaClock: VistaClock;
   poseKey: string;
+  /** F6: the enemy art key whose swap build is in flight (the
+   *  generation guard — a superseded build is discarded). */
+  pendingRigKey: string | null;
   rigPoseKey: string;
   rigCurrent: Record<string, RigPoseVals>;
   rigTweens: Record<string, { from: RigPoseVals; to: RigPoseVals; startMs: number; durationMs: number }>;
@@ -270,6 +277,7 @@ function createRoamRuntime(): RoamRuntime {
     size: { w: 420, h: 286 },
     vistaClock: { wallMs: 0, panMs: 0 },
     poseKey: '',
+    pendingRigKey: null,
     rigPoseKey: '',
     rigCurrent: {},
     rigTweens: {},
@@ -308,6 +316,148 @@ function oscillate(now: number, periodMs: number, from: number, to: number): num
   return from + (to - from) * tri;
 }
 
+/** Enemy presentation identity: which art the stage must show for
+ *  a model — `rig:<rigDefId>` for the segmented band rig,
+ *  `flat:<spriteId>` for the bespoke flat. Derived from the model's
+ *  own rig/flat resolution, so any target change that alters the
+ *  art (archetype, elite-vs-standard) changes the key; a same-
+ *  archetype target change leaves it alone. */
+// eslint-disable-next-line react-refresh/only-export-components -- F6 seam: the tick and its regression tests share this one derivation; the stage component stays the file's default export surface
+export function enemyArtKeyFor(model: RoamSceneModel): string {
+  return model.rig ? `rig:${model.rig.id}` : `flat:${model.enemySpriteId}`;
+}
+
+export interface EnemyRigNodes {
+  rigRoot?: Container;
+  rigSegs: RigNode[];
+  flatSprite?: Sprite;
+  signatureSprite?: Sprite;
+}
+
+/** Build the enemy presentation nodes for a model — the scene
+ *  init's enemy build, factored out so the F6 rig swap rebuilds
+ *  through the exact same code (one build path, no fork): washed
+ *  rig segments (the area palette wash, same as PixelRigActor
+ *  loads) plus the area signature part, or the bespoke flat. The
+ *  caller attaches rigRoot/flatSprite under the walk wrapper. */
+async function buildEnemyNodes(args: {
+  model: RoamSceneModel;
+  areaId: string;
+}): Promise<EnemyRigNodes> {
+  const { model } = args;
+  const visuals = model.visuals;
+  const rigSegs: RigNode[] = [];
+  if (model.rig) {
+    const signatureDef = getPixelSprite(visuals.signaturePartId);
+    const sigTex = signatureDef ? await loadTexture(signatureDef.url) : null;
+    for (const seg of model.rig.segments) {
+      const sprite = requirePixelSprite(seg.spriteId);
+      const src = paletteSpriteUrl(seg.spriteId, sprite.url, args.areaId, visuals.enemyPalette);
+      const tex = await loadTexture(src);
+      const node: RigNode = {
+        segId: seg.id,
+        sprite: new Sprite(tex),
+        frameX: seg.frameX,
+        frameY: seg.frameY,
+        width: seg.width,
+        height: seg.height,
+        pivot: sprite.anchors.pivot ?? { x: 0.5, y: 0.5 },
+        z: seg.z,
+      };
+      node.sprite.anchor.set(node.pivot.x, node.pivot.y);
+      node.sprite.position.set(
+        node.frameX + node.pivot.x * node.width,
+        node.frameY + node.pivot.y * node.height,
+      );
+      rigSegs.push(node);
+    }
+    const rigRoot = new Container();
+    const sorted = [...rigSegs].sort((a, b) => a.z - b.z);
+    for (const seg of sorted) rigRoot.addChild(seg.sprite);
+    let signatureSprite: Sprite | undefined;
+    if (sigTex) {
+      signatureSprite = new Sprite(sigTex);
+      signatureSprite.zIndex = 5;
+      rigRoot.addChild(signatureSprite);
+      rigRoot.sortableChildren = true;
+    }
+    return { rigRoot, rigSegs, signatureSprite };
+  }
+  const flatSprite = new Sprite(await loadTexture(model.enemySprite.url));
+  const feet = model.enemySprite.anchors.feet ?? { x: 0.5, y: 1 };
+  flatSprite.anchor.set(feet.x, feet.y);
+  return { rigSegs, flatSprite };
+}
+
+/** Remove + destroy the enemy nodes being replaced. Textures are
+ *  NOT destroyed: they belong to the shared Assets cache the next
+ *  build loads from — destroying display objects only keeps the
+ *  scene's node count flat across any number of swaps. */
+function disposeEnemyNodes(nodes: EnemyRigNodes): void {
+  nodes.rigRoot?.destroy({ children: true });
+  nodes.flatSprite?.destroy();
+}
+
+/** F6 (2026-11-08): keep the stage's enemy art married to the
+ *  CURRENT target. The scene build happens once at mount; the
+ *  target does not — the rig was built for the mount's first
+ *  target and every later target wore its painting while the
+ *  plate named the new one (M2b evidence: "RUSTED DRONE" over a
+ *  raider). When the model's art key no longer matches the built
+ *  key, rebuild the enemy nodes through the same builder and swap
+ *  them under the walk wrapper; texture loads are generation-
+ *  guarded, so a swap superseded mid-load (A→B→A) discards its
+ *  build instead of landing stale art. The DOM stage never had
+ *  the defect: its rig wrapper is keyed by target id (remount). */
+function syncEnemyArt(rt: RoamRuntime, env: TickEnv): void {
+  const scene = rt.scene;
+  if (!scene) return;
+  const key = enemyArtKeyFor(env.model);
+  if (scene.enemyRigKey === key) {
+    rt.pendingRigKey = null;
+    return;
+  }
+  if (rt.pendingRigKey === key) return; // this swap is already loading
+  rt.pendingRigKey = key;
+  const model = env.model;
+  void buildEnemyNodes({ model, areaId: env.props.areaId })
+    .then((nodes) => {
+      if (rt.scene !== scene || rt.pendingRigKey !== key) {
+        // Superseded (or the stage unmounted) while loading:
+        // discard the build rather than landing stale art.
+        disposeEnemyNodes(nodes);
+        return;
+      }
+      rt.pendingRigKey = null;
+      const old: EnemyRigNodes = {
+        rigRoot: scene.rigRoot,
+        rigSegs: scene.rigSegs,
+        flatSprite: scene.flatSprite,
+        signatureSprite: scene.signatureSprite,
+      };
+      if (nodes.rigRoot) scene.enemyWalk.addChild(nodes.rigRoot);
+      if (nodes.flatSprite) scene.enemyWalk.addChild(nodes.flatSprite);
+      scene.rigRoot = nodes.rigRoot;
+      scene.rigSegs = nodes.rigSegs;
+      scene.flatSprite = nodes.flatSprite;
+      scene.signatureSprite = nodes.signatureSprite;
+      scene.enemySpriteDef = model.enemySprite;
+      scene.enemyRigKey = key;
+      disposeEnemyNodes(old);
+      // Segment pose state belongs to the retired rig: force the
+      // pose block to re-derive it against the new rig rather
+      // than tweening segments that no longer exist.
+      rt.rigPoseKey = '';
+      rt.rigCurrent = {};
+      rt.rigTweens = {};
+    })
+    .catch(() => {
+      // A texture failure mid-swap keeps the current art rather
+      // than blanking the enemy; the next target change retries.
+      if (rt.pendingRigKey === key) rt.pendingRigKey = null;
+    });
+}
+
 /** One frame of the roam stage. Pure sampling: every transform is
  *  a function of (law constants, the DOM stage's own track tables,
  *  beat-local or raw time). */
@@ -316,6 +466,8 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   if (!scene) return;
   const { props } = env;
   const model = env.model;
+  // F6: the enemy art follows the current target, not the mount's.
+  syncEnemyArt(rt, env);
   const { w: W, h: H } = rt.size;
   const fps = rt.fps;
   const frameDtMs = fps.lastMs > 0 ? Math.min(100, now - fps.lastMs) : 0;
@@ -833,6 +985,9 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
       eventId: props.event?.id ?? null,
       beatMs: Number.isFinite(beatMs) ? Math.round(beatMs) : null,
       pose: model.hunterPoseName,
+      /** F6: the enemy art key the stage currently SHOWS (the
+       *  regression probe: it must follow the target's key). */
+      enemyRig: scene.enemyRigKey,
       travel: rt.travelSample
         ? {
             active: rt.travelSample.active,
@@ -966,7 +1121,6 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
           ].filter((d): d is PixelSprite => !!d)
         : [];
       const eventPropDef = initialModel.eventPropId ? getPixelSprite(initialModel.eventPropId) : undefined;
-      const signatureDef = getPixelSprite(visuals.signaturePartId);
       const statusDef = getPixelSprite(initialModel.dialect.statusSpriteId);
 
       const [bgTex, farTex, midTex, nearTex, weaponTex] = await Promise.all([
@@ -1023,30 +1177,10 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
           targetH: (item.width * sprite.height) / sprite.width,
         });
       }
-      // Enemy textures: washed rig segments or the flat.
-      const rigSegs: RigNode[] = [];
-      let flatTex: Texture | null = null;
-      if (initialModel.rig) {
-        for (const seg of initialModel.rig.segments) {
-          const sprite = requirePixelSprite(seg.spriteId);
-          const src = paletteSpriteUrl(seg.spriteId, sprite.url, initialProps.areaId, visuals.enemyPalette);
-          const tex = await loadTexture(src);
-          rigSegs.push({
-            segId: seg.id,
-            sprite: new Sprite(tex),
-            frameX: seg.frameX,
-            frameY: seg.frameY,
-            width: seg.width,
-            height: seg.height,
-            pivot: sprite.anchors.pivot ?? { x: 0.5, y: 0.5 },
-            z: seg.z,
-          });
-        }
-      } else {
-        flatTex = await loadTexture(initialModel.enemySprite.url);
-      }
-      const [sigTex, statusTex, eventPropTex, pennantTex] = await Promise.all([
-        signatureDef && initialModel.rig ? loadTexture(signatureDef.url) : Promise.resolve(null),
+      // Enemy nodes: washed rig segments or the flat — built by
+      // the shared builder the F6 target swap also uses.
+      const enemyNodes = await buildEnemyNodes({ model: initialModel, areaId: initialProps.areaId });
+      const [statusTex, eventPropTex, pennantTex] = await Promise.all([
         statusDef ? loadTexture(statusDef.url) : Promise.resolve(null),
         eventPropDef ? loadTexture(eventPropDef.url) : Promise.resolve(null),
         pennantDef ? loadTexture(pennantDef.url) : Promise.resolve(null),
@@ -1252,31 +1386,9 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       enemyHit.addChild(enemyWalk);
       enemyLunge.addChild(enemyHit);
       world.addChild(enemyLunge);
-      let rigRoot: Container | undefined;
-      let signatureSprite: Sprite | undefined;
-      for (const seg of rigSegs) {
-        seg.sprite.anchor.set(seg.pivot.x, seg.pivot.y);
-        seg.sprite.position.set(seg.frameX + seg.pivot.x * seg.width, seg.frameY + seg.pivot.y * seg.height);
-      }
-      if (initialModel.rig) {
-        rigRoot = new Container();
-        const sorted = [...rigSegs].sort((a, b) => a.z - b.z);
-        for (const seg of sorted) rigRoot.addChild(seg.sprite);
-        if (sigTex) {
-          signatureSprite = new Sprite(sigTex);
-          signatureSprite.zIndex = 5;
-          rigRoot.addChild(signatureSprite);
-          rigRoot.sortableChildren = true;
-        }
-        enemyWalk.addChild(rigRoot);
-      }
-      let flatSprite: Sprite | undefined;
-      if (flatTex) {
-        flatSprite = new Sprite(flatTex);
-        const feet = initialModel.enemySprite.anchors.feet ?? { x: 0.5, y: 1 };
-        flatSprite.anchor.set(feet.x, feet.y);
-        enemyWalk.addChild(flatSprite);
-      }
+      const { rigRoot, flatSprite, signatureSprite } = enemyNodes;
+      if (rigRoot) enemyWalk.addChild(rigRoot);
+      if (flatSprite) enemyWalk.addChild(flatSprite);
       // FX layer.
       const fx = new Container();
       world.addChild(fx);
@@ -1357,7 +1469,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         enemyHit,
         enemyWalk,
         rigRoot,
-        rigSegs,
+        rigSegs: enemyNodes.rigSegs,
         flatSprite,
         signatureSprite,
         eventPropSprite,
@@ -1378,6 +1490,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         embers,
         emberSpecs,
         enemySpriteDef: initialModel.enemySprite,
+        enemyRigKey: enemyArtKeyFor(initialModel),
         readyAt: performance.now(),
       };
       runtime.scene = scene;

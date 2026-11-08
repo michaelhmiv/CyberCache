@@ -7,6 +7,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The converted hunter, finished properly** — the hand-drawn hunter gets its polish pass: the Bulwark helm's dome is modeled platework now instead of one broad flat field, the shadow-side legs carry real form instead of reading as dark columns, the Fin's rust crest sits bolted to the crown, and the backpacks have their missing machinery — Bulwark's lower greebles, Dreadplate's tank-face seams and wear, the Standard Issue pack's swept plate seam. Same silhouettes, same outfits, same anchors — the work is all in the surfaces.
 - **The hunter's legs are jointed now** — under the hood, the leg rig works the way the arm rig always has: the shin hangs off the thigh's knee instead of being pinned to the ground, so the legs can genuinely articulate — the groundwork for a walking hunter. Nothing on screen changes yet: every standing pose renders exactly as before, pixel for pixel; the stride itself arrives with the travel beat it belongs to.
 - **The hunter walks between encounters now** — the travel beat the jointed legs were built for: when a roam starts, and again each time the next enemy comes on, the hunter advances on foot — legs striding, the country sliding past at the pace of his own steps so his boots and the ground agree — and settles into his stance as the enemy walks in to meet him. A shot landing mid-stride cuts the walk short exactly as it should; he finishes his last step into the fight, never through it. This closes the Motion Reboot: every stage motion the audit called for — the work cycles, the Pixi roam stage, the jointed legs, the walk itself — is in the game.
+- **The enemy on stage is the enemy on the plate now** — on the WebGL roam stage, the enemy's picture was frozen on the first target of a session: the next enemy walked in wearing the previous one's shape while its name plate told the truth. The stage now swaps the enemy's drawn form the moment the target changes — every enemy you face is the one the plate names.
 
 ## 2026-11-08 — The named legendaries are hand-drawn
 
@@ -196,9 +197,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 200 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 201 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-08** — 8 merges
+**2026-11-08** — 9 merges
 
 - #455 — V4 — the 26 bespoke legendaries join the authored grammar
 - #456 — Changelog catch-up — V4 legendaries (#455)
@@ -208,6 +209,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #460 — Land V2 set pieces and seat wiring
 - #461 — Motion M2a: FK leg resolver + stride spec
 - #462 — ThrowTech heap polish — debris heap re-authored to the Dustwaste density standard
+- #463 — Motion M2b — the travel beat + pan (Motion Reboot closes)
 
 **2026-11-07** — 20 merges
 

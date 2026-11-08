@@ -1581,6 +1581,27 @@ hunter, crate — and the stage's boss HP plate could never light.
 That was tracked follow-up F5, one layer deeper than recorded;
 **F5 is closed.**
 
+**F6 — the roam stage's enemy wore the first target's face
+(closed 2026-11-08).** The Pixi roam stage built its enemy rig
+once, at mount, from the mount's target — and never rebuilt it:
+the walk-in replayed for each new target, the name/HP plate named
+the new target, but the painting on stage stayed the first
+target's rig for the whole session (M2b's evidence caught it: a
+"RUSTED DRONE" plate over the raider's rig, mid-advance). The DOM
+stage never had the defect — its rig wrapper is keyed by target
+id and remounts. The fix keeps the Pixi stage's build-once scene
+but marries the art to the target: the tick derives the model's
+enemy art key (`rig:<id>` / `flat:<spriteId>`) and, when it no
+longer matches the built key, rebuilds the enemy nodes through
+the same builder the mount used and swaps them under the walk
+wrapper — generation-guarded, so a swap superseded mid-load
+(A→B→A) discards its build, and retired nodes are destroyed so
+swaps never accumulate scene nodes. The boss and endless stages
+were audited for the same pattern and are immune by shape: one
+encounter per mount, the encounter's identity fixed before the
+fight, and the fight component remounts on mode transitions —
+there is no next target inside a mount to go stale against.
+
 The ruling (Option A, the One-Stage Law of §1 applied to fights):
 **the animated boss fight plays on the main stage.** The encounter
 panel keeps what is panel work — boss select and intel, prep,
