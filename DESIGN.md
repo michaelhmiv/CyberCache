@@ -2004,8 +2004,17 @@ everything still missing that still had a living seat.
 - **The stall verdict was earned, not assumed.** The evidence
   pass's side-by-side and this slice's live captures agree: the
   retired painting read as a dark glitter mass at stage size,
-  the authored stall reads as a stall — canopy, open counter,
+  the authored stall reads as a stall — canopy, counter,
   scale, crate — in the vista's own rust register. It lands.
+  **Amendment (owner ruling, 2026-11-08):** the landed counter
+  was empty, and the owner ruled it re-authored STOCKED — the
+  painting's content (hanging wares, piled stock) translated
+  into the authored frame: a hanging bottle and counter-end
+  stacks on both flanks, a stocked display shelf across the
+  counter front, a barrel at the base. The seat record is
+  unchanged — the listed item's standing volume (counter
+  center) stays prop-free; the goods dress around it, and the
+  hunter's reach at the stall's left edge stays clear.
 - **Manifest truth + payload.** The seven sprites' manifest
   entries carry their authored dimensions and anchors recomputed
   from the new alpha masks by `pixel-key.py`'s own formulas.
