@@ -119,35 +119,53 @@ export const PixelStage: React.FC<PixelStageProps> = ({
   // wraps the band strips via background-position (repeat-x tiling =
   // seamless at any offset), and paints the ambient canvases from
   // the scene data. No per-frame React renders — refs only.
-  const vistaBandRefs = useRef(new Map<VistaLayerId, HTMLDivElement>());
-  const vistaCanvasRefs = useRef(new Map<VistaPaintLayer, HTMLCanvasElement>());
+  const vistaFarBandRef = useRef<HTMLDivElement | null>(null);
+  const vistaMidBandRef = useRef<HTMLDivElement | null>(null);
+  const vistaNearBandRef = useRef<HTMLDivElement | null>(null);
+  const vistaFarCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const vistaMidCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const vistaNearCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const vistaStageCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const vistaClockRef = useRef<VistaClock>({ wallMs: 0, panMs: 0 });
   const vistaPaintRef = useRef<(() => void) | null>(null);
   const vistaPanActiveRef = useRef(vistaPanActive);
-  vistaPanActiveRef.current = vistaPanActive;
+  useEffect(() => {
+    vistaPanActiveRef.current = vistaPanActive;
+  }, [vistaPanActive]);
   const vistaSceneId = vistaScene?.id ?? null;
   useEffect(() => {
     if (!vistaScene) {
       vistaPaintRef.current = null;
       return;
     }
+    const bandRefs: Record<VistaLayerId, React.RefObject<HTMLDivElement | null>> = {
+      far: vistaFarBandRef,
+      mid: vistaMidBandRef,
+      near: vistaNearBandRef,
+    };
+    const canvasRefs: Record<VistaPaintLayer, React.RefObject<HTMLCanvasElement | null>> = {
+      far: vistaFarCanvasRef,
+      mid: vistaMidCanvasRef,
+      near: vistaNearCanvasRef,
+      stage: vistaStageCanvasRef,
+    };
     const instances: VistaAmbientInstance[] = expandVistaAmbient(vistaScene);
     const paint = () => {
       const clock = vistaClockRef.current;
       const panOffsets = vistaPanOffsets(vistaScene, clock.panMs);
-      const anyCanvas = vistaCanvasRefs.current.get('stage') ?? vistaCanvasRefs.current.get('far');
+      const anyCanvas = canvasRefs.stage.current ?? canvasRefs.far.current;
       const root = anyCanvas?.parentElement;
       const W = root?.clientWidth ?? 0;
       const H = root?.clientHeight ?? 0;
       const scaleX = W > 0 ? W / VISTA_STAGE_W : 1;
       for (const layer of ['far', 'mid', 'near'] as VistaLayerId[]) {
-        const div = vistaBandRefs.current.get(layer);
+        const div = bandRefs[layer].current;
         if (div) div.style.backgroundPositionX = `${-panOffsets[layer] * scaleX}px`;
       }
       if (instances.length === 0) return;
       const images = vistaImageMapFor(instances);
       for (const layer of ['far', 'mid', 'near', 'stage'] as VistaPaintLayer[]) {
-        const canvas = vistaCanvasRefs.current.get(layer);
+        const canvas = canvasRefs[layer].current;
         if (!canvas) continue;
         if (W > 0 && H > 0 && (canvas.width !== Math.round(W) || canvas.height !== Math.round(H))) {
           canvas.width = Math.round(W);
@@ -188,13 +206,14 @@ export const PixelStage: React.FC<PixelStageProps> = ({
   // Repaint on stage resize (canvas backing store follows the box).
   useEffect(() => {
     if (!vistaSceneId) return;
-    const canvas = vistaCanvasRefs.current.get('stage');
-    const root = canvas?.parentElement;
+    const root = vistaStageCanvasRef.current?.parentElement;
     if (!root || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(() => vistaPaintRef.current?.());
     ro.observe(root);
     return () => ro.disconnect();
   }, [vistaSceneId]);
+  const vistaBandRefByLayer = { far: vistaFarBandRef, mid: vistaMidBandRef, near: vistaNearBandRef };
+  const vistaCanvasRefByLayer = { far: vistaFarCanvasRef, mid: vistaMidCanvasRef, near: vistaNearCanvasRef };
 
   return (
     <div className="absolute inset-0 overflow-hidden" data-testid={testId ?? 'pixel-stage'} data-ground-y={ground}>
@@ -221,10 +240,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
                 <div
                   data-testid={`pixel-layer-${layer}`}
                   data-vista-band={layer}
-                  ref={(el) => {
-                    if (el) vistaBandRefs.current.set(layer, el);
-                    else vistaBandRefs.current.delete(layer);
-                  }}
+                  ref={vistaBandRefByLayer[layer]}
                   className="pointer-events-none absolute left-0 w-full"
                   style={{
                     top: `${slot.topFrac * 100}%`,
@@ -243,10 +259,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
                 />
                 <canvas
                   data-testid={`pixel-ambient-${layer}`}
-                  ref={(el) => {
-                    if (el) vistaCanvasRefs.current.set(layer, el);
-                    else vistaCanvasRefs.current.delete(layer);
-                  }}
+                  ref={vistaCanvasRefByLayer[layer]}
                   className="pointer-events-none absolute inset-0 h-full w-full"
                 />
               </React.Fragment>
@@ -354,10 +367,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
         {vistaScene && (
           <canvas
             data-testid="pixel-ambient-stage"
-            ref={(el) => {
-              if (el) vistaCanvasRefs.current.set('stage', el);
-              else vistaCanvasRefs.current.delete('stage');
-            }}
+            ref={vistaStageCanvasRef}
             className="pointer-events-none absolute inset-0 h-full w-full"
           />
         )}
