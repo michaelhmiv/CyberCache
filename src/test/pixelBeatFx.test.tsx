@@ -40,8 +40,13 @@ describe('LiveTurfDiorama — P2 beat FX on the pixel scene', () => {
     expect(screen.getByTestId('fx-shell-casing')).toBeTruthy();
     expect(screen.getByTestId('fx-impact-sparks')).toBeTruthy();
     expect(screen.getByTestId('fx-damage-number')).toBeTruthy();
-    // Ambient embers are part of the idle-life layer.
-    expect(screen.getByTestId('fx-embers')).toBeTruthy();
+    // Ambient ember life is part of the idle-life layer — since
+    // the V1 vista landing it is the area's AUTHORED ember row
+    // drawn in the stage's ambient canvas (the Dustwaste ember
+    // row is the ember spec), and the generic span overlay stands
+    // down on vista scenes.
+    expect(screen.getByTestId('pixel-ambient-stage')).toBeTruthy();
+    expect(screen.queryByTestId('fx-embers')).toBeNull();
   });
 
   it('a kill tick event stages the dust ring', () => {
