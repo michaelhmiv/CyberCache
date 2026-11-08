@@ -20,6 +20,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Roaming moves like the boss fights now** — the Home stage while you roam renders on the same WebGL stage (PixiJS) the boss fights use: your hunter's poses blend instead of snapping, shots, dodges, and kills play out as one continuous motion, and the vista drifts behind it all. Same scene, same enemies, same loot beats — only the motion changed. Devices that can't create a WebGL context keep the previous stage automatically.
 - **Extraction works the site now** — while a pass runs, your hunter works the sift rig on the Home stage in a steady dig-and-sift rhythm instead of holding one frozen pose for ten minutes, and when a pass lands, what it dug up rises off the rig — each material and essence shown at the count it settled — while the workspace below keeps the written record as always.
 - **Endless fights play on the main stage now** — a Chaos Chamber run owns the Home stage for its whole duration: the next encounter stands in its own arena between depths, and each fight plays up top on the same stage the boss fights use. The Chamber panel below keeps depth, escrow, banking, and the result, and no longer runs a second fight picture of its own. (The stage had been stuck on the camp picture for the length of a run — that fall-through is fixed, and a regression test guards it.)
+- **The world is hand-drawn now, and it moves** — every roaming backdrop has been re-authored in the game's pixel craft: layered bands drawn for each area — dust devils and ember drift in the Dustwaste, aurora over the Prismatek reactor dome, the HelixWorks gate lit from inside — and as you roam, the view now travels across the country instead of sitting on one framed picture, each layer sliding at its own depth. Camp got the same treatment: idle time is spent at a real camp now, your hunter at the fire, crates and supplies where the camp keeps them, smoke and fireflies doing their slow work. The swap also cut about 2.7 MB of painted backdrop out of the download — the drawn world weighs almost nothing.
 
 ## 2026-11-06 — Gear reads faster, the Manual moves in
 
@@ -176,9 +177,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 189 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 191 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-07** — 17 merges
+**2026-11-07** — 19 merges
 
 - #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
 - #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
@@ -197,6 +198,8 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #449 — S5 scale-up batch 2: authored bases — launcher + beam (Pxl Craft Sweep)
 - #450 — Weapon authored bases, batch 1: Pistol, SMG, Shotgun (S5 pattern)
 - #451 — Motion Reboot M2: Home ROAM stage on Pixi (pilot standard)
+- #452 — Motion M4a — extraction works the site: sift cycle + settled finds rise on the main stage
+- #453 — Motion Reboot M3: endless fights come home to the main stage
 
 **2026-11-06** — 10 merges
 
