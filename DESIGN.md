@@ -2033,6 +2033,74 @@ everything still missing that still had a living seat.
   unmodified; gameplay and economics untouched; the One-Stage
   Law holds — dressing changed inside the scenes that exist.
 
+### Legs that can walk — Motion M2a (2026-11-08)
+
+The Motion Audit's decisive finding (§2.1A): the leg chain was
+not forward-kinematic. The arm chain resolved forearm-from-elbow,
+but the lower legs were pinned to a fixed sole point on the
+ground line and their pose x/y were silently dropped — no pose
+data could ever make the hunter walk, and a 15° thigh swing moved
+the knee ≈18px, past the 12px knee skirt. M2a is the rig fix
+plus the stride spec. **Nothing a player can see changes**: no
+caller requests a gait yet; the travel beat that will is M2b.
+
+- **The leg chain resolves like the arm chain.**
+  `resolvePartPlacements` seats the lower leg on the thigh's
+  resolved knee (F and B), so a thigh swing carries the shin, the
+  shin's pose x/y land on the knee instead of being dropped, and
+  the sole may leave the ground line in swing. One calibration
+  keeps rest exact: the shipped sets' knees do not coincide at
+  rest (the gap is bridged by sprite width + the skirt), so the
+  resolver measures that rest offset from the parts' own declared
+  anchors — shapes stay data, nothing is hard-coded per set — and
+  rotates it with the thigh. Both renderers consume this one
+  resolver (`layoutPartSet` → the DOM actor and the Pixi
+  stageCore alike); there is no second leg path.
+- **Rest invariance is the hard floor, and it is byte-exact.**
+  At the existing 8 poses with zero stride input, composed
+  figures are pixel-identical to pre-M2a master (24/24 renders —
+  8 poses × 3 sets — hash-identical in the slice evidence; the
+  golden suite passes with no baseline re-struck).
+- **The stride is a spec, not an engine.** `strideCycle.ts`
+  declares gaits as data keyed by id (`STRIDE_SPECS`): thigh
+  swing, knee bend + phase, sole-lift assist, bob, torso
+  counter-rotation — sampled by one engine in the workCycle
+  pattern and composed onto the standing pose. The period is
+  law-derived (2 × `SEGMENT.STEP_BOB_MS`, read from movement.ts,
+  never restated); amplitude 0 is exactly the base pose. A future
+  gait adds a data row, never an engine edit (Flexibility Law).
+  Arms are never touched — the roaming hunter is armed and the
+  arm chain is FK-locked to the grip; the stride sells through
+  legs + bob. The DOM actor executes a bound spec on the work
+  cycle's rAF pattern (start beat, amplitude ramp, reduced-motion
+  holds the pose); no stage binds one yet.
+- **The shipped gait is measured, not guessed.** Graded at 32
+  phases on all three sets with the parts gates' own measures,
+  the largest thigh swing holding underlap ≥ 4px (the J3 floor)
+  and holes ≤ rest at every phase is 6.5° (7° fails the front
+  knee on current sprites — the hero polish pass moved the leg
+  sprites after the first tuning, and the number moved with
+  them). The gait reads through its 26° knee bend + 3px sole
+  lift: the foot visibly leaving the ground is the cue at stage
+  scale. Torso counter-rotation ships at 0 — 0.3° of torso
+  rotation already thins the SI/Dreadplate back hip's underlap
+  from 12px to 7–8px; the field stays in the spec as data.
+- **The ±15° envelope does not separate.** At the audit's
+  breaking swing, under FK the knee thins (worst cell 3px) but
+  never separates: every core column keeps ≥ 1px overlap and
+  interior holes stay at rest, with one documented pinhole cell
+  (Bulwark's back knee at −15° flatfoot opens a single interior
+  hole pixel at 10px underlap; any bent shin closes it). The
+  4px floor is not claimed at ±15° — that thinning is why the
+  shipped gait swings 6.5°.
+- **Pinned by `src/test/strideLegs.test.ts`** (rest invariance
+  against the sole-pinned seating, FK knee tracking, dropped-axis
+  regression, foot lift, stride law, the 32-phase gate, the ±15°
+  envelope) **and `src/test/strideActor.test.tsx`** (the dormant
+  actor execution: active drives, inactive/reduced never drive).
+  movement.ts is unmodified; `src/server` untouched; gameplay
+  and economics untouched; payload Δ 0 (code only, no assets).
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in

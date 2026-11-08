@@ -20,6 +20,13 @@ import {
   WORK_CYCLE_START_DELAY_MS,
   type WorkCycleSpec,
 } from '@/lib/pixel/workCycle';
+import {
+  composeStridePose,
+  sampleStride,
+  STRIDE_PERIOD_MS,
+  STRIDE_START_DELAY_MS,
+  type StrideSpec,
+} from '@/lib/pixel/strideCycle';
 import type { PartPose } from '@/lib/pixel/parts';
 import { GEAR_PAINT_ORDER, resolveGearMount, type MountedGearItem } from '@/lib/pixel/gearMounts';
 import {
@@ -95,6 +102,17 @@ interface PixelPartsActorProps {
    *  Reduced motion never cycles: the held 'work' pose is the
    *  whole picture, exactly as before M1. */
   workCycle?: { spec: WorkCycleSpec; active: boolean };
+  /** Stride-cycle execution (Motion Reboot M2a): when present, the
+   *  actor executes the given gait SPEC (data — see
+   *  lib/pixel/strideCycle.ts) as pose deltas composed onto the
+   *  current base pose while `active`, on the same rAF pattern as
+   *  the work cycle (start beat, amplitude ramp in/out, duration-0
+   *  parts). The spec is looked up from the registry by the caller;
+   *  the actor never branches on which gait it is. A bound work
+   *  cycle takes precedence — the bench owns the figure outright.
+   *  Absent = no stride, byte-identical behavior. Reduced motion
+   *  never strides: the held base pose is the whole picture. */
+  strideCycle?: { spec: StrideSpec; active: boolean };
   children?: React.ReactNode;
 }
 
@@ -127,6 +145,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   gear,
   fitMode = 'stage',
   workCycle,
+  strideCycle,
   children,
 }) => {
   const [, setSwapTick] = useState(0);
@@ -280,9 +299,78 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   // conditions hold right now (spec present, work pose, motion
   // allowed) — a pose sampled by a finished run is inert data.
   const cycleDrives = !!cyclePose && !reduced && pose === 'work';
+
+  // ── Stride cycle (M2a) ───────────────────────────────────────
+  // The work cycle's execution shape, for locomotion: rAF-sampled
+  // spec deltas composed onto the CURRENT base pose (the travel
+  // beat departs from the caller's stance — 'roam' in practice),
+  // the SEGMENT start beat first, amplitude ramping 0→1 across one
+  // period on engage and back to 0 on disengage. A bound work
+  // cycle suppresses the stride entirely (bench modes own the
+  // figure; the two choreographies never stack).
+  const strideSpec = strideCycle?.spec;
+  const strideActive = strideCycle?.active ?? false;
+  const [stridePose, setStridePose] = useState<PartPose | null>(null);
+  const strideRunRef = useRef<{ start: number | null; stopAt: number | null; ampAtStop: number }>({
+    start: null,
+    stopAt: null,
+    ampAtStop: 0,
+  });
+  useEffect(() => {
+    if (!strideSpec || wcSpec || reduced) {
+      strideRunRef.current = { start: null, stopAt: null, ampAtStop: 0 };
+      const id = requestAnimationFrame(() => setStridePose(null));
+      return () => cancelAnimationFrame(id);
+    }
+    let raf = 0;
+    const run = strideRunRef.current;
+    const tick = (now: number) => {
+      if (strideActive) {
+        run.stopAt = null;
+        if (run.start === null) run.start = now + STRIDE_START_DELAY_MS;
+        if (now >= run.start) {
+          const elapsed = now - run.start;
+          const amp = Math.min(1, elapsed / STRIDE_PERIOD_MS);
+          setStridePose(composeStridePose(sampleStride(strideSpec, elapsed, amp), PART_POSES[pose]));
+        }
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      // Disengaging: keep the phase clock, ramp amplitude to zero
+      // across one period, then hand the pose back to the SEGMENT
+      // system (the held base pose).
+      if (run.start === null || now < run.start) {
+        run.start = null;
+        setStridePose(null);
+        return;
+      }
+      if (run.stopAt === null) {
+        run.stopAt = now;
+        run.ampAtStop = Math.min(1, (now - run.start) / STRIDE_PERIOD_MS);
+      }
+      const amp = run.ampAtStop * Math.max(0, 1 - (now - run.stopAt) / STRIDE_PERIOD_MS);
+      if (amp <= 0) {
+        run.start = null;
+        run.stopAt = null;
+        setStridePose(null);
+        return;
+      }
+      setStridePose(composeStridePose(sampleStride(strideSpec, now - run.start, amp), PART_POSES[pose]));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [strideSpec, strideActive, wcSpec, reduced, pose]);
+
+  const strideDrives = !!stridePose && !reduced && !wcSpec;
   const layout = useMemo(
-    () => layoutPartSet(set, cycleDrives && cyclePose ? cyclePose : PART_POSES[pose], weaponFractions),
-    [set, pose, cycleDrives, cyclePose, weaponFractions],
+    () =>
+      layoutPartSet(
+        set,
+        cycleDrives && cyclePose ? cyclePose : strideDrives && stridePose ? stridePose : PART_POSES[pose],
+        weaponFractions,
+      ),
+    [set, pose, cycleDrives, cyclePose, strideDrives, stridePose, weaponFractions],
   );
 
   // Loadout truth, the width law: an ARMED actor is height-sized
@@ -389,10 +477,10 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
             : sprite.url;
         const primaryLocal = part.anchors[PRIMARY_ANCHOR[slot]];
         const isArm = slot === 'armUpperN' || slot === 'armForeN' || slot === 'armFar';
-        // While the work cycle drives, parts follow the sampled
-        // pose directly (duration 0); the SEGMENT tween durations
-        // govern pose-to-pose transitions only.
-        const duration = cycleDrives
+        // While a cycle (work or stride) drives, parts follow the
+        // sampled pose directly (duration 0); the SEGMENT tween
+        // durations govern pose-to-pose transitions only.
+        const duration = cycleDrives || strideDrives
           ? 0
           : reduced
             ? 0
@@ -417,7 +505,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
           },
         ];
       }),
-    [layout, palette, partPalettes, reduced, cycleDrives],
+    [layout, palette, partPalettes, reduced, cycleDrives, strideDrives],
   );
 
   // Mounted gear (M3): every item resolves against THIS actor's
@@ -487,6 +575,8 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
       data-armed={heldInput ? 'true' : 'false'}
       data-work-cycle={wcSpec?.id}
       data-cycle-active={cycleDrives ? 'true' : undefined}
+      data-stride-cycle={strideSpec?.id}
+      data-stride-active={strideDrives ? 'true' : undefined}
       data-fit={dollFit ? 'doll' : widthFit ? 'width' : undefined}
       style={
         dollFit

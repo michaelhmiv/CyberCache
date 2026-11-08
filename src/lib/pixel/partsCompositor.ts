@@ -3,7 +3,8 @@
  * set over an EMPTY frame by anchor alignment.
  *
  * Placement is a mount graph, not a frame layout:
- *  - fixed ends from S-REF: pelvis, hips, soles (ground line pinned);
+ *  - fixed ends from S-REF: pelvis, hips (the soles are ground-line
+ *    pinned at rest by the leg chain's calibration — see below);
  *  - the torso places by its pelvisSeat on the pelvis;
  *  - head, near arm, far arm, pauldron and back hang off mounts the
  *    torso (or the skeleton's back mount, carried by the torso
@@ -11,7 +12,10 @@
  *  - the arm chain resolves from the PARTS' anchors: the forearm
  *    seats on the upper arm's own elbow anchor, and the weapon seats
  *    grip-to-grip on the forearm's gripHand anchor. Grip truth
- *    therefore holds for ANY part set (SPEC §6), not just this one.
+ *    therefore holds for ANY part set (SPEC §6), not just this one;
+ *  - the leg chain resolves the same way (M2a): the lower leg seats
+ *    on the thigh's own knee anchor, so thigh swings carry the shin
+ *    and the knee articulates like the elbow does.
  *
  * The frame is not a cage: the render buffer extends past the
  * 260×320 S-REF frame on every side and the returned `origin` maps
@@ -185,18 +189,60 @@ export function resolvePartPlacements(
     torsoThrough = (local) => through(pelvisPosed, torsoRot, torso.anchors.pelvisSeat, local);
   }
 
-  // --- Legs: fixed ends. Thighs seat by hip; lower legs seat by
-  // sole on the ground line (the chain resolves ground-up, J5). ---
-  if (set.parts.thighF) {
-    const p = pose.thighF ?? {};
-    place('thighF', { x: SKELETON.hipF.x + (p.x ?? 0), y: SKELETON.hipF.y + (p.y ?? 0) }, p.rotate ?? 0);
-  }
-  if (set.parts.thighB) {
-    const p = pose.thighB ?? {};
-    place('thighB', { x: SKELETON.hipB.x + (p.x ?? 0), y: SKELETON.hipB.y + (p.y ?? 0) }, p.rotate ?? 0);
-  }
-  if (set.parts.lowerLegF) place('lowerLegF', { ...SKELETON.soleF }, pose.lowerLegF?.rotate ?? 0);
-  if (set.parts.lowerLegB) place('lowerLegB', { ...SKELETON.soleB }, pose.lowerLegB?.rotate ?? 0);
+  // --- Legs: forward-kinematic chains (Motion M2a). The thigh
+  // seats by its hip on the skeleton; the lower leg resolves FROM
+  // the thigh's resolved knee — the mirror of the arm chain above
+  // (the forearm seats on the upper arm's resolved elbow) — so the
+  // knee is a real joint: a thigh swing carries the shin with it,
+  // and the shin's pose x/y land on the knee instead of being
+  // silently dropped. The sole may leave the ground line in swing.
+  //
+  // One calibration keeps rest exact: the shipped sets' knees do
+  // not coincide at rest (the lower leg's knee anchor sits off the
+  // thigh's resolved knee, the gap bridged by sprite width + the
+  // knee skirt, J5). The resolver measures that rest offset from
+  // the parts' own declared anchors (shapes are data — nothing is
+  // hard-coded per set) and rotates it WITH the thigh, so at
+  // identity leg pose the chain reproduces the old ground-up sole
+  // seating exactly, and under swing the offset rides the thigh
+  // the way the skirt art does. ---
+  const placeLegChain = (
+    thighSlot: 'thighF' | 'thighB',
+    legSlot: 'lowerLegF' | 'lowerLegB',
+    hip: PartPoint,
+    sole: PartPoint,
+  ): void => {
+    const thigh = set.parts[thighSlot];
+    const leg = set.parts[legSlot];
+    const tp = pose[thighSlot] ?? {};
+    const thighRot = tp.rotate ?? 0;
+    const hipPosed = { x: hip.x + (tp.x ?? 0), y: hip.y + (tp.y ?? 0) };
+    if (thigh) place(thighSlot, hipPosed, thighRot);
+    if (!leg) return;
+    const lp = pose[legSlot] ?? {};
+    if (!thigh) {
+      // No thigh to hang from (a partial set): the ground-up sole
+      // seating, exactly as before M2a.
+      place(legSlot, { ...sole }, lp.rotate ?? 0);
+      return;
+    }
+    // Rest offset between the chain's knee and where the lower
+    // leg's own knee anchor must sit for the sole to land on the
+    // skeleton's sole point — measured at identity, from anchors.
+    const restKnee = through(hip, 0, thigh.anchors.hip, thigh.anchors.knee);
+    const restFkSole = through(restKnee, 0, leg.anchors.knee, leg.anchors.sole);
+    const restOffset = { x: sole.x - restFkSole.x, y: sole.y - restFkSole.y };
+    const kneeStage = through(hipPosed, thighRot, thigh.anchors.hip, thigh.anchors.knee);
+    const off = rot(restOffset, thighRot);
+    const kneePosed = {
+      x: kneeStage.x + off.x + (lp.x ?? 0),
+      y: kneeStage.y + off.y + (lp.y ?? 0),
+    };
+    const legRot = thighRot + (lp.rotate ?? 0);
+    place(legSlot, through(kneePosed, legRot, leg.anchors.knee, leg.anchors.sole), legRot);
+  };
+  placeLegChain('thighF', 'lowerLegF', SKELETON.hipF, SKELETON.soleF);
+  placeLegChain('thighB', 'lowerLegB', SKELETON.hipB, SKELETON.soleB);
 
   // --- Back: the skeleton's back mount, carried by the torso
   // transform (it is strapped to the torso, not to the room). ---
