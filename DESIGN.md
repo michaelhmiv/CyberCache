@@ -286,8 +286,9 @@ replace the canonical one. (Tap depths are governed by §9.)
   device. Nothing replaces it — every wait keeps its own door: a finished
   craft reads on the Workshop's benches, the away settlement behind the
   level chip's Return Sheet, contracts and weekly earnings in the claim
-  chips' sheets, the free daily cache at the Chest, a finished course on
-  Hunter → Research.
+  chips' sheets, a paid cache opening at the Chest (no free daily box
+  since 0082 — every opening costs a key or a rewarded-ad attestation),
+  a finished course on Hunter → Research.
 - **Under the stage, first viewport:** the belt consumable quick slots in the
   rail's vacated slot, directly under the rundown (owner ruling, 2026-11-04 —
   the belt sat under the workspace until the swap), then the lit mode's
