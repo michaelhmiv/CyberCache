@@ -6,6 +6,11 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 - **The named legendaries are hand-drawn now** — all 26 bespoke legendary weapons have been re-authored in the game's pixel craft, each as its own drawn piece: Armor Eater's vials and maw, Jackpot's reels and coin tray, Void Bargain's portal ring, Borrowed Time's clock face. Same names, same effects, same guns — they now render from the same drawn system as every other weapon, so the legendary you win reads identically in the reveal, on its card, in the inspect sheet, and in your hunter's hands. The swap also retired about 1.5 MB of old sprite files.
 
+## 2026-11-08 — The places come alive
+
+- **The workshop's rooms are real places now** — the bench scene in the Workshop and the repair and shield-tech bays on the Market boards no longer stand in front of a painted backdrop: each stands in its actual area, with that area's own weather and life moving behind the work — furnace smoke and embers at the BlastForge bench, dust and signal lights in the ThrowTech bays. Same benches, same work — the rooms finally match the world outside.
+- **Your hunter minds his own stall now** — while one of your market listings runs, the Home stage shows the hunter at his vendor stall tending it — weapon slung, hands on the goods — instead of standing guard over it with his rifle up.
+
 ## 2026-11-07 — The craft standard gets a gate
 
 - **Your hunter is re-drawn in the craft standard** — every wearable part — Standard Issue, Bulwark, Dreadplate, and every head in the Wardrobe — has been re-authored by hand in the same pixel craft discipline that gave item art its depth: hue-shifted ramps, selective outline, cluster detail. Same silhouettes, same outfits, same anchors — crisper at the sizes the game actually shows, and because parts are now palette data end to end, mixing sets (a Bulwark helm over Dreadplate legs) reads as one hunter in scavenged kit. The Hood keeps its shaped cowl from the last pass. The game's art payload also shrank by over 600 KB in the swap.
@@ -181,11 +186,12 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 193 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 194 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-08** — 1 merge
+**2026-11-08** — 2 merges
 
 - #455 — V4 — the 26 bespoke legendaries join the authored grammar
+- #456 — Changelog catch-up — V4 legendaries (#455)
 
 **2026-11-07** — 20 merges
 

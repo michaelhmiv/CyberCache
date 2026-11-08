@@ -100,6 +100,10 @@ export interface WorkCycleSpec {
  *   in the period, then the long settle while the screen works —
  *   grit kicking off it at the dig (dust, not metal sparks) and
  *   the site lamp's warm spill at the rig.
+ * - stall: the vendor stall (M4c). Not work at a bench — tending
+ *   a listing: the lowest amplitude in the registry, no strike,
+ *   no sparks, long holds between small handling gestures. The
+ *   hunter is present at his stall; nothing is being made.
  */
 export const WORK_CYCLE_SPECS: Record<string, WorkCycleSpec> = {
   forge: {
@@ -187,21 +191,44 @@ export const WORK_CYCLE_SPECS: Record<string, WorkCycleSpec> = {
     glowPeak: 0.22,
     sweepSteps: 0,
   },
+  stall: {
+    id: 'stall',
+    liftAt: 0.30,
+    strikeAt: 0.55,
+    holdFrac: 0.35,
+    liftDeg: 5,
+    pressDeg: 2,
+    foreRatio: 0.8,
+    farArmRatio: 0.35,
+    torsoRatio: 0.12,
+    headRatio: 0.3,
+    pressUnits: 0.3,
+    sparks: null,
+    glowColor: '#FFD9A0',
+    glowPeak: 0.1,
+    sweepSteps: 0,
+  },
 };
 
 /**
  * Home-stage mode → choreography spec id, as data. Modes absent
- * here are not work-cycle tenants (roam, boss, market listing —
- * the listing's low-amplitude cycle is M4c's tenant). Extraction
+ * here are not work-cycle tenants (roam, boss). Extraction
  * joined in M4a: the occupation holds the stage for a whole pass,
  * so its cycle runs while the mode holds, on the salvaging
- * precedent (the mode holding the stage IS the work).
+ * precedent (the mode holding the stage IS the work). Market
+ * listing joined in M4c (the stall row): the listing is an
+ * occupation holding the stage, so the hunter tends his stall
+ * while it runs — but the bench lanes' job-mirror machinery
+ * does not apply (a listing is not a workshop job), so the
+ * diorama resolves the stall separately, on the extraction
+ * pattern.
  */
 export const WORK_CYCLE_SPEC_BY_MODE: Record<string, string> = {
   crafting: 'forge',
   salvaging: 'crush',
   workshopService: 'assembly',
   extraction: 'sift',
+  marketListing: 'stall',
 };
 
 /**

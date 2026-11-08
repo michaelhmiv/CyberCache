@@ -5,7 +5,11 @@
  * phone width. Driven entirely by URL params:
  *
  *   mode    crafting | salvaging | workshopService |
- *           panel-craft | panel-repair | panel-shield
+ *           marketListing (M4c: the stall cycle on the Home
+ *           stage) | panel-craft | panel-repair | panel-shield |
+ *           panel-extract (M4c: the panel extraction scene —
+ *           unmounted in production by the one-stage law, captured
+ *           here for its shell-level vista parity)
  *   state   working (a running job in the lane) | rest (no job) |
  *           complete (a unit settles ~1.8s after load)
  *   kind    consumable (default) | gear | relic — the crafting
@@ -24,7 +28,7 @@
  */
 import React from 'react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
-import { CraftingBenchScene, RepairBayScene, ShieldTechBayScene } from '@/components/pixelArt/ActionScenes';
+import { CraftingBenchScene, ExtractionScene, RepairBayScene, ShieldTechBayScene } from '@/components/pixelArt/ActionScenes';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
 import { useWorkshopStore } from '@/store';
 import type { WorkshopJobView, WorkshopServerView } from '@/store/slices/workshopSlice';
@@ -135,7 +139,7 @@ function seedWorkshop() {
 seedWorkshop();
 
 const activityKindFor = (m: string) =>
-  m === 'workshopService' ? 'workshop_service' : (m as 'crafting' | 'salvaging');
+  m === 'workshopService' ? 'workshop_service' : m === 'marketListing' ? 'market_listing' : (m as 'crafting' | 'salvaging');
 
 export const BenchHarnessPage: React.FC = () => (
   <div style={{ minHeight: '100vh', background: '#0B0B10', padding: 12, boxSizing: 'border-box' }}>
@@ -152,6 +156,8 @@ export const BenchHarnessPage: React.FC = () => (
         <RepairBayScene progress={0.45} causeLabel="Repairing · Dune Runner" buysLabel="2 kits used" working={state !== 'rest'} />
       ) : mode === 'panel-shield' ? (
         <ShieldTechBayScene progress={0.45} causeLabel="Calibrating · Aegis Wall" buysLabel="1 core used" working={state !== 'rest'} />
+      ) : mode === 'panel-extract' ? (
+        <ExtractionScene progress={0.45} causeLabel="Sifting · Surface" buysLabel="Pass 3 of 6" />
       ) : (
         <LiveTurfDiorama
           area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)}

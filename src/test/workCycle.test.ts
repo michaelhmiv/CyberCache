@@ -65,6 +65,13 @@ describe('work cycle — law anchoring', () => {
     expect(WORK_CYCLE_SPECS.sift.sparks).toEqual({ color: '#C9B18C' });
     expect(WORK_CYCLE_SPECS.assembly.sparks).toBeNull();
     expect(WORK_CYCLE_SPECS.calibration.sparks).toBeNull();
+    // M4c: the stall has no strike at all — no sparks, no sweep,
+    // and the lowest arm amplitude in the registry (tending, not
+    // working). Its presence reads through the long hold instead.
+    expect(WORK_CYCLE_SPECS.stall.sparks).toBeNull();
+    expect(WORK_CYCLE_SPECS.stall.sweepSteps).toBe(0);
+    expect(WORK_CYCLE_SPECS.stall.liftDeg).toBeLessThan(WORK_CYCLE_SPECS.calibration.liftDeg);
+    expect(WORK_CYCLE_SPECS.stall.holdFrac).toBeGreaterThan(WORK_CYCLE_SPECS.forge.holdFrac);
     expect(WORK_CYCLE_SPECS.calibration.sweepSteps).toBe(3);
     expect(WORK_CYCLE_SPECS.forge.sweepSteps).toBe(0);
     expect(WORK_CYCLE_SPECS.sift.sweepSteps).toBe(0);
@@ -79,6 +86,10 @@ describe('work cycle — law anchoring', () => {
       // cycles: the site-work variant is a registry row, executed
       // by the same engine (motion audit §2.3 / slice M4a).
       extraction: 'sift',
+      // M4c supersedes the M1-era pin that market listing never
+      // cycles: the stall variant is a registry row, executed by
+      // the same engine (motion audit M4c / slice M4c).
+      marketListing: 'stall',
     });
     expect(WORK_CYCLE_SPEC_BY_SCENE).toEqual({
       craftingBench: 'forge',
@@ -88,8 +99,7 @@ describe('work cycle — law anchoring', () => {
     for (const id of [...Object.values(WORK_CYCLE_SPEC_BY_MODE), ...Object.values(WORK_CYCLE_SPEC_BY_SCENE)]) {
       expect(WORK_CYCLE_SPECS[id]).toBeDefined();
     }
-    // Not tenants: market listing is M4c's; roam/boss never cycle.
-    expect(WORK_CYCLE_SPEC_BY_MODE.marketListing).toBeUndefined();
+    // Not tenants: roam/boss never cycle.
     expect(WORK_CYCLE_SPEC_BY_MODE.roaming).toBeUndefined();
   });
 });

@@ -15,7 +15,9 @@ You can hold at most **3 self-lane recalibration jobs at once**.
 The work is visible while it runs: the board's bay scene — and the
 Home stage during Workshop Service — shows the hunter at the
 calibration rig, its sweep walking the shield's glyph until the
-job settles.
+job settles. The bay stands in the real ThrowTech yards: its
+machines, dust, and signal lights live behind the rig, not a
+painted backdrop.
 
 ## Calibration points and Calibration Cores
 
