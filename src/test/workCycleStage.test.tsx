@@ -15,7 +15,10 @@
  *  - a unit settling in the lane fires the completion rise once;
  *  - reduced motion collapses the bench to the held work pose —
  *    no FX, no cycle (today's picture);
- *  - market listing (M4's tenant) and roaming are untouched.
+ *  - roaming is untouched.
+ * M4c extends the contract to the last frozen tenant: market
+ * listing runs the low-amplitude stall cycle (the hunter tends
+ * his stall, unarmed; no bench FX — nothing is struck there).
  * Panel bay scenes assert the same contract per family.
  */
 import React from 'react';
@@ -207,11 +210,25 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     expect(screen.getByTestId('pixel-hunter').getAttribute('data-cycle-active')).toBeNull();
   });
 
-  it("market listing is untouched (M4's tenant): the armed standby still renders", () => {
+  it('market listing (M4c): the hunter tends his stall — stall cycle bound, unarmed, no bench FX', () => {
     renderDiorama('market_listing');
-    expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
-    expect(screen.getByTestId('pixel-hunter').getAttribute('data-work-cycle')).toBeNull();
+    const hunter = screen.getByTestId('pixel-hunter');
+    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-work-cycle')).toBe('stall');
+    expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
+    // Nothing is struck at a stall: the bench FX kit never mounts.
     expect(screen.queryByTestId('bench-fx')).toBeNull();
+    expect(screen.getByTestId('pixel-vendor-set')).toBeTruthy();
+  });
+
+  it('market listing under reduced motion: the held work pose at the stall — no cycle', () => {
+    motionHoist.reducedMotion = true;
+    renderDiorama('market_listing');
+    const hunter = screen.getByTestId('pixel-hunter');
+    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-work-cycle')).toBe('stall');
+    expect(hunter.getAttribute('data-cycle-active')).toBeNull();
+    expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
   });
 
   it('roaming is untouched: enemy, held weapon, no cycle', () => {

@@ -10,6 +10,7 @@ import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_SCENE, type WorkCycleSpec } from '
 import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
 import { GRAMMAR } from '@/lib/pixel/grammar';
 import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
+import { vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 
 /**
  * Action scenes (visual overhaul brief §5/§6, gate G4) — every system
@@ -91,9 +92,17 @@ const SceneShell: React.FC<{
   children: React.ReactNode;
 }> = ({ backgroundId, testId, reduced = false, result, qualityPct, progress, causeLabel, buysLabel, children }) => {
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
+  // Presence (M4c): a panel scene stands in a real place — the
+  // shell resolves the plate's authored vista scene and the stage
+  // paints its bands + ambient life from the same vista data the
+  // Home stage consumes (vistaScenes.ts is the one source; nothing
+  // is forked for the panels). The pan stays held — a workplace
+  // doesn't travel. A plate with no vista scene (an arena plate)
+  // keeps the plain plate, exactly as before.
+  const vistaScene = vistaSceneForBackground(backgroundId);
   return (
     <div className="relative h-[228px] w-full overflow-hidden border-2 border-border bg-bg" data-testid={testId}>
-      <PixelStage backgroundId={backgroundId} groundY={groundY} reduced={reduced} testId={`${testId}-stage`}>
+      <PixelStage backgroundId={backgroundId} groundY={groundY} reduced={reduced} vistaScene={vistaScene} testId={`${testId}-stage`}>
         {children}
         <CauseProgress progress={progress} causeLabel={causeLabel} buysLabel={buysLabel} />
         {result && <ResultFlash result={result} qualityPct={qualityPct} />}

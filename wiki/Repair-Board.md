@@ -26,7 +26,9 @@ the job is your active Workshop Service activity — see [[Actions and Occupatio
 
 The work is visible while it runs: the board's repair bay scene — and
 the Home stage during Workshop Service — shows the hunter at the lift,
-fitting parts until the job settles.
+fitting parts until the job settles. The bay stands in the real
+ThrowTech yards: its machines, dust, and signal lights live behind
+the lift, not a painted backdrop.
 
 ## Patch kits
 

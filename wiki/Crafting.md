@@ -17,6 +17,9 @@ at a glance and doors back here.)
 While a job runs, you can watch it happen: your hunter works the
 bench on the Home stage — weapon slung, striking the work — and
 the bench scene in the Workshop shows the same work up close.
+The scene stands in the real BlastForge Yards: the yard's stacks,
+smoke, and drifting embers live behind the bench, not a painted
+backdrop.
 The item being made sits on the bench as its real render; a
 legendary weapon seats by the grip and muzzle anchors declared
 in its authored pixel set (the V4 pass), the same anchors that

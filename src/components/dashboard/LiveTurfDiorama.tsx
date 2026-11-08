@@ -491,10 +491,15 @@ const PixelSceneLayerDom: React.FC<{
   // bench machinery below — lane reads, the seat, completion
   // rises — belongs to the bench lanes only; extraction's spec is
   // derived separately and drives its own cycle + pass beats.
+  // Market listing (M4c) is a registry tenant on the same pattern
+  // ('stall'): its spec is derived separately and drives its own
+  // low-amplitude cycle — no lane, no seat, no FX, no completion
+  // beat (a listing settles in the Market, not on this stage).
   const cycleSpecId = WORK_CYCLE_SPEC_BY_MODE[mode];
   const cycleSpec = cycleSpecId ? WORK_CYCLE_SPECS[cycleSpecId] : undefined;
-  const benchSpec = mode === 'extraction' ? undefined : cycleSpec;
+  const benchSpec = mode === 'extraction' || mode === 'marketListing' ? undefined : cycleSpec;
   const extractionSpec = mode === 'extraction' ? cycleSpec : undefined;
+  const stallSpec = mode === 'marketListing' ? cycleSpec : undefined;
   const workshopJobs = useWorkshopStore((state) => state.server?.jobs);
   const recentCompletions = useWorkshopStore((state) => state.server?.recentCompletions);
   const benchServiceLane = mode === 'workshopService';
@@ -1047,6 +1052,25 @@ const PixelSceneLayerDom: React.FC<{
             reduced={reduced}
             pose={extractionCelebrating ? 'celebrate' : 'work'}
             workCycle={{ spec: extractionSpec, active: !extractionCelebrating }}
+            testId="pixel-hunter"
+          />
+        ) : stallSpec ? (
+          /* Market listing (M4c): the hunter TENDS his stall —
+             pose 'work', weapon slung (the bench/extraction
+             precedent: no held weapon is drawn while he works),
+             the stall's low-amplitude cycle executing while the
+             listing holds the stage: unlike the bench lanes there
+             is no job mirror to read, so the mode holding the
+             stage IS the work (the salvaging precedent). No
+             BenchFx — nothing is struck at a stall. Reduced
+             motion holds the work pose. */
+          <PixelPartsActor
+            set={hunterSet}
+            partPalettes={look.partPalettes}
+            {...hunterPlacement}
+            reduced={reduced}
+            pose="work"
+            workCycle={{ spec: stallSpec, active: true }}
             testId="pixel-hunter"
           />
         ) : weapon ? (

@@ -1842,6 +1842,56 @@ leave the bundle; the authored sets total 66,305 B.
   driven (the renderer composites scenes over the zone plate).
   movement.ts is unmodified; gameplay and economics untouched.
 
+### Presence — Full Visual Program M4c (2026-11-08)
+
+The stage came alive slice by slice (roam in Pixi, the work and
+extraction cycles, the endless fight's home, the V1 vistas) — but
+the places the PANELS show stayed postcards: the workshop and
+market-board bay scenes rendered their area as a single static
+plate, and on the Home stage itself the hunter stood at armed
+idle aiming his weapon at his own vendor stall while a market
+listing ran. M4c closes both, on the data the game already owns:
+
+- **Panel scenes inherit their vista.** The shared panel shell
+  resolves the plate's authored vista scene
+  (`vistaSceneForBackground`) and the stage paints its bands and
+  ambient life from the SAME scene data the Home stage consumes
+  — one source, consumed never forked. The crafting bench stands
+  in BlastForge, the repair and shield-tech bays stand in
+  ThrowTech, the (panel-unmounted, one-stage law) extraction
+  scene stands in Dustwaste. The pan stays held — a workplace
+  doesn't travel — while the ambient elements move on their own
+  specs. A plate with no vista scene (an arena) keeps the plain
+  plate. The ambient life is canvas paint: no new DOM nodes, the
+  composition budgets hold.
+- **The stall is a work-cycle tenant.** `marketListing` joins
+  the registry as `stall` — the lowest amplitude in the registry,
+  no strike, no sparks, long holds between small handling
+  gestures: the hunter tends his stall, weapon slung, while the
+  listing holds the stage. The bench lanes' job-mirror machinery
+  does not apply (a listing is not a workshop job), so the
+  diorama resolves the stall separately, on the M4a extraction
+  pattern: the mode holding the stage IS the work. No BenchFx —
+  nothing is struck at a stall. Reduced motion holds the work
+  pose, exactly the bench contract.
+- **The Market tab is a deliberate no-change.** The tab has no
+  scene surface — pitch, doors, rows — and §3's law is compact:
+  price is the hero. Presence lands where the market's scene
+  actually is (the Home stage's stall, above); no scene, header,
+  or copy is added to the tab.
+- **Deliberately not duplicated:** boss-prep presence is the
+  main stage's (#431/M3), panel scenes gain no fight or activity
+  rendering (One-Stage Law untouched), and the camp fidget is
+  sampler-family work that pairs with the M2a leg program, not
+  this slice.
+- **Pinned by `src/test/panelPresence.test.tsx`** (every panel
+  scene's bands + ambient canvases instanced from its vista
+  spec, data identity on the layer sprites, the arena null path,
+  canvas-not-nodes) and the stall rows in `workCycle.test.ts` /
+  `workCycleStage.test.tsx` — the M1-era pins that market
+  listing never cycles were superseded deliberately, in place.
+  movement.ts is unmodified; gameplay and economics untouched.
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in
