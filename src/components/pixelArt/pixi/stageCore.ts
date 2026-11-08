@@ -263,6 +263,24 @@ export function applyPartPose(
   }
 }
 
+/** Write a layout to the part nodes with NO tween (Motion M2b:
+ *  the travel stride is sampled per frame and followed directly —
+ *  the DOM actor's duration-0-while-a-cycle-drives semantics, in
+ *  the shared core so both Pixi stages execute it identically). */
+export function applyPartPoseInstant(nodes: PartNode[], layout: PartSetLayout): void {
+  for (const node of nodes) {
+    const placement = layout.placements[node.slot as keyof typeof layout.placements];
+    if (!placement) continue;
+    node.tween = undefined;
+    node.posTween = undefined;
+    node.anchorStage = placement.anchorStage;
+    node.primaryLocal = placement.part.anchors[PRIMARY_ANCHOR[node.slot as PartSlot]];
+    node.width = placement.part.width;
+    node.height = placement.part.height;
+    node.rotationDeg = placement.rotationDeg;
+  }
+}
+
 /** Sample the part nodes' tweens at `now` and write their container
  *  transforms at frame scale `s` (frame px → stage px). */
 export function tickPartNodes(nodes: PartNode[], now: number, s: number): void {

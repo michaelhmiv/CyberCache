@@ -4,11 +4,23 @@ import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { CritFlash, DamageNumber } from '../PixelFx';
 import { DropRiseIcon } from '@/components/dashboard/LiveTurfDiorama';
 import { LootMoment } from '../LootMoment';
-import { PARTS_FEET_X, SKELETON } from '@/lib/pixel/parts';
+import { PARTS_FEET_X, PART_POSES, SKELETON, type PartSetDef } from '@/lib/pixel/parts';
+import { layoutPartSet, type PartSetLayout, type PartsWeaponFractions } from '@/lib/pixel/partsCompositor';
+import { composeStridePose, sampleStride } from '@/lib/pixel/strideCycle';
+import {
+  TRAVEL_SPECS,
+  createTravelRun,
+  feedTravel,
+  sampleTravel,
+  travelStrideSpec,
+  type TravelRunState,
+  type TravelSample,
+} from '@/lib/pixel/travelChoreography';
 import {
   DEG,
   STAGE_RESOLUTION,
   applyPartPose,
+  applyPartPoseInstant,
   canvasTexture,
   circleTexture,
   createPartNodes,
@@ -27,7 +39,8 @@ import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
 import { useLoadoutStore } from '@/store';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 import { resolveGearMount, GEAR_PAINT_ORDER, type MountedGearItem } from '@/lib/pixel/gearMounts';
-import { armedActorExtents, fitArmedActorHeight } from '@/lib/pixel/partsStage';
+import { armedActorExtents, fitArmedActorHeight, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
+import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
 import { paletteSpriteUrl, type PaletteSpec } from '@/lib/pixel/paletteSwap';
 import {
@@ -236,6 +249,18 @@ interface RoamRuntime {
   beat: { eventId: string; startMs: number } | null;
   walk: { targetKey: string; startMs: number } | null;
   shake: { key: string; startMs: number; intensity: number; durationMs: number } | null;
+  /** Travel beat (Motion M2b): the shared tracker run + whether
+   *  the stride drove the last frame (the falling edge re-applies
+   *  the beat pose — the arrival settle). */
+  travel: TravelRunState;
+  travelDriving: boolean;
+  travelSample: TravelSample | null;
+  /** The stride layout's weapon geometry while the stride drives
+   *  (the held weapon rides the striding grip, not the held
+   *  beat-pose layout). */
+  strideWeapon: PartSetLayout['weapon'];
+  /** Last computed near-band pan offset in stage px (probe). */
+  lastPanNearPx: number;
   fps: { lastMs: number; deltas: number[] };
 }
 
@@ -251,6 +276,11 @@ function createRoamRuntime(): RoamRuntime {
     beat: null,
     walk: null,
     shake: null,
+    travel: createTravelRun(),
+    travelDriving: false,
+    travelSample: null,
+    strideWeapon: undefined,
+    lastPanNearPx: 0,
     fps: { lastMs: 0, deltas: [] },
   };
 }
@@ -258,6 +288,11 @@ function createRoamRuntime(): RoamRuntime {
 interface TickEnv {
   props: RoamPixiStageProps;
   model: RoamSceneModel;
+  /** The hunter's part set + held-weapon fractions (Motion M2b:
+   *  the travel stride composes layouts per frame from the same
+   *  inputs deriveRoamScene consumes). */
+  hunterSet: PartSetDef;
+  weaponFractions?: PartsWeaponFractions;
   shakeWrap: HTMLDivElement | null;
   /** V1: the authored vista scene for the current background (null
    *  for non-vista backgrounds) + its expanded ambient instances. */
@@ -306,16 +341,14 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const beatMs = rt.beat ? now - rt.beat.startMs : Number.POSITIVE_INFINITY;
   const beatSample = sampleRoamBeat(model.beat, Math.min(beatMs, 60_000), props.event);
 
-  // ── Pose: a changed pose re-applies (position blend is M2's) ──
-  const poseKey = `${model.hunterPoseName}|${props.weapon?.id ?? ''}|${props.currentTargetId ?? ''}`;
-  if (rt.poseKey !== poseKey) {
-    rt.poseKey = poseKey;
-    applyPartPose(scene.parts, model.hunterLayout, now, { poseName: model.hunterPoseName, blendPositions: true });
-    // Gear mounts re-resolve against the new layout (DOM: the
-    // gear layers re-derive and tween rotation on SEGMENT timing;
-    // positions snap with the layout there — mirrored here).
+  // Gear mounts re-resolve against a layout (DOM: the gear
+  // layers re-derive and tween rotation on SEGMENT timing;
+  // positions snap with the layout there — mirrored here). One
+  // resolver for the pose block, the travel stride, and the
+  // arrival settle, so the mounts can never disagree.
+  const resolveGearFrom = (layout: PartSetLayout) => {
     for (const g of scene.gear) {
-      const mount = resolveGearMount(model.hunterLayout, g.item);
+      const mount = resolveGearMount(layout, g.item);
       if (!mount) {
         g.sprite.visible = false;
         continue;
@@ -325,6 +358,14 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
       g.anchorStage = mount.stage;
       g.rotationDeg = mount.rotationDeg;
     }
+  };
+
+  // ── Pose: a changed pose re-applies (position blend is M2's) ──
+  const poseKey = `${model.hunterPoseName}|${props.weapon?.id ?? ''}|${props.currentTargetId ?? ''}`;
+  if (rt.poseKey !== poseKey) {
+    rt.poseKey = poseKey;
+    applyPartPose(scene.parts, model.hunterLayout, now, { poseName: model.hunterPoseName, blendPositions: true });
+    resolveGearFrom(model.hunterLayout);
     // Enemy walk-in restarts when the target changes (DOM: the
     // walk wrapper is keyed by target id).
     const targetKey = `${props.currentTargetId ?? 'none'}|${model.isEliteEvent ? 'elite' : 'std'}`;
@@ -332,6 +373,21 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
       rt.walk = { targetKey, startMs: now };
     }
   }
+
+  // ── Travel beat (Motion Reboot M2b): the shared tracker, fed
+  // this stage's own observations. This stage only mounts for
+  // roaming with motion allowed, so engaged is constant-true;
+  // unmount IS the cancel. The sample drives the pan rate in the
+  // vista block below and the stride in the hunter block.
+  feedTravel(rt.travel, TRAVEL_SPECS.advance, {
+    engaged: true,
+    targetKey: props.currentTargetId ?? null,
+    beatKind: model.beat?.kind ?? null,
+    beatEventId: props.event?.id ?? null,
+    now,
+  });
+  const travel = sampleTravel(rt.travel, TRAVEL_SPECS.advance, env.vistaScene, now);
+  rt.travelSample = travel;
 
   // ── Vista: cover base + drift law; parallax tracks sampled ──
   const baseTex = scene.vistaBase.texture;
@@ -365,8 +421,14 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     // for vista bands: the pan replaces it, matching the DOM
     // stage exactly.
     rt.vistaClock.wallMs += frameDtMs;
-    rt.vistaClock.panMs += frameDtMs;
+    // M2b: while the travel beat drives, the pan clock advances
+    // at the stride-synced rate — the ground moves at the gait's
+    // own ground speed (travelChoreography derives the rate from
+    // the stride spec; at amplitude 0 the rate is exactly 1, the
+    // ambient drift).
+    rt.vistaClock.panMs += frameDtMs * travel.panRate;
     const panOffsets = vistaPanOffsets(env.vistaScene, rt.vistaClock.panMs);
+    rt.lastPanNearPx = panOffsets.near * (W / VISTA_STAGE_W);
     const designScale = W / VISTA_STAGE_W;
     for (const layerId of ['far', 'mid', 'near'] as VistaLayerId[]) {
       const pair = scene.vistaPairs[layerId];
@@ -448,6 +510,42 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const frameW = frameH * (SKELETON.frameWidth / SKELETON.frameHeight);
   const s = frameH / SKELETON.frameHeight;
   scene.hunterFrame.position.set(-PARTS_FEET_X * frameW, frameTop - groundYPx);
+  // ── Travel stride execution (Motion M2b) ──
+  // While the beat drives, the stride layout — the M2a spec
+  // sampled this frame, composed onto the 'roam' stance the beat
+  // departs from — is written to the part nodes DIRECTLY (no
+  // tween: the sampled pose is followed, the DOM actor's
+  // duration-0-while-a-cycle-drives semantics). The frame fit
+  // above stays on the held layout so the frame box never
+  // breathes with the gait. When the envelope lands back at 0,
+  // the beat pose re-applies through the SEGMENT blend — the
+  // arrival settle onto exactly the layout the beat system holds.
+  if (travel.driving) {
+    rt.travelDriving = true;
+    // Base pose, mirroring the DOM actor's composition exactly:
+    // while the window is open the stride rides the 'roam'
+    // stance the beat departs from; while it settles (a combat
+    // beat preempted it) the stride decays over the CURRENT beat
+    // pose, as the actor composes its ramp-out onto the pose it
+    // is handed.
+    const basePose = travel.active ? PART_POSES.roam : PART_POSES[model.hunterPoseName];
+    const strideLayout = layoutPartSet(
+      env.hunterSet,
+      composeStridePose(
+        sampleStride(travelStrideSpec(TRAVEL_SPECS.advance), travel.phaseMs, travel.amplitude),
+        basePose,
+      ),
+      env.weaponFractions,
+    );
+    applyPartPoseInstant(scene.parts, strideLayout);
+    resolveGearFrom(strideLayout);
+    rt.strideWeapon = strideLayout.weapon;
+  } else if (rt.travelDriving) {
+    rt.travelDriving = false;
+    rt.strideWeapon = undefined;
+    applyPartPose(scene.parts, model.hunterLayout, now, { poseName: model.hunterPoseName, blendPositions: true });
+    resolveGearFrom(model.hunterLayout);
+  }
   tickPartNodes(scene.parts, now, s);
   // Gear rides its mount part's CURRENT transform (the DOM gear
   // layer is a motion.img INSIDE the actor frame with its own
@@ -478,7 +576,10 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     g.sprite.rotation = node.container.rotation;
   }
   if (scene.weaponRoot && scene.weaponSway) {
-    const wgeo = model.hunterLayout.weapon;
+    // While the travel stride drives, the weapon rides the
+    // striding grip (the stride layout's geometry); otherwise the
+    // held beat-pose layout's, as before M2b.
+    const wgeo = rt.travelDriving ? rt.strideWeapon : model.hunterLayout.weapon;
     scene.weaponRoot.visible = !!wgeo;
     if (wgeo) {
       const boxW = wgeo.targetW * s;
@@ -732,6 +833,16 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
       eventId: props.event?.id ?? null,
       beatMs: Number.isFinite(beatMs) ? Math.round(beatMs) : null,
       pose: model.hunterPoseName,
+      travel: rt.travelSample
+        ? {
+            active: rt.travelSample.active,
+            driving: rt.travelSample.driving,
+            amplitude: Number(rt.travelSample.amplitude.toFixed(3)),
+            phaseMs: Math.round(rt.travelSample.phaseMs),
+            panRate: Number(rt.travelSample.panRate.toFixed(2)),
+          }
+        : null,
+      panNearPx: Number(rt.lastPanNearPx.toFixed(1)),
       nodeCount: roamAnimatedNodeCount({
         partCount: scene.parts.length,
         gearCount: scene.gear.length,
@@ -794,7 +905,17 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
   );
 
   useEffect(() => {
-    envRef.current = { props, model, shakeWrap: shakeWrapRef.current, vistaScene, vistaInstances };
+    envRef.current = {
+      props,
+      model,
+      hunterSet: look.set,
+      weaponFractions: props.weapon
+        ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(props.weapon))
+        : undefined,
+      shakeWrap: shakeWrapRef.current,
+      vistaScene,
+      vistaInstances,
+    };
   });
 
   useEffect(() => {

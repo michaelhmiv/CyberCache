@@ -16,7 +16,15 @@ import {
 } from '@/components/pixelArt/PixelFx';
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
-import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
+import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
+import {
+  TRAVEL_SPECS,
+  createTravelRun,
+  feedTravel,
+  sampleTravel,
+  travelStrideSpec,
+  type TravelRunState,
+} from '@/lib/pixel/travelChoreography';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
@@ -386,6 +394,76 @@ const PixelSceneLayerDom: React.FC<{
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
   const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
+
+  // ── Travel beat (Motion Reboot M2b) ─────────────────────────
+  // The DOM renderer's half of the shared travel tracker (the
+  // Pixi stage feeds its own copy from the same observations —
+  // travelChoreography owns the state machine, so the two can't
+  // drift). While roaming with motion allowed, a rAF driver
+  // feeds the tracker, writes the stride-synced pan rate into
+  // the ref PixelStage's clock reads, and binds the stride
+  // execution on the hunter actor while the window is open.
+  // Leaving roaming (Stop, activity switch, a fight taking the
+  // stage) cancels the run outright: the binding drops, the
+  // actor's own ramp hands the pose back, the pan rate resets.
+  // Reduced motion never engages it — the pre-M2b picture.
+  const travelRunRef = useRef<TravelRunState | null>(null);
+  if (travelRunRef.current === null) travelRunRef.current = createTravelRun();
+  const travelPanRateRef = useRef(1);
+  const [travelActive, setTravelActive] = useState(false);
+  const travelInputsRef = useRef<{
+    engaged: boolean;
+    targetKey: string | null;
+    beatKind: CombatBeatKind | null;
+    beatEventId: string | null;
+  }>({ engaged: false, targetKey: null, beatKind: null, beatEventId: null });
+  const travelBeatKind = beat?.kind ?? null;
+  const travelBeatEventId = event?.id ?? null;
+  useEffect(() => {
+    travelInputsRef.current = {
+      engaged: mode === 'roaming' && !reduced,
+      targetKey: currentTargetId ?? null,
+      beatKind: travelBeatKind,
+      beatEventId: travelBeatEventId,
+    };
+  }, [mode, reduced, currentTargetId, travelBeatKind, travelBeatEventId]);
+  const travelSceneId = vistaScene?.id ?? null;
+  useEffect(() => {
+    if (mode !== 'roaming' || reduced) {
+      // Cancel on the next frame (the M2a actor's deferred-reset
+      // shape): the run clears, the pan rate restores, the stride
+      // binding drops — no stuck stride past the interrupt.
+      const id = requestAnimationFrame(() => {
+        feedTravel(travelRunRef.current!, TRAVEL_SPECS.advance, {
+          engaged: false,
+          targetKey: null,
+          beatKind: null,
+          beatEventId: null,
+          now: performance.now(),
+        });
+        travelPanRateRef.current = 1;
+        setTravelActive(false);
+      });
+      return () => cancelAnimationFrame(id);
+    }
+    let raf = 0;
+    const loop = (now: number) => {
+      const run = travelRunRef.current!;
+      feedTravel(run, TRAVEL_SPECS.advance, { ...travelInputsRef.current, now });
+      const s = sampleTravel(run, TRAVEL_SPECS.advance, vistaScene, now);
+      travelPanRateRef.current = s.panRate;
+      setTravelActive((prev) => (prev === s.active ? prev : s.active));
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      travelPanRateRef.current = 1;
+    };
+    // vistaScene identity follows its id (the spec objects are
+    // module constants); the loop reads it through the closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, reduced, travelSceneId]);
   // A real gear drop on the latest event gets the P3 loot moment (beam +
   // card at the enemy's loot point). Every other grant gets the rise
   // that pictures it via lootRiseVisualForEvent — the cache crate is
@@ -471,9 +549,15 @@ const PixelSceneLayerDom: React.FC<{
   const loadCosmetics = useCosmeticsStore((s) => s.load);
   useEffect(() => { void loadCosmetics(); }, [loadCosmetics]);
   const hunterSet = look.set;
+  // Travel beat (M2b): while the advance window is open, the
+  // hunter stands in the 'roam' stance the stride departs from —
+  // the beat-derived pose resumes the instant the window closes
+  // (a combat beat preempts the travel, so the two never stack).
+  const stagePoseName: PartsPoseName =
+    travelActive && mode === 'roaming' ? 'roam' : hunterPoseName;
   const hunterLayout = layoutPartSet(
     hunterSet,
-    PART_POSES[hunterPoseName],
+    PART_POSES[stagePoseName],
     weapon ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(weapon)) : undefined,
   );
 
@@ -769,6 +853,7 @@ const PixelSceneLayerDom: React.FC<{
       hot={hot}
       vistaScene={vistaScene}
       vistaPanActive={mode === 'roaming'}
+      vistaPanRateRef={travelPanRateRef}
     >
       {/* No in-scene mode chip (QC papercut): the HTML title plate
           above already prints the activity label — the chip hung
@@ -1023,7 +1108,12 @@ const PixelSceneLayerDom: React.FC<{
             partPalettes={look.partPalettes}
             {...hunterPlacement}
             reduced={reduced}
-            pose={hunterPoseName}
+            pose={stagePoseName}
+            strideCycle={
+              mode === 'roaming'
+                ? { spec: travelStrideSpec(TRAVEL_SPECS.advance), active: travelActive }
+                : undefined
+            }
             weapon={weapon ?? undefined}
             weaponTestId="pixel-held-weapon"
             testId="pixel-hunter"

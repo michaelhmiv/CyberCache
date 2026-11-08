@@ -28,6 +28,14 @@
         {
           "number": 460,
           "title": "Land V2 set pieces and seat wiring"
+        },
+        {
+          "number": 461,
+          "title": "Motion M2a: FK leg resolver + stride spec"
+        },
+        {
+          "number": 462,
+          "title": "ThrowTech heap polish — debris heap re-authored to the Dustwaste density standard"
         }
       ]
     },

@@ -2119,6 +2119,74 @@ caller requests a gait yet; the travel beat that will is M2b.
   movement.ts is unmodified; `src/server` untouched; gameplay
   and economics untouched; payload Δ 0 (code only, no assets).
 
+### The travel beat — Motion M2b (2026-11-08) · the Motion Reboot closes
+
+Between encounters the hunter used to stand at his mark while
+the next enemy walked in alone (MOTION-AUDIT §2.1C: travel did
+not exist). M2b is the advance M2a made possible: when a new
+target arrives while roaming — roam start, and every
+between-enemy step of a session — the hunter WALKS to it, on
+both renderers, and the vista pan moves at the speed of his own
+stride. **With this entry every Motion Reboot slice has
+shipped** — M1 the work cycle, M2 the roam stage on Pixi, M2a
+the legs, M2b the travel, M3 endless on the main stage, M4a
+extraction works, M4b the bench item, M4c presence — and the
+program is closed. What remains is the owner's device read of
+the stride itself (M2a's reservation stands: the gait was
+measured, not yet judged by his eye).
+
+- **The beat is choreography data with one state machine.**
+  `travelChoreography.ts` declares the advance as a spec (its
+  gait is a STRIDE_SPECS row; its window is `MOVEMENT.WALK_IN_MS`
+  read from the law, shared with the incoming enemy's walk-in so
+  the two figures arrive together) and owns the tracker both
+  renderers feed — the Pixi stage per frame, the DOM scene from
+  its own rAF driver. Triggers, envelope, and pan rate cannot
+  drift between renderers because there is only one machine.
+  The envelope is the M2a actor's: the SEGMENT start beat in the
+  travel stance (`PART_POSES.roam`, the stance the beat departs
+  from), amplitude ramping across one stride period, and a
+  one-period settle on disengage — at amplitude 0 the composed
+  pose is the base pose exactly, so arrival lands on the pose
+  the beat system already holds and encounter handoffs (boss,
+  endless, roam combat) are untouched downstream.
+- **Feet and ground agree by construction.** The pan rate is
+  derived from the stride spec itself — step length from the
+  skeleton's leg and the spec's thigh swing, step time from the
+  law-derived period, scaled at the roam placement's display
+  scale — and expressed as a multiplier on each scene's own
+  near-layer rate, so the authored parallax ratios hold under
+  the boost. While the amplitude ramps, the rate ramps with it;
+  at rest the rate is exactly 1, the ambient drift the roam
+  scene already ran. There is no second, tunable pan speed to
+  drift out of sync (one source, asserted exactly in the M2b
+  tests).
+- **Game events preempt the beat, never wait for it.** A combat
+  beat from a newer tick event disengages the advance mid-stride
+  (the figure settles over one period while the beat plays);
+  the stale kill that cleared the way does not preempt its own
+  advance, and loot does not preempt at all — its celebration
+  rides its own layer. Leaving roaming cancels outright: Stop,
+  an activity switch, or a fight taking the stage leaves no
+  stuck stride (the Stop interrupt is test-pinned). Travel is
+  presentation only: no claim, tick, or encounter start is
+  delayed by a single millisecond of game logic.
+- **Reduced motion and no-WebGL follow the standing law.**
+  Reduced motion never engages the beat (the pre-M2b picture:
+  instant swap + the walk-in fade); the DOM fallback walks
+  identically in pose terms — same tracker, same envelope, the
+  actor's own stride execution — and under it the pan rate
+  ref feeds the same clock the Pixi stage advances.
+- **Discipline held.** movement.ts zero diff; `src/server`
+  untouched; node count unchanged (no new stage nodes on either
+  renderer — the Pixi full-dress count stays 43); payload Δ 0
+  (code only, no assets); REST and encounter goldens unmoved.
+  Pinned by `src/test/travelChoreography.test.ts` (data law,
+  the exact pan derivation, tracker triggers/preemption/
+  envelope) and `src/test/travelBeatDom.test.tsx` (roam start,
+  settle, the between-enemy advance, the Stop interrupt on the
+  real diorama).
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in

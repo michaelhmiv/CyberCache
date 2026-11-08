@@ -23,6 +23,12 @@ import type { Weapon } from '@/types/items';
  *                        capture script advances frames itself);
  *                        loot — a material drop: the loot rise is
  *                        live over the stage.
+ *                        travel — (M2b) the travel beat staged for
+ *                        scripting: the page exposes
+ *                        __advanceTarget (kill gap → next enemy:
+ *                        the between-enemy advance), __stopRoam
+ *                        (activity cleared mid-stride: the Stop
+ *                        interrupt) and __resumeRoam.
  *   ?width=<px>          stage width (default 390, phone width).
  *
  * The event is seeded into the tick feed BEFORE the diorama mounts
@@ -73,6 +79,7 @@ export const RoamHarnessPage: React.FC = () => {
   const [params] = useState(() => new URLSearchParams(window.location.search));
   const scene = params.get('scene') ?? 'idle';
   const width = Number(params.get('width') ?? 390) || 390;
+  const [stopped, setStopped] = useState(false);
 
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>;
@@ -104,6 +111,18 @@ export const RoamHarnessPage: React.FC = () => {
     const w = window as unknown as Record<string, unknown>;
     w.__seedShot = () => useTickFeedStore.setState({ events: [SHOT_EVENT] });
     w.__seedLoot = () => useTickFeedStore.setState({ events: [LOOT_EVENT] });
+    // M2b travel scripting: the between-enemy advance (the kill
+    // gap, then the next target spawns — the ticker's own shape)
+    // and the Stop interrupt (the activity clears mid-stride and
+    // the diorama falls back to the camp idle scene).
+    w.__advanceTarget = () => {
+      useKillCycleStore.setState({ currentTargetId: null, currentTargetHp: 0, currentTargetHpMax: 0 });
+      setTimeout(() => {
+        useKillCycleStore.setState({ currentTargetId: 'dustwaste_drone', currentTargetHp: 60, currentTargetHpMax: 60 });
+      }, 60);
+    };
+    w.__stopRoam = () => setStopped(true);
+    w.__resumeRoam = () => setStopped(false);
   }, [scene]);
 
   return (
@@ -113,7 +132,7 @@ export const RoamHarnessPage: React.FC = () => {
         weapon={HARNESS_WEAPON}
         playerLevel={5}
         equippedCount={4}
-        activityKind="roaming_loot"
+        activityKind={stopped ? undefined : 'roaming_loot'}
       />
     </div>
   );
