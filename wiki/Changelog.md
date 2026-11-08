@@ -5,6 +5,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 ## 2026-11-08 — The hunter gets a polish pass
 
 - **The converted hunter, finished properly** — the hand-drawn hunter gets its polish pass: the Bulwark helm's dome is modeled platework now instead of one broad flat field, the shadow-side legs carry real form instead of reading as dark columns, the Fin's rust crest sits bolted to the crown, and the backpacks have their missing machinery — Bulwark's lower greebles, Dreadplate's tank-face seams and wear, the Standard Issue pack's swept plate seam. Same silhouettes, same outfits, same anchors — the work is all in the surfaces.
+- **The hunter's legs are jointed now** — under the hood, the leg rig works the way the arm rig always has: the shin hangs off the thigh's knee instead of being pinned to the ground, so the legs can genuinely articulate — the groundwork for a walking hunter. Nothing on screen changes yet: every standing pose renders exactly as before, pixel for pixel; the stride itself arrives with the travel beat it belongs to.
 
 ## 2026-11-08 — The named legendaries are hand-drawn
 
