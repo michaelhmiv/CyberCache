@@ -1903,6 +1903,24 @@ leave the bundle; the authored sets total 66,305 B.
   baselines regenerated — every changed scene is background-
   driven (the renderer composites scenes over the zone plate).
   movement.ts is unmodified; gameplay and economics untouched.
+- **ThrowTech heap polish (2026-11-08).** The landing's named
+  weakest form — the mid heap mound under the turret housing,
+  whose facets were built from the field's own neighbor tones
+  (a/s/S) and read as a smooth hill at stage size — is re-modeled
+  to the Dustwaste density standard inside the same palette,
+  envelope, and housing seat: faceted debris slabs seated on the
+  mound's surface (lit top planes and sunset-side faces, deep
+  undercut shadows beneath each slab), crevice cracks descending
+  from the crest, a broken sunset rim and slab teeth jutting from
+  both flanks, and harder slope-wreck contrast (hull and
+  container under-shadows, an embedded tire ring and slab). The
+  far ridge's faces gain the same terrace steps and crevices
+  (crest profile and seam columns untouched) and the near pile
+  gains crevice seams and lit chunk tops. Band geometry, hero
+  anchors, the ambient set and `ambient-motion.json` are
+  unchanged; tiling improves or holds (far 0.58 → 0.50, mid
+  0.54 → 0.50, near 0.46, seam steps identical); payload +197 B
+  (vista total 66,502 B, ceiling unmoved).
 
 ### Presence — Full Visual Program M4c (2026-11-08)
 

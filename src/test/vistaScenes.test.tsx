@@ -88,7 +88,7 @@ describe('vista scene data', () => {
       }
     }
     // All eight authored sets (bands + ambient + camp props).
-    expect(zoneBytes).toBe(66_305);
+    expect(zoneBytes).toBe(66_502);
     expect(zoneBytes).toBeLessThan(100_000);
   });
 
