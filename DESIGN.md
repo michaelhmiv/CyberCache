@@ -1954,6 +1954,85 @@ listing ran. M4c closes both, on the data the game already owns:
   listing never cycles were superseded deliberately, in place.
   movement.ts is unmodified; gameplay and economics untouched.
 
+### Set dressing lands — Full Visual Program V2 (2026-11-08)
+
+The V2 authoring pass (2026-11-07) drew ten set pieces in the
+pxl register and measured a seat for every work surface, but only
+the benches ever reached the game — and those by #447's own
+build, not the authored canvases. This slice closes the strand:
+an inspect-first inventory against master, then the landing of
+everything still missing that still had a living seat.
+
+- **The inventory verdicts (per piece).** LANDED here:
+  `set-refinery-crusher`, `set-refinery-furnace`,
+  `set-bay-lift`, `set-calibration-rig`, `set-bay-tray`,
+  `set-bay-wall-listing`, `set-vendor-stall` — all seven were
+  still the retired paintings on master (byte-identical to the
+  authoring pass's "current" captures) and are now the authored
+  sprites at their authored canvases. SUPERSEDED: the three
+  benches (`set-bench-forge/basic/lab`) — PR #447 re-authored
+  them at the legacy canvas sizes with the item-on-the-bench
+  wiring; the V2-authored bench canvases stay evidence, and the
+  shipped benches keep the work points #447 tuned. DELIBERATE
+  NO-LAND (a record, not an omission): the furnace gains no
+  renderer — it was grammar data only (`ACTION_SETS.craftingLab`
+  names it; no scene ever mounted it, and the bench tiers have
+  since collapsed to one), so its authored art lands as the
+  registered sprite the golden lab composition and any future
+  station can consume, with no scene invented for it.
+- **Seats are data now.** `src/lib/pixel/setSeats.ts` carries
+  the authoring record for all ten pieces — seat point, anchor,
+  clear zone, max item, and the named reasons for the two
+  seatless pieces (the furnace is a heat source, the wall
+  listing is an information surface) — keyed by sprite id, so a
+  future set piece plugs in by adding a row. The bench rows
+  describe the superseded authored benches and are marked as
+  such in the module: geometry derives only from rows whose art
+  actually shipped.
+- **The two named wiring deltas are wired.** In the repair bay
+  the vehicle stands ON the lift's deck line
+  (`seatPointBottomPct` from the lift's seat) instead of floating
+  at the retired painting's +4%, and the bay's work FX burst
+  from the deck. In the shield-tech bay the behavior glyph
+  renders as a child of the calibration rig's own actor box,
+  centered on the ring seat and sized to its disc, and the
+  calibration sweep walks that same center. On the Home stage
+  the work point derives per mode from the mode's piece: the
+  salvage FX and any seated picture ride the crusher's mouth
+  rim, the service lane's ride the lift's deck; the crafting
+  lane keeps #447's tuned point for #447's bench.
+- **The stall verdict was earned, not assumed.** The evidence
+  pass's side-by-side and this slice's live captures agree: the
+  retired painting read as a dark glitter mass at stage size,
+  the authored stall reads as a stall — canopy, counter,
+  scale, crate — in the vista's own rust register. It lands.
+  **Amendment (owner ruling, 2026-11-08):** the landed counter
+  was empty, and the owner ruled it re-authored STOCKED — the
+  painting's content (hanging wares, piled stock) translated
+  into the authored frame: a hanging bottle and counter-end
+  stacks on both flanks, a stocked display shelf across the
+  counter front, a barrel at the base. The seat record is
+  unchanged — the listed item's standing volume (counter
+  center) stays prop-free; the goods dress around it, and the
+  hunter's reach at the stall's left edge stays clear.
+- **Manifest truth + payload.** The seven sprites' manifest
+  entries carry their authored dimensions and anchors recomputed
+  from the new alpha masks by `pixel-key.py`'s own formulas.
+  Payload: −61,308 B on the swap (64,101 B of paintings out,
+  2,793 B of authored sprites in); manifest-sum total
+  6,721,489 B, the 11,620,000 B ceiling unmoved.
+- **Golden boxes are aspect-true for the dressed pieces** (the
+  authoring record's explicit wiring note): the bay, shield-tech,
+  bench-lab, and rep-desk compositions keep their heights and
+  centers and take the authored aspects; the eight regenerated
+  baselines were audited pixel-by-pixel — every diff confined to
+  the dressed pieces' old∪new boxes.
+- **Pinned by `src/test/setSeats.test.tsx`** (record coverage,
+  seat sanity, authored canvas sizes, the deck-line vehicle, the
+  ring-centered glyph) plus the golden suite. movement.ts is
+  unmodified; gameplay and economics untouched; the One-Stage
+  Law holds — dressing changed inside the scenes that exist.
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in

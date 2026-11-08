@@ -262,6 +262,13 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     }),
   ),
   // Action scenes (G4): crafting bench + repair bay.
+  // Set-piece boxes (V2 landing, 2026-11-08): the non-bench set
+  // pieces are the V2-authored sprites now, and their boxes here
+  // are aspect-true at the established heights/centers — the old
+  // boxes stretched the retired paintings (the V2 authoring record
+  // flagged exactly this for the wiring slice). Benches keep their
+  // boxes: the shipped benches are #447's build at the legacy
+  // canvas, which the 104x62 box already fits.
   scene('bench', (img) => {
     drawBackground(img, AREA_BG.blastforge_yards);
     const bench = loadGoldenSprite('set-bench-forge');
@@ -316,7 +323,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
   scene('bay', (img) => {
     drawBackground(img, AREA_BG.throwtech_dumpnet);
     const lift = loadGoldenSprite('set-bay-lift');
-    if (lift) blit(img, lift, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    if (lift) blit(img, lift, SCENE_W * 0.62 - 44, GROUND * SCENE_H - 66, 88, 66);
     const vehicle = loadGoldenSprite('vehicle-dune-buggy');
     if (vehicle) blit(img, vehicle, SCENE_W * 0.44, GROUND * SCENE_H - 44, 108, 54);
     drawHunterParts(img, 'work', { xPct: 24, heightPct: 57 });
@@ -329,7 +336,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
   scene('bay-idle', (img) => {
     drawBackground(img, AREA_BG.throwtech_dumpnet);
     const lift = loadGoldenSprite('set-bay-lift');
-    if (lift) blit(img, lift, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    if (lift) blit(img, lift, SCENE_W * 0.62 - 44, GROUND * SCENE_H - 66, 88, 66);
     const vehicle = loadGoldenSprite('vehicle-dune-buggy');
     if (vehicle) blit(img, vehicle, SCENE_W * 0.44, GROUND * SCENE_H - 44, 108, 54);
     drawHunterParts(img, 'relaxed', { xPct: 24, heightPct: 57 });
@@ -338,7 +345,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
   scene('bay-complete', (img) => {
     drawBackground(img, AREA_BG.throwtech_dumpnet);
     const lift = loadGoldenSprite('set-bay-lift');
-    if (lift) blit(img, lift, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    if (lift) blit(img, lift, SCENE_W * 0.62 - 44, GROUND * SCENE_H - 66, 88, 66);
     const vehicle = loadGoldenSprite('vehicle-dune-buggy');
     if (vehicle) blit(img, vehicle, SCENE_W * 0.44, GROUND * SCENE_H - 44, 108, 54);
     drawHunterParts(img, 'celebrate', { xPct: 24, heightPct: 57 });
@@ -354,13 +361,13 @@ export const GOLDEN_SCENES: GoldenScene[] = [
   scene('shieldtech-progress', (img) => {
     drawBackground(img, AREA_BG.throwtech_dumpnet);
     const listing = loadGoldenSprite('set-bay-wall-listing');
-    if (listing) blit(img, listing, SCENE_W * 0.16 - 52, GROUND * SCENE_H - 56, 104, 56);
+    if (listing) blit(img, listing, SCENE_W * 0.16 - 39.5, GROUND * SCENE_H - 56, 79, 56);
     const rig = loadGoldenSprite('set-calibration-rig');
-    if (rig) blit(img, rig, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    if (rig) blit(img, rig, SCENE_W * 0.62 - 38, GROUND * SCENE_H - 66, 76, 66);
     const glyph = loadGoldenSprite('glyph-behavior-amp');
     if (glyph) blit(img, glyph, SCENE_W * 0.56, GROUND * SCENE_H - 96, 44, 44);
     const tray = loadGoldenSprite('set-bay-tray');
-    if (tray) blit(img, tray, SCENE_W * 0.34 - 40, GROUND * SCENE_H - 34, 80, 34);
+    if (tray) blit(img, tray, SCENE_W * 0.34 - 39.5, GROUND * SCENE_H - 34, 79, 34);
     drawHunterParts(img, 'work', { xPct: 24, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.5, GRAMMAR.progress.heightPx, [57, 208, 216], 255);
@@ -368,14 +375,14 @@ export const GOLDEN_SCENES: GoldenScene[] = [
   scene('shieldtech-complete', (img) => {
     drawBackground(img, AREA_BG.throwtech_dumpnet);
     const listing = loadGoldenSprite('set-bay-wall-listing');
-    if (listing) blit(img, listing, SCENE_W * 0.16 - 52, GROUND * SCENE_H - 56, 104, 56);
+    if (listing) blit(img, listing, SCENE_W * 0.16 - 39.5, GROUND * SCENE_H - 56, 79, 56);
     drawBeam(img, SCENE_W * 0.62, GROUND * SCENE_H - 40, GRAMMAR.beamWidthPx.high, '#B18CFF');
     const rig = loadGoldenSprite('set-calibration-rig');
-    if (rig) blit(img, rig, SCENE_W * 0.62 - 56, GROUND * SCENE_H - 66, 112, 66);
+    if (rig) blit(img, rig, SCENE_W * 0.62 - 38, GROUND * SCENE_H - 66, 76, 66);
     const glyph = loadGoldenSprite('glyph-behavior-amp');
     if (glyph) blit(img, glyph, SCENE_W * 0.56, GROUND * SCENE_H - 96, 44, 44);
     const tray = loadGoldenSprite('set-bay-tray');
-    if (tray) blit(img, tray, SCENE_W * 0.34 - 40, GROUND * SCENE_H - 34, 80, 34);
+    if (tray) blit(img, tray, SCENE_W * 0.34 - 39.5, GROUND * SCENE_H - 34, 79, 34);
     drawHunterParts(img, 'celebrate', { xPct: 24, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [57, 208, 216], 255);
@@ -396,7 +403,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     const bench = loadGoldenSprite('set-bench-lab');
     if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
     const furnace = loadGoldenSprite('set-refinery-furnace');
-    if (furnace) blit(img, furnace, SCENE_W * 0.86 - 34, GROUND * SCENE_H - 54, 68, 54);
+    if (furnace) blit(img, furnace, SCENE_W * 0.86 - 30, GROUND * SCENE_H - 54, 60, 54);
     drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, (SCENE_W - 24) * 0.8, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
@@ -889,7 +896,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
       const groundY = GROUND * SCENE_H;
       // The vendor stall + sign, right of stage.
       const stall = loadGoldenSprite('set-vendor-stall');
-      if (stall) blit(img, stall, SCENE_W * 0.58, groundY - 62, 128, 80);
+      if (stall) blit(img, stall, SCENE_W * 0.58, groundY - 62, 122, 80);
       const sign = loadGoldenSprite('set-vendor-sign');
       if (sign) blit(img, sign, SCENE_W * 0.58 + 22, groundY - 62 - 46, 84, 52);
       // Six rep plaques across the counter front: maker color tab on

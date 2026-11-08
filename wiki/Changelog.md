@@ -16,6 +16,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 - **The workshop's rooms are real places now** — the bench scene in the Workshop and the repair and shield-tech bays on the Market boards no longer stand in front of a painted backdrop: each stands in its actual area, with that area's own weather and life moving behind the work — furnace smoke and embers at the BlastForge bench, dust and signal lights in the ThrowTech bays. Same benches, same work — the rooms finally match the world outside.
 - **Your hunter minds his own stall now** — while one of your market listings runs, the Home stage shows the hunter at his vendor stall tending it — weapon slung, hands on the goods — instead of standing guard over it with his rifle up.
+- **The workplaces are dressed properly now** — the gear your work stands among has been redrawn in the same pixel craft as everything else: the salvage crusher is a real jaw crusher with the work sparks landing in its mouth, the repair bay's lift is a lift — your vehicle sits up on its deck instead of floating beside it — the shield-tech rig's ring actually holds the shield being calibrated at its center, and the vendor stall is a stall you can read at a glance — canopy, counter, and goods on display: jars and wares on its front shelf, stock stacked at both ends. Same rooms, same jobs — the furniture finally matches the world.
 
 ## 2026-11-07 — The craft standard gets a gate
 
@@ -192,13 +193,15 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 195 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 197 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-08** — 3 merges
+**2026-11-08** — 5 merges
 
 - #455 — V4 — the 26 bespoke legendaries join the authored grammar
 - #456 — Changelog catch-up — V4 legendaries (#455)
 - #457 — M4c — Presence: panel scenes inherit their vista; the stall cycle
+- #458 — Favicon recompress — 374 KB → 143 KB (PR #446 logo treatment)
+- #459 — Hero polish — the ranked list executed (Bulwark dome first), interior only
 
 **2026-11-07** — 20 merges
 
