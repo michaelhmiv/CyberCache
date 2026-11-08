@@ -15,6 +15,7 @@ import {
   Tracer,
 } from '@/components/pixelArt/PixelFx';
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
+import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement } from '@/lib/pixel/movement';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
@@ -361,8 +362,16 @@ const PixelSceneLayerDom: React.FC<{
   areaId: string;
   hot?: boolean;
 }> = ({ backgroundId, bossSpriteId, weapon, mode, event, reduced, areaId, hot = false }) => {
-  const background = getPixelSprite(backgroundId);
+  // V1 vistas: idle IS camp — the authored camp scene (Vista Pass,
+  // owner ruling) replaces the old "current area + lone crate" idle
+  // backdrop. Every other mode keeps the area-keyed background; when
+  // that background is a vista scene, the stage renders its authored
+  // bands + ambient instead of the paintings' re-cuts.
+  const idleCamp = mode === 'idle';
+  const sceneBackgroundId = idleCamp ? CAMP_VISTA_SCENE.backgroundId : backgroundId;
+  const background = getPixelSprite(sceneBackgroundId);
   const groundY = background?.anchors.groundLine?.y ?? 0.86;
+  const vistaScene = idleCamp ? CAMP_VISTA_SCENE : vistaSceneForBackground(backgroundId);
   const showEnemy = mode === 'roaming' || mode === 'bossFight';
   const bossMode = mode === 'bossFight';
   // Boss prep (One-Stage Law, owner ruling 2026-11-06): the
@@ -647,7 +656,10 @@ const PixelSceneLayerDom: React.FC<{
   const enemySpriteId =
     (bossOnStage ? bossSpriteId : undefined) ?? pixelEnemySpriteForArchetype(targetArchetype) ?? 'brute';
   const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
-  const hunterPlacement: ActorPlacement = { xPct: 22, heightPct: 57, groundY };
+  // At camp the hunter takes the authored fire seat (center-x 505
+  // of 960 in the camp set's seat record); everywhere else the
+  // standing roam/fight mark holds.
+  const hunterPlacement: ActorPlacement = { xPct: idleCamp ? 52.6 : 22, heightPct: 57, groundY };
   const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: bossOnStage && bossSpriteId ? 80 : 66, groundY };
   const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
   const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
@@ -726,7 +738,7 @@ const PixelSceneLayerDom: React.FC<{
 
   return (
     <PixelStage
-      backgroundId={backgroundId}
+      backgroundId={sceneBackgroundId}
       groundY={groundY}
       reduced={reduced}
       embers
@@ -736,6 +748,8 @@ const PixelSceneLayerDom: React.FC<{
       testId="pixel-diorama-stage"
       areaId={areaId}
       hot={hot}
+      vistaScene={vistaScene}
+      vistaPanActive={mode === 'roaming'}
     >
       {/* No in-scene mode chip (QC papercut): the HTML title plate
           above already prints the activity label — the chip hung
@@ -768,7 +782,19 @@ const PixelSceneLayerDom: React.FC<{
           <PixelActor spriteId="set-extract-crates" xPct={86} heightPct={24} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-extract-crates" />
         </>
       )}
-      {!showEnemy && !showBossPrep && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && mode !== 'extraction' && mode !== 'endless' && (
+      {/* Camp set (V1): the authored camp props at their seat-record
+          positions — fireglow under the pit, crate left, supply
+          right; flame/smoke/embers are ambient-canvas life, not
+          actors. Props stay separate sprites, never baked. */}
+      {!showEnemy && !showBossPrep && idleCamp && (
+        <>
+          <PixelActor spriteId="camp-fireglow" xPct={65.8} heightPct={15.8} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-camp-fireglow" />
+          <PixelActor spriteId="camp-crate" xPct={41.1} heightPct={28.1} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-crate-prop" />
+          <PixelActor spriteId="camp-firepit" xPct={65.8} heightPct={9.4} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-camp-firepit" />
+          <PixelActor spriteId="camp-supply" xPct={83.3} heightPct={15} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-camp-supply" />
+        </>
+      )}
+      {!showEnemy && !showBossPrep && !idleCamp && mode !== 'crafting' && mode !== 'workshopService' && mode !== 'salvaging' && mode !== 'marketListing' && mode !== 'extraction' && mode !== 'endless' && (
         <PixelActor spriteId="crate" xPct={63} heightPct={21} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-crate-prop" />
       )}
 
