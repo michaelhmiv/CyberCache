@@ -14,7 +14,6 @@ import {
   CARD_WEAPON_HEIGHT,
   CARD_WEAPON_WIDTH,
 } from '@/lib/pixel/weaponCardCompositor';
-import { bespokeSpriteIdForWeapon, getPixelSprite } from '@/lib/pixel/manifest';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { useDeferredArt } from './useDeferredArt';
 
@@ -24,8 +23,8 @@ import { useDeferredArt } from './useDeferredArt';
  * surface: diorama now, inventory/market/workshop in P5.
  *
  * - Procedural weapons compose deterministically from their rolled parts.
- * - Named legendaries with bespoke art (manifest BESPOKE_LEGENDARY_SPRITES)
- *   render their fixed sprite instead.
+ * - Named legendaries compose their bespoke authored set through the
+ *   same compositor path (V4) — fixed identity, same renderer.
  * - Painting happens once per unique weapon signature; the composed render
  *   is cached module-wide, so re-renders and lists never repaint texels.
  * - `density`: 'card' (240×88, weaponCardCompositor) is the
@@ -38,7 +37,7 @@ import { useDeferredArt } from './useDeferredArt';
  *   feed thumbs (DESIGN.md §8; the card compose is too heavy to
  *   run per row). All densities share the 30:11 aspect, so
  *   swapping never shifts layout. Bespoke legendary resolution
- *   is identical at every density.
+ *   is identical at every density (V4).
  */
 
 const PAINT_SCALE = 3; // supersampled backing store; CSS size stays exact
@@ -85,22 +84,19 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     return pixelWeaponInputFromWeapon(weapon);
   }, [input, weapon]);
 
-  const bespoke = resolved ? bespokeSpriteIdForWeapon(resolved) : undefined;
-  const bespokeSprite = bespoke ? getPixelSprite(bespoke) : undefined;
-
   const paintScale = density === 'stage' ? PAINT_SCALE : CARD_PAINT_SCALE;
 
   const stageRender = useMemo(
-    () => (active && resolved && !bespokeSprite && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
-    [active, resolved, bespokeSprite, density],
+    () => (active && resolved && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
+    [active, resolved, density],
   );
   const cardRender = useMemo(
-    () => (active && resolved && !bespokeSprite && density === 'card' ? composeWeaponCardCached(resolved) : undefined),
-    [active, resolved, bespokeSprite, density],
+    () => (active && resolved && density === 'card' ? composeWeaponCardCached(resolved) : undefined),
+    [active, resolved, density],
   );
   const heldRender = useMemo(
-    () => (active && resolved && !bespokeSprite && density === 'held' ? composeWeaponCardCached(resolved, undefined, { held: true }) : undefined),
-    [active, resolved, bespokeSprite, density],
+    () => (active && resolved && density === 'held' ? composeWeaponCardCached(resolved, undefined, { held: true }) : undefined),
+    [active, resolved, density],
   );
   const render = heldRender ?? cardRender ?? stageRender;
 
@@ -114,23 +110,6 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     else if (stageRender) paintPixelWeapon(ctx, stageRender, PAINT_SCALE);
   }, [heldRender, cardRender, stageRender]);
 
-  if (bespokeSprite) {
-    const height = Math.round(size * (bespokeSprite.height / bespokeSprite.width));
-    return (
-      <img
-        src={bespokeSprite.url}
-        alt={resolved?.name ?? 'Legendary weapon'}
-        width={fluid ? undefined : size}
-        height={fluid ? undefined : height}
-        className={className}
-        style={{ imageRendering: 'pixelated', width: fluid ? '100%' : undefined, height: fluid ? 'auto' : undefined }}
-        data-testid={testId}
-        data-pixel-sprite={bespokeSprite.id}
-        draggable={false}
-      />
-    );
-  }
-
   if (!render) {
     // Deferred and not yet activated: mount the canvas at its FINAL
     // geometry (the density grids are fixed — 120×44 / 240×88 — so
@@ -138,7 +117,7 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     // with the compose + paint still pending. No layout shift when
     // the art lands; the rarity glow is rarity-derived, so it can
     // ride the placeholder unchanged.
-    if (defer && !active && resolved && !bespokeSprite) {
+    if (defer && !active && resolved) {
       const gridW = density === 'stage' ? PIXEL_WEAPON_WIDTH : CARD_WEAPON_WIDTH;
       const gridH = density === 'stage' ? PIXEL_WEAPON_HEIGHT : CARD_WEAPON_HEIGHT;
       const height = Math.round(size * (gridH / gridW));

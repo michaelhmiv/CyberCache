@@ -3,7 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
-import { bespokeSpriteIdForLegendaryEffect, getPixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite } from '@/lib/pixel/manifest';
+import { LEGENDARY_EFFECTS } from '@/constants/legendaryEffects';
 import {
   COLLECTION_FAMILIES,
   COLLECTION_TOTAL,
@@ -95,7 +96,6 @@ function seedFromKey(key: string): number {
 
 function spriteIdFor(entry: CollectionEntry): string | undefined {
   if (entry.family === 'boss') return `boss-${entry.key.replace(/_/g, '-')}`;
-  if (entry.family === 'legendary_effect') return bespokeSpriteIdForLegendaryEffect(entry.key);
   if (entry.family === 'named_elite') {
     return AREA_VISUALS[entry.key as RoamingAreaId]?.eliteSpriteId ?? 'enemy-elite';
   }
@@ -131,6 +131,33 @@ const EntryArt: React.FC<{ entry: CollectionEntry; found: boolean; px: number }>
         />
       </div>
     );
+  }
+  if (entry.family === 'legendary_effect') {
+    // V4: legendary art is authored compositor data now — render the
+    // effect's weapon through PixelWeapon with a synthesized input
+    // (the weapon_frame pattern above); the undiscovered silhouette
+    // filter still applies at this wrapper.
+    const def = LEGENDARY_EFFECTS.find((effect) => effect.id === entry.key);
+    if (def) {
+      return (
+        <div style={silhouette} className="flex h-full w-full items-center justify-center">
+          <PixelWeapon
+            input={{
+              weaponType: def.weaponType,
+              manufacturer: Manufacturer.HelixWorks,
+              rarity: Rarity.Legendary,
+              legendaryEffectId: def.id,
+              name: def.name,
+              pixelSeed: seedFromKey(entry.key),
+              rollQuality: 100,
+              id: `collection-leg-${entry.key}`,
+            }}
+            size={px}
+            density="card"
+          />
+        </div>
+      );
+    }
   }
   const spriteId = spriteIdFor(entry);
   const sprite = spriteId ? getPixelSprite(spriteId) : undefined;

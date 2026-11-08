@@ -30,6 +30,7 @@ import type { RgbaImage } from './pngCodec';
 import { blit, blitRotated, hexToRgb, newCanvas, type SpriteLoader } from './sceneRenderer';
 import { WeaponType } from '@/types/game';
 import type { PixelWeaponInput } from './weaponCompositor';
+import { legendaryAuthoredForWeapon } from './legendaryArt';
 import {
   composeWeaponCard,
   WEAPON_CARD_GRIP_FRACTIONS,
@@ -320,13 +321,25 @@ export function cardGripFraction(weaponType: WeaponType): PartPoint {
   return WEAPON_CARD_GRIP_FRACTIONS[weaponType] ?? WEAPON_CARD_GRIP_FRACTIONS[WeaponType.Pistol];
 }
 
-/** Fractions for a compositor (kit) weapon, from its HELD card
- *  render (One Grammar, 2026-11-06): the grip is the type's
- *  declared card anchor; the muzzle is the render's rightmost
- *  opaque cell — the same measurement composePartSet applies to
- *  the rasterized render. */
+/** Fractions for a compositor weapon, from its HELD card render
+ *  (One Grammar, 2026-11-06): the grip is the type's declared card
+ *  anchor; the muzzle is the render's rightmost opaque cell — the
+ *  same measurement composePartSet applies to the rasterized
+ *  render. A bespoke legendary (V4) instead reads its own declared
+ *  grip/muzzle anchors from its authored set — the per-type grip
+ *  describes the procedural grip cluster, not this weapon's grip,
+ *  and its measured muzzle is the identity's FX point (e.g. Market
+ *  Crash's fin tip), not the rightmost cell. */
 export function compositorWeaponFractions(input: PixelWeaponInput): PartsWeaponFractions {
   const render = composeWeaponCard(input, undefined, { held: true });
+  const legendarySet = legendaryAuthoredForWeapon(input);
+  if (legendarySet) {
+    return {
+      gripFrac: { x: legendarySet.grip.x / render.width, y: legendarySet.grip.y / render.height },
+      muzzleFrac: { x: (legendarySet.muzzle.x + 0.5) / render.width, y: (legendarySet.muzzle.y + 0.5) / render.height },
+      aspect: render.height / render.width,
+    };
+  }
   let bestX = -1;
   let bestY = 0;
   for (let y = 0; y < render.height; y++) {
