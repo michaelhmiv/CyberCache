@@ -71,6 +71,12 @@ interface PixelStageProps {
   /** While true, the vista pan advances (roaming). Other modes hold
    *  the pan where it is. */
   vistaPanActive?: boolean;
+  /** Pan clock rate (Motion M2b): a STABLE ref object owned by the
+   *  caller — the travel beat's driver writes the stride-synced
+   *  rate into it per frame, and the stage's clock advances
+   *  panMs += dt × rate while the pan is active. Absent = rate 1
+   *  (the ambient drift, the pre-M2b behavior exactly). */
+  vistaPanRateRef?: { current: number };
 }
 
 export const PixelStage: React.FC<PixelStageProps> = ({
@@ -87,6 +93,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
   hot = false,
   vistaScene = null,
   vistaPanActive = false,
+  vistaPanRateRef,
 }) => {
   const background = requirePixelSprite(backgroundId);
   const ground = groundY ?? background.anchors.groundLine?.y ?? 0.86;
@@ -190,7 +197,9 @@ export const PixelStage: React.FC<PixelStageProps> = ({
       const dt = Math.min(100, now - last);
       last = now;
       vistaClockRef.current.wallMs += dt;
-      if (vistaPanActiveRef.current) vistaClockRef.current.panMs += dt;
+      if (vistaPanActiveRef.current) {
+        vistaClockRef.current.panMs += dt * (vistaPanRateRef?.current ?? 1);
+      }
       paint();
       raf = requestAnimationFrame(step);
     };
