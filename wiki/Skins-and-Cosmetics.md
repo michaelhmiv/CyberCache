@@ -151,6 +151,18 @@ from before the retirement still exist and wear as items the
 same way; no new ones can be crafted or listed. A worn head part
 overrides the pick while it's on.
 
+## How the figure is jointed
+
+Your hunter is assembled from his parts on a jointed rig every
+time he appears — Wardrobe, Gear, and the Home stage all draw the
+same figure from the same parts. The legs are jointed at the knee
+now, the same way the arms have always been jointed at the elbow:
+the shin hangs off the thigh's knee instead of being pinned to
+the ground, so the legs can genuinely articulate. Every part
+renders exactly as before — same pictures, same anchors, same
+poses — the joint is groundwork for the hunter's stride, which
+arrives with the travel beat it belongs to.
+
 ## Tinting and Chromaweave
 
 Any owned part can be **tinted** at the Workshop's Tinting lane:
