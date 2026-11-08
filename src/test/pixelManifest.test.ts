@@ -12,6 +12,7 @@ import {
   getPixelSprite,
   listPixelSprites,
 } from '@/lib/pixel/manifest';
+import { legendaryAuthoredSetForId } from '@/lib/pixel/legendaryArt';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const pixelDir = join(repoRoot, 'src', 'assets', 'pixel');
@@ -40,7 +41,6 @@ const REQUIRED_ANCHORS: Record<string, string[]> = {
   character: ['feet', 'centerMass', 'muzzle', 'lootPoint', 'grip'],
   enemy: ['feet', 'centerMass', 'lootPoint'],
   prop: ['feet', 'centerMass', 'lootPoint'],
-  'weapon-legendary': ['muzzle', 'grip', 'centerMass', 'lootPoint'],
   background: ['groundLine'],
 };
 
@@ -48,11 +48,17 @@ describe('pixel sprite manifest — integrity', () => {
   const manifest = getPixelManifest();
 
   it('has at least the P1 proof sprites registered', () => {
-    for (const id of ['part-si-torso', 'brute', 'crate', 'legendary-emberfall', 'zone-dustwaste-bg']) {
+    for (const id of ['part-si-torso', 'brute', 'crate', 'zone-dustwaste-bg']) {
       expect(manifest.sprites[id], `missing sprite ${id}`).toBeDefined();
       expect(getPixelSprite(id)?.url).toBeTruthy();
     }
     expect(listPixelSprites().length).toBe(Object.keys(manifest.sprites).length);
+  });
+
+  it('the 26 legendary ids are NOT baked sprites anymore (V4: authored data)', () => {
+    for (const spriteId of Object.values(BESPOKE_LEGENDARY_SPRITES)) {
+      expect(manifest.sprites[spriteId], `${spriteId} must not be a manifest sprite`).toBeUndefined();
+    }
   });
 
   it('every manifest file exists on disk with the declared dimensions', () => {
@@ -82,12 +88,12 @@ describe('pixel sprite manifest — integrity', () => {
     }
   });
 
-  it('area + bespoke maps point at real sprites', () => {
+  it('area maps point at real sprites; the bespoke legendary map points at authored sets', () => {
     for (const spriteId of Object.values(PIXEL_AREA_BACKGROUNDS)) {
       expect(getPixelSprite(spriteId)?.kind).toBe('background');
     }
     for (const spriteId of Object.values(BESPOKE_LEGENDARY_SPRITES)) {
-      expect(getPixelSprite(spriteId)?.kind).toBe('weapon-legendary');
+      expect(legendaryAuthoredSetForId(spriteId), `${spriteId} authored set`).toBeDefined();
     }
     expect(bespokeSpriteIdForWeaponName('Emberfall')).toBe('legendary-emberfall');
     expect(bespokeSpriteIdForWeaponName('Some Procedural Rifle')).toBeUndefined();

@@ -14,7 +14,10 @@ the moment it happened. You can't claim an entry; you can only earn it.
   entry is pictured by that effect's own bespoke weapon art — the
   same fixed art the dropped weapon itself wears — and the weapon
   type the art depicts is the type the drop always is: the art and
-  the item agree.
+  the item agree. The entry art renders through the weapon
+  compositor from the legendary's authored pixel set (the V4 pass),
+  and undiscovered entries show as dark silhouettes of the same
+  render.
 - **Bosses — 13 entries.** One for every boss in the roster. An entry
   fills when you beat that boss — see [[Bosses]].
 - **Weapon Frames — 36 entries.** Every weapon type × manufacturer

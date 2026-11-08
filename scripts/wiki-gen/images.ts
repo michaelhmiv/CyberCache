@@ -6,47 +6,49 @@
  *
  * Sources of truth (nothing here invents art):
  *   - src/test/legendaryParityTable.ts — the pinned fixture enumerating the
- *     26 named legendaries (25 effects + Emberfall) with their sprite ids.
+ *     26 named legendaries (25 effects + Emberfall) with their art ids.
  *   - src/constants/legendaryEffects.ts — effect id -> display name.
- *   - src/lib/pixel/manifest.ts — BESPOKE_LEGENDARY_SPRITES (name -> sprite
- *     id). PARSED from source text, not imported: the module calls Vite's
- *     import.meta.glob at load time, which tsx cannot run (same reason
+ *   - src/lib/pixel/legendaryArt.ts — BESPOKE_LEGENDARY_SPRITES (name ->
+ *     legendary art id). PARSED from source text, not imported, keeping
+ *     this generator free of game-module loading (the same reason
  *     legendaryEffects.ts parses applyLegendaryEffects comments as text).
- *   - src/assets/pixel/manifest.json — sprite id -> source file.
- *   - src/assets/pixel/sprites/*.png — the bespoke art itself.
+ *   - src/lib/pixel/legendaryAuthoredData.ts — the authored pxl piece
+ *     set behind each art id (the art itself, as data).
  *   - src/lib/pixel/showcaseWeaponInput.ts + weaponCardCompositor.ts — the
- *     game's own representative-instance mapping and card renderer, used for
- *     the compositor fallback below.
+ *     game's own representative-instance mapping and card renderer.
  *
- * Resolution order mirrors PixelWeapon.tsx / manifest.ts exactly: a weapon's
- * own name wins, else its legendary effect's name decides, else the pixel
- * compositor renders it. Every legendary resolves bespoke; the generator
- * ASSERTS the resolved sprite id equals the parity fixture's pinned id, so
- * if the map, the fixture, and the game ever drift apart the wiki build
- * fails loudly instead of picturing the wrong gun.
+ * Resolution order mirrors PixelWeapon.tsx / legendaryArt.ts exactly: a
+ * weapon's own name wins, else its legendary effect's name decides, else
+ * the pixel compositor renders it procedurally. Every legendary resolves
+ * to its authored set; the generator ASSERTS the resolved art id equals
+ * the parity fixture's pinned id, so if the map, the fixture, and the
+ * game ever drift apart the wiki build fails loudly instead of picturing
+ * the wrong gun.
  *
  * Representative instances are built the showcase way: a fixed
  * ShowcaseItemPayload per legendary (fixed display name, the definition /
  * depicted weapon type from the parity fixture, a fixed pixel seed hashed
  * from the sprite id, rollQuality 100, no affixes) run through
  * showcaseWeaponInput(). Manufacturer and element are presentation-only
- * picks derived from the same fixed seed — the bespoke path ignores them;
- * they exist so the compositor fallback renders a valid, stable card.
+ * picks derived from the same fixed seed — the bespoke authored branch
+ * ignores them; the identity palette comes from the authored set.
  *
- * Plate treatment: bespoke sprites ship at 512 px wide painted art. A plate
- * is the sprite decoded with the game's own pngCodec, box-downscaled 2:1
- * with premultiplied-alpha averaging (the same canonical downscale idea as
- * scripts/pixel-key.py; edge boxes average fewer samples, no row or column
- * is dropped), and re-encoded with pngCodec. Output is 256 px wide,
- * byte-deterministic: same sources in, same bytes out — the double-render
- * diff is the gate, and wiki:gen:check byte-compares the committed plates.
+ * Plate treatment (V4): a plate is the game's own card render of the
+ * representative instance (composeWeaponCard — the same pixels the Gear
+ * card and loot reveal show, halo furniture included), rasterized at 2x
+ * paint scale to a 480x176 plate and displayed at 240 wide. Before V4 the
+ * plates were 2:1 box-downscales of the 512px painted sprites; those
+ * PNGs are deleted and the authored render is the only legendary art
+ * left to picture. Byte-deterministic: same sources in, same bytes
+ * out — the double-render diff is the gate, and wiki:gen:check
+ * byte-compares the committed plates.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { LEGENDARY_EFFECTS } from '../../src/constants/legendaryEffects';
 import type { ShowcaseItemPayload } from '../../src/lib/api/verifiedOps';
-import { decodePng, encodePng, type RgbaImage } from '../../src/lib/pixel/pngCodec';
+import { encodePng, type RgbaImage } from '../../src/lib/pixel/pngCodec';
 import { showcaseWeaponInput } from '../../src/lib/pixel/showcaseWeaponInput';
 import { composeWeaponCard } from '../../src/lib/pixel/weaponCardCompositor';
 import type { PixelWeaponInput } from '../../src/lib/pixel/weaponCompositor';
@@ -64,17 +66,17 @@ export const LEGENDARY_PLATE_DIR = 'images/weapons/legendary';
 export const PLATE_DISPLAY_WIDTH = 240;
 
 /* ------------------------------------------------------------------ */
-/* Bespoke sprite resolution (mirrors src/lib/pixel/manifest.ts)       */
+/* Bespoke legendary resolution (mirrors src/lib/pixel/legendaryArt)   */
 /* ------------------------------------------------------------------ */
 
 let bespokeMapCache: Record<string, string> | null = null;
 
-/** BESPOKE_LEGENDARY_SPRITES, parsed from manifest.ts source text. */
+/** BESPOKE_LEGENDARY_SPRITES, parsed from legendaryArt.ts source text. */
 export function bespokeLegendarySprites(): Record<string, string> {
   if (bespokeMapCache) return bespokeMapCache;
-  const src = readFileSync(join(REPO_ROOT, 'src/lib/pixel/manifest.ts'), 'utf8');
+  const src = readFileSync(join(REPO_ROOT, 'src/lib/pixel/legendaryArt.ts'), 'utf8');
   const block = /export const BESPOKE_LEGENDARY_SPRITES[^=]*= \{([\s\S]*?)\};/.exec(src);
-  if (!block) throw new Error('images: BESPOKE_LEGENDARY_SPRITES not found in src/lib/pixel/manifest.ts');
+  if (!block) throw new Error('images: BESPOKE_LEGENDARY_SPRITES not found in src/lib/pixel/legendaryArt.ts');
   const map: Record<string, string> = {};
   for (const m of block[1].matchAll(/(?:'([^']+)'|([A-Za-z][\w]*)):\s*'([^']+)'/g)) {
     map[(m[1] ?? m[2]).toLowerCase()] = m[3];
@@ -97,8 +99,8 @@ export function legendarySpriteIdForEffect(effectId: string): string {
 }
 
 /**
- * bespokeSpriteIdForWeapon's order, re-implemented because manifest.ts is
- * Vite-only under tsx: the weapon's own name wins, else its effect's name.
+ * bespokeSpriteIdForWeapon's order, re-implemented over the parsed map:
+ * the weapon's own name wins, else its effect's name.
  */
 function resolveBespokeSpriteId(input: PixelWeaponInput): string | undefined {
   const map = bespokeLegendarySprites();
@@ -151,23 +153,6 @@ function representativeInput(row: LegendaryArtParityRow): PixelWeaponInput {
 /* Rasterizers                                                         */
 /* ------------------------------------------------------------------ */
 
-interface SpriteManifestFile {
-  sprites: Record<string, { src: string; width: number; height: number }>;
-}
-
-let spriteManifestCache: SpriteManifestFile | null = null;
-
-function spriteFileBytes(spriteId: string): Uint8Array {
-  if (!spriteManifestCache) {
-    spriteManifestCache = JSON.parse(
-      readFileSync(join(REPO_ROOT, 'src/assets/pixel/manifest.json'), 'utf8'),
-    ) as SpriteManifestFile;
-  }
-  const entry = spriteManifestCache.sprites[spriteId];
-  if (!entry) throw new Error(`images: sprite "${spriteId}" missing from src/assets/pixel/manifest.json`);
-  return new Uint8Array(readFileSync(join(REPO_ROOT, 'src/assets/pixel', entry.src)));
-}
-
 /**
  * 2:1 box downscale with premultiplied-alpha averaging: transparent pixels
  * contribute their alpha but not their (meaningless) RGB, so edges do not
@@ -212,7 +197,9 @@ export function boxDownscaleHalf(img: RgbaImage): RgbaImage {
   return { width, height, data };
 }
 
-/** The compositor fallback: a weapon card rendered to pixels at 2x paint scale. */
+/** A weapon card rendered to pixels at 2x paint scale — since V4 this
+ *  is THE legendary plate rasterizer (the authored sets render through
+ *  the compositor; there is no painted sprite left to photograph). */
 export function rasterizeWeaponCard(input: PixelWeaponInput): RgbaImage {
   const card = composeWeaponCard(input);
   const scale = 2;
@@ -304,19 +291,18 @@ export function legendaryPlateImgTag(name: string, spriteId: string): string {
 function renderLegendaryPlate(row: LegendaryArtParityRow): GenAsset {
   const input = representativeInput(row);
   const spriteId = resolveBespokeSpriteId(input);
-  if (spriteId !== undefined && spriteId !== row.spriteId) {
+  // V4: every legendary MUST resolve to its authored set — an
+  // unresolved representative input would silently picture a
+  // procedural gun, so it fails as loudly as a mismatched id.
+  if (spriteId !== row.spriteId) {
     throw new Error(
-      `images: ${row.name} resolved to sprite "${spriteId}" but the parity fixture pins "${row.spriteId}" — ` +
+      `images: ${row.name} resolved to legendary art "${spriteId ?? '(none — procedural)'}" but the parity fixture pins "${row.spriteId}" — ` +
         'the bespoke map, the fixture, and the game disagree; fix the source, not the wiki.',
     );
   }
-  const image =
-    spriteId !== undefined
-      ? boxDownscaleHalf(decodePng(spriteFileBytes(spriteId)))
-      : rasterizeWeaponCard(input);
   return {
     path: `${LEGENDARY_PLATE_DIR}/${legendaryPlateFileName(row.spriteId)}`,
-    bytes: encodePng(image),
+    bytes: encodePng(rasterizeWeaponCard(input)),
   };
 }
 

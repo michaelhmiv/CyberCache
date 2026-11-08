@@ -177,9 +177,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 191 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 192 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-07** — 19 merges
+**2026-11-07** — 20 merges
 
 - #435 — test(pixel): Pxl Craft Sweep S2 — lint gate (pxl semantics + banding) over 366 real renders
 - #436 — feat(pixel): One Grammar — the stage holds the card render (held mode); pixel path retires from the stage
@@ -200,6 +200,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #451 — Motion Reboot M2: Home ROAM stage on Pixi (pilot standard)
 - #452 — Motion M4a — extraction works the site: sift cycle + settled finds rise on the main stage
 - #453 — Motion Reboot M3: endless fights come home to the main stage
+- #454 — V1 Vista Landing — authored vistas replace the zone paintings (bands + pan + ambient, camp idle)
 
 **2026-11-06** — 10 merges
 

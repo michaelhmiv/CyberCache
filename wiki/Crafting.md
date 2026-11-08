@@ -17,6 +17,10 @@ at a glance and doors back here.)
 While a job runs, you can watch it happen: your hunter works the
 bench on the Home stage — weapon slung, striking the work — and
 the bench scene in the Workshop shows the same work up close.
+The item being made sits on the bench as its real render; a
+legendary weapon seats by the grip and muzzle anchors declared
+in its authored pixel set (the V4 pass), the same anchors that
+place it in the hunter's hands on the stage.
 Each finished unit rises off the bench in a small celebration;
 the job queue keeps the official record.
 

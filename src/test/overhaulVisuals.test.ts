@@ -262,6 +262,13 @@ describe('performance + payload budgets (§4.9)', () => {
     // them — a −2,686,812 B delta; manifest-sum total on this tree
     // after landing: 8,260,959 B. The ceiling stays 11,620,000 by
     // the same owner ruling.
+    // V4 legendaries (2026-11-08): the 26 bespoke legendary weapon
+    // PNGs (1,478,328 B) leave the bundle; each legendary is now a
+    // hand-authored pxl piece set in legendaryAuthoredData.ts
+    // (code-side data, outside this manifest sum) rendering through
+    // the weapon compositors. Manifest-sum total after V4:
+    // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
+    // ruling — held, not lowered.
     expect(total).toBeLessThan(11_620_000);
   });
 });

@@ -134,7 +134,9 @@ rarity climbs (on a sniper: a magazine stripe at Uncommon, a
 receiver line at Rare, a chamber line at Epic), an edge glow on Epic, and a gold halo on Legendary (in hand,
 a Legendary keeps its gold trim; the halo ring itself is card
 display only). Named legendaries keep their own bespoke art on
-every surface.
+every surface — since the V4 pass, that art is hand-authored pixel
+data (one authored piece set per legendary) rendered by the same
+weapon compositor as every procedural gun, not a painted sprite.
 
 ## Rarity and affixes
 
