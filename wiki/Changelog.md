@@ -6,6 +6,8 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 - **The named legendaries are hand-drawn now** — all 26 bespoke legendary weapons have been re-authored in the game's pixel craft, each as its own drawn piece: Armor Eater's vials and maw, Jackpot's reels and coin tray, Void Bargain's portal ring, Borrowed Time's clock face. Same names, same effects, same guns — they now render from the same drawn system as every other weapon, so the legendary you win reads identically in the reveal, on its card, in the inspect sheet, and in your hunter's hands. The swap also retired about 1.5 MB of old sprite files.
 
+- **The tab icon is lighter now** — the browser-tab and home-screen icon (the cache crate bursting open) was recompressed the same way the logo was: the full-quality original is kept in the branding archive, and the shipped icon is about 62% smaller with the same picture at every size it is ever shown.
+
 ## 2026-11-08 — The places come alive
 
 - **The workshop's rooms are real places now** — the bench scene in the Workshop and the repair and shield-tech bays on the Market boards no longer stand in front of a painted backdrop: each stands in its actual area, with that area's own weather and life moving behind the work — furnace smoke and embers at the BlastForge bench, dust and signal lights in the ThrowTech bays. Same benches, same work — the rooms finally match the world outside.
@@ -186,12 +188,13 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 194 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 195 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-08** — 2 merges
+**2026-11-08** — 3 merges
 
 - #455 — V4 — the 26 bespoke legendaries join the authored grammar
 - #456 — Changelog catch-up — V4 legendaries (#455)
+- #457 — M4c — Presence: panel scenes inherit their vista; the stall cycle
 
 **2026-11-07** — 20 merges
 
