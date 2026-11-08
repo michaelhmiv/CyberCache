@@ -10,6 +10,7 @@ import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_SCENE, type WorkCycleSpec } from '
 import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
 import { GRAMMAR } from '@/lib/pixel/grammar';
 import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
+import { requireSetSeat, seatPointBottomPct, seatPointTopPct } from '@/lib/pixel/setSeats';
 import { vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 
 /**
@@ -233,9 +234,15 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
   // Real-item invariant: no vehicle assigned to the bay renders NO
   // vehicle — the scene never invents a generic stand-in buggy.
   const vehicle = vehicleSpriteId ? getPixelSprite(vehicleSpriteId) : undefined;
+  // The lift's deck is a declared seat (setSeats.ts): the vehicle
+  // stands ON the deck line and the work FX burst from it — both
+  // derived from the seat record, not from constants tuned against
+  // the retired painting (whose deck sat lower in its frame).
+  const liftSeat = requireSetSeat('set-bay-lift');
+  const liftHeightPct = 38;
   return (
     <SceneShell backgroundId={backgroundId} testId="repair-bay-scene" reduced={reduced} {...rest}>
-      <PixelActor spriteId="set-bay-lift" xPct={62} heightPct={38} groundY={groundY} reduced={reduced} breathe={false} testId="repair-bay-lift" />
+      <PixelActor spriteId="set-bay-lift" xPct={62} heightPct={liftHeightPct} groundY={groundY} reduced={reduced} breathe={false} testId="repair-bay-lift" />
       <PixelActor spriteId="set-bay-wall-listing" xPct={16} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} />
       {vehicle && (
         <img
@@ -244,11 +251,11 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
           draggable={false}
           data-testid="repair-bay-vehicle"
           className="absolute"
-          style={{ left: '44%', bottom: `${(1 - groundY) * 100 + 4}%`, width: '30%', imageRendering: 'pixelated', zIndex: 6 }}
+          style={{ left: '44%', bottom: `${seatPointBottomPct(liftSeat, liftHeightPct, groundY)}%`, width: '30%', imageRendering: 'pixelated', zIndex: 6 }}
         />
       )}
       <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
-      <BenchFx spec={spec} active={active} reduced={reduced} xPct={62} yPct={(groundY - 0.22) * 100} testId="repair-bay-fx" />
+      <BenchFx spec={spec} active={active} reduced={reduced} xPct={62} yPct={seatPointTopPct(liftSeat, liftHeightPct, groundY)} testId="repair-bay-fx" />
       <PixelPartsActor
         set={look.set}
         partPalettes={look.partPalettes}
@@ -286,24 +293,40 @@ export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: st
   const spec = sceneSpec('shieldTechBay');
   const active = sceneWorking({ ...rest, working });
   const glyph = behaviorGlyphId ? getPixelSprite(behaviorGlyphId) : undefined;
+  // The ring's center is a declared seat (setSeats.ts): the glyph
+  // renders as a child of the rig's own actor box, centered on the
+  // seat point and sized to the seat's disc (maxItemPx against the
+  // rig's authored height), and the work FX walk the same center —
+  // no constants tuned against the retired painting's frame.
+  const rigSeat = requireSetSeat('set-calibration-rig');
+  const rigSprite = requirePixelSprite('set-calibration-rig');
+  const rigHeightPct = 38;
   return (
     <SceneShell backgroundId={backgroundId} testId="shieldtech-bay-scene" reduced={reduced} {...rest}>
-      <PixelActor spriteId="set-calibration-rig" xPct={62} heightPct={38} groundY={groundY} reduced={reduced} breathe={false} testId="shieldtech-calibration-rig" />
+      <PixelActor spriteId="set-calibration-rig" xPct={62} heightPct={rigHeightPct} groundY={groundY} reduced={reduced} breathe={false} testId="shieldtech-calibration-rig">
+        {glyph && (
+          <img
+            src={glyph.url}
+            alt=""
+            draggable={false}
+            data-testid="shieldtech-behavior-glyph"
+            className="absolute"
+            style={{
+              left: `${rigSeat.point.x * 100}%`,
+              top: `${rigSeat.point.y * 100}%`,
+              height: `${(rigSeat.maxItemPx.h / rigSprite.height) * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              imageRendering: 'pixelated',
+              zIndex: 6,
+            }}
+          />
+        )}
+      </PixelActor>
       <PixelActor spriteId="set-bay-wall-listing" xPct={16} heightPct={30} groundY={groundY} reduced={reduced} breathe={false} />
-      {glyph && (
-        <img
-          src={glyph.url}
-          alt=""
-          draggable={false}
-          data-testid="shieldtech-behavior-glyph"
-          className="absolute"
-          style={{ left: '56%', bottom: `${(1 - groundY) * 100 + 16}%`, width: '12%', imageRendering: 'pixelated', zIndex: 6 }}
-        />
-      )}
       <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
       {/* The calibration sweep walks its arc around the rig's
-          emitter ring — the glyph's own center. */}
-      <BenchFx spec={spec} active={active} reduced={reduced} xPct={62} yPct={(groundY - 0.28) * 100} testId="shieldtech-bay-fx" />
+          emitter ring — the glyph's own center, from the seat. */}
+      <BenchFx spec={spec} active={active} reduced={reduced} xPct={62} yPct={seatPointTopPct(rigSeat, rigHeightPct, groundY)} testId="shieldtech-bay-fx" />
       <PixelPartsActor
         set={look.set}
         partPalettes={look.partPalettes}

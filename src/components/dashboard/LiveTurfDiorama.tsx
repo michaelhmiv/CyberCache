@@ -37,6 +37,7 @@ import {
   type BenchRisePlan,
 } from '@/lib/pixel/benchSeat';
 import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_MODE } from '@/lib/pixel/workCycle';
+import { SET_SEATS, seatPointTopPct } from '@/lib/pixel/setSeats';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import type { WorkshopCompletionView } from '@/store/slices/workshopSlice';
 import { ENEMY_POSES, enemyRig } from '@/lib/pixel/rig';
@@ -553,6 +554,19 @@ const PixelSceneLayerDom: React.FC<{
       )
     : undefined;
   const seatPlan = benchSeatPlanForJob(benchLaneJob);
+  // Work point (V2 set landing, 2026-11-08): the FX and the seated
+  // item ride the set piece's own declared seat (setSeats.ts) in
+  // the modes whose piece is a V2-authored piece — the crusher's
+  // mouth rim for salvaging, the lift's deck for workshop service.
+  // Both seats are horizontally centered on their piece's feet
+  // anchor, so the shared xPct (60) stays exact; only the height
+  // derives. The crafting lane's bench is #447's own build, not
+  // the V2-authored bench, so its seat row does not describe the
+  // shipped art and the lane keeps the point #447 tuned for it.
+  const workSeatPieceId = mode === 'salvaging' ? 'set-refinery-crusher' : mode === 'workshopService' ? 'set-bay-lift' : null;
+  const workSeat = workSeatPieceId ? SET_SEATS[workSeatPieceId]?.seat ?? null : null;
+  const workSeatHeightPct = mode === 'salvaging' ? 34 : 36;
+  const workPointYPct = workSeat ? seatPointTopPct(workSeat, workSeatHeightPct, groundY) : (groundY - 0.17) * 100;
   // Salvage completion beat (M4b): salvaging has no workshop
   // mirror, so its completions arrive on the salvage feed — the
   // store every recycle result already pushes to. A fresh settled
@@ -812,7 +826,7 @@ const PixelSceneLayerDom: React.FC<{
           active={benchWorking && !benchCelebrating}
           reduced={reduced}
           xPct={60}
-          yPct={(groundY - 0.17) * 100}
+          yPct={workPointYPct}
           testId="bench-fx"
         />
       )}
@@ -840,7 +854,7 @@ const PixelSceneLayerDom: React.FC<{
         <div
           data-testid="bench-seat"
           className="pointer-events-none absolute z-20 flex items-center justify-center"
-          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+          style={{ left: '60%', top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
         >
           <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
         </div>
