@@ -87,9 +87,12 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   its workspace duplicated the scene below); workspaces and panels carry
   controls and information only, never a second animated scene. A still
   poster header is acceptable where a panel needs a visual. The Boss and
-  Endless panels' combat-resolution playback is not a scene in this
-  sense: it animates the Chef's returned result (ARCHITECTURE.md), it
-  does not duplicate the Stage.*
+  Endless panels' combat-resolution playback does not live in the panels
+  at all: both publish the Chef's returned result to this Stage (boss:
+  the 2026-11-06 stage-home fix; endless: Motion Reboot M3), where the
+  playback IS the Stage's state — the panels keep prep, controls, and
+  result only. Playback animates the Chef's returned result
+  (ARCHITECTURE.md); it never produces one.*
 - **The Rail** — one compact chip rail for modes and sections (Home modes, Gear
   stops, Market stops), current state lit. The rail is a screen's
   table of contents: every stop is a destination, not a scroll position.
@@ -1687,6 +1690,60 @@ every pass by type and count):
   movement.ts is unmodified.
 - **Reduced motion** restores the pre-M4a picture exactly: held
   `work` pose, no cycle, no FX, no rises.
+
+### Endless comes home — Motion Reboot M3 (2026-11-07)
+
+Motion Reboot grill ruling 5, executed on the boss fight's
+stage-home pattern: an endless fight's animated home is the MAIN
+stage. The defect it closes is the PR #384 follow-up — the endless
+kind had no stage mode at all, so `modeFromActivity` fell through
+to the idle scene and the stage showed the CAMP VISTA for a run's
+whole duration while the Chaos Chamber panel ran a second, private
+fight stage inside its own card. Two animated stages during a
+run's fight, and the wrong one on Home.
+
+- **The publishing pattern, carried.** The Endless panel walks the
+  Chef-decided encounter exactly as the boss panel walks its
+  attempt, and publishes every snapshot to the boss store
+  (`endlessPresentation`) alongside its own HP readout state; the
+  diorama renders `BossFightStage embedded` under
+  `data-testid="diorama-endless-fight"`. The presentation model is
+  shared, not forked — one fight engine, one stage. The panel
+  mounts no fight stage; it keeps depth, escrow, banking, the
+  action-skill control, the result card, and both HP readouts.
+- **The identity guard is the run id.** Migration 0028 pins the
+  endless run into its activity slot (`active_actions.target_id =
+  run id`, re-guarded on every advance), so the screen hands the
+  diorama the record's `targetId` and the stage honors a
+  presentation or presence only when its run id matches — a stale
+  publication from a finished or abandoned run can never wear the
+  stage. This is the boss path's `bossId === challenged boss`
+  guard with the run as the identity.
+- **Presence is the between-fights state — a deliberate choice,
+  not camp-by-accident.** While a run is live, the panel publishes
+  the run's presence: the NEXT encounter standing in its own arena
+  on the main stage (boss depths: the kit's arena; pack depths:
+  their rotation area's ground — the same backdrop derivation the
+  fight stage uses, so presence and fight share one backdrop per
+  encounter), hunter at armed standby, the boss-prep treatment.
+  The camp crate never renders during a run. The depth band's
+  tint stays a fight-stage property; presence carries no tint.
+- **Defeat closes the run, unchanged.** The ladder, entry costs,
+  rewards, and banking are untouched (zero server diff); a defeat
+  still ends the run at the encounter, and the stage publications
+  retire with it — the panel's ended card is the run's last word.
+  The stage's boss HP plate overlay is deliberately NOT extended
+  to endless: the panel owns both HP readouts. A run whose panel
+  has not published yet (the loading transient) shows the hunter
+  at standby on the roam ground with no crate and no enemy —
+  presence replaces it the moment the panel loads.
+- **Pinned by `src/test/endlessStageHome.test.tsx`**: presence on
+  stage with no camp crate; the published fight on the main stage
+  (exactly one fight stage in the document); the run-id guard
+  (a foreign run's presentation never renders); a real advance
+  driving the fight end to end; defeat closing the run with both
+  publications cleared. `bossStageHome` passes unmodified — the
+  boss path is untouched. movement.ts is unmodified.
 
 ### The streak claim moment
 

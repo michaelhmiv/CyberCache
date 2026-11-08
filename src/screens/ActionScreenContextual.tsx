@@ -831,6 +831,7 @@ export const ActionScreenContextual: React.FC<{
           equippedCount={equippedCount}
           activityKind={currentKind}
           bossPhase={bossPhase}
+          endlessRunId={currentKind === 'endless_run' ? activity.current.targetId : undefined}
           stageControls={stageControls}
         />
         <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
