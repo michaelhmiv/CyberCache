@@ -12,6 +12,10 @@
         {
           "number": 456,
           "title": "Changelog catch-up — V4 legendaries (#455)"
+        },
+        {
+          "number": 457,
+          "title": "M4c — Presence: panel scenes inherit their vista; the stall cycle"
         }
       ]
     },

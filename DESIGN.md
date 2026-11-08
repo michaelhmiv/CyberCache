@@ -1380,6 +1380,68 @@ manifest total 8,260,959 B → 6,782,631 B; the 11,620,000 B
 ceiling is held, not lowered, per the standing owner
 ruling.
 
+**Hero polish (2026-11-08) — the ranked list, executed.** The
+polish slice the hero ship entry promised runs the integration
+pass's ranked list against the shipped conversion, in rank
+order, interior detail only: every silhouette measures IoU
+1.0 against the shipped sprite (alpha masks identical, cell
+for cell), anchors and pose maps untouched, palette identities
+unchanged, payload +166 B across eight sprites. (1) The Hood
+item is moot — the hood was excluded from the ship by owner
+ruling and keeps the H1 cowl. (2) **Bulwark helm dome** — the
+dome's mid-right was the broadest single-tone field in the rig
+(306 connected cells, measured): an arc seam with a lit lip
+now divides it into plates, with broken lip-shadow dashes
+under the seam; the flange collar's right end steps down on a
+diagonal and gains a mid seam, so the gorget reads as a curve,
+not a shelf. A filled floor-tone falloff was tried first and
+rejected on the composed figures — the pinned steel floor
+(`#02030a`) is a value cliff on the dome face and read as a
+black slot; the seam-and-shadow form carries the modeling
+instead (recorded in the polish evidence NOTES). (3)
+**Dreadplate thighB** — the front plate gains a modeled lit
+patch on its upper-left, lifting it a full step off the shaded
+mass it used to merge into. (4) **SI far-side leg pair** — the
+same treatment one severity lower on thighB, plus the
+lowerLegB shin plate's matching lit patch. (5) **Fin crest** —
+interior only: each spike's shade face gains a mid-rust facet
+(`m #954421`, hand-derived midpoint of the probed rust
+endpoints, the same derivation precedent as the hot edge),
+mounting tabs and band bolts seat the root band on the crown
+plate; crest density via silhouette is NOT taken — the
+crest's alpha is frozen with every other silhouette, and a
+denser crest is a separate owner ruling. (6) **Bulwark back
+lower machinery** — junction box under the left vents, a
+conduit run across the right panel, a brass maker's plate,
+and the left panel split's rivet pair. (7) **Dreadplate back
+tank face** — one vertical panel seam per band at its own x
+(never a grid), a lit scuff cluster and a dark chip cluster
+in band 2, band 3's right side stepping down toward the rail;
+the rail and its red status dot are untouched. (8) **SI back
+swept lower plate** — a lit shoulder band under the top seam
+and a curved seam following the sweep. (9) **SI torso right
+pec — deliberate no-change:** the list itself flags the plate
+as a deliberate design choice, and measurement backs leaving
+it: the plate is already modeled by two shade steps (the
+right-chest step-down and the far-side turn-away), the cyan
+slash, and its seam pixels; its single-tone area is a
+function of plate size, not missing form. **D4 register note
+(the integration drift item, recorded as called for):**
+palette key letters are per-family vocabularies and are NOT
+portable across families — `G` is the glint `#fdf394` in the
+SI / Bulwark / head-lane files but hot red `#ff3d3d` in the
+Dreadplate files, and `H` is Dreadplate's hot core `#ffd9d2`
+but the Hood file's cloth mid `#423620`. Nothing collides at
+runtime (palettes are per-file), but a palette block must
+never be copied across families without re-keying; any fifth
+batch authors its palette against this note. Evidence:
+`cybercache-prep/hero-pass/polish-evidence/` (per-part
+before/after renders at inspect + stage sizes, composed-rig
+pairs through the production compositor, diff-confinement
+audit — composed-figure diffs land only on the polished
+parts; the 63 regenerated golden baselines diff at ≤0.04%
+each, confined to the hunter's frame).
+
 ---
 
 ## 9. Surfacing — one canonical door per feature
