@@ -324,7 +324,15 @@ export const ROAM_POOL_CAPS = {
  * trimming it would mean dropping scene elements the DOM shows,
  * which is a behavior change, not an optimization.
  */
-export function roamAnimatedNodeCount(opts: { partCount: number; gearCount: number; armed: boolean; enemySegments: number }): number {
+export function roamAnimatedNodeCount(opts: { partCount: number; gearCount: number; armed: boolean; enemySegments: number; vista?: boolean }): number {
   const actors = opts.partCount + (opts.armed ? 1 : 0) + opts.gearCount + opts.enemySegments;
-  return actors + ROAM_POOL_CAPS.sparks + ROAM_POOL_CAPS.tracers + ROAM_POOL_CAPS.embers + ROAM_POOL_CAPS.oneShots;
+  // V1 vista scenes: the procedural ember pool stands down (the
+  // authored ambient sets carry the ember life) and the four
+  // ambient canvas sprites join the count; the band wrap pairs are
+  // vista dressing like the plates they replace. Full dress on a
+  // vista scene: 22 actors + 6 + 4 + 0 + 7 + 4 = 43 (vs 53 for the
+  // painting stack) — reported, not trimmed, same as ever.
+  const embers = opts.vista ? 0 : ROAM_POOL_CAPS.embers;
+  const vistaAmbient = opts.vista ? 4 : 0;
+  return actors + ROAM_POOL_CAPS.sparks + ROAM_POOL_CAPS.tracers + embers + ROAM_POOL_CAPS.oneShots + vistaAmbient;
 }

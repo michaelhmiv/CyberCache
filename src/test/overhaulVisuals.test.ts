@@ -210,6 +210,27 @@ describe('performance + payload budgets (§4.9)', () => {
     expect(GRAMMAR.card.widthPx).toBeGreaterThan(0);
   });
 
+  it('a full V1 vista stage stays inside the animated-node budget', () => {
+    // The vista composition swaps the DOM dressing, nothing else:
+    // the 3 parallax re-cut strips become 3 tileable band strips,
+    // and the 2 drifting aprops + the generic ember spans are
+    // superseded by 4 ambient canvases (far/mid/near/stage) whose
+    // elements instance from scene data — canvas draws, not DOM
+    // nodes, so the count is the canvases themselves.
+    const nodes =
+      countPartNodes(STANDARD_ISSUE) + // hunter parts 10
+      1 + // held weapon layer
+      countRigNodes(enemyRig('brute')) + // enemy rig 4
+      3 + // vista band strips
+      4 + // ambient canvases (far, mid, near, stage)
+      1 + // weather tint
+      1 + // hot pennant
+      5 + // tracers (max cadence) + muzzle + sparks + status + hit flash
+      5 + // vehicle + 3 affix overlays + status bars
+      6; // gear overlays (shield, relic, pauldron, 3 belt)
+    expect(nodes).toBeLessThanOrEqual(MOVEMENT.SEGMENT.MAX_ANIMATED_NODES);
+  });
+
   it('the shipped sprite payload stays inside the documented ceiling', () => {
     let total = 0;
     for (const entry of Object.values(sprites)) {
@@ -235,6 +256,12 @@ describe('performance + payload budgets (§4.9)', () => {
     // deliberately, 2026-11-06), and the freed ~649 KB is headroom
     // for the bestiary conversion, which lands with its own
     // accounting exactly like this one.
+    // V1 vista landing (2026-11-07): the 28 zone paintings (JPG
+    // stacks, 2,753,117 B) leave the bundle; the eight authored
+    // vista sets (bands + ambient + camp props, 66,305 B) replace
+    // them — a −2,686,812 B delta; manifest-sum total on this tree
+    // after landing: 8,260,959 B. The ceiling stays 11,620,000 by
+    // the same owner ruling.
     expect(total).toBeLessThan(11_620_000);
   });
 });

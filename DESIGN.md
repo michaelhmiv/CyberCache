@@ -1745,6 +1745,63 @@ run's fight, and the wrong one on Home.
   publications cleared. `bossStageHome` passes unmodified — the
   boss path is untouched. movement.ts is unmodified.
 
+### Vistas land — Full Visual Program V1 (2026-11-07)
+
+The eight authored vista sets replace the zone paintings as the
+home stage's backdrops: seven roaming areas (Dustwaste, Redline
+Circuit, Ironwood Bastion, BlastForge Yards, Prismatek, ThrowTech,
+HelixWorks) plus Camp. The paintings' JPG stacks (2,753,117 B)
+leave the bundle; the authored sets total 66,305 B.
+
+- **Bands display height-fit + pan, never object-cover.** Each
+  scene's far/mid/near bands are 1440 design-px wide (1.5x the
+  stage), authored tileable, and render wrapped — the DOM stage
+  tiles with repeat-x, the Pixi stage runs wrap pairs — so the
+  seam is invisible at any offset. While roaming, the scene PANS
+  across the band field on the proof model's parallax ratios
+  (far 0.25 / mid 0.55 / near 1.0, held as per-scene data in
+  `src/lib/pixel/vistaScenes.ts`). At rest the band's center crop
+  shows — the framing every set was composed for. The bg plate
+  stays a full-bleed cover sprite underneath. Boss and endless
+  ARENA backgrounds are not vista scenes and keep their own art;
+  panel scenes that borrow an area plate (crafting, extraction,
+  the cache stage) inherit the authored plate through the same
+  sprite swap, unchanged code.
+- **Ambient life instances from data, on both renderers.**
+  Each set's `ambient-motion.json` contract is normalized into
+  data rows next to the scene spec; a deterministic sampler
+  (`vistaAmbient.ts`) and ONE canvas painter serve the DOM stage
+  (one canvas per paint layer) and the Pixi stage (the same
+  canvases as textures), so parity is structural. Elements
+  anchored to a band structure — a reactor core, a gate pulse, a
+  furnace mouth — ride the pan glued to their hero; free elements
+  keep their own clocks (Layered-Motion Law: nothing is baked
+  into a band, elements move independently of the pan and of each
+  other). The authored sets supersede the aprop drift system and
+  the generic ember spans on vista scenes (the Dustwaste ember
+  row IS the ember spec, drawn from its authored sprites).
+  Reduced motion holds the pan and paints one static frame;
+  fallbacks follow the existing stage rules.
+- **Camp is the idle backdrop.** Idle no longer shows the current
+  area behind a lone crate: the authored camp scene serves, the
+  hunter takes the fire seat, and the camp props (fireglow,
+  crate, firepit, supply) stand at their seat-record positions as
+  separate sprites — flame, smoke, embers, and fireflies are
+  ambient-canvas life over them.
+- **Budgets hold.** DOM full dress counts 40 animated nodes
+  (bands 3 + ambient canvases 4 replacing re-cuts 3 + aprops 2 in
+  the §4.9 formula) — at, not over, the MAX_ANIMATED_NODES
+  budget. The Pixi roam count drops 53 → 43 (ember pool stands
+  down; ambient canvases join). Sprite payload: 8,260,959 B
+  manifest-sum after landing; the 11,620,000 ceiling is unmoved.
+- **Pinned by `src/test/vistaScenes.test.tsx`**: scene/sprite
+  resolution, painting removal, scene selection (arenas null),
+  wrap math, instancing from data, band-anchored pan riding,
+  blink duty, and the DOM stage's vista DOM shape. Golden
+  baselines regenerated — every changed scene is background-
+  driven (the renderer composites scenes over the zone plate).
+  movement.ts is unmodified; gameplay and economics untouched.
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in
