@@ -7,7 +7,7 @@ Data Caches are the game's box-opening lane: spend an opening, get a weapon forg
 There is **no daily cap, no free daily box, and no reset**. Every opening costs **1 cache key or one rewarded ad** — your choice, per opening, as many times a day as you can pay. Scarcity lives in the supply of keys, not in a budget: keys are rare, and ads are the always-available rail.
 
 - **Key opening:** spends exactly 1 cache key from your stock.
-- **Ad opening:** watch one short rewarded ad (in the Android app; rewarded ads are Android-only).
+- **Ad opening:** watch one short rewarded ad. The ad rail is the same on every platform (owner ruling, 2026-11-09) — until iOS ships, rewarded ads run in the Android app.
 - With no key and no ad, there is no opening — nothing is free, and nothing is owed at midnight.
 
 ## What a cache gives you
