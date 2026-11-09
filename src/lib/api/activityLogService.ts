@@ -15,7 +15,8 @@ import { apiRequest } from './http';
 
 export type ActivityRecordKind =
   | 'drop' | 'kills' | 'boss' | 'cache' | 'craft' | 'market'
-  | 'earnings' | 'settlement' | 'salvage' | 'dispatch' | 'endless' | 'system';
+  | 'earnings' | 'settlement' | 'salvage' | 'dispatch' | 'endless' | 'system'
+  | 'extraction' | 'service';
 
 /** Filter values the route accepts: every kind, plus 'away' (the away-era pseudo-kind). */
 export type ActivityLogKindFilter = ActivityRecordKind | 'away';
@@ -79,6 +80,42 @@ export interface ActivityRecord {
   areaName?: string | null;
   kills?: { count: number };
   earnings?: ActivityEarnings;
+  /** AL-4: extraction settlement facts, payload-proven only. */
+  extraction?: {
+    passesCompleted: number;
+    xpAwarded: number;
+    passes: Array<{
+      areaId: string | null;
+      areaName: string | null;
+      method: string | null;
+      deepDegraded: boolean | null;
+      xp: number | null;
+      signatureUnits: number | null;
+    }>;
+    materials: Record<string, number>;
+    essences: Record<string, number>;
+  };
+  /** AL-4: repair / shield-tech service-board facts. */
+  service?: {
+    board: string;
+    step: string;
+    role: 'poster' | 'worker';
+    jobId: string | null;
+    jobStatus: string | null;
+    outcome: string | null;
+    priceCredits: number | null;
+    paidCredits: number | null;
+    feeCredits: number | null;
+    xpAwarded: number | null;
+    pointsRestored: number | null;
+    targetPoints: number | null;
+    kitType: string | null;
+  };
+  /** AL-4: generic trace facts on system-family records. */
+  trace?: {
+    action: string;
+    facts: Array<{ label: string; value: string }>;
+  };
   boss?: {
     bossId: string;
     bossName: string | null;
@@ -111,7 +148,7 @@ export interface ActivityRecord {
     outputs: Array<{ name: string | null; count: number }>;
   };
   market?: {
-    direction: 'bought' | 'sold';
+    direction: 'bought' | 'sold' | 'listed' | 'cancelled';
     priceCredits: number;
     feeCredits: number | null;
     /** Sold records only: the credits the seller was actually credited (price − fee + any Silver Tongue uplift), proven by the sale's accept rows. Null when unproven. */
@@ -121,6 +158,7 @@ export interface ActivityRecord {
     listingId: string | null;
     goodsKey?: string | null;
     quantity?: number | null;
+    listingKind?: string | null;
   };
   settlement?: {
     elapsedMs: number | null;
@@ -128,8 +166,28 @@ export interface ActivityRecord {
     capReached: boolean | null;
     ticks: number | null;
   };
-  salvage?: { scrapAward: number; coresAward: number; auto?: boolean };
-  dispatch?: { family: string; payoutCredits: number; payoutFraction: number | null };
+  salvage?: {
+    scrapAward: number;
+    coresAward: number;
+    auto?: boolean;
+    batch?: boolean;
+    scrappedCount?: number;
+    maxRarity?: string | null;
+    countsByRarity?: Record<string, number>;
+    bonusMaterials?: Record<string, number>;
+  };
+  dispatch?: {
+    family: string;
+    payoutCredits: number;
+    payoutFraction: number | null;
+    step?: string;
+    areaId?: string | null;
+    areaName?: string | null;
+    durationHours?: number | null;
+    scrapAward?: number | null;
+    materialUnits?: number | null;
+    rerollCredits?: number | null;
+  };
   endless?: { status: string; depthReached: number };
   system?: { subtype: string };
 }

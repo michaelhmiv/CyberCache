@@ -29,6 +29,7 @@ const KIND_EYEBROW: Record<ActivityRecord['kind'], string> = {
   drop: 'Drop', kills: 'Kills', boss: 'Boss Fight', cache: 'Cache', craft: 'Craft',
   market: 'Market', earnings: 'Earnings', settlement: 'While Away', salvage: 'Salvage',
   dispatch: 'Dispatch', endless: 'Endless', system: 'System',
+  extraction: 'Extraction', service: 'Service Board',
 };
 
 interface FactRow { label: string; value: string; tone?: string }
@@ -243,6 +244,14 @@ function kindSections(record: ActivityRecord): ReactNode {
     }
     case 'craft': {
       const c = record.craft;
+      if (!c && record.trace) {
+        // Cancel rows carry no job snapshot — the trace facts are the record.
+        return (
+          <Section title="The Job" icon="hammer">
+            <FactRows rows={record.trace.facts} />
+          </Section>
+        );
+      }
       if (!c) return null;
       const rows: FactRow[] = [
         { label: 'Recipe', value: c.recipeName ?? c.recipeId },
@@ -257,7 +266,7 @@ function kindSections(record: ActivityRecord): ReactNode {
       const m = record.market;
       if (!m) return null;
       const rows: FactRow[] = [
-        { label: 'Trade', value: m.direction === 'bought' ? 'Bought' : 'Sold' },
+        { label: 'Trade', value: m.direction === 'bought' ? 'Bought' : m.direction === 'sold' ? 'Sold' : m.direction === 'listed' ? 'Listed' : 'Listing cancelled' },
         { label: 'Price', value: `${fmtNum(m.priceCredits)} cr`, tone: 'text-[#FFEA3A]' },
       ];
       if (m.feeCredits) rows.push({ label: 'Market fee', value: `${fmtNum(m.feeCredits)} cr` });
@@ -277,30 +286,102 @@ function kindSections(record: ActivityRecord): ReactNode {
       if (typeof s.capReached === 'boolean') rows.push({ label: 'Cap reached', value: s.capReached ? 'Yes — the rest waited' : 'No' });
       return <Section title="The Settlement" icon="clock"><FactRows rows={rows} /></Section>;
     }
-    case 'salvage':
-      return record.salvage ? (
+    case 'salvage': {
+      const s = record.salvage;
+      if (!s) return null;
+      const rows: FactRow[] = [];
+      if (s.auto) rows.push({ label: 'How', value: 'Auto-salvage — your rule' });
+      if (typeof s.scrappedCount === 'number') {
+        rows.push({ label: 'Items salvaged', value: fmtNum(s.scrappedCount) });
+        if (s.maxRarity) rows.push({ label: 'Ceiling', value: `${s.maxRarity} and under` });
+        for (const [rarity, count] of Object.entries(s.countsByRarity ?? {})) {
+          rows.push({ label: rarity, value: `${fmtNum(count)}` });
+        }
+      } else if (s.batch) {
+        rows.push({ label: 'How', value: 'Bulk salvage — one item of the batch' });
+      }
+      rows.push({ label: 'Scrap', value: `+${fmtNum(s.scrapAward)}`, tone: 'text-[#7CFC00]' });
+      if (s.coresAward > 0) rows.push({ label: 'Legendary cores', value: `+${s.coresAward}`, tone: 'text-[#FFEA3A]' });
+      for (const [name, count] of Object.entries(s.bonusMaterials ?? {})) {
+        rows.push({ label: `Bonus ${name}`, value: `+${fmtNum(count)}` });
+      }
+      return (
         <Section title="What It Paid" icon="recycle">
-          <FactRows rows={[
-            ...(record.salvage.auto
-              ? [{ label: 'How', value: 'Auto-salvage — your rule' } as FactRow]
-              : []),
-            { label: 'Scrap', value: `+${fmtNum(record.salvage.scrapAward)}`, tone: 'text-[#7CFC00]' },
-            ...(record.salvage.coresAward > 0
-              ? [{ label: 'Legendary cores', value: `+${record.salvage.coresAward}`, tone: 'text-[#FFEA3A]' } as FactRow]
-              : []),
-          ]} />
+          <FactRows rows={rows} />
+          {typeof s.scrappedCount === 'number' && (
+            <p className="mt-2 text-[11px] leading-snug text-text-muted">
+              Each salvaged item keeps its own line in the log — this is the batch's total.
+            </p>
+          )}
         </Section>
-      ) : null;
+      );
+    }
+    case 'extraction': {
+      const x = record.extraction;
+      if (!x) return null;
+      const rows: FactRow[] = [
+        { label: 'Passes', value: fmtNum(x.passesCompleted) },
+      ];
+      if (x.xpAwarded > 0) rows.push({ label: 'XP', value: `+${fmtNum(x.xpAwarded)}`, tone: 'text-[#7CFC00]' });
+      x.passes.forEach((p, i) => {
+        const parts = [p.method === 'deep_delve' ? 'Deep Delve' : p.method === 'surface' ? 'Surface' : p.method];
+        if (p.deepDegraded) parts.push('deep — held to Surface terms by gear');
+        if (p.areaName) parts.push(p.areaName);
+        if (p.xp !== null) parts.push(`+${fmtNum(p.xp)} XP`);
+        if (p.signatureUnits) parts.push(`${fmtNum(p.signatureUnits)} signature`);
+        rows.push({ label: `Pass ${i + 1}`, value: parts.filter(Boolean).join(' — ') });
+      });
+      for (const [name, count] of Object.entries(x.materials)) rows.push({ label: name, value: `+${fmtNum(count)}` });
+      for (const [name, count] of Object.entries(x.essences)) rows.push({ label: name, value: `+${fmtNum(count)}` });
+      return <Section title="The Passes" icon="pin"><FactRows rows={rows} /></Section>;
+    }
+    case 'service': {
+      const s = record.service;
+      if (!s) return null;
+      const boardLabel = s.board === 'shieldtech' ? 'Shield tech' : 'Repair';
+      const rows: FactRow[] = [
+        { label: 'Board', value: boardLabel },
+        { label: 'Step', value: s.step },
+        { label: 'Your role', value: s.role === 'poster' ? 'Posted the job' : 'Working the job' },
+      ];
+      if (s.priceCredits !== null) rows.push({ label: 'Quoted price', value: `${fmtNum(s.priceCredits)} cr` });
+      if (s.step === 'finished') {
+        if (s.paidCredits !== null) rows.push({ label: 'Paid', value: `${fmtNum(s.paidCredits)} cr`, tone: 'text-[#7CFC00]' });
+        if (s.feeCredits !== null && s.feeCredits > 0) rows.push({ label: 'Board fee', value: `${fmtNum(s.feeCredits)} cr` });
+        if (s.pointsRestored !== null && s.targetPoints !== null) {
+          rows.push({ label: 'Points', value: `${s.pointsRestored} of ${s.targetPoints} restored` });
+        }
+        if (s.outcome) rows.push({ label: 'Outcome', value: s.outcome });
+        if (s.xpAwarded !== null && s.xpAwarded > 0) rows.push({ label: 'Profession XP', value: `+${fmtNum(s.xpAwarded)}`, tone: 'text-[#7CFC00]' });
+      }
+      if (s.kitType) rows.push({ label: 'Kit', value: s.kitType });
+      return <Section title="The Job" icon="wrench"><FactRows rows={rows} /></Section>;
+    }
     case 'dispatch': {
       const d = record.dispatch;
       if (!d) return null;
+      const step = d.step ?? 'settled';
       const rows: FactRow[] = [
         { label: 'Family', value: d.family },
-        { label: 'Payout', value: `+${fmtNum(d.payoutCredits)} cr`, tone: 'text-[#7CFC00]' },
+        { label: 'Step', value: step },
       ];
-      if (d.payoutFraction !== null) rows.push({ label: 'Paid', value: `${Math.round(d.payoutFraction * 100)}%` });
+      if (step === 'departed') {
+        rows.push({ label: 'Payout on return', value: `${fmtNum(d.payoutCredits)} cr`, tone: 'text-[#FFEA3A]' });
+        if (d.areaName) rows.push({ label: 'Destination', value: d.areaName });
+        if (d.durationHours) rows.push({ label: 'Duration', value: `${d.durationHours}h` });
+      } else if (step === 'rerolled') {
+        if (d.rerollCredits) rows.push({ label: 'Cost', value: `−${fmtNum(d.rerollCredits)} cr`, tone: 'text-[#FF4B5C]' });
+      } else {
+        rows.push({ label: 'Payout', value: `+${fmtNum(d.payoutCredits)} cr`, tone: 'text-[#7CFC00]' });
+        if (d.payoutFraction !== null) rows.push({ label: 'Paid', value: `${Math.round(d.payoutFraction * 100)}%` });
+        if (d.scrapAward) rows.push({ label: 'Scrap', value: `+${fmtNum(d.scrapAward)}` });
+      }
       return <Section title="The Dispatch" icon="signal"><FactRows rows={rows} /></Section>;
     }
+    case 'system':
+      return record.trace ? (
+        <Section title="The Record" icon="info"><FactRows rows={record.trace.facts} /></Section>
+      ) : null;
     case 'endless':
       return record.endless ? (
         <Section title="The Run" icon="infinity">

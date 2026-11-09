@@ -89,6 +89,8 @@ const RECORD_KIND_ICONS: Record<ActivityRecord['kind'], PxIconName> = {
   dispatch: 'signal',
   endless: 'infinity',
   system: 'info',
+  extraction: 'pin',
+  service: 'wrench',
 };
 
 export function recordKindIcon(record: ActivityRecord): PxIconName {
@@ -272,12 +274,40 @@ export function recordFace(record: ActivityRecord): RecordFace {
       const m = record.market;
       if (!m) return { title: itemName ?? record.label, detail: null };
       const goods = itemName ?? (m.goodsKey ? goodsDisplayName(m.goodsKey) : 'goods');
+      if (m.direction === 'listed') {
+        return { title: `Listed ${goods}`, detail: `${fmtNum(m.priceCredits)} cr${m.quantity && m.quantity > 1 ? ` · ×${m.quantity}` : ''}` };
+      }
+      if (m.direction === 'cancelled') {
+        return { title: `Listing cancelled — ${goods}`, detail: null };
+      }
       const counterparty = m.counterpartyName
         ?? (m.direction === 'bought' ? 'the market' : null);
       return {
         title: `${m.direction === 'bought' ? 'Bought' : 'Sold'} ${goods}`,
         detail: `${fmtNum(m.priceCredits)} cr${counterparty ? ` · ${m.direction === 'bought' ? 'from' : 'to'} ${counterparty}` : ''}${m.feeCredits ? ` · fee ${fmtNum(m.feeCredits)} cr` : ''}`,
       };
+    }
+    case 'extraction': {
+      const x = record.extraction;
+      if (!x) return { title: record.label, detail: null };
+      const parts: string[] = [];
+      if (x.xpAwarded > 0) parts.push(`+${fmtNum(x.xpAwarded)} XP`);
+      parts.push(...materialParts(x.materials, '+'));
+      parts.push(...materialParts(x.essences, '+'));
+      return { title: record.label, detail: parts.join(' · ') || null };
+    }
+    case 'service': {
+      const s = record.service;
+      if (!s) return { title: record.label, detail: null };
+      const parts: string[] = [];
+      if (s.step === 'finished') {
+        if (s.paidCredits !== null && s.paidCredits > 0) parts.push(`${fmtNum(s.paidCredits)} cr paid`);
+        if (s.pointsRestored !== null && s.pointsRestored > 0) parts.push(`+${s.pointsRestored} pts`);
+        if (s.xpAwarded !== null && s.xpAwarded > 0) parts.push(`+${fmtNum(s.xpAwarded)} XP`);
+      } else if (s.priceCredits !== null) {
+        parts.push(`${fmtNum(s.priceCredits)} cr quoted`);
+      }
+      return { title: record.label, detail: parts.join(' · ') || null };
     }
     case 'earnings':
       return { title: labelSource(record.label), detail: earningsLine(record.earnings) || null };
@@ -305,14 +335,26 @@ export function recordFace(record: ActivityRecord): RecordFace {
       const outputs = c.outputs.map((o) => `×${o.count} ${o.name ?? 'output'}`).join(' · ');
       return {
         title: record.label,
-        detail: `${outputs || `${c.unitsCompleted} units`}${c.xpAwarded > 0 ? ` · +${fmtNum(c.xpAwarded)} XP` : ''}`,
+        detail: record.trace?.facts[0]?.value === 'Queued'
+          ? `queued${c.unitsTotal ? ` · ${c.unitsTotal} unit${c.unitsTotal === 1 ? '' : 's'}` : ''}`
+          : `${outputs || `${c.unitsCompleted} units`}${c.xpAwarded > 0 ? ` · +${fmtNum(c.xpAwarded)} XP` : ''}`,
       };
     }
     case 'dispatch': {
       const d = record.dispatch;
+      if (!d) return { title: record.label, detail: null };
+      if (d.step === 'departed') {
+        const parts: string[] = [`pays ${fmtNum(d.payoutCredits)} cr`];
+        if (d.areaName) parts.push(`to ${d.areaName}`);
+        if (d.durationHours) parts.push(`${d.durationHours}h`);
+        return { title: record.label, detail: parts.join(' · ') };
+      }
+      if (d.step === 'rerolled') {
+        return { title: record.label, detail: d.rerollCredits ? `−${fmtNum(d.rerollCredits)} cr` : null };
+      }
       return {
         title: record.label,
-        detail: d ? `+${fmtNum(d.payoutCredits)} cr${d.payoutFraction !== null && d.payoutFraction < 1 ? ` · ${Math.round(d.payoutFraction * 100)}% paid` : ''}` : null,
+        detail: `+${fmtNum(d.payoutCredits)} cr${d.payoutFraction !== null && d.payoutFraction < 1 ? ` · ${Math.round(d.payoutFraction * 100)}% paid` : ''}`,
       };
     }
     case 'endless':
