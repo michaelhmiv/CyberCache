@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-09 — The log remembers everything
+
+- **Your Activity Log now traces every action** — the record used to skip the quiet moves; now nothing you do to your own account is a mystery. Bulk salvage files its batch summary beside the per-item lines. Extraction settlements show their passes, finds, and XP. Reforging, standing turn-ins and rank-ups, streak claims, cache-rank token gains and spends, consumable use, and refuels all leave their lines. The repair and shield-tech boards record every step — posted, accepted, finished — each hunter reading their own side of the job. Dispatch departures, recalls, and board rerolls sit beside the settled returns. Listing something, or pulling it back down, reads beside the trades. Queuing a craft — or cancelling it for its inputs back — shows beside the completions. Even equipping, unequipping, and locking a piece of gear is on the record now. Two new chips — Extraction and Services — filter straight to the new lines, and the search box covers them like everything else.
+
 ## 2026-11-08 — The hunter gets a polish pass
 
 - **The converted hunter, finished properly** — the hand-drawn hunter gets its polish pass: the Bulwark helm's dome is modeled platework now instead of one broad flat field, the shadow-side legs carry real form instead of reading as dark columns, the Fin's rust crest sits bolted to the crown, and the backpacks have their missing machinery — Bulwark's lower greebles, Dreadplate's tank-face seams and wear, the Standard Issue pack's swept plate seam. Same silhouettes, same outfits, same anchors — the work is all in the surfaces.
@@ -197,9 +201,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 201 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 204 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-08** — 9 merges
+**2026-11-08** — 12 merges
 
 - #455 — V4 — the 26 bespoke legendaries join the authored grammar
 - #456 — Changelog catch-up — V4 legendaries (#455)
@@ -210,6 +214,9 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #461 — Motion M2a: FK leg resolver + stride spec
 - #462 — ThrowTech heap polish — debris heap re-authored to the Dustwaste density standard
 - #463 — Motion M2b — the travel beat + pan (Motion Reboot closes)
+- #464 — docs: repair PRODUCT.md against post-2026-11-01 rulings
+- #465 — docs: fix stale free-daily-cache line in DESIGN.md §3 (abolished by 0082)
+- #466 — F6: Pixi roam stage enemy rig follows the current target
 
 **2026-11-07** — 20 merges
 

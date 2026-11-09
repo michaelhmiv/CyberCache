@@ -10,11 +10,16 @@ The Activity Log is your hunter's whole record — every drop, trade, craft, and
 - **Kill stretches** — roaming kills land as one summary line per stretch, not one line per kill; the drops they produced are their own entries
 - **[[Bosses|Boss fights]]** — outcome, the win chance going in, credits won or lost, and the victory loot
 - **[[Caches]]** — the item, the outcome, and the draw exactly as rolled
-- **[[Crafting|Crafts]]** — recipe, units, bench, XP, and what came off the bench
-- **[[The Market|Market trades]]** — price, fee, and who was on the other side; for your own sales, the exact amount you were credited (price minus fee, plus any proceeds bonus) — the figure the Sold announcement on Home shows
+- **[[Crafting|Crafts]]** — recipe, units, bench, XP, and what came off the bench — plus the steps around the work: a craft you queue, and one you cancel for its inputs back, each leave their own line
+- **[[The Market|Market trades]]** — price, fee, and who was on the other side; for your own sales, the exact amount you were credited (price minus fee, plus any proceeds bonus) — the figure the Sold announcement on Home shows. Putting a listing up, and pulling one back down, leave their own lines beside the trades
 - **Earnings claims** — credits, scrap, XP, cache keys, materials, and essences, with the amounts up front
 - **[[Dispatch]] settlements, [[Endless Mode|Endless]] runs, salvage payouts, and system events** like resurrections
+- **[[Extraction]] settlements** — the passes a settlement ran, which areas and methods they used (a deep pass your gear couldn't support reads as the Surface pass it paid as), the finds, and the XP
+- **[[Repair]] and shield-tech jobs** — every step on the boards: a job posted, accepted, finished, cancelled, or reclaimed. Each hunter reads their own side of the job; your line is the step you took
+- **Dispatch departures, recalls, and board rerolls** — the contract leaving, a recall's pro-rata settlement, and what a reroll cost, beside the settled returns
+- **The quiet moves** — reforging an affix, turning gear in for standing, ranking up with a manufacturer, claiming a login streak, cache-rank tokens granted and spent, using a consumable, refueling, and equipping, unequipping, or locking a piece of gear. Every action that creates, destroys, moves, or spends value is on the record. One known exception: consumables your belt auto-uses while roaming fire inside the roaming claim itself and write no separate line
 - **Auto-salvages** — when your [[Gear|Auto-Salvage Rules]] convert a fresh drop at settlement, the record says so: it is labeled an auto-salvage, its sheet names the rule as how it happened, and one from an offline settlement sits in that settlement's while-away stretch like everything else the settler produced
+- **Bulk salvages** — one summary line with the batch's totals (how many items, the rarity ceiling, the per-rarity count, scrap, cores, and any bonus materials), and each item's own salvage line marked as part of the batch
 
 ## Receipts and odds
 
@@ -34,7 +39,7 @@ Offline progress rides the same stream. A **While you were away** divider opens 
 ## Finding things
 
 - **One search box** covers item names, enemy names, and area names together — search "Vulture" and you get every drop that names one, from either relation.
-- **Kind chips** filter the stream: Loot, Kills, Boss, Caches, Craft, Market, Earnings, Away, Salvage, Dispatch, Endless, System.
+- **Kind chips** filter the stream: Loot, Kills, Boss, Caches, Craft, Market, Earnings, Away, Salvage, Dispatch, Extraction, Services, Endless, System.
 - **Load older facts** walks the record back page by page; the end of the stream names the date it reaches back to.
 
 Guests see their own log in full — the log records guests exactly as it records linked accounts, and nothing in it is a transaction.

@@ -40,6 +40,18 @@
         {
           "number": 463,
           "title": "Motion M2b — the travel beat + pan (Motion Reboot closes)"
+        },
+        {
+          "number": 464,
+          "title": "docs: repair PRODUCT.md against post-2026-11-01 rulings"
+        },
+        {
+          "number": 465,
+          "title": "docs: fix stale free-daily-cache line in DESIGN.md §3 (abolished by 0082)"
+        },
+        {
+          "number": 466,
+          "title": "F6: Pixi roam stage enemy rig follows the current target"
         }
       ]
     },
