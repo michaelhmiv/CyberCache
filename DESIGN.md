@@ -242,6 +242,18 @@ only what its ledger payload provably carries, and an action
 that writes no ledger row (belt auto-consume during roaming)
 is named as a known non-row action — never synthesized.
 
+### One ad rail on every platform (owner, 2026-11-09)
+
+**The rewarded-ad cache opening is the same rail on iOS as on
+Android when iOS ships.** One economy on every platform: an
+opening costs 1 cache key or one rewarded-ad attestation,
+uncapped, on whichever app the player holds — a keyless player
+is never platform-locked out of the cache lane. Today's
+Android-only availability is an implementation state, not the
+design: the iOS rewarded unit is small wiring owed at the iOS
+launch pass, and no ad serves anywhere until the AdMob account
+is reactivated and each app passes its review.
+
 ---
 
 ## 2. Navigation — four tabs
