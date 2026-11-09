@@ -20,8 +20,10 @@ describe('Field Manual (HelpScreen)', () => {
     // The background preload converges the Links LCD to a number.
     // The pin is the corpus's total [[…]] occurrence count: base
     // 313, +1 One Grammar (Skins [[Gear]] cross-reference), +2 Hero
-    // Pass H1 (Skins + Crafting [[Manufacturer Standing]] links) = 316.
-    expect(await screen.findByText('316', {}, { timeout: 10000 })).toBeTruthy();
+    // Pass H1 (Skins + Crafting [[Manufacturer Standing]] links) = 316,
+    // +3 AL-4 trace pass (Activity-Log Extraction, Repair Board, and
+    // Shield-Tech cross-references) = 319.
+    expect(await screen.findByText('319', {}, { timeout: 10000 })).toBeTruthy();
   });
 
   it('carries no trace of the retired guided tour or hand-written sections', () => {
