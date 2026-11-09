@@ -219,6 +219,29 @@ from the server's response, never from a client projection. A
 failed settlement restores the items and reports through the
 salvage feed: nothing silently vanishes.
 
+### Activity Log trace law (owner, 2026-11-09)
+
+**Every action needs to be traced through the Activity Log.**
+Every player action that creates, destroys, moves, or spends
+value — plus the named lifecycle events — leaves a traceable
+Activity Log record; nothing a player does to their own account
+is a mystery after the fact. AL-4 (2026-11-09) closes the gaps
+AL-2 left: bulk salvage carries its batch summary record (per-item
+lines batch-marked only when the nonce proof holds), extraction
+settlements record their passes and finds, reforge / standing
+turn-ins / rank-ups, the repair and shield-tech service boards
+(every step, each actor reading their own row — the board never
+synthesizes the other side), streak claims, cache-rank grants
+and spends, consumable use, refuels (and the retired instant
+patch kit's historical rows), dispatch departures / recalls /
+rerolls beside the settled returns, listing creation and
+cancellation beside trades, craft queue and cancel beside
+completions, and loadout equip / unequip / lock changes. The
+projection's honesty rules bind every new case: a record claims
+only what its ledger payload provably carries, and an action
+that writes no ledger row (belt auto-consume during roaming)
+is named as a known non-row action — never synthesized.
+
 ---
 
 ## 2. Navigation — four tabs

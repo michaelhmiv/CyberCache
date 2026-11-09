@@ -46,6 +46,8 @@ const CHIPS: Chip[] = [
   { id: 'away', label: 'Away', kinds: ['away'] },
   { id: 'salvage', label: 'Salvage', kinds: ['salvage'] },
   { id: 'dispatch', label: 'Dispatch', kinds: ['dispatch'] },
+  { id: 'extraction', label: 'Extraction', kinds: ['extraction'] },
+  { id: 'service', label: 'Services', kinds: ['service'] },
   { id: 'endless', label: 'Endless', kinds: ['endless'] },
   { id: 'system', label: 'System', kinds: ['settlement', 'system'] },
 ];

@@ -222,9 +222,65 @@ const systemRecord: ActivityRecord = {
   system: { subtype: 'resurrect' },
 };
 
+// AL-4 trace fixtures — mirror the projection's own compositions.
+const bulkSalvageRecord: ActivityRecord = {
+  id: 'ledger:batch-1',
+  kind: 'salvage',
+  at: '2026-11-03T19:30:00.000Z',
+  away: false,
+  label: 'Bulk salvage — 37 items (Rare and under)',
+  salvage: {
+    scrapAward: 4120, coresAward: 0, batch: true, scrappedCount: 37,
+    maxRarity: 'Rare', countsByRarity: { Common: 30, Rare: 7 }, bonusMaterials: { Scrap: 12 },
+  },
+};
+
+const extractionRecord: ActivityRecord = {
+  id: 'ledger:ext-1',
+  kind: 'extraction',
+  at: '2026-11-03T19:10:00.000Z',
+  away: false,
+  label: 'Extraction — 2 passes — 2 areas',
+  extraction: {
+    passesCompleted: 2, xpAwarded: 480,
+    passes: [
+      { areaId: 'dustwaste_frontier', areaName: 'Dustwaste Frontier', method: 'surface', deepDegraded: false, xp: 240, signatureUnits: 0 },
+      { areaId: 'helixworks_labyrinth', areaName: 'HelixWorks Labyrinth', method: 'surface', deepDegraded: true, xp: 240, signatureUnits: 3 },
+    ],
+    materials: { MycoSteelFiber: 6, Scrap: 12 }, essences: { Fire: 2 },
+  },
+};
+
+const serviceRecord: ActivityRecord = {
+  id: 'ledger:svc-1',
+  kind: 'service',
+  at: '2026-11-03T19:20:00.000Z',
+  away: false,
+  label: 'Repair posted — Dune Buggy',
+  item: { id: 'veh-1', name: 'Dune Buggy', kind: 'vehicle', rarity: 'Rare', level: 20 },
+  service: {
+    board: 'repair', step: 'posted', role: 'poster', jobId: 'job-1', jobStatus: 'open',
+    outcome: null, priceCredits: 300, paidCredits: 0, feeCredits: 0, xpAwarded: 0,
+    pointsRestored: 0, targetPoints: 40, kitType: null,
+  },
+};
+
+const dispatchDepartRecord: ActivityRecord = {
+  id: 'ledger:dep-1',
+  kind: 'dispatch',
+  at: '2026-11-03T19:25:00.000Z',
+  away: false,
+  label: 'Dispatch departed — courier to HelixWorks Labyrinth',
+  dispatch: {
+    family: 'courier', payoutCredits: 900, payoutFraction: null,
+    step: 'departed', areaId: 'helixworks_labyrinth', areaName: 'HelixWorks Labyrinth', durationHours: 6,
+  },
+};
+
 const ALL_KINDS = [
   earningsRecord, killsRecord, stampedDrop, killedDrop, bossRecord, marketSale,
   cacheRecord, craftRecord, salvageRecord, dispatchRecord, endlessRecord, systemRecord,
+  bulkSalvageRecord, extractionRecord, serviceRecord, dispatchDepartRecord,
 ];
 
 beforeEach(() => {
@@ -238,9 +294,19 @@ describe('ActivityLogScreen', () => {
     await screen.findByText('Rustline Longshot');
     const cards = screen.getAllByTestId('activity-record');
     const kinds = cards.map((c) => c.getAttribute('data-kind'));
-    for (const kind of ['drop', 'kills', 'boss', 'cache', 'craft', 'market', 'earnings', 'salvage', 'dispatch', 'endless', 'system']) {
+    for (const kind of ['drop', 'kills', 'boss', 'cache', 'craft', 'market', 'earnings', 'salvage', 'dispatch', 'endless', 'system', 'extraction', 'service']) {
       expect(kinds).toContain(kind);
     }
+    // AL-4 faces: the bulk-salvage summary in the spec's own words,
+    // the service post with its quote, the departure with its terms.
+    expect(screen.getByText('Bulk salvage — 37 items (Rare and under)')).toBeTruthy();
+    expect(screen.getByText('+4,120 scrap')).toBeTruthy();
+    expect(screen.getByText('Extraction — 2 passes — 2 areas')).toBeTruthy();
+    expect(screen.getByText('+480 XP · +6 MycoSteelFiber · +12 Scrap · +2 Fire')).toBeTruthy();
+    expect(screen.getByText('Repair posted — Dune Buggy')).toBeTruthy();
+    expect(screen.getByText('300 cr quoted')).toBeTruthy();
+    expect(screen.getByText('Dispatch departed — courier to HelixWorks Labyrinth')).toBeTruthy();
+    expect(screen.getByText('pays 900 cr · to HelixWorks Labyrinth · 6h')).toBeTruthy();
     expect(screen.getByText('96 kills — Dustwaste Frontier')).toBeTruthy();
     expect(screen.getByText('Dune Tyrant — victory')).toBeTruthy();
     expect(screen.getByText('Sold Dust Devil SMG')).toBeTruthy();
@@ -307,6 +373,14 @@ describe('ActivityLogScreen', () => {
     fireEvent.click(screen.getByTestId('activity-chip-system'));
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(expect.objectContaining({ kinds: ['settlement', 'system'] }));
+    });
+    fireEvent.click(screen.getByTestId('activity-chip-extraction'));
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(expect.objectContaining({ kinds: ['extraction'] }));
+    });
+    fireEvent.click(screen.getByTestId('activity-chip-service'));
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(expect.objectContaining({ kinds: ['service'] }));
     });
     fireEvent.click(screen.getByTestId('activity-chip-away'));
     await waitFor(() => {
