@@ -324,7 +324,7 @@ function kindSections(record: ActivityRecord): ReactNode {
       ];
       if (x.xpAwarded > 0) rows.push({ label: 'XP', value: `+${fmtNum(x.xpAwarded)}`, tone: 'text-[#7CFC00]' });
       x.passes.forEach((p, i) => {
-        const parts = [p.method === 'deep_delve' ? 'Deep Delve' : p.method === 'surface' ? 'Surface' : p.method];
+        const parts = [p.method === 'deep' ? 'Deep Delve' : p.method === 'surface' ? 'Surface' : p.method];
         if (p.deepDegraded) parts.push('deep — held to Surface terms by gear');
         if (p.areaName) parts.push(p.areaName);
         if (p.xp !== null) parts.push(`+${fmtNum(p.xp)} XP`);

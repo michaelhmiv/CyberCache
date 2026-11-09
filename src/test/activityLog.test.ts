@@ -244,7 +244,7 @@ function seed(): ReadSeed {
         finds_materials: { MycoSteelFiber: 6, Scrap: 12 }, finds_essences: { Fire: 2 },
         passes: [
           { index: 0, area_id: 'dustwaste_frontier', method: 'surface', draws: 192, gear_factor: 0.9, deep_degraded: false, xp: 240, signature_units: 0 },
-          { index: 1, area_id: 'helixworks_labyrinth', method: 'deep_delve', draws: 288, gear_factor: 0.6, deep_degraded: true, xp: 240, signature_units: 3 },
+          { index: 1, area_id: 'helixworks_labyrinth', method: 'deep', draws: 288, gear_factor: 0.6, deep_degraded: true, xp: 240, signature_units: 3 },
         ],
       } },
     // Item 3 — reforge.

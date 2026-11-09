@@ -396,10 +396,10 @@ function boolOrNull(value: unknown): boolean | null {
 const AREA_NAMES = new Map(ROAMING_AREAS.map((a) => [a.id, a.name]));
 const BOSS_NAMES = new Map(REGION_1_BOSSES.map((b) => [b.id, b.name]));
 
-/** Extraction pass methods in player words (0033: surface / deep_delve). */
+/** Extraction pass methods in player words (0033: the method enum is 'surface' | 'deep'). */
 function extractionMethodLabel(method: string | null): string | null {
   if (method === 'surface') return 'Surface';
-  if (method === 'deep_delve') return 'Deep Delve';
+  if (method === 'deep') return 'Deep Delve';
   return method;
 }
 
