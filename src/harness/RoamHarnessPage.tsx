@@ -75,6 +75,26 @@ const LOOT_EVENT: TickEvent = {
   value: 1,
 } as TickEvent;
 
+// Anim-replay seams (Track A, 2026-11-10): the beat classifier
+// (classifyTickBeat) reads tone/label/value, so a beat of any kind
+// is one seeded feed event. The replay driver needs unique ids per
+// beat (the stage clock keys on event id) and a material-drop
+// variant — shipped loot events carry tone 'loot' WITH a gear
+// payload (the rise), while a plain material drop is a rarity
+// beam with no card. Kill beats also drop the target's HP to 0,
+// the way the real kill cycle lands.
+let replayBeatSeq = 0;
+const seedBeatEvent = (partial: Partial<TickEvent>) => {
+  replayBeatSeq += 1;
+  const event = {
+    id: `harness-beat-${replayBeatSeq}`,
+    at: Date.now(),
+    detail: 'harness',
+    ...partial,
+  } as TickEvent;
+  useTickFeedStore.setState({ events: [event] });
+};
+
 export const RoamHarnessPage: React.FC = () => {
   const [params] = useState(() => new URLSearchParams(window.location.search));
   const scene = params.get('scene') ?? 'idle';
@@ -131,6 +151,22 @@ export const RoamHarnessPage: React.FC = () => {
     };
     w.__stopRoam = () => setStopped(true);
     w.__resumeRoam = () => setStopped(false);
+    // Anim-replay beat seams: one call per beat kind, unique event
+    // id each time so the stage's beat clock restarts per beat.
+    //   shot/crit — tone 'loot' with a negative label is the hit
+    //     shape (isTickHit); crit weighs value vs target max HP.
+    //   playerHit — tone 'damage' (the enemy answers).
+    //   kill — tone 'kill' + the target's HP lands at 0.
+    //   drop — tone 'material' (a rarity beam, no gear card).
+    w.__seedBeat = (kind: string, value = 10) => {
+      if (kind === 'shot') seedBeatEvent({ tone: 'loot', label: `-${value}`, value });
+      else if (kind === 'crit') seedBeatEvent({ tone: 'loot', label: `-${value}`, value });
+      else if (kind === 'playerHit') seedBeatEvent({ tone: 'damage', label: `-${value}`, value });
+      else if (kind === 'kill') {
+        seedBeatEvent({ tone: 'kill', label: 'kill', value });
+        useKillCycleStore.setState({ currentTargetHp: 0 });
+      } else if (kind === 'drop') seedBeatEvent({ tone: 'material', label: '+1 TechFragments', value: 1 });
+    };
   }, [scene]);
 
   return (

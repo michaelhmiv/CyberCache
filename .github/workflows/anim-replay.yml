@@ -1,0 +1,57 @@
+name: Anim Replay
+
+# On-demand animation regression loop (Track A, 2026-11-10): plays
+# the scripted fight + resume timelines on the REAL roam stage via
+# the dev harness, records frames, and grades them against the
+# brief's B2 criteria with the metrics extractor. Uploads frames +
+# replay.json + metrics.json as the `anim-replay` artifact. This is
+# the arbiter copy of the loop — when a local run is questioned,
+# this runner's numbers are the ones that count.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  anim-replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install replay tooling (playwright-core + metrics deps)
+        run: |
+          npm install --no-save playwright-core@1.49.1
+          pip install --quiet numpy pillow
+
+      - name: Install Chromium for the replay
+        run: |
+          npx playwright-core install chromium --with-deps
+          echo "CHROME_PATH=$(find ~/.cache/ms-playwright -name chrome -type f | head -1)" >> "$GITHUB_ENV"
+
+      - name: Run the replay + metrics
+        env:
+          ANIM_WT: ${{ github.workspace }}
+          ANIM_OUT: ${{ github.workspace }}/anim-replay-out
+          PLAYWRIGHT_CORE: playwright-core
+          REPO_SHA: ${{ github.sha }}
+        run: |
+          node scripts/anim-replay/replay.mjs
+          python3 scripts/anim-replay/metrics.py anim-replay-out
+
+      - name: Upload replay artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anim-replay
+          path: anim-replay-out
+          if-no-files-found: warn
