@@ -36,13 +36,17 @@ import { FUEL_CELL_TYPE, conditionFraction, effectiveVehicleYield } from '@/lib/
  * gameplay state of its own. Home variant only: every other
  * tab's Strip renders exactly as shipped.
  *
- * Width discipline: the Strip's row does not scroll at phone
- * width once the chip docks (the wallet alone measures ~302px
- * at 390px; the chip's full readout ~154px), so the NAME is
- * the row's one elastic part — it truncates (min-w-0) while
- * the icon, the state facts, and every wallet number never
- * shrink, wrap, or scroll away. The full name is one tap
- * away in the Garage.
+ * Width discipline: the wallet's fixed residents measure
+ * ~302px at 390px and the chip's full readout ~154px, so the
+ * NAME is the row's one elastic part. The chip root carries
+ * min-w-0 AND basis-0 (flex-1): inside the Strip's
+ * justify-between row a bare min-w-0 does not let the name
+ * truncate (flexbox's min-content floor holds the item's
+ * basis at content size), so the basis itself yields and
+ * the chip takes whatever width the wallet leaves — the
+ * icon and the state facts are shrink-0 inside it, and the
+ * name truncates in the space between. Every wallet number
+ * stays whole. The full name is one tap away in the Garage.
  */
 export const VehicleStripChip: React.FC<{
   onNavigate?: (target: string) => void;
@@ -95,7 +99,7 @@ export const VehicleStripChip: React.FC<{
         data-state={outOfFuel ? 'out-of-fuel' : 'worn-out'}
         aria-label={aria}
         onClick={() => onNavigate?.(target)}
-        className="flex min-w-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+        className="flex min-w-0 flex-1 basis-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
       >
         {wheel}
         <span className="min-w-0 truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-primary">
@@ -116,7 +120,7 @@ export const VehicleStripChip: React.FC<{
       data-state="ok"
       aria-label={`${name}: ${Math.floor(vehicleFuel)} fuel units, yield bonus ×${factor.toFixed(2)}${fraction < 1 ? `, condition ${Math.round(fraction * 100)}%` : ''}. Opens Gear, Loadout, with the Garage expanded.`}
       onClick={() => onNavigate?.('garage')}
-      className="flex min-w-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+      className="flex min-w-0 flex-1 basis-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
     >
       {wheel}
       <span className="min-w-0 truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-primary">

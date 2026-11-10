@@ -30,14 +30,9 @@
  * set still cannot fit honestly, the row SCROLLS horizontally
  * (the owner's scroll-don't-shrink law, DESIGN.md §6) — the type
  * never drops below the floor to force a fit. (Home variant,
- * 2026-11-10: the docked vehicle chip retires the scroll there —
- * the chip is permanent presence, and a scrolling row's
- * min-content floor defeats its name's truncation; see the
- * VEHICLE CHIP note below. The formatter bound keeps every
- * wallet value ≤6 glyphs, so with the chip docked the Home
- * row still fits at 390px — the chip's name truncates to
- * whatever the wallet leaves, and nothing honest needs the
- * scroll.)
+ * 2026-11-10: the docked vehicle chip's name is the one part
+ * that yields — see the VEHICLE CHIP note below — so the
+ * Home row fits at 390px without reaching the scroll.)
  *
  * Host-independence (F3 fix pass, 2026-11-02): the row's gap is
  * pinned as gap-1.5 (0.375rem) in the component, never gap-2.
@@ -109,20 +104,21 @@
  * every state doors to Gear → Loadout with the Garage expanded.
  * It replaces the chip that rode the consumables belt (and
  * vanished on foot); the belt is consumables only again.
- * The chip's arrival retires this row's horizontal scroll:
- * flexbox's implicit min-content floor on a scrolling row
- * defeats child truncation (measured 2026-11-10: the docked
- * chip's name refused to truncate inside the scrolling row
- * and the LV block slid off-view at 390px), and the chip is
- * permanent presence, not a scroll-away resident. Every
- * wallet number fits at 390px beside the chip — the chip's
- * name is the row's one elastic part and truncates instead.
- * The Home row carries overflow-hidden for the same
- * reason the skeleton row does: a non-scrolling row lets
- * the chip's min-w-0 name actually truncate (flex items
- * otherwise floor at their min-content size), and the
- * level block closes the row via its own ml-auto, so the
- * chip absorbs the row's middle slack first.
+ * Width (measured 2026-11-10 at 390px): the wallet's fixed
+ * residents total ~302px and the chip's full readout ~154px,
+ * so the chip is the row's one elastic resident — its root
+ * is min-w-0 with basis-0 (flex-1), which is what lets its
+ * NAME truncate while its icon and facts never shrink:
+ * inside this row a bare min-w-0 is not enough, because
+ * flexbox's min-content floor keeps an item's basis at its
+ * content size until the basis itself yields. The row's
+ * scroll and justify-between distribution stay exactly as
+ * shipped (their pins stand in marketComposition /
+ * deviceLayoutContract / visualPapercuts): with the basis
+ * yielded, the free space distributes as equal gaps and
+ * the chip takes whatever the wallet leaves; at the tested
+ * magnitudes the row fits without scrolling and the LV
+ * block stays at its right-edge post.
  *
  * DISTRIBUTION (owner feedback r4, 2026-11-05: "Up top too with
  * credits etc, space out as well to not have that awkward gap"):
@@ -507,7 +503,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
     <div data-testid="resource-bar" className={`relative border-2 border-border bg-bg ${className}`}>
       <div
         data-testid="resource-bar-strip"
-        className={`flex items-center gap-1.5 px-2 py-1 ${isHome ? 'overflow-hidden' : 'justify-between overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}`}
+        className="flex items-center justify-between gap-1.5 overflow-x-auto px-2 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         <Segment
           resourceId="credits"
@@ -567,7 +563,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
               data-testid="resource-chip-level"
               aria-label={`Level ${player.level} — open level details`}
               onClick={onLevelPress}
-              className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+              className="flex shrink-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
             >
               <span className="whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-amber">
                 LV
