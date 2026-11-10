@@ -130,11 +130,13 @@ expands the whole Garage in place under the panel. With no vehicle
 equipped the button reads **On foot** and opens the same Garage.
 (Garage doors elsewhere land you on Loadout with the Garage already
 expanded.) On Home, your vehicle's status
-rides the **consumable belt** as a chip in the belt row: while it is
+rides the **resource Strip** as a chip docked beside the loot
+counter, right after the n/7 gear count: while it is
 fueled it reads quietly — vehicle, fuel units, yield — and when it
 runs out of fuel or wears out, the chip itself becomes the door:
 Garage when you are carrying a fuel cell, the Vendor when you are
-not. Expanded, you can see
+not. With no vehicle equipped the chip reads **On foot** and opens
+the same Garage. Expanded, you can see
 every vehicle you own — each card draws the vehicle itself, with its
 rolled affix fittings (cargo rack, scanner array, reinforced frame)
 fitted on the sprite and its wear showing once condition drops —

@@ -73,7 +73,7 @@ Changing area lives one tap from the stage: the mode rail's **Roam** stop and th
 
 ## The consumable belt
 
-Directly under the stage — below the hero rundown at its foot — sits the **consumable belt**: your active consumable slots, above the fold. Tap a slot to open the ledger and manage what is loaded. The belt row also carries your **vehicle chip**: your equipped vehicle and its fuel, sitting quietly as a readout while it is fueled — and the moment it runs dry (or wears out), the chip carries the remedy: a door to the Garage to load a carried fuel cell, or to the Vendor when you have none. The vehicle's full status lives in the Garage on the Gear tab. Below the belt sits the **lit workspace** for the current mode.
+Directly under the stage — below the hero rundown at its foot — sits the **consumable belt**: your active consumable slots, above the fold. Tap a slot to open the ledger and manage what is loaded. Your **vehicle chip** rides the resource Strip at the top of Home, docked beside the loot counter right after the gear count: your equipped vehicle and its fuel, sitting quietly as a readout while it is fueled — and the moment it runs dry (or wears out), the chip carries the remedy: a door to the Garage to load a carried fuel cell, or to the Vendor when you have none. On foot it reads **On foot** and opens the same Garage. The vehicle's full status lives in the Garage on the Gear tab. Below the belt sits the **lit workspace** for the current mode.
 
 ## When something is waiting
 

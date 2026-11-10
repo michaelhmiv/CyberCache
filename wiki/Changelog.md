@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-10 — Your vehicle rides up front
+
+- **Your vehicle has a permanent seat on Home now** — its chip moved off the consumables belt (the belt is consumables only again) and onto the resource Strip, docked right beside the loot counter after the gear count: your vehicle is your eighth loadout slot, so it sits with the counter that counts the other seven. It reads the same as ever while you're fueled — name, fuel units, yield, condition when worn — and still flips to its remedy when you run dry or wear out. The change that matters: it no longer vanishes when you're on foot. It reads **On foot** instead, and every state — fueled, dry, worn, on foot — taps straight through to your Loadout with the Garage already open.
+
 ## 2026-11-10 — Enemies close the distance
 
 - **Enemies walk in and close on you now** — a roaming enemy used to appear near its mark and slide the last few steps rigidly; now it enters from well off its mark — about four times the old distance — body swaying and shifting with its stride as it comes, and settles closer to your hunter, so fights frame tighter. A shot that lands while it's still walking in plays through its stride instead of freezing it, and it arrives exactly on its fighting stance. Bosses keep their own entrance staging.

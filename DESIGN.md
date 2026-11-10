@@ -24,7 +24,11 @@ the pre-redesign accretion of per-screen chrome; no screen invents a fifth part.
   cores · loot, with the XP bar fused as a hairline on its bottom edge and the level
   chip at its right. The wallet prints exactly once anywhere in the app. One resident
   besides the wallet is allowed: the settings gear icon at the Strip's right edge
-  (a shortcut; Settings' canonical home is Hunter → Account — see §3).
+  (a shortcut; Settings' canonical home is Hunter → Account — see §3). One more
+  resident, on Home only (owner decision 2026-11-10): the vehicle chip docked at
+  the loot segment, immediately right of the n/7 gear fraction — a state readout
+  with one door (Gear → Loadout, Garage expanded), not a second wallet print;
+  every other tab's Strip carries no vehicle chip.
 - **The Stage** — the pixel diorama art, unobstructed: one count plate, the
   combat HP plates at the actors' bases, and the action controls. Per-mode art
   (vista / arena / bench / site). The loot feed never prints on the art;
@@ -331,10 +335,17 @@ replace the canonical one. (Tap depths are governed by §9.)
   Loot Feed while roaming; boss/endless/extract/craft workspaces in their modes).
   Belt slots are use-in-loop; the full stacks live at Gear →
   Belt & Stacks, the Loadout page's belt section — do not consolidate them
-  into Gear. The belt row also carries the **vehicle chip** (owner
-  correction, 2026-11-03): the equipped vehicle's fuel readout in the belt
-  chips' grammar — quiet while fueled, carrying its remedy door (Garage /
-  Vendor) when out of fuel or worn out. The vehicle gets no row of its own
+  into Gear. The belt is consumables only (owner decision 2026-11-10,
+  superseding the 2026-11-03 belt-chip correction): the **vehicle chip**
+  now rides the Strip's loot segment, immediately right of the n/7 gear
+  fraction — the vehicle is the loadout's eighth slot, so it sits with
+  the counter that counts the other seven. It is permanent there:
+  quiet fuel readout while fueled (name · fuel · ×yield, condition when
+  worn), its remedy door when out of fuel or worn out (Garage / Vendor,
+  the belt chip's flip unchanged), and — the state the belt chip never
+  had — **On foot** as the Garage door when nothing is equipped, where
+  the belt chip simply vanished. Every state taps through to Gear →
+  Loadout with the Garage expanded. The vehicle gets no row of its own
   on Home; its full status lives in the Garage (and, at a glance, on
   the Loadout panel's vehicle button, 2026-11-05). Research state is NOT
   on Home: the education track's chip and completion card left with the
@@ -584,7 +595,9 @@ player needs each block.
 
 **Above the fold, always, in this order:**
 
-1. **The Strip** (wallet + fused XP hairline + level chip + settings gear).
+1. **The Strip** (wallet + fused XP hairline + level chip + settings gear;
+   Home variant: the vehicle chip rides the loot segment, immediately right
+   of the n/7 fraction — owner decision 2026-11-10; §3).
 2. **Claim chips row** — every claimable: new contract offers, the weekly
    Parts Crate / Signature Orders when ready, and the login streak — a true
    claimable since 0079: its chip pulses with a CLAIM badge while the day's
@@ -604,8 +617,9 @@ player needs each block.
    Mit · Shield Break — each tappable into its source breakdown; the buff
    line under it while anything is active).
 5. **Belt quick slots** — the consumable quick-slot row in the rail's
-   vacated position, directly under the stage block, with the vehicle
-   chip riding it (fuel readout / remedy door; §3).
+   vacated position, directly under the stage block. Consumables only:
+   the vehicle chip left the belt for the Strip's loot segment
+   (owner decision 2026-11-10; §3).
 6. **The lit mode's workspace** — session/loot panels and the mode's primary
    actions (Start Roam, Choose Boss).
 
