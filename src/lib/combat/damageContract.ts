@@ -23,6 +23,7 @@
 import type { Element } from '../../types/game';
 import { ConsumableType } from '../../types/game';
 import type { MonsterDef } from '../../constants/monsters';
+import { CONSUMABLES, getConsumableRuntimeEffects } from '../../constants/consumables';
 import {
   SHIELD_BEHAVIOR_TUNING,
   absorbRestoreFor,
@@ -242,46 +243,60 @@ export function decideAutoEat(
 }
 
 /**
- * Medkit heal amount. Mirror of the value used in
- * `bossSimulator.ts:medkitHealing = medkits * 150`. Centralizing it here
- * so PR 6 (boss fight medkit attrition) and PR 2 (idle auto-eat) read
- * the same constant.
+ * Survival heal/restore pricing — derived from the shared consumable
+ * defs (src/constants/consumables.ts), never from local constants.
+ *
+ * Tuning T2/P4 (2026-11-10): the survival family declares %-of-pool
+ * effects, so pricing needs the live pools: heals take a fraction of
+ * the Max HP stat (computeHunterMaxHp's combined pool — 700 + 60 per
+ * level + shield HP), shield restores a fraction of shield capacity.
+ * Prices here are the Q100 def prices — the client mirror's best
+ * knowledge; the Chef's claim sync (which prices real batch quality)
+ * is authoritative. The flat constants this module used to carry
+ * (MEDKIT_HEAL_AMOUNT 150, SHIELD_CELL_AMOUNT 100, MEDKIT_BUFFER_AMOUNT
+ * 150) are deleted: the defs are the contract now.
  */
-export const MEDKIT_HEAL_AMOUNT = 150;
-export const SHIELD_CELL_AMOUNT = 100;
-
-export function computeHealAmount(consumableId: string): number {
+export function computeHealAmount(consumableId: string, pool = 0, shieldCapacity = 0): number {
   switch (consumableId) {
-    case ConsumableType.MedKitRefined:
-      return 260; // legacy — still used by boss sim
     case ConsumableType.MedKit:
-      return 0; // Med Kit is now a proactive buffer, not a reactive heal
-    case ConsumableType.ShieldCell:
-      return SHIELD_CELL_AMOUNT;
+      return 0; // Med Kit is a proactive buffer, not a reactive heal
     case ConsumableType.NanoSwarm:
-      return 0; // Nano Swarm is now per-tick regen, handled by survivalSlice
+      return 0; // Nano Swarm is per-tick regen, handled by survivalSlice
     case ConsumableType.AdrenalineShot:
       return 0; // Adrenaline is a DPS burst, not a heal
-    default:
+    default: {
+      const fx = getConsumableRuntimeEffects(consumableId, 100);
+      if (typeof fx.healHp === 'number') return fx.healHp;
+      if (typeof fx.healHpPctOfPool === 'number') return fx.healHpPctOfPool * pool;
+      if (typeof fx.shieldRestore === 'number') return fx.shieldRestore;
+      if (typeof fx.shieldRestorePctOfCapacity === 'number') return fx.shieldRestorePctOfCapacity * shieldCapacity;
       return 0;
+    }
   }
 }
 
 /**
- * Med Kit HP buffer amount. The buffer is set proactively when roaming
- * starts and absorbs damage after shield but before HP.
+ * Med Kit HP buffer amount per unit. The buffer is set proactively
+ * when roaming starts and absorbs damage after shield but before HP.
+ * Priced from the def at Q100 against the given pool (T2/P4).
  */
-export const MEDKIT_BUFFER_AMOUNT = 150;
-
-export function computeMedKitBuffer(consumableId: string): number {
-  switch (consumableId) {
-    case ConsumableType.MedKit:
-      return MEDKIT_BUFFER_AMOUNT;
-    case ConsumableType.MedKitRefined:
-      return 260; // legacy
-    default:
-      return 0;
+export function computeMedKitBuffer(consumableId: string, pool = 0): number {
+  const def = CONSUMABLES[consumableId];
+  // Buffer shape — mirrors isBufferConsumable in the roaming engine:
+  // survival family, a heal field declared, and no DPS multiplier.
+  if (
+    !def ||
+    def.family !== 'survival' ||
+    def.runtime.baseEffects.dpsMultiplier !== undefined ||
+    (typeof def.runtime.baseEffects.healHp !== 'number' &&
+      typeof def.runtime.baseEffects.healHpPctOfPool !== 'number')
+  ) {
+    return 0;
   }
+  const fx = getConsumableRuntimeEffects(consumableId, 100);
+  if (typeof fx.healHp === 'number') return fx.healHp;
+  if (typeof fx.healHpPctOfPool === 'number') return fx.healHpPctOfPool * pool;
+  return 0;
 }
 
 /**
