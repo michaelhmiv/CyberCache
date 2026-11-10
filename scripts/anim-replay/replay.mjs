@@ -164,6 +164,8 @@ async function installProbeSampler(page) {
         beatMs: p?.beatMs ?? null,
         pose: p?.pose ?? null,
         enemyRig: p?.enemyRig ?? null,
+        enemyXPct: (p && "enemyXPct" in p) ? p.enemyXPct : "ABSENT",
+        walkOffsetXPct: p?.walkOffsetXPct ?? null,
         travel: p?.travel ?? null,
         panNearPx: p?.panNearPx ?? null,
         fpsAvg: p?.fpsAvg ?? null,
@@ -318,6 +320,7 @@ server.stdout.on('data', (d) => { serverLog += d; });
 server.stderr.on('data', (d) => { serverLog += d; });
 
 const results = [];
+let failure = null;
 try {
   await waitForServer(`http://127.0.0.1:${PORT}/roam-harness.html`);
   const harnessSrc = await (await fetch(`http://127.0.0.1:${PORT}/src/harness/roamMain.tsx`)).text();
@@ -332,6 +335,8 @@ try {
     await scenarioResume(browser, results, 'dom');
   }
   await browser.close();
+} catch (e) {
+  failure = e;
 } finally {
   server.kill('SIGTERM');
 }
@@ -340,5 +345,20 @@ writeFileSync(path.join(OUT, 'replay.json'), JSON.stringify({
   generatedAt: new Date().toISOString(),
   frameMs: FRAME_MS, holdMs: HOLD_MS,
   results, serverLogTail: serverLog.slice(-400),
+  ...(failure ? { failure: String(failure?.stack ?? failure) } : {}),
 }, null, 2));
+// Exit EXPLICITLY, success or failure. The first CI dispatch
+// (2026-11-10, run 42893452472) proved why: all scenarios finished
+// and replay.json was written at 20:17:57Z, yet the step ran 75+
+// minutes until cancelled — SIGTERM kills the npx wrapper but its
+// vite child can survive orphaned, holding the stdio pipes open,
+// so node's event loop never drains and the process never exits
+// (and the workflow's metrics step never runs). A scenario failure
+// must likewise fail fast with its partial results on disk, not
+// hang the job until the runner timeout.
+if (failure) {
+  console.error(`replay FAILED: ${failure?.stack ?? failure}`);
+  process.exit(1);
+}
 console.log(`replay done: ${results.map((r) => `${r.scenario}/${r.renderer}=${r.frames.length} frames`).join(' · ')}`);
+process.exit(0);

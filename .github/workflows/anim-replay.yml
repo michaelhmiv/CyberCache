@@ -17,6 +17,12 @@ permissions:
 jobs:
   anim-replay:
     runs-on: ubuntu-latest
+    # Backstop: a healthy run takes ~5 minutes end to end. The
+    # first dispatch (2026-11-10) hung 75+ minutes on a driver
+    # process that never exited; the driver now exits explicitly,
+    # and this cap turns any future hang into a 30-minute failure
+    # instead of the 360-minute default.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +37,7 @@ jobs:
       - name: Install replay tooling (playwright-core + metrics deps)
         run: |
           npm install --no-save playwright-core@1.49.1
-          pip install --quiet numpy pillow
+          pip install --quiet numpy pillow scipy
 
       - name: Install Chromium for the replay
         run: |

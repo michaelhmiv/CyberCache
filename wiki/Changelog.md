@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-10 — Enemies close the distance
+
+- **Enemies walk in and close on you now** — a roaming enemy used to appear near its mark and slide the last few steps rigidly; now it enters from well off its mark — about four times the old distance — body swaying and shifting with its stride as it comes, and settles closer to your hunter, so fights frame tighter. A shot that lands while it's still walking in plays through its stride instead of freezing it, and it arrives exactly on its fighting stance. Bosses keep their own entrance staging.
+- **The hunter's stride reaches full stretch** — the between-enemy advance used to spend its whole walk-in still warming up, peaking at about three-quarter stride as he arrived. His travel gait now builds to a full stride inside the walk and settles from there — same steps, same pace, the walk simply finishes becoming a walk before it ends.
+
 ## 2026-11-09 — The log remembers everything
 
 - **Your Activity Log now traces every action** — the record used to skip the quiet moves; now nothing you do to your own account is a mystery. Bulk salvage files its batch summary beside the per-item lines. Extraction settlements show their passes, finds, and XP. Reforging, standing turn-ins and rank-ups, streak claims, cache-rank token gains and spends, consumable use, and refuels all leave their lines. The repair and shield-tech boards record every step — posted, accepted, finished — each hunter reading their own side of the job. Dispatch departures, recalls, and board rerolls sit beside the settled returns. Listing something, or pulling it back down, reads beside the trades. Queuing a craft — or cancelling it for its inputs back — shows beside the completions. Even equipping, unequipping, and locking a piece of gear is on the record now. Two new chips — Extraction and Services — filter straight to the new lines, and the search box covers them like everything else.

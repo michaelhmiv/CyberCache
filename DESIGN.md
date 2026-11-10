@@ -1603,6 +1603,58 @@ pilot brief (2026-11-06, "everything you recommend"):
   owner watches the before/after fixture-fight recordings and
   rules; a Changelog entry is owed at merge, not before.
 
+### The enemy closes distance — animation fix iteration (2026-11-10)
+
+The Track A baseline (the anim-replay loop, PR #469) proved the
+roam walk-in articulated but travelled only ~23px — 6% of stage
+width — so the enemy appeared at its mark instead of closing on
+the hunter: the "shooting gallery" read the owner flagged. The
+fix iteration closes the approach by staging data only —
+`movement.ts` is zero-diff, the 850ms window is the law's own:
+
+- **The approach is choreography data.** `ROAM_APPROACH` in
+  `roamChoreography.ts`: the enemy spawns at a 24%-of-stage-width
+  offset (≈87px at the harness width, ~4× the shipped slide) and
+  settles at 66% (was 74%), so the fight framing tightens on both
+  ends. Boss encounters keep the 74% mark — their staging is a
+  separate composition. Both renderers and the flat entrance read
+  the same constants; nothing hard-codes a shape outside the data
+  (Flexibility Law).
+- **The rig strides through the approach.** Segment poses alone
+  cannot articulate the band rig (its segments carry no leg
+  splits), so the model folds a stride delta — sampled from the
+  shared stride cycle, phase-locked sway + counter-swing, fading
+  to exact rest across the window's last fifth — onto the beat
+  pose while the walk-in runs: a beat landing mid-walk plays
+  THROUGH the gait, and arrival is the beat system's pose,
+  byte-rest. Graded by the loop: interior/boundary motion ratio
+  0.978 (rigid ≈ 0), approach 24% with 98.8% covered, settle 66.3%.
+- **The travel stride reaches full amplitude.** The M2b
+  reservation (envelope peak 0.784 inside the window) closes by
+  spec data, not retiming: envelopes are stride-spec data
+  (`strideEnvelopeAt`), and the travel gait is its own
+  `STRIDE_SPECS.travelStride` row — the stride row's leg
+  amplitudes verbatim (the pan derivation consumes the same
+  swing) with a 0/600ms envelope, saturating inside the window.
+  Sampled peak amplitude: 0.743 → **1.000**. The pan/foot sync
+  ratio's window-sampling variance on the local loop is recorded
+  in the iteration log; the CI anim-replay artifact is the
+  arbiter, as it is for criterion 7.
+- **Tick-boundary latency is load-bearing (documented, item 2).**
+  The stage consumes `events[0]` the same React commit it lands;
+  feed events EXIST only as the Chef claim's output (one claim
+  per 3s tick; `feedEvents` are that tick's simulation record).
+  There is no earlier client-side copy of a beat to consume —
+  the 225–1,717ms seed→visible lags measure tick PHASE, not a
+  hand-off delay. Tightening it would require sub-tick claims or
+  client-side combat simulation, both forbidden (Chef authority,
+  AGENTS.md). The 420ms Sample B reaction itself is untouched.
+- **Resume-static stays a device question.** The loop's resume
+  scenario passes on both renderers after this iteration (first
+  motion +49ms Pixi / +169ms DOM locally, no catch-up burst);
+  the Capacitor-webview probe is specified, not built, in
+  `track-a/DEVICE-PROBE-SPEC.md` of the program's prep record.
+
 ### The boss fight's home is the main stage (owner ruling, 2026-11-06)
 
 The pilot shipped into the encounter card — and the owner's first

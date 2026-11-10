@@ -23,14 +23,17 @@
  * frame, the DOM scene from its own rAF driver — so the beat's
  * triggers, envelope, and pan rate cannot drift between them.
  *
- * The engagement envelope mirrors the M2a actor execution exactly
- * (PixelPartsActor's stride run): the SEGMENT start beat first
- * (STRIDE_START_DELAY_MS — the pose transition into the travel
- * stance plays), amplitude ramps 0→1 across one STRIDE_PERIOD_MS,
- * and on disengage the phase clock keeps running while amplitude
- * decays to 0 across one period, handing the figure back to the
- * pose system at amplitude 0 — where the composed pose IS the
- * base pose, byte-exact (M2a rest invariance is the floor).
+ * The engagement envelope is the stride spec's own envelope
+ * (strideCycle.strideEnvelopeAt — start delay + ramp are spec
+ * data): the generic gait keeps the M2a actor semantics (SEGMENT
+ * start beat, one-period ramp), while the advance's travel gait
+ * saturates at 600ms so the stride reaches full amplitude inside
+ * the 850ms window (animation fix iteration, 2026-11-10 — the
+ * criterion-5 reservation). On disengage the phase clock keeps
+ * running while amplitude decays to 0 across one period, handing
+ * the figure back to the pose system at amplitude 0 — where the
+ * composed pose IS the base pose, byte-exact (M2a rest invariance
+ * is the floor).
  *
  * No foot-skating by construction: the pan rate derives from the
  * stride spec itself — step length from the skeleton's leg and
@@ -53,8 +56,9 @@ import { SKELETON } from './parts';
 import { ROAM_HUNTER_PLACEMENT } from './roamChoreography';
 import {
   STRIDE_PERIOD_MS,
-  STRIDE_START_DELAY_MS,
   STRIDE_SPECS,
+  strideEnvelopeAt,
+  strideEnvelopeStartMs,
   type StrideSpec,
 } from './strideCycle';
 import { VISTA_STAGE_H, type VistaSceneSpec } from './vistaScenes';
@@ -82,7 +86,11 @@ export interface TravelSpec {
 export const TRAVEL_SPECS: Record<string, TravelSpec> = {
   advance: {
     id: 'advance',
-    strideSpecId: 'stride',
+    // The travel gait row (animation fix iteration, 2026-11-10):
+    // the stride row's leg amplitudes with an envelope tuned to
+    // the 850ms window, so the stride reaches full amplitude
+    // before arrival — see STRIDE_SPECS.travelStride.
+    strideSpecId: 'travelStride',
     durationMs: MOVEMENT.WALK_IN_MS,
   },
 };
@@ -167,18 +175,17 @@ export interface TravelFeedInput {
  *  under it, as it does under the enemy's walk-in. */
 const PREEMPTING_BEATS: ReadonlySet<CombatBeatKind> = new Set(['shot', 'crit', 'playerHit', 'kill']);
 
-/** The engagement envelope at `t` (M2a actor semantics, before
- *  any disengage decay): 0 through the start beat, then a linear
- *  ramp across one period. */
-function envelopeAmp(run: TravelRunState, t: number): number {
+/** The engagement envelope at `t` (before any disengage decay):
+ *  the spec's own envelope (strideCycle.strideEnvelopeAt — start
+ *  delay + ramp are spec data; the advance spec's travel gait
+ *  saturates inside the 850ms window). */
+function envelopeAmp(run: TravelRunState, spec: TravelSpec, t: number): number {
   if (run.startMs === null) return 0;
-  const phaseStart = run.startMs + STRIDE_START_DELAY_MS;
-  if (t < phaseStart) return 0;
-  return Math.min(1, (t - phaseStart) / STRIDE_PERIOD_MS);
+  return strideEnvelopeAt(travelStrideSpec(spec), t - run.startMs);
 }
 
-function disengage(run: TravelRunState, atMs: number): void {
-  run.ampAtStop = envelopeAmp(run, atMs);
+function disengage(run: TravelRunState, spec: TravelSpec, atMs: number): void {
+  run.ampAtStop = envelopeAmp(run, spec, atMs);
   run.stopAt = atMs;
 }
 
@@ -212,7 +219,7 @@ export function feedTravel(run: TravelRunState, spec: TravelSpec, input: TravelF
       // The target vanished mid-beat (killed on its spawn tick,
       // area reset): settle from here.
       run.targetKey = null;
-      if (run.startMs !== null && run.stopAt === null) disengage(run, input.now);
+      if (run.startMs !== null && run.stopAt === null) disengage(run, spec, input.now);
     }
   }
   if (run.startMs !== null && run.stopAt === null) {
@@ -221,9 +228,9 @@ export function feedTravel(run: TravelRunState, spec: TravelSpec, input: TravelF
       PREEMPTING_BEATS.has(input.beatKind) &&
       input.beatEventId !== run.engageEventId
     ) {
-      disengage(run, input.now);
+      disengage(run, spec, input.now);
     } else if (input.now - run.startMs >= spec.durationMs) {
-      disengage(run, run.startMs + spec.durationMs);
+      disengage(run, spec, run.startMs + spec.durationMs);
     }
   }
 }
@@ -236,8 +243,8 @@ export interface TravelSample {
   driving: boolean;
   /** Engagement amplitude 0..1 (the M2a envelope). */
   amplitude: number;
-  /** Stride-local ms for sampleStride: 0 at the delayed start,
-   *  the phase clock that keeps running through the settle. */
+  /** Stride-local ms for sampleStride: 0 at the spec's envelope
+   *  start, the phase clock that keeps running through the settle. */
   phaseMs: number;
   /** Vista pan clock multiplier this instant: 1 at rest (the
    *  ambient drift), rising with amplitude to the stride-synced
@@ -257,9 +264,9 @@ export function sampleTravel(
   if (run.startMs === null) {
     return { active: false, driving: false, amplitude: 0, phaseMs: 0, panRate: 1 };
   }
-  const phaseStart = run.startMs + STRIDE_START_DELAY_MS;
+  const phaseStart = run.startMs + strideEnvelopeStartMs(travelStrideSpec(spec));
   const phaseMs = Math.max(0, now - phaseStart);
-  let amplitude = envelopeAmp(run, now);
+  let amplitude = envelopeAmp(run, spec, now);
   if (run.stopAt !== null) {
     amplitude = run.ampAtStop * Math.max(0, 1 - (now - run.stopAt) / STRIDE_PERIOD_MS);
   }
