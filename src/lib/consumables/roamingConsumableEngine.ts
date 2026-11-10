@@ -42,11 +42,13 @@
  * | Ordnance | family 'ordnance' + ordnanceBonusDps | interval burst, consumed per fire |
  *
  * % of pool (tuning T2/P4): %-of-pool effects resolve against the
- * survival pool — max HP + shield capacity, the pool definition in
- * docs/MECHANICS.md and the tuning brief (L1 pool 940 = 700 + 60 +
- * ~180 shield, so a Q100 Med Kit heals 188). The Chef passes both
- * pools in; callers without pool context resolve %-based units to 0
- * and flat units exactly as before.
+ * survival pool — the hunter's Max HP stat (computeHunterMaxHp:
+ * 700 + 60 per level + shield HP), the pool definition the tuning
+ * brief measures (L1 pool 940 = 700 + 60 + ~180 shield, so a Q100
+ * Med Kit heals 188). The Chef passes that stat in as maxHp, plus
+ * shield capacity for Shield Cell's capacity-relative restore;
+ * callers without pool context resolve %-based units to 0 and flat
+ * units exactly as before.
  *
  * Ordnance interval: base 20 ticks (60s), reduced by `combat.ordnance`
  * mastery level: `max(10, 20 - floor(level / 2))`. The interval is an
@@ -251,11 +253,13 @@ export function isBufferConsumable(id: string): boolean {
 }
 
 /**
- * The pools a %-of-pool effect prices against (tuning T2/P4): heals and
- * repairs take a fraction of the survival pool — max HP + shield
- * capacity; shield restores take a fraction of shield capacity alone.
- * Callers that cannot know the pools pass nothing and %-based units
- * resolve to 0; flat units are unaffected either way.
+ * The pools a %-of-pool effect prices against (tuning T2/P4).
+ * `maxHp` is the hunter's Max HP stat — the combined survival pool
+ * (700 + 60 per level + shield HP, computeHunterMaxHp) that heals
+ * and repairs take a fraction of; `shieldCapacity` is the equipped
+ * shield's HP, which shield restores take a fraction of. Callers
+ * that cannot know the pools pass nothing and %-based units resolve
+ * to 0; flat units are unaffected either way.
  */
 export interface ConsumablePoolContext {
   maxHp: number;
@@ -263,7 +267,7 @@ export interface ConsumablePoolContext {
 }
 
 export function survivalPool(pools?: ConsumablePoolContext): number {
-  return pools ? pools.maxHp + pools.shieldCapacity : 0;
+  return pools ? pools.maxHp : 0;
 }
 
 /** Per-unit HP buffer from the def (0 for non-buffer consumables),
@@ -526,9 +530,10 @@ export interface TickContext {
   /** Player's max HP. */
   maxHp: number;
   /**
-   * Equipped shield's HP capacity. %-of-pool effects resolve against
-   * maxHp + shieldCapacity; Shield Cell restores resolve against this
-   * capacity alone (tuning T2/P4). Absent = 0 (flat effects unaffected).
+   * Equipped shield's HP capacity. Shield Cell restores resolve
+   * against this capacity (tuning T2/P4); %-of-pool heals/repairs
+   * resolve against maxHp, which already includes shield HP in the
+   * Max HP stat. Absent = 0 (flat effects unaffected).
    */
   shieldCapacity?: number;
   /** Consumable inventory count map (server-authoritative from DB). */
