@@ -4,9 +4,8 @@ import {
   computeMonsterDamageVsHunter,
   decideAutoEat,
   computeHealAmount,
+  computeMedKitBuffer,
   computeHunterMaxHp,
-  MEDKIT_BUFFER_AMOUNT,
-  SHIELD_CELL_AMOUNT,
   type WeaponDamageSource,
   type HunterSurvivalStats,
 } from '@/lib/combat/damageContract';
@@ -138,15 +137,23 @@ describe('damage contract', () => {
   });
 
   describe('heal amounts', () => {
-    it('medkit buffer is 150, shield cell restores 100', () => {
-      expect(MEDKIT_BUFFER_AMOUNT).toBe(150);
-      expect(SHIELD_CELL_AMOUNT).toBe(100);
-      expect(computeHealAmount('MedKit')).toBe(0); // Med Kit is now a buffer, not a heal
-      expect(computeHealAmount('ShieldCell')).toBe(100);
+    // Tuning T2/P4: survival pricing derives from the defs' %-of-pool
+    // fractions — Med Kit 20% of pool, Refined 30%, Shield Cell 25%
+    // of shield capacity. At a 750 pool / 480 capacity the readable
+    // pins are 150 / 225 / 120.
+    it('medkit buffer prices from the def fraction of the pool', () => {
+      expect(computeMedKitBuffer('MedKit', 750)).toBeCloseTo(150, 6);
+      expect(computeMedKitBuffer('MedKit', 940)).toBeCloseTo(188, 6);
+      expect(computeMedKitBuffer('MedKitRefined', 750)).toBeCloseTo(225, 6);
+      expect(computeMedKitBuffer('AmmoPack', 750)).toBe(0); // not a buffer
+      expect(computeHealAmount('MedKit')).toBe(0); // Med Kit is a buffer, not a heal
+      expect(computeHealAmount('MedKitRefined', 750)).toBeCloseTo(225, 6);
+      expect(computeHealAmount('ShieldCell', 0, 480)).toBeCloseTo(120, 6);
     });
 
     it('unknown consumable returns 0', () => {
       expect(computeHealAmount('FooBar')).toBe(0);
+      expect(computeMedKitBuffer('FooBar', 750)).toBe(0);
     });
   });
 
