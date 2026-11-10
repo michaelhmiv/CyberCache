@@ -42,7 +42,7 @@ import { DropSource, Element, Manufacturer, Rarity, RiskSetting, WeaponType } fr
 import type { Weapon } from '../types/items';
 
 /** The brief's L1 pool: 700 + 60×1 hunter HP + ~180 shield capacity. */
-const L1_POOLS = { maxHp: 760, shieldCapacity: 180 };
+const L1_POOLS = { maxHp: 940, shieldCapacity: 180 };
 
 describe('P3 — ammo magnitudes (brief table, at Q100)', () => {
   it('generic and specialized ammo read the new base magnitudes', () => {
