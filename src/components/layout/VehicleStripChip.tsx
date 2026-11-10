@@ -18,15 +18,17 @@ import { FUEL_CELL_TYPE, conditionFraction, effectiveVehicleYield } from '@/lib/
  * Garage expanded (the App's 'garage' intent), the same
  * destination the Loadout panel's VehicleButton opens in place.
  *
- * States, in the Strip's segment grammar (icon + data on one
- * line, 11px floor, values never shrink):
- *  - equipped + healthy: a quiet readout — wheel glyph, the
- *    vehicle's name, its fuel units, its ×yield (condition %
- *    joins when worn below full) — the belt chip's exact facts.
+ * States, in the Strip's segment grammar (icon + a two-line
+ * cell, 11px floor, values never shrink):
+ *  - equipped + healthy: a quiet readout — the vehicle's name
+ *    on line one (the condition % rides its line when worn
+ *    below full), its fuel units and ×yield whole on line
+ *    two — the belt chip's exact facts.
  *  - out of fuel / worn out: the chip flips to its remedy, the
- *    belt chip's flip preserved — state word + door word in
+ *    belt chip's flip preserved, stacked state over door in
  *    amber: Refuel → Garage (a cell is carried), Buy cells →
- *    Vendor (none carried), Repair → Garage.
+ *    Vendor (none carried), Repair → Garage. The name rides
+ *    the aria-label in this state (see width discipline).
  *  - on foot: wheel glyph + "On foot" — the door in its quiet
  *    form; the Garage is where a vehicle is chosen.
  *
@@ -36,17 +38,35 @@ import { FUEL_CELL_TYPE, conditionFraction, effectiveVehicleYield } from '@/lib/
  * gameplay state of its own. Home variant only: every other
  * tab's Strip renders exactly as shipped.
  *
- * Width discipline: the wallet's fixed residents measure
- * ~302px at 390px and the chip's full readout ~154px, so the
- * NAME is the row's one elastic part. The chip root carries
- * min-w-0 AND basis-0 (flex-1): inside the Strip's
- * justify-between row a bare min-w-0 does not let the name
- * truncate (flexbox's min-content floor holds the item's
- * basis at content size), so the basis itself yields and
- * the chip takes whatever width the wallet leaves — the
- * icon and the state facts are shrink-0 inside it, and the
- * name truncates in the space between. Every wallet number
- * stays whole. The full name is one tap away in the Garage.
+ * Width discipline: the wallet's fixed residents leave this
+ * cell roughly a hundred pixels at 390px, and the one-line
+ * readout (~154px) does not fit it — measured the hard way in
+ * this slice's first captures: in the healthy state the name
+ * truncated to zero width (only the facts showed), and in the
+ * remedy state the state span — shrink-0, unshrinkable —
+ * painted over the level block and clipped at the frame edge.
+ * The cell therefore STACKS its two lines, the belt chip's own
+ * remedy for the same overflow in its cell (its comment records
+ * the one-line form painting over the panel edge; state over
+ * door was its fix): the name is the row's one elastic part and
+ * truncates on line one; the facts stay whole on line two; the
+ * remedy prints state over door, both whole, the name carried
+ * by the aria-label and one tap away in the Garage. A clip
+ * wrapper (overflow-hidden) bounds the cell's content to the
+ * chip's own box, so no state can paint past it again. The root
+ * keeps min-w-0 with basis-0 (flex-1): inside the Strip's
+ * justify-between row a bare min-w-0 does not let the cell take
+ * the width the wallet leaves (flexbox's min-content floor
+ * holds the item's basis at content size), so the basis itself
+ * yields. The full name is one tap away in the Garage.
+ *
+ * Touch: the Strip row stands 44px tall — the settings gear
+ * resident (h-9) plus the row's own padding sets its height —
+ * and the two-line cell stands ~26px, so the button extends
+ * its hit area ±9px vertically, invisibly (the GearHub compare
+ * button's after: idiom), reaching the row's full 44 without
+ * widening into the level door's space; the visual stays two
+ * 11px lines.
  */
 export const VehicleStripChip: React.FC<{
   onNavigate?: (target: string) => void;
@@ -59,6 +79,8 @@ export const VehicleStripChip: React.FC<{
 
   const wheel = <PxIcon name="wheel" size={13} className="shrink-0 text-text-secondary" />;
 
+  const rootClass = `relative flex min-w-0 flex-1 basis-0 items-center transition-transform active:scale-[0.96] after:absolute after:inset-x-0 after:-inset-y-[9px] after:content-['']`;
+
   if (!equipped) {
     return (
       <button
@@ -67,11 +89,16 @@ export const VehicleStripChip: React.FC<{
         data-state="on-foot"
         aria-label="On foot — no vehicle equipped. Opens Gear, Loadout, with the Garage expanded."
         onClick={() => onNavigate?.('garage')}
-        className="flex shrink-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+        className={`${rootClass} min-h-[26px]`}
       >
-        {wheel}
-        <span className="whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-muted">
-          On foot
+        <span
+          data-testid="vehicle-chip-readout"
+          className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
+        >
+          {wheel}
+          <span className="min-w-0 truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-muted">
+            On foot
+          </span>
         </span>
       </button>
     );
@@ -99,15 +126,28 @@ export const VehicleStripChip: React.FC<{
         data-state={outOfFuel ? 'out-of-fuel' : 'worn-out'}
         aria-label={aria}
         onClick={() => onNavigate?.(target)}
-        className="flex min-w-0 flex-1 basis-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+        className={rootClass}
       >
-        {wheel}
-        <span className="min-w-0 truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-primary">
-          {name}
-        </span>
-        <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-amber">
-          {stateLabel} · {doorLabel}
-          <PxIcon name="chevR" size={11} />
+        <span
+          data-testid="vehicle-chip-readout"
+          className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
+        >
+          {wheel}
+          <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <span
+              data-testid="vehicle-chip-state"
+              className="whitespace-nowrap text-[11px] font-black uppercase leading-[1.2] tracking-wider text-amber"
+            >
+              {stateLabel}
+            </span>
+            <span
+              data-testid="vehicle-chip-door"
+              className="flex items-center gap-0.5 whitespace-nowrap text-[11px] font-black uppercase leading-[1.2] tracking-wider text-amber"
+            >
+              {doorLabel}
+              <PxIcon name="chevR" size={11} />
+            </span>
+          </span>
         </span>
       </button>
     );
@@ -120,14 +160,37 @@ export const VehicleStripChip: React.FC<{
       data-state="ok"
       aria-label={`${name}: ${Math.floor(vehicleFuel)} fuel units, yield bonus ×${factor.toFixed(2)}${fraction < 1 ? `, condition ${Math.round(fraction * 100)}%` : ''}. Opens Gear, Loadout, with the Garage expanded.`}
       onClick={() => onNavigate?.('garage')}
-      className="flex min-w-0 flex-1 basis-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+      className={rootClass}
     >
-      {wheel}
-      <span className="min-w-0 truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-primary">
-        {name}
-      </span>
-      <span className="shrink-0 whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-text-muted">
-        {`${Math.floor(vehicleFuel)}u · ×${factor.toFixed(2)}${fraction < 1 ? ` · ${Math.round(fraction * 100)}%` : ''}`}
+      <span
+        data-testid="vehicle-chip-readout"
+        className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
+      >
+        {wheel}
+        <span className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <span className="flex min-w-0 items-baseline gap-1 whitespace-nowrap">
+            <span
+              data-testid="vehicle-chip-name"
+              className="min-w-0 truncate text-[11px] font-black uppercase leading-[1.2] tracking-wider text-text-primary"
+            >
+              {name}
+            </span>
+            {fraction < 1 && (
+              <span
+                data-testid="vehicle-chip-condition"
+                className="shrink-0 text-[11px] font-bold tabular-nums leading-[1.2] text-text-muted"
+              >
+                {`${Math.round(fraction * 100)}%`}
+              </span>
+            )}
+          </span>
+          <span
+            data-testid="vehicle-chip-facts"
+            className="whitespace-nowrap text-[11px] font-bold tabular-nums leading-[1.2] text-text-muted"
+          >
+            {`${Math.floor(vehicleFuel)}u · ×${factor.toFixed(2)}`}
+          </span>
+        </span>
       </span>
     </button>
   );
