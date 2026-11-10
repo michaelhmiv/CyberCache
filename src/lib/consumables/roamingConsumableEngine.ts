@@ -34,12 +34,19 @@
  *
  * | Behavior | Def signature | Roaming model |
  * |---|---|---|
- * | Buffer (Med Kit line) | survival + healHp, no dpsMultiplier | buffer = count × healHp, absorbed before HP |
- * | Shield restore | shieldRestore (+ damageReductionPct) | restore on (re)activation; resistance window from activityRules.roaming.durationSeconds |
- * | Regen (Nano Swarm) | repairTotalHp + repairDurationSeconds | healPerTick = total ÷ duration ticks |
+ * | Buffer (Med Kit line) | survival + healHp / healHpPctOfPool, no dpsMultiplier | buffer = count × per-unit heal (flat, or % of pool), absorbed before HP |
+ * | Shield restore | shieldRestore / shieldRestorePctOfCapacity (+ damageReductionPct) | restore on (re)activation; resistance window from activityRules.roaming.durationSeconds |
+ * | Regen (Nano Swarm) | repairTotalHp / repairTotalHpPctOfPool + repairDurationSeconds | healPerTick = total ÷ duration ticks |
  * | Reactive (Adrenaline) | dpsMultiplier + runtime.threshold (hpBelowThreshold) | burst of repairDurationSeconds when HP < threshold |
  * | Coverage (ammo/tactical/economy) | ammoCoveredSeconds or roaming durationSeconds | modifier window, auto-renewed while stock lasts |
  * | Ordnance | family 'ordnance' + ordnanceBonusDps | interval burst, consumed per fire |
+ *
+ * % of pool (tuning T2/P4): %-of-pool effects resolve against the
+ * survival pool — max HP + shield capacity, the pool definition in
+ * docs/MECHANICS.md and the tuning brief (L1 pool 940 = 700 + 60 +
+ * ~180 shield, so a Q100 Med Kit heals 188). The Chef passes both
+ * pools in; callers without pool context resolve %-based units to 0
+ * and flat units exactly as before.
  *
  * Ordnance interval: base 20 ticks (60s), reduced by `combat.ordnance`
  * mastery level: `max(10, 20 - floor(level / 2))`. The interval is an
@@ -230,22 +237,44 @@ export function isRoamingConsumable(id: string): boolean {
   return CONSUMABLES[id]?.runtime.activityScopes.includes('roaming') ?? false;
 }
 
-/** Buffer behavior (Med Kit line): HP pool = owned count × def healHp. */
+/** Buffer behavior (Med Kit line): HP pool = owned count × per-unit heal
+ *  (flat healHp, or healHpPctOfPool resolved against the survival pool). */
 export function isBufferConsumable(id: string): boolean {
   const def = CONSUMABLES[id];
   return (
     !!def &&
     def.family === 'survival' &&
-    typeof def.runtime.baseEffects.healHp === 'number' &&
+    (typeof def.runtime.baseEffects.healHp === 'number' ||
+      typeof def.runtime.baseEffects.healHpPctOfPool === 'number') &&
     def.runtime.baseEffects.dpsMultiplier === undefined
   );
 }
 
+/**
+ * The pools a %-of-pool effect prices against (tuning T2/P4): heals and
+ * repairs take a fraction of the survival pool — max HP + shield
+ * capacity; shield restores take a fraction of shield capacity alone.
+ * Callers that cannot know the pools pass nothing and %-based units
+ * resolve to 0; flat units are unaffected either way.
+ */
+export interface ConsumablePoolContext {
+  maxHp: number;
+  shieldCapacity: number;
+}
+
+export function survivalPool(pools?: ConsumablePoolContext): number {
+  return pools ? pools.maxHp + pools.shieldCapacity : 0;
+}
+
 /** Per-unit HP buffer from the def (0 for non-buffer consumables),
  *  read at the given quality through the def's declared scaling —
- *  at 100 (the default) this is exactly the shipped base value. */
-export function bufferHealPerUnit(id: string, qualityPercent = 100): number {
-  return isBufferConsumable(id) ? (getConsumableRuntimeEffects(id, qualityPercent).healHp ?? 0) : 0;
+ *  at 100 (the default) a flat def reads exactly the shipped base value;
+ *  a %-of-pool def resolves its fraction against the given pool. */
+export function bufferHealPerUnit(id: string, qualityPercent = 100, pools?: ConsumablePoolContext): number {
+  if (!isBufferConsumable(id)) return 0;
+  const fx = getConsumableRuntimeEffects(id, qualityPercent);
+  if (typeof fx.healHp === 'number') return fx.healHp;
+  return (fx.healHpPctOfPool ?? 0) * survivalPool(pools);
 }
 
 /** The weighted-average quality of profile units [0, count). */
@@ -297,12 +326,13 @@ function advanceSlotQuality(
   slot.qualityPercent = profileAverage(units, slot.qualityUnitsBurned);
 }
 
-/** Regen behavior (Nano Swarm): repairTotalHp spread over repairDurationSeconds. */
+/** Regen behavior (Nano Swarm): repair total (flat, or % of pool) spread over repairDurationSeconds. */
 export function isRegenConsumable(id: string): boolean {
   const def = CONSUMABLES[id];
   return (
     !!def &&
-    typeof def.runtime.baseEffects.repairTotalHp === 'number' &&
+    (typeof def.runtime.baseEffects.repairTotalHp === 'number' ||
+      typeof def.runtime.baseEffects.repairTotalHpPctOfPool === 'number') &&
     typeof def.runtime.baseEffects.repairDurationSeconds === 'number' &&
     def.runtime.baseEffects.dpsMultiplier === undefined
   );
@@ -313,10 +343,14 @@ function regenTicks(id: string): number {
   return Math.max(1, Math.round(seconds / TICK_SECONDS));
 }
 
-function regenHealPerTick(id: string, qualityPercent = 100): number {
+function regenHealPerTick(id: string, qualityPercent = 100, pools?: ConsumablePoolContext): number {
   const def = CONSUMABLES[id];
   if (!def || !isRegenConsumable(id)) return 0;
-  return (getConsumableRuntimeEffects(id, qualityPercent).repairTotalHp ?? 0) / regenTicks(id);
+  const fx = getConsumableRuntimeEffects(id, qualityPercent);
+  const total = typeof fx.repairTotalHp === 'number'
+    ? fx.repairTotalHp
+    : (fx.repairTotalHpPctOfPool ?? 0) * survivalPool(pools);
+  return total / regenTicks(id);
 }
 
 /** Reactive behavior (Adrenaline Shot): DPS burst below the def HP threshold. */
@@ -339,13 +373,17 @@ function reactiveThreshold(id: string): number {
   return CONSUMABLES[id]?.runtime.threshold ?? 0;
 }
 
-/** Shield-restore behavior (Shield Cell): shieldRestore on (re)activation. */
+/** Shield-restore behavior (Shield Cell): shield restore on (re)activation —
+ *  flat shieldRestore, or shieldRestorePctOfCapacity of shield capacity. */
 export function isShieldRestoreConsumable(id: string): boolean {
-  return typeof CONSUMABLES[id]?.runtime.baseEffects.shieldRestore === 'number';
+  const fx = CONSUMABLES[id]?.runtime.baseEffects;
+  return typeof fx?.shieldRestore === 'number' || typeof fx?.shieldRestorePctOfCapacity === 'number';
 }
 
-function shieldRestoreFor(id: string, qualityPercent = 100): number {
-  return getConsumableRuntimeEffects(id, qualityPercent).shieldRestore ?? 0;
+function shieldRestoreFor(id: string, qualityPercent = 100, shieldCapacity = 0): number {
+  const fx = getConsumableRuntimeEffects(id, qualityPercent);
+  if (typeof fx.shieldRestore === 'number') return fx.shieldRestore;
+  return (fx.shieldRestorePctOfCapacity ?? 0) * shieldCapacity;
 }
 
 /** Ordnance behavior: interval burst damage from the def. */
@@ -378,12 +416,12 @@ function durationTicksFor(id: string): number {
  *  The buffer pool is priced at the slot's quality (§2.4): the pool
  *  and the claim-end per-unit divisor use the same quality, so
  *  consumption counts stay exact at any quality. */
-function initializeSlotFields(slot: ActiveSlotState, startTick: number, ownedCount: number): void {
+function initializeSlotFields(slot: ActiveSlotState, startTick: number, ownedCount: number, pools?: ConsumablePoolContext): void {
   const id = slot.consumableId;
   const duration = durationTicksFor(id);
   slot.activatedAtTick = startTick;
   slot.expiresAtTick = duration > 0 ? startTick + duration : 0;
-  slot.remainingBuffer = isBufferConsumable(id) ? ownedCount * bufferHealPerUnit(id, slot.qualityPercent ?? 100) : 0;
+  slot.remainingBuffer = isBufferConsumable(id) ? ownedCount * bufferHealPerUnit(id, slot.qualityPercent ?? 100, pools) : 0;
   slot.remainingRegenTicks = isRegenConsumable(id) ? regenTicks(id) : 0;
   slot.armed = isReactiveConsumable(id);
   slot.remainingBurstTicks = 0;
@@ -406,6 +444,7 @@ export function activateFromInventory(
   inventory: Record<string, number>,
   startTick: number,
   qualityProfile?: Record<string, number[]>,
+  pools?: ConsumablePoolContext,
 ): RoamingConsumableState {
   const slots: ActiveSlotState[] = [];
 
@@ -429,7 +468,7 @@ export function activateFromInventory(
       ordnanceNextFireTick: 0,
     };
     initializeSlotQuality(activeSlot, count, qualityProfile);
-    initializeSlotFields(activeSlot, startTick, count);
+    initializeSlotFields(activeSlot, startTick, count, pools);
 
     slots.push(activeSlot);
   }
@@ -446,6 +485,7 @@ export function activateLoadout(
   loadout: LoadoutConsumableSlots,
   inventory: Record<string, number>,
   startTick: number,
+  pools?: ConsumablePoolContext,
 ): RoamingConsumableState {
   const slots: ActiveSlotState[] = [];
   const slotNames: ConsumableSlotName[] = ['PreFight', 'MidFight', 'Emergency'];
@@ -468,7 +508,7 @@ export function activateLoadout(
       remainingBurstTicks: 0,
       ordnanceNextFireTick: 0,
     };
-    initializeSlotFields(activeSlot, startTick, inventory[id] ?? 0);
+    initializeSlotFields(activeSlot, startTick, inventory[id] ?? 0, pools);
 
     slots.push(activeSlot);
   }
@@ -485,6 +525,12 @@ export interface TickContext {
   currentHp: number;
   /** Player's max HP. */
   maxHp: number;
+  /**
+   * Equipped shield's HP capacity. %-of-pool effects resolve against
+   * maxHp + shieldCapacity; Shield Cell restores resolve against this
+   * capacity alone (tuning T2/P4). Absent = 0 (flat effects unaffected).
+   */
+  shieldCapacity?: number;
   /** Consumable inventory count map (server-authoritative from DB). */
   inventory: Record<string, number>;
   /** Mastery levels for interval reduction. */
@@ -558,11 +604,11 @@ export function processTick(
         // Reactivate with a fresh def-derived window; the replacement
         // unit's quality drives the new window's effects (§2.4).
         advanceSlotQuality(slot, ctx.consumableQualityProfile);
-        initializeSlotFields(slot, ctx.tickIndex, 1);
+        initializeSlotFields(slot, ctx.tickIndex, 1, { maxHp: ctx.maxHp, shieldCapacity: ctx.shieldCapacity ?? 0 });
 
         if (isShieldRestoreConsumable(slot.consumableId)) {
           shieldCellJustActivated = true;
-          shieldRestoreAmount = shieldRestoreFor(slot.consumableId, slot.qualityPercent ?? 100);
+          shieldRestoreAmount = shieldRestoreFor(slot.consumableId, slot.qualityPercent ?? 100, ctx.shieldCapacity ?? 0);
         }
         feedEvents.push({
           tone: 'consumable',
@@ -596,7 +642,7 @@ export function processTick(
           feedEvents.push({
             tone: 'consumable',
             label: 'Nano Swarm replenished',
-            detail: `+${regenHealPerTick(slot.consumableId, slot.qualityPercent ?? 100)} HP/tick for ${regenTicks(slot.consumableId)} ticks.`,
+            detail: `+${regenHealPerTick(slot.consumableId, slot.qualityPercent ?? 100, { maxHp: ctx.maxHp, shieldCapacity: ctx.shieldCapacity ?? 0 })} HP/tick for ${regenTicks(slot.consumableId)} ticks.`,
           });
         } else {
           state.slots.splice(i, 1);
@@ -743,9 +789,10 @@ export function processTick(
 
 /**
  * Extract survival-relevant state from active slots for the Chef to use
- * in damage calculations.
+ * in damage calculations. %-of-pool regen pricing needs the caller's
+ * pools (tuning T2/P4) — without them a %-based regen reads 0.
  */
-export function getSurvivalState(state: RoamingConsumableState) {
+export function getSurvivalState(state: RoamingConsumableState, pools?: ConsumablePoolContext) {
   let medKitBuffer = 0;
   let nanoSwarmHealThisTick = 0;
   let nanoSwarmTicksRemaining = 0;
@@ -759,7 +806,7 @@ export function getSurvivalState(state: RoamingConsumableState) {
       medKitBuffer += slot.remainingBuffer;
     } else if (isRegenConsumable(slot.consumableId)) {
       nanoSwarmTicksRemaining = slot.remainingRegenTicks;
-      nanoSwarmHealThisTick = slot.remainingRegenTicks > 0 ? regenHealPerTick(slot.consumableId, slot.qualityPercent ?? 100) : 0;
+      nanoSwarmHealThisTick = slot.remainingRegenTicks > 0 ? regenHealPerTick(slot.consumableId, slot.qualityPercent ?? 100, pools) : 0;
     } else if (isReactiveConsumable(slot.consumableId)) {
       adrenalineActive = slot.remainingBurstTicks > 0;
     } else if (isShieldRestoreConsumable(slot.consumableId)) {
