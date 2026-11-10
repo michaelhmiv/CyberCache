@@ -354,3 +354,44 @@ currencies are destroyed on use and metered above.
 day, and the minted/salvaged ratio (average yield per destroyed
 legendary should sit between 1 and 4 — outside that band, something
 is mis-attributing).
+
+## Tuning decisions — D2 consumable magnitudes (2026-11-10)
+
+Owner ruling 2026-11-10: D2 (the economy tuning brief's consumable
+magnitude package) approved as a package — proposals P3, P4, P5
+implemented; P6 NOT implemented (see below).
+
+- **P3 — ammo magnitudes (at Q100):** Ammo Pack +5% → +10% DPS;
+  High-Capacity Ammo Pack +5% → +12%; Incendiary Ammo +8% → +12%;
+  Elemental Coating breaks 1.08/1.08 → 1.15/1.15; Prism Coating
+  breaks 1.12/1.12 → 1.18/1.18 (the brief table's "1.12 → 1.18
+  breaks" read against the def's symmetric pair — flagged in the
+  implementing PR for an owner strike if shield-only was meant);
+  Redline Tonic +10% → +14%. DELTA quality caps follow each item's
+  own convention (cap ≈ 1 + 2× the base delta), so the brief's Q175
+  worked check holds: an Ammo Pack at Q175 = +17.5%. Unchanged:
+  Void Ammo +22%, Target Painter +15%, Overcharge Stim +12%.
+- **P4 — survival flat → % of pool:** Med Kit 150 flat → 20% of
+  pool; Med Kit (Refined) 260 → 30%; Nano Swarm 300 flat / 30s →
+  35% of pool / 30s; Shield Cell 120 flat → 25% of shield capacity
+  (its 15% damage reduction unchanged); Adrenaline Shot 80 flat →
+  10% of pool (its +10% DPS burst unchanged). "Pool" = max HP +
+  shield capacity — the brief's measured pool (L1 940 → a Q100 Med
+  Kit heals 188; L50 ≈ 7,330 → ≈1,470). Quality scales the
+  fractions linearly in flat mode: Q175 Med Kit = 35% of pool.
+- **P5 — ordnance flat riders ×4:** `ordnanceBonusDps` 50/60/70/80/90
+  → 200/240/280/320/360 (Ordnance Charge / EMP Charge / Corrosive
+  Charge / Phase Shift Grenade / Magnetized Payload); Forgeheart
+  Charge 25 → 120.
+- **P6 — tempo consumable: NOT implemented.** The brief names the
+  role only (+attack speed % for a window, crafter-only) — no name,
+  magnitude, duration, or recipe — and the runtime-effects contract
+  has no attack-speed channel. It lands when a one-line supplement
+  supplies name, magnitude, window, and recipe inputs.
+
+Vendor staple prices are unchanged — magnitudes only. P4's expected
+effect is stated in per-engagement pool terms (fights cost ~0.5–8%
+of pool over 1–3 ticks); the brief's original falsifier cited P1's
+attrition model, which the 2026-11-10 premise check invalidated
+(the shipped game has no shield-recharge mechanic) — the falsifier
+is to be rebaselined after the fleet measures the new magnitudes.
