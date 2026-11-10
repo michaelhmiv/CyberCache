@@ -37,7 +37,7 @@ jobs:
       - name: Install replay tooling (playwright-core + metrics deps)
         run: |
           npm install --no-save playwright-core@1.49.1
-          pip install --quiet numpy pillow
+          pip install --quiet numpy pillow scipy
 
       - name: Install Chromium for the replay
         run: |
