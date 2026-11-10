@@ -17,7 +17,7 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
-import { ROAM_APPROACH, ROAM_ENEMY_PLACEMENT, approachOffsetXPct } from '@/lib/pixel/roamChoreography';
+import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -49,7 +49,7 @@ import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_MODE } from '@/lib/pixel/workCycle
 import { SET_SEATS, seatPointTopPct } from '@/lib/pixel/setSeats';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import type { WorkshopCompletionView } from '@/store/slices/workshopSlice';
-import { ENEMY_POSES, enemyRig } from '@/lib/pixel/rig';
+import { ENEMY_POSES, enemyRig, type RigPose } from '@/lib/pixel/rig';
 import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
 import { useCosmeticsStore, useOwnLook } from '@/store/slices/cosmeticsSlice';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
@@ -541,6 +541,56 @@ const PixelSceneLayerDom: React.FC<{
         : beat?.kind === 'kill'
           ? ENEMY_POSES.death
           : ENEMY_POSES.idle;
+  // ── Walk-in articulation clock (animation fix iteration) ────
+  // While the current target is inside its walk-in window, the
+  // rig wrapper's remount instant starts a rAF clock; the rig
+  // pose handed to PixelRigActor is the beat pose COMPOSED with
+  // the stride delta (roamChoreography's sampleEnemyWalkPose —
+  // the same derivation the Pixi stage samples per frame), so
+  // the DOM enemy articulates through its approach instead of
+  // sliding rigidly. The clock clears itself at the window's end
+  // and the plain beat pose resumes. Elite/flat entrances and
+  // reduced motion never engage it.
+  const walkKey = `${currentTargetId ?? 'none'}|${isEliteEvent ? 'elite' : 'std'}`;
+  const [walkPoseState, setWalkPoseState] = useState<{ key: string; pose: RigPose; deltaX: number } | null>(null);
+  useEffect(() => {
+    if (reduced || mode !== 'roaming' || isEliteEvent || !currentTargetId) return;
+    let raf = 0;
+    const t0 = performance.now();
+    const loop = (now: number) => {
+      const tMs = now - t0;
+      if (tMs >= MOVEMENT.WALK_IN_MS) {
+        setWalkPoseState((prev) => (prev?.key === walkKey ? null : prev));
+        return;
+      }
+      const w = sampleEnemyWalkPose(tMs);
+      setWalkPoseState({ key: walkKey, pose: w.poseDelta, deltaX: w.deltaX });
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+    // walkKey carries target + elite identity; the loop re-arms
+    // per spawn exactly like the wrapper's remount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walkKey, reduced, mode]);
+  const walkDelta = walkPoseState?.key === walkKey ? walkPoseState : null;
+  const enemyRigPose: RigPose = walkDelta
+    ? Object.fromEntries(
+        [...new Set([...Object.keys(enemyPose), ...Object.keys(walkDelta.pose)])].map((segId) => {
+          const b = enemyPose[segId] ?? {};
+          const d = walkDelta.pose[segId] ?? {};
+          return [
+            segId,
+            {
+              rotate: (b.rotate ?? 0) + (d.rotate ?? 0),
+              x: (b.x ?? 0) + (d.x ?? 0) + (segId === 'base' ? walkDelta.deltaX : 0),
+              y: (b.y ?? 0) + (d.y ?? 0),
+              ...(b.opacity !== undefined ? { opacity: b.opacity } : {}),
+            },
+          ];
+        }),
+      )
+    : enemyPose;
   // The hunter's part set (M2) — Standard Issue wearing the player's
   // head variant. FX points resolve from the parts layout for the
   // pose he is actually in: the held weapon's grip/muzzle, and (M3)
@@ -1280,7 +1330,7 @@ const PixelSceneLayerDom: React.FC<{
                   heightPct={isEliteEvent ? 72 : enemyPlacement.heightPct}
                   feetX={enemySprite.anchors.feet?.x ?? 0.5}
                   reduced={reduced}
-                  pose={enemyPose}
+                  pose={enemyRigPose}
                   palette={{ paletteId: areaId, spec: visuals.enemyPalette }}
                   testId="pixel-enemy"
                 >

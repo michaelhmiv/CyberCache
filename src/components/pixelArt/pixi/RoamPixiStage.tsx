@@ -51,7 +51,7 @@ import {
 } from '@/lib/pixel/movement';
 import { EASE, sampleTrack } from '@/lib/pixel/pixiChoreography';
 import {
-  approachOffsetXPct,
+  ROAM_APPROACH,
   deriveRoamScene,
   roamAnimatedNodeCount,
   sampleRoamBeat,
@@ -302,6 +302,11 @@ function createRoamRuntime(): RoamRuntime {
 interface TickEnv {
   props: RoamPixiStageProps;
   model: RoamSceneModel;
+  /** Re-derive the model with a live walk clock (the env model's
+   *  own walkMs is the spawn instant's 0): the tick calls this
+   *  per frame while a walk-in runs so the rig pose carries the
+   *  stride articulation, and memoizes the settled model. */
+  deriveModelAt: (walkMs: number) => RoamSceneModel;
   /** The hunter's part set + held-weapon fractions (Motion M2b:
    *  the travel stride composes layouts per frame from the same
    *  inputs deriveRoamScene consumes). */
@@ -471,7 +476,15 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const scene = rt.scene;
   if (!scene) return;
   const { props } = env;
-  const model = env.model;
+  // Walk-articulation: while a walk-in is live, the model is
+  // re-derived per frame with the walk clock so the rig pose
+  // carries the stride delta; the walk STATE itself (start time
+  // per target) is keyed below, in the pose block. The first tick
+  // of a walk starts the clock here so the pose and the offset
+  // share one origin.
+  const walkTargetKey = `${props.currentTargetId ?? 'none'}|${env.model.isEliteEvent ? 'elite' : 'std'}`;
+  const walkingNow = !!(rt.walk && rt.walk.targetKey === walkTargetKey && now - rt.walk.startMs < MOVEMENT.WALK_IN_MS);
+  const model = walkingNow && rt.walk ? env.deriveModelAt(now - rt.walk.startMs) : env.model;
   // F6: the enemy art follows the current target, not the mount's.
   syncEnemyArt(rt, env);
   const { w: W, h: H } = rt.size;
@@ -759,20 +772,18 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   }
 
   // ── Enemy ──
-  const walkP = rt.walk ? Math.min(1, (now - rt.walk.startMs) / MOVEMENT.WALK_IN_MS) : 1;
-  const walkE = EASE.easeOut(Math.max(0, walkP));
-  // Approach staging (roamChoreography ROAM_APPROACH): the eased
-  // walk-in offset — the enemy enters from off-frame right and
-  // travels the full approach to its settle point; the window is
-  // the movement law's WALK_IN_MS, unchanged.
-  const walkOffsetXPct = approachOffsetXPct(walkE);
+  // Approach staging (roamChoreography sampleEnemyWalkPose): the
+  // walk wrapper rides the sampled offset — the enemy enters
+  // from off-frame right and travels the full approach to its
+  // settle point inside the movement law's WALK_IN_MS window.
+  const walkOffsetXPct = model.enemyWalk?.offsetXPct ?? 0;
   rt.walkOffsetXPct = walkOffsetXPct;
   scene.enemyLunge.position.set((model.enemyPlacement.xPct / 100) * W + beatSample.enemyLungeX, groundYPx);
   scene.enemyHit.scale.set(beatSample.enemyHit.scale, beatSample.enemyHit.scale);
   scene.enemyHit.position.set(beatSample.enemyHit.x, beatSample.enemyHit.y);
   scene.enemyHit.alpha = beatSample.enemyHit.opacity;
   scene.enemyWalk.position.set((walkOffsetXPct / 100) * W, 0);
-  scene.enemyWalk.alpha = walkE;
+  scene.enemyWalk.alpha = 1 - walkOffsetXPct / ROAM_APPROACH.spawnOffsetXPct;
   const enemyH = (model.enemyPlacement.heightPct / 100) * H;
   if (scene.rigRoot && model.rig) {
     const rig = model.rig;
@@ -1066,6 +1077,11 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         targetMaxHp: props.targetMaxHp,
         currentTargetId: props.currentTargetId,
         hunterSet: look.set,
+        // The walk clock lives in the stage runtime (per-frame);
+        // the model handed to the seed build carries the spawn
+        // instant's pose (walkMs 0) and each tick re-derives with
+        // the live value below.
+        walkMs: 0,
       }),
     [props.backgroundId, props.areaId, props.weapon, props.event, props.targetMaxHp, props.currentTargetId, look.set],
   );
@@ -1080,6 +1096,17 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
     envRef.current = {
       props,
       model,
+      deriveModelAt: (walkMs: number) =>
+        deriveRoamScene({
+          backgroundId: props.backgroundId,
+          areaId: props.areaId,
+          weapon: props.weapon,
+          event: props.event,
+          targetMaxHp: props.targetMaxHp,
+          currentTargetId: props.currentTargetId,
+          hunterSet: look.set,
+          walkMs,
+        }),
       hunterSet: look.set,
       weaponFractions: props.weapon
         ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(props.weapon))

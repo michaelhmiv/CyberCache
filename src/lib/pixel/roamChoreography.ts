@@ -1,4 +1,5 @@
 import { MOVEMENT, classifyTickBeat, type ActorPlacement, type CombatBeat } from './movement';
+import { STRIDE_SPECS, sampleStride, type StrideSpec } from './strideCycle';
 import { EASE, sampleTrack } from './pixiChoreography';
 import { PART_POSES, type PartsPoseName } from './parts';
 import { ENEMY_POSES, enemyRig, type RigDef, type RigPose } from './rig';
@@ -68,7 +69,14 @@ export const ROAM_ENEMY_PLACEMENT = { xPct: 66, heightPct: 66 } as const;
  * reaches past the right edge: it enters FROM off-frame); at p = 1
  * the offset is 0, exactly the settle point.
  */
-export const ROAM_APPROACH = { spawnOffsetXPct: 24 } as const;
+export const ROAM_APPROACH = {
+  spawnOffsetXPct: 24,
+  /** How strongly the stride's channels drive the enemy rig's
+   *  bands during the walk (the rig's bands are coarse body
+   *  segments; the hunter's 6.5° thigh swing reads subtler
+   *  through them, so the walk carries the swing at 1.6×). */
+  rigStrideScale: 1.6,
+} as const;
 
 /** The enemy's walk-in x offset at progress `p` (0..1), in
  *  stage-width %: the approach distance remaining. One derivation
@@ -78,6 +86,60 @@ export const ROAM_APPROACH = { spawnOffsetXPct: 24 } as const;
 export function approachOffsetXPct(p: number): number {
   const t = Math.max(0, Math.min(1, p));
   return ROAM_APPROACH.spawnOffsetXPct * (1 - t);
+}
+
+/**
+ * Sample the enemy's presentation at walk-local time `tMs` —
+ * the ONE walk-in derivation both renderers consume (animation
+ * fix iteration, 2026-11-10). Pixi samples it per rAF frame; the
+ * DOM rig wrapper's keyframes and the flat entrance are built
+ * from the same numbers at their keyframe instants.
+ *
+ * Channels:
+ *  - offsetXPct: the approach slide — eased (easeOut, the walk's
+ *    shipped ease) from the spawn offset to 0 across the window.
+ *  - deltaX: a whole-body sway in rig-frame px, phase-locked
+ *    opposite the leg swing — weight shifting over the planted
+ *    foot; the strongest interior-motion cue of the three.
+ *  - poseDelta: the rig's segments articulate through the walk
+ *    on the stride's phase clock — the SAME channels the hunter's
+ *    stride composes (thigh/shin swing + lift + bob from
+ *    sampleStride), keyed to the rig's segment ids and scaled by
+ *    ROAM_APPROACH.rigStrideScale (the enemy rig's segments are
+ *    body bands, not the hunter's skeleton slots, so the mapping
+ *    is by shape: legs swing, body bobs — the base/body bands
+ *    carry the swing, the arm band counter-swings lightly, the
+ *    head band steadies). Amplitude is the approach envelope
+ *    itself: full through the travel, released as the slide
+ *    settles — at progress 1 the delta is EXACTLY rest, so the
+ *    arrival pose is the beat system's pose, untouched.
+ */
+export function sampleEnemyWalkPose(
+  tMs: number,
+  strideSpec: StrideSpec = STRIDE_SPECS.stride,
+): { offsetXPct: number; deltaX: number; poseDelta: RigPose } {
+  const p = Math.max(0, Math.min(1, tMs / MOVEMENT.WALK_IN_MS));
+  const eased = EASE.easeOut(p);
+  const frame = sampleStride(strideSpec, Math.max(0, tMs), 1);
+  const fade = 1 - EASE.easeOut(Math.max(0, (p - 0.8) / 0.2));
+  const k = ROAM_APPROACH.rigStrideScale * fade;
+  const d = frame.poseDelta;
+  const thighF = (d.thighF?.rotate ?? 0) * k;
+  const thighB = (d.thighB?.rotate ?? 0) * k;
+  const liftF = (d.lowerLegF?.y ?? 0) * k;
+  const liftB = (d.lowerLegB?.y ?? 0) * k;
+  const bobY = (d.torso?.y ?? 0) * k;
+  const swing = (thighF - thighB) / 2;
+  return {
+    offsetXPct: approachOffsetXPct(eased),
+    deltaX: swing * 0.6,
+    poseDelta: {
+      base: { rotate: swing, y: bobY + Math.min(liftF, liftB) },
+      body: { rotate: swing * 0.7, y: bobY },
+      arm: { rotate: -swing * 0.5, y: bobY * 0.6 },
+      head: { rotate: -swing * 0.25 },
+    },
+  };
 }
 /** Elite-event enemies stand taller (PixelSceneLayer: rig 72 / flat 74). */
 export const ROAM_ELITE_RIG_HEIGHT_PCT = 72;
@@ -91,6 +153,12 @@ export interface RoamSceneInput {
   targetMaxHp: number;
   currentTargetId?: string;
   hunterSet: PartSetDef;
+  /** Walk-in-local ms (0 at the target spawn) while the enemy is
+   *  still walking in; undefined once settled. Supplied by the
+   *  renderers from their own walk clocks (Pixi's walk state,
+   *  the DOM diorama's rAF driver) — the model folds the stride
+   *  articulation into the rig pose for exactly this span. */
+  walkMs?: number;
 }
 
 export interface RoamSceneModel {
@@ -108,6 +176,11 @@ export interface RoamSceneModel {
   /** Segmented rig path (the standard roaming enemy). */
   rig?: RigDef;
   rigPose: RigPose;
+  /** The live walk state the pose was derived with: the walk-in's
+   *  offset (stage-width %) and sway at derivation time — the
+   *  renderers place the walk wrapper from the same sample, so
+   *  pose and position can never disagree. Null once settled. */
+  enemyWalk: { offsetXPct: number; deltaX: number } | null;
   /** Flat path (elite-event areas with a bespoke elite sprite). */
   flatSpriteId?: string;
   enemySprite: PixelSprite;
@@ -169,7 +242,7 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
         : ROAM_ENEMY_PLACEMENT.heightPct,
     groundY,
   };
-  const rigPose = isEliteEvent
+  const beatRigPose = isEliteEvent
     ? ENEMY_POSES.idle
     : beat?.kind === 'playerHit'
       ? ENEMY_POSES.lunge
@@ -178,6 +251,32 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
         : beat?.kind === 'kill'
           ? ENEMY_POSES.death
           : ENEMY_POSES.idle;
+  // Walk-articulation blend (sampleEnemyWalkPose): while the
+  // walk-in runs, the stride delta composes ONTO the beat pose
+  // (rotations/offsets sum, the pose system's own semantics) —
+  // a beat landing mid-walk plays its pose THROUGH the gait
+  // instead of freezing it. Elite events keep the plain pose
+  // (their entrance is the drop/flat path's own).
+  const walk = !isEliteEvent && !flatSpriteId && input.walkMs !== undefined && input.walkMs < MOVEMENT.WALK_IN_MS
+    ? sampleEnemyWalkPose(input.walkMs)
+    : null;
+  const rigPose: RigPose = walk
+    ? Object.fromEntries(
+        [...new Set([...Object.keys(beatRigPose), ...Object.keys(walk.poseDelta)])].map((segId) => {
+          const b = beatRigPose[segId] ?? {};
+          const d = walk.poseDelta[segId] ?? {};
+          return [
+            segId,
+            {
+              rotate: (b.rotate ?? 0) + (d.rotate ?? 0),
+              x: (b.x ?? 0) + (d.x ?? 0) + (segId === 'base' ? walk.deltaX : 0),
+              y: (b.y ?? 0) + (d.y ?? 0),
+              ...(b.opacity !== undefined ? { opacity: b.opacity } : {}),
+            },
+          ];
+        }),
+      )
+    : beatRigPose;
   return {
     groundY,
     beat,
@@ -192,6 +291,7 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
     enemyPlacement,
     rig: flatSpriteId ? undefined : enemyRig(isEliteEvent ? 'elite' : (targetArchetype ?? 'brute')),
     rigPose,
+    enemyWalk: walk ? { offsetXPct: walk.offsetXPct, deltaX: walk.deltaX } : null,
     flatSpriteId,
     enemySprite,
     enemySpriteId,

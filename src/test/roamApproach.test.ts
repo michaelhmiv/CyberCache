@@ -12,11 +12,15 @@
  */
 import { describe, expect, it } from 'vitest';
 import { MOVEMENT } from '@/lib/pixel/movement';
+import { ENEMY_POSES } from '@/lib/pixel/rig';
+import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import {
   ROAM_APPROACH,
   ROAM_ENEMY_PLACEMENT,
   ROAM_HUNTER_PLACEMENT,
   approachOffsetXPct,
+  deriveRoamScene,
+  sampleEnemyWalkPose,
 } from '@/lib/pixel/roamChoreography';
 
 describe('roam approach staging', () => {
@@ -58,5 +62,60 @@ describe('roam approach staging', () => {
 
   it('the window is still the movement law walk-in — timing untouched', () => {
     expect(MOVEMENT.WALK_IN_MS).toBe(850);
+  });
+});
+
+describe('walk articulation — the rig strides through the approach', () => {
+  it('the sampled offset is the eased approach; the delta articulates mid-walk', () => {
+    const start = sampleEnemyWalkPose(0);
+    expect(start.offsetXPct).toBe(ROAM_APPROACH.spawnOffsetXPct);
+    const mid = sampleEnemyWalkPose(425);
+    expect(mid.offsetXPct).toBeGreaterThan(0);
+    expect(mid.offsetXPct).toBeLessThan(ROAM_APPROACH.spawnOffsetXPct);
+    // Mid-stride the segments are off rest: some band rotates or
+    // sways by a visible margin (the rigid-slide failure shape is
+    // every channel at 0 while the offset moves).
+    const energy =
+      Math.abs(mid.poseDelta.base?.rotate ?? 0) +
+      Math.abs(mid.poseDelta.body?.rotate ?? 0) +
+      Math.abs(mid.poseDelta.arm?.rotate ?? 0) +
+      Math.abs(mid.deltaX);
+    expect(energy).toBeGreaterThan(1);
+    // The phase clock runs: a quarter-period later the pose differs.
+    const later = sampleEnemyWalkPose(425 + 160);
+    expect(later.poseDelta).not.toEqual(mid.poseDelta);
+  });
+
+  it('arrival is EXACT rest: offset 0 and every channel zeroed at the window edge', () => {
+    const end = sampleEnemyWalkPose(MOVEMENT.WALK_IN_MS);
+    expect(end.offsetXPct).toBe(0);
+    expect(end.deltaX).toBe(0);
+    for (const seg of Object.values(end.poseDelta)) {
+      expect(Math.abs(seg.rotate ?? 0)).toBe(0);
+      expect(Math.abs(seg.y ?? 0)).toBe(0);
+    }
+    const past = sampleEnemyWalkPose(MOVEMENT.WALK_IN_MS + 500);
+    expect(past.offsetXPct).toBe(0);
+    expect(past.deltaX).toBe(0);
+  });
+
+  it('the model folds the delta into the rig pose only inside the window', () => {
+    const base = {
+      backgroundId: 'zone-dustwaste-bg',
+      areaId: 'dustwaste_frontier',
+      targetMaxHp: 100,
+      currentTargetId: 'dustwaste_drone',
+      hunterSet: STANDARD_ISSUE,
+    } as const;
+    const settled = deriveRoamScene({ ...base });
+    expect(settled.enemyWalk).toBeNull();
+    expect(settled.rigPose).toEqual(ENEMY_POSES.idle);
+    const walking = deriveRoamScene({ ...base, walkMs: 300 });
+    expect(walking.enemyWalk).not.toBeNull();
+    expect(walking.enemyWalk!.offsetXPct).toBeGreaterThan(0);
+    expect(walking.rigPose).not.toEqual(ENEMY_POSES.idle);
+    const arrived = deriveRoamScene({ ...base, walkMs: MOVEMENT.WALK_IN_MS });
+    expect(arrived.enemyWalk).toBeNull();
+    expect(arrived.rigPose).toEqual(ENEMY_POSES.idle);
   });
 });

@@ -189,11 +189,34 @@ def main():
         stage_w_px = imgs[0].shape[1] if imgs else 390
         win = [p for p in probes if spawn_t - 500 <= p['t'] <= spawn_t + 2500]
         offs = [p.get('walkOffsetXPct') for p in win if p.get('walkOffsetXPct') is not None]
-        settle_xs = [p.get('enemyXPct') for p in probes if p.get('enemyXPct') is not None and (p.get('walkOffsetXPct') or 0) <= 0.01]
+        # Settled samples: the offset's own quantization is 0.01
+        # (two decimals) and the sampler catches the easeOut tail
+        # at <= ~1.2 in practice — a 0.01 threshold selected ZERO
+        # samples on every post-baseline run (iteration-2
+        # diagnosis), silently voiding the settle grade and the
+        # interior-ratio block below. 1.5 = the tail of the eased
+        # approach, not a second position.
+        settle_xs = [p.get('enemyXPct') for p in probes if p.get('enemyXPct') is not None and (p.get('walkOffsetXPct') or 0) <= 1.5]
         if offs:
             c1['approachXPct'] = round(max(offs), 2)
             c1['approachPx'] = round(max(offs) / 100 * stage_w_px, 1)
-            c1['coveredPctOfApproach'] = round(100 * (max(offs) - min(offs[-3:])) / max(offs), 1) if max(offs) > 0 else 0.0
+            # Coverage is graded on the FIRST walk episode in the
+            # window only: the window also contains the TAIL of the
+            # previous target's settled fight (offset 0 samples
+            # before this spawn — taking the min over offs[-3:]
+            # mixed episodes and read a completed approach as 0%
+            # covered whenever the sampler caught the pre-spawn
+            # plateau last; iteration-2 diagnosis). The episode =
+            # samples from the first sample at the approach max
+            # until the offset first returns to ~0; coverage = how
+            # much of the max offset that episode surrendered.
+            peak_i = offs.index(max(offs))
+            episode = []
+            for v in offs[peak_i:]:
+                episode.append(v)
+                if v <= 0.5:
+                    break
+            c1['coveredPctOfApproach'] = round(100 * (max(offs) - min(episode)) / max(offs), 1) if max(offs) > 0 and episode else 0.0
         if settle_xs:
             c1['settleXPct'] = round(statistics.median(settle_xs), 2)
             # internal motion share: energy inside dilated mask vs total mask energy
@@ -261,6 +284,23 @@ def main():
                 if p.get('beatKind') == kind:
                     return p
             return None
+        # Reaction energy per frame-PAIR (per-channel sum form).
+        # The shared `energies` series is a per-channel MEAN: a
+        # small fast FX (muzzle flash, impact sparks, the loot beam)
+        # moves only a few percent of pixels, so its pair energy
+        # lands BELOW the whole-frame animated threshold calibrated
+        # for sustained vista/actor motion (iteration-2 diagnosis:
+        # shot-1's reaction pair measured 7.25 mean-form against a
+        # 7.94 threshold while clearly visible; the baseline's
+        # faster recorder had merged the reaction with the walk-in
+        # into one pair). Reaction detection grades on the pair
+        # series' own scale: 2x the median pair energy in a quiet
+        # pre-fight window, floored at 1.5 so sensor noise alone
+        # never counts as a reaction.
+        pair_sums = [0.0] + [float(np.abs(imgs[i].astype(np.int32) - imgs[i - 1].astype(np.int32)).sum() / imgs[i].size) for i in range(1, len(imgs))]
+        quiet = pair_sums[1:6]  # the pre-spawn settle pairs — the stage's quietest stretch
+        react_thresh = max(2 * statistics.median(quiet), 1.5)
+        c3['reactionThreshold'] = round(react_thresh, 2)
         expectations = [
             ('shot-1', 'shot'), ('shot-2', 'shot'), ('crit', 'crit'),
             ('player-hit', 'playerHit'), ('drone-kill', 'kill'), ('brute-kill', 'kill'),
@@ -272,19 +312,14 @@ def main():
             on = probe_onset(kind, t)
             entry = {'expectedKind': kind}
             if on is not None:
-                onset_t = t + (probes.index(on) * 50) * 0  # placeholder; real latency below
-                # Latency measured via frame energy: first frame at or
-                # after the seed whose energy crosses the threshold —
-                # reported as the seeded-beat-to-visible-reaction lag.
+                # Lag = first frame PAIR at/after the seed whose
+                # reaction energy crosses react_thresh, reported as
+                # the seeded-beat-to-visible-reaction lag.
                 widx = frames_in(meta, t, t + 3600)
-                hot = [meta[i]['t'] - t for i in widx if energies[i] > animated_thresh]
+                hot = [meta[i]['t'] - t for i in widx if pair_sums[i] > react_thresh]
                 entry['probeBeatSeen'] = True
                 entry['visibleReactionLagMs'] = hot[0] if hot else None
-                # visible energy must ALSO occur within 700ms after
-                # the first hot frame's beat window start (the beat
-                # pose sustains) — the lag itself is the number the
-                # fix loop attacks (one tick boundary + pose blend).
-                entry['maxEnergyAfterOnset'] = round(max([energies[i] for i in widx], default=0.0), 2)
+                entry['maxEnergyAfterOnset'] = round(max([pair_sums[i] for i in widx], default=0.0), 2)
                 entry['pass'] = bool(hot)
             else:
                 entry['probeBeatSeen'] = False
@@ -299,7 +334,7 @@ def main():
         c4 = {}
         if drop_t is not None:
             widx = frames_in(meta, drop_t, drop_t + 2600)
-            hot = [meta[i]['t'] for i in widx if energies[i] > animated_thresh]
+            hot = [meta[i]['t'] for i in widx if pair_sums[i] > react_thresh]
             c4['riseEnergySpanMs'] = (hot[-1] - drop_t) if hot else 0
             c4['firstEnergyMs'] = (hot[0] - drop_t) if hot else None
         # Sample B: the seeded material drop renders a rarity beam
@@ -315,6 +350,17 @@ def main():
         # ── Criterion 5: foot-skate via probe (M2b integral method) ──
         c5 = {}
         trav = [(p['t'], p.get('travel') or {}, p.get('panNearPx')) for p in probes]
+        # Runs are split on the `active` flag (the M2b window form):
+        # the graded quantity is the ENGAGE window's integral vs
+        # pan — the settle tail (amplitude decaying after
+        # disengage, still stride-synced per sampleTravel) belongs
+        # to the NEXT window's baseline, not this run's delta.
+        # Iteration-2 tried episode-extended runs: the integral
+        # then double-counted the tail's high panRate against a
+        # pan delta that also includes ambient drift, inflating
+        # the ratio on every run form — reverted; the failure that
+        # motivated it was the run-SELECTION predicate (fixed
+        # below), not the window.
         runs, cur = [], []
         for item in trav:
             if item[1].get('active') and item[2] is not None:
@@ -334,6 +380,17 @@ def main():
         # same instrument family), never an absolute equality. The
         # window: the run containing the seeded travel advance.
         adv_t = acts.get('travel-advance')
+        # The advance's run is the one CONTAINING the seeded advance
+        # instant — matched on containment, not a padded overlap:
+        # under load the sampler's sparse samples drift seconds from
+        # the recorder clock, and the old overlap predicate matched
+        # NOTHING (graded fell back to the largest-pan run, a
+        # different stride each iteration — iteration-2 diagnosis).
+        if adv_t is not None:
+            for r in runs:
+                if r[0][0] - 500 <= adv_t <= r[-1][0] + 500:
+                    adv_t = r[0][0]
+                    break
         def window_ratio(run):
             integ = 0.0
             for (t1, tr1, _), (t2, tr2, _) in zip(run, run[1:]):
@@ -362,11 +419,22 @@ def main():
         ratio_rel = (graded['scaleRatio'] / BASELINE_SCALE) if graded and graded['scaleRatio'] else None
         c5['ratioVsBaseline'] = round(ratio_rel, 3) if ratio_rel else None
         # Brief B2.5: sync ratio in the M2b band (relative form) AND
-        # the stride envelope at full amplitude. The envelope half
-        # joins the grade as of the fix iteration (2026-11-10): the
-        # travel gait's spec envelope saturates at 600ms, inside
-        # the 850ms window, so a healthy run's sampled peak is 1.0
-        # (0.98 admits one-sample quantization at the window edge).
+        # the stride envelope at full amplitude. The band is the
+        # baseline REPORT's own grading: "0.94 ± 0.1 on the same
+        # instrument family" — relative to the baseline scale that
+        # is 0.84–1.04, the form the extractor shipped with; the
+        # header note above states the same band. (An iteration-2
+        # draft briefly symmetrized it to 0.90–1.10 on a theory
+        # that overshoot = desync; the theory was wrong for this
+        # quantity — the ratio is integral/pan over a window whose
+        # pan includes ambient drift, so sampling density moves it
+        # one-sidedly. Reverted to the report's band; the CI
+        # artifact remains the arbiter for borderline runs.)
+        # The envelope half joins the grade as of the fix iteration
+        # (2026-11-10): the travel gait's spec envelope saturates
+        # at 600ms, inside the 850ms window, so a healthy run's
+        # sampled peak is 1.0 (0.98 admits one-sample quantization
+        # at the window edge).
         c5['pass'] = bool(ratio_rel and 0.84 <= ratio_rel <= 1.04 and c5['peakAmplitude'] >= 0.98)
         c5['amplitudeReservation'] = 'peak amplitude %.3f < 1.0 — the M2b 0.83 reservation, re-measured; carried as the criterion-5 open item for the fix loop' % c5['peakAmplitude'] if c5['peakAmplitude'] < 0.98 else None
         report['detail']['criterion5'] = c5
