@@ -200,6 +200,8 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
                 <div className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-green">Legacy Effect Rules</div>
                 <div className="space-y-1.5">
                   {rules.survivalFlat !== undefined && <StatRow label="Survival Flat" value={`+${rules.survivalFlat}`} tone="text-green" />}
+                  {rules.survivalPctOfPool !== undefined && <StatRow label="Survival" value={`Heals ${(rules.survivalPctOfPool * 100).toFixed(0)}% of pool`} tone="text-green" />}
+                  {rules.shieldRestorePctOfCapacity !== undefined && <StatRow label="Shield Restore" value={`+${(rules.shieldRestorePctOfCapacity * 100).toFixed(0)}% of shield capacity`} tone="text-green" />}
                   {rules.survivalMultiplier !== undefined && <StatRow label="Survival Multiplier" value={`${rules.survivalMultiplier.toFixed(2)}×`} tone="text-green" />}
                   {rules.dpsMultiplier !== undefined && <StatRow label="DPS Multiplier" value={`${rules.dpsMultiplier.toFixed(2)}×`} tone="text-red" />}
                   {rules.shieldBreakMultiplier !== undefined && <StatRow label="Shield Break Mult" value={`${rules.shieldBreakMultiplier.toFixed(2)}×`} tone="text-cyan" />}
