@@ -19,6 +19,8 @@ export type BuildConsumableStatSourcesInput = {
   consumableInventory?: Record<string, number>;
   activeBuffs?: ActiveBuff[];
   medKitBuffer?: number;
+  /** The hunter's Max HP stat (the survival pool) for %-of-pool pricing (T2/P4). */
+  survivalPool?: number;
 };
 
 const emptyBuckets = (): ConsumableStatSourceBuckets => ({
@@ -71,7 +73,7 @@ export function buildConsumableStatSources(input: BuildConsumableStatSourcesInpu
 
   const medKitCount = inventory.MedKit ?? 0;
   const activeMedKitValue = activeBuffTotal(activeBuffs, 'MedKit');
-  const inventoryMedKitPotential = medKitCount > 0 ? medKitCount * computeMedKitBuffer('MedKit') : 0;
+  const inventoryMedKitPotential = medKitCount > 0 ? medKitCount * computeMedKitBuffer('MedKit', input.survivalPool ?? 0) : 0;
   const medKitValue = input.medKitBuffer && input.medKitBuffer > 0
     ? input.medKitBuffer
     : activeMedKitValue > 0
