@@ -120,16 +120,22 @@ describe('quality bounds + batch profile (brief §2.4)', () => {
 // ---------------------------------------------------------------------------
 
 describe('roaming engine reads crafted quality (brief §2.4)', () => {
-  it('a 150% MedKit buffer holds 225/unit; a 100% batch is bit-identical to no profile', () => {
-    expect(bufferHealPerUnit('MedKit', 150)).toBe(225);
-    expect(bufferHealPerUnit('MedKit', 100)).toBe(150);
-    const crafted = activateFromInventory({ MedKit: 2 }, 0, { MedKit: [150, 150] });
-    const flat = activateFromInventory({ MedKit: 2 }, 0, { MedKit: [100, 100] });
-    const legacy = activateFromInventory({ MedKit: 2 }, 0);
+  // Tuning T2/P4: Med Kit heals are %-of-pool now — the pool here is
+  // the tuning brief's L1 pool (760 max HP + 180 shield capacity =
+  // 940), so a Q100 unit prices 0.20 × 940 = 188 and quality scales
+  // the fraction linearly (Q150 → 30% of pool; Q175 → 35%).
+  const POOLS = { maxHp: 760, shieldCapacity: 180 };
+
+  it('a 150% MedKit buffer holds 282/unit; a 100% batch is bit-identical to no profile', () => {
+    expect(bufferHealPerUnit('MedKit', 150, POOLS)).toBeCloseTo(282, 6);
+    expect(bufferHealPerUnit('MedKit', 100, POOLS)).toBeCloseTo(188, 6);
+    const crafted = activateFromInventory({ MedKit: 2 }, 0, { MedKit: [150, 150] }, POOLS);
+    const flat = activateFromInventory({ MedKit: 2 }, 0, { MedKit: [100, 100] }, POOLS);
+    const legacy = activateFromInventory({ MedKit: 2 }, 0, undefined, POOLS);
     const bufferOf = (s: typeof crafted) => s.slots.find((x) => x.consumableId === 'MedKit')?.remainingBuffer;
-    expect(bufferOf(crafted)).toBe(450);
-    expect(bufferOf(flat)).toBe(300);
-    expect(bufferOf(legacy)).toBe(300);
+    expect(bufferOf(crafted)).toBeCloseTo(564, 6);
+    expect(bufferOf(flat)).toBeCloseTo(376, 6);
+    expect(bufferOf(legacy)).toBeCloseTo(376, 6);
     // Bit-identical gameplay state (the flat activation also records
     // the [100, 100] profile it priced from — the numbers are the law):
     const gameplay = (s: typeof crafted) => s.slots.map((x) => ({
@@ -140,9 +146,9 @@ describe('roaming engine reads crafted quality (brief §2.4)', () => {
   });
 
   it('mixed-quality pools price at the quantity-weighted average', () => {
-    const mixed = activateFromInventory({ MedKit: 2 }, 0, { MedKit: [75, 150] });
+    const mixed = activateFromInventory({ MedKit: 2 }, 0, { MedKit: [75, 150] }, POOLS);
     const slot = mixed.slots.find((x) => x.consumableId === 'MedKit');
-    expect(slot?.remainingBuffer).toBeCloseTo(337.5, 5); // 150 × (0.75 + 1.5)
+    expect(slot?.remainingBuffer).toBeCloseTo(423, 5); // 0.20 × 1.125 avg quality × 940 pool × 2 units
   });
 });
 
