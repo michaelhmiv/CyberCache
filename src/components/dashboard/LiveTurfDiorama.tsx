@@ -371,7 +371,13 @@ const PixelSceneLayerDom: React.FC<{
    *  weather, hot-area treatment read from it). */
   areaId: string;
   hot?: boolean;
-}> = ({ backgroundId, bossSpriteId, weapon, mode, event, reduced, areaId, hot = false }) => {
+  /** True only for the transient instance PixelSceneLayer renders
+   *  as the Suspense fallback while the Pixi chunk loads. Such an
+   *  instance must not start per-frame state clocks (the walk-in
+   *  articulation clock): it is discarded at the swap, and its churn
+   *  starves the swap itself. */
+  transientFallback?: boolean;
+}> = ({ backgroundId, bossSpriteId, weapon, mode, event, reduced, areaId, hot = false, transientFallback = false }) => {
   // V1 vistas: idle IS camp — the authored camp scene (Vista Pass,
   // owner ruling) replaces the old "current area + lone crate" idle
   // backdrop. Every other mode keeps the area-keyed background; when
@@ -554,7 +560,17 @@ const PixelSceneLayerDom: React.FC<{
   const walkKey = `${currentTargetId ?? 'none'}|${isEliteEvent ? 'elite' : 'std'}`;
   const [walkPoseState, setWalkPoseState] = useState<{ key: string; pose: RigPose; deltaX: number } | null>(null);
   useEffect(() => {
-    if (reduced || mode !== 'roaming' || isEliteEvent || !currentTargetId) return;
+    // A transient Suspense-fallback instance never runs the clock:
+    // it is a placeholder for the Pixi stage (which derives the
+    // walk itself, per frame), and its ~60fps state churn delayed
+    // the lazy swap past the renderer-selection test's window —
+    // a real regression caught by CI on PR #470 (the swap landed
+    // at ~4.2s with the clock live vs ~1.2s without; master passes
+    // the same test solo). When DOM is the settled renderer the
+    // scene mounts as its own instance without the flag — via the
+    // switch above, or fresh after a Pixi failure — and the clock
+    // engages there exactly as before.
+    if (transientFallback || reduced || mode !== 'roaming' || isEliteEvent || !currentTargetId) return;
     let raf = 0;
     const t0 = performance.now();
     const loop = (now: number) => {
@@ -572,7 +588,7 @@ const PixelSceneLayerDom: React.FC<{
     // walkKey carries target + elite identity; the loop re-arms
     // per spawn exactly like the wrapper's remount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walkKey, reduced, mode]);
+  }, [walkKey, reduced, mode, transientFallback]);
   const walkDelta = walkPoseState?.key === walkKey ? walkPoseState : null;
   const enemyRigPose: RigPose = walkDelta
     ? Object.fromEntries(
@@ -1537,7 +1553,7 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
     onPixiError: () => setPixiFailed(true),
   };
   return (
-    <React.Suspense fallback={<PixelSceneLayerDom {...props} />}>
+    <React.Suspense fallback={<PixelSceneLayerDom {...props} transientFallback />}>
       <RoamPixiStageLazy {...pixiProps} />
       {/* DOM companions the Pixi scene does not carry: the hunter
           HP plate (a sibling of the hunter wrapper in the DOM
