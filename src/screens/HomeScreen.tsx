@@ -54,6 +54,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
             variant="home"
             onOpenSettings={() => onNavigate('settings')}
             onLevelPress={() => window.dispatchEvent(new CustomEvent('cybercache:open-level-sheet'))}
+            onNavigate={onNavigate}
           />
         </div>
         {/* Claim row: CACHE + OFFLINE buttons (the level pill

@@ -13,9 +13,10 @@
  *    never renders, even under live waits — each wait keeps
  *    its own door (Workshop, Return Sheet, top-bar sheets,
  *    the Chest, Hunter → Research).
- *  - The vehicle chip rides the belt row: quiet fuel readout
- *    while fueled; a remedy door when out of fuel — Garage with
- *    a cell carried, Vendor without.
+ *  - The belt carries NO vehicle chip (owner decision
+ *    2026-11-10): the vehicle chip moved to the Strip's loot
+ *    segment (pinned in vehicleStripChip.test.tsx); the belt
+ *    renders consumables only, in every vehicle state.
  *  - Hunter → Profile's Totals & Sources door opens the full
  *    (unfocused) source breakdown — the deck panel's rehoused job.
  *
@@ -316,7 +317,7 @@ describe('Next Move — removed (owner device review, 2026-11-03)', () => {
   });
 });
 
-describe('vehicle chip — in the belt row, both fuel states', () => {
+describe('vehicle chip — gone from the belt (owner decision 2026-11-10)', () => {
   function seedBike(fuel: number, consumables: Record<string, number> = {}) {
     useLoadoutStore.setState({
       slots: { primary: 'weapon-1', secondary: null, heavy: null, ordnance: null, shield: null, classMod: null, relic: null, vehicle: 'veh-1' },
@@ -326,39 +327,22 @@ describe('vehicle chip — in the belt row, both fuel states', () => {
     usePlayerStore.setState({ vehicleFuel: fuel, consumables });
   }
 
-  it('fueled: the chip sits in the belt as a quiet readout, not a door', async () => {
+  it('fueled: the belt holds no vehicle chip', async () => {
     seedBike(12);
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
     const belt = await screen.findByTestId('consumable-belt');
-    const chip = within(belt).getByTestId('vehicle-belt-chip');
-    expect(chip.getAttribute('data-state')).toBe('ok');
-    expect(chip.textContent).toContain('Scrap Bike');
-    expect(chip.textContent).toContain('12u');
-    expect(chip.tagName).not.toBe('BUTTON');
+    expect(within(belt).queryByTestId('vehicle-belt-chip')).toBeNull();
+    expect(screen.queryByTestId('vehicle-belt-chip')).toBeNull();
   });
 
-  it('out of fuel with a cell carried: the chip is the Garage door', async () => {
-    const onNavigate = vi.fn();
+  it('out of fuel: still no vehicle chip in the belt — the remedy lives on the Strip chip', async () => {
     seedBike(0, { GenericFuelCell: 2 });
-    render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={() => {}} />);
-    const chip = await screen.findByTestId('vehicle-belt-chip');
-    expect(chip.getAttribute('data-state')).toBe('out-of-fuel');
-    expect(chip.textContent).toContain('Out of fuel');
-    expect(chip.textContent).toContain('Refuel');
-    fireEvent.click(chip);
-    expect(onNavigate).toHaveBeenCalledWith('garage');
+    render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
+    await screen.findByTestId('consumable-belt');
+    expect(screen.queryByTestId('vehicle-belt-chip')).toBeNull();
   });
 
-  it('out of fuel with no cells: the chip doors to the Vendor', async () => {
-    const onNavigate = vi.fn();
-    seedBike(0, {});
-    render(<ActionScreenContextual onNavigate={onNavigate} onOpenBossSelect={() => {}} />);
-    const chip = await screen.findByTestId('vehicle-belt-chip');
-    fireEvent.click(chip);
-    expect(onNavigate).toHaveBeenCalledWith('market:vendor');
-  });
-
-  it('no vehicle equipped: no chip', async () => {
+  it('no vehicle equipped: no belt chip either', async () => {
     render(<ActionScreenContextual onNavigate={() => {}} onOpenBossSelect={() => {}} />);
     await screen.findByTestId('consumable-belt');
     expect(screen.queryByTestId('vehicle-belt-chip')).toBeNull();

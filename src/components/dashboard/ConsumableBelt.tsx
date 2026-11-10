@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useLoadoutStore, usePlayerStore } from '@/store';
 import { ActiveBuffPills } from '@/components/stats/ActiveBuffPills';
 import { ConsumableLedger } from '@/components/stats/ConsumableLedger';
-import { VehicleBeltChip } from '@/components/dashboard/VehicleBeltChip';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
 
 /**
@@ -16,11 +15,19 @@ import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
  * carried (one implementation, moved — the ledger's slot focus
  * state lives here now), and the Gear rail keeps its own
  * Loadout Bench surface for editing the loadout itself.
+ *
+ * The belt is consumables only (owner decision 2026-11-10):
+ * the vehicle chip that rode its trailing cell since the
+ * 2026-11-03 consolidation moved to the Strip's loot segment
+ * as the permanent VehicleStripChip — the belt chip vanished
+ * on foot, and the vehicle belongs with the loadout counter,
+ * not the consumables. The onNavigate prop is retained for
+ * the screen's existing call shape; nothing in the belt
+ * navigates anymore.
  */
 export const ConsumableBelt: React.FC<{
-  /** Routes the vehicle chip's remedy doors (Garage / Vendor). */
   onNavigate?: (target: string) => void;
-}> = ({ onNavigate }) => {
+}> = () => {
   const player = usePlayerStore();
   const loadout = useLoadoutStore();
   const [focusedSlot, setFocusedSlot] = useState<keyof LoadoutConsumables | null>(null);
@@ -43,7 +50,6 @@ export const ConsumableBelt: React.FC<{
           setFocusedSlot(slot);
           setLedgerOpen(true);
         }}
-        trailingCell={onNavigate ? <VehicleBeltChip onNavigate={onNavigate} /> : undefined}
       />
       {ledgerOpen && (
         <ConsumableLedger

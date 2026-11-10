@@ -282,12 +282,18 @@ describe('audit B — UX-06: the Garage is labeled and reachable from the vehicl
     expect(inventory).toContain('if (tabIntent.expandVehicle) setVehicleExpandSeq(tabIntent.seq)');
     expect(inventory).toContain('vehicleExpandSignal={vehicleExpandSeq}');
     const action = readSource('src/screens/ActionScreenContextual.tsx');
-    // Home consolidation (2026-11-03): the vehicle banner left
-    // Home, and its Garage door is the belt chip now — threaded
-    // through the belt's onNavigate prop on the same screen,
-    // landing on the same 'garage' intent pinned above.
+    // Vehicle placement (owner decision 2026-11-10): the belt
+    // chip is gone — the belt renders consumables only — and the
+    // Garage door is the Strip chip now, threaded through
+    // HomeScreen's ResourceBar onNavigate onto the same 'garage'
+    // intent pinned above. The belt keeps its historical call
+    // shape on the same screen.
     expect(action).toContain('<ConsumableBelt onNavigate={(target) => onNavigate?.(target)} />');
-    const chip = readSource('src/components/dashboard/VehicleBeltChip.tsx');
+    const belt = readSource('src/components/dashboard/ConsumableBelt.tsx');
+    expect(belt).not.toContain('VehicleBeltChip');
+    const home = readSource('src/screens/HomeScreen.tsx');
+    expect(home).toContain('onNavigate={onNavigate}');
+    const chip = readSource('src/components/layout/VehicleStripChip.tsx');
     expect(chip).toContain("? 'market:vendor' : 'garage'");
   });
 });
