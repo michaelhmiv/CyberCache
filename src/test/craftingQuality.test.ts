@@ -121,10 +121,10 @@ describe('quality bounds + batch profile (brief §2.4)', () => {
 
 describe('roaming engine reads crafted quality (brief §2.4)', () => {
   // Tuning T2/P4: Med Kit heals are %-of-pool now — the pool here is
-  // the tuning brief's L1 pool (760 max HP + 180 shield capacity =
-  // 940), so a Q100 unit prices 0.20 × 940 = 188 and quality scales
-  // the fraction linearly (Q150 → 30% of pool; Q175 → 35%).
-  const POOLS = { maxHp: 760, shieldCapacity: 180 };
+  // the tuning brief's L1 pool: the Max HP stat 940 (760 hunter HP +
+  // 180 shield HP), so a Q100 unit prices 0.20 × 940 = 188 and
+  // quality scales the fraction linearly (Q150 → 30%; Q175 → 35%).
+  const POOLS = { maxHp: 940, shieldCapacity: 180 };
 
   it('a 150% MedKit buffer holds 282/unit; a 100% batch is bit-identical to no profile', () => {
     expect(bufferHealPerUnit('MedKit', 150, POOLS)).toBeCloseTo(282, 6);
