@@ -74,6 +74,7 @@ interface VerifyBossHttpResult {
   idempotentReplay?: boolean;
   pityIncremented?: boolean;
   error?: string;
+  detail?: string;
   result?: { creditsLost?: number };
   items?: Array<{ legendaryEffectId?: string; sourceTag: string; rarity: string }>;
 }
