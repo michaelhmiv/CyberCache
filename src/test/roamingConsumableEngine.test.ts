@@ -15,17 +15,23 @@ import { ConsumableType } from '../types/game';
 // contract repair, the engine derives its numbers from the shared defs —
 // the mirrors below that come from defs are computed FROM the defs so a
 // def edit that the engine fails to honor fails the suite.
-const MEDKIT_BUFFER_AMOUNT = 150;
-// Def: repairTotalHp 300 over repairDurationSeconds 30 → 30s ÷ 3s = 10 ticks.
+// Tuning T2/P4: survival magnitudes are %-of-pool now, priced here
+// against a fixed pool — Max HP stat 750, shield capacity 480 —
+// chosen so the pinned values stay readable (Med Kit 0.20 × 750 =
+// 150/unit; Shield Cell restore 0.25 × 480 = 120).
+const TEST_POOLS = { maxHp: 750, shieldCapacity: 480 };
+const MEDKIT_BUFFER_AMOUNT =
+  (CONSUMABLES[ConsumableType.MedKit].runtime.baseEffects.healHpPctOfPool ?? 0) * TEST_POOLS.maxHp;
+// Def: repair fraction over repairDurationSeconds 30 → 30s ÷ 3s = 10 ticks.
 const NANO_SWARM_TICKS = Math.round(
   (CONSUMABLES[ConsumableType.NanoSwarm].runtime.baseEffects.repairDurationSeconds ?? 0) / 3,
 );
 const NANO_SWARM_HEAL_PER_TICK =
-  (CONSUMABLES[ConsumableType.NanoSwarm].runtime.baseEffects.repairTotalHp ?? 0) / NANO_SWARM_TICKS;
+  ((CONSUMABLES[ConsumableType.NanoSwarm].runtime.baseEffects.repairTotalHpPctOfPool ?? 0) * TEST_POOLS.maxHp) / NANO_SWARM_TICKS;
 const ADRENALINE_BURST_TICKS = 7; // ~20s burst once triggered
 const BASE_ORDNANCE_INTERVAL = 20; // ticks (60s), reduced by combat.ordnance mastery
-const ORDNANCE_CHARGE_DPS = 50;
-const AMMO_PACK_DPS_MULT = 1.05;
+const ORDNANCE_CHARGE_DPS = CONSUMABLES[ConsumableType.OrdnanceCharge].runtime.baseEffects.ordnanceBonusDps ?? 0; // 200 since T2/P5
+const AMMO_PACK_DPS_MULT = CONSUMABLES[ConsumableType.AmmoPack].runtime.baseEffects.dpsMultiplier ?? 1; // 1.10 since T2/P3
 const SHIELD_CELL_REDUCTION = 0.15;
 const LUCK_BOOSTER_LOOT = 0.25;
 const ADRENALINE_DPS_MULT = 1.1;
@@ -45,6 +51,7 @@ function ctx(overrides: Partial<{
   tickIndex: number;
   currentHp: number;
   maxHp: number;
+  shieldCapacity: number;
   inventory: Record<string, number>;
   masteryLevels: Record<string, number>;
 }> = {}) {
@@ -106,7 +113,7 @@ describe('roamingConsumableEngine', () => {
         [ConsumableType.NanoSwarm]: 1,
         [ConsumableType.AdrenalineShot]: 1,
       };
-      const state = activateLoadout(loadout, inventory, 0);
+      const state = activateLoadout(loadout, inventory, 0, TEST_POOLS);
       const byId = Object.fromEntries(state.slots.map((s) => [s.consumableId, s]));
 
       expect(byId[ConsumableType.MedKit].remainingBuffer).toBe(MEDKIT_BUFFER_AMOUNT);
@@ -124,8 +131,8 @@ describe('roamingConsumableEngine', () => {
         Emergency: null,
       };
       const inventory = { [ConsumableType.MedKit]: 5 };
-      const state = activateLoadout(loadout, inventory, 0);
-      expect(state.slots[0].remainingBuffer).toBe(5 * MEDKIT_BUFFER_AMOUNT); // 750
+      const state = activateLoadout(loadout, inventory, 0, TEST_POOLS);
+      expect(state.slots[0].remainingBuffer).toBe(5 * MEDKIT_BUFFER_AMOUNT); // 5 × 150 at this pool
     });
 
     it('sets ordnanceNextFireTick based on start tick', () => {
@@ -189,6 +196,7 @@ describe('roamingConsumableEngine', () => {
         { ...EMPTY_LOADOUT, PreFight: ConsumableType.MedKit },
         inventory,
         0,
+        TEST_POOLS,
       );
       // Simulate 200 damage absorbed by Chef's damage loop
       state.slots[0].remainingBuffer = 550; // 750 - 200
@@ -403,6 +411,7 @@ describe('roamingConsumableEngine', () => {
         { ...EMPTY_LOADOUT, PreFight: ConsumableType.MedKit },
         { [ConsumableType.MedKit]: 1 },
         0,
+        TEST_POOLS,
       );
       const buffs = buildActiveBuffs(state, 0);
       expect(buffs[0].remainingBuffer).toBe(MEDKIT_BUFFER_AMOUNT);
@@ -480,12 +489,12 @@ describe('activateFromInventory — def contract', () => {
     expect(state.slots).toHaveLength(0);
   });
 
-  it('Med Kit (Refined) activates with the def buffer (count × healHp 260)', () => {
+  it('Med Kit (Refined) activates with the def buffer (count × 30% of pool)', () => {
     const def = CONSUMABLES[ConsumableType.MedKitRefined];
-    const state = activateFromInventory({ [ConsumableType.MedKitRefined]: 3 }, 0);
+    const state = activateFromInventory({ [ConsumableType.MedKitRefined]: 3 }, 0, undefined, TEST_POOLS);
     expect(state.slots).toHaveLength(1);
-    expect(state.slots[0].remainingBuffer).toBe(3 * (def.runtime.baseEffects.healHp ?? 0));
-    expect(state.slots[0].remainingBuffer).toBe(780);
+    expect(state.slots[0].remainingBuffer).toBeCloseTo(3 * (def.runtime.baseEffects.healHpPctOfPool ?? 0) * TEST_POOLS.maxHp, 6);
+    expect(state.slots[0].remainingBuffer).toBeCloseTo(675, 6);
   });
 
   it('High-Capacity Ammo Pack window comes from the def (1200s → 400 ticks)', () => {
@@ -497,7 +506,7 @@ describe('activateFromInventory — def contract', () => {
     );
   });
 
-  it('Shield Cell values come from the def: restore 120 (not the old engine 100), resistance and window too', () => {
+  it('Shield Cell values come from the def: restore 25% of shield capacity (120 at 480), resistance and window too', () => {
     const def = CONSUMABLES[ConsumableType.ShieldCell];
     const inventory = { [ConsumableType.ShieldCell]: 2 };
     const state = activateFromInventory(inventory, 0);
@@ -510,20 +519,21 @@ describe('activateFromInventory — def contract', () => {
       def.runtime.baseEffects.damageReductionPct ?? 0,
     );
 
-    // Expiry + replenish restores the DEF amount of shield.
-    const expiry = processTick(state, ctx({ tickIndex: 60, inventory }));
+    // Expiry + replenish restores the DEF fraction of shield capacity.
+    const expiry = processTick(state, ctx({ tickIndex: 60, inventory, shieldCapacity: TEST_POOLS.shieldCapacity }));
     expect(expiry.consumed).toHaveLength(1);
-    expect(expiry.shieldRestore).toBe(def.runtime.baseEffects.shieldRestore);
+    expect(expiry.shieldRestore).toBe((def.runtime.baseEffects.shieldRestorePctOfCapacity ?? 0) * TEST_POOLS.shieldCapacity);
     expect(expiry.shieldRestore).toBe(120);
   });
 
-  it('Nano Swarm heal per tick is the def total over the def duration (300 HP / 10 ticks = 30)', () => {
-    const state = activateFromInventory({ [ConsumableType.NanoSwarm]: 1 }, 0);
-    const surv = getSurvivalState(state);
+  it('Nano Swarm heal per tick is the def total over the def duration (35% of pool / 10 ticks)', () => {
+    const state = activateFromInventory({ [ConsumableType.NanoSwarm]: 1 }, 0, undefined, TEST_POOLS);
+    const surv = getSurvivalState(state, TEST_POOLS);
     expect(surv.nanoSwarmTicksRemaining).toBe(NANO_SWARM_TICKS);
     expect(surv.nanoSwarmHealThisTick).toBe(NANO_SWARM_HEAL_PER_TICK);
-    expect(surv.nanoSwarmHealThisTick * surv.nanoSwarmTicksRemaining).toBe(
-      CONSUMABLES[ConsumableType.NanoSwarm].runtime.baseEffects.repairTotalHp,
+    expect(surv.nanoSwarmHealThisTick * surv.nanoSwarmTicksRemaining).toBeCloseTo(
+      (CONSUMABLES[ConsumableType.NanoSwarm].runtime.baseEffects.repairTotalHpPctOfPool ?? 0) * TEST_POOLS.maxHp,
+      6,
     );
   });
 
