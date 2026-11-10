@@ -509,9 +509,9 @@ describe('tuning item 6 — rematch fee escalation', () => {
       fees.push(res.json.entryFee);
       counts.push(res.json.bossVictoriesToday);
     }
-    // Attempt 1 pays the entry fee at ×1 (no victories yet today);
+    // Attempt 1 pays the first-clear fee — half the 600 entry (tuning D4) — at ×1 (no victories yet today); the win ends the discount,
     // attempts 2–5 pay the rematch fee at ×2, ×4, ×8, ×8 (capped).
-    expect(fees).toEqual([600, 1400, 2800, 5600, 5600]);
+    expect(fees).toEqual([300, 1400, 2800, 5600, 5600]);
     expect(counts).toEqual([1, 2, 3, 4, 5]);
   });
 
@@ -525,10 +525,10 @@ describe('tuning item 6 — rematch fee escalation', () => {
 
     // A victory late yesterday (store clock): the route counts by the
     // server wall clock (real today), where this boss has no victories
-    // yet — so the fee is the plain entry fee.
+    // yet, and the boss has never been beaten — so the fee is the plain first-clear fee (half the 600 entry, tuning D4).
     const yesterday = await attempt(base, tokenA, boss.id, victoryNonce(boss.id, used));
     expect(yesterday.json.victory).toBe(true);
-    expect(yesterday.json.entryFee).toBe(600);
+    expect(yesterday.json.entryFee).toBe(300);
     // Seam-level proof of the reset: aged by the store clock, the
     // victory falls outside today's window.
     expect(await store.countBossVictoriesToday(A, boss.id, utcDayStartIso())).toBe(0);
