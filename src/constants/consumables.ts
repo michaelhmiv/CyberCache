@@ -50,6 +50,10 @@ export type ConsumableQualityScaling = 'none' | 'flat' | 'duration' | 'chance' |
 
 export interface ConsumableEffectRules {
   survivalFlat?: number;
+  /** Survival heal/repair as a fraction of the survival pool (max HP + shield capacity) — tuning T2/P4. */
+  survivalPctOfPool?: number;
+  /** Shield restore as a fraction of shield capacity — tuning T2/P4. */
+  shieldRestorePctOfCapacity?: number;
   survivalMultiplier?: number;
   shieldBreakMultiplier?: number;
   armorBreakMultiplier?: number;
@@ -96,12 +100,23 @@ export interface ConsumableRuntimeEffectScaling {
 
 export interface ConsumableRuntimeEffects {
   healHp?: number;
+  /**
+   * Heal as a fraction of the survival pool (max HP + shield capacity),
+   * resolved by the consuming engine against the live pools — tuning
+   * T2/P4 (flat heals became % of pool). Scales in 'flat' mode like
+   * healHp did: Q175 Med Kit = 0.20 × 1.75 = 35% of pool.
+   */
+  healHpPctOfPool?: number;
   shieldRestore?: number;
+  /** Shield restore as a fraction of shield capacity — tuning T2/P4. */
+  shieldRestorePctOfCapacity?: number;
   /** Flat damage reduction (0-1) while active — roaming Shield Cell resistance. */
   damageReductionPct?: number;
   /** Flat bonus DPS per ordnance fire while roaming (interval burst). */
   ordnanceBonusDps?: number;
   repairTotalHp?: number;
+  /** Repair as a fraction of the survival pool (max HP + shield capacity), spread over repairDurationSeconds — tuning T2/P4. */
+  repairTotalHpPctOfPool?: number;
   repairDurationSeconds?: number;
   dotDamageReduction?: number;
   overhealToRegenPct?: number;
@@ -329,7 +344,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'hpBelowThreshold',
     consumePolicy: 'ifUsed',
     counterTags: ['burst'],
-    effectRules: { survivalFlat: 150 },
+    effectRules: { survivalPctOfPool: 0.2 },
     craftCategory: 'survival',
     uiHints: ['Auto-used at 50% HP by default.', 'Quality scales actual HP restored.'],
     implementationStatus: 'implemented',
@@ -342,8 +357,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'hpBelowThreshold',
       'ifUsed',
       'inactive_continue',
-      { healHp: 150 },
-      { healHp: FULL_FLAT },
+      { healHpPctOfPool: 0.2 },
+      { healHpPctOfPool: FULL_FLAT },
       'Med Kit consumed: restored emergency HP.',
       {
         threshold: 0.5,
@@ -361,7 +376,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'hpBelowThreshold',
     consumePolicy: 'ifUsed',
     counterTags: ['burst', 'elite'],
-    effectRules: { survivalFlat: 260 },
+    effectRules: { survivalPctOfPool: 0.3 },
     craftCategory: 'survival',
     uiHints: ['Auto-used at 50% HP by default.', 'High-quality batches add damage-over-time mitigation.'],
     implementationStatus: 'implemented',
@@ -374,8 +389,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'hpBelowThreshold',
       'ifUsed',
       'inactive_continue',
-      { healHp: 260 },
-      { healHp: FULL_FLAT },
+      { healHpPctOfPool: 0.3 },
+      { healHpPctOfPool: FULL_FLAT },
       'Refined Med Kit consumed: restored heavy emergency HP.',
       {
         threshold: 0.5,
@@ -393,7 +408,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'shieldBelowThreshold',
     consumePolicy: 'ifUsed',
     counterTags: ['shield', 'burst'],
-    effectRules: { survivalFlat: 120 },
+    effectRules: { shieldRestorePctOfCapacity: 0.25 },
     craftCategory: 'survival',
     uiHints: ['Auto-used when shield breaks or drops below 25%.', 'Quality scales shield restored.'],
     implementationStatus: 'implemented',
@@ -406,8 +421,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'shieldBelowThreshold',
       'ifUsed',
       'inactive_continue',
-      { shieldRestore: 120, damageReductionPct: 0.15 },
-      { shieldRestore: FULL_FLAT },
+      { shieldRestorePctOfCapacity: 0.25, damageReductionPct: 0.15 },
+      { shieldRestorePctOfCapacity: FULL_FLAT },
       'Shield Cell consumed: restored shield capacity.',
       {
         threshold: 0.25,
@@ -428,7 +443,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'hpBelowThreshold',
     consumePolicy: 'ifUsed',
     counterTags: ['burn', 'burst'],
-    effectRules: { survivalFlat: 300, survivalMultiplier: 1.04 },
+    effectRules: { survivalPctOfPool: 0.35, survivalMultiplier: 1.04 },
     craftCategory: 'survival',
     uiHints: ['Best when repeated hits or damage-over-time are the failure cause.', 'Quality scales total repair and duration.'],
     implementationStatus: 'implemented',
@@ -441,8 +456,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'hpBelowThreshold',
       'ifUsed',
       'inactive_continue',
-      { repairTotalHp: 300, repairDurationSeconds: 30, survivalMultiplier: 1.04 },
-      { repairTotalHp: FULL_FLAT, repairDurationSeconds: FULL_DURATION, survivalMultiplier: PARTIAL_DELTA(1.08) },
+      { repairTotalHpPctOfPool: 0.35, repairDurationSeconds: 30, survivalMultiplier: 1.04 },
+      { repairTotalHpPctOfPool: FULL_FLAT, repairDurationSeconds: FULL_DURATION, survivalMultiplier: PARTIAL_DELTA(1.08) },
       'Nano Swarm consumed: deployed repair-over-time cloud.',
       {
         threshold: 0.6,
@@ -460,7 +475,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'hpBelowThreshold',
     consumePolicy: 'ifUsed',
     counterTags: ['elite', 'burst'],
-    effectRules: { survivalFlat: 80, survivalMultiplier: 1.1, dpsMultiplier: 1.1 },
+    effectRules: { survivalPctOfPool: 0.1, survivalMultiplier: 1.1, dpsMultiplier: 1.1 },
     drawbackRules: { rewardMultiplier: 0.95 },
     craftCategory: 'survival',
     uiHints: ['Triggers at 20% HP or lethal survival checks.', 'Quality scales restore and burst duration.'],
@@ -474,8 +489,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'hpBelowThreshold',
       'ifUsed',
       'inactive_continue',
-      { healHp: 80, dpsMultiplier: 1.1, repairDurationSeconds: 20, fatigueDamagePct: 0.05 },
-      { healHp: FULL_FLAT, dpsMultiplier: PARTIAL_DELTA(1.18), repairDurationSeconds: FULL_DURATION, fatigueDamagePct: { mode: 'none' } },
+      { healHpPctOfPool: 0.1, dpsMultiplier: 1.1, repairDurationSeconds: 20, fatigueDamagePct: 0.05 },
+      { healHpPctOfPool: FULL_FLAT, dpsMultiplier: PARTIAL_DELTA(1.18), repairDurationSeconds: FULL_DURATION, fatigueDamagePct: { mode: 'none' } },
       'Adrenaline Shot consumed: survived a lethal window and gained short DPS.',
       {
         threshold: 0.2,
@@ -493,7 +508,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'ammoInterval',
     consumePolicy: 'onAttempt',
     counterTags: ['ammo', 'reload', 'enrage'],
-    effectRules: { dpsMultiplier: 1.05, ammoWindowUses: 1 },
+    effectRules: { dpsMultiplier: 1.1, ammoWindowUses: 1 },
     craftCategory: 'offense',
     uiHints: ['Boss: consumes one per attempt for an ammo window.', 'Roaming: one 100% pack covers 10 minutes of ammo bonus.'],
     implementationStatus: 'implemented',
@@ -506,8 +521,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'ammoInterval',
       'perInterval',
       'inactive_continue',
-      { dpsMultiplier: 1.05, ammoCoveredSeconds: 600, ammoWindowUses: 1 },
-      { dpsMultiplier: DELTA(1.1), ammoCoveredSeconds: FULL_DURATION, ammoWindowUses: { mode: 'none' } },
+      { dpsMultiplier: 1.1, ammoCoveredSeconds: 600, ammoWindowUses: 1 },
+      { dpsMultiplier: DELTA(1.2), ammoCoveredSeconds: FULL_DURATION, ammoWindowUses: { mode: 'none' } },
       'Ammo Pack consumed: supplied sustained ammunition coverage.',
       {
         activityRules: {
@@ -528,7 +543,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'ammoInterval',
     consumePolicy: 'perInterval',
     counterTags: ['ammo', 'reload', 'enrage'],
-    effectRules: { dpsMultiplier: 1.05, ammoWindowUses: 2 },
+    effectRules: { dpsMultiplier: 1.12, ammoWindowUses: 2 },
     craftCategory: 'offense',
     uiHints: ['Roaming: one 100% pack covers 20 minutes.', 'High-quality batches add crit chance while covered.'],
     implementationStatus: 'implemented',
@@ -541,8 +556,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'ammoInterval',
       'perInterval',
       'inactive_continue',
-      { dpsMultiplier: 1.05, ammoCoveredSeconds: 1200, ammoWindowUses: 2 },
-      { dpsMultiplier: DELTA(1.1), ammoCoveredSeconds: FULL_DURATION, ammoWindowUses: { mode: 'none' } },
+      { dpsMultiplier: 1.12, ammoCoveredSeconds: 1200, ammoWindowUses: 2 },
+      { dpsMultiplier: DELTA(1.24), ammoCoveredSeconds: FULL_DURATION, ammoWindowUses: { mode: 'none' } },
       'High-Capacity Ammo Pack consumed: supplied extended ammo coverage.',
       {
         activityRules: {
@@ -591,7 +606,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'activityStart',
     consumePolicy: 'onTrigger',
     counterTags: ['burn', 'elite'],
-    effectRules: { dpsMultiplier: 1.08, ammoWindowUses: 1 },
+    effectRules: { dpsMultiplier: 1.12, ammoWindowUses: 1 },
     craftCategory: 'offense',
     uiHints: ['Weak into armor until armor is broken.', 'Quality scales burn DPS contribution.'],
     implementationStatus: 'implemented',
@@ -604,8 +619,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'activityStart',
       'onTrigger',
       'inactive_continue',
-      { dpsMultiplier: 1.08, ammoWindowUses: 1, ammoCoveredSeconds: 600 },
-      { dpsMultiplier: DELTA(1.16), ammoWindowUses: { mode: 'none' } },
+      { dpsMultiplier: 1.12, ammoWindowUses: 1, ammoCoveredSeconds: 600 },
+      { dpsMultiplier: DELTA(1.24), ammoWindowUses: { mode: 'none' } },
       'Incendiary Ammo consumed: added burn DPS pressure.',
       {
         highQualityPerks: [{ minQuality: 130, label: 'Burn persists through one phase transition.', effects: { repairDurationSeconds: 6 } }],
@@ -788,7 +803,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'shieldPhase',
       'onAttempt',
       'inactive_continue',
-      { shieldBreakMultiplier: 1.15, armorBreakMultiplier: 1.15, mechanicScoreFlat: 0.04, ammoWindowUses: 0, ordnanceBonusDps: 50 },
+      { shieldBreakMultiplier: 1.15, armorBreakMultiplier: 1.15, mechanicScoreFlat: 0.04, ammoWindowUses: 0, ordnanceBonusDps: 200 },
       { shieldBreakMultiplier: DELTA(1.3), armorBreakMultiplier: DELTA(1.3), mechanicScoreFlat: FULL_CHANCE(0.09) },
       'Ordnance Charge consumed: applied crafted burst break pressure.',
       {
@@ -819,7 +834,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'shieldPhase',
       'onTrigger',
       'inactive_continue',
-      { shieldBreakMultiplier: 1.35, mechanicReduction: 0.1, mechanicScoreFlat: 0.1, ordnanceBonusDps: 60 },
+      { shieldBreakMultiplier: 1.35, mechanicReduction: 0.1, mechanicScoreFlat: 0.1, ordnanceBonusDps: 240 },
       { shieldBreakMultiplier: DELTA(1.55), mechanicReduction: FULL_CHANCE(0.18), mechanicScoreFlat: FULL_CHANCE(0.18) },
       'EMP Charge consumed: broke shield pressure and suppressed mechanical mechanics.',
       {
@@ -850,7 +865,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'armorPhase',
       'onTrigger',
       'inactive_continue',
-      { armorBreakMultiplier: 1.35, repairSuppression: 0.1, mechanicScoreFlat: 0.1, ordnanceBonusDps: 70 },
+      { armorBreakMultiplier: 1.35, repairSuppression: 0.1, mechanicScoreFlat: 0.1, ordnanceBonusDps: 280 },
       { armorBreakMultiplier: DELTA(1.55), repairSuppression: FULL_CHANCE(0.18), mechanicScoreFlat: FULL_CHANCE(0.18) },
       'Corrosive Charge consumed: cracked armor and suppressed repair.',
       {
@@ -881,7 +896,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'armorPhase',
       'onTrigger',
       'inactive_continue',
-      { armorBreakMultiplier: 1.5, armorBypass: 0.4, mechanicScoreFlat: 0.05, ordnanceBonusDps: 80 },
+      { armorBreakMultiplier: 1.5, armorBypass: 0.4, mechanicScoreFlat: 0.05, ordnanceBonusDps: 320 },
       { armorBreakMultiplier: DELTA(1.75), armorBypass: FULL_CHANCE(0.65), mechanicScoreFlat: FULL_CHANCE(0.1) },
       'Phase Shift Grenade consumed: bypassed part of the armor phase.'
     ),
@@ -909,7 +924,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'fightStart',
       'onAttempt',
       'inactive_continue',
-      { ordnanceBoostMultiplier: 1.2, boostedOrdnanceUses: 2, freeOrdnanceUses: 2, ordnanceBonusDps: 90, cacheEventWeightBonus: 1 },
+      { ordnanceBoostMultiplier: 1.2, boostedOrdnanceUses: 2, freeOrdnanceUses: 2, ordnanceBonusDps: 360, cacheEventWeightBonus: 1 },
       { ordnanceBoostMultiplier: DELTA(1.35), boostedOrdnanceUses: { mode: 'none' }, freeOrdnanceUses: { mode: 'none' } },
       'Magnetized Payload consumed: boosted loaded ordnance.',
       {
@@ -1274,7 +1289,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'fightStart',
     consumePolicy: 'onAttempt',
     counterTags: ['shield', 'armor'],
-    effectRules: { shieldBreakMultiplier: 1.08, armorBreakMultiplier: 1.08 },
+    effectRules: { shieldBreakMultiplier: 1.15, armorBreakMultiplier: 1.15 },
     craftCategory: 'offense',
     uiHints: ['Crafted at the bench — never sold by the vendor.', 'Quality scales shield and armor break.'],
     implementationStatus: 'implemented',
@@ -1287,8 +1302,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'fightStart',
       'onAttempt',
       'inactive_continue',
-      { shieldBreakMultiplier: 1.08, armorBreakMultiplier: 1.08 },
-      { shieldBreakMultiplier: DELTA(1.16), armorBreakMultiplier: DELTA(1.16) },
+      { shieldBreakMultiplier: 1.15, armorBreakMultiplier: 1.15 },
+      { shieldBreakMultiplier: DELTA(1.3), armorBreakMultiplier: DELTA(1.3) },
       'Elemental Coating consumed: rounds coated in elemental grit.'
     ),
     // Craftable since the fleet-coverage disposition (2026-11-04):
@@ -1507,7 +1522,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'fightStart',
     consumePolicy: 'onAttempt',
     counterTags: ['burst', 'enrage'],
-    effectRules: { dpsMultiplier: 1.1 },
+    effectRules: { dpsMultiplier: 1.14 },
     craftCategory: 'offense',
     uiHints: ['Crafted at the bench by Redline rank 2+ hunters.', 'Quality scales the damage bonus.'],
     implementationStatus: 'implemented',
@@ -1520,8 +1535,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'fightStart',
       'onAttempt',
       'inactive_continue',
-      { dpsMultiplier: 1.1 },
-      { dpsMultiplier: DELTA(1.22) },
+      { dpsMultiplier: 1.14 },
+      { dpsMultiplier: DELTA(1.28) },
       'Redline Tonic consumed: sustained damage up.'
     ),
     market: market(false, 900, true, true, false, true),
@@ -1576,7 +1591,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'fightStart',
       'onAttempt',
       'inactive_continue',
-      { ordnanceBonusDps: 25, armorBreakMultiplier: 1.15 },
+      { ordnanceBonusDps: 120, armorBreakMultiplier: 1.15 },
       { ordnanceBonusDps: FULL_FLAT, armorBreakMultiplier: DELTA(1.3) },
       'Forgeheart Charge consumed: heavy ordnance primed.'
     ),
@@ -1591,7 +1606,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     trigger: 'fightStart',
     consumePolicy: 'onAttempt',
     counterTags: ['shield', 'armor'],
-    effectRules: { shieldBreakMultiplier: 1.12, armorBreakMultiplier: 1.12 },
+    effectRules: { shieldBreakMultiplier: 1.18, armorBreakMultiplier: 1.18 },
     craftCategory: 'offense',
     uiHints: ['Crafted at the bench by Prismatek rank 2+ hunters.', 'Quality scales shield and armor break.'],
     implementationStatus: 'implemented',
@@ -1604,8 +1619,8 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'fightStart',
       'onAttempt',
       'inactive_continue',
-      { shieldBreakMultiplier: 1.12, armorBreakMultiplier: 1.12 },
-      { shieldBreakMultiplier: DELTA(1.24), armorBreakMultiplier: DELTA(1.24) },
+      { shieldBreakMultiplier: 1.18, armorBreakMultiplier: 1.18 },
+      { shieldBreakMultiplier: DELTA(1.36), armorBreakMultiplier: DELTA(1.36) },
       'Prism Coating consumed: rounds coated in elemental grit.'
     ),
     market: market(false, 800, true, true, false, true),
