@@ -92,6 +92,16 @@
  * the current/needed fraction plus a visible progress bar. Every
  * other tab renders the shipped Strip byte-identically.
  *
+ * VEHICLE CHIP (owner decision 2026-11-10): the Home variant
+ * also docks the vehicle chip (VehicleStripChip) at the loot
+ * segment, immediately right of the n/7 gear fraction — the
+ * vehicle is the loadout's eighth slot, riding the counter that
+ * counts the other seven. It is permanent (equipped or on
+ * foot), carries the belt chip's facts and remedy flip, and
+ * every state doors to Gear → Loadout with the Garage expanded.
+ * It replaces the chip that rode the consumables belt (and
+ * vanished on foot); the belt is consumables only again.
+ *
  * DISTRIBUTION (owner feedback r4, 2026-11-05: "Up top too with
  * credits etc, space out as well to not have that awkward gap"):
  * the row used to cluster its counters at the left on the pinned
@@ -133,6 +143,7 @@ import {
   type ValuePulse,
 } from '@/lib/ui/stripPulse';
 import { buildLoadoutRows, countEquippedLoadoutSlots } from '@/lib/loadout/loadoutReadModel';
+import { VehicleStripChip } from './VehicleStripChip';
 import { useInventoryStore, useLoadoutStore, usePlayerStore } from '@/store';
 import {
   loginStreakAnnouncement,
@@ -258,7 +269,7 @@ const Segment: React.FC<SegmentProps> = ({ resourceId, value, label, micro, aria
 );
 
 /** Skeleton segment (audit UX-04): same geometry, no numbers. */
-const SkeletonSegment: React.FC<{ resourceId: StripResourceId | 'level' }> = ({ resourceId }) => (
+const SkeletonSegment: React.FC<{ resourceId: StripResourceId | 'level' | 'vehicle' }> = ({ resourceId }) => (
   <span
     data-testid={`resource-chip-${resourceId}-skeleton`}
     className="flex shrink-0 animate-pulse items-center gap-1.5"
@@ -275,6 +286,10 @@ interface ResourceBarProps {
   /** Opens Settings — the Strip's gear resident (DESIGN.md §1).
    *  When omitted, no gear renders. */
   onOpenSettings?: () => void;
+  /** Home variant only: App navigation for the vehicle chip's
+   *  doors (the Garage intent; the Vendor for cell-less refuels).
+   *  Other tabs never render the chip, so they never pass it. */
+  onNavigate?: (target: string) => void;
   /**
    * 'home' renders the Home variant (2026-11-05): no cache segment,
    * a tappable LV door, and the XP row instead of the hairline.
@@ -285,7 +300,7 @@ interface ResourceBarProps {
   onLevelPress?: () => void;
 }
 
-export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpenSettings, variant = 'strip', onLevelPress }) => {
+export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpenSettings, variant = 'strip', onLevelPress, onNavigate }) => {
   const isHome = variant === 'home';
   const player = usePlayerStore();
   const inventory = useInventoryStore();
@@ -449,6 +464,10 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
           {!isHome && <SkeletonSegment resourceId="cacheKey" />}
           <SkeletonSegment resourceId="legendaryCore" />
           <SkeletonSegment resourceId="loot" />
+          {/* Home variant: a skeleton cell holds the vehicle
+              chip's dock (right of the loot segment) so the
+              geometry never shifts when the profile lands. */}
+          {isHome && <SkeletonSegment resourceId="vehicle" />}
           {rightEnd(<SkeletonSegment resourceId="level" />)}
         </div>
         {isHome && (
@@ -506,6 +525,15 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
           ariaText={`Loot — ${inventory.items.length} items, ${equippedCount} of 7 gear slots equipped`}
           pulse={pulses.loot}
         />
+        {/* Home variant only (owner decision 2026-11-10): the
+            vehicle chip docks at the loot segment, immediately
+            right of the n/7 fraction — the vehicle is the
+            loadout's eighth slot, so it rides the counter that
+            counts the other seven. It leaves the consumables
+            belt (consumables only again) and, unlike the belt
+            chip, it is permanent: on foot it reads as the door.
+            Every other tab's Strip is byte-identical. */}
+        {isHome && <VehicleStripChip onNavigate={onNavigate} />}
         {rightEnd(
           isHome && onLevelPress ? (
             // Home variant: the LV segment is the level pop-up's

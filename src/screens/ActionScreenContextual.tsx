@@ -843,12 +843,15 @@ export const ActionScreenContextual: React.FC<{
           so the use-in-loop slots sit between the rundown and the
           mode's panel. It lived in the deck before Wave C and
           under the workspace until this swap — same component,
-          relocated, mounted exactly once. Home consolidation
-          (2026-11-03): the belt row also carries the vehicle chip
-          now (owner correction — the bike gets no row of its own),
-          and the blocks that used to stack under the workspace are
-          gone from Home: the vehicle status line (its chip + the
-          Garage's line carry the state), the read-only Loadout
+          relocated, mounted exactly once. The belt is
+          consumables only (owner decision 2026-11-10): the
+          vehicle chip that rode the belt row since the
+          2026-11-03 consolidation moved to the Strip's loot
+          segment (VehicleStripChip — permanent there, on foot
+          included), and the blocks that used to stack under the
+          workspace are gone from Home: the vehicle status line
+          (its Strip chip + the Garage's line carry the state),
+          the read-only Loadout
           block (Gear → Loadout is the canonical surface), the
           Activity Modifiers panel (its glance folded into the
           rundown's buff line, its detail into the breakdown
