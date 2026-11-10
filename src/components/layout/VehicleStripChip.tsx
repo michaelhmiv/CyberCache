@@ -35,6 +35,14 @@ import { FUEL_CELL_TYPE, conditionFraction, effectiveVehicleYield } from '@/lib/
  * effectiveVehicleYield) — display only, no new numbers, no
  * gameplay state of its own. Home variant only: every other
  * tab's Strip renders exactly as shipped.
+ *
+ * Width discipline: the Strip's row does not scroll at phone
+ * width once the chip docks (the wallet alone measures ~302px
+ * at 390px; the chip's full readout ~154px), so the NAME is
+ * the row's one elastic part — it truncates (min-w-0) while
+ * the icon, the state facts, and every wallet number never
+ * shrink, wrap, or scroll away. The full name is one tap
+ * away in the Garage.
  */
 export const VehicleStripChip: React.FC<{
   onNavigate?: (target: string) => void;
@@ -87,13 +95,13 @@ export const VehicleStripChip: React.FC<{
         data-state={outOfFuel ? 'out-of-fuel' : 'worn-out'}
         aria-label={aria}
         onClick={() => onNavigate?.(target)}
-        className="flex shrink-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+        className="flex min-w-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
       >
         {wheel}
-        <span className="max-w-[104px] truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-primary">
+        <span className="min-w-0 truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-primary">
           {name}
         </span>
-        <span className="flex items-center gap-0.5 whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-amber">
+        <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-amber">
           {stateLabel} · {doorLabel}
           <PxIcon name="chevR" size={11} />
         </span>
@@ -108,13 +116,13 @@ export const VehicleStripChip: React.FC<{
       data-state="ok"
       aria-label={`${name}: ${Math.floor(vehicleFuel)} fuel units, yield bonus ×${factor.toFixed(2)}${fraction < 1 ? `, condition ${Math.round(fraction * 100)}%` : ''}. Opens Gear, Loadout, with the Garage expanded.`}
       onClick={() => onNavigate?.('garage')}
-      className="flex shrink-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
+      className="flex min-w-0 items-center gap-1 whitespace-nowrap transition-transform active:scale-[0.96]"
     >
       {wheel}
-      <span className="max-w-[104px] truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-primary">
+      <span className="min-w-0 truncate whitespace-nowrap text-[11px] font-black uppercase leading-none tracking-wider text-text-primary">
         {name}
       </span>
-      <span className="whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-text-muted">
+      <span className="shrink-0 whitespace-nowrap text-[11px] font-bold tabular-nums leading-none text-text-muted">
         {`${Math.floor(vehicleFuel)}u · ×${factor.toFixed(2)}${fraction < 1 ? ` · ${Math.round(fraction * 100)}%` : ''}`}
       </span>
     </button>
