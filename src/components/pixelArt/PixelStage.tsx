@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { motion, useAnimationControls } from 'framer-motion';
 import { anchorPoint, getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, shakeKeyframes } from '@/lib/pixel/movement';
+import { ROAM_APPROACH } from '@/lib/pixel/roamChoreography';
 import {
   VISTA_LAYER_SLOTS,
   VISTA_STAGE_H,
@@ -435,6 +436,15 @@ export const PixelActor: React.FC<PixelActorProps> = ({
   const sprite = requirePixelSprite(spriteId);
   const feet = anchorPoint(sprite, 'feet', 100, 100);
   const playEntrance = !reduced && entrance !== 'none';
+  // Walk-in travel (animation fix iteration, 2026-11-10): the
+  // entrance starts the approach offset (ROAM_APPROACH — in units
+  // of the actor's OWN width, framer's x-% semantics: offset% of
+  // stage width converted through this actor's width fraction)
+  // away from its mark, so a flat actor walks the same approach
+  // distance the rig path travels. The mark itself is untouched.
+  const stageAspect = 420 / 286;
+  const actorWidthPct = (heightPct * (sprite.width / sprite.height)) / stageAspect;
+  const walkInFromPct = (ROAM_APPROACH.spawnOffsetXPct / Math.max(1, actorWidthPct)) * 100;
   // Outer box: its top-left sits at (xPct, groundY - height). The inner
   // wrapper shifts by -feet.x of the ACTOR's own width (translateX % is
   // element-relative), so the feet anchor lands exactly on xPct regardless
@@ -458,7 +468,7 @@ export const PixelActor: React.FC<PixelActorProps> = ({
         !playEntrance
           ? false
           : entrance === 'walk'
-            ? { x: enterFrom === 'left' ? '-190%' : '190%', opacity: 0 }
+            ? { x: enterFrom === 'left' ? `${-walkInFromPct}%` : `${walkInFromPct}%`, opacity: 0 }
             : { x: 0, y: '-55%', opacity: 0 }
       }
       animate={

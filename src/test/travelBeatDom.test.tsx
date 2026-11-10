@@ -101,7 +101,9 @@ describe('LiveTurfDiorama — travel beat (M2b, DOM renderer)', () => {
   it('walks on roam start', async () => {
     mountRoam('dustwaste_raider');
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-stride-cycle')).toBe('stride');
+    // The travel gait row (animation fix iteration: the stride
+    // amplitudes with the window-tuned envelope).
+    expect(hunter.getAttribute('data-stride-cycle')).toBe('travelStride');
     await pumpUntil(() => strideActive(), 3000);
     expect(strideActive()).toBe(true);
   });

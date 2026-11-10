@@ -17,6 +17,7 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
+import { ROAM_APPROACH, ROAM_ENEMY_PLACEMENT, approachOffsetXPct } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -763,7 +764,14 @@ const PixelSceneLayerDom: React.FC<{
   // of 960 in the camp set's seat record); everywhere else the
   // standing roam/fight mark holds.
   const hunterPlacement: ActorPlacement = { xPct: idleCamp ? 52.6 : 22, heightPct: 57, groundY };
-  const enemyPlacement: ActorPlacement = { xPct: 74, heightPct: bossOnStage && bossSpriteId ? 80 : 66, groundY };
+  // Roam settle = ROAM_ENEMY_PLACEMENT (the tightened approach
+  // staging — roamChoreography owns it); boss encounters keep
+  // their own wider mark and taller frame.
+  const enemyPlacement: ActorPlacement = {
+    xPct: bossOnStage ? 74 : ROAM_ENEMY_PLACEMENT.xPct,
+    heightPct: bossOnStage && bossSpriteId ? 80 : 66,
+    groundY,
+  };
   const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
   const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
   const hunterMass = partsAnchorPoint(hunterLayout.joints.mass, hunterPlacement);
@@ -1262,7 +1270,7 @@ const PixelSceneLayerDom: React.FC<{
               <motion.div
                 key={`rig-target-${currentTargetId ?? 'none'}-${isEliteEvent ? 'elite' : 'std'}`}
                 className="absolute inset-0"
-                initial={reduced ? false : { x: '6%', opacity: 0 }}
+                initial={reduced ? false : { x: `${approachOffsetXPct(0)}%`, opacity: 0 }}
                 animate={{ x: '0%', opacity: 1 }}
                 transition={{ duration: MOVEMENT.WALK_IN_MS / 1000, ease: 'easeOut' }}
               >

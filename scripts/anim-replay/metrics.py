@@ -43,6 +43,19 @@ Definitions (all pinned here so every run grades identically):
 - Walk-in window: from the spawn action to the first frame where
   the enemy centroid comes within 6px of its settled value and
   stays for 3 frames.
+- Approach distance (criterion 1, fix-iteration form): graded on
+  the stage probe's walkOffsetXPct track — the walk-in's own
+  staging math (roamChoreography ROAM_APPROACH), sampled at 50ms:
+  approach = the max offset inside the spawn window; settle =
+  the probe's settled enemyXPct. The frame-mask centroid is kept
+  as corroboration only: at the shipped 6%-of-stage approach
+  (~23px) the warm-mask centroid jitters ±10px on rig motion
+  (baseline iteration-0 re-run measured approachPx 4.8 and 0%
+  coverage on UNMODIFIED master, while the probe track is exact),
+  so the centroid cannot grade the approach — it still grades
+  the articulation half below. Approach floor: >= 12% of stage
+  width (2x the shipped 6%) with the settle point at <= 70%
+  (the shipped mark was 74%).
 - Rig-motion proxy (criterion 1): inside the walk-in window,
   frames where diff energy INSIDE the enemy mask dilated by 6px
   exceeds the mask-area baseline (pure translation of a rigid
@@ -164,8 +177,25 @@ def main():
                     cover = abs(x - x_start)
                     c1['walkInMs'] = t - spawn_t
                     break
-            c1['approachPx'] = round(total, 1)
-            c1['coveredWithin6pxPct'] = round(100 * cover / total, 1) if cover is not None and total > 0 else 0.0
+            # Frame-mask corroboration (noisy at small approaches —
+            # see the header note; NOT part of the grade).
+            c1['approachPxMask'] = round(total, 1)
+            c1['coveredWithin6pxPctMask'] = round(100 * cover / total, 1) if cover is not None and total > 0 else 0.0
+        # Probe track — the grade. Probe t and recorder t are both
+        # ms-from-scenario-start clocks (the sampler installs when
+        # the recorder starts; a small constant offset is possible,
+        # so the window is padded and the max/settle are robust to
+        # it: offsets only exist inside a walk-in).
+        stage_w_px = imgs[0].shape[1] if imgs else 390
+        win = [p for p in probes if spawn_t - 500 <= p['t'] <= spawn_t + 2500]
+        offs = [p.get('walkOffsetXPct') for p in win if p.get('walkOffsetXPct') is not None]
+        settle_xs = [p.get('enemyXPct') for p in probes if p.get('enemyXPct') is not None and (p.get('walkOffsetXPct') or 0) <= 0.01]
+        if offs:
+            c1['approachXPct'] = round(max(offs), 2)
+            c1['approachPx'] = round(max(offs) / 100 * stage_w_px, 1)
+            c1['coveredPctOfApproach'] = round(100 * (max(offs) - min(offs[-3:])) / max(offs), 1) if max(offs) > 0 else 0.0
+        if settle_xs:
+            c1['settleXPct'] = round(statistics.median(settle_xs), 2)
             # internal motion share: energy inside dilated mask vs total mask energy
             from scipy.ndimage import binary_erosion
             interior_e, boundary_e = [], []
@@ -187,7 +217,16 @@ def main():
             c1['interiorEnergyMean'] = round(statistics.mean(interior_e), 2) if interior_e else 0.0
             c1['boundaryEnergyMean'] = round(statistics.mean(boundary_e), 2) if boundary_e else 0.0
             c1['interiorBoundaryRatio'] = round(c1['interiorEnergyMean'] / c1['boundaryEnergyMean'], 3) if c1['boundaryEnergyMean'] else 0.0
-        c1['pass'] = bool(c1.get('coveredWithin6pxPct', 0) >= 60 and c1.get('interiorBoundaryRatio', 0) >= 0.30)
+        # Grade: the approach is real travel (>= 12% of stage width
+        # on the probe track, >= 90% of it covered inside the
+        # window), the settle point tightened (<= 70%), and the rig
+        # articulates while it travels (frame-mask interior ratio).
+        c1['pass'] = bool(
+            c1.get('approachXPct', 0) >= 12
+            and c1.get('coveredPctOfApproach', 0) >= 90
+            and c1.get('settleXPct', 100) <= 70
+            and c1.get('interiorBoundaryRatio', 0) >= 0.30
+        )
         report['detail']['criterion1'] = c1
         report['criteria']['1_walkInTravel'] = 'PASS' if c1['pass'] else 'FAIL'
 
@@ -323,9 +362,12 @@ def main():
         ratio_rel = (graded['scaleRatio'] / BASELINE_SCALE) if graded and graded['scaleRatio'] else None
         c5['ratioVsBaseline'] = round(ratio_rel, 3) if ratio_rel else None
         # Brief B2.5: sync ratio in the M2b band (relative form) AND
-        # the stride envelope at full amplitude, or the reservation
-        # re-measured and explicitly carried (amplitude reported).
-        c5['pass'] = bool(ratio_rel and 0.84 <= ratio_rel <= 1.04)
+        # the stride envelope at full amplitude. The envelope half
+        # joins the grade as of the fix iteration (2026-11-10): the
+        # travel gait's spec envelope saturates at 600ms, inside
+        # the 850ms window, so a healthy run's sampled peak is 1.0
+        # (0.98 admits one-sample quantization at the window edge).
+        c5['pass'] = bool(ratio_rel and 0.84 <= ratio_rel <= 1.04 and c5['peakAmplitude'] >= 0.98)
         c5['amplitudeReservation'] = 'peak amplitude %.3f < 1.0 — the M2b 0.83 reservation, re-measured; carried as the criterion-5 open item for the fix loop' % c5['peakAmplitude'] if c5['peakAmplitude'] < 0.98 else None
         report['detail']['criterion5'] = c5
         report['criteria']['5_travelSync'] = 'PASS' if c5['pass'] else 'FAIL'

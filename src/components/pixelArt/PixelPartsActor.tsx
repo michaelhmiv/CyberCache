@@ -23,8 +23,9 @@ import {
 import {
   composeStridePose,
   sampleStride,
+  strideEnvelopeAt,
+  strideEnvelopeStartMs,
   STRIDE_PERIOD_MS,
-  STRIDE_START_DELAY_MS,
   type StrideSpec,
 } from '@/lib/pixel/strideCycle';
 import type { PartPose } from '@/lib/pixel/parts';
@@ -304,10 +305,12 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   // The work cycle's execution shape, for locomotion: rAF-sampled
   // spec deltas composed onto the CURRENT base pose (the travel
   // beat departs from the caller's stance — 'roam' in practice),
-  // the SEGMENT start beat first, amplitude ramping 0→1 across one
-  // period on engage and back to 0 on disengage. A bound work
-  // cycle suppresses the stride entirely (bench modes own the
-  // figure; the two choreographies never stack).
+  // the spec's own engagement envelope on engage (start delay +
+  // ramp are spec data — the travel gait saturates inside the
+  // advance window; the generic gait keeps the start beat and the
+  // one-period ramp) and a one-period decay on disengage. A bound
+  // work cycle suppresses the stride entirely (bench modes own
+  // the figure; the two choreographies never stack).
   const strideSpec = strideCycle?.spec;
   const strideActive = strideCycle?.active ?? false;
   const [stridePose, setStridePose] = useState<PartPose | null>(null);
@@ -327,11 +330,18 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     const tick = (now: number) => {
       if (strideActive) {
         run.stopAt = null;
-        if (run.start === null) run.start = now + STRIDE_START_DELAY_MS;
-        if (now >= run.start) {
-          const elapsed = now - run.start;
-          const amp = Math.min(1, elapsed / STRIDE_PERIOD_MS);
-          setStridePose(composeStridePose(sampleStride(strideSpec, elapsed, amp), PART_POSES[pose]));
+        // The run clock starts at the ENGAGE instant; the spec's
+        // envelope (start delay + ramp are spec data — the travel
+        // gait saturates inside the advance window, the generic
+        // gait keeps the start beat + one-period ramp) shapes the
+        // amplitude, and the phase clock starts when the envelope
+        // does (strideEnvelopeStartMs).
+        if (run.start === null) run.start = now;
+        const localMs = now - run.start;
+        const phaseMs = localMs - strideEnvelopeStartMs(strideSpec);
+        if (phaseMs >= 0) {
+          const amp = strideEnvelopeAt(strideSpec, localMs);
+          setStridePose(composeStridePose(sampleStride(strideSpec, phaseMs, amp), PART_POSES[pose]));
         }
         raf = requestAnimationFrame(tick);
         return;
@@ -339,14 +349,14 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
       // Disengaging: keep the phase clock, ramp amplitude to zero
       // across one period, then hand the pose back to the SEGMENT
       // system (the held base pose).
-      if (run.start === null || now < run.start) {
+      if (run.start === null || now - run.start < strideEnvelopeStartMs(strideSpec)) {
         run.start = null;
         setStridePose(null);
         return;
       }
       if (run.stopAt === null) {
         run.stopAt = now;
-        run.ampAtStop = Math.min(1, (now - run.start) / STRIDE_PERIOD_MS);
+        run.ampAtStop = strideEnvelopeAt(strideSpec, now - run.start);
       }
       const amp = run.ampAtStop * Math.max(0, 1 - (now - run.stopAt) / STRIDE_PERIOD_MS);
       if (amp <= 0) {
@@ -355,7 +365,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
         setStridePose(null);
         return;
       }
-      setStridePose(composeStridePose(sampleStride(strideSpec, now - run.start, amp), PART_POSES[pose]));
+      setStridePose(composeStridePose(sampleStride(strideSpec, now - run.start - strideEnvelopeStartMs(strideSpec), amp), PART_POSES[pose]));
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

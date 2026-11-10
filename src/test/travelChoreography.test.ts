@@ -25,8 +25,8 @@ import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import { ROAM_HUNTER_PLACEMENT } from '@/lib/pixel/roamChoreography';
 import {
   STRIDE_PERIOD_MS,
-  STRIDE_START_DELAY_MS,
   STRIDE_SPECS,
+  strideEnvelopeAt,
   composeStridePose,
   sampleStride,
 } from '@/lib/pixel/strideCycle';
@@ -86,6 +86,34 @@ describe('travel choreography — the data', () => {
     }
     // No-pan scenes (camp) have no ground motion to sync.
     expect(travelPanMultiplier(stride, CAMP_VISTA_SCENE)).toBe(1);
+  });
+});
+
+describe('stride envelopes — spec data (animation fix iteration)', () => {
+  it('the generic gait keeps the shipped M2a envelope: start beat, then one-period ramp', () => {
+    const s = STRIDE_SPECS.stride;
+    expect(strideEnvelopeAt(s, 0)).toBe(0);
+    expect(strideEnvelopeAt(s, 319)).toBe(0);
+    expect(strideEnvelopeAt(s, 320)).toBe(0);
+    expect(strideEnvelopeAt(s, 320 + 320)).toBeCloseTo(0.5, 6);
+    expect(strideEnvelopeAt(s, 320 + 640)).toBe(1);
+    // The reservation, in numbers: inside the 850ms window the
+    // generic envelope peaks at (850 − 320) / 640 = 0.828.
+    expect(strideEnvelopeAt(s, 850)).toBeCloseTo(0.828, 3);
+  });
+
+  it('the travel gait carries the stride leg amplitudes verbatim — only the envelope differs', () => {
+    const g = STRIDE_SPECS.stride;
+    const t = STRIDE_SPECS.travelStride;
+    for (const k of ['thighSwingDeg', 'kneeBendDeg', 'kneeBendPhase', 'soleLiftPx', 'bobPx', 'torsoCounterDeg', 'headRatio'] as const) {
+      expect(t[k]).toBe(g[k]);
+    }
+    expect(t.envelopeStartDelayMs).toBe(0);
+    expect(t.envelopeRampMs).toBe(600);
+    expect(strideEnvelopeAt(t, 850)).toBe(1);
+    // One source for the pan: identical swing => identical
+    // derived ground speed.
+    expect(strideGroundSpeedPxS(t)).toBeCloseTo(strideGroundSpeedPxS(g), 10);
   });
 });
 
@@ -181,16 +209,23 @@ describe('travel tracker — preemption', () => {
 });
 
 describe('travel tracker — the envelope', () => {
-  it('holds at zero through the SEGMENT start beat, then ramps over one period', () => {
+  it('the travel gait saturates inside the window: no start delay, full amplitude at 600ms', () => {
+    // The criterion-5 fix (animation fix iteration, 2026-11-10):
+    // the advance's stride spec carries envelopeStartDelayMs 0 +
+    // envelopeRampMs 600, so the envelope reaches 1.0 at 600ms —
+    // 250ms before the 850ms window closes. Under the generic
+    // gait's envelope (320ms delay + 640ms ramp) the same window
+    // peaked at (850 − 320) / 640 = 0.828 — the M2b reservation.
     const run = createTravelRun();
     feed(run, 1000, { targetKey: 'a' });
     const at = (t: number) => sampleTravel(run, SPEC, SCENE, t);
-    expect(at(1000 + STRIDE_START_DELAY_MS - 1).amplitude).toBe(0);
-    expect(at(1000 + STRIDE_START_DELAY_MS).amplitude).toBe(0);
-    expect(at(1000 + STRIDE_START_DELAY_MS + STRIDE_PERIOD_MS / 2).amplitude).toBeCloseTo(0.5, 6);
-    expect(at(1000 + STRIDE_START_DELAY_MS + STRIDE_PERIOD_MS).amplitude).toBe(1);
-    expect(at(1000 + STRIDE_START_DELAY_MS).phaseMs).toBe(0);
-    expect(at(1000 + STRIDE_START_DELAY_MS + 200).phaseMs).toBe(200);
+    expect(at(1000).amplitude).toBe(0);
+    expect(at(1000 + 300).amplitude).toBeCloseTo(0.5, 6);
+    expect(at(1000 + 599).amplitude).toBeLessThan(1);
+    expect(at(1000 + 600).amplitude).toBe(1);
+    expect(at(1000 + SPEC.durationMs).amplitude).toBe(1);
+    expect(at(1000).phaseMs).toBe(0);
+    expect(at(1000 + 200).phaseMs).toBe(200);
   });
 
   it('disengages at exactly start + duration, with the envelope amplitude of that instant', () => {
@@ -198,12 +233,13 @@ describe('travel tracker — the envelope', () => {
     feed(run, 0, { targetKey: 'a' });
     feed(run, SPEC.durationMs + 5000, { targetKey: 'a' }); // observed late
     expect(run.stopAt).toBe(SPEC.durationMs);
-    const expectedAmp = Math.min(1, (SPEC.durationMs - STRIDE_START_DELAY_MS) / STRIDE_PERIOD_MS);
-    expect(run.ampAtStop).toBeCloseTo(expectedAmp, 10);
+    // The travel envelope saturated at 600ms, so the disengage
+    // captures FULL amplitude (pre-fix this was 0.828).
+    expect(run.ampAtStop).toBeCloseTo(1, 10);
     // The settle: phase clock kept, amplitude decays over one period.
     const mid = sampleTravel(run, SPEC, SCENE, SPEC.durationMs + STRIDE_PERIOD_MS / 2);
-    expect(mid.amplitude).toBeCloseTo(expectedAmp * 0.5, 6);
-    expect(mid.phaseMs).toBe(SPEC.durationMs - STRIDE_START_DELAY_MS + STRIDE_PERIOD_MS / 2);
+    expect(mid.amplitude).toBeCloseTo(0.5, 6);
+    expect(mid.phaseMs).toBe(SPEC.durationMs + STRIDE_PERIOD_MS / 2);
     const done = sampleTravel(run, SPEC, SCENE, SPEC.durationMs + STRIDE_PERIOD_MS);
     expect(done.amplitude).toBe(0);
     expect(done.driving).toBe(false);
@@ -212,11 +248,17 @@ describe('travel tracker — the envelope', () => {
   it('pan rate rides the same envelope: 1 at rest, full multiplier at full amplitude', () => {
     const run = createTravelRun();
     feed(run, 0, { targetKey: 'a' });
-    const mult = travelPanMultiplier(STRIDE_SPECS.stride, SCENE);
-    const half = sampleTravel(run, SPEC, SCENE, STRIDE_START_DELAY_MS + STRIDE_PERIOD_MS / 2);
+    // The multiplier derives from the TRAVEL gait (its swing is
+    // the stride row's, so the ground speed — and therefore the
+    // multiplier — is identical to the generic gait's).
+    const mult = travelPanMultiplier(travelStrideSpec(SPEC), SCENE);
+    expect(mult).toBeCloseTo(travelPanMultiplier(STRIDE_SPECS.stride, SCENE), 10);
+    // Half amplitude at half the travel ramp (300ms).
+    const half = sampleTravel(run, SPEC, SCENE, 300);
+    expect(half.amplitude).toBeCloseTo(0.5, 6);
     expect(half.panRate).toBeCloseTo(1 + (mult - 1) * 0.5, 6);
     // A null scene (non-vista background) strides without a pan boost.
-    expect(sampleTravel(run, SPEC, null, STRIDE_START_DELAY_MS + 100).panRate).toBe(1);
+    expect(sampleTravel(run, SPEC, null, 400).panRate).toBe(1);
   });
 
   it('amplitude 0 resolves to the base layout exactly — arrival is rest, byte-exact', () => {

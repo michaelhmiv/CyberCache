@@ -47,7 +47,38 @@ import type { GearItem, Weapon } from '@/types/items';
 
 /** Roam placements — PixelSceneLayer's own constants. */
 export const ROAM_HUNTER_PLACEMENT = { xPct: 22, heightPct: 57 } as const;
-export const ROAM_ENEMY_PLACEMENT = { xPct: 74, heightPct: 66 } as const;
+export const ROAM_ENEMY_PLACEMENT = { xPct: 66, heightPct: 66 } as const;
+
+/**
+ * Roam approach staging (animation fix iteration, 2026-11-10 —
+ * the brief's Q3 item). The settle point above is where the enemy
+ * ENDS its walk-in: 66% of stage width, moved in from the shipped
+ * 74% so the fight's framing tightens (the hunter stands at 22%).
+ * The walk-in itself starts off-frame right and travels the rest:
+ * at walk progress p the enemy's live x offset from its settle
+ * point is the approach below, eased by the renderers with the
+ * same easeOut the walk-in has always used — the 850ms window
+ * (MOVEMENT.WALK_IN_MS) and every Sample B timing are untouched;
+ * only the staging geometry changed.
+ *
+ * Data, like every choreography tenant: spawnOffsetXPct is how far
+ * right of the settle point the walk-in begins (stage-width %);
+ * at p = 0 the enemy's feet anchor sits at xPct + spawnOffsetXPct
+ * (66 + 24 = 90% — its body, ~41% of stage width at roam height,
+ * reaches past the right edge: it enters FROM off-frame); at p = 1
+ * the offset is 0, exactly the settle point.
+ */
+export const ROAM_APPROACH = { spawnOffsetXPct: 24 } as const;
+
+/** The enemy's walk-in x offset at progress `p` (0..1), in
+ *  stage-width %: the approach distance remaining. One derivation
+ *  for both renderers (Pixi samples the eased offset per frame;
+ *  the DOM rig wrapper animates between the same two endpoints)
+ *  and for the walk-in tests. */
+export function approachOffsetXPct(p: number): number {
+  const t = Math.max(0, Math.min(1, p));
+  return ROAM_APPROACH.spawnOffsetXPct * (1 - t);
+}
 /** Elite-event enemies stand taller (PixelSceneLayer: rig 72 / flat 74). */
 export const ROAM_ELITE_RIG_HEIGHT_PCT = 72;
 export const ROAM_ELITE_FLAT_HEIGHT_PCT = 74;

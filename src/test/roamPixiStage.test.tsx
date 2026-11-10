@@ -171,7 +171,9 @@ describe('M2 — the roam scene model (one derivation for both renderers)', () =
     expect(model.rig?.segments).toHaveLength(4);
     expect(model.rigPose).toEqual({});
     expect(model.hunterPlacement).toMatchObject({ xPct: 22, heightPct: 57 });
-    expect(model.enemyPlacement).toMatchObject({ xPct: 74, heightPct: 66 });
+    // Settle mark 66% — the tightened approach staging
+    // (animation fix iteration; was 74%).
+    expect(model.enemyPlacement).toMatchObject({ xPct: 66, heightPct: 66 });
     expect(model.lootRise).toBeNull();
     expect(model.dropItem).toBeNull();
   });

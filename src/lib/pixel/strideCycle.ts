@@ -106,6 +106,19 @@ export interface StrideSpec {
   /** Head counter-rotation ratio of the torso's (the head steadies
    *  against the sway). */
   headRatio: number;
+  /** Engagement-envelope start delay, ms: how long after the
+   *  cycle engages before amplitude leaves 0. Reads MOVEMENT's
+   *  SEGMENT start beat by default (see strideEnvelopeStartMs) —
+   *  a spec carries a value only to depart from the law's beat. */
+  envelopeStartDelayMs?: number;
+  /** Engagement-envelope ramp, ms: amplitude 0→1 across this span
+   *  once the start delay passes. Defaults to one stride period
+   *  (see strideEnvelopeRampMs). The travel beat's window is the
+   *  850ms walk-in: at the shipped defaults (320 + 640) the
+   *  envelope peaked at 0.784 inside it — the M2b reservation the
+   *  animation fix iteration closes by giving the travel gait its
+   *  own envelope row (below), not by retiming the law. */
+  envelopeRampMs?: number;
 }
 
 /**
@@ -133,7 +146,56 @@ export const STRIDE_SPECS: Record<string, StrideSpec> = {
     torsoCounterDeg: 0,
     headRatio: 0.5,
   },
+  /**
+   * The travel gait (Motion M2b's advance): the stride row's leg
+   * amplitudes VERBATIM — the pan sync derives from the same swing
+   * (strideGroundSpeedPxS), so the legs may not diverge — with its
+   * own engagement envelope: no start delay, and the ramp
+   * completes at 600ms, inside the 850ms advance window, so the
+   * stride reaches FULL amplitude before arrival (the criterion-5
+   * fix, animation fix iteration 2026-11-10; the window, the
+   * period, and every leg amplitude are unchanged — only WHEN the
+   * envelope saturates moved). The settle still decays across one
+   * period from wherever the envelope stands.
+   */
+  travelStride: {
+    id: 'travelStride',
+    thighSwingDeg: 6.5,
+    kneeBendDeg: 26,
+    kneeBendPhase: 0,
+    soleLiftPx: 3,
+    bobPx: 1.6,
+    torsoCounterDeg: 0,
+    headRatio: 0.5,
+    envelopeStartDelayMs: 0,
+    envelopeRampMs: 600,
+  },
 };
+
+/** The spec's engagement-envelope start delay (default: the
+ *  SEGMENT start beat — the pose transition into the travel
+ *  stance plays first, the shipped M2a semantics). */
+export function strideEnvelopeStartMs(spec: StrideSpec): number {
+  return spec.envelopeStartDelayMs ?? STRIDE_START_DELAY_MS;
+}
+
+/** The spec's engagement-envelope ramp (default: one period). */
+export function strideEnvelopeRampMs(spec: StrideSpec): number {
+  return spec.envelopeRampMs ?? STRIDE_PERIOD_MS;
+}
+
+/** The engagement envelope at stride-local time `tMs` (the clock
+ *  sampleStride consumes: 0 at the engage instant): 0 through the
+ *  start delay, then a LINEAR ramp across the ramp span — the one
+ *  envelope both stride executions (the travel tracker and the
+ *  DOM actor) and the anim-replay metrics share, so the amplitude
+ *  a run reports is the amplitude the specs define. */
+export function strideEnvelopeAt(spec: StrideSpec, tMs: number): number {
+  const start = strideEnvelopeStartMs(spec);
+  if (tMs < start) return 0;
+  const ramp = strideEnvelopeRampMs(spec);
+  return ramp > 0 ? Math.min(1, (tMs - start) / ramp) : 1;
+}
 
 /** One sampled instant of a stride. */
 export interface StrideFrame {

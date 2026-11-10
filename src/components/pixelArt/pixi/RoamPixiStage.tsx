@@ -51,6 +51,7 @@ import {
 } from '@/lib/pixel/movement';
 import { EASE, sampleTrack } from '@/lib/pixel/pixiChoreography';
 import {
+  approachOffsetXPct,
   deriveRoamScene,
   roamAnimatedNodeCount,
   sampleRoamBeat,
@@ -255,6 +256,10 @@ interface RoamRuntime {
   rigTweens: Record<string, { from: RigPoseVals; to: RigPoseVals; startMs: number; durationMs: number }>;
   beat: { eventId: string; startMs: number } | null;
   walk: { targetKey: string; startMs: number } | null;
+  /** The walk-in's eased approach offset, stage-width % (DEV probe
+   *  surface: the anim-replay loop grades the approach from the
+   *  exact staging math, not the noisy frame mask). */
+  walkOffsetXPct: number;
   shake: { key: string; startMs: number; intensity: number; durationMs: number } | null;
   /** Travel beat (Motion M2b): the shared tracker run + whether
    *  the stride drove the last frame (the falling edge re-applies
@@ -283,6 +288,7 @@ function createRoamRuntime(): RoamRuntime {
     rigTweens: {},
     beat: null,
     walk: null,
+    walkOffsetXPct: 0,
     shake: null,
     travel: createTravelRun(),
     travelDriving: false,
@@ -755,11 +761,17 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   // ── Enemy ──
   const walkP = rt.walk ? Math.min(1, (now - rt.walk.startMs) / MOVEMENT.WALK_IN_MS) : 1;
   const walkE = EASE.easeOut(Math.max(0, walkP));
+  // Approach staging (roamChoreography ROAM_APPROACH): the eased
+  // walk-in offset — the enemy enters from off-frame right and
+  // travels the full approach to its settle point; the window is
+  // the movement law's WALK_IN_MS, unchanged.
+  const walkOffsetXPct = approachOffsetXPct(walkE);
+  rt.walkOffsetXPct = walkOffsetXPct;
   scene.enemyLunge.position.set((model.enemyPlacement.xPct / 100) * W + beatSample.enemyLungeX, groundYPx);
   scene.enemyHit.scale.set(beatSample.enemyHit.scale, beatSample.enemyHit.scale);
   scene.enemyHit.position.set(beatSample.enemyHit.x, beatSample.enemyHit.y);
   scene.enemyHit.alpha = beatSample.enemyHit.opacity;
-  scene.enemyWalk.position.set((1 - walkE) * 0.06 * W, 0);
+  scene.enemyWalk.position.set((walkOffsetXPct / 100) * W, 0);
   scene.enemyWalk.alpha = walkE;
   const enemyH = (model.enemyPlacement.heightPct / 100) * H;
   if (scene.rigRoot && model.rig) {
@@ -988,6 +1000,11 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
       /** F6: the enemy art key the stage currently SHOWS (the
        *  regression probe: it must follow the target's key). */
       enemyRig: scene.enemyRigKey,
+      /** Approach staging: the enemy's live placement (settle
+       *  point + walk-in offset) — the anim-replay loop's exact
+       *  approach measure. */
+      enemyXPct: Number((model.enemyPlacement.xPct + rt.walkOffsetXPct).toFixed(2)),
+      walkOffsetXPct: Number(rt.walkOffsetXPct.toFixed(2)),
       travel: rt.travelSample
         ? {
             active: rt.travelSample.active,

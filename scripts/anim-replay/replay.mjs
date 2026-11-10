@@ -164,6 +164,8 @@ async function installProbeSampler(page) {
         beatMs: p?.beatMs ?? null,
         pose: p?.pose ?? null,
         enemyRig: p?.enemyRig ?? null,
+        enemyXPct: p?.enemyXPct ?? null,
+        walkOffsetXPct: p?.walkOffsetXPct ?? null,
         travel: p?.travel ?? null,
         panNearPx: p?.panNearPx ?? null,
         fpsAvg: p?.fpsAvg ?? null,
