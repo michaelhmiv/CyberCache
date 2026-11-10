@@ -37,7 +37,7 @@ import {
 } from '../../content/actionSkills';
 import { RiskSetting, SkillTreeType } from '../../types/game';
 import { actionSkillEcho, actionSkillLevers, deferredActionSkillFirePlan, planActionSkillFire } from './actionSkill';
-import { escalatedBossFee, utcDayStartIso } from '../../lib/bossFees';
+import { bossBaseFee, escalatedBossFee, utcDayStartIso } from '../../lib/bossFees';
 import {
   buildConsumableQualityProfile,
   weightedQualityForUnits,
@@ -176,15 +176,19 @@ export function createVerifyBossHandler(
       }
 
       // --- Entry fee (Phase 0 boss loop) ---
-      // Charged on every resolved attempt: entryCost for a first
-      // attempt, rematchCost for a boss the player has already
-      // defeated (both fields exist on the boss def; they were
-      // display-only before this slice). Derived here from the def +
-      // server boss_state — never from the request body.
+      // Charged on every resolved attempt, derived here from the def
+      // + server boss_state — never from the request body. The base
+      // fee is the shared derivation (src/lib/bossFees.ts): the
+      // rematchCost once the boss has been defeated, HALF the
+      // entryCost while it has never been beaten — the first-clear
+      // discount (tuning D4 / proposal P10, owner ruling 2026-11-10;
+      // full text in docs/ECONOMY.md) — so the refusal check below
+      // and the charge both work from the discounted figure.
       const baseEntryFee = bossDef
-        ? defeatedBossIds.includes(body.bossId)
-          ? bossDef.rematchCost
-          : bossDef.entryCost
+        ? bossBaseFee(
+            { entryCost: bossDef.entryCost, rematchCost: bossDef.rematchCost },
+            defeatedBossIds.includes(body.bossId),
+          )
         : 0;
 
       // --- Rematch escalation (pacing-baseline tuning) ---

@@ -153,7 +153,7 @@ function seedStrongWeapon(store: InMemoryChefGameplayStore) {
 describe('shipped boss loop (POST /api/verify-boss)', () => {
   it('victory: charges exactly the prepared set + entry fee, grants loot incl. the dedicated-drop path, advances unlocks', async () => {
     const { base, store, tokenA } = await makeServer();
-    const boss = bossById('ashgut'); // entry 600, dedicated: salvage_rights / overclocked
+    const boss = bossById('ashgut'); // entry 600 → first-clear 300 (tuning D4), dedicated: salvage_rights / overclocked
     store.seedProfile({
       id: A,
       player_level: 20,
@@ -182,7 +182,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
         skillBonuses: {},
         pityCount: 0,
         playerCredits: 10000,
-        entryFee: boss.entryCost,
+        entryFee: boss.entryCost / 2,
       },
       (r) => r.result.victory && r.dedicatedDropAwarded,
     );
@@ -205,7 +205,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     expect(res.status).toBe(200);
     expect(res.json.verified).toBe(true);
     expect(res.json.victory).toBe(true);
-    expect(res.json.entryFee).toBe(600);
+    expect(res.json.entryFee).toBe(300);
     expect(res.json.dedicatedDropAwarded).toBe(true);
     expect(res.json.creditsDelta).toBe(expected.creditsDelta);
 
@@ -247,7 +247,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
 
   it('defeat: applies entry fee + (insurance-halved) death fee and pity, charges the prepared set', async () => {
     const { base, store, tokenA } = await makeServer();
-    const boss = bossById('siltstalker'); // entry 200, tier 2 → 5% death fee
+    const boss = bossById('siltstalker'); // entry 200 → first-clear 100, tier 2 → 5% death fee
     store.seedProfile({
       id: A,
       player_level: 5,
@@ -273,11 +273,11 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
         skillBonuses: {},
         pityCount: 0,
         playerCredits: 10000,
-        entryFee: boss.entryCost,
+        entryFee: boss.entryCost / 2,
       },
       (r) => !r.result.victory,
     );
-    expect(expected.result.creditsLost).toBe(200 + 250); // fee + 5% of 10000 halved by Insurance Token
+    expect(expected.result.creditsLost).toBe(100 + 250); // first-clear fee + 5% of 10000 halved by Insurance Token
 
     const body = {
       playerId: A,
@@ -289,12 +289,12 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     const res = await post(base, '/api/verify-boss', body, tokenA);
     expect(res.status).toBe(200);
     expect(res.json.victory).toBe(false);
-    expect(res.json.entryFee).toBe(200);
+    expect(res.json.entryFee).toBe(100);
     expect(res.json.pityIncremented).toBe(true);
-    expect(res.json.result!.creditsLost).toBe(450);
+    expect(res.json.result!.creditsLost).toBe(350);
 
     const profile = store.profiles.get(A)!;
-    expect(profile.credits).toBe(10000 - 450);
+    expect(profile.credits).toBe(10000 - 350);
     expect(profile.consumables).toEqual({ MedKit: 2, InsuranceToken: 0 });
     const bossState = profile.boss_state as { pityCounters: Record<string, number>; defeatedBossIds: string[] };
     expect(bossState.pityCounters.siltstalker).toBe(1);
@@ -341,7 +341,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     store.seedProfile({
       id: A,
       player_level: 50,
-      credits: 100, // siltstalker entry is 200
+      credits: 99, // siltstalker's first-clear entry is 100 (half of 200, tuning D4) — 99 cannot afford it
       consumables: {},
       boss_state: { unlockedBossIds: ['dune_tyrant', 'siltstalker'], defeatedBossIds: [], pityCounters: {} },
     });
@@ -353,7 +353,7 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     );
     expect(res.status).toBe(400);
     expect(res.json.error).toBe('Insufficient credits for boss entry fee');
-    expect(store.profiles.get(A)!.credits).toBe(100);
+    expect(store.profiles.get(A)!.credits).toBe(99);
   });
 
   it('charges the rematch cost — not the entry cost — for an already-defeated boss', async () => {
@@ -376,5 +376,81 @@ describe('shipped boss loop (POST /api/verify-boss)', () => {
     expect(res.status).toBe(200);
     expect(res.json.entryFee).toBe(100);
     expect(store.profiles.get(A)!.credits).toBe(1000 + (res.json.creditsDelta ?? 0));
+  });
+
+  it('charges half the entry fee for a first attempt on a never-beaten boss — the Mirror at exactly the discounted price (tuning D4)', async () => {
+    const { base, store, tokenA } = await makeServer();
+    const boss = bossById('mnemosyne_mirror'); // entry 5000 → first-clear 2500
+    store.seedProfile({
+      id: A,
+      player_level: 50,
+      credits: 2500, // exactly the discounted fee; the full 5000 would refuse
+      consumables: {},
+      boss_state: {
+        unlockedBossIds: REGION_1_BOSSES.map((b) => b.id),
+        defeatedBossIds: [],
+        pityCounters: {},
+      },
+    });
+    seedStrongWeapon(store);
+    const res = await post(
+      base,
+      '/api/verify-boss',
+      { playerId: A, bossId: boss.id, attemptNonce: 12, consumables: {}, risk: RiskSetting.Balanced },
+      tokenA,
+    );
+    expect(res.status).toBe(200);
+    expect(res.json.entryFee).toBe(2500);
+  });
+
+  it('refuses a first attempt one credit below the discounted fee — the refusal quotes the discounted price (tuning D4)', async () => {
+    const { base, store, tokenA } = await makeServer();
+    store.seedProfile({
+      id: A,
+      player_level: 50,
+      credits: 2499,
+      consumables: {},
+      boss_state: {
+        unlockedBossIds: REGION_1_BOSSES.map((b) => b.id),
+        defeatedBossIds: [],
+        pityCounters: {},
+      },
+    });
+    const res = await post(
+      base,
+      '/api/verify-boss',
+      { playerId: A, bossId: 'mnemosyne_mirror', attemptNonce: 13, consumables: {}, risk: RiskSetting.Balanced },
+      tokenA,
+    );
+    expect(res.status).toBe(400);
+    expect(res.json.error).toBe('Insufficient credits for boss entry fee');
+    expect(res.json.detail).toContain('2500');
+    expect(store.profiles.get(A)!.credits).toBe(2499);
+  });
+
+  it('ends the discount at the first victory: a defeated boss charges the full rematch cost (Mirror 6000, tuning D4)', async () => {
+    const { base, store, tokenA } = await makeServer();
+    const boss = bossById('mnemosyne_mirror'); // rematch 6000
+    store.seedProfile({
+      id: A,
+      player_level: 50,
+      credits: 10000,
+      consumables: {},
+      boss_state: {
+        unlockedBossIds: REGION_1_BOSSES.map((b) => b.id),
+        defeatedBossIds: ['mnemosyne_mirror'],
+        pityCounters: {},
+      },
+    });
+    seedStrongWeapon(store);
+    const res = await post(
+      base,
+      '/api/verify-boss',
+      { playerId: A, bossId: boss.id, attemptNonce: 14, consumables: {}, risk: RiskSetting.Balanced },
+      tokenA,
+    );
+    expect(res.status).toBe(200);
+    expect(res.json.entryFee).toBe(6000);
+    expect(store.profiles.get(A)!.credits).toBe(10000 + (res.json.creditsDelta ?? 0));
   });
 });

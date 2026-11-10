@@ -40,7 +40,7 @@ import { mountChefHealthRoute, mountGameplayRoutes } from '../server/gameplay/ro
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { issueAccessToken } from '../server/auth/tokens';
 import { earnedOfflineCapHours, nextOfflineCapMilestone, OFFLINE_CAP_MILESTONES, RESEARCH_OFFLINE_CAP_HOURS_TOTAL } from '@/content/offlineCap';
-import { bossFeeMultiplier, escalatedBossFee, utcDayStartIso } from '@/lib/bossFees';
+import { bossBaseFee, bossFeeMultiplier, escalatedBossFee, utcDayStartIso } from '@/lib/bossFees';
 import { xpToNextLevel } from '@/content/simulation';
 import { applyXp } from '../server/writes/store';
 
@@ -565,5 +565,41 @@ describe('tuning item 8 — applyXp (server mirror) follows the stretched curve'
     const halfway = Math.floor(xpToNextLevel(50) / 2);
     expect(applyXp(50, 0, halfway)).toEqual({ player_level: 50, player_xp: halfway });
     expect(applyXp(50, halfway, xpToNextLevel(50) - halfway)).toEqual({ player_level: 51, player_xp: 0 });
+  });
+});
+
+describe('tuning D4 — first-clear boss fee discount (proposal P10)', () => {
+  // Owner ruling 2026-11-10: the sticker entry fee stays; attempts at a
+  // boss cost HALF the entry fee while the player has never beaten it,
+  // ending permanently at the first victory (rematch pricing after).
+  // The derivation is shared (src/lib/bossFees.ts bossBaseFee) so the
+  // Chef's charge, its refusal, and the prep/picker displays agree.
+  const mirror = bossById('mnemosyne_mirror'); // entry 5000, rematch 6000
+  const siltstalker = bossById('siltstalker'); // entry 200, rematch 300
+  const tyrant = bossById('dune_tyrant'); // entry 0, rematch 100
+
+  it('halves the entry fee until the first victory, per boss', () => {
+    expect(bossBaseFee(tyrant, false)).toBe(0); // free stays free
+    expect(bossBaseFee(siltstalker, false)).toBe(100);
+    expect(bossBaseFee(mirror, false)).toBe(2500); // the Mirror's sticker stays 5000; the first-clear charge is 2500
+  });
+
+  it('ends at the first victory: a beaten boss charges its rematch cost', () => {
+    expect(bossBaseFee(siltstalker, true)).toBe(300);
+    expect(bossBaseFee(mirror, true)).toBe(6000);
+    expect(bossBaseFee(tyrant, true)).toBe(100);
+  });
+
+  it('halves every shipped entry cost exactly (all are multiples of 100)', () => {
+    for (const boss of REGION_1_BOSSES) {
+      expect(bossBaseFee(boss, false) * 2).toBe(boss.entryCost);
+    }
+  });
+
+  it('composes with rematch escalation: escalation multiplies the rematch base after a win, never the discount', () => {
+    // First attempt of the day at 0 victories banked: the plain discount.
+    expect(escalatedBossFee(bossBaseFee(mirror, false), 0)).toBe(2500);
+    // After the win, the base is the rematch cost and escalation applies.
+    expect(escalatedBossFee(bossBaseFee(mirror, true), 1)).toBe(12000);
   });
 });
