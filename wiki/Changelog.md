@@ -234,9 +234,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 214 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 215 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-10** — 8 merges
+**2026-11-10** — 9 merges
 
 - #469 — Anim-replay loop: deterministic replay + B2 metrics + CI workflow (Track A baseline)
 - #470 — Anim fix iteration: enemy approach + walk articulation, stride saturation, loop-instrument repairs
@@ -246,6 +246,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #474 — Tuning T1R — Passive shield recharge (owner ruling 2026-11-10)
 - #475 — Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)
 - #477 — Tuning T3 — scrap portfolio (D3/P7+P8): repriced recipe Scrap legs + 25-Scrap listing deposit [migration 0087, do not merge before live apply]
+- #479 — Logo swap: adopt the Top-Choice re-render on every surface
 
 **2026-11-09** — 2 merges
 

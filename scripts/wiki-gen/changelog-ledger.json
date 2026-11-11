@@ -36,6 +36,10 @@
         {
           "number": 477,
           "title": "Tuning T3 — scrap portfolio (D3/P7+P8): repriced recipe Scrap legs + 25-Scrap listing deposit [migration 0087, do not merge before live apply]"
+        },
+        {
+          "number": 479,
+          "title": "Logo swap: adopt the Top-Choice re-render on every surface"
         }
       ]
     },
