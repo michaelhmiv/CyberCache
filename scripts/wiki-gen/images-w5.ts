@@ -98,7 +98,6 @@ import {
   paintedWeaponAssetBytes,
   paintedWeaponAssetNames,
   PLATE_DISPLAY_WIDTH,
-  rasterizeGearRender,
   rasterizeWeaponCard,
 } from './images';
 import { WEAPON_BASE_PAINTING_STEMS } from '../../src/lib/pixel/weaponPaintingData';
