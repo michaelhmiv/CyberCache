@@ -54,6 +54,15 @@ export type DpsContext = {
    * stays the one place status is converted into DPS. Default 0.
    */
   bonusStatusChance?: number;
+  /**
+   * Attack-speed (cadence) multiplier from consumables (tuning T6 —
+   * Overclock Serum). Multiplies the weapon's attackSpeed term in
+   * step 1: more attacks per second at unchanged per-attack damage.
+   * The boss sim aggregates it per prepared TYPE from the defs
+   * (fx.attackSpeedMultiplier, quality-resolved); default 1 keeps
+   * every earlier caller bit-identical.
+   */
+  attackSpeedMultiplier?: number;
 };
 
 /**
@@ -112,7 +121,7 @@ function consumableMultiplier(
  * MUST go through this function — do not compute DPS inline.
  *
  * Chain order (each step is multiplicative, applied to the previous result):
- *   1. Raw DPS       = baseDamage * attackSpeed * (1 + critChance * critDamage)
+ *   1. Raw DPS       = baseDamage * (attackSpeed x attackSpeedMultiplier) * (1 + critChance * critDamage)
  *   2. Signature DPS modifier (charges, bursts, etc. — see signatureMechanic)
  *   3. Manufacturer legendary damage multiplier
  *   4. Element matchup vs boss weakness / resistance (3-state counter table)
@@ -135,9 +144,12 @@ export function computeWeaponDps(ctx: DpsContext): number {
     ammoEfficiency = 1,
     bossDamageMod = 0,
     bonusStatusChance = 0,
+    attackSpeedMultiplier = 1,
   } = ctx;
-  // Step 1: Raw DPS from base stats.
-  const rawDps = weapon.baseDamage * weapon.attackSpeed * (1 + weapon.critChance * weapon.critDamage);
+  // Step 1: Raw DPS from base stats. The consumable cadence
+  // multiplier (tuning T6) scales the attack-rate term only —
+  // per-attack damage (baseDamage, crit) is untouched.
+  const rawDps = weapon.baseDamage * (weapon.attackSpeed * attackSpeedMultiplier) * (1 + weapon.critChance * weapon.critDamage);
   // Step 1.5: Status effect contribution — flat DPS multiplier.
   // A full per-tick DoT system is a follow-up feature. For now, status
   // chance and damage contribute as (1 + chance * damage * 0.3).

@@ -48,7 +48,7 @@ by making one function the only path.
 
 | # | Step                       | Source                              | Notes                                              |
 |---|----------------------------|-------------------------------------|----------------------------------------------------|
-| 1 | Raw DPS                    | `weapon.baseDamage`, etc.            | `baseDmg * spd * (1 + critChance * critDamage)`    |
+| 1 | Raw DPS                    | `weapon.baseDamage`, etc.            | `baseDmg * (spd * attackSpeedMultiplier) * (1 + critChance * critDamage)`    |
 | 2 | Signature DPS mult         | `applySignatureMechanic(weapon, …)`  | Was 1.0× no-op pre-PR-E. Now consumes the per-weapon signature. |
 | 3 | Legendary damage mult      | `legendaryDamageMult` param          | Default 1.0×.                                      |
 | 4 | Element matchup            | `counterElementMultiplier(…)`        | 3-state: weakness 1.3×, resistance 0.7×, else 1.0×. |
@@ -85,6 +85,7 @@ type DpsContext = {
 | `legendaryDamageMult` | When the primary weapon has a legendary bonus. Sim reads from `applyLegendaryEffects(...).damageMult`. |
 | `ammoEfficiency`   | When the fight has an ammo window. Sim pre-computes via `ammoEfficiencyFromWindows` and passes it in. |
 | `bonusStatusChance` | When the build carries skill status chance (Procedural Loads small nodes). The boss sim and the roaming effective-DPS path pass the `computeSkillBonuses` `statusChance` total; step 1.5 prices `(weapon.statusChance + bonusStatusChance) × statusDamage × 0.3`. Added in Phase 2d — the key was previously read by no engine. Default 0 keeps every earlier caller bit-identical. |
+| `attackSpeedMultiplier` | When a prepared consumable carries attack speed (tuning T6 — Overclock Serum: 1.15 at Q100, quality-scaling to its 1.30 cap). Step 1 multiplies the weapon's `attackSpeed` term by it: more attacks per second at unchanged per-attack damage. The boss sim aggregates it per prepared TYPE from the defs; default 1 keeps every earlier caller bit-identical. |
 
 **Removed (do not use):**
 - ~~`bossResistance: number`~~ — replaced by `bossResistances: Element[]` in PR D.

@@ -208,23 +208,27 @@ describe('P7 — migration 0087 restates the SQL catalog in sync', () => {
     }
   });
 
-  it('0087’s catalog deep-equals the TS catalog minus 0086’s six retired helms', () => {
+  it('0087’s catalog deep-equals the TS catalog minus 0086’s six retired helms and T6’s serum', () => {
     // Migration 0086 removed exactly six cosmetic helm recipes
     // from the SQL catalog ONLY (the TS rows live on, delisted in
-    // code — Hero Pass H1). They are the entire TS↔SQL delta.
+    // code — Hero Pass H1). Tuning T6 (migration 0088) then added
+    // recipe_overclock_serum to the TS catalog and to 0088's SQL
+    // restatement — it is not in 0087's catalog. Together they are
+    // the entire TS↔0087 delta.
     const retiredHelms = [
       'recipe_skin_mfr_head_redline', 'recipe_skin_mfr_head_ironwood',
       'recipe_skin_mfr_head_blastforge', 'recipe_skin_mfr_head_prismatek',
       'recipe_skin_mfr_head_throwtech', 'recipe_skin_mfr_head_helixworks',
     ];
+    const addedByT6 = ['recipe_overclock_serum'];
     const tsIds = ALL_CRAFT_RECIPES.map((r) => r.id);
     const sqlIds = new Set(catalog0087.map((r) => r.id));
     expect(tsIds.filter((id) => !sqlIds.has(id)).sort()).toEqual(
-      [...retiredHelms].sort(),
+      [...retiredHelms, ...addedByT6].sort(),
     );
     const tsLive = JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)) as CatalogRow[];
     expect(catalog0087).toEqual(
-      tsLive.filter((r) => !retiredHelms.includes(r.id)),
+      tsLive.filter((r) => !retiredHelms.includes(r.id) && !addedByT6.includes(r.id)),
     );
   });
 

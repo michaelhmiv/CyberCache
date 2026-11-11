@@ -158,7 +158,21 @@ describe('recipe_elemental_coating — catalog presence and costing', () => {
     expect(repricedByT3.size).toBe(38);
     const withoutRepriced = (rows: Array<Record<string, unknown>>) =>
       rows.filter((r) => !repricedByT3.has(String(r.id)));
-    expect(withoutRepriced(catalog as Array<Record<string, unknown>>)).toEqual(withoutRepriced(tsRecipes));
+    // Tuning T6 (2026-11-10) ADDED recipe_overclock_serum to the
+    // live catalog (migration 0088; its row is pinned in
+    // tuningT6OverclockSerum) — 0077 predates it, so the TS side
+    // drops rows 0077 never carried before the deep-equal. The
+    // added set is derived mechanically and pinned to exactly the
+    // serum, so a future silent addition fails here too.
+    const ids0077 = new Set(catalog.map((r) => String(r.id)));
+    const addedAfter0077 = tsRecipes
+      .filter((r) => !ids0077.has(String(r.id)))
+      .map((r) => String(r.id));
+    expect(addedAfter0077).toEqual(['recipe_overclock_serum']);
+    const withoutAdded = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => ids0077.has(String(r.id)));
+    expect(withoutRepriced(catalog as Array<Record<string, unknown>>))
+      .toEqual(withoutAdded(withoutRepriced(tsRecipes)));
     expect(MIGRATION_0077).toContain("('ElementalCoating', 75::numeric, 150::numeric)");
     // Provenance + the owner's apply order ride in the header.
     expect(MIGRATION_0077).toContain('chain head = 0073');
