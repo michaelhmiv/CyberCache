@@ -1,19 +1,25 @@
 /**
- * Vista scenes — Full Visual Program V1 landing.
+ * Vista scenes — plain-background scenes (owner ruling 2026-11-11,
+ * superseding the V1 band stack).
  *
- * The eight authored vista sets (7 roaming areas + camp) as DATA:
- * band sprite ids, pan speeds per layer, and ambient element rows
- * (vistaAmbientData.ts, generated from the sets' ambient-motion.json
- * contracts). Per the Flexibility Law, a future scene plugs in by
- * adding a spec row here plus its ambient rows — the renderers
- * (PixelStage DOM, RoamPixiStage) read only this module.
+ * The eight scenes (7 roaming areas + camp) as DATA: each scene's
+ * background is ONE adopted master painting — the Top-Choice Wave
+ * 9.75 raw masters at shipping shape (BlastForge carries its
+ * plain-bg re-roll, a ground-bearing repaint) — plus its ambient
+ * element rows (vistaAmbientData.ts, normalized from the sets'
+ * ambient-motion.json contracts). The V1 far/mid/near BAND layers
+ * and their pan machinery are RETIRED: a vista background is a
+ * plain painting, drawn full-bleed with the stage's existing
+ * subtle cover drift, and the ambient elements ride on top on
+ * their own motion specs. Per the Flexibility Law, a future scene
+ * plugs in by adding a spec row here plus its ambient rows — the
+ * renderers (PixelStage DOM, RoamPixiStage) read only this module.
  *
- * Band geometry: authored bands are 1440 design-px wide (1.5x the
- * 960 stage) and tile seamlessly on x. The stage displays them
- * height-fit into the PixelStage layer slots (far/mid/near) and the
- * roam scene pans across the band field; at pan 0 the band's center
- * crop shows, matching the old object-cover framing the sets were
- * composed for.
+ * Each element's `layer` is its PAINT layer: 'far'/'mid'/'near'
+ * paint behind the actors in that relative order, 'stage' paints
+ * over them. (Under the retired band stack the same field named
+ * the band whose canvas the element rode; the paint order is
+ * unchanged.)
  */
 import { VISTA_AMBIENT } from './vistaAmbientData';
 
@@ -38,12 +44,15 @@ export interface VistaAmbientElement {
   id: string;
   spriteId: string;
   variants?: string[];
-  /** Which paint pass draws it: its band layer, or 'stage' (free
-   *  stage space, drawn over the actors). */
+  /** Which paint pass draws it: a behind-actors layer ('far',
+   *  'mid', 'near' — back to front) or 'stage' (free stage space,
+   *  drawn over the actors). */
   layer: VistaPaintLayer;
-  /** 'stage': x/y are stage design px. 'band': x/y live in the
-   *  band's native 1440-wide design space and ride the pan. */
-  anchorSpace: 'stage' | 'band';
+  /** Anchors are stage design px (960x640): x = center, y =
+   *  bottom edge. (Rows converted from the retired band space by
+   *  the plain-bg landing keep the positions the band stack
+   *  showed them at — see vistaAmbientData.ts.) */
+  anchorSpace: 'stage';
   /** Anchor: x = center, y = bottom edge (for 'sweep', y = center). */
   x: number;
   y: number;
@@ -60,38 +69,18 @@ export interface VistaAmbientElement {
 export interface VistaSceneSpec {
   /** Scene id: the area id, or 'camp'. */
   id: string;
+  /** The scene's one background painting (a manifest sprite id). */
   backgroundId: string;
-  layers: Record<VistaLayerId, string>;
-  /** Pan speed per layer, design px per second of roaming. The
-   *  0.25 / 0.55 / 1.0 parallax ratios are the sets' proven pan
-   *  model; the absolute scale is data so a scene can retune. */
-  panPxS: Record<VistaLayerId, number>;
   ambient: VistaAmbientElement[];
 }
 
 export const VISTA_STAGE_W = 960;
 export const VISTA_STAGE_H = 640;
-/** Authored band width in design px (1.5x the stage width). */
-export const VISTA_BAND_W = 1440;
-
-/** Layer slots, matching the PixelStage strips and the sets' proof
- *  stack exactly: top/height as fractions of stage height, plus the
- *  band's native design height (band file px x texel). */
-export const VISTA_LAYER_SLOTS: Record<VistaLayerId, { topFrac: number; heightFrac: number; bandH: number }> = {
-  far: { topFrac: 0, heightFrac: 0.62, bandH: 288 },
-  mid: { topFrac: 0.36, heightFrac: 0.52, bandH: 280 },
-  near: { topFrac: 0.7, heightFrac: 0.32, bandH: 180 },
-};
-
-const DEFAULT_PAN: Record<VistaLayerId, number> = { far: 2.5, mid: 5.5, near: 10 };
-const NO_PAN: Record<VistaLayerId, number> = { far: 0, mid: 0, near: 0 };
 
 function areaScene(areaId: string, slug: string): VistaSceneSpec {
   return {
     id: areaId,
     backgroundId: `zone-${slug}-bg`,
-    layers: { far: `zone-${slug}-far`, mid: `zone-${slug}-mid`, near: `zone-${slug}-near` },
-    panPxS: { ...DEFAULT_PAN },
     ambient: VISTA_AMBIENT[areaId] ?? [],
   };
 }
@@ -108,12 +97,10 @@ export const VISTA_SCENES: Record<string, VistaSceneSpec> = {
 
 /** Camp is the home/idle backdrop (authored in the Vista Pass by
  *  owner ruling): the idle diorama shows camp, not the current
- *  area. It never pans. */
+ *  area. */
 export const CAMP_VISTA_SCENE: VistaSceneSpec = {
   id: 'camp',
   backgroundId: 'camp-bg',
-  layers: { far: 'camp-far', mid: 'camp-mid', near: 'camp-near' },
-  panPxS: { ...NO_PAN },
   ambient: VISTA_AMBIENT.camp ?? [],
 };
 
@@ -131,35 +118,4 @@ export function vistaSceneForBackground(backgroundId: string | null | undefined)
 export function vistaSceneForArea(areaId: string | null | undefined): VistaSceneSpec | null {
   if (!areaId) return null;
   return VISTA_SCENES[areaId] ?? null;
-}
-
-/** Display scale of a band in its slot: slot height / native height. */
-export function vistaBandDisplayScale(layer: VistaLayerId): number {
-  const slot = VISTA_LAYER_SLOTS[layer];
-  return (VISTA_STAGE_H * slot.heightFrac) / slot.bandH;
-}
-
-/** Displayed band width in stage design px. */
-export function vistaBandDisplayW(layer: VistaLayerId): number {
-  return VISTA_BAND_W * vistaBandDisplayScale(layer);
-}
-
-/** Pan offset (design px) at which the band's center crop shows —
- *  the rest framing every set was composed for. */
-export function vistaBandRestOffset(layer: VistaLayerId): number {
-  return (vistaBandDisplayW(layer) - VISTA_STAGE_W) / 2;
-}
-
-/** Unbounded pan offset for a layer after panMs of roaming. The
- *  renderers wrap it by the displayed band width. */
-export function vistaPanOffsetPx(scene: VistaSceneSpec, layer: VistaLayerId, panMs: number): number {
-  return vistaBandRestOffset(layer) + (scene.panPxS[layer] * panMs) / 1000;
-}
-
-export function vistaPanOffsets(scene: VistaSceneSpec, panMs: number): Record<VistaLayerId, number> {
-  return {
-    far: vistaPanOffsetPx(scene, 'far', panMs),
-    mid: vistaPanOffsetPx(scene, 'mid', panMs),
-    near: vistaPanOffsetPx(scene, 'near', panMs),
-  };
 }

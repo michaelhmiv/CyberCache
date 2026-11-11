@@ -49,7 +49,8 @@ const GOLDEN_ASSETS = join(process.cwd(), 'src/test/golden/assets');
 const imageCache = new Map<string, RgbaImage | undefined>();
 
 /** Loader: PNG sprites from the shipped library; JPG-backed scene art
- *  (zone backgrounds, arenas) from the quantized PNG twins. */
+ *  (zone backgrounds — the plain master paintings since 2026-11-11 —
+ *  and arenas) from the PNG twins in the golden assets dir. */
 export function loadGoldenSprite(spriteId: string): RgbaImage | undefined {
   if (imageCache.has(spriteId)) return imageCache.get(spriteId);
   let image: RgbaImage | undefined;
