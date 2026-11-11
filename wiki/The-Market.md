@@ -36,7 +36,10 @@ Five kinds of things trade on the Market:
 
 - **Gear** — individual items: weapons, shields, relics, class mods,
   and ordnance. Each piece is listed on its own, with its own
-  stats, rarity, and level. Locked gear can't be listed; unequip and unlock
+  stats, rarity, and level. A listing pictures the actual item:
+  a weapon shows as its painting with its own element lit in the
+  glow window, its affix decals, and its roll condition — what
+  you see on the card is the item you get. Locked gear can't be listed; unequip and unlock
   it first.
 - **Vehicles** — individual [[Vehicles and the Garage|vehicle]]
   instances, under their own **Vehicles** category on the Buy lane. The

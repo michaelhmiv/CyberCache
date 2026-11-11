@@ -11,7 +11,7 @@ import {
   pixelWeaponInputFromWeapon,
   type PixelWeaponInput,
 } from '@/lib/pixel/weaponCompositor';
-import { composeWeaponCard } from '@/lib/pixel/weaponCardCompositor';
+import { resolveWeaponPainting, weaponPaintingShell } from '@/lib/pixel/weaponPaintingRender';
 import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -32,9 +32,15 @@ import type { Weapon } from '@/types/items';
  *    exactly heightPct), narrow stages shrink until frame + weapon
  *    land inside the width, feet anchor and ground line unmoved;
  *  - the DOM actor: the held render's signature IS the equipped
- *    instance's card-render signature (and changes with the
+ *    instance's held-render signature (and changes with the
  *    instance), the unarmed actor renders no weapon at all, and a
  *    narrow stage box engages the px fit while a wide one doesn't.
+ *
+ * Held-render medium updated by the painted renderer (2026-11-11):
+ * the held render is the instance's Top-Choice painting, so the
+ * signature pinned below is the painting shell's (held density) —
+ * the loadout-truth law (the actor holds the EQUIPPED instance,
+ * not a stand-in) is unchanged.
  */
 
 const PARTS_A = [
@@ -248,12 +254,16 @@ describe('loadout truth — the DOM actor holds the equipped instance', () => {
     FakeResizeObserver.callback = null;
   });
 
-  it('the held render’s signature is the equipped instance’s own compositor signature', () => {
+  const heldPaintingSignature = (weapon: Weapon) => {
+    const input = pixelWeaponInputFromWeapon(weapon);
+    return weaponPaintingShell(input, resolveWeaponPainting(input)!, 'held').signature;
+  };
+
+  it('the held render’s signature is the equipped instance’s own painting signature', () => {
     render(<PixelPartsActor {...actorProps} weapon={SNIPER} />);
     const held = screen.getByTestId('fit-held-weapon');
-    expect(held.getAttribute('data-signature')).toBe(
-      composeWeaponCard(pixelWeaponInputFromWeapon(SNIPER), undefined, { held: true }).signature,
-    );
+    expect(held.getAttribute('data-painted-sprite')).toBe('weapon-base-sniper-ironwood');
+    expect(held.getAttribute('data-signature')).toBe(heldPaintingSignature(SNIPER));
     expect(held.getAttribute('data-density')).toBe('held');
   });
 
@@ -261,8 +271,10 @@ describe('loadout truth — the DOM actor holds the equipped instance', () => {
     const { rerender } = render(<PixelPartsActor {...actorProps} weapon={SNIPER} />);
     const sniperSig = screen.getByTestId('fit-held-weapon').getAttribute('data-signature');
     rerender(<PixelPartsActor {...actorProps} weapon={SHOTGUN} />);
-    const shotgunSig = screen.getByTestId('fit-held-weapon').getAttribute('data-signature');
-    expect(shotgunSig).toBe(composeWeaponCard(pixelWeaponInputFromWeapon(SHOTGUN), undefined, { held: true }).signature);
+    const shotgun = screen.getByTestId('fit-held-weapon');
+    const shotgunSig = shotgun.getAttribute('data-signature');
+    expect(shotgun.getAttribute('data-painted-sprite')).toBe('weapon-base-shotgun-blast-forge');
+    expect(shotgunSig).toBe(heldPaintingSignature(SHOTGUN));
     expect(shotgunSig).not.toBe(sniperSig);
   });
 

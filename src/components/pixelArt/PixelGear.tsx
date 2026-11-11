@@ -13,6 +13,7 @@ import {
 import { getPixelSprite, hasManifestEntry } from '@/lib/pixel/manifest';
 import {
   applyPaletteSwap,
+  decodeSpriteBytes,
   drawPaintedNodeDeck,
   loadSpriteImage,
   paintedImageDataUrl,
@@ -22,7 +23,6 @@ import {
   resolvePaintedGear,
   type PaintedGearResolution,
 } from '@/lib/pixel/gearPaintedRender';
-import { decodePng } from '@/lib/pixel/pngCodec';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { useDeferredArt } from './useDeferredArt';
 
@@ -186,7 +186,14 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
           try {
             const res = await fetch(paintedSprite.url);
             if (res.ok) {
-              image = decodePng(applyPaletteSwap(new Uint8Array(await res.arrayBuffer()), swap));
+              // Decode through the environment's leg — pngCodec
+              // cannot run in the browser bundle (node:zlib stub),
+              // which silently froze this swap leg until the
+              // weapon-renderer slice's capture pass found it.
+              const swapped = await decodeSpriteBytes(
+                applyPaletteSwap(new Uint8Array(await res.arrayBuffer()), swap),
+              );
+              if (swapped) image = swapped;
             }
           } catch { /* keep the master's own colors */ }
         }

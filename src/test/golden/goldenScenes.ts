@@ -3,7 +3,7 @@
  * compositions rendered through the reference renderer
  * (src/lib/pixel/sceneRenderer.ts) and pixel-diffed against committed
  * baselines. Every input is a literal: the weapon is a fixed instance
- * through the REAL compositor, enemy palettes run the REAL remap core,
+ * through the REAL painted renderer, enemy palettes run the REAL remap core,
  * rigs pose at phase-frozen angles. Change the art, the palettes, the
  * rig, or the compositor and the matching golden fails — by design.
  * Baselines are reviewed by Muse (Michael's ruling: he gates the art
@@ -105,7 +105,7 @@ function drawHunterParts(
   opts: { xPct: number; heightPct: number; groundY?: number; weapon?: PixelWeaponInput },
 ): void {
   const render = composePartSet(STANDARD_ISSUE, PART_POSES[pose], loadGoldenSprite, {
-    weapon: opts.weapon ? { kind: 'compositor', input: opts.weapon } : undefined,
+    weapon: opts.weapon ? { kind: 'painting', input: opts.weapon } : undefined,
   });
   const groundY = opts.groundY ?? GROUND;
   const boxH = (opts.heightPct / 100) * SCENE_H;
@@ -238,7 +238,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
       const cardW = GRAMMAR.card.widthPx;
       fillRect(img, lootX - cardW / 2, GROUND * SCENE_H - 118, cardW, 64, [10, 12, 16], 235);
       fillRect(img, lootX - cardW / 2, GROUND * SCENE_H - 118, cardW, 4, hexToRgb(color), 255);
-      drawWeaponRender(img, { ...GOLDEN_WEAPON, rarity }, lootX - 48, GROUND * SCENE_H - 104, 96, 35);
+      drawWeaponRender(img, { ...GOLDEN_WEAPON, rarity }, lootX - 48, GROUND * SCENE_H - 104, 96, 35, loadGoldenSprite);
     }),
   ),
   // Element FX reel (G3): one frame per element dialect.
@@ -287,7 +287,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     drawBeam(img, SCENE_W * 0.58, GROUND * SCENE_H - 40, GRAMMAR.beamWidthPx.high, '#B18CFF');
     const bench = loadGoldenSprite('set-bench-forge');
     if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
-    drawWeaponRender(img, GOLDEN_WEAPON, SCENE_W * 0.58 - 44, GROUND * SCENE_H - 78, 88, 32);
+    drawWeaponRender(img, GOLDEN_WEAPON, SCENE_W * 0.58 - 44, GROUND * SCENE_H - 78, 88, 32, loadGoldenSprite);
     drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [245, 181, 68], 255);
@@ -303,7 +303,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     drawBeam(img, SCENE_W * 0.58, GROUND * SCENE_H - 40, GRAMMAR.beamWidthPx.high, '#2EC4B6');
     const bench = loadGoldenSprite('set-bench-forge');
     if (bench) blit(img, bench, SCENE_W * 0.58 - 52, GROUND * SCENE_H - 62, 104, 62);
-    drawWeaponRender(img, GOLDEN_WEAPON, SCENE_W * 0.58 - 44, GROUND * SCENE_H - 78, 88, 32);
+    drawWeaponRender(img, GOLDEN_WEAPON, SCENE_W * 0.58 - 44, GROUND * SCENE_H - 78, 88, 32, loadGoldenSprite);
     drawHunterParts(img, 'work', { xPct: 30, heightPct: 57 });
     // G-3 charge track: full, Fixer teal.
     fillRect(img, 12, SCENE_H - 18, SCENE_W - 24, GRAMMAR.progress.heightPx, [0, 0, 0], 200);
@@ -595,12 +595,12 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     ];
     drawBeam(img, 228, 118, GRAMMAR.beamWidthPx.legendary, '#FFD166');
     found.forEach((weapon, i) => {
-      drawWeaponRender(img, weapon, 108 + i * 88, 118 - 32, 80, 30);
+      drawWeaponRender(img, weapon, 108 + i * 88, 118 - 32, 80, 30, loadGoldenSprite);
     });
     // Missing shelf: silhouettes only — two frames and a boss plate.
     const ghostWeapon = (weapon: PixelWeaponInput, x: number) => {
       const temp = newCanvas();
-      drawWeaponRender(temp, weapon, x, 172 - 32, 80, 30);
+      drawWeaponRender(temp, weapon, x, 172 - 32, 80, 30, loadGoldenSprite);
       for (let i = 0; i < temp.data.length; i += 4) {
         if (temp.data[i + 3] > 0) {
           temp.data[i] = 44; temp.data[i + 1] = 48; temp.data[i + 2] = 58;
@@ -705,7 +705,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
     ];
     drawBeam(img, 278, 118, GRAMMAR.beamWidthPx.legendary, '#FFD166');
     shelf.forEach((weapon, i) => {
-      drawWeaponRender(img, weapon, 140 + i * 96, 118 - 34, 84, 32);
+      drawWeaponRender(img, weapon, 140 + i * 96, 118 - 34, 84, 32, loadGoldenSprite);
     });
     // Fact row: depth track (15 pips, filled to 12 in the depth-12
     // band tint), the Cache Rank diamond, and a gold rule.
@@ -945,7 +945,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
           pixelSeed: 90210,
           rollQuality: 61,
         };
-        drawWeaponRender(img, turnedIn, SCENE_W * 0.58 + 26, groundY - 96, 76, 28);
+        drawWeaponRender(img, turnedIn, SCENE_W * 0.58 + 26, groundY - 96, 76, 28, loadGoldenSprite);
         const spark = hexToRgb(MANUFACTURERS.Redline.color);
         const motes: Array<[number, number, number]> = [
           [0, -6, 200], [14, -14, 255], [30, -10, 160], [46, -20, 255], [58, -8, 180],
@@ -971,7 +971,7 @@ export const GOLDEN_SCENES: GoldenScene[] = [
         };
         const orderX = SCENE_W * 0.58 + 16;
         drawBeam(img, orderX + 48, groundY - 66, GRAMMAR.beamWidthPx.standard, MANUFACTURERS.Redline.color);
-        drawWeaponRender(img, orderWeapon, orderX, groundY - 100, 96, 34);
+        drawWeaponRender(img, orderWeapon, orderX, groundY - 100, 96, 34, loadGoldenSprite);
       }
       // The hunter at the counter, unarmed, reading the desk.
       drawHunterParts(img, 'relaxed', { xPct: 10, heightPct: 46 });

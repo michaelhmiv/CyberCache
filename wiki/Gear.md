@@ -95,50 +95,44 @@ multiplier; hitting a resistance pays ×0.7.
 ### How a weapon looks
 
 Every weapon picture in the game is drawn from the actual item — its
-type, manufacturer, element, rarity, rolled parts, affixes, and roll
-quality — never a generic icon. One drawing serves every surface:
-the gun in your hunter's hands on the stage is the same full-detail
-picture as its card (inventory, market, loot, inspect, collections),
-with the card's display furniture folded away — no halo ring, no
-pooled glow, and a sniper's bipod stays folded in hand. Compact
-list rows and feed thumbnails use a smaller, lighter drawing of
-the same item.
+type, manufacturer, element, rarity, affixes, and roll
+quality — never a generic icon. One rendering serves every surface:
+the gun in your hunter's hands on the stage is the same picture as
+its card (inventory, market, loot, inspect, collections) — the
+painting carries no display furniture to fold away. Compact
+list rows and feed thumbnails use a smaller render of the same
+painting.
 
-Each manufacturer owns a signature silhouette, readable by shape
+Each type from each manufacturer has its own painting, and every
+copy of that combination shows the same painting. Each manufacturer
+owns a signature silhouette, readable by shape
 before color: Redline is a swept **wedge** with a skeleton stock,
 Ironwood a wooden **longbow**, BlastForge a bolted **anvil** slab,
 Prismatek a faceted **prism**, ThrowTech a bolted-together **kit**,
-and HelixWorks a rounded **coil** wrapped in brass rings. Within a
-maker and type, the rolled parts still vary the gun — chambers,
-magazines, sights, and barrels differ from item to item.
+and HelixWorks a rounded **coil** wrapped in brass rings.
 
-Snipers, pistols, SMGs, shotguns, launchers, and beam rifles are
-drawn from hand-authored part art: every chamber, magazine,
-sight, barrel, grip, and receiver variant is a drawn piece,
-assembled by the same rules — the rolled parts still pick which
-pieces your gun is built from, and maker, element, and rarity
-dress them exactly as described here. A launcher's magazine is
-its feed drum or box and its sight the carry handle over the
-receiver; a beam rifle's element runs in the lit channel along
-its spine — on a Kinetic beam the channel stays dark, warm
-conduit in the maker's tones.
+What makes your copy yours rides on top of the painting. Your
+weapon's element re-lights the painting's glow window — the lit
+chamber window (on a beam rifle, the window and the channel along
+its spine) — in the element's own colors. Your affixes stamp small
+decals onto the body, and your roll quality shows as condition: a
+beat-up gun's painting is speckled with wear, a mint one is clean,
+and a godroll sparkles.
 
 All of the game's art renders as pixels on canvas — item art,
 icons, and interface marks alike. No vector-drawn art remains in
 the game; the only vector mark anywhere is the Google "G" on the
 sign-in button, which is Google's brand glyph, not game art.
 
-The element shows as a lit current that runs from the chamber along
-the barrel to the muzzle, in the element's color. Kinetic has no
-current at all — plain machined metal, honestly unlit. Rarity
-changes the finish, never the shape: trim lines that arrive as
-rarity climbs (on a sniper: a magazine stripe at Uncommon, a
-receiver line at Rare, a chamber line at Epic), an edge glow on Epic, and a gold halo on Legendary (in hand,
-a Legendary keeps its gold trim; the halo ring itself is card
-display only). Named legendaries keep their own bespoke art on
-every surface — since the V4 pass, that art is hand-authored pixel
-data (one authored piece set per legendary) rendered by the same
-weapon compositor as every procedural gun, not a painted sprite.
+The element shows in the painting's lit window, in the element's
+color. Kinetic has no light of its own — the window dims to plain
+grey metal, honestly unlit. Rarity shows in the frame and finish
+around the painting — an edge glow on Epic, a gold halo on
+Legendary (in hand, a Legendary keeps its gold trim; the halo ring
+itself is card display only). Named legendaries keep their own
+bespoke art on every surface: each one is its own painting, the
+same portrait everywhere, and a named legendary is never worn or
+stamped — its picture is fixed, exactly as it was made.
 
 Shields, relics, class mods and ordnance picture differently: each
 form is a full painting, the same portrait on every surface. A

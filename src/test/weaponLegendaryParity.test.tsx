@@ -10,8 +10,9 @@ import {
 } from '@/lib/pixel/manifest';
 import { LEGENDARY_AUTHORED } from '@/lib/pixel/legendaryAuthoredData';
 import { legendaryAuthoredSetForId } from '@/lib/pixel/legendaryArt';
-import { composePixelWeaponCached, pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
-import { composeWeaponCardCached } from '@/lib/pixel/weaponCardCompositor';
+import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
+import { resolveWeaponPainting, weaponPaintingShell } from '@/lib/pixel/weaponPaintingRender';
+import { legendaryPaintingSpriteId } from '@/lib/pixel/spriteProduction';
 import { showcaseWeaponInput } from '@/lib/pixel/showcaseWeaponInput';
 import type { ShowcaseItemPayload } from '@/lib/api/verifiedOps';
 import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
@@ -31,8 +32,14 @@ import { LEGENDARY_ART_PARITY } from './legendaryParityTable';
  *  2. THE GENERATOR: an assigned effect pins the drop's type — the
  *     pin outranks even an explicit forcedType.
  *  3. THE SURFACES: every named legendary renders its bespoke
- *     authored set through the shared compositor/component (V4 —
- *     the sets are pxl data now, not baked sprites) — including
+ *     art through the shared component — since the painted
+ *     renderer (Top-Choice renderer slice, 2026-11-11) that art
+ *     is the legendary's adopted Top-Choice PAINTING
+ *     (legendary-painting-<slug>), which supersedes the V4
+ *     authored-set compositor render as the surface render. The
+ *     parity law itself is unchanged: the painting IS the
+ *     bespoke identity, resolved name-first then effect, ahead
+ *     of the type x manufacturer base painting — including on
  *     the two surfaces slice 2 found resolving art on their own
  *     (Collections, Trophy Shelf).
  */
@@ -191,7 +198,20 @@ describe('generator — an assigned legendary effect pins the drop’s type to t
 
 // ─── 3. The surfaces ────────────────────────────────────────────────
 
-describe('PixelWeapon — every named legendary renders its bespoke authored set through the compositor (V4)', () => {
+describe('PixelWeapon — every named legendary renders its bespoke Top-Choice painting (painted renderer, 2026-11-11)', () => {
+  // Re-pinned from the V4 authored-set compositor signatures by
+  // the renderer slice: the surface render for a named legendary
+  // is now its painting (data-painted-sprite names it; the
+  // signature is the painting shell's). The parity assertion is
+  // the same law in the new medium — bespoke identity first,
+  // never the procedural/base form of the same roll.
+  const paintingShellSignature = (weapon: Weapon, density: 'card' | 'stage') => {
+    const input = pixelWeaponInputFromWeapon(weapon);
+    const resolution = resolveWeaponPainting(input);
+    expect(resolution, 'every parity weapon resolves to a painting').toBeDefined();
+    return weaponPaintingShell(input, resolution!, density).signature;
+  };
+
   it('at card density, for all 25 effects', () => {
     for (const row of LEGENDARY_ART_PARITY) {
       if (!row.effectId) continue;
@@ -199,13 +219,14 @@ describe('PixelWeapon — every named legendary renders its bespoke authored set
       const { container, unmount } = render(<PixelWeapon weapon={weapon} density="card" testId="pw-card" />);
       const canvas = container.querySelector('canvas');
       expect(canvas, row.effectId).not.toBeNull();
-      expect(container.querySelector('img'), `${row.effectId} must not render a baked sprite`).toBeNull();
-      // The canvas IS the bespoke authored render for this legendary…
-      const input = pixelWeaponInputFromWeapon(weapon);
-      expect(canvas!.getAttribute('data-signature'), row.effectId).toBe(composeWeaponCardCached(input).signature);
-      // …and NOT the procedural form the same roll would otherwise get.
-      const procedural = composeWeaponCardCached({ ...input, name: 'Unnamed Roll', legendaryEffectId: undefined });
-      expect(canvas!.getAttribute('data-signature'), row.effectId).not.toBe(procedural.signature);
+      // The canvas IS the bespoke painting for this legendary…
+      expect(canvas!.getAttribute('data-painted-sprite'), row.effectId).toBe(
+        legendaryPaintingSpriteId(row.spriteId.replace(/^legendary-/, '')),
+      );
+      expect(canvas!.getAttribute('data-signature'), row.effectId).toBe(paintingShellSignature(weapon, 'card'));
+      // …and NOT the base painting the same roll would otherwise get.
+      const procedural = makeWeapon({ name: 'Unnamed Roll', legendaryEffectId: undefined, weaponType: row.defType! });
+      expect(canvas!.getAttribute('data-signature'), row.effectId).not.toBe(paintingShellSignature(procedural, 'card'));
       unmount();
     }
   });
@@ -217,39 +238,43 @@ describe('PixelWeapon — every named legendary renders its bespoke authored set
       const { container, unmount } = render(<PixelWeapon weapon={weapon} testId="pw-stage" />);
       const canvas = container.querySelector('canvas');
       expect(canvas, row.effectId).not.toBeNull();
-      expect(container.querySelector('img'), `${row.effectId} must not render a baked sprite`).toBeNull();
-      const input = pixelWeaponInputFromWeapon(weapon);
-      expect(canvas!.getAttribute('data-signature'), row.effectId).toBe(composePixelWeaponCached(input).signature);
-      const procedural = composePixelWeaponCached({ ...input, name: 'Unnamed Roll', legendaryEffectId: undefined });
-      expect(canvas!.getAttribute('data-signature'), row.effectId).not.toBe(procedural.signature);
+      expect(canvas!.getAttribute('data-painted-sprite'), row.effectId).toBe(
+        legendaryPaintingSpriteId(row.spriteId.replace(/^legendary-/, '')),
+      );
+      expect(canvas!.getAttribute('data-signature'), row.effectId).toBe(paintingShellSignature(weapon, 'stage'));
+      const procedural = makeWeapon({ name: 'Unnamed Roll', legendaryEffectId: undefined, weaponType: row.defType! });
+      expect(canvas!.getAttribute('data-signature'), row.effectId).not.toBe(paintingShellSignature(procedural, 'stage'));
       unmount();
     }
   });
 
-  it('a weapon literally named Emberfall renders the Emberfall authored set', () => {
+  it('a weapon literally named Emberfall renders the Emberfall painting', () => {
     const weapon = makeWeapon({ name: 'Emberfall', legendaryEffectId: 'glass_sun' });
     const { container } = render(<PixelWeapon weapon={weapon} density="card" />);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas!.getAttribute('data-signature')).toBe(composeWeaponCardCached(pixelWeaponInputFromWeapon(weapon)).signature);
-    // Name wins over the effect: not the Glass Sun render.
+    expect(canvas!.getAttribute('data-painted-sprite')).toBe('legendary-painting-emberfall');
+    expect(canvas!.getAttribute('data-signature')).toBe(paintingShellSignature(weapon, 'card'));
+    // Name wins over the effect: not the Glass Sun painting.
     const glassSun = makeWeapon({ name: 'Other Name', legendaryEffectId: 'glass_sun' });
-    expect(canvas!.getAttribute('data-signature')).not.toBe(
-      composeWeaponCardCached(pixelWeaponInputFromWeapon(glassSun)).signature,
-    );
+    expect(canvas!.getAttribute('data-signature')).not.toBe(paintingShellSignature(glassSun, 'card'));
   });
 });
 
 describe('GearIllustration — the shared card path (grid / GearHub / inspect / market / chest)', () => {
-  it('renders every named legendary as its bespoke authored render', () => {
+  it('renders every named legendary as its bespoke painting', () => {
     for (const row of LEGENDARY_ART_PARITY) {
       if (!row.effectId) continue;
       const weapon = makeWeapon({ legendaryEffectId: row.effectId, weaponType: row.defType! });
       const { container, unmount } = render(<GearIllustration item={weapon} size="showcase" />);
       const canvas = container.querySelector('canvas');
       expect(canvas, row.effectId).not.toBeNull();
+      expect(canvas!.getAttribute('data-painted-sprite'), row.effectId).toBe(
+        legendaryPaintingSpriteId(row.spriteId.replace(/^legendary-/, '')),
+      );
+      const input = pixelWeaponInputFromWeapon(weapon);
       expect(canvas!.getAttribute('data-signature'), row.effectId).toBe(
-        composeWeaponCardCached(pixelWeaponInputFromWeapon(weapon)).signature,
+        weaponPaintingShell(input, resolveWeaponPainting(input)!, 'card').signature,
       );
       unmount();
     }
@@ -282,22 +307,24 @@ import { CollectionsScreen } from '@/screens/CollectionsScreen';
 import { TrophyShelfPanel } from '@/components/profile/TrophyShelfPanel';
 
 describe('Collections screen — legendary-effect entries show their bespoke art', () => {
-  it('Insurance Fraud renders the legendary-insurance-fraud authored set (its id is not name-shaped)', async () => {
+  it('Insurance Fraud renders the legendary-painting-insurance-fraud painting (its id is not name-shaped)', async () => {
     render(<CollectionsScreen />);
     const entry = await screen.findByTestId('collection-entry-legendary_effect-insurance_fraud_weapon');
     const canvas = entry.querySelector('canvas');
-    expect(canvas, 'the entry must render its authored art, not the star fallback').not.toBeNull();
+    expect(canvas, 'the entry must render its bespoke art, not the star fallback').not.toBeNull();
     expect(entry.querySelector('img')).toBeNull();
+    expect(canvas!.getAttribute('data-painted-sprite')).toBe('legendary-painting-insurance-fraud');
     // The panel synthesizes its input with an FNV-1a seed off the
     // entry key (seedFromKey in CollectionsPanel.tsx) — replicated
-    // here so the pin names the exact bespoke render.
+    // here so the pin names the exact bespoke render (painting
+    // shell signature since the painted renderer, 2026-11-11).
     const key = 'insurance_fraud_weapon';
     let hash = 2166136261;
     for (let i = 0; i < key.length; i++) {
       hash ^= key.charCodeAt(i);
       hash = Math.imul(hash, 16777619);
     }
-    const expected = composeWeaponCardCached({
+    const synthesized = {
       weaponType: WeaponType.Pistol,
       manufacturer: Manufacturer.HelixWorks,
       rarity: Rarity.Legendary,
@@ -306,7 +333,8 @@ describe('Collections screen — legendary-effect entries show their bespoke art
       pixelSeed: Math.abs(hash),
       rollQuality: 100,
       id: 'collection-leg-insurance_fraud_weapon',
-    });
+    };
+    const expected = weaponPaintingShell(synthesized, resolveWeaponPainting(synthesized)!, 'card');
     expect(canvas!.getAttribute('data-signature')).toBe(expected.signature);
   }, 30000);
 });
@@ -365,8 +393,10 @@ describe('Trophy Shelf — a shelved legendary keeps its bespoke art', () => {
     const trophy = await screen.findByTestId('trophy-weapon');
     const art = within(trophy).getByRole('img');
     expect(art.tagName).toBe('CANVAS');
+    expect(art.getAttribute('data-painted-sprite')).toBe('legendary-painting-glass-sun');
     const payloadItem = (lifetimeState.payload as { showcase: { top_weapons: ShowcaseItemPayload[] } }).showcase.top_weapons[0];
-    const expected = composeWeaponCardCached(showcaseWeaponInput(payloadItem));
+    const input = showcaseWeaponInput(payloadItem);
+    const expected = weaponPaintingShell(input, resolveWeaponPainting(input)!, 'card');
     expect(art.getAttribute('data-signature')).toBe(expected.signature);
   }, 30000);
 });

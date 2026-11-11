@@ -2,7 +2,7 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
-## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now
+## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now
 
 
 
@@ -20,6 +20,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Every consumable and material is a painting now** — all 44 consumables, all 26 materials and essences, and the wallet's own marks (credits, cache keys, XP, level, mastery, loot, legendary cores) were re-rendered at full painterly quality and those renderings are what the game draws: the same med kit on the vendor's shelf, in your belt, and in a market listing is the one painting, and Scrap's heap is a heap of rusted salvage instead of a diagram. Nothing about what any item does, costs, or stacks to has changed — only how it looks.
 - **Cache Fragments are gone from the game's face** — the fragment currency was abolished a while ago (whole cache keys are the only cache currency), but its name and mark still lingered in the registries behind the wallet and the reward chips. Those are deleted now. Old records that mention fragments stay readable as history; nothing you own was touched.
 - **Your shields, relics, class mods and ordnance are paintings now** — every one of the five shield forms, all sixteen relics, the four class-mod casings and the four ordnance forms renders as its full painterly portrait everywhere it appears: gear list, inspect sheet, loadout, compare and this manual's plates all show the same picture for the same item. A shield's element still recolors its glow — the blue Shock heart of a Nova turns Fire-orange, Cryo-cyan or Void-purple by palette, exactly the surfaces the old plates lit — and the Absorb shield keeps the plasma orb at its heart. A class mod's casing arrives with its deck window empty, and the live node field is drawn into that window from your actual boosts, seated where the casing's window really is; the Void Prism keeps the nebula turning in its eye. Nothing about the items themselves changed — same names, same stats, same effects — only how they're pictured.
+- **Your weapons are paintings now** — every gun in the game pictures as its adopted Top-Choice painting: one portrait for each type × manufacturer, and each named legendary has a portrait of its own, the same picture in your hunter's hands, on its card, and in a market listing. What makes a copy yours rides on top of the painting: its element lights the painting's glow window in the element's colors (a Kinetic gun's window stays plain grey), its affixes stamp their decals onto the body, and its roll quality shows as condition — a beat-up gun looks beat-up and a godroll sparkles. A named legendary is never worn or stamped; its portrait is fixed, exactly as it was made. The old assembled-from-parts look is retired: your rolled parts still count in the stats exactly as before — they just no longer change the silhouette.
 - **The Standard Issue chest plate is unbroken steel now** — the glowing cyan slash that crossed the breastplate is painted out: at the shoulder it read as a third arm, and the plate was never meant to carry it. The slash is gone from the painting itself; every other light on the rig — visor, wrist, the pouch studs — burns exactly as it did, and the Bulwark and Dreadnought plates are untouched.
 
 
@@ -274,11 +275,21 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 222 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 232 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-11** — 1 merge
+**2026-11-11** — 11 merges
 
 - #484 — Boss setup-diversity (slice C2): mechanic legs collect + Bishop composite; CryoAmmo re-read measured and dropped
+- #485 — INT-7: Top-Choice cache screen — painted crate, opened ignition frame, buried prop swap
+- #486 — INT-9: painted masters for nav sigils, calendar hero, drop-rise markers
+- #487 — INT-6 Vistas go plain: the 8 master paintings ship whole, band system retired
+- #488 — Top-Choice INT-8: chrome + brand integration (Wave 14)
+- #489 — INT-5: Top-Choice vehicles + set pieces — adopted paintings ship
+- #490 — INT-3 (hero): adopted Wave 8 painterly part masters at 4x definition
+- #491 — INT-1 Weapons: adopted Top-Choice paintings — production sprite layer + wiki re-point
+- #492 — INT-10 (icons): the functional paintings — fixed set + baked state variants
+- #493 — INT-4: Top-Choice consumables + materials land; Cache Fragment deleted
+- #494 — Top-Choice INT-2: gear renders as adopted paintings (shields, relics, class mods, ordnance)
 
 **2026-11-10** — 15 merges
 
