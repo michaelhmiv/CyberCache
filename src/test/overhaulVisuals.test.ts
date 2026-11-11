@@ -269,6 +269,22 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
+    // Top-Choice INT-3 hero (2026-11-11): the 42 adopted Wave 8
+    // painterly masters replace the pxl hero sprites. The 37 rig
+    // parts ship AT their design frames — partsCompositor's
+    // placePartExact copies part sources 1:1 at rotation 0 ("a
+    // direct copy, not a resample"), so source px == design px is
+    // the rig's placement law; the paintings are downscaled onto
+    // the exact grid the game composes on (premultiplied LANCZOS;
+    // ship alpha split at the keying threshold >127 so coverage is
+    // visible coverage, not the darkness ramp's pale wash).
+    // The 5 gear-* mounted portraits are scaled-display art
+    // (gearMounts declares display widths) and keep a hi-def ship
+    // form, like weapon rasters. Hero family 59,346 B -> 249,625 B
+    // (per-part accounting in scripts/top-choice-hero-swap.py and
+    // the INT-3 PR body). Dread Head has no master (two pipeline
+    // refusals; owner ruling: leave) and its sprite is unchanged;
+    // the hood is untouched.
     // Top-Choice INT-1 weapons (2026-11-11): the production
     // sprite layer for the adopted weapon paintings lands — 26
     // legendaries (legendary-painting-*, 2,903,472 B) + 36 bases
@@ -281,6 +297,7 @@ describe('performance + payload budgets (§4.9)', () => {
     // into PixelWeapon is the scoped renderer step recorded in
     // docs/top-choice-weapon-integration.md (needs the owner's
     // source-of-truth / variety / element rulings first).
+
     // INT-7 cache screen (2026-11-11): the Top-Choice cache family
     // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
     // palette-256 of the graded logo-identity closed master),
@@ -318,27 +335,18 @@ describe('performance + payload budgets (§4.9)', () => {
     // slice with per-family accounting. Per the slice instruction the
     // ceiling literal is set to this branch's measured total, so the
     // check now pins drift exactly at the INT-5 landing.
-    // Measured manifest total on this tree (INT-1 layer reconciled
-    // onto the INT-5 landing): 27,090,815 B. The ceiling moves
-    // DELIBERATELY to the measured total of this branch, per the
-    // Top-Choice adoption accounting; final reconciliation lands
-    // when all slices merge.
-    expect(total).toBeLessThan(27_451_145 + 1);  });
-    // INT-4 Top-Choice consumables + materials (2026-11-11): the
-    // adopted Wave 11/12 masters land as manifest sprites (kind
-    // 'item', 77 entries) — consumables 44 × 104px +199,879 B
-    // (they carried no sprite payload before; the runtime texel
-    // compositor leaves the render path), materials + essences
-    // 26 × 104px +136,794 B (ZERO sprite payload before — the
-    // STUFF compositor + wallet glyphs), wallet resources
-    // 7 × 80px +23,657 B. Measured on this branch: pre-INT-4
-    // manifest total 6,721,903 B → 7,082,233 B (+360,330 B).
     // Reconciliation (parent merge drill, 2026-11-11): unified
-    // manifest = master (INT-1/INT-5/INT-7 landings, 370 entries,
-    // 27,090,815 B) + this slice's 77 item entries (+360,330 B)
-    // = 447 entries, measured 27,451,145 B on the reconciled
-    // tree; the ceiling literal follows the unified total +1.
-    // In-flight siblings (INT-2 gear, INT-3 hero, INT-6 vistas)
-    // re-pin with their own accounting as they land.
+    // manifest = current master (INT-1/INT-4/INT-5/INT-7/INT-10
+    // landings, 447 entries, 27,451,145 B) with this slice's hero
+    // records applied — only five records actually differ from
+    // what master already carries, because the reconciled INT-2
+    // gear landing had taken the branch's hi-def forms for the
+    // five gear-* mounted portraits (the design-px records the
+    // aborted first reconciliation computed never matched the
+    // merged files); measured 27,641,424 B on the reconciled
+    // tree, every record asserted against its file; the ceiling
+    // literal follows the unified total +1. One sibling remains
+    // in flight (INT-6 vistas) and re-pins as it lands.
+    expect(total).toBeLessThan(27_641_424 + 1);  });
 
 });
