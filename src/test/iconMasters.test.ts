@@ -146,3 +146,121 @@ describe('INT-9 painted icon masters', () => {
     }
   });
 });
+
+// ── INT-10 functional paintings (tranche-2 census contract) ─────────────
+// The everyday glyphs are paintings now. This block pins:
+//  - every FIXED/rail/VARIANT glyph's base painting exists at the 64px
+//    ship canvas inside the byte band;
+//  - every deliberate color in the census sets has its baked variant
+//    file (no runtime tinting — the file IS the state);
+//  - the census's load-bearing sets match the shipped data exactly
+//    (armor's single purple, the loadout rarity/element machinery, the
+//    rail pairs) — transcribed here independently from NOTES §6;
+//  - baked variants actually carry their state's hue (palette mean);
+//  - selection: element-badge glyphs and the wallet sheet have NO
+//    painting (stencil residue), and uncalled glyphs were not built.
+import { FN_FIXED_GLYPHS, FN_RAIL_COLORS, FN_VARIANT_COLORS } from '@/lib/pixel/iconPaintingsData';
+import { bakedColorsFor, colorFromClassName, hasPainting, normalizeIconColor, paintedIconFor } from '@/lib/pixel/iconPaintings';
+
+function paletteMean(file: string): [number, number, number] {
+  const buf = readFileSync(resolve(ICONS_DIR, file));
+  let off = 8;
+  let r = 0, g = 0, b = 0, n = 0;
+  while (off < buf.length - 8) {
+    const len = buf.readUInt32BE(off);
+    const type = buf.subarray(off + 4, off + 8).toString('latin1');
+    if (type === 'PLTE') {
+      for (let i = 0; i < len; i += 3) { r += buf[off + 8 + i]; g += buf[off + 8 + i + 1]; b += buf[off + 8 + i + 2]; n++; }
+    }
+    if (type === 'IEND') break;
+    off += 12 + len;
+  }
+  expect(n, `${file} must be a palette PNG`).toBeGreaterThan(0);
+  return [r / n, g / n, b / n];
+}
+
+describe('INT-10 painted functional icons', () => {
+  it('every painted glyph ships a base painting at 64x64 inside the byte band', () => {
+    const glyphs = [...FN_FIXED_GLYPHS, ...Object.keys(FN_RAIL_COLORS), ...Object.keys(FN_VARIANT_COLORS)];
+    expect(glyphs.length).toBe(69);
+    for (const glyph of glyphs) {
+      const info = pngInfo(`fn-${glyph}.png`);
+      expect(info.width, glyph).toBe(64);
+      expect(info.height, glyph).toBe(64);
+      expect(info.bytes, glyph).toBeGreaterThan(300);
+      expect(info.bytes, glyph).toBeLessThan(14000);
+    }
+  });
+
+  it('every deliberate census color has a baked variant file', () => {
+    for (const [glyph, colors] of Object.entries({ ...FN_RAIL_COLORS, ...FN_VARIANT_COLORS })) {
+      for (const color of colors) {
+        const info = pngInfo(`fn-${glyph}--${color.slice(1).toLowerCase()}.png`);
+        expect(info.width, `${glyph} ${color}`).toBe(64);
+        expect(info.height, `${glyph} ${color}`).toBe(64);
+        expect(info.bytes, `${glyph} ${color}`).toBeGreaterThan(200);
+        expect(info.bytes, `${glyph} ${color}`).toBeLessThan(14000);
+      }
+    }
+  });
+
+  it('the census sets shipped are the census sets (independent transcription)', () => {
+    // Armor's only deliberate tint is boss-vitals purple (NOTES §6 callout).
+    expect(FN_VARIANT_COLORS['armor']).toEqual(['#A855F7']);
+    // The loadout machinery: rarity 5 ∪ elements 6 ∪ muted, per glyph.
+    const loadout = ['#06B6D4', '#22C55E', '#3B82F6', '#5AA7FF', '#7CFC00', '#8A847C', '#8B5CF6', '#9CA3AF', '#A5A7B5', '#EF4444', '#FF9DF5', '#FFEA3A'];
+    expect([...FN_VARIANT_COLORS['gem']].sort()).toEqual(loadout);
+    expect([...FN_VARIANT_COLORS['diamond']].sort()).toEqual([...loadout, '#00E5FF', '#FF9000'].sort());
+    expect([...FN_VARIANT_COLORS['rings']].sort()).toEqual([...loadout, '#FF4B5C', '#FF9000'].sort());
+    expect([...FN_VARIANT_COLORS['shield']].sort()).toEqual([...loadout, '#050608', '#B8B0A8', '#FF9000'].sort());
+    // Rail pairs: active ink on amber / inactive secondary.
+    for (const glyph of ['badge', 'basket', 'vendor']) {
+      expect(FN_RAIL_COLORS[glyph]).toEqual(['#050608', '#B8B0A8']);
+    }
+    // Census shape: 17 fixed + 3 rail + 49 variant glyphs (48 census + star5's accent path).
+    expect(FN_FIXED_GLYPHS.length).toBe(17);
+    expect(Object.keys(FN_VARIANT_COLORS).length).toBe(49);
+  });
+
+  it('baked variants carry their state hue', () => {
+    const [pr, pg, pb] = paletteMean('fn-armor--a855f7.png');
+    expect(pb).toBeGreaterThan(pr);
+    expect(pr).toBeGreaterThan(pg);
+    const [rr, rg, rb] = paletteMean('fn-heart--ff4b5c.png');
+    expect(rr).toBeGreaterThan(rg);
+    expect(rr).toBeGreaterThan(rb);
+    const [yr, yg, yb] = paletteMean('fn-rings--ffea3a.png');
+    expect(yr).toBeGreaterThan(yb);
+    expect(yg).toBeGreaterThan(yb);
+  });
+
+  it('selection: paintings resolve, variants select, stencils stay stencil', () => {
+    expect(paintedIconFor('check')).toContain('fn-check');
+    expect(paintedIconFor('armor', '#A855F7')).toContain('fn-armor--a855f7');
+    expect(paintedIconFor('armor')).toContain('fn-armor.png');
+    expect(paintedIconFor('badge', '#050608')).toContain('fn-badge--050608');
+    // Stencil residue: element badges + wallet + nav names have no painting.
+    for (const glyph of ['flame', 'snow', 'bolt', 'drop', 'ringDot', 'dot', 'coin', 'key', 'core', 'loot', 'tag', 'person', 'orders', 'chevs', 'nodes', 'shelf', 'star']) {
+      expect(hasPainting(glyph), glyph).toBe(false);
+      expect(paintedIconFor(glyph), glyph).toBeNull();
+    }
+    // Uncalled glyphs were not built (sheet-complete in the wave folders).
+    for (const glyph of ['blob', 'boot', 'gift', 'power']) {
+      expect(hasPainting(glyph), glyph).toBe(false);
+    }
+    // PX_ICONS keeps every glyph incl. the badge set (registry untouched).
+    for (const glyph of ['flame', 'snow', 'bolt', 'drop', 'ringDot', 'dot', 'check', 'armor', 'rings']) {
+      expect(PX_ICONS[glyph as keyof typeof PX_ICONS], glyph).toBeDefined();
+    }
+  });
+
+  it('color resolution: hex, rgb, theme tokens, arbitrary classes', () => {
+    expect(normalizeIconColor('#ff9000')).toBe('#FF9000');
+    expect(normalizeIconColor('rgb(255, 144, 0)')).toBe('#FF9000');
+    expect(normalizeIconColor('var(--amber)')).toBeNull();
+    expect(colorFromClassName('shrink-0 text-amber')).toBe('#FF9000');
+    expect(colorFromClassName('text-text-muted/60')).toBe('#8A847C');
+    expect(colorFromClassName('text-[#7DD0F0]')).toBe('#7DD0F0');
+    expect(bakedColorsFor('crate')).toContain('#7DD0F0');
+  });
+});

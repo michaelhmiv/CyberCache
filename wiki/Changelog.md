@@ -12,6 +12,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Android themed icons work now** — the launcher ships a monochrome layer, so on Android 13+ the home-screen icon tints with your wallpaper theme like every other app: the crate, its split lid and the burst gap, drawn as one clean silhouette.
 - **Shared links carry a preview** — the site's pages now declare a social preview image and card metadata, so a link to CyberCache posted anywhere shows the crate portrait instead of a bare URL.
 - **The store banner catches up** — the Play feature graphic is restaged with the adopted crate (it still carried the retired pre-painterly crate); it goes live with the next listing submission.
+- **The everyday icons are paintings now too** — the working icons on every screen — the checks and chevrons, the lock, the wrench, the shield, the little book and flask and trophy — are full paintings in the same hand as the tab sigils and the cache, sitting in exactly the slots and sizes the old texel glyphs sat in. Where an icon's color used to carry its state — a rarity's rings, an element's shield, a boss's purple armor readout — the painting now ships in that state's own baked colors, chosen piece by piece, so the read is the one the game always gave. The element badges on gear stay the plain dark stencils they were: on their colored field, the silhouette is the information.
 
 ## 2026-11-11 — Boss mechanics collect
 

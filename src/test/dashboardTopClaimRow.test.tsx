@@ -71,7 +71,7 @@
  *    min-w-[44px]) — no flex-1, no flex-col, no plate classes;
  *    the painted chip inside it stands 28px tall (half the
  *    r2 plate's footprint) with the icon + readout inline;
- *  - the svg-width pin moves 24 → 20 — the largest glyph the
+ *  - the glyph-size pin moves 24 → 20 — the largest glyph the
  *    28px chip honestly holds with the corner tab clear; the
  *    pin's purpose is unchanged (never back toward 15px);
  *  - equal flex shares are gone by design: chips size to
@@ -302,7 +302,14 @@ function expectIconKey(button: HTMLElement) {
   expect(chip.className).toContain('h-[28px]');
   expect(chip.className).toContain('items-center');
   expect(chip.className).toContain('justify-center');
-  expect(button.querySelector('svg')?.getAttribute('width')).toBe('20');
+  // The glyph stands at 20px in the chip (SVG stencil or, since
+  // INT-10, a painting <img> for glyphs that have one); the pin's
+  // purpose is unchanged — never back toward label-era sizes.
+  // (INT-10 note: in the fresh-guest state every chip glyph —
+  // key, clock, calendar, orders — is stencil-residue by the
+  // INT-10 census, so the svg read is the live one here.)
+  const glyphEl = button.querySelector('svg') ?? button.querySelector('img');
+  expect(glyphEl?.getAttribute('width')).toBe('20');
 }
 
 beforeEach(() => {

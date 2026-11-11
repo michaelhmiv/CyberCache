@@ -14,6 +14,7 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { PX_ICONS, PX_ICON_NAMES, PX_ICON_SIZES, PX_ICON_TONE_FILLS } from '@/lib/pixel/icons';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { hasPainting } from '@/lib/pixel/iconPaintings';
 
 /** The 52 icons of the redesign v2 sheet, verbatim. */
 const V2_SHEET = [
@@ -72,17 +73,36 @@ describe('pixel icon registry', () => {
 });
 
 describe('<PxIcon>', () => {
-  it('renders every registered icon as crisp SVG rects at the default token size', () => {
+  // INT-10 (owner REBUILD ruling, 2026-11-11): painted glyphs render
+  // their shipped painting as an <img> at the token size; the stencil
+  // residue (element badges, wallet sheet, glyphs without a painting)
+  // keeps the crisp SVG rect rendering. Both paths are pinned here.
+  it('renders every registered icon at the default token size (painting or crisp SVG)', () => {
     for (const name of PX_ICON_NAMES) {
       const { container, unmount } = render(<PxIcon name={name} />);
-      const svg = container.querySelector('svg');
-      expect(svg, `${name} did not render an svg`).not.toBeNull();
-      expect(svg?.getAttribute('width')).toBe('17');
-      expect(svg?.getAttribute('viewBox')).toBe('0 0 16 16');
-      expect(svg?.getAttribute('shape-rendering') ?? svg?.getAttribute('shapeRendering')).toBe('crispEdges');
-      expect(container.querySelectorAll('rect')).toHaveLength(PX_ICONS[name].length);
+      if (hasPainting(name)) {
+        const img = container.querySelector('img');
+        expect(img, `${name} did not render its painting`).not.toBeNull();
+        expect(img?.getAttribute('width')).toBe('17');
+        expect(img?.getAttribute('height')).toBe('17');
+        expect(img?.getAttribute('src')).toContain(`fn-${name}`);
+      } else {
+        const svg = container.querySelector('svg');
+        expect(svg, `${name} did not render an svg`).not.toBeNull();
+        expect(svg?.getAttribute('width')).toBe('17');
+        expect(svg?.getAttribute('viewBox')).toBe('0 0 16 16');
+        expect(svg?.getAttribute('shape-rendering') ?? svg?.getAttribute('shapeRendering')).toBe('crispEdges');
+        expect(container.querySelectorAll('rect')).toHaveLength(PX_ICONS[name].length);
+      }
       unmount();
     }
+  });
+
+  it('a painted variant glyph selects the baked variant for its resolved color', () => {
+    const { container } = render(<PxIcon name="armor" color="#A855F7" />);
+    expect(container.querySelector('img')?.getAttribute('src')).toContain('fn-armor--a855f7');
+    const { container: plain } = render(<PxIcon name="armor" />);
+    expect(plain.querySelector('img')?.getAttribute('src')).toContain('fn-armor.png');
   });
 
   it('is aria-hidden unless titled, and mass rects take currentColor', () => {
