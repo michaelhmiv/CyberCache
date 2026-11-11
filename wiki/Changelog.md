@@ -2,9 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
-## 2026-11-11 — The cache, painted whole
+## 2026-11-11 — The cache, painted whole; the big icons are paintings now
 
 - **The cache crate is a painting now** — the little pixel crate is retired everywhere it stood: on the cache lane, shaking in the decrypting overlay, and at the base of the reveal's beam, you now see the game's cache painted at full quality — deep navy panels, brass corners and latches, hairline cracks with gold light glowing inside them, and the gold hex medallion on the lid — the same crate the app icon carries. And the reveal has its missing frame: as the beam ignites, the crate **opens** — lid swung back, gold light pouring out of the chest — the frame the whole moment catches fire from, before the crate fades and your item climbs. Every timing is exactly what it was; only the crate's portrait changed. Out in the Dustwaste, the half-buried cache the roaming event unearths wears the same new paint — the event, its odds, and its rewards are untouched.
+- **The tab sigils, the streak calendar, and the loot rises are painted now** — the four bottom-bar sigils (Home, Gear, Market, Hunter), the calendar on the login-streak plate, and every marker that rises off a find on the stage — material, essence, fragment, scrap, credits, and the cache crate — are full paintings instead of the old texel glyphs. They sit in exactly the slots the glyphs sat in, at exactly the same sizes, and they show exactly what they showed before. The rises keep each drop's own color: the painting is re-tinted to the drop's hue as it rises, so a green material still rises green and a violet essence violet. The small working icons everywhere else — buttons, rows, badges — are unchanged.
+
 
 ## 2026-11-11 — Boss mechanics collect
 
