@@ -1117,6 +1117,10 @@ describe('migration 0043 — textual pins', () => {
       // (it lands in 0077's restated catalog, pinned in
       // elementalCoatingRecipe.test.ts).
       if (recipe.id === 'recipe_elemental_coating') continue;
+      // The Overclock Serum recipe postdates 0043 the same way
+      // (it lands in 0087's restated catalog, pinned in
+      // tuningT6OverclockSerum.test.ts).
+      if (recipe.id === 'recipe_overclock_serum') continue;
       expect(sqlIds.has(recipe.id), recipe.id).toBe(true);
     }
     // The six standing recipes match the TS catalog field for field.
