@@ -30,6 +30,11 @@ function bossSection(b: BossDef): string {
     `- **Health / Shield / Armor:** ${b.health} / ${b.shield} / ${b.armor} · **Boss DPS:** ${b.dps}`,
     `- **Weaknesses:** ${listOrDash([...b.weaknesses])} · **Resistances:** ${listOrDash([...b.resistances])}`,
     `- **Mechanic — ${b.mechanic.name}:** ${b.mechanic.description}`,
+    ...(b.cadence
+      ? [
+          `- **Attack pattern:** hits every ${b.cadence.hitIntervalSeconds}s; special **${b.cadence.specialName}** every ${b.cadence.specialEverySeconds}s after a ${b.cadence.windupSeconds}s wind-up, carrying ~${Math.round(b.cadence.specialShare * 100)}% of its damage`,
+        ]
+      : []),
     `- **Entry / rematch:** ${b.entryCost} cr / ${b.rematchCost} cr`,
     `- **Dedicated drops:** ${listOrDash((b.dedicatedDrops ?? []).map(effectName))}`,
     '',

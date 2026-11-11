@@ -74,6 +74,32 @@ export interface BossPrepAnalysis {
   riskSummary: string;
 }
 
+/**
+ * Boss attack cadence (owner ruling 2026-11-10 — boss cadence slice
+ * C1): the boss's authored hit timeline. Regular hits land every
+ * `hitIntervalSeconds`; a named special lands every
+ * `specialEverySeconds` (the first one full cycle in), preceded by
+ * `windupSeconds` of damage-free telegraph. `specialShare` is the
+ * fraction of the boss's TOTAL damage budget the specials carry —
+ * the regular hits carry the rest, so a cadence never changes how
+ * much damage a boss deals, only when it lands. The boss sim folds
+ * the timeline into its pooled model (see `bossCadenceTimeline` in
+ * bossSimulator.ts): the damage-free ticks it creates are where
+ * passive shield recharge lives inside a boss fight.
+ */
+export interface BossCadence {
+  /** Seconds between regular hits. */
+  hitIntervalSeconds: number;
+  /** Player-facing name of the special, e.g. 'Refraction Burst'. Shown in prep + attempt reasons. */
+  specialName: string;
+  /** Seconds between specials; the first special lands one full cycle in. */
+  specialEverySeconds: number;
+  /** Fraction of the boss's total damage budget carried by specials (0..1). The rest rides regular hits. */
+  specialShare: number;
+  /** Telegraph beat before each special lands, in seconds. Damage-free; presentation + the honest source of the widest gaps. */
+  windupSeconds: number;
+}
+
 export interface BossDef {
   id: string;
   name: string;
@@ -86,6 +112,12 @@ export interface BossDef {
   weaknesses: Element[];
   resistances: Element[];
   mechanic: BossMechanic;
+  /**
+   * Attack cadence (slice C1). Absent = the continuous damage model,
+   * bit-identical to the pre-cadence sim — generated Endless
+   * encounters carry no cadence by design (owner ruling D3).
+   */
+  cadence?: BossCadence;
   tags: BossTag[];
   phases: BossPhase[];
   recommendedPower: number;

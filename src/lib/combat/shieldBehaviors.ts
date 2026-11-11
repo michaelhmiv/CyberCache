@@ -30,10 +30,15 @@
  * `modelShieldRechargeForBoss`: its pooled model prices boss damage
  * as continuous across the exposure window, so the suppression rule
  * leaves no damage-free tick inside a fight and recharge restores
- * nothing mid-fight — its boss-surface value is that a dented shield
- * genuinely refills between engagements instead of staying dented
- * until a Shield Cell is spent. Turtle's halved `rechargeRate` is
- * therefore a real tradeoff in both sims, not a paper one.
+ * nothing mid-fight UNLESS the boss carries an authored attack
+ * cadence (slice C1): the sim then counts the cadence's damage-free
+ * ticks and passes them in as `damageFreeSeconds`, and recharge
+ * restores inside the fight exactly in those gaps. Cadence-less
+ * bosses (and every generated Endless encounter) keep the
+ * continuous-damage outcome — a dented shield refills between
+ * engagements instead of staying dented until a Shield Cell is spent.
+ * Turtle's halved `rechargeRate` is therefore a real tradeoff in
+ * both sims, not a paper one.
  */
 import { Rarity } from '../../types/game';
 
@@ -368,19 +373,21 @@ export function modelShieldBehaviorForBoss(args: {
  * for Absorb's negated damage).
  *
  * The roaming rule is per-tick suppression: a tick recharges only if
- * no damage landed in it. The pooled model has no per-hit timeline
- * and prices the boss's damage as CONTINUOUS across the exposure
- * window (`totalIncomingDamage` spread over `fightSeconds`), so
- * every modeled tick takes damage and the rule leaves no damage-free
- * tick inside the fight: while the boss deals any damage, expected
- * in-fight recharge is zero. With no incoming damage there is also
- * nothing to restore — the sim starts every attempt at full shield.
- * Both branches are the rule, not an omission: inventing a boss
- * attack cadence to manufacture damage-free ticks would be pricing
- * fiction. Recharge's boss-surface value is real but lives between
- * fights (roaming ticks refill a dented shield), and if a future
- * boss model ever prices discrete attacks, the damage-free share
- * plugs into this fold.
+ * no damage landed in it. The pooled model prices the boss's damage
+ * across the exposure window (`totalIncomingDamage` spread over
+ * `fightSeconds`); for a boss with no authored attack cadence the
+ * damage is CONTINUOUS, so every modeled tick takes damage and the
+ * rule leaves no damage-free tick inside the fight — while the boss
+ * deals any damage, expected in-fight recharge is zero. With no
+ * incoming damage there is also nothing to restore: the sim starts
+ * every attempt at full shield. Since slice C1 (owner ruling
+ * 2026-11-10) an authored boss may carry a cadence: the sim walks
+ * its hit timeline, counts the genuinely damage-free ticks, and
+ * passes them as `damageFreeSeconds` — recharge then restores
+ * inside the fight, in exactly those gaps, at the same per-second
+ * rate roaming uses. Bosses whose cadence touches every tick
+ * (3-second swarm rhythms) still leave no gap: for them the rule
+ * restores nothing, and capacity is the answer.
  */
 export function modelShieldRechargeForBoss(args: {
   capacity: number;
@@ -388,15 +395,27 @@ export function modelShieldRechargeForBoss(args: {
   totalIncomingDamage: number;
   mitigation: number;
   fightSeconds?: number;
+  /**
+   * Damage-free seconds inside the window, counted by the boss sim
+   * from the boss's authored attack cadence (slice C1). Absent (or
+   * the boss dealing damage with no cadence) = continuous damage:
+   * no damage-free tick exists and the fold restores 0.
+   */
+  damageFreeSeconds?: number;
 }): number {
   const { capacity, rechargeRate, totalIncomingDamage } = args;
   if (capacity <= 0 || rechargeRate <= 0) return 0;
   const mitigation = Math.min(0.8, Math.max(0, args.mitigation));
   const postMitDamage = Math.max(0, totalIncomingDamage) * (1 - mitigation);
   const fightSeconds = args.fightSeconds ?? 30;
-  // Continuous damage → no damage-free ticks in the window; no
-  // damage → the pool never dents. Either way the rule restores 0.
-  const damageFreeSeconds = postMitDamage > 0 ? 0 : fightSeconds;
+  // No damage at all → the whole window is quiet (and, the pool
+  // starting full, the dent cap below keeps the restore at 0 in
+  // practice). Damage with no authored quiet → 0. An authored
+  // cadence supplies its counted quiet, clamped to the window.
+  const damageFreeSeconds =
+    postMitDamage <= 0
+      ? fightSeconds
+      : Math.min(fightSeconds, Math.max(0, args.damageFreeSeconds ?? 0));
   const dent = Math.min(capacity, postMitDamage);
   return Math.min(dent, rechargeRate * damageFreeSeconds);
 }

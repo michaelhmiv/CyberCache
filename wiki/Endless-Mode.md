@@ -63,6 +63,8 @@ Endless is where a finished build finds out what it is worth: a long run banks r
 
 Farming one boss repeatedly instead? See [[Bosses]]. Building the gear to push deeper? See [[Gear]] and [[Crafting]].
 
+One boss habit the Chamber deliberately does not borrow: a boss depth wears its kit's mechanic, phases, weaknesses, and resistances, but not its **attack pattern** — Chamber fights price the kit's damage continuously, with no cadence gaps, so shield recharge never gets quiet to work in inside the Chamber. Patterns belong to the authored ladder's prep pages.
+
 ---
 
 _Source of truth: `src/content/endless.ts`, `src/server/routes/endless.ts`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-10 — Bosses have a rhythm
+
+- **Bosses attack in patterns now** — every boss's damage lands on a beat: regular hits on a steady interval, and a named special on a slower cycle that carries a fixed share of its damage — Refraction Burst, Event Horizon, The Maw Opens, and ten more, all printed in the boss's prep under Attack Pattern, wind-up included. The total damage a boss deals has not moved a single point; only the timing is new. The timing matters because of the quiet between hits: shields now recharge inside boss fights during the damage-free stretches, so a wide-rhythm boss lets a fast-recharging shield breathe, while a boss that hits every three seconds leaves no quiet at all — bring capacity instead.
+
 ## 2026-11-10 — A sharper cache
 
 - **The cache got a new portrait** — the app icon and logo were re-rendered at full painterly quality: the same navy cache crate with its lid cracked in two and the gold burst pouring out, on the same vivid rust field — now with crisp, continuous surfaces instead of the old pixel finish. It is the same logo everywhere it appears: the home-screen icon, the web logo and favicon, and the store icon all carry the new rendering, and at small sizes the crate and burst still read at a glance.
