@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-10 — Fights move faster now
+
+- **Overclock Serum** — a new craftable from the bench (30 Scrap + 2 Ballistic Parts): your weapon fires 15% faster for a full minute. Higher-quality batches push the boost further, up toward +30%. It is a crafters' item — the vendor does not stock it — and it stacks with your damage tonics instead of replacing them: more hits, same punch per hit.
+
 ## 2026-11-10 — Your shield comes back
 
 - **Shields recharge now** — the RECHARGE number on every shield card is live: go a full tick without taking a hit and your shield refills at that rate until it is full; take damage and that tick's recharge is lost, with no extra delay once the quiet ticks return. It is the Borderlands rhythm — break off, catch your breath, come back whole — and it makes Turtle's trade honest at last: the big pool refills at half speed. Shield Cells still restore instantly when you cannot afford the quiet.

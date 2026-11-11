@@ -411,11 +411,13 @@ implemented; P6 NOT implemented (see below).
   → 200/240/280/320/360 (Ordnance Charge / EMP Charge / Corrosive
   Charge / Phase Shift Grenade / Magnetized Payload); Forgeheart
   Charge 25 → 120.
-- **P6 — tempo consumable: NOT implemented.** The brief names the
-  role only (+attack speed % for a window, crafter-only) — no name,
-  magnitude, duration, or recipe — and the runtime-effects contract
-  has no attack-speed channel. It lands when a one-line supplement
-  supplies name, magnitude, window, and recipe inputs.
+- **P6 — tempo consumable: NOT implemented in this slice.** The
+  brief names the role only (+attack speed % for a window,
+  crafter-only) — no name, magnitude, duration, or recipe — and the
+  runtime-effects contract has no attack-speed channel. It lands as
+  tuning slice T6 once a one-line supplement supplies name,
+  magnitude, window, and recipe inputs — see the P6 supplement
+  section at the foot of this document.
 
 Vendor staple prices are unchanged — magnitudes only. P4's expected
 effect is stated in per-engagement pool terms (fights cost ~0.5–8%
@@ -432,3 +434,47 @@ is to be rebaselined after the fleet measures the new magnitudes.
 **Where it lives.** The pre-escalation base fee has one derivation, `bossBaseFee` (with `firstClearEntryFee`) in `src/lib/bossFees.ts`, read by every surface that names a price: the verify-boss route's charge AND its insufficient-credits refusal (`src/server/routes/claim.ts`), the boss prep panel, and the boss picker. "Has beaten this boss" is the existing victory record — `boss_state.defeatedBossIds` on the profile, maintained by the boss-attempt applier. No new storage, no migration: the fact already existed and already drove the entry-vs-rematch branch; D4 extends that same branch's undefeated side. Escalation is untouched and composes on top of the base — for a never-beaten boss today's victory count is always 0, so escalation first bites on the rematch base after a same-day victory.
 
 **Watch.** Attempts should spread further up the ladder earlier (the Mirror is attemptable holding 2,500 cr instead of 5,000), and time-to-first-Mirror-attempt should roughly halve for new hunters. **Falsifier (from the tuning brief):** if open-beta humans routinely reach the Mirror holding ≫10,000 cr, the discount is a giveaway on a non-binding fee — remove it and keep fees flat.
+
+
+## Tuning decisions — P6 supplement: Overclock Serum, the tempo consumable (tuning T6, 2026-11-10)
+
+Owner ruling 2026-11-10 (the one-line supplement D2 waited on):
+**Overclock Serum** — a NEW crafter-only consumable: **+15% attack
+speed** for a **60-second** window; recipe **30 Scrap + 2 Ballistic
+Parts** (20 minutes at the bench).
+
+**Rule.** The serum opens the attack-speed channel the
+runtime-effects contract lacked. +15% attack speed means +15%
+attack CADENCE — more attacks at unchanged per-attack damage — at
+Q100. Quality scaling follows the sibling %-buff DELTA convention:
+Q175 lands at **1.2625**, hard cap **1.30** (1 + 2x the base delta).
+Crafter-only by the recipe path: `vendorExcluded`, never a vendor
+staple, craftable, player-market allowed; the def's 400 cr figure is
+the price/buyback anchor only — the vendor never sells it.
+
+**Where it lives.** A dedicated `attackSpeedMultiplier` channel,
+separate from `dpsMultiplier` on purpose — cadence and damage
+compose multiplicatively without folding into each other, so the
+serum stacks sanely with the Redline/Overcharge/ammo DPS family and
+nothing double-counts. The surfaces that price damage:
+`src/lib/stats/dpsChain.ts` step 1 multiplies the weapon's
+attackSpeed term by it (boss sim aggregates it per prepared TYPE,
+mirroring its crit read; the sim's 30s nominal window sits inside
+the 60s buff, so the buff applies attempt-wide like every other
+pre-fight buff); the roaming engine carries it in its per-tick mods
+for exactly the 60s window — 20 ticks at the 3s tick, one unit per
+window, auto-renewed while stock lasts; the Chef folds it into the
+tick damage rate's attack-rate term (roaming resolves damage per
+tick as a rate, so cadence scales that rate — the documented
+equivalent of more attacks; per-attack damage and the ordnance flat
+burst are untouched by it). Recipe: TS registry +
+`cc_craft_recipe_catalog` (migration 0087 restates the catalog:
+0086's 83 objects + this one; applied by the parent, staging
+rehearsal first — never by the Chef).
+
+**Watch.** The fleet's consumables-used coverage (1 of 42 types in
+the week to 2026-11-10) should finally move: the serum is a
+crafter-economy item, so watch the crafter archetype's adoption and
+whether roaming kill tempo rises ~15% inside serum windows without
+a matching rise outside them (a rise everywhere would mean the
+channel is leaking past its window).
