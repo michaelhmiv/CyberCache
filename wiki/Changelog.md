@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-10 — A sharper cache
+
+- **The cache got a new portrait** — the app icon and logo were re-rendered at full painterly quality: the same navy cache crate with its lid cracked in two and the gold burst pouring out, on the same vivid rust field — now with crisp, continuous surfaces instead of the old pixel finish. It is the same logo everywhere it appears: the home-screen icon, the web logo and favicon, and the store icon all carry the new rendering, and at small sizes the crate and burst still read at a glance.
+
 ## 2026-11-10 — Fights move faster now
 
 - **Overclock Serum** — a new craftable from the bench (30 Scrap + 2 Ballistic Parts): your weapon fires 15% faster for a full minute. Higher-quality batches push the boost further, up toward +30%. It is a crafters' item — the vendor does not stock it — and it stacks with your damage tonics instead of replacing them: more hits, same punch per hit.
