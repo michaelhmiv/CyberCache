@@ -188,7 +188,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
     ro.observe(root);
     return () => ro.disconnect();
   }, [vistaSceneId]);
-  const vistaCanvasRefByLayer = { far: vistaFarCanvasRef, mid: vistaMidCanvasRef, near: vistaNearCanvasRef };
+  const vistaCanvasRefByLayer: Record<'far' | 'mid' | 'near', React.RefObject<HTMLCanvasElement | null>> = { far: vistaFarCanvasRef, mid: vistaMidCanvasRef, near: vistaNearCanvasRef };
 
   return (
     <div className="absolute inset-0 overflow-hidden" data-testid={testId ?? 'pixel-stage'} data-ground-y={ground}>
