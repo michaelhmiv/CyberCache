@@ -5,6 +5,10 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 ## 2026-11-10 — Fights move faster now
 
 - **Overclock Serum** — a new craftable from the bench (30 Scrap + 2 Ballistic Parts): your weapon fires 15% faster for a full minute. Higher-quality batches push the boost further, up toward +30%. It is a crafters' item — the vendor does not stock it — and it stacks with your damage tonics instead of replacing them: more hits, same punch per hit.
+## 2026-11-10 — Scrap earns its keep
+
+- **Crafting consumables costs real Scrap now** — the Scrap legs on consumable recipes were priced back when Scrap barely moved; they now run two to eight times higher, tiered by the item: a Patch Kit costs 10 Scrap, a Med Kit 40, a Shield Cell 100, an Adrenaline Shot 300. Batch recipes follow the same curve. Everything else about the recipes — the other inputs, the craft times, what the items do — is unchanged.
+- **Listing on the market posts a Scrap deposit** — creating a listing now charges 25 Scrap alongside the escrow. Sell the item and the deposit comes straight back; cancel the listing and it is burned. The 5% sale fee works exactly as before, and the Sell form shows the deposit before you confirm.
 
 ## 2026-11-10 — Your shield comes back
 

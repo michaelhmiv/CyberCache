@@ -94,7 +94,7 @@ describe('recipe_elemental_coating — catalog presence and costing', () => {
     expect(recipe?.kind).toBe('consumable');
     expect(recipe?.consumableType).toBe('ElementalCoating');
     expect(recipe?.category).toBe('offense');
-    expect(recipe?.inputs).toEqual({ Scrap: 15, BallisticParts: 8, VoidEssence: 3 });
+    expect(recipe?.inputs).toEqual({ Scrap: 75, BallisticParts: 8, VoidEssence: 3 });
     expect(recipe?.unitDurationMs).toBe(20 * 60 * 1000);
     expect(recipe?.requiresLevel).toBe(1);
     expect(recipe?.requiresBench).toBe(1);
@@ -104,9 +104,9 @@ describe('recipe_elemental_coating — catalog presence and costing', () => {
     expect(legacy?.craftTimeMs).toBe(recipe?.unitDurationMs);
   });
 
-  it('peer band: ammos price Scrap 15, Prism prices the same essences plus signature stock', () => {
+  it('peer band: ammos price Scrap 75, Prism prices the same essences plus signature stock', () => {
     const shock = getCraftRecipe('recipe_shock_ammo');
-    expect(shock?.inputs['Scrap']).toBe(15);
+    expect(shock?.inputs['Scrap']).toBe(75);
     expect(shock?.inputs['BallisticParts']).toBe(8);
     const prism = getCraftRecipe('recipe_prismatek_standing');
     expect(prism?.inputs['VoidEssence']).toBe(3); // same essence leg
@@ -115,16 +115,50 @@ describe('recipe_elemental_coating — catalog presence and costing', () => {
   });
 
   it('its Scrap leg is a generated Econ-7 lever, defaulting to the literal', () => {
-    expect(RECIPE_SCRAP_DEFAULTS['recipe_elemental_coating']).toBe(15);
+    expect(RECIPE_SCRAP_DEFAULTS['recipe_elemental_coating']).toBe(75);
     const resolved = resolveRecipeScrapCosts({ 'recipeScrap.recipe_elemental_coating': 5 });
     expect(resolved['recipe_elemental_coating']).toBe(5);
-    expect(resolveRecipeScrapCosts({})['recipe_elemental_coating']).toBe(15);
+    expect(resolveRecipeScrapCosts({})['recipe_elemental_coating']).toBe(75);
   });
 
   it('migration 0077 restates the catalog (89 recipes, deep-equal) and the bounds row', () => {
     const catalog = JSON.parse(MIGRATION_0077.split('$catalog$')[1]) as Array<Record<string, unknown>>;
     expect(catalog).toHaveLength(89);
-    expect(catalog).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    // Tuning T3 (2026-11-10) repriced the Scrap legs of 38
+    // consumable recipes in the live catalog (pinned against
+    // migration 0087 in tuningT3ScrapPortfolio); 0077's rows for
+    // those are historical, so the deep-equal carves them out
+    // mechanically — a carved row differs from its TS row ONLY in
+    // inputs.Scrap (canonical stringify, the gateRemovalStep2 form).
+    const tsRecipes = JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)) as Array<Record<string, unknown>>;
+    const tsById = new Map(tsRecipes.map((r) => [String(r.id), r]));
+    const canon = (v: unknown): string => {
+      if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
+      if (v && typeof v === 'object') {
+        return `{${Object.keys(v as Record<string, unknown>).sort()
+          .map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`).join(',')}}`;
+      }
+      return JSON.stringify(v);
+    };
+    const stripScrap = (row: Record<string, unknown>) => {
+      const clone = JSON.parse(JSON.stringify(row)) as Record<string, unknown>;
+      delete (clone.inputs as Record<string, number>)['Scrap'];
+      return clone;
+    };
+    const repricedByT3 = new Set(
+      catalog
+        .filter((r) => {
+          const ts = tsById.get(String(r.id));
+          return ts !== undefined
+            && canon(stripScrap(r as Record<string, unknown>)) === canon(stripScrap(ts))
+            && (r.inputs as Record<string, number>)['Scrap'] !== (ts.inputs as Record<string, number>)['Scrap'];
+        })
+        .map((r) => String(r.id)),
+    );
+    expect(repricedByT3.size).toBe(38);
+    const withoutRepriced = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => !repricedByT3.has(String(r.id)));
+    expect(withoutRepriced(catalog as Array<Record<string, unknown>>)).toEqual(withoutRepriced(tsRecipes));
     expect(MIGRATION_0077).toContain("('ElementalCoating', 75::numeric, 150::numeric)");
     // Provenance + the owner's apply order ride in the header.
     expect(MIGRATION_0077).toContain('chain head = 0073');
@@ -195,13 +229,13 @@ describe('craft engine — enqueue, settle, crafted batch lands', () => {
   it('escrows the content inputs and charges them from materials + essences', () => {
     const h = harness();
     const { job } = h.enqueue();
-    expect(job.escrow_inputs).toEqual({ Scrap: 15, BallisticParts: 8, VoidEssence: 3 });
+    expect(job.escrow_inputs).toEqual({ Scrap: 75, BallisticParts: 8, VoidEssence: 3 });
     expect(job.unit_duration_ms).toBe(20 * 60 * 1000);
-    expect((h.profileView as unknown as { materials: Record<string, number> }).materials['Scrap']).toBe(985);
+    expect((h.profileView as unknown as { materials: Record<string, number> }).materials['Scrap']).toBe(925);
     expect((h.profileView as unknown as { essences: Record<string, number> }).essences['VoidEssence']).toBe(97);
   });
 
-  it('the Scrap lever reprices the escrow at enqueue (5 instead of 15)', () => {
+  it('the Scrap lever reprices the escrow at enqueue (5 instead of 75)', () => {
     const h = harness({ recipe_elemental_coating: 5 });
     const { job } = h.enqueue();
     expect(job.escrow_inputs['Scrap']).toBe(5);

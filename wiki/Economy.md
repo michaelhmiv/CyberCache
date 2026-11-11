@@ -83,7 +83,10 @@ it trades on the player market:
   knew as Scrap Alloy was the same stock all along. The [[Vendor]]
   neither sells nor buys Scrap — play and the player market are the
   only doors — and scrap's faucets and sinks are metered daily
-  alongside credits, so its supply is tuned on real numbers. See
+  alongside credits, so its supply is tuned on real numbers.
+  Consumable recipes carry the heaviest Scrap legs in the game, and
+  listing anything on the market posts a 25-Scrap deposit — refunded
+  in full when the listing sells, burned if you cancel it. See
   [[Collections]] and [[Crafting]].
 - **Cache keys** — the only cache currency: roaming drops one now
   and then, and the streak, contracts, and leaderboards pay them too.

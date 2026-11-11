@@ -1137,7 +1137,15 @@ describe('migration 0043 — textual pins', () => {
           v,
         ]),
       );
-      expect(sqlInputs).toEqual(recipe.inputs);
+      // Tuning T3 (2026-11-10) repriced the ThrowTech kit's Scrap
+      // leg 20 -> 100 in the live catalog; 0043's row is historical,
+      // so its amount stays pinned here and the live figure is
+      // pinned against migration 0087 in tuningT3ScrapPortfolio.
+      expect(sqlInputs).toEqual(
+        recipe.id === 'recipe_throwtech_standing'
+          ? { ...recipe.inputs, Scrap: 20 }
+          : recipe.inputs,
+      );
       expect(sql.unitDurationMs).toBe(recipe.unitDurationMs);
       // requiresLevel postdates 0043: the tonics shipped at L12
       // here, and gate-removal step 2 (0057) deleted the level in

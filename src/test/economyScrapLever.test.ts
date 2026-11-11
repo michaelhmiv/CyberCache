@@ -10,7 +10,7 @@
  *    config = byte-identical literals);
  *  - the admin write/read path accepts the generated keys;
  *  - THE ACCEPTANCE TEST (the owner's example): with
- *    recipeScrap.recipe_fuel_cell lowered 6 -> 3, a Fuel Cell job
+ *    recipeScrap.recipe_fuel_cell lowered 15 -> 3, a Fuel Cell job
  *    enqueues at 3 Scrap/unit through the shipped routes + the
  *    InMemory twin while every other recipe's cost is untouched;
  *    moving the lever after enqueue never reprices the job (cancel
@@ -20,6 +20,9 @@
  *    the post-merge 0069 chain head — not the brief's stale 0067);
  *  - client-side resolution (readiness shortage math + display
  *    helpers) runs off the same resolved figures.
+ *  - (Tuning T3, 2026-11-10: the acceptance figures track the
+ *    repriced catalog literals — fuel cell 15/unit, patch kit
+ *    10/unit; the lever mechanics are unchanged.)
  */
 import express from 'express';
 import type { AddressInfo } from 'node:net';
@@ -72,7 +75,7 @@ describe('recipeScrap registry — generated from the catalog', () => {
     for (const r of scrapRecipes) {
       expect(RECIPE_SCRAP_DEFAULTS[r.id], r.id).toBe(r.inputs['Scrap']);
     }
-    expect(RECIPE_SCRAP_DEFAULTS['recipe_fuel_cell']).toBe(6);
+    expect(RECIPE_SCRAP_DEFAULTS['recipe_fuel_cell']).toBe(15);
     expect(RECIPE_SCRAP_DEFAULTS['tint_craft']).toBe(25);
   });
 
@@ -193,7 +196,7 @@ describe('recipeScrap levers — the admin path', () => {
     const report = await call('GET', '/api/admin/economy');
     expect(report.status).toBe(200);
     expect(report.json.recipeScrapCosts.recipe_fuel_cell).toBe(3);
-    expect(report.json.recipeScrapDefaults.recipe_fuel_cell).toBe(6);
+    expect(report.json.recipeScrapDefaults.recipe_fuel_cell).toBe(15);
     expect(Object.keys(report.json.recipeScrapCosts).length).toBe(67);
   });
 
@@ -274,17 +277,17 @@ describe('acceptance — the fuel-cell example (brief §4.3) in the TS twin', ()
     await close();
   });
 
-  it('empty lever config: fuel cell x2 escrows the literal 6/unit (parity with master)', async () => {
+  it('empty lever config: fuel cell x2 escrows the literal 15/unit (parity with master)', async () => {
     leverMap = {};
     const res = await post('/api/ops/craft-enqueue', {
       nonce: nonce(), bench: 1, recipe_id: 'recipe_fuel_cell', units: 2,
     });
     expect(res.status).toBe(200);
-    expect(scrap()).toBe(88);
+    expect(scrap()).toBe(70);
     expect(gel()).toBe(8);
     const view = await workshop();
     const job = view.jobs.find((j: { recipeId: string }) => j.recipeId === 'recipe_fuel_cell');
-    expect(job.escrowInputs).toEqual({ Scrap: 12, NitrocellGel: 2 });
+    expect(job.escrowInputs).toEqual({ Scrap: 30, NitrocellGel: 2 });
   });
 
   it('lever at 3: fuel cell enqueues at 3/unit, gel leg untouched, snapshot ships the map', async () => {
@@ -293,25 +296,25 @@ describe('acceptance — the fuel-cell example (brief §4.3) in the TS twin', ()
       nonce: nonce(), bench: 1, recipe_id: 'recipe_fuel_cell', units: 2,
     });
     expect(res.status).toBe(200);
-    expect(scrap()).toBe(82);
+    expect(scrap()).toBe(64);
     expect(gel()).toBe(6);
     const view = await workshop();
     expect(view.recipeScrapCosts.recipe_fuel_cell).toBe(3);
-    expect(view.recipeScrapCosts.recipe_patch_kit).toBe(4);
+    expect(view.recipeScrapCosts.recipe_patch_kit).toBe(10);
     const jobs = view.jobs.filter((j: { recipeId: string }) => j.recipeId === 'recipe_fuel_cell');
     expect(jobs).toHaveLength(2);
     expect(jobs[1].escrowInputs).toEqual({ Scrap: 6, NitrocellGel: 2 });
   });
 
-  it('every other recipe is untouched: patch kit still escrows the literal 4/unit', async () => {
+  it('every other recipe is untouched: patch kit still escrows the literal 10/unit', async () => {
     const res = await post('/api/ops/craft-enqueue', {
       nonce: nonce(), bench: 1, recipe_id: 'recipe_patch_kit', units: 3,
     });
     expect(res.status).toBe(200);
-    expect(scrap()).toBe(70);
+    expect(scrap()).toBe(34);
     const view = await workshop();
     const job = view.jobs.find((j: { recipeId: string }) => j.recipeId === 'recipe_patch_kit');
-    expect(job.escrowInputs).toEqual({ Scrap: 12, ReactiveComponents: 3 });
+    expect(job.escrowInputs).toEqual({ Scrap: 30, ReactiveComponents: 3 });
   });
 
   it('snapshot semantics: lever moved to 9 after enqueue, cancel refunds the 3/unit snapshot', async () => {
@@ -325,7 +328,7 @@ describe('acceptance — the fuel-cell example (brief §4.3) in the TS twin', ()
     const res = await post('/api/ops/craft-cancel', { nonce: nonce(), job_id: levered[0].id });
     expect(res.status).toBe(200);
     // Refund is the SNAPSHOT (6 Scrap + 2 gel), not 2 units at 9.
-    expect(scrap()).toBe(76);
+    expect(scrap()).toBe(40);
     expect(gel()).toBe(8);
   });
 
@@ -335,9 +338,9 @@ describe('acceptance — the fuel-cell example (brief §4.3) in the TS twin', ()
       nonce: nonce(), bench: 1, recipe_id: 'recipe_fuel_cell', units: 1,
     });
     expect(res.status).toBe(200);
-    expect(scrap()).toBe(70);
+    expect(scrap()).toBe(25);
     const view = await workshop();
-    expect(view.recipeScrapCosts.recipe_fuel_cell).toBe(6);
+    expect(view.recipeScrapCosts.recipe_fuel_cell).toBe(15);
   });
 
   it('a store with NO lever provider at all charges and displays the literals', async () => {
@@ -348,9 +351,9 @@ describe('acceptance — the fuel-cell example (brief §4.3) in the TS twin', ()
       bench: 1, recipeId: 'recipe_fuel_cell', units: 1,
     });
     // NB: the store clones its seed — read balances through it.
-    expect(bare.seed.profiles[0].materials['Scrap']).toBe(44);
+    expect(bare.seed.profiles[0].materials['Scrap']).toBe(35);
     const view = (await bare.getWorkshopState(P)) as { recipeScrapCosts: Record<string, number> };
-    expect(view.recipeScrapCosts['recipe_fuel_cell']).toBe(6);
+    expect(view.recipeScrapCosts['recipe_fuel_cell']).toBe(15);
   });
 });
 
@@ -430,11 +433,11 @@ describe('client display resolution', () => {
   const fuelCell = getCraftRecipe('recipe_fuel_cell')!;
 
   it('resolvedScrapCost / resolvedRecipeInputs: server map wins, literal fallback', () => {
-    expect(resolvedScrapCost(fuelCell, undefined)).toBe(6);
-    expect(resolvedScrapCost(fuelCell, {})).toBe(6);
+    expect(resolvedScrapCost(fuelCell, undefined)).toBe(15);
+    expect(resolvedScrapCost(fuelCell, {})).toBe(15);
     expect(resolvedScrapCost(fuelCell, { recipe_fuel_cell: 3 })).toBe(3);
     expect(resolvedRecipeInputs(fuelCell, { recipe_fuel_cell: 3 })).toEqual({ Scrap: 3, NitrocellGel: 1 });
-    expect(resolvedRecipeInputs(fuelCell, undefined)).toEqual({ Scrap: 6, NitrocellGel: 1 });
+    expect(resolvedRecipeInputs(fuelCell, undefined)).toEqual({ Scrap: 15, NitrocellGel: 1 });
   });
 
   it('readiness shortage math runs off the resolved bill', () => {
@@ -450,11 +453,11 @@ describe('client display resolution', () => {
       researchCompletedIds: new Set<string>(),
       activeJobs: [],
     };
-    // At the literal 6 the player is short 2 Scrap; at the lever's 3
+    // At the literal 15 the player is short 11 Scrap; at the lever's 3
     // the same wallet crafts — the card must agree with the charge.
     const atLiteral = deriveRecipeReadiness(fuelCell, ctx, { units: 1 });
     expect(atLiteral.shortages).toContainEqual(
-      expect.objectContaining({ key: 'Scrap', need: 6, have: 4 }),
+      expect.objectContaining({ key: 'Scrap', need: 15, have: 4 }),
     );
     const atLever = deriveRecipeReadiness(
       fuelCell,

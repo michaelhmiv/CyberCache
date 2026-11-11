@@ -15,6 +15,7 @@ import { CONSUMABLES } from '@/constants/consumables';
 import { WEAPON_TYPES } from '@/constants/weaponTypes';
 import { ELEMENTS } from '@/constants/elements';
 import { isFoundSource, marketFeeForPrice, marketFeeReduction } from '@/lib/market/marketFee';
+import { MARKET_LISTING_DEPOSIT_SCRAP } from '@/lib/market/listingDeposit';
 import {
   CORE_DISPLAY_NAME,
   CORE_IDENTITY_KEY,
@@ -138,6 +139,21 @@ function feePreview(price: number, bonuses: Record<string, number>, sourceTag?: 
   const pct = breakdown.effectiveRate * 100;
   const pctLabel = Number.isInteger(pct) ? String(pct) : pct.toFixed(2).replace(/0$/, '');
   return { ...breakdown, pctLabel };
+}
+
+/**
+ * The listing deposit label (0087; economy tuning D3/P8): listing
+ * charges this much Scrap up front — refunded in full when the
+ * listing sells, burned when the seller cancels. Display-only,
+ * like feePreview: the server charges the lever-resolved figure;
+ * MARKET_LISTING_DEPOSIT_SCRAP is its client-safe default.
+ */
+function ListingDepositLabel() {
+  return (
+    <div className="text-[11px] text-text-muted">
+      Listing deposit: {MARKET_LISTING_DEPOSIT_SCRAP} Scrap · refunded on sale · burned on cancel
+    </div>
+  );
 }
 
 /** Compact card for consumable/material/resource stack listings (0019, 0050). */
@@ -955,6 +971,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 </div>
                 <SalesGuidance stats={stats} />
                 <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                <ListingDepositLabel />
               </div>
             );
           })}
@@ -977,6 +994,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                     </div>
                     <SalesGuidance stats={stats} />
                     <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <ListingDepositLabel />
                   </div>
                 );
               })}
@@ -1004,6 +1022,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                     </div>
                     <SalesGuidance stats={stats} />
                     <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <ListingDepositLabel />
                   </div>
                 );
               })}
@@ -1032,6 +1051,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                     </div>
                     <SalesGuidance stats={stats} perUnit />
                     <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <ListingDepositLabel />
                   </div>
                 );
               })}
@@ -1059,6 +1079,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                     </div>
                     <SalesGuidance stats={stats} perUnit />
                     <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <ListingDepositLabel />
                   </div>
                 );
               })}
@@ -1087,6 +1108,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                     </div>
                     <SalesGuidance stats={stats} perUnit />
                     <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <ListingDepositLabel />
                   </div>
                 );
               })()}
@@ -1114,6 +1136,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                     </div>
                     <SalesGuidance stats={stats} perUnit />
                     <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <ListingDepositLabel />
                   </div>
                 );
               })}

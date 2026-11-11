@@ -192,7 +192,7 @@ describe('guest visibility — boards serve guests; writes still refuse them', (
     return {
       ...emptyWriteSeed(),
       profiles: [
-        profile({ id: SELLER, credits: 100_000 }),
+        profile({ id: SELLER, credits: 100_000, materials: { Scrap: 1000 } }), // T3: the setup listing posts the deposit
         profile({
           id: GUEST, username: null, account_type: 'guest', email: null, email_verified_at: null,
           credits: 100_000, materials: { Scrap: 5 },

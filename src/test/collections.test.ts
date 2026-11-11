@@ -249,7 +249,7 @@ function writeSeed(): WriteSeed {
       id: P, credits: 100_000, legendary_cores: 5,
       materials: { RefinedAlloy: 1000, TemperedParts: 1000, ForgeheartIngots: 1000, Scrap: 1000, ReactiveComponents: 1000 },
     }),
-    profile({ id: S, credits: 0 }),
+    profile({ id: S, credits: 0, materials: { Scrap: 1000 } }), // T3: S lists in the market sequence — deposits apply
   ];
   s.items = [
     gearItem(LEG_SNIPER, P, { name: 'Glass Sun', rarity: 'Legendary', level: 50, weaponType: 'Sniper', manufacturer: 'Prismatek', element: 'Void', legendaryEffectId: 'glass_sun' }),

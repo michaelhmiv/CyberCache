@@ -90,14 +90,15 @@ function item(overrides: Partial<WriteItemData> & { id: string; owner_user_id: s
 function baseSeed(): WriteSeed {
   const s = emptyWriteSeed();
   s.profiles = [
-    profile({ id: S, username: 'seller', credits: 0 }),
-    profile({ id: B, username: 'buyer', credits: 100_000, skill_spends: { scav_major_3: 1 } }),
+    profile({ id: S, username: 'seller', credits: 0, materials: { Scrap: 1000 } }), // T3: listings post a 25-Scrap deposit
+    profile({ id: B, username: 'buyer', credits: 100_000, skill_spends: { scav_major_3: 1 }, materials: { Scrap: 1000 } }), // T3: B relists in the bought-and-relisted test
     profile({
       id: K, username: 'skilled', credits: 0,
       skill_spends: { scav_fee_1: 5, scav_major_3: 1 },
+      materials: { Scrap: 1000 },
     }),
-    profile({ id: M, username: 'modded', credits: 0 }),
-    profile({ id: C2, username: 'second', credits: 100_000 }),
+    profile({ id: M, username: 'modded', credits: 0, materials: { Scrap: 1000 } }),
+    profile({ id: C2, username: 'second', credits: 100_000, materials: { Scrap: 1000 } }),
     profile({ id: NPC, username: 'npc-market', credits: 0 }),
   ];
   s.items = [

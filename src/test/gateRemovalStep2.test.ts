@@ -139,11 +139,11 @@ describe('migration 0057 — consumable recipe levels removed', () => {
 
   it('material costs are byte-identical on the formerly gated recipes', () => {
     expect(getCraftRecipe('recipe_adrenaline')!.inputs)
-      .toEqual({ Scrap: 40, ReactiveComponents: 25, VoidDust: 3 });
+      .toEqual({ Scrap: 300, ReactiveComponents: 25, VoidDust: 3 }); // T3: Scrap leg repriced 40 -> 300
     expect(getCraftRecipe('recipe_fuel_cell')!.inputs)
-      .toEqual({ Scrap: 6, NitrocellGel: 1 });
+      .toEqual({ Scrap: 15, NitrocellGel: 1 }); // T3: Scrap leg repriced 6 -> 15
     expect(getCraftRecipe('recipe_field_patch_kit')!.inputs)
-      .toEqual({ Scrap: 6, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 });
+      .toEqual({ Scrap: 15, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 }); // T3: Scrap leg repriced 6 -> 15
     expect(getCraftRecipe('recipe_calibration_core')!.inputs)
       .toEqual({ ReactiveComponents: 20, TechFragments: 15, PrismShards: 2, VoidDust: 2 });
     expect(getCraftRecipe('recipe_redline_standing')!.inputs)
