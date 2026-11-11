@@ -395,3 +395,12 @@ of pool over 1–3 ticks); the brief's original falsifier cited P1's
 attrition model, which the 2026-11-10 premise check invalidated
 (the shipped game has no shield-recharge mechanic) — the falsifier
 is to be rebaselined after the fleet measures the new magnitudes.
+
+
+## Boss first-clear fee discount (tuning D4 / proposal P10, owner ruling 2026-11-10)
+
+**Rule.** Every boss's sticker entry fee is unchanged (the Mnemosyne Mirror still lists at 5,000 cr). While a player has never beaten a given boss, attempts at that boss cost **half the entry fee**; the player's first victory over that boss ends the discount for it permanently, and rematch pricing applies from then on. The discount is per boss — beating one boss does not touch another's first-clear price.
+
+**Where it lives.** The pre-escalation base fee has one derivation, `bossBaseFee` (with `firstClearEntryFee`) in `src/lib/bossFees.ts`, read by every surface that names a price: the verify-boss route's charge AND its insufficient-credits refusal (`src/server/routes/claim.ts`), the boss prep panel, and the boss picker. "Has beaten this boss" is the existing victory record — `boss_state.defeatedBossIds` on the profile, maintained by the boss-attempt applier. No new storage, no migration: the fact already existed and already drove the entry-vs-rematch branch; D4 extends that same branch's undefeated side. Escalation is untouched and composes on top of the base — for a never-beaten boss today's victory count is always 0, so escalation first bites on the rematch base after a same-day victory.
+
+**Watch.** Attempts should spread further up the ladder earlier (the Mirror is attemptable holding 2,500 cr instead of 5,000), and time-to-first-Mirror-attempt should roughly halve for new hunters. **Falsifier (from the tuning brief):** if open-beta humans routinely reach the Mirror holding ≫10,000 cr, the discount is a giveaway on a non-binding fee — remove it and keep fees flat.
