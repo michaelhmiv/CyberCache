@@ -97,6 +97,43 @@ const BossVitals: React.FC<{ boss: BossDef }> = ({ boss }) => {
 };
 
 /**
+ * Attack pattern intel (slice C1) — the boss's authored hit rhythm,
+ * stated as the boss's facts: how often it hits, the special's name
+ * and cycle, the share of its damage the special carries, and the
+ * quiet seconds its rhythm leaves (where a shield recharges — the
+ * boss's gaps, not the player's odds: Boss Intel Law). Renders only
+ * for cadence-carrying bosses; cadence-less fights show nothing.
+ */
+const AttackPattern: React.FC<{ boss: BossDef }> = ({ boss }) => {
+  const cadence = boss.cadence;
+  if (!cadence) return null;
+  const quietSeconds =
+    cadence.hitIntervalSeconds > 3 ? 'Quiet ticks between hits — shields recharge in them.' : null;
+  const rows = [
+    { label: 'Hits', value: `Every ${cadence.hitIntervalSeconds}s` },
+    {
+      label: 'Special',
+      value: `${cadence.specialName} · every ${cadence.specialEverySeconds}s · ~${Math.round(cadence.specialShare * 100)}% of damage`,
+    },
+    { label: 'Wind-up', value: `${cadence.windupSeconds}s telegraph` },
+  ];
+  return (
+    <div className="mt-2 border-t border-border/40 pt-2" data-testid="boss-attack-pattern">
+      <div className="text-[11px] font-black uppercase tracking-[0.22em] text-amber">Attack Pattern</div>
+      <div className="mt-1 space-y-1">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-baseline gap-2 text-[11px]">
+            <span className="w-14 shrink-0 font-black uppercase text-text-muted">{row.label}</span>
+            <span className="font-bold text-text-primary">{row.value}</span>
+          </div>
+        ))}
+        {quietSeconds && <div className="text-[11px] text-text-muted">{quietSeconds}</div>}
+      </div>
+    </div>
+  );
+};
+
+/**
  * Fight card — the readouts of the Chef's already-decided outcome
  * (charge track, HP bars, phase line, damage popups). The animated
  * fight itself no longer mounts here: under the One-Stage Law
@@ -559,6 +596,7 @@ export const BossEncounterPanel: React.FC<{
         <div className="mt-1 text-[10px] text-text-muted">
           Dedicated drops: {boss.dedicatedDrops.map(legendaryName).join(' · ') || 'None'}
         </div>
+        <AttackPattern boss={boss} />
       </div>
 
       {stage === 'fighting' && fightTimeline && (

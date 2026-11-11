@@ -456,3 +456,11 @@ pressure dial) approved — GO.
   fleet data post-recharge (P1 was re-ruled as passive shield
   recharge, slice T1R) shows elite share of deaths ≫ elite share of
   fights, revert the dial.
+
+## Boss attack cadence (boss cadence slice C1, owner rulings D1–D8, 2026-11-10)
+
+Owner rulings 2026-11-10 (boss cadence & setup-diversity brief, D1–D8 approved as recommended): bosses gain a Borderlands-style hit cadence — smaller hits on a rhythm, a named special on a slower cycle — folded into the pooled boss sim rather than a per-tick rewrite (D1), with the flat 30-second exposure window kept (D2), Endless encounters excluded (D3), and prep gaining an Attack Pattern intel block (D7).
+
+- **Rule.** Every authored boss carries a `cadence` on its def (`src/types/boss.ts`): hit interval, special name/cycle, the share of the damage budget specials carry (0.25–0.45 by archetype), and a damage-free wind-up. The boss's total damage budget is **invariant**: the sim computes B exactly as before (boss dps × 30 × the shipped stagger/burst folds) and cadence only splits B into a regular bucket and a special bucket that sum to B. Cadence moves outcomes through ONE channel only: the damage-free ticks its rhythm leaves are counted by `bossCadenceTimeline` (`src/lib/simulation/bossSimulator.ts`) and fed to the shield-recharge fold (`modelShieldRechargeForBoss` in `src/lib/combat/shieldBehaviors.ts`, slice T1R) — at a zero recharge rate, a cadence boss sims bit-identically to its cadence-less self.
+- **The roster's shape.** Slow archetypes (Bruiser/Duelist/Siege/Ghost/Mountain/Anchor rhythms) leave 9–15 damage-free seconds in the window, where recharge is real; the two swarm-cadence bosses (Ashgut, Widow-9 — hits every 3 s) leave none by construction, so capacity and mitigation, not recharge, answer them. Specials stay bounded: no boss's single special exceeds ~19% of its parity reference pool, far under the brief's 35% one-shot bound.
+- **Watch.** Fleet shield observations post-C1 should show the archetype split (recharge visible vs the wide rhythms, absent vs the swarm pair). **Falsifier:** if boss win rates at parity move for matched builds beyond the recharge channel's expected lift, the fold is double-counting — the acceptance pins (budget invariance + recharge-zero isolation) are the first place to look.
