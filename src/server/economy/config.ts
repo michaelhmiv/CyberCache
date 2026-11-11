@@ -29,10 +29,19 @@
  * catalog at module init — see the generated registry below.
  */
 import { ALL_CRAFT_RECIPES } from '../../content/crafting';
+import { MARKET_LISTING_DEPOSIT_SCRAP } from '../../lib/market/listingDeposit';
 
 export interface EconomyConfigValues {
   /** Fraction of a completed market sale destroyed as the fee. */
   marketFeeRate: number;
+  /**
+   * Scrap charged to create a market listing (tuning D3/P8,
+   * migration 0087): snapshotted onto the listing, refunded in
+   * full on sale, burned on cancel. Read by the market SQL itself
+   * via cc_economy_config_number; this accessor serves the TS
+   * write mirror.
+   */
+  marketListingDepositScrap: number;
   /** Probability that a boss victory's first loot roll is a dedicated drop. */
   bossDedicatedChance: number;
   /**
@@ -290,6 +299,7 @@ export type EconomyConfigKey = keyof EconomyConfigValues;
 /** Code defaults = the shipped constants at the time of this slice. */
 export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   marketFeeRate: 0.05,
+  marketListingDepositScrap: MARKET_LISTING_DEPOSIT_SCRAP,
   bossDedicatedChance: 0.1,
   cacheKeyChance: 0.00012,
   rematchEscalationCap: 8,
@@ -406,6 +416,10 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
   marketFeeRate: {
     key: 'marketFeeRate', min: 0, max: 1, integer: false,
     defaultOwner: 'src/lib/market/marketFee.ts MARKET_FEE_RATE',
+  },
+  marketListingDepositScrap: {
+    key: 'marketListingDepositScrap', min: 0, max: 100000, integer: true,
+    defaultOwner: 'src/lib/market/listingDeposit.ts MARKET_LISTING_DEPOSIT_SCRAP',
   },
   bossDedicatedChance: {
     key: 'bossDedicatedChance', min: 0, max: 1, integer: false,
