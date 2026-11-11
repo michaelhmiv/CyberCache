@@ -304,6 +304,7 @@ function applyPose(rt: StageRuntime, model: PhaseModel, now: number): void {
   for (const node of scene.parts) {
     const placement = model.layout.placements[node.slot as keyof typeof model.layout.placements];
     if (!placement) continue;
+    node.container.visible = !placement.hidden;
     node.anchorStage = placement.anchorStage;
     node.primaryLocal = placement.part.anchors[PRIMARY_ANCHOR[node.slot as keyof typeof PRIMARY_ANCHOR]];
     node.width = placement.part.width;

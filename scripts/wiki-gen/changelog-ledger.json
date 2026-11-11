@@ -52,6 +52,14 @@
         {
           "number": 495,
           "title": "SI torso: paint out the cyan chest slash (reads as a third arm)"
+        },
+        {
+          "number": 496,
+          "title": "Painted weapon renderer — Top-Choice paintings as the weapon render (renderer slice)"
+        },
+        {
+          "number": 497,
+          "title": "Aim/recoil poses: far arm braces under the gun arm instead of dangling"
         }
       ]
     },

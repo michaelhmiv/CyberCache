@@ -87,6 +87,11 @@ export interface PartPlacement {
   /** Stage coordinates of the part's primary anchor after posing. */
   anchorStage: PartPoint;
   rotationDeg: number;
+  /** Pose-level suppression (PartPoseTransform.hidden): the
+   *  placement resolves normally — anchors, joints and extents
+   *  are unaffected — but render paths must not draw the part,
+   *  and gear mounted on it must not resolve. Absent = drawn. */
+  hidden?: boolean;
 }
 
 export interface PartsRender {
@@ -188,7 +193,12 @@ export function resolvePartPlacements(
   const place = (slot: PartSlot, anchorStage: PartPoint, rotationDeg: number): void => {
     const part = set.parts[slot];
     if (!part) return;
-    placements[slot] = { part, anchorStage, rotationDeg };
+    placements[slot] = {
+      part,
+      anchorStage,
+      rotationDeg,
+      ...(pose[slot]?.hidden ? { hidden: true } : {}),
+    };
   };
 
   // --- Torso first: every upper-body mount derives from it. ---
@@ -599,7 +609,7 @@ export function composePartSet(
   // --- Rasterize parts into per-slot layers (buffer space). ---
   const renderPart = (slot: PartSlot): void => {
     const placement = placements[slot];
-    if (!placement) return;
+    if (!placement || placement.hidden) return;
     const { part, anchorStage, rotationDeg } = placement;
     const src = load(part.spriteId);
     if (!src) return;

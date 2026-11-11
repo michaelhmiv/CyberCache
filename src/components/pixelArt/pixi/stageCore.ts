@@ -231,6 +231,9 @@ export async function createPartNodes(args: {
     const tex = await loadTexture(src);
     const container = new Container();
     container.zIndex = PART_PAINT_ORDER.get(placement.part.slot) ?? 0;
+    // Pose-suppressed parts start invisible (applyPartPose keeps
+    // this current as poses change).
+    container.visible = !placement.hidden;
     const spriteNode = new Sprite(tex);
     container.addChild(spriteNode);
     nodes.push({
@@ -263,6 +266,7 @@ export function applyPartPose(
   for (const node of nodes) {
     const placement = layout.placements[node.slot as keyof typeof layout.placements];
     if (!placement) continue;
+    node.container.visible = !placement.hidden;
     const durationMs = partSlotTweenDurationMs(node.slot);
     if (opts.blendPositions) {
       node.posTween = {
@@ -297,6 +301,7 @@ export function applyPartPoseInstant(nodes: PartNode[], layout: PartSetLayout): 
   for (const node of nodes) {
     const placement = layout.placements[node.slot as keyof typeof layout.placements];
     if (!placement) continue;
+    node.container.visible = !placement.hidden;
     node.tween = undefined;
     node.posTween = undefined;
     node.anchorStage = placement.anchorStage;

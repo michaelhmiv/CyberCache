@@ -476,7 +476,8 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     () =>
       PART_SLOTS.flatMap(({ slot, paintOrder }) => {
         const placement = layout.placements[slot];
-        if (!placement) return [];
+        // Pose-suppressed parts (placement.hidden) render no node.
+        if (!placement || placement.hidden) return [];
         const { part, anchorStage, rotationDeg } = placement;
         const sprite = requirePixelSprite(part.spriteId);
         const slotPalette = partPalettes?.[slot];
