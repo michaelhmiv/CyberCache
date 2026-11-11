@@ -1847,8 +1847,13 @@ export function processRoamingClaim(
     // the shield sits at full capacity, evaluated at the moment the
     // hunter deals damage (before this tick's incoming hit lands).
     const tickAmpMult = ampDamageMultiplier(shieldBehavior, survShield, shieldCapacity);
+    // Attack speed (tuning T6): the serum's cadence multiplier
+    // scales the weapon-DPS term — the tick model prices damage as
+    // a per-second rate, so +15% attack cadence is +15% on that
+    // rate. Ordnance's flat burst is added AFTER the cadence term:
+    // it is not weapon attacks and does not speed up.
     const tickEffectiveDps =
-      (effectiveDps * consumableMods.dpsMultiplier + consumableMods.ordnanceBonusDps) * tickAmpMult;
+      (effectiveDps * consumableMods.dpsMultiplier * consumableMods.attackSpeedMultiplier + consumableMods.ordnanceBonusDps) * tickAmpMult;
     if (!survDead && tickEffectiveDps > 0 && roster.length > 0) {
       // Spawn a target if none exists (event-aware: bounties, elite
       // patrols, escalation, and weakpoint marking all apply here)
