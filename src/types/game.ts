@@ -109,6 +109,12 @@ export enum ConsumableType {
   // crafters and the player market. Def in src/constants/consumables.ts;
   // the capacity model lives in src/content/shieldTech.ts.
   CalibrationCore = 'CalibrationCore',
+  // Overclock Serum (tuning T6 / P6 supplement, owner ruling
+  // 2026-11-10): the crafter-only tempo consumable — +15% attack
+  // speed for 60 seconds. vendorExcluded like the other
+  // crafter-only types: it exists only from crafters and the
+  // player market. Def in src/constants/consumables.ts.
+  OverclockSerum = 'OverclockSerum',
 }
 
 export enum MaterialType {
