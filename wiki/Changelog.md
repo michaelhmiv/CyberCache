@@ -230,7 +230,21 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 204 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 212 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-10** — 6 merges
+
+- #469 — Anim-replay loop: deterministic replay + B2 metrics + CI workflow (Track A baseline)
+- #470 — Anim fix iteration: enemy approach + walk articulation, stride saturation, loop-instrument repairs
+- #471 — Vehicle chip on Home's Strip, right of the 7/7 (owner decision 2026-11-10)
+- #472 — Tuning T4 — Boss first-attempt discount (D4/P10)
+- #473 — Tuning T2 (D2): consumable magnitudes — ammo up, survival heals to % of pool, ordnance riders ×4
+- #474 — Tuning T1R — Passive shield recharge (owner ruling 2026-11-10)
+
+**2026-11-09** — 2 merges
+
+- #467 — AL-4: Activity Log full trace pass — every action leaves a record
+- #468 — Owner ruling: one ad rail on every platform (iOS included)
 
 **2026-11-08** — 12 merges
 
