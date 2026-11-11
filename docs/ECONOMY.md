@@ -426,6 +426,12 @@ attrition model, which the 2026-11-10 premise check invalidated
 (the shipped game has no shield-recharge mechanic) — the falsifier
 is to be rebaselined after the fleet measures the new magnitudes.
 
+- **Prism Coating flag — RESOLVED (owner ruling 2026-11-10).** The
+  P3 entry above flagged the symmetric-pair read for an owner strike
+  if shield-only was meant. The owner reviewed it after the merge
+  and ruled: Prism Coating raises BOTH shieldBreak and armorBreak
+  to 1.18, and that stands. No values change — the shipped pair is
+  the ruled pair.
 
 ## Boss first-clear fee discount (tuning D4 / proposal P10, owner ruling 2026-11-10)
 
