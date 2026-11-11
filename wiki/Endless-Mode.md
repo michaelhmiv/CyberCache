@@ -15,6 +15,8 @@ The fights themselves do not. **The Chamber is a fixed ladder, the same for ever
 - **You may swap gear between encounters.** Each encounter is priced against the loadout you currently hold, so adjusting your build mid-run for the next boss depth is legitimate play.
 - **Your prepared consumable belt is committed once, at entry**, and burned there. The run is one attempt; its encounters are phases. Unlike boss fights, you do not re-pay the belt per encounter — and the reward rates below are priced with that in mind.
 
+One boss habit the Chamber deliberately does not borrow: a boss depth wears its kit's mechanic, phases, weaknesses, and resistances, but not its **attack pattern** — Chamber fights price the kit's damage continuously, with no cadence gaps, so shield recharge never gets quiet to work in inside the Chamber. Patterns belong to the authored ladder (see [[Bosses]]).
+
 Like [[Bosses|boss prep]], the Chamber's prep shows you the run's facts — scaling rates, first-encounter and first-boss vitals, reward rates, the fee schedule — and never a readiness figure or win chance for you.
 
 ## The escalation
