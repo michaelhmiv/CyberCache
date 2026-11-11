@@ -30,6 +30,7 @@ export const CRAFTING_RECIPES: CraftingRecipe[] = [
   { id: 'recipe_emp_charge', consumableType: 'EMPCharge', name: 'EMP Charge', category: 'offense', materials: { Scrap: 18, BallisticParts: 8, ConduitWire: 4, TechFragments: 2 }, craftTimeMs: 22 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
   { id: 'recipe_corrosive_charge', consumableType: 'CorrosiveCharge', name: 'Corrosive Charge', category: 'offense', materials: { Scrap: 18, BallisticParts: 8, AcidCompound: 4, TechFragments: 2 }, craftTimeMs: 22 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
   { id: 'recipe_overcharge', consumableType: 'OverchargeStim', name: 'Overcharge Stim', category: 'offense', materials: { Scrap: 25, BallisticParts: 15, VoidDust: 2 }, craftTimeMs: 30 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
+  { id: 'recipe_overclock_serum', consumableType: 'OverclockSerum', name: 'Overclock Serum', category: 'offense', materials: { Scrap: 30, BallisticParts: 2 }, craftTimeMs: 20 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
   { id: 'recipe_targetpainter', consumableType: 'TargetPainter', name: 'Target Painter', category: 'offense', materials: { Scrap: 20, BallisticParts: 10, TechFragments: 2 }, craftTimeMs: 20 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
   { id: 'recipe_phaseshift', consumableType: 'PhaseShiftGrenade', name: 'Phase Shift Grenade', category: 'offense', materials: { Scrap: 30, BallisticParts: 15, VoidDust: 5 }, craftTimeMs: 35 * 60 * 1000, outputCount: 1, requiresLevel: 1 },
 
