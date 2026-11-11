@@ -1,0 +1,25 @@
+{
+  "sprite": "item-high-capacity-ammo-pack",
+  "anchors": {
+    "feet": {
+      "x": 0.5571,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5636,
+      "y": 0.5198
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.939
+    },
+    "lootPoint": {
+      "x": 0.5739,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3662,
+      "y": 0.7264
+    }
+  }
+}

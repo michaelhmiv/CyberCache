@@ -42,6 +42,9 @@ const REQUIRED_ANCHORS: Record<string, string[]> = {
   enemy: ['feet', 'centerMass', 'lootPoint'],
   prop: ['feet', 'centerMass', 'lootPoint'],
   background: ['groundLine'],
+  // Top-Choice item sprites (INT-4): produced by
+  // scripts/topchoice-items-key.py with pixel-key.py's anchor set.
+  item: ['feet', 'centerMass', 'muzzle', 'lootPoint', 'grip'],
 };
 
 describe('pixel sprite manifest — integrity', () => {

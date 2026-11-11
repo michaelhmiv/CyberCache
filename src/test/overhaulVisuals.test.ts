@@ -269,6 +269,21 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
-    expect(total).toBeLessThan(11_620_000);
+    // INT-4 Top-Choice consumables + materials (2026-11-11): the
+    // adopted Wave 11/12 masters land as manifest sprites (kind
+    // 'item', 77 entries) — consumables 44 × 104px +199,879 B
+    // (they carried no sprite payload before; the runtime texel
+    // compositor leaves the render path), materials + essences
+    // 26 × 104px +136,794 B (ZERO sprite payload before — the
+    // STUFF compositor + wallet glyphs), wallet resources
+    // 7 × 80px +23,657 B. Measured on this branch: pre-INT-4
+    // manifest total 6,721,903 B → 7,082,233 B (+360,330 B).
+    // Per the INT-4 brief the pin is set from this branch's
+    // measured total (7,082,233 B, stated above): the literal
+    // sits one byte over it, the same headroom shape as the
+    // M4 pin (~17 KB over its measured wave total). Sibling
+    // Top-Choice slices re-pin with their own accounting as
+    // they land.
+    expect(total).toBeLessThan(7_082_234);
   });
 });

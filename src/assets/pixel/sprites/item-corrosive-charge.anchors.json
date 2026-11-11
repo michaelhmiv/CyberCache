@@ -1,0 +1,25 @@
+{
+  "sprite": "item-corrosive-charge",
+  "anchors": {
+    "feet": {
+      "x": 0.5658,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5962,
+      "y": 0.5411
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.1331
+    },
+    "lootPoint": {
+      "x": 0.796,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3324,
+      "y": 0.6979
+    }
+  }
+}

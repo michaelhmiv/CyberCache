@@ -1,0 +1,25 @@
+{
+  "sprite": "item-med-kit-refined",
+  "anchors": {
+    "feet": {
+      "x": 0.5812,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5811,
+      "y": 0.4878
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.602
+    },
+    "lootPoint": {
+      "x": 0.5807,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3106,
+      "y": 0.6885
+    }
+  }
+}

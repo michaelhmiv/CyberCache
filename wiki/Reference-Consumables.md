@@ -13,7 +13,7 @@ tradable, but the vendor doesn't carry it. **Crafted quality range**
 is the quality band a crafted batch can roll, against the game's
 175% quality cap.
 
-<!-- GENERATED from src/constants/consumables.ts, src/lib/pixel/consumableArt.ts, src/lib/pixel/smallItemCore.ts, src/constants/visualAssets.ts — do not edit by hand -->
+<!-- GENERATED from src/constants/consumables.ts, src/lib/pixel/itemArt.ts, src/assets/pixel/manifest.json, src/constants/visualAssets.ts — do not edit by hand -->
 <!-- wiki-gen:consumables -->
 | Icon | Consumable | Family | Effect | Price (cr) | Vendor | Crafted quality range |
 | --- | --- | --- | --- | --- | --- | --- |

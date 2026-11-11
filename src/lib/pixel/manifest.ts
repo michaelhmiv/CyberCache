@@ -9,9 +9,15 @@ import type { MonsterArchetype } from '@/constants/monsters';
  * measured from its alpha mask; components position actors and FX from these
  * anchors (feet for ground placement, muzzle for tracers, lootPoint for drop
  * beams) — never hand-tuned pixel offsets per screen.
+ *
+ * Top-Choice item sprites (kind 'item', INT-4): the adopted painterly
+ * consumable / material / wallet masters are produced by
+ * `scripts/topchoice-items-key.py` (Wave 9 white-key lineage; Prism
+ * Shards object-keyed) and registered here like every other sprite;
+ * `itemArt.ts` owns the id → sprite maps the item components read.
  */
 
-export type PixelSpriteKind = 'character' | 'enemy' | 'prop' | 'weapon-legendary' | 'background';
+export type PixelSpriteKind = 'character' | 'enemy' | 'prop' | 'weapon-legendary' | 'background' | 'item';
 
 export interface PixelAnchor {
   x: number;
