@@ -138,6 +138,16 @@ One refinement: certain skill nodes shrink the fee on *your* sales (the
 reduction is relative — it shrinks the fee, not the price). See
 [[Progression]] for the trees that carry them.
 
+## The listing deposit
+
+Listing posts a **25 Scrap** deposit, charged when the listing is
+created, on top of the escrowed item. The deposit comes back in full
+when the item sells — for a stack filled in parts, when the last of
+it sells. Cancel the listing instead and the deposit is burned.
+Listings never expire, so a listing left alone keeps its deposit
+until it sells or you cancel it. The deposit is Scrap, separate from
+the credit fee above, and the Sell form shows it before you confirm.
+
 You never have to wonder whether something sold: when a listing sells,
 Home announces it on the **Sold** chip under the claim chips, showing the
 exact amount you were credited — price minus fee, plus any proceeds bonus.
