@@ -269,19 +269,59 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
-    // INT-1 Top-Choice weapons (2026-11-11, owner adoption of the
-    // painterly program): the 62 adopted weapon paintings enter the
-    // manifest as production sprites, with per-family accounting:
-    // 26 legendary paintings (kind weapon-legendary, ids
-    // legendary-painting-* — the bespoke legendary-<slug> ids stay
-    // authored data, never sprites) +2,903,472 B; 36 weapon base
-    // paintings (kind weapon-base, ids weapon-base-*) +2,422,978 B.
-    // Slice delta +5,326,450 B over the pre-INT-1 total of
-    // 6,721,903 B → manifest-sum total on this tree: 12,048,353 B.
-    // The ceiling rises deliberately to 12,066,000 (~17 KB headroom,
-    // the M4 discipline): the next family lands with its own
-    // accounting and its own deliberate raise, exactly like this one.
-    // (docs/top-choice-weapon-integration.md)
-    expect(total).toBeLessThan(12_066_000);
-  });
+    // Top-Choice INT-1 weapons (2026-11-11): the production
+    // sprite layer for the adopted weapon paintings lands — 26
+    // legendaries (legendary-painting-*, 2,903,472 B) + 36 bases
+    // (weapon-base-*, 2,422,978 B) registered behind their trims
+    // (spriteProduction / weaponPaintingData), palette-256 with
+    // true alpha via the Wave 15 key_white recipe at the 1440
+    // card-width class. NO existing sprite file is modified and
+    // the in-game weapon renderers are untouched — the compositors
+    // still paint from authored data (V4); wiring the paintings
+    // into PixelWeapon is the scoped renderer step recorded in
+    // docs/top-choice-weapon-integration.md (needs the owner's
+    // source-of-truth / variety / element rulings first).
+    // INT-7 cache screen (2026-11-11): the Top-Choice cache family
+    // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
+    // palette-256 of the graded logo-identity closed master),
+    // prop-buried-cache 7,915 → 558,552 B (the adopted buried render,
+    // keyed with the wave's border-flood recipe), and the NEW
+    // prop-cache-crate-open 288,747 B (the reveal's ignition frame).
+    // Family before 16,055 B, after 1,104,713 B; manifest total
+    // 6,721,903 → 7,810,561 B. Per the slice instruction the ceiling
+    // literal is set to this branch's measured total, so the check
+    // now pins drift exactly at the INT-7 landing.
+    // Top-Choice INT-5 (2026-11-11): the vehicles + set-pieces slice
+    // swaps 34 sprites to the adopted Top-Choice paintings (palette-256
+    // with true alpha, keyed full-frame at native master dimensions
+    // via scripts/top-choice-vehicles-setpieces-swap.py — INT-7's
+    // shipped cache family is the form's precedent). Accounting:
+    // vehicle bases 80,077 B → 3,516,186 B (+3,436,109; the seven
+    // adopted Wave 7.5 colorway masters, 3,508,202 B palette-256
+    // before keying — the shipped files carry the keyed alpha; the
+    // utility rover is the masked v2 grade, 554,190 B, not the
+    // rejected v1); vehicle overlays 71,777 B → 2,773,330 B
+    // (+2,701,553; the Wave 7 navy masters keyed in their own right —
+    // the colorway pass graded bases only, so the overlay artwork rides
+    // unchanged while its shipping form becomes the program's);
+    // set pieces 99,874 B → 7,916,016 B (+7,816,142; the 21 adopted
+    // Wave 10 masters, 7,878,811 B palette-256 before keying).
+    // Manifest total on the INT-5 base after landing: 20,675,707 B
+    // (base 6,721,903 B + 13,953,804 B). Reconciled onto master
+    // 0e33d530 at the merge drill (INT-7 cache family rides:
+    // 308 entries), the measured total is 21,764,365 B and the
+    // ceiling literal follows it; final reconciliation lands when
+    // all slices merge. The former 11,620,000
+    // ceiling is retired by this landing — the owner's Top-Choice
+    // adoption (2026-11-11) rules the paintings ship at their shipping
+    // shapes, and the Top-Choice Brief's floor 8 pins the ceiling per
+    // slice with per-family accounting. Per the slice instruction the
+    // ceiling literal is set to this branch's measured total, so the
+    // check now pins drift exactly at the INT-5 landing.
+    // Measured manifest total on this tree (INT-1 layer reconciled
+    // onto the INT-5 landing): 27,090,815 B. The ceiling moves
+    // DELIBERATELY to the measured total of this branch, per the
+    // Top-Choice adoption accounting; final reconciliation lands
+    // when all slices merge.
+    expect(total).toBeLessThan(27_090_815 + 1);  });
 });
