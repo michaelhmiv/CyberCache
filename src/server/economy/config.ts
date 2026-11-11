@@ -307,7 +307,7 @@ export const ECONOMY_CONFIG_DEFAULTS: EconomyConfigValues = {
   vendorBuybackRate: 0.4,
   vehicleYieldScalar: 1.0,
   eventChanceBase: 0.05,
-  eliteEscalationChance: 0.12,
+  eliteEscalationChance: 0.18,
   eventValueBudgetPct: 0.08,
   hotAreaMaterialBonus: 0.2,
   hotAreaYieldBonus: 0.1,

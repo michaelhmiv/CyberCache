@@ -45,6 +45,7 @@ import { issueAccessToken } from '../server/auth/tokens';
 import { MARKET_FEE_RATE } from '../lib/market/marketFee';
 import { BOSS_DEDICATED_DROP_CHANCE, KEY_CHANCE } from '../server/chef';
 import { REMATCH_FEE_MAX_MULTIPLIER, escalatedBossFee } from '../lib/bossFees';
+import { ELITE_ESCALATION_CHANCE } from '../content/roamingEvents';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
 const JOB_SECRET = 'test-job-secret-value';
@@ -108,6 +109,8 @@ describe('economy config defaults + validation', () => {
     expect(ECONOMY_CONFIG_DEFAULTS.rematchEscalationCap).toBe(REMATCH_FEE_MAX_MULTIPLIER);
     expect(REMATCH_FEE_MAX_MULTIPLIER).toBe(8);
     expect(ECONOMY_CONFIG_DEFAULTS.roamingLegendaryScalar).toBe(1.0);
+    expect(ECONOMY_CONFIG_DEFAULTS.eliteEscalationChance).toBe(ELITE_ESCALATION_CHANCE);
+    expect(ELITE_ESCALATION_CHANCE).toBe(0.18);
   });
 
   it('the escalation cap lever actually caps escalatedBossFee', () => {
@@ -126,6 +129,9 @@ describe('economy config defaults + validation', () => {
     expect(validateEconomyConfigValue('roamingLegendaryScalar', 5.1)).toBeNull();
     expect(validateEconomyConfigValue('rematchEscalationCap', 1)).toBe(1);
     expect(validateEconomyConfigValue('rematchEscalationCap', 64)).toBe(64);
+    expect(validateEconomyConfigValue('eliteEscalationChance', 0)).toBe(0);
+    expect(validateEconomyConfigValue('eliteEscalationChance', 1)).toBe(1);
+    expect(validateEconomyConfigValue('eliteEscalationChance', 1.5)).toBeNull();
     expect(validateEconomyConfigValue('rematchEscalationCap', 0)).toBeNull();
     expect(validateEconomyConfigValue('rematchEscalationCap', 2.5)).toBeNull();
     expect(validateEconomyConfigValue('nope', 1)).toBeNull();

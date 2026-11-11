@@ -272,7 +272,7 @@ model (`modelShieldBehaviorForBoss`).
 | Nova | When the shield breaks (crosses to 0 while armed), it erupts for 150% of capacity damage — roaming: at the kill cycle's current target; boss: flat damage off the boss's HP. Fires once per break; re-arms only after the shield is restored above 50% of capacity. |
 | Absorb | While the shield is up, each incoming hit has a 15% chance to be fully negated and restore 5% of capacity as shield HP. |
 | Amp | While shield HP is at full capacity, outgoing damage ×1.25. (Boss sim: fight-averaged over the fraction of the fight the shield pool holds.) |
-| Turtle | Capacity ×1.5 at generation, recharge rate ×0.5. Note: no engine consumes `rechargeRate` — shield HP rises only via Shield Cell restores / boss consumable pools — so in the current sims the capacity edge stands alone and the halved stat is the standing tradeoff wherever recharge is read. |
+| Turtle | Capacity ×1.5 at generation, recharge rate ×0.5. Recharge is live (owner ruling 2026-11-10): the roaming claim sim restores `rechargeRate × 3` shield HP on any tick where the hunter took no damage (shield or HP), capped at capacity (`shieldRechargeAmount` in `shieldBehaviors.ts`); the boss sim folds it through `modelShieldRechargeForBoss` — under its continuous-damage window the suppression rule restores nothing mid-fight. The halved Turtle rate is therefore a real tradeoff in both sims, not a paper one. Shield HP also still rises via Shield Cell restores / boss consumable pools, unchanged. |
 
 ---
 

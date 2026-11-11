@@ -9,6 +9,7 @@ import { computeHunterMaxHp } from '../combat/damageContract';
 import {
   SHIELD_BEHAVIOR_TUNING,
   modelShieldBehaviorForBoss,
+  modelShieldRechargeForBoss,
   shieldBehaviorOf,
 } from '../combat/shieldBehaviors';
 // Note: applySignatureMechanic used to be applied in the sim
@@ -718,6 +719,26 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     } else if (shieldBehavior === 'turtle') {
       reasons.push('Turtle shield: oversized capacity, slow recharge.');
     }
+  }
+
+  // Passive shield recharge (owner ruling 2026-11-10): folded for
+  // EVERY shield, Standard included — recharge is behavior-
+  // independent. The pooled model's boss damage is continuous across
+  // the exposure window, so the suppression rule (recharge only on
+  // damage-free ticks) restores nothing inside the fight itself; see
+  // modelShieldRechargeForBoss for the full reasoning. The restored
+  // amount is in post-mitigation shield units, converted into the
+  // pool's raw-equivalent units by the same factor as Absorb's fold.
+  const shieldRechargeRestored = shield
+    ? modelShieldRechargeForBoss({
+        capacity: playerShieldHP,
+        rechargeRate: shield.rechargeRate ?? 0,
+        totalIncomingDamage: boss.dps * 30,
+        mitigation: shieldMitigation,
+      })
+    : 0;
+  if (shieldRechargeRestored > 0) {
+    totalSurvival += shieldRechargeRestored / (1 - shieldMitigation);
   }
 
   // Concussive Payload (Demolition major, Phase 2d): a staggered boss

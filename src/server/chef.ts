@@ -110,6 +110,7 @@ import {
   SHIELD_BEHAVIOR_TUNING,
   ampDamageMultiplier,
   shieldBehaviorOf,
+  shieldRechargeAmount,
 } from '../lib/combat/shieldBehaviors';
 import { computeEffectiveDpsFromGear } from '../lib/combat/loadoutSurvival';
 import {
@@ -621,6 +622,12 @@ export function processRoamingClaim(
   // boss sim.
   const shieldBehavior = shieldBehaviorOf(slotShield);
   const shieldCapacity = slotShield?.hp ?? 0;
+  // Passive recharge rate (owner ruling 2026-11-10), re-derived
+  // server-side from the same equipped shield — the generated stat
+  // the loot cards print (Turtle shields carry their halved rate in
+  // the stat itself). Consumed by the per-tick recharge at the foot
+  // of the tick loop through shieldRechargeAmount.
+  const shieldRechargeRate = slotShield?.rechargeRate ?? 0;
 
   // Skill bonuses arrive already server-derived: the claim and
   // settlement routes rebuild them from profiles.skill_spends + the
@@ -1246,6 +1253,14 @@ export function processRoamingClaim(
     }
   };
 
+  // Per-tick damage taken (shield + HP actually lost), reset at each
+  // tick start below. The passive-recharge suppression rule (owner
+  // ruling 2026-11-10) reads it at the foot of the tick: a tick with
+  // any damage taken recharges nothing. Every damage path in the
+  // tick loop accumulates here — the monster hit and this
+  // environmental path are the only two.
+  let tickDamageTaken = 0;
+
   // Environmental event damage (detonation splash, minefield,
   // overheat attrition): shield absorbs first, Med Kit buffers second,
   // HP last — the same routing as a monster hit, minus mitigation and
@@ -1274,6 +1289,9 @@ export function processRoamingClaim(
       areaId,
       value: remaining,
     });
+    // Shield + HP actually lost (post-buffer) — feeds the recharge
+    // suppression rule for this tick.
+    tickDamageTaken += absorbed + remaining;
     if (remaining > 0) {
       survHp = Math.max(0, survHp - remaining);
       if (survHp <= 0) {
@@ -1555,6 +1573,7 @@ export function processRoamingClaim(
     const tickStartKills = kcMonstersKilled;
     const tickStartHp = survHp;
     const tickStartShield = survShield;
+    tickDamageTaken = 0;
 
     // --- Consumable engine tick ---
     if (roamingState) {
@@ -2002,6 +2021,11 @@ export function processRoamingClaim(
           }
 
           survHp = Math.max(0, survHp - remainingHpDamage);
+          // Shield absorbed + HP actually lost (post-buffer) — feeds
+          // the recharge suppression rule for this tick. A hit the
+          // Absorb behavior negated outright contributes 0, exactly
+          // as the rule states: no damage taken.
+          tickDamageTaken += hit.shieldAbsorbed + remainingHpDamage;
           if (survHp <= 0) {
             survDead = true;
             if (survivalModeled) trickleArmed = false;
@@ -2174,6 +2198,29 @@ export function processRoamingClaim(
             hint: true,
           });
         }
+      }
+    }
+
+    // --- Passive shield recharge (owner ruling 2026-11-10) ---
+    // The tick's last step, after every damage source for the tick
+    // has resolved (monster hit, environmental events, event-roll
+    // hazards): if the hunter took no damage this tick, the shield
+    // recharges at its generated rate for the tick's 3 seconds,
+    // capped at capacity — Borderlands' rule, with the damage-free
+    // tick itself as the only delay. Unmodeled survival (the offline
+    // settlement carries no survival input) and a downed hunter
+    // never recharge. Restores from earlier in the tick (Shield
+    // Cell, coolant, Absorb) are untouched and stack beneath this.
+    if (survivalModeled && !survDead) {
+      const restored = shieldRechargeAmount({
+        shieldHp: survShield,
+        capacity: shieldCapacity,
+        rechargeRate: shieldRechargeRate,
+        tookDamage: tickDamageTaken > 0,
+        tickSeconds: TICK_MS / 1000,
+      });
+      if (restored > 0) {
+        survShield += restored;
       }
     }
   }

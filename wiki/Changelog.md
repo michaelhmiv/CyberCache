@@ -7,6 +7,10 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Crafting consumables costs real Scrap now** — the Scrap legs on consumable recipes were priced back when Scrap barely moved; they now run two to eight times higher, tiered by the item: a Patch Kit costs 10 Scrap, a Med Kit 40, a Shield Cell 100, an Adrenaline Shot 300. Batch recipes follow the same curve. Everything else about the recipes — the other inputs, the craft times, what the items do — is unchanged.
 - **Listing on the market posts a Scrap deposit** — creating a listing now charges 25 Scrap alongside the escrow. Sell the item and the deposit comes straight back; cancel the listing and it is burned. The 5% sale fee works exactly as before, and the Sell form shows the deposit before you confirm.
 
+## 2026-11-10 — Your shield comes back
+
+- **Shields recharge now** — the RECHARGE number on every shield card is live: go a full tick without taking a hit and your shield refills at that rate until it is full; take damage and that tick's recharge is lost, with no extra delay once the quiet ticks return. It is the Borderlands rhythm — break off, catch your breath, come back whole — and it makes Turtle's trade honest at last: the big pool refills at half speed. Shield Cells still restore instantly when you cannot afford the quiet.
+
 ## 2026-11-10 — Your vehicle rides up front
 
 - **Your vehicle has a permanent seat on Home now** — its chip moved off the consumables belt (the belt is consumables only again) and onto the resource Strip, docked right beside the loot counter after the gear count: your vehicle is your eighth loadout slot, so it sits with the counter that counts the other seven. It reads the same as ever while you're fueled — name, fuel units, yield, condition when worn — and still flips to its remedy when you run dry or wear out. The change that matters: it no longer vanishes when you're on foot. It reads **On foot** instead, and every state — fueled, dry, worn, on foot — taps straight through to your Loadout with the Garage already open.
@@ -16,6 +20,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Enemies walk in and close on you now** — a roaming enemy used to appear near its mark and slide the last few steps rigidly; now it enters from well off its mark — about four times the old distance — body swaying and shifting with its stride as it comes, and settles closer to your hunter, so fights frame tighter. A shot that lands while it's still walking in plays through its stride instead of freezing it, and it arrives exactly on its fighting stance. Bosses keep their own entrance staging.
 - **The hunter's stride reaches full stretch** — the between-enemy advance used to spend its whole walk-in still warming up, peaking at about three-quarter stride as he arrived. His travel gait now builds to a full stride inside the walk and settles from there — same steps, same pace, the walk simply finishes becoming a walk before it ends.
 - **First attempts on a boss cost half price** — until you have beaten a boss, every attempt on it charges half its entry fee: the Mnemosyne Mirror's first clear costs 2,500 credits instead of 5,000, The Siltstalker's 100 instead of 200. The discount is per boss and ends for good at your first victory over it; rematch pricing takes over from there. The fee prep shows is still exactly the fee charged.
+- **Named elites stalk you more often** — when an elite rotates into your fight, it now escalates into the area's named elite — triple the strength, and its drop can't roll below Epic — about half again as often as before. Keep the belt stocked.
 
 ## 2026-11-10 — Consumables hit like they should
 

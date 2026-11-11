@@ -297,7 +297,7 @@ surface and rides the same lever registry:
 | `eventChanceBase` | 0.05 | 0..0.15 | Per-tick roaming event roll. 0 silences events. Hard ceiling = the brief's 15% clamp. |
 | `eventValueBudgetPct` | 0.08 | 0..0.5 | The anti-leak budget the event tables were authored against: expected event value per tick ≤ this fraction of a plain tick's value (`eventValuePerTick` vs `plainTickValue` in `src/content/roamingEvents.ts`, asserted in tests). |
 | `hotAreaMaterialBonus` | 0.2 | 0..1 | Extra material-find chance in the day's hot area. |
-| `eliteEscalationChance` | 0.12 | 0..1 | Chance an elite rotating into the kill cycle escalates into the area's named elite (HP ×3, Epic-floor drop). |
+| `eliteEscalationChance` | 0.18 | 0..1 | Chance an elite rotating into the kill cycle escalates into the area's named elite (HP ×3, Epic-floor drop). |
 | `hotAreaYieldBonus` | 0.1 | 0..1 | Yield bonus in the hot area (danger also ×1.15 — a code constant, `HOT_AREA_DANGER_MULTIPLIER`). |
 | `absoluteOfflineCapHours` | 24 | 1..24 (int) | The AFK ceiling: effective cap = min(earned tier + keystone, user limiter, this). |
 
@@ -355,6 +355,34 @@ day, and the minted/salvaged ratio (average yield per destroyed
 legendary should sit between 1 and 4 — outside that band, something
 is mis-attributing).
 
+## Decision record — passive shield recharge (2026-11-10)
+
+**Ruling (owner, 2026-11-10):** adopt Borderlands-style passive
+shield recharge as a NEW mechanic, with damage-tick suppression as
+its governing law. This closes the D1 arc of the 2026-11-10 economy
+tuning package: D1 was first approved as *suppressing* an existing
+recharge; the T1 premise check (`T1-PREMISE-CHECK.md`, in the
+tuning program's prep folder) then proved no recharge mechanic
+existed — `rechargeRate` was a generated, displayed stat that no
+engine consumed, a fact the repo itself stated in three places.
+Presented with that finding, the owner re-ruled the same day: add
+the mechanic deliberately ("that's what Borderlands does" — the
+game's north star), suppression rule included.
+
+**Terms:** consume the generated `rechargeRate` as-is (10 + 1.5 ×
+item level per second, affix and behavior transforms included —
+Turtle's halved rate is now a real tradeoff). A tick restores
+rate × 3 (the 3-second tick) only when the hunter took zero damage
+(shield or HP) that tick; the first damage-free tick recharges, no
+additional delay; never above the equipped shield's capacity. The
+boss sim folds it pooled (`modelShieldRechargeForBoss`): continuous
+boss damage leaves no damage-free tick, so it restores nothing
+mid-fight. No stat numbers changed anywhere — the generator formula
+included. Expected economy effect: Shield Cell demand softens for
+roaming sustain (pressure now comes from exposure/pool math, per
+the premise check), and dented shields stop being a standing belt
+tax between fights.
+
 ## Tuning decisions — D2 consumable magnitudes (2026-11-10)
 
 Owner ruling 2026-11-10: D2 (the economy tuning brief's consumable
@@ -404,6 +432,30 @@ is to be rebaselined after the fleet measures the new magnitudes.
 **Where it lives.** The pre-escalation base fee has one derivation, `bossBaseFee` (with `firstClearEntryFee`) in `src/lib/bossFees.ts`, read by every surface that names a price: the verify-boss route's charge AND its insufficient-credits refusal (`src/server/routes/claim.ts`), the boss prep panel, and the boss picker. "Has beaten this boss" is the existing victory record — `boss_state.defeatedBossIds` on the profile, maintained by the boss-attempt applier. No new storage, no migration: the fact already existed and already drove the entry-vs-rematch branch; D4 extends that same branch's undefeated side. Escalation is untouched and composes on top of the base — for a never-beaten boss today's victory count is always 0, so escalation first bites on the rematch base after a same-day victory.
 
 **Watch.** Attempts should spread further up the ladder earlier (the Mirror is attemptable holding 2,500 cr instead of 5,000), and time-to-first-Mirror-attempt should roughly halve for new hunters. **Falsifier (from the tuning brief):** if open-beta humans routinely reach the Mirror holding ≫10,000 cr, the discount is a giveaway on a non-binding fee — remove it and keep fees flat.
+
+## Elite escalation dial (tuning proposal P2, owner ruling 2026-11-10)
+
+Owner ruling 2026-11-10: P2 (the economy tuning brief's elite
+pressure dial) approved — GO.
+
+- **Change.** The named-elite escalation chance rises 0.12 → 0.18 at
+  both of its homes: the shipped constant `ELITE_ESCALATION_CHANCE`
+  in `src/content/roamingEvents.ts` and this lever's default
+  (`eliteEscalationChance`, in the lever table above). No other
+  change — no elite stat, reward, or other rate moves.
+- **Mechanism.** The kill cycle rotates the area roster in order, so
+  an elite is every 4th target; when an elite target rotates in, it
+  escalates into the area's named elite (HP ×3, drops floored at
+  Epic) with probability equal to this dial. Named-elite encounters
+  therefore rise from ~3% to ~4.5% of targets — per elite target,
+  from about 1 in 8 to about 1 in 5.6. An Elite Patrol roaming event
+  still forces escalation regardless of the dial.
+- **Watch.** Elites are the roaming fights that already cost real
+  pool; slightly more of them sharpens the belt-check moments without
+  touching trash pacing. **Falsifier (from the tuning brief):** if
+  fleet data post-recharge (P1 was re-ruled as passive shield
+  recharge, slice T1R) shows elite share of deaths ≫ elite share of
+  fights, revert the dial.
 
 ## Tuning decisions — D3 scrap portfolio (2026-11-10)
 
