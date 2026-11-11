@@ -274,11 +274,22 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 222 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 233 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-11** — 1 merge
+**2026-11-11** — 12 merges
 
 - #484 — Boss setup-diversity (slice C2): mechanic legs collect + Bishop composite; CryoAmmo re-read measured and dropped
+- #485 — INT-7: Top-Choice cache screen — painted crate, opened ignition frame, buried prop swap
+- #486 — INT-9: painted masters for nav sigils, calendar hero, drop-rise markers
+- #487 — INT-6 Vistas go plain: the 8 master paintings ship whole, band system retired
+- #488 — Top-Choice INT-8: chrome + brand integration (Wave 14)
+- #489 — INT-5: Top-Choice vehicles + set pieces — adopted paintings ship
+- #490 — INT-3 (hero): adopted Wave 8 painterly part masters at 4x definition
+- #491 — INT-1 Weapons: adopted Top-Choice paintings — production sprite layer + wiki re-point
+- #492 — INT-10 (icons): the functional paintings — fixed set + baked state variants
+- #493 — INT-4: Top-Choice consumables + materials land; Cache Fragment deleted
+- #494 — Top-Choice INT-2: gear renders as adopted paintings (shields, relics, class mods, ordnance)
+- #495 — SI torso: paint out the cyan chest slash (reads as a third arm)
 
 **2026-11-10** — 15 merges
 

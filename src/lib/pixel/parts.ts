@@ -218,13 +218,23 @@ export const PART_POSES: Record<PartsPoseName, PartPose> = {
     torso: { rotate: 1 },
     armUpperN: { rotate: -7, y: -1 },
     armForeN: { rotate: -4 },
-    armFar: { rotate: -28 },
+    // The far (support) arm rotates fully forward so it braces
+    // under the gun arm, hand ending at the grip's underside. At
+    // the old -28 the single-piece arm dangled in the gap between
+    // the gun arm and the torso — shoulder hidden behind the
+    // torso, it read as a small extra arm growing from the armpit
+    // (owner flag, 2026-11-11). A true foregrip seat is out of
+    // the part's reach (shoulder→supportHand ≈ 45px vs ≈ 64px+ to
+    // the foregrip), so the brace-under-grip read is the shipped
+    // shape; recoil carries the matching -51 so the support arm
+    // stays on the gun through the kick.
+    armFar: { rotate: -52 },
     head: { rotate: 3 },
   },
   recoil: {
     armUpperN: { rotate: 5, x: -2 },
     armForeN: { rotate: 7, x: -3 },
-    armFar: { rotate: -18 },
+    armFar: { rotate: -51 },
     head: { rotate: -2 },
   },
   hit: {
