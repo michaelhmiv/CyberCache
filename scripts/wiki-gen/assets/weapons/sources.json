@@ -1,0 +1,1180 @@
+{
+ "frames/beam-blast-forge": {
+  "asset": "assets/weapons/frames/beam-blast-forge.png",
+  "bytes": 82852,
+  "content_box": [
+   0,
+   0,
+   2400,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/beam-blastforge-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   528
+  ]
+ },
+ "frames/beam-helix-works": {
+  "asset": "assets/weapons/frames/beam-helix-works.png",
+  "bytes": 83979,
+  "content_box": [
+   144,
+   0,
+   2161,
+   760
+  ],
+  "master": "wave2-weapon-bases/renders/beam-helixworks-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   543
+  ]
+ },
+ "frames/beam-ironwood": {
+  "asset": "assets/weapons/frames/beam-ironwood.png",
+  "bytes": 78931,
+  "content_box": [
+   0,
+   0,
+   2400,
+   764
+  ],
+  "master": "wave2-weapon-bases/renders/beam-ironwood-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   458
+  ]
+ },
+ "frames/beam-prismatek": {
+  "asset": "assets/weapons/frames/beam-prismatek.png",
+  "bytes": 76260,
+  "content_box": [
+   68,
+   0,
+   2328,
+   790
+  ],
+  "master": "wave2-weapon-bases/renders/beam-prismatek-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   503
+  ]
+ },
+ "frames/beam-redline": {
+  "asset": "assets/weapons/frames/beam-redline.png",
+  "bytes": 76594,
+  "content_box": [
+   0,
+   0,
+   2292,
+   774
+  ],
+  "master": "wave2-weapon-bases/renders/beam-redline-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   486
+  ]
+ },
+ "frames/beam-throw-tech": {
+  "asset": "assets/weapons/frames/beam-throw-tech.png",
+  "bytes": 61258,
+  "content_box": [
+   0,
+   0,
+   2400,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/beam-throwtech-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   528
+  ]
+ },
+ "frames/launcher-blast-forge": {
+  "asset": "assets/weapons/frames/launcher-blast-forge.png",
+  "bytes": 75580,
+  "content_box": [
+   0,
+   131,
+   2227,
+   771
+  ],
+  "master": "wave2-weapon-bases/renders/launcher-blastforge-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   414
+  ]
+ },
+ "frames/launcher-helix-works": {
+  "asset": "assets/weapons/frames/launcher-helix-works.png",
+  "bytes": 90437,
+  "content_box": [
+   80,
+   0,
+   2400,
+   818
+  ],
+  "master": "wave2-weapon-bases/renders/launcher-helixworks-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   508
+  ]
+ },
+ "frames/launcher-ironwood": {
+  "asset": "assets/weapons/frames/launcher-ironwood.png",
+  "bytes": 71334,
+  "content_box": [
+   0,
+   0,
+   2400,
+   776
+  ],
+  "master": "wave2-weapon-bases/renders/launcher-ironwood-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   466
+  ]
+ },
+ "frames/launcher-prismatek": {
+  "asset": "assets/weapons/frames/launcher-prismatek.png",
+  "bytes": 86288,
+  "content_box": [
+   96,
+   0,
+   2304,
+   824
+  ],
+  "master": "wave2-weapon-bases/renders/launcher-prismatek-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   537
+  ]
+ },
+ "frames/launcher-redline": {
+  "asset": "assets/weapons/frames/launcher-redline.png",
+  "bytes": 54271,
+  "content_box": [
+   0,
+   0,
+   2400,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/launcher-redline-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   528
+  ]
+ },
+ "frames/launcher-throw-tech": {
+  "asset": "assets/weapons/frames/launcher-throw-tech.png",
+  "bytes": 58820,
+  "content_box": [
+   0,
+   0,
+   2400,
+   805
+  ],
+  "master": "wave2-weapon-bases/renders/launcher-throwtech-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   483
+  ]
+ },
+ "frames/pistol-blast-forge": {
+  "asset": "assets/weapons/frames/pistol-blast-forge.png",
+  "bytes": 55323,
+  "content_box": [
+   0,
+   0,
+   2400,
+   872
+  ],
+  "master": "wave2-weapon-bases/renders/pistol-blastforge-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   523
+  ]
+ },
+ "frames/pistol-helix-works": {
+  "asset": "assets/weapons/frames/pistol-helix-works.png",
+  "bytes": 49096,
+  "content_box": [
+   0,
+   0,
+   2400,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/pistol-helixworks-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   528
+  ]
+ },
+ "frames/pistol-ironwood": {
+  "asset": "assets/weapons/frames/pistol-ironwood.png",
+  "bytes": 61429,
+  "content_box": [
+   0,
+   0,
+   2168,
+   795
+  ],
+  "master": "wave2-weapon-bases/renders/pistol-ironwood-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   528
+  ]
+ },
+ "frames/pistol-prismatek": {
+  "asset": "assets/weapons/frames/pistol-prismatek.png",
+  "bytes": 64692,
+  "content_box": [
+   0,
+   0,
+   2400,
+   865
+  ],
+  "master": "wave2-weapon-bases/renders/pistol-prismatek-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   519
+  ]
+ },
+ "frames/pistol-redline": {
+  "asset": "assets/weapons/frames/pistol-redline.png",
+  "bytes": 76019,
+  "content_box": [
+   431,
+   0,
+   2484,
+   899
+  ],
+  "master": "wave2-weapon-bases/renders/pistol-redline-top.png",
+  "master_size": [
+   2608,
+   944
+  ],
+  "out_size": [
+   1440,
+   631
+  ]
+ },
+ "frames/pistol-throw-tech": {
+  "asset": "assets/weapons/frames/pistol-throw-tech.png",
+  "bytes": 44038,
+  "content_box": [
+   0,
+   0,
+   2400,
+   852
+  ],
+  "master": "wave2-weapon-bases/renders/pistol-throwtech-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   511
+  ]
+ },
+ "frames/shotgun-blast-forge": {
+  "asset": "assets/weapons/frames/shotgun-blast-forge.png",
+  "bytes": 60557,
+  "content_box": [
+   99,
+   0,
+   2256,
+   799
+  ],
+  "master": "wave2-weapon-bases/renders/shotgun-blastforge-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   533
+  ]
+ },
+ "frames/shotgun-helix-works": {
+  "asset": "assets/weapons/frames/shotgun-helix-works.png",
+  "bytes": 83228,
+  "content_box": [
+   53,
+   0,
+   2143,
+   800
+  ],
+  "master": "wave2-weapon-bases/renders/shotgun-helixworks-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   551
+  ]
+ },
+ "frames/shotgun-ironwood": {
+  "asset": "assets/weapons/frames/shotgun-ironwood.png",
+  "bytes": 70824,
+  "content_box": [
+   0,
+   0,
+   2239,
+   816
+  ],
+  "master": "wave2-weapon-bases/renders/shotgun-ironwood-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   525
+  ]
+ },
+ "frames/shotgun-prismatek": {
+  "asset": "assets/weapons/frames/shotgun-prismatek.png",
+  "bytes": 97916,
+  "content_box": [
+   4,
+   0,
+   2360,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/shotgun-prismatek-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   538
+  ]
+ },
+ "frames/shotgun-redline": {
+  "asset": "assets/weapons/frames/shotgun-redline.png",
+  "bytes": 56845,
+  "content_box": [
+   0,
+   0,
+   2124,
+   731
+  ],
+  "master": "wave2-weapon-bases/renders/shotgun-redline-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   496
+  ]
+ },
+ "frames/shotgun-throw-tech": {
+  "asset": "assets/weapons/frames/shotgun-throw-tech.png",
+  "bytes": 54279,
+  "content_box": [
+   64,
+   0,
+   2400,
+   809
+  ],
+  "master": "wave2-weapon-bases/renders/shotgun-throwtech-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   499
+  ]
+ },
+ "frames/smg-blast-forge": {
+  "asset": "assets/weapons/frames/smg-blast-forge.png",
+  "bytes": 56857,
+  "content_box": [
+   0,
+   0,
+   2311,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/smg-blastforge-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   548
+  ]
+ },
+ "frames/smg-helix-works": {
+  "asset": "assets/weapons/frames/smg-helix-works.png",
+  "bytes": 82421,
+  "content_box": [
+   0,
+   0,
+   2056,
+   817
+  ],
+  "master": "wave2-weapon-bases/renders/smg-helixworks-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   572
+  ]
+ },
+ "frames/smg-ironwood": {
+  "asset": "assets/weapons/frames/smg-ironwood.png",
+  "bytes": 66609,
+  "content_box": [
+   0,
+   0,
+   2296,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/smg-ironwood-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   552
+  ]
+ },
+ "frames/smg-prismatek": {
+  "asset": "assets/weapons/frames/smg-prismatek.png",
+  "bytes": 59063,
+  "content_box": [
+   0,
+   0,
+   2400,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/smg-prismatek-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   528
+  ]
+ },
+ "frames/smg-redline": {
+  "asset": "assets/weapons/frames/smg-redline.png",
+  "bytes": 71253,
+  "content_box": [
+   201,
+   0,
+   1976,
+   839
+  ],
+  "master": "wave2-weapon-bases/renders/smg-redline-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   681
+  ]
+ },
+ "frames/smg-throw-tech": {
+  "asset": "assets/weapons/frames/smg-throw-tech.png",
+  "bytes": 54235,
+  "content_box": [
+   0,
+   0,
+   2316,
+   830
+  ],
+  "master": "wave2-weapon-bases/renders/smg-throwtech-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   516
+  ]
+ },
+ "frames/sniper-blast-forge": {
+  "asset": "assets/weapons/frames/sniper-blast-forge.png",
+  "bytes": 64963,
+  "content_box": [
+   127,
+   0,
+   2286,
+   688
+  ],
+  "master": "wave2-weapon-bases/renders/sniper-blastforge-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   459
+  ]
+ },
+ "frames/sniper-helix-works": {
+  "asset": "assets/weapons/frames/sniper-helix-works.png",
+  "bytes": 69888,
+  "content_box": [
+   0,
+   0,
+   2400,
+   756
+  ],
+  "master": "wave2-weapon-bases/renders/sniper-helixworks-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   454
+  ]
+ },
+ "frames/sniper-ironwood": {
+  "asset": "assets/weapons/frames/sniper-ironwood.png",
+  "bytes": 67523,
+  "content_box": [
+   0,
+   0,
+   2314,
+   768
+  ],
+  "master": "wave2-weapon-bases/renders/sniper-ironwood-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   478
+  ]
+ },
+ "frames/sniper-prismatek": {
+  "asset": "assets/weapons/frames/sniper-prismatek.png",
+  "bytes": 72736,
+  "content_box": [
+   0,
+   0,
+   2296,
+   705
+  ],
+  "master": "wave2-weapon-bases/renders/sniper-prismatek-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   442
+  ]
+ },
+ "frames/sniper-redline": {
+  "asset": "assets/weapons/frames/sniper-redline.png",
+  "bytes": 51423,
+  "content_box": [
+   0,
+   0,
+   2400,
+   737
+  ],
+  "master": "wave2-weapon-bases/renders/sniper-redline-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   442
+  ]
+ },
+ "frames/sniper-throw-tech": {
+  "asset": "assets/weapons/frames/sniper-throw-tech.png",
+  "bytes": 58564,
+  "content_box": [
+   0,
+   0,
+   2294,
+   880
+  ],
+  "master": "wave2-weapon-bases/renders/sniper-throwtech-top.png",
+  "master_size": [
+   2400,
+   880
+  ],
+  "out_size": [
+   1440,
+   552
+  ]
+ },
+ "legendary/armor-eater": {
+  "asset": "assets/weapons/legendary/armor-eater.png",
+  "bytes": 108859,
+  "content_box": [
+   0,
+   44,
+   3200,
+   798
+  ],
+  "master": "wave1-5-silhouette/renders/armor-eater-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   339
+  ]
+ },
+ "legendary/bad-decision": {
+  "asset": "assets/weapons/legendary/bad-decision.png",
+  "bytes": 73230,
+  "content_box": [
+   0,
+   70,
+   3376,
+   720
+  ],
+  "master": "wave1-5-silhouette/renders/bad-decision-top.png",
+  "master_size": [
+   3376,
+   720
+  ],
+  "out_size": [
+   1440,
+   277
+  ]
+ },
+ "legendary/borrowed-time": {
+  "asset": "assets/weapons/legendary/borrowed-time.png",
+  "bytes": 191307,
+  "content_box": [
+   3,
+   0,
+   1266,
+   1920
+  ],
+  "master": "wave1-5-silhouette/renders/borrowed-time-top.png",
+  "master_size": [
+   1280,
+   1920
+  ],
+  "out_size": [
+   1263,
+   1920
+  ]
+ },
+ "legendary/chain-lightning": {
+  "asset": "assets/weapons/legendary/chain-lightning.png",
+  "bytes": 132629,
+  "content_box": [
+   0,
+   0,
+   2736,
+   911
+  ],
+  "master": "wave1-5-silhouette/renders/chain-lightning-top.png",
+  "master_size": [
+   2736,
+   912
+  ],
+  "out_size": [
+   1440,
+   479
+  ]
+ },
+ "legendary/cryo-stasis": {
+  "asset": "assets/weapons/legendary/cryo-stasis.png",
+  "bytes": 133036,
+  "content_box": [
+   0,
+   0,
+   3200,
+   800
+  ],
+  "master": "wave1-legendaries/renders/cryo-stasis-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   360
+  ]
+ },
+ "legendary/debt-collector": {
+  "asset": "assets/weapons/legendary/debt-collector.png",
+  "bytes": 243246,
+  "content_box": [
+   0,
+   29,
+   1920,
+   1246
+  ],
+  "master": "wave1-5-silhouette/renders/debt-collector-top.png",
+  "master_size": [
+   1920,
+   1280
+  ],
+  "out_size": [
+   1440,
+   913
+  ]
+ },
+ "legendary/echo-chamber": {
+  "asset": "assets/weapons/legendary/echo-chamber.png",
+  "bytes": 72382,
+  "content_box": [
+   0,
+   0,
+   3152,
+   800
+  ],
+  "master": "wave1-legendaries/renders/echo-chamber-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   365
+  ]
+ },
+ "legendary/emberfall": {
+  "asset": "assets/weapons/legendary/emberfall.png",
+  "bytes": 112960,
+  "content_box": [
+   0,
+   0,
+   2987,
+   832
+  ],
+  "master": "wave1-5-silhouette/renders/emberfall-top.png",
+  "master_size": [
+   3024,
+   832
+  ],
+  "out_size": [
+   1440,
+   401
+  ]
+ },
+ "legendary/glass-sun": {
+  "asset": "assets/weapons/legendary/glass-sun.png",
+  "bytes": 92664,
+  "content_box": [
+   0,
+   0,
+   3193,
+   800
+  ],
+  "master": "wave1-legendaries/renders/glass-sun-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   361
+  ]
+ },
+ "legendary/hot-swapper": {
+  "asset": "assets/weapons/legendary/hot-swapper.png",
+  "bytes": 113494,
+  "content_box": [
+   0,
+   0,
+   2956,
+   832
+  ],
+  "master": "wave1-5-silhouette/renders/hot-swapper-top.png",
+  "master_size": [
+   3024,
+   832
+  ],
+  "out_size": [
+   1440,
+   405
+  ]
+ },
+ "legendary/insurance-fraud": {
+  "asset": "assets/weapons/legendary/insurance-fraud.png",
+  "bytes": 89641,
+  "content_box": [
+   0,
+   10,
+   2240,
+   1119
+  ],
+  "master": "wave1-legendaries/renders/insurance-fraud-top.png",
+  "master_size": [
+   2240,
+   1120
+  ],
+  "out_size": [
+   1440,
+   713
+  ]
+ },
+ "legendary/jackpot": {
+  "asset": "assets/weapons/legendary/jackpot.png",
+  "bytes": 121385,
+  "content_box": [
+   0,
+   0,
+   3200,
+   800
+  ],
+  "master": "wave1-5-silhouette/renders/jackpot-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   360
+  ]
+ },
+ "legendary/kickback": {
+  "asset": "assets/weapons/legendary/kickback.png",
+  "bytes": 70429,
+  "content_box": [
+   0,
+   0,
+   3568,
+   656
+  ],
+  "master": "wave1-5-silhouette/renders/kickback-top.png",
+  "master_size": [
+   3568,
+   656
+  ],
+  "out_size": [
+   1440,
+   265
+  ]
+ },
+ "legendary/market-crash": {
+  "asset": "assets/weapons/legendary/market-crash.png",
+  "bytes": 122352,
+  "content_box": [
+   0,
+   0,
+   3200,
+   800
+  ],
+  "master": "wave1-legendaries/renders/market-crash-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   360
+  ]
+ },
+ "legendary/molten-core": {
+  "asset": "assets/weapons/legendary/molten-core.png",
+  "bytes": 140317,
+  "content_box": [
+   0,
+   0,
+   3024,
+   832
+  ],
+  "master": "wave1-5-silhouette/renders/molten-core-top.png",
+  "master_size": [
+   3024,
+   832
+  ],
+  "out_size": [
+   1440,
+   396
+  ]
+ },
+ "legendary/overclocked": {
+  "asset": "assets/weapons/legendary/overclocked.png",
+  "bytes": 128027,
+  "content_box": [
+   0,
+   0,
+   3357,
+   720
+  ],
+  "master": "wave1-5-silhouette/renders/overclocked-top.png",
+  "master_size": [
+   3376,
+   720
+  ],
+  "out_size": [
+   1440,
+   309
+  ]
+ },
+ "legendary/phase-shifter": {
+  "asset": "assets/weapons/legendary/phase-shifter.png",
+  "bytes": 79166,
+  "content_box": [
+   0,
+   0,
+   3072,
+   672
+  ],
+  "master": "wave1-legendaries/renders/phase-shifter-top.png",
+  "master_size": [
+   3072,
+   672
+  ],
+  "out_size": [
+   1440,
+   315
+  ]
+ },
+ "legendary/ricochet-gospel": {
+  "asset": "assets/weapons/legendary/ricochet-gospel.png",
+  "bytes": 69394,
+  "content_box": [
+   0,
+   0,
+   3072,
+   672
+  ],
+  "master": "wave1-legendaries/renders/ricochet-gospel-top.png",
+  "master_size": [
+   3072,
+   672
+  ],
+  "out_size": [
+   1440,
+   315
+  ]
+ },
+ "legendary/salvage-rights": {
+  "asset": "assets/weapons/legendary/salvage-rights.png",
+  "bytes": 125241,
+  "content_box": [
+   0,
+   0,
+   3200,
+   800
+  ],
+  "master": "wave1-5-silhouette/renders/salvage-rights-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   360
+  ]
+ },
+ "legendary/second-opinion": {
+  "asset": "assets/weapons/legendary/second-opinion.png",
+  "bytes": 87847,
+  "content_box": [
+   0,
+   0,
+   2560,
+   880
+  ],
+  "master": "wave1-legendaries/renders/second-opinion-top.png",
+  "master_size": [
+   2560,
+   880
+  ],
+  "out_size": [
+   1440,
+   495
+  ]
+ },
+ "legendary/stable-loop": {
+  "asset": "assets/weapons/legendary/stable-loop.png",
+  "bytes": 88424,
+  "content_box": [
+   0,
+   0,
+   3200,
+   800
+  ],
+  "master": "wave1-legendaries/renders/stable-loop-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   360
+  ]
+ },
+ "legendary/the-accountant": {
+  "asset": "assets/weapons/legendary/the-accountant.png",
+  "bytes": 57897,
+  "content_box": [
+   0,
+   0,
+   3580,
+   672
+  ],
+  "master": "wave1-legendaries/renders/the-accountant-top.png",
+  "master_size": [
+   3584,
+   672
+  ],
+  "out_size": [
+   1440,
+   270
+  ]
+ },
+ "legendary/thunder-receipt": {
+  "asset": "assets/weapons/legendary/thunder-receipt.png",
+  "bytes": 118307,
+  "content_box": [
+   0,
+   0,
+   3200,
+   800
+  ],
+  "master": "wave1-5-silhouette/renders/thunder-receipt-top.png",
+  "master_size": [
+   3200,
+   800
+  ],
+  "out_size": [
+   1440,
+   360
+  ]
+ },
+ "legendary/vampiric-ledger": {
+  "asset": "assets/weapons/legendary/vampiric-ledger.png",
+  "bytes": 102249,
+  "content_box": [
+   0,
+   0,
+   3024,
+   832
+  ],
+  "master": "wave1-5-silhouette/renders/vampiric-ledger-top.png",
+  "master_size": [
+   3024,
+   832
+  ],
+  "out_size": [
+   1440,
+   396
+  ]
+ },
+ "legendary/void-bargain": {
+  "asset": "assets/weapons/legendary/void-bargain.png",
+  "bytes": 136726,
+  "content_box": [
+   0,
+   0,
+   2560,
+   880
+  ],
+  "master": "wave1-legendaries/renders/void-bargain-top.png",
+  "master_size": [
+   2560,
+   880
+  ],
+  "out_size": [
+   1440,
+   495
+  ]
+ },
+ "legendary/warranty-void": {
+  "asset": "assets/weapons/legendary/warranty-void.png",
+  "bytes": 95466,
+  "content_box": [
+   0,
+   0,
+   2982,
+   832
+  ],
+  "master": "wave1-5-silhouette/renders/warranty-void-top.png",
+  "master_size": [
+   3024,
+   832
+  ],
+  "out_size": [
+   1440,
+   402
+  ]
+ }
+}

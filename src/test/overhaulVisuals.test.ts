@@ -269,6 +269,19 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
-    expect(total).toBeLessThan(11_620_000);
+    // INT-1 Top-Choice weapons (2026-11-11, owner adoption of the
+    // painterly program): the 62 adopted weapon paintings enter the
+    // manifest as production sprites, with per-family accounting:
+    // 26 legendary paintings (kind weapon-legendary, ids
+    // legendary-painting-* — the bespoke legendary-<slug> ids stay
+    // authored data, never sprites) +2,903,472 B; 36 weapon base
+    // paintings (kind weapon-base, ids weapon-base-*) +2,422,978 B.
+    // Slice delta +5,326,450 B over the pre-INT-1 total of
+    // 6,721,903 B → manifest-sum total on this tree: 12,048,353 B.
+    // The ceiling rises deliberately to 12,066,000 (~17 KB headroom,
+    // the M4 discipline): the next family lands with its own
+    // accounting and its own deliberate raise, exactly like this one.
+    // (docs/top-choice-weapon-integration.md)
+    expect(total).toBeLessThan(12_066_000);
   });
 });
