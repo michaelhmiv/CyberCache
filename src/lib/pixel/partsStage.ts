@@ -13,15 +13,25 @@ import {
 } from './partsCompositor';
 import { STAGE_DESIGN_ASPECT, type ActorPlacement } from './movement';
 import type { PixelWeaponInput } from './weaponCompositor';
+import { resolveWeaponPainting, weaponPaintingFractions } from './weaponPaintingRender';
 
-/** Fractions for ANY held weapon input, from its HELD card render
- *  (One Grammar, 2026-11-06 — the card grammar in held mode, seated
- *  by its declared grip anchor). A bespoke legendary's authored set
- *  declares its own grip/muzzle, which compositorWeaponFractions
- *  honors (V4). The DOM actor and the stages share this so the
+/** Fractions for ANY held weapon input. Since the painted
+ *  renderer (2026-11-11) a weapon that resolves to its adopted
+ *  Top-Choice painting seats by the painting's own manifest
+ *  anchors through the held fit — the same fractions
+ *  partsCompositor's 'painting' branch rasterizes with, so the
  *  weapon they draw and the muzzle they flash from are the same
- *  geometry. */
+ *  geometry. An input with no painting keeps the compositor's
+ *  held-render fractions (One Grammar, 2026-11-06; a bespoke
+ *  legendary's authored set declares its own grip/muzzle, which
+ *  compositorWeaponFractions honors, V4). The DOM actor and the
+ *  stages share this. */
 export function partsWeaponFractionsFor(input: PixelWeaponInput): PartsWeaponFractions {
+  const resolution = resolveWeaponPainting(input);
+  if (resolution) {
+    const fractions = weaponPaintingFractions(resolution);
+    if (fractions) return fractions;
+  }
   return compositorWeaponFractions(input);
 }
 

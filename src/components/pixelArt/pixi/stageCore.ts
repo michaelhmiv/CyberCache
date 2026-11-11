@@ -3,13 +3,15 @@ import { PRIMARY_ANCHOR, PART_SLOTS } from '@/lib/pixel/parts';
 import { MOVEMENT } from '@/lib/pixel/movement';
 import { EASE, easeOutBack } from '@/lib/pixel/pixiChoreography';
 import type { PartSetLayout } from '@/lib/pixel/partsCompositor';
-import { requirePixelSprite } from '@/lib/pixel/manifest';
+import { requirePixelSprite, getPixelSprite } from '@/lib/pixel/manifest';
 import { paletteSpriteUrl, type PaletteSpec } from '@/lib/pixel/paletteSwap';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import {
   composeWeaponCardCached,
   paintWeaponCard,
 } from '@/lib/pixel/weaponCardCompositor';
+import { renderWeaponPainting, resolveWeaponPainting } from '@/lib/pixel/weaponPaintingRender';
+import { loadSpriteImage } from '@/lib/pixel/gearPaintedRender';
 import type { PartSlot } from '@/lib/pixel/parts';
 import type { Weapon } from '@/types/items';
 
@@ -160,13 +162,37 @@ export function solidTexture(color: string): Texture {
   }, 4, 4);
 }
 
-/** The held weapon's texture: the card compositor's HELD-mode render
- *  painted to a canvas (One Grammar, 2026-11-06) — the same pixels
- *  PixelWeapon shows at 'held' density on the DOM stage. Bespoke
- *  legendaries compose through the same held path since V4. */
+/** The held weapon's texture. Since the painted renderer
+ *  (2026-11-11) the texture is the weapon's adopted Top-Choice
+ *  painting — base + element / decal / condition overlays at the
+ *  held (card) grid, rendered through weaponPaintingRender — the
+ *  same pixels PixelWeapon shows at 'held' density on the DOM
+ *  stage. The card compositor's HELD-mode render remains the
+ *  fallback for an input that resolves to no painting (or whose
+ *  sprite fails to load). */
 export async function weaponTextureForWeapon(weapon: Weapon | undefined): Promise<Texture | null> {
   if (!weapon) return null;
   const input = pixelWeaponInputFromWeapon(weapon);
+  const resolution = resolveWeaponPainting(input);
+  if (resolution) {
+    const sprite = getPixelSprite(resolution.spriteId);
+    const image = sprite ? await loadSpriteImage(resolution.spriteId, sprite.url) : undefined;
+    if (image) {
+      const render = renderWeaponPainting(input, resolution, 'held', image);
+      const canvas = document.createElement('canvas');
+      canvas.width = render.width;
+      canvas.height = render.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.putImageData(
+          new ImageData(new Uint8ClampedArray(render.image.data), render.width, render.height),
+          0,
+          0,
+        );
+        return nearest(Texture.from(canvas));
+      }
+    }
+  }
   const render = composeWeaponCardCached(input, undefined, { held: true });
   const canvas = document.createElement('canvas');
   canvas.width = render.width;

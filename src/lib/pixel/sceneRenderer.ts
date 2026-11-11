@@ -11,6 +11,7 @@
  */
 import type { RgbaImage } from './pngCodec';
 import { composePixelWeapon, type PixelWeaponInput } from './weaponCompositor';
+import { renderWeaponPainting, resolveWeaponPainting } from './weaponPaintingRender';
 import { enemyRig, type RigDef, type RigPose } from './rig';
 import { remapPixelData, type PaletteSpec } from './paletteSwap';
 
@@ -165,8 +166,23 @@ export function drawRig(img: RgbaImage, load: SpriteLoader, actor: SceneActorRig
   }
 }
 
-/** Rasterize a compositor render into an arbitrary rect (item cards). */
-export function drawWeaponRender(img: RgbaImage, weapon: PixelWeaponInput, dx: number, dy: number, w: number, h: number): void {
+/**
+ * Rasterize a weapon into an arbitrary rect (item cards, loot
+ * rises). Since the painted renderer (2026-11-11) the weapon is
+ * its adopted painting (base + overlays at the stage grid) when a
+ * loader is supplied and the input resolves; the texel compositor
+ * raster remains the no-loader / no-painting fallback.
+ */
+export function drawWeaponRender(img: RgbaImage, weapon: PixelWeaponInput, dx: number, dy: number, w: number, h: number, load?: SpriteLoader): void {
+  if (load) {
+    const resolution = resolveWeaponPainting(weapon);
+    const sprite = resolution ? load(resolution.spriteId) : undefined;
+    if (resolution && sprite) {
+      const render = renderWeaponPainting(weapon, resolution, 'stage', sprite);
+      blit(img, render.image, dx, dy, w, h);
+      return;
+    }
+  }
   const render = composePixelWeapon(weapon);
   const cellW = w / render.width;
   const cellH = h / render.height;

@@ -9,7 +9,8 @@ import { useSurvivalStore } from '@/store/slices/survivalSlice';
 // The diorama's area prop is required in practice (its siblings always pass one).
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
-import { composePixelWeaponCached, pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
+import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
+import { resolveWeaponPainting, weaponPaintingShell } from '@/lib/pixel/weaponPaintingRender';
 
 vi.mock('@/lib/feedback/sfx', () => ({
   playTone: vi.fn(),
@@ -189,7 +190,7 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
 });
 
 describe('PixelWeapon component', () => {
-  it('paints the compositor canvas with a stable signature', () => {
+  it('paints the painting canvas with a stable signature', () => {
     const input = {
       weaponType: WeaponType.Sniper,
       manufacturer: Manufacturer.Ironwood,
@@ -206,13 +207,17 @@ describe('PixelWeapon component', () => {
     expect(screen.getByTestId('pw').getAttribute('data-signature')).toBe(signature);
   });
 
-  it('renders the Emberfall authored set for the Emberfall legendary (V4)', () => {
+  it('renders the Emberfall painting for the Emberfall legendary (painted renderer, 2026-11-11)', () => {
+    // Re-pinned from the V4 authored-set compositor signature: the
+    // surface render is now Emberfall's Top-Choice painting.
     const weapon = { ...DIORAMA_WEAPON, name: 'Emberfall' };
     render(<PixelWeapon weapon={weapon} testId="pw-legendary" />);
     const art = screen.getByTestId('pw-legendary');
     expect(art.tagName).toBe('CANVAS');
+    expect(art.getAttribute('data-painted-sprite')).toBe('legendary-painting-emberfall');
+    const input = pixelWeaponInputFromWeapon(weapon);
     expect(art.getAttribute('data-signature')).toBe(
-      composePixelWeaponCached(pixelWeaponInputFromWeapon(weapon)).signature,
+      weaponPaintingShell(input, resolveWeaponPainting(input)!, 'stage').signature,
     );
   });
 });

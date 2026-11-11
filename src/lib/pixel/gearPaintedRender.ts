@@ -189,11 +189,28 @@ function relicFormFromGrammarRow(name: string): string | undefined {
 }
 
 /**
- * Serialize a decoded (possibly deck-drawn) image to a PNG data URL
- * without a canvas — the codec's own encoder, so the painted render
- * works in any environment that can decode (browser, jsdom, node).
+ * Serialize a decoded (possibly deck-drawn) image to a PNG data
+ * URL. Browser leg: canvas encode — pngCodec's encoder is
+ * node:zlib code and the browser bundle stubs node:zlib to an
+ * empty module, so encodePng can never run there (found by the
+ * weapon-renderer slice's capture pass, 2026-11-11; the node
+ * encoder below remains the leg for tests and tooling).
  */
 export function paintedImageDataUrl(image: RgbaImage): string {
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.putImageData(
+        new ImageData(new Uint8ClampedArray(image.data), image.width, image.height),
+        0,
+        0,
+      );
+      return canvas.toDataURL('image/png');
+    }
+  }
   const bytes = encodePng(image);
   let binary = '';
   const CHUNK = 0x8000;
@@ -218,10 +235,43 @@ export function paletteSwapFor(resolution: PaintedGearResolution): PaletteSwapTa
 const decodedSpriteCache = new Map<string, Promise<RgbaImage | undefined>>();
 
 /**
- * Fetch + decode a manifest sprite's bytes (browser-only: the URL
- * comes from the caller's getPixelSprite, which owns the Vite glob;
- * this module stays loadable by node tooling — the wiki generator
+ * Decode PNG bytes through the environment's leg (see
+ * loadSpriteImage): platform decoder in the browser, pngCodec in
+ * node. Exported for PixelGear's palette-swap leg, which produces
+ * NEW PNG bytes (applyPaletteSwap) that need the same decode.
+ */
+export async function decodeSpriteBytes(buf: Uint8Array): Promise<RgbaImage | undefined> {
+  if (typeof document !== 'undefined' && typeof createImageBitmap !== 'undefined') {
+    try {
+      return await decodeWithPlatform(buf);
+    } catch {
+      return undefined;
+    }
+  }
+  try {
+    return decodePng(buf);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Fetch + decode a manifest sprite's bytes (the URL comes from
+ * the caller's getPixelSprite, which owns the Vite glob; this
+ * module stays loadable by node tooling — the wiki generator
  * imports the pure pipeline above and never calls this).
+ *
+ * Decode legs, because the pixels must be identical in kind, not
+ * in path: in the BROWSER the platform decoder (createImageBitmap
+ * -> canvas -> ImageData) does the work — pngCodec is node:zlib
+ * code and the browser bundle stubs node:zlib to an empty module,
+ * so decodePng can never run there (found by the weapon-renderer
+ * slice's capture pass, 2026-11-11: INT-2's swap/deck leg had
+ * silently no-opped in the shipped app since it landed — the
+ * no-swap <img> path masked it). In NODE (tests, wiki generator,
+ * golden renderer) decodePng runs as before. Canvas round-trip is
+ * exact for opaque pixels; semi-transparent AA edges can drift a
+ * step, which the render fits average over anyway.
  */
 export function loadSpriteImage(spriteId: string, url: string): Promise<RgbaImage | undefined> {
   let pending = decodedSpriteCache.get(spriteId);
@@ -230,7 +280,7 @@ export function loadSpriteImage(spriteId: string, url: string): Promise<RgbaImag
       try {
         const res = await fetch(url);
         if (!res.ok) return undefined;
-        return decodePng(new Uint8Array(await res.arrayBuffer()));
+        return await decodeSpriteBytes(new Uint8Array(await res.arrayBuffer()));
       } catch {
         return undefined;
       }
@@ -238,6 +288,23 @@ export function loadSpriteImage(spriteId: string, url: string): Promise<RgbaImag
     decodedSpriteCache.set(spriteId, pending);
   }
   return pending;
+}
+
+/** Platform PNG decode (browser leg of loadSpriteImage). */
+async function decodeWithPlatform(buf: Uint8Array): Promise<RgbaImage | undefined> {
+  const bitmap = await createImageBitmap(new Blob([buf as BlobPart], { type: 'image/png' }));
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return undefined;
+    ctx.drawImage(bitmap, 0, 0);
+    const pixels = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    return { width: bitmap.width, height: bitmap.height, data: new Uint8Array(pixels.data) };
+  } finally {
+    bitmap.close();
+  }
 }
 
 /** Manifest-declared geometry for a sprite (node-safe). */

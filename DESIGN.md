@@ -913,10 +913,13 @@ trades register-match for richness, register wins.
   core + colorway on its own small grid, never a raw downscale
   of the card render.
 
-In code: weapons compose through `weaponCompositor.ts` /
-`weaponCardCompositor.ts`; the other gear kinds compose through
-the shared plate engine `gearCardCompositor.ts` (+ `PixelGear`),
-whose detail kit enforces the thumb discipline structurally.
+In code: weapons render through the painted renderer
+(`weaponPaintingRender.ts`; §8.3) — the texel compositors
+(`weaponCompositor.ts` / `weaponCardCompositor.ts`) remain its
+fallback and the S2 pxl-lint corpus. The other gear kinds compose
+through the shared plate engine `gearCardCompositor.ts`
+(+ `PixelGear`), whose detail kit enforces the thumb discipline
+structurally.
 
 **Owner-approved exception — the reveal light kit (2026-11-10).**
 The "glow is hard-edged texel shapes" rule above governs ITEM ART.
@@ -1614,6 +1617,58 @@ Cache Fragment is deleted with this landing (owner ruling
 reward-icon mapping, and wiki presence removed. The abolished
 currency's storage counters in historical payloads still
 decode — they are data fields, never display.
+
+### 8.3 Top-Choice weapon paintings — the painted weapon renderer (renderer slice, 2026-11-11)
+
+Weapons join the painting regime under the owner's Top-Choice
+adoption (2026-11-11, the INT-1 closing board). The adopted
+paintings INT-1 registered as production sprites — one per
+type × manufacturer (`weapon-base-<stem>`, 36) and one per
+named legendary (`legendary-painting-<slug>`, 26) — are now
+the BASE RENDER of every weapon on every surface, at both
+densities (held/stage and card/inspect share the painting;
+paintings carry no presentation furniture to omit). Fine
+detail at display size is the register, as with the §8.2
+families; the §8 texel discipline no longer governs weapon
+bodies.
+
+Per-item identity rides as OVERLAYS on the painting, in a
+fixed order — painting base, then overlays, geometry never:
+
+- **Element is zone-driven.** The instance's element re-lights
+  only the painting's authored glow zone — the chamber window
+  (beam: window + exposed spine channel) — by a palette swap
+  of the zone's own colors, core→accent by relative luminance
+  (`weaponPaintingZones.ts`, derived per base by
+  `scripts/derive-weapon-zones.py` on Wave 2's zone-proof
+  method; the two bases whose zone shares a palette with their
+  trim gate the swap to the window rect). Body and trim colors
+  appear in no swap table, so they survive byte-exact. Kinetic
+  is the honest-absence grey ramp.
+- **Affix decals** stamp over body pixels in grid space, in
+  each decal's category color — the shared derivation both
+  compositors used (`decalSpec.buildDecals`), snapped to the
+  nearest body pixel when the painting's thinner silhouette
+  misses the authored view position.
+- **Condition** is the roll's grade as wear: the stage
+  compositor's seeded speckle erase for beat-up / field-used,
+  rarity sparkles for godroll, mint a no-op — same seeds, same
+  rates.
+
+Named legendaries are never stamped or worn (the V4
+fixed-identity law): their paintings render unmodified, and a
+legendary's element is fixed in its painting — no swap.
+
+The seeded GEOMETRY variants the compositors derived from
+part-modifier hashes are retired by the painting base: one
+outline per type × manufacturer is the Silhouette Law's shape,
+and the variants were never a legible stat read — the reads
+that mattered (element window, rarity trim, decals, condition)
+all survive as overlays or frame. The texel compositors leave
+the production render path but stay in the tree as the
+fallback for inputs that resolve to no painting and as the
+S2 pxl-lint corpus. No new sprite payload ships with this
+landing: the paintings were already in the manifest (INT-1).
 
 ---
 

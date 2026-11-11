@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Weapon } from '@/types/items';
 import {
   composePixelWeaponCached,
@@ -14,34 +14,67 @@ import {
   CARD_WEAPON_HEIGHT,
   CARD_WEAPON_WIDTH,
 } from '@/lib/pixel/weaponCardCompositor';
+import {
+  renderWeaponPainting,
+  resolveWeaponPainting,
+  weaponPaintingShell,
+  type WeaponPaintingRender,
+} from '@/lib/pixel/weaponPaintingRender';
+import { getPixelSprite, hasManifestEntry } from '@/lib/pixel/manifest';
+import { loadSpriteImage } from '@/lib/pixel/gearPaintedRender';
+import type { RgbaImage } from '@/lib/pixel/pngCodec';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { useDeferredArt } from './useDeferredArt';
 
 /**
- * PixelWeapon — renders a weapon as pixel art through the parts-kit
- * compositor (src/lib/pixel/weaponCompositor.ts). One renderer for every
- * surface: diorama now, inventory/market/workshop in P5.
+ * PixelWeapon — renders a weapon. One renderer for every surface:
+ * diorama, inventory/market/workshop, loot.
  *
- * - Procedural weapons compose deterministically from their rolled parts.
- * - Named legendaries compose their bespoke authored set through the
- *   same compositor path (V4) — fixed identity, same renderer.
- * - Painting happens once per unique weapon signature; the composed render
- *   is cached module-wide, so re-renders and lists never repaint texels.
- * - `density`: 'card' (240×88, weaponCardCompositor) is the
- *   inspect composition for inventory / gear detail / market /
- *   loot surfaces; 'held' is the SAME card grammar in held mode
- *   (One Grammar, 2026-11-06) — the card composition minus its
- *   presentation furniture — and is the in-scene held weapon on
- *   every stage; 'stage' (120×44, weaponCompositor) survives only
- *   as the detail-level-0 small grid for compact list rows and
- *   feed thumbs (DESIGN.md §8; the card compose is too heavy to
- *   run per row). All densities share the 30:11 aspect, so
- *   swapping never shifts layout. Bespoke legendary resolution
- *   is identical at every density (V4).
+ * - Painted renderer FIRST (Top-Choice renderer slice, 2026-11-11):
+ *   every real weapon resolves to its adopted Top-Choice painting
+ *   (weaponPaintingRender.ts) — the painting is the base render,
+ *   with the instance's element re-lighting its authored glow
+ *   zone, its affix decals, and its roll condition as overlays.
+ *   The sprite loads async; the canvas mounts at final geometry
+ *   immediately and paints when the render lands (the PixelGear
+ *   painted-layer pattern). Renders cache module-wide by
+ *   signature, so lists never repaint a weapon they already drew.
+ * - The texel compositors (weaponCompositor 120×44 /
+ *   weaponCardCompositor 240×88) remain the fallback for inputs
+ *   that resolve to no painting — fixtures and malformed payloads;
+ *   every real type×manufacturer and named legendary resolves.
+ * - `density`: 'card' (240×88) is the inspect composition for
+ *   inventory / gear detail / market / loot surfaces; 'held' is
+ *   the same card grid as the in-scene held weapon on every stage
+ *   (paintings carry no presentation furniture, so held and card
+ *   are the same pixels at different signatures); 'stage' (120×44)
+ *   is the detail-level-0 small grid for compact list rows and
+ *   feed thumbs (DESIGN.md §8). All densities share the 30:11
+ *   aspect, so swapping never shifts layout.
  */
 
 const PAINT_SCALE = 3; // supersampled backing store; CSS size stays exact
 const CARD_PAINT_SCALE = 2; // the card grid is already 2× the stage grid
+
+/** Painting renders by signature (module-wide, like the compositor caches). */
+const paintingRenderCache = new Map<string, WeaponPaintingRender>();
+
+/** Paint an RGBA render into a 2D context at an integer scale. */
+function paintRgbaImage(ctx: CanvasRenderingContext2D, image: RgbaImage, scale: number): void {
+  const off = document.createElement('canvas');
+  off.width = image.width;
+  off.height = image.height;
+  const offCtx = off.getContext('2d');
+  if (!offCtx) return;
+  offCtx.putImageData(
+    new ImageData(new Uint8ClampedArray(image.data), image.width, image.height),
+    0,
+    0,
+  );
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, image.width * scale, image.height * scale);
+  ctx.drawImage(off, 0, 0, image.width * scale, image.height * scale);
+}
 
 interface PixelWeaponProps {
   weapon?: Weapon;
@@ -86,17 +119,57 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
 
   const paintScale = density === 'stage' ? PAINT_SCALE : CARD_PAINT_SCALE;
 
+  // Painted layer: resolution is decided by the MANIFEST
+  // declaration (never by whether the asset glob resolved), the
+  // same gate PixelGear's painted layer uses.
+  const painting = useMemo(
+    () => (resolved ? resolveWeaponPainting(resolved) : undefined),
+    [resolved],
+  );
+  const paintingDeclared = painting ? hasManifestEntry(painting.spriteId) : false;
+  const shell = useMemo(
+    () => (resolved && painting && paintingDeclared ? weaponPaintingShell(resolved, painting, density) : undefined),
+    [resolved, painting, paintingDeclared, density],
+  );
+  const [paintingRender, setPaintingRender] = useState<WeaponPaintingRender | undefined>(undefined);
+  useEffect(() => {
+    if (!active || !resolved || !painting || !shell) {
+      setPaintingRender(undefined);
+      return;
+    }
+    const cached = paintingRenderCache.get(shell.signature);
+    if (cached) {
+      setPaintingRender(cached);
+      return;
+    }
+    const sprite = getPixelSprite(painting.spriteId);
+    if (!sprite) {
+      setPaintingRender(undefined);
+      return;
+    }
+    let cancelled = false;
+    void loadSpriteImage(painting.spriteId, sprite.url).then((image) => {
+      if (cancelled || !image) return;
+      const render = renderWeaponPainting(resolved, painting, density, image);
+      paintingRenderCache.set(shell.signature, render);
+      setPaintingRender(render);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, resolved, painting, shell, density]);
+
   const stageRender = useMemo(
-    () => (active && resolved && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
-    [active, resolved, density],
+    () => (active && resolved && !paintingDeclared && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
+    [active, resolved, paintingDeclared, density],
   );
   const cardRender = useMemo(
-    () => (active && resolved && density === 'card' ? composeWeaponCardCached(resolved) : undefined),
-    [active, resolved, density],
+    () => (active && resolved && !paintingDeclared && density === 'card' ? composeWeaponCardCached(resolved) : undefined),
+    [active, resolved, paintingDeclared, density],
   );
   const heldRender = useMemo(
-    () => (active && resolved && density === 'held' ? composeWeaponCardCached(resolved, undefined, { held: true }) : undefined),
-    [active, resolved, density],
+    () => (active && resolved && !paintingDeclared && density === 'held' ? composeWeaponCardCached(resolved, undefined, { held: true }) : undefined),
+    [active, resolved, paintingDeclared, density],
   );
   const render = heldRender ?? cardRender ?? stageRender;
 
@@ -105,47 +178,77 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return; // jsdom / unsupported — element + signature still render
-    if (heldRender) paintWeaponCard(ctx, heldRender, CARD_PAINT_SCALE);
+    if (paintingRender) paintRgbaImage(ctx, paintingRender.image, paintScale);
+    else if (heldRender) paintWeaponCard(ctx, heldRender, CARD_PAINT_SCALE);
     else if (cardRender) paintWeaponCard(ctx, cardRender, CARD_PAINT_SCALE);
     else if (stageRender) paintPixelWeapon(ctx, stageRender, PAINT_SCALE);
-  }, [heldRender, cardRender, stageRender]);
+  }, [paintingRender, heldRender, cardRender, stageRender, paintScale]);
 
-  if (!render) {
+  if (defer && !active && resolved) {
     // Deferred and not yet activated: mount the canvas at its FINAL
     // geometry (the density grids are fixed — 120×44 / 240×88 — so
     // this box is exactly the box the painted canvas will occupy)
     // with the compose + paint still pending. No layout shift when
     // the art lands; the rarity glow is rarity-derived, so it can
-    // ride the placeholder unchanged.
-    if (defer && !active && resolved) {
-      const gridW = density === 'stage' ? PIXEL_WEAPON_WIDTH : CARD_WEAPON_WIDTH;
-      const gridH = density === 'stage' ? PIXEL_WEAPON_HEIGHT : CARD_WEAPON_HEIGHT;
-      const height = Math.round(size * (gridH / gridW));
-      return (
-        <canvas
-          ref={setCanvasRef}
-          width={gridW * paintScale}
-          height={gridH * paintScale}
-          className={className}
-          style={{
-            width: fluid ? '100%' : size,
-            height: fluid ? 'auto' : height,
-            imageRendering: 'pixelated',
-            filter:
-              resolved.rarity === 'Epic' || resolved.rarity === 'Legendary'
-                ? `drop-shadow(0 0 6px ${RARITY_FRAME_STYLES[resolved.rarity].color})`
-                : undefined,
-          }}
-          role="img"
-          aria-label={resolved.name ?? `${resolved.rarity ?? ''} ${resolved.weaponType ?? ''}`}
-          data-testid={testId}
-          data-density={density}
-          data-deferred-art="pending"
-        />
-      );
-    }
+    // ride the placeholder unchanged. This branch precedes the
+    // painted branch on purpose: a deferred row must not expose a
+    // signature (i.e. a composition) before it activates.
+    const gridW = density === 'stage' ? PIXEL_WEAPON_WIDTH : CARD_WEAPON_WIDTH;
+    const gridH = density === 'stage' ? PIXEL_WEAPON_HEIGHT : CARD_WEAPON_HEIGHT;
+    const height = Math.round(size * (gridH / gridW));
+    return (
+      <canvas
+        ref={setCanvasRef}
+        width={gridW * paintScale}
+        height={gridH * paintScale}
+        className={className}
+        style={{
+          width: fluid ? '100%' : size,
+          height: fluid ? 'auto' : height,
+          imageRendering: 'pixelated',
+          filter:
+            resolved.rarity === 'Epic' || resolved.rarity === 'Legendary'
+              ? `drop-shadow(0 0 6px ${RARITY_FRAME_STYLES[resolved.rarity].color})`
+              : undefined,
+        }}
+        role="img"
+        aria-label={resolved.name ?? `${resolved.rarity ?? ''} ${resolved.weaponType ?? ''}`}
+        data-testid={testId}
+        data-density={density}
+        data-deferred-art="pending"
+      />
+    );
+  }
+  if (!render && !shell) {
     return null;
   }
+  if (shell && painting) {
+    const height = Math.round(size * (shell.height / shell.width));
+    return (
+      <canvas
+        ref={setCanvasRef}
+        width={shell.width * paintScale}
+        height={shell.height * paintScale}
+        className={className}
+        style={{
+          width: fluid ? '100%' : size,
+          height: fluid ? 'auto' : height,
+          imageRendering: 'pixelated',
+          filter:
+            resolved && (resolved.rarity === 'Epic' || resolved.rarity === 'Legendary')
+              ? `drop-shadow(0 0 6px ${shell.rarityColor})`
+              : undefined,
+        }}
+        role="img"
+        aria-label={resolved?.name ?? `${resolved?.rarity ?? ''} ${resolved?.weaponType ?? 'weapon'}`}
+        data-testid={testId}
+        data-signature={shell.signature}
+        data-density={density}
+        data-painted-sprite={painting.spriteId}
+      />
+    );
+  }
+  if (!render) return null;
   const height = Math.round(size * (render.height / render.width));
   return (
     <canvas

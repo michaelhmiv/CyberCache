@@ -41,6 +41,11 @@ import {
   type WeaponCardRender,
 } from './weaponCardCompositor';
 import { GEAR_PAINT_ORDER, resolveGearMount, type MountedGearItem } from './gearMounts';
+import {
+  renderWeaponPainting,
+  resolveWeaponPainting,
+  weaponPaintingFractions,
+} from './weaponPaintingRender';
 import { remapPixelData, type PaletteSpec } from './paletteSwap';
 import {
   PART_SLOTS,
@@ -60,6 +65,10 @@ export const PARTS_BUFFER_PAD = 72;
 
 export type PartsWeapon =
   | { kind: 'compositor'; input: PixelWeaponInput }
+  | {
+      kind: 'painting';
+      input: PixelWeaponInput;
+    }
   | {
       kind: 'bespoke';
       spriteId: string;
@@ -629,6 +638,26 @@ export function composePartSet(
       raster = rasterizeWeaponCardRaster(render);
       gripFrac = cardGripFraction(opts.weapon.input.weaponType);
       muzzleFrac = muzzleFraction(raster);
+    } else if (opts.weapon.kind === 'painting') {
+      // Painted renderer (2026-11-11): the adopted Top-Choice
+      // painting is the held render — painting base + element /
+      // decal / condition overlays at the held (card) grid, seated
+      // by the painting's own manifest anchors through the fit.
+      // An input that resolves to no painting (or a sprite the
+      // loader cannot produce) draws nothing here; production
+      // callers resolve first and fall back to 'compositor'.
+      const resolution = resolveWeaponPainting(opts.weapon.input);
+      const sprite = resolution ? load(resolution.spriteId) : undefined;
+      const fractions = resolution ? weaponPaintingFractions(resolution) : undefined;
+      if (resolution && sprite && fractions) {
+        raster = renderWeaponPainting(opts.weapon.input, resolution, 'held', sprite).image;
+        gripFrac = fractions.gripFrac;
+        muzzleFrac = fractions.muzzleFrac;
+      } else {
+        raster = blank(1, 1);
+        gripFrac = { x: 0, y: 0 };
+        muzzleFrac = { x: 1, y: 0.5 };
+      }
     } else {
       const sprite = load(opts.weapon.spriteId);
       if (sprite) {
