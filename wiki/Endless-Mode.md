@@ -63,7 +63,7 @@ Endless is where a finished build finds out what it is worth: a long run banks r
 
 Farming one boss repeatedly instead? See [[Bosses]]. Building the gear to push deeper? See [[Gear]] and [[Crafting]].
 
-One boss habit the Chamber deliberately does not borrow: a boss depth wears its kit's mechanic, phases, weaknesses, and resistances, but not its **attack pattern** — Chamber fights price the kit's damage continuously, with no cadence gaps, so shield recharge never gets quiet to work in inside the Chamber. Patterns belong to the authored ladder's prep pages.
+One boss habit the Chamber deliberately does not borrow: a boss depth wears its kit's mechanic, phases, weaknesses, and resistances, but not its **attack pattern** — Chamber fights price the kit's damage continuously, with no cadence gaps, so shield recharge never gets quiet to work in inside the Chamber. Patterns belong to the authored ladder's prep pages. The same holds for the mechanic's **demand line**: the ladder now collects the thresholds printed in a boss's prep (the Bosses page's "Mechanics charge what they advertise" section), but a Chamber depth makes no such demand — the borrowed mechanic arrives as flavor and phases only, and the fight is priced the way Chamber fights have always been priced. Trait gates are the exception: they have always applied in the Chamber, and still do.
 
 ---
 
