@@ -188,7 +188,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
     ro.observe(root);
     return () => ro.disconnect();
   }, [vistaSceneId]);
-  const vistaCanvasRefByLayer: Record<'far' | 'mid' | 'near', React.RefObject<HTMLCanvasElement | null>> = { far: vistaFarCanvasRef, mid: vistaMidCanvasRef, near: vistaNearCanvasRef };
+  const vistaCanvasRefByLayer: Record<VistaPaintLayer, React.RefObject<HTMLCanvasElement | null>> = { far: vistaFarCanvasRef, mid: vistaMidCanvasRef, near: vistaNearCanvasRef, stage: vistaStageCanvasRef };
 
   return (
     <div className="absolute inset-0 overflow-hidden" data-testid={testId ?? 'pixel-stage'} data-ground-y={ground}>
@@ -205,7 +205,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
         {/* Vista ambient layers behind the actors: far/mid/near
             paint over the one background painting, in order. */}
         {vistaScene &&
-          (['far', 'mid', 'near'] as VistaPaintLayer[]).map((layer) => (
+          (['far', 'mid', 'near'] as const).map((layer) => (
             <canvas
               key={layer}
               data-testid={`pixel-ambient-${layer}`}
