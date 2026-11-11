@@ -130,7 +130,7 @@ export const ELITE_RARITY_FLOOR: Rarity = Rarity.Epic;
  * non-escalated elite target is an ordinary roster kill, exactly as
  * before the overhaul.
  */
-export const ELITE_ESCALATION_CHANCE = 0.12;
+export const ELITE_ESCALATION_CHANCE = 0.18;
 
 // ─── Two-tier material identity (brief §2.5 + Q2 ruling) ─────────────
 
