@@ -16,8 +16,8 @@
  * from the file that owns the honesty call.
  *
  * The PLATE column and the block's binary assets come from images.ts:
- * each row illustrates the weapon's bespoke sprite, rendered from the
- * game's own art by the game's own resolution order. Emberfall is the
+ * each row illustrates the weapon's adopted Top-Choice painting
+ * (INT-1), resolved by the game's own resolution order. Emberfall is the
  * 26th row — the one named legendary with bespoke art but no effect
  * (its sprite is keyed by the weapon's literal name), so it is rendered
  * as an explicitly-labelled art row, never as a fake effect.
@@ -109,6 +109,7 @@ export const legendaryEffectsBlock: GenBlock = {
     'src/lib/legendaryEffects.ts',
     'src/lib/pixel/manifest.ts',
     'src/test/legendaryParityTable.ts',
+    'scripts/wiki-gen/assets/weapons/legendary/',
   ],
   render: effectsBody,
   assets: legendaryPlates,
