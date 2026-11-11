@@ -15,7 +15,7 @@ import { ACTION_SKILL_DEFS, type ActionSkillStateView } from '@/content/actionSk
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import type { SkillTreeType } from '@/types/game';
 import { ActionSkillCard } from './ActionSkillCard';
-import { bossFeeMultiplier, escalatedBossFee } from '../../lib/bossFees';
+import { bossFeeMultiplier, bossBaseFee, escalatedBossFee } from '../../lib/bossFees';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSurvivalStore } from '../../store';
@@ -269,13 +269,13 @@ export const BossEncounterPanel: React.FC<{
 
   const defeated = bossStore.defeatedBossIds.includes(boss.id);
   const unlocked = defeated || bossStore.unlockedBossIds.includes(boss.id);
-  // The fee the Chef will charge: def base fee under today's rematch
+  // The fee the Chef will charge: the shared base fee (half the entryCost until this boss's first victory — tuning D4/P10) under today's rematch
   // escalation (×2 per victory vs this boss today, capped ×8 — the
   // counts are server-reported; the attempt response's charged fee is
   // the final truth).
   const victoriesToday = bossStore.bossVictoriesToday[boss.id] ?? 0;
   const feeMultiplier = bossFeeMultiplier(victoriesToday);
-  const entryFee = escalatedBossFee(defeated ? boss.rematchCost : boss.entryCost, victoriesToday);
+  const entryFee = escalatedBossFee(bossBaseFee(boss, defeated), victoriesToday);
   const canAfford = player.credits >= entryFee;
 
   // The prepared set is the player's strategy: exactly these counts go

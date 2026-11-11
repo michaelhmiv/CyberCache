@@ -434,8 +434,9 @@ export interface BossAttemptRequest extends Omit<BossSimulationInput, 'boss'> {
   attemptNonce: number;
   /**
    * Entry fee for this attempt, derived SERVER-SIDE by the verify-boss
-   * route from the boss def (entryCost, or rematchCost when the boss
-   * was already defeated) — never trusted from the request body. The
+   * route from the boss def via the shared bossFees derivation:
+   * half the entryCost until the boss's first victory, rematchCost once it
+   * has been defeated — never trusted from the request body. The
    * Chef folds it into the attempt's net credits delta; the applier
    * records it and guards affordability. 0 when unset (direct engine
    * calls in tests).
