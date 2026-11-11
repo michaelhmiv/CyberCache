@@ -251,25 +251,25 @@ const LEGACY_RECIPES: CraftRecipe[] = CRAFTING_RECIPES.map((r) => ({
 const VEHICLE_CONSUMABLE_RECIPES: CraftRecipe[] = [
   {
     id: 'recipe_patch_kit', kind: 'consumable', name: 'Patch Kit', category: 'utility',
-    inputs: { Scrap: 4, ReactiveComponents: 1 }, unitDurationMs: 12 * MIN,
+    inputs: { Scrap: 10, ReactiveComponents: 1 }, unitDurationMs: 12 * MIN,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'PatchKit',
   },
   {
     id: 'recipe_field_patch_kit', kind: 'consumable', name: 'Field Patch Kit', category: 'utility',
-    inputs: { Scrap: 6, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 },
+    inputs: { Scrap: 15, ReactiveComponents: 3, TechFragments: 1, HeartwoodResin: 1 },
     unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'FieldPatchKit',
   },
   {
     id: 'recipe_master_patch_kit', kind: 'consumable', name: 'Master Patch Kit', category: 'utility',
-    inputs: { Scrap: 8, ReactiveComponents: 5, TechFragments: 3, VoidDust: 1 },
+    inputs: { Scrap: 20, ReactiveComponents: 5, TechFragments: 3, VoidDust: 1 },
     unitDurationMs: 45 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'MasterPatchKit',
     requiresMastery: { track: 'crafting_consumables', level: 15 },
   },
   {
     id: 'recipe_fuel_cell', kind: 'consumable', name: 'Fuel Cell', category: 'utility',
-    inputs: { Scrap: 6, NitrocellGel: 1 }, unitDurationMs: 15 * MIN,
+    inputs: { Scrap: 15, NitrocellGel: 1 }, unitDurationMs: 15 * MIN,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'FuelCell',
   },
   {
@@ -572,19 +572,19 @@ export const CORE_CATALYST_CORES_PER_UNIT = 1;
 export const BATCH_RECIPES: CraftRecipe[] = [
   {
     id: 'recipe_shield_cell_batch', kind: 'consumable', name: 'Shield Cell ×3 (Batch)', category: 'survival',
-    inputs: { Scrap: 50, ReactiveComponents: 30 }, unitDurationMs: 1980000,
+    inputs: { Scrap: 250, ReactiveComponents: 30 }, unitDurationMs: 1980000,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'ShieldCell',
     requiresResearch: 'production_systems', outputQuantity: 3,
   },
   {
     id: 'recipe_patch_kit_batch', kind: 'consumable', name: 'Patch Kit ×3 (Batch)', category: 'utility',
-    inputs: { Scrap: 10, ReactiveComponents: 3 }, unitDurationMs: 1584000,
+    inputs: { Scrap: 25, ReactiveComponents: 3 }, unitDurationMs: 1584000,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'PatchKit',
     requiresResearch: 'production_systems', outputQuantity: 3,
   },
   {
     id: 'recipe_ordnance_batch', kind: 'consumable', name: 'Ordnance Charge ×3 (Batch)', category: 'offense',
-    inputs: { Scrap: 30, BallisticParts: 25 }, unitDurationMs: 1584000,
+    inputs: { Scrap: 150, BallisticParts: 25 }, unitDurationMs: 1584000,
     requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: 'OrdnanceCharge',
     requiresResearch: 'production_systems', outputQuantity: 3,
   },
@@ -622,7 +622,7 @@ const STANDING_RECIPES: CraftRecipe[] = [
   },
   {
     id: 'recipe_throwtech_standing', kind: 'consumable', name: 'ThrowTech Decoy Kit', category: 'utility',
-    inputs: { MagnetiteCores: 2, TechFragments: 12, Scrap: 20 },
+    inputs: { MagnetiteCores: 2, TechFragments: 12, Scrap: 100 },
     unitDurationMs: 25 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench',
     consumableType: 'ThrowTechDecoyKit', requiresStanding: { manufacturer: 'ThrowTech', rank: 2 },
   },
