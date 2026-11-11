@@ -55,6 +55,9 @@ export interface ConsumableEffectRules {
   /** Shield restore as a fraction of shield capacity — tuning T2/P4. */
   shieldRestorePctOfCapacity?: number;
   survivalMultiplier?: number;
+  /** Attack-speed (cadence) multiplier — tuning T6. Cadence-side:
+   *  multiplies the weapon's attack rate, never per-hit damage. */
+  attackSpeedMultiplier?: number;
   shieldBreakMultiplier?: number;
   armorBreakMultiplier?: number;
   dpsMultiplier?: number;
@@ -123,6 +126,16 @@ export interface ConsumableRuntimeEffects {
   survivalFlat?: number;
   survivalMultiplier?: number;
   dpsMultiplier?: number;
+  /**
+   * Attack-speed (cadence) multiplier — tuning T6 (P6 tempo item).
+   * The cadence channel: it scales how OFTEN the weapon attacks,
+   * never how hard each attack hits. Roaming applies it as the
+   * attack-rate term of the per-tick damage rate (the tick model
+   * aggregates damage per second, so cadence scales the rate); the
+   * DPS chain applies it inside step 1 (baseDamage x attackSpeed).
+   * DELTA-scaled with quality like the other %-buffs.
+   */
+  attackSpeedMultiplier?: number;
   shieldBreakMultiplier?: number;
   armorBreakMultiplier?: number;
   mechanicMultiplier?: number;
@@ -1681,6 +1694,40 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     ),
     market: market(false, 500, true, true, false, true),
   }),
+  [ConsumableType.OverclockSerum]: defineConsumable({
+    id: ConsumableType.OverclockSerum,
+    name: 'Overclock Serum',
+    family: 'corrupted',
+    shortDescription: 'Crafter-only tempo serum: the hunter cycles 15% faster for a full minute. The tempo item the tuning brief called P6.',
+    tacticalRole: 'Attack Speed',
+    trigger: 'fightStart',
+    consumePolicy: 'onAttempt',
+    counterTags: ['burst', 'enrage'],
+    effectRules: { attackSpeedMultiplier: 1.15 },
+    craftCategory: 'offense',
+    uiHints: ['Crafted at the bench — never sold by the vendor.', 'Roaming: one serum covers 60 seconds of +15% attack speed.', 'Boss: covers the whole attempt window.'],
+    implementationStatus: 'implemented',
+    isBossPrepVisible: true,
+    visual: visual('bolt', 'cyan', 'syringe', 'volatile'),
+    quality: quality(400, 70, 150, 'Attack speed bonus scales with quality.'),
+    runtime: runtime(
+      ['roaming', 'boss'],
+      'tactical',
+      'fightStart',
+      'onAttempt',
+      'inactive_continue',
+      { attackSpeedMultiplier: 1.15 },
+      { attackSpeedMultiplier: DELTA(1.30) },
+      'Overclock Serum consumed: attack speed up for a minute.',
+      {
+        activityRules: {
+          boss: { trigger: 'fightStart', consumePolicy: 'onAttempt', zeroBehavior: 'inactive_continue' },
+          roaming: { consumePolicy: 'perInterval', durationSeconds: 60, zeroBehavior: 'inactive_continue' },
+        },
+      }
+    ),
+    market: market(false, 400, true, true, false, true),
+  }),
 };
 
 export const BOSS_PREP_CONSUMABLES = Object.values(CONSUMABLES).filter((c) => c.isBossPrepVisible);
@@ -1691,6 +1738,7 @@ export const CRAFTABLE_CONSUMABLES = Object.values(CONSUMABLES).filter((c) => c.
 const RUNTIME_MULTIPLIER_FIELDS = new Set<keyof ConsumableRuntimeEffects>([
   'survivalMultiplier',
   'dpsMultiplier',
+  'attackSpeedMultiplier',
   'shieldBreakMultiplier',
   'armorBreakMultiplier',
   'mechanicMultiplier',
