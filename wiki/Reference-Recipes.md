@@ -74,6 +74,7 @@ Every material and essence, drawn as the object it renders as in game — form a
 | **EMP Charge** | consumable | EMP Charge | Scrap ×18, Ballistic Parts ×8, Conduit Wire ×4, Tech ×2 | 22 min | — | bench |
 | **Corrosive Charge** | consumable | Corrosive Charge | Scrap ×18, Ballistic Parts ×8, Acid Compound ×4, Tech ×2 | 22 min | — | bench |
 | **Overcharge Stim** | consumable | Overcharge Stim | Scrap ×25, Ballistic Parts ×15, Void Dust ×2 | 30 min | — | bench |
+| **Overclock Serum** | consumable | Overclock Serum | Scrap ×30, Ballistic Parts ×2 | 20 min | — | bench |
 | **Target Painter** | consumable | Target Painter | Scrap ×20, Ballistic Parts ×10, Tech ×2 | 20 min | — | bench |
 | **Phase Shift Grenade** | consumable | Phase Shift Grenade | Scrap ×30, Ballistic Parts ×15, Void Dust ×5 | 35 min | — | bench |
 | **Luck Booster** | consumable | Luck Booster | Scrap ×15, Tech ×8 | 15 min | — | bench |
