@@ -231,7 +231,15 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 204 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 209 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-10** — 5 merges
+
+- #471 — Vehicle chip on Home's Strip, right of the 7/7 (owner decision 2026-11-10)
+- #472 — Tuning T4 — Boss first-attempt discount (D4/P10)
+- #473 — Tuning T2 (D2): consumable magnitudes — ammo up, survival heals to % of pool, ordnance riders ×4
+- #474 — Tuning T1R — Passive shield recharge (owner ruling 2026-11-10)
+- #475 — Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)
 
 **2026-11-08** — 12 merges
 
