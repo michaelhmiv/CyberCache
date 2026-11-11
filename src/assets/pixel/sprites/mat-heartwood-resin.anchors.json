@@ -1,0 +1,25 @@
+{
+  "sprite": "mat-heartwood-resin",
+  "anchors": {
+    "feet": {
+      "x": 0.5715,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5888,
+      "y": 0.5853
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9185
+    },
+    "lootPoint": {
+      "x": 0.5302,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3763,
+      "y": 0.7094
+    }
+  }
+}

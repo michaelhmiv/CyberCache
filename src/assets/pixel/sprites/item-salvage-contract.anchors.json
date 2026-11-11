@@ -1,0 +1,25 @@
+{
+  "sprite": "item-salvage-contract",
+  "anchors": {
+    "feet": {
+      "x": 0.5751,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5809,
+      "y": 0.4788
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9366
+    },
+    "lootPoint": {
+      "x": 0.5984,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.358,
+      "y": 0.7178
+    }
+  }
+}

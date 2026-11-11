@@ -1,0 +1,25 @@
+{
+  "sprite": "item-corrosive-ammo",
+  "anchors": {
+    "feet": {
+      "x": 0.502,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5281,
+      "y": 0.6112
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6253
+    },
+    "lootPoint": {
+      "x": 0.5306,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2694,
+      "y": 0.7227
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "sprite": "item-armor-piercing-ammo",
+  "anchors": {
+    "feet": {
+      "x": 0.532,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5311,
+      "y": 0.6228
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9443
+    },
+    "lootPoint": {
+      "x": 0.5304,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2744,
+      "y": 0.7297
+    }
+  }
+}

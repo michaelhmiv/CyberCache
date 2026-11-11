@@ -23,7 +23,7 @@ export type VisualAssetKind =
   | 'consumable';
 
 export type GearVisualId = 'weapon' | 'shield' | 'classMod' | 'relic' | 'ordnance';
-export type ResourceVisualId = 'credits' | 'scrap' | 'cacheKey' | 'cacheFragment' | 'xp' | 'level' | 'masteryPoint' | 'loot' | 'legendaryCore';
+export type ResourceVisualId = 'credits' | 'scrap' | 'cacheKey' | 'xp' | 'level' | 'masteryPoint' | 'loot' | 'legendaryCore';
 
 export interface VisualAsset {
   id: string;
@@ -250,7 +250,13 @@ export const RESOURCE_VISUALS: Record<ResourceVisualId, VisualAsset> = {
   credits: { id: 'credits', kind: 'resource', label: 'Credits', shortLabel: 'CR', mark: '$', color: '#FFD700', accentColor: '#FFA000', description: 'Spendable currency.', texture: 'metal' },
   scrap: { id: 'scrap', kind: 'resource', label: 'Scrap', shortLabel: 'SCR', mark: 'S', color: '#FF5722', accentColor: '#FF8A65', description: 'Workbench salvage.', texture: 'metal' },
   cacheKey: { id: 'cacheKey', kind: 'resource', label: 'Cache Key', shortLabel: 'KEY', mark: 'K', color: '#00BCD4', accentColor: '#80DEEA', description: 'Opens a Data Cache.', texture: 'data' },
-  cacheFragment: { id: 'cacheFragment', kind: 'resource', label: 'Cache Fragment', shortLabel: 'FRG', mark: 'F', color: '#2196F3', accentColor: '#90CAF9', description: 'Five fragments become one cache key.', texture: 'data' },
+  // Cache Fragment DELETED (owner ruling 2026-11-11, INT-4): the
+  // fragment currency was abolished (0082 — keys are the only cache
+  // currency), so its registry entry, wallet glyph mapping, and
+  // Dashboard reward-icon mapping are removed. Storage-level
+  // fragment counters in historical payloads (cache_fragments_awarded
+  // and friends) still decode — they are data fields, not this
+  // display registry, and they never resolve through it.
   xp: { id: 'xp', kind: 'resource', label: 'XP', shortLabel: 'XP', mark: 'XP', color: '#7CFC00', accentColor: '#C4FF2F', description: 'Level progress.', texture: 'energy' },
   level: { id: 'level', kind: 'resource', label: 'Level', shortLabel: 'LV', mark: 'LV', color: '#E040FB', accentColor: '#EA80FC', description: 'Hunter level.', texture: 'metal' },
   masteryPoint: { id: 'masteryPoint', kind: 'resource', label: 'Mastery Point', shortLabel: 'MP', mark: 'M', color: '#A855F7', accentColor: '#FF9DF5', description: 'Skill tree currency.', texture: 'data' },

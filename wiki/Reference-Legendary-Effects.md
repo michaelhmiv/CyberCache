@@ -35,7 +35,7 @@ can never picture the wrong gun. The table closes with Emberfall,
 the one named legendary that has art but no effect; its row says so
 rather than inventing stats for it.
 
-<!-- GENERATED from src/constants/legendaryEffects.ts, src/lib/legendaryEffects.ts, src/lib/pixel/manifest.ts, src/test/legendaryParityTable.ts — do not edit by hand -->
+<!-- GENERATED from src/constants/legendaryEffects.ts, src/lib/legendaryEffects.ts, src/lib/pixel/manifest.ts, src/test/legendaryParityTable.ts, scripts/wiki-gen/assets/weapons/legendary/ — do not edit by hand -->
 <!-- wiki-gen:legendary-effects -->
 | Plate | Effect | What it does | Weapon type | Source | Min boss tier | Status |
 | --- | --- | --- | --- | --- | --- | --- |

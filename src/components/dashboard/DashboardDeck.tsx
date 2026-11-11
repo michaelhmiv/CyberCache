@@ -127,17 +127,19 @@ const RewardIcon: React.FC<{ tone?: string; compact?: boolean }> = ({ tone, comp
   // Map reward tones to game-entity resource visuals. The glyph + color
   // from the registry replaces the old lucide icon set so every reward
   // chip is visually consistent with the rest of the visual-asset system.
+  // Cache Fragment's mapping is DELETED (owner ruling 2026-11-11,
+  // INT-4): fragments were abolished (0082); the one live producer
+  // of the 'fragment' tone is the kill-cycle jackpot, which pays a
+  // whole Cache Key — so the tone maps to the key it actually pays.
   const resourceId = tone === 'loot'
     ? 'loot'
-    : tone === 'cache'
+    : tone === 'cache' || tone === 'fragment'
       ? 'cacheKey'
-      : tone === 'fragment'
-        ? 'cacheFragment'
-        : tone === 'level' || tone === 'kill' || tone === 'death'
-          ? 'xp'
-          : tone === 'cash'
-            ? 'credits'
-            : null;
+      : tone === 'level' || tone === 'kill' || tone === 'death'
+        ? 'xp'
+        : tone === 'cash'
+          ? 'credits'
+          : null;
   const boxClass = compact ? 'h-6 w-6' : 'h-8 w-8';
   if (resourceId) {
     const visual = getResourceVisual(resourceId);

@@ -56,7 +56,7 @@ const ConsumableChip: React.FC<{ view: ConsumableSlotView }> = ({ view }) => {
       }`}
       style={chipClip}
     >
-      <PxIcon name={view.icon} size={13} />
+      <PxIcon name={view.icon} size={13} color={empty ? '#8A847C' : tone === 'green' ? '#7CFC00' : tone === 'amber' ? '#FF9000' : '#FF4B5C'} />
       <span className="truncate">{empty ? 'Empty' : view.label}</span>
       <span className="ml-1 text-text-primary">×{view.count}</span>
     </div>

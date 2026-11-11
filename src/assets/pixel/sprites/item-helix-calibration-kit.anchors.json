@@ -1,0 +1,25 @@
+{
+  "sprite": "item-helix-calibration-kit",
+  "anchors": {
+    "feet": {
+      "x": 0.5098,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.51,
+      "y": 0.5392
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.541
+    },
+    "lootPoint": {
+      "x": 0.5108,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2509,
+      "y": 0.6218
+    }
+  }
+}

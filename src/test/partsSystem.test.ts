@@ -56,9 +56,7 @@ const loadSprite: SpriteLoader = (id) => {
   if (!cache.has(id)) {
     const entry = (sprites.sprites as Record<string, { src: string }>)[id];
     let img: RgbaImage | undefined;
-    if (entry) {
-      img = decodePng(new Uint8Array(readFileSync(join(process.cwd(), 'src/assets/pixel', entry.src))));
-    }
+    if (entry) img = decodePng(new Uint8Array(readFileSync(join(process.cwd(), 'src/assets/pixel', entry.src))));
     cache.set(id, img);
   }
   return cache.get(id);
@@ -240,6 +238,8 @@ describe('parts system — lint & registration', () => {
       if (!part) continue;
       const entry = entries[part.spriteId];
       expect(entry, `manifest entry for ${part.spriteId}`).toBeDefined();
+      // Rig parts ship at the design frame itself: partsCompositor
+      // places part sources 1:1 (source px == design px).
       expect(entry.width).toBe(part.width);
       expect(entry.height).toBe(part.height);
     }

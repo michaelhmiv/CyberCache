@@ -1,0 +1,25 @@
+{
+  "sprite": "mat-stabilized-cells",
+  "anchors": {
+    "feet": {
+      "x": 0.5268,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5146,
+      "y": 0.5388
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5183
+    },
+    "lootPoint": {
+      "x": 0.5087,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2931,
+      "y": 0.699
+    }
+  }
+}

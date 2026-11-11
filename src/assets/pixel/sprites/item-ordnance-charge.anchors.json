@@ -1,0 +1,25 @@
+{
+  "sprite": "item-ordnance-charge",
+  "anchors": {
+    "feet": {
+      "x": 0.5572,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5777,
+      "y": 0.5545
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5818
+    },
+    "lootPoint": {
+      "x": 0.7621,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3285,
+      "y": 0.6936
+    }
+  }
+}

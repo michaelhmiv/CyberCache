@@ -1,0 +1,25 @@
+{
+  "sprite": "item-heartwood-sight-oil",
+  "anchors": {
+    "feet": {
+      "x": 0.5155,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5218,
+      "y": 0.6206
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9476
+    },
+    "lootPoint": {
+      "x": 0.5531,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.351,
+      "y": 0.7182
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "sprite": "mat-reactive-components",
+  "anchors": {
+    "feet": {
+      "x": 0.5478,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.543,
+      "y": 0.5743
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.8439
+    },
+    "lootPoint": {
+      "x": 0.512,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3028,
+      "y": 0.6768
+    }
+  }
+}

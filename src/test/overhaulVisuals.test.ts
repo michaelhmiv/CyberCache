@@ -278,6 +278,7 @@ describe('performance + payload budgets (§4.9)', () => {
     // q88, 1440 wide; BlastForge carries its plain-bg re-roll)
     // arrive at 1,997,744 B — a +1,941,560 B delta. Ambient sprites
     // and camp props (10,318 B) are untouched.
+
     // INT-7 cache screen (2026-11-11): the Top-Choice cache family
     // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
     // palette-256 of the graded logo-identity closed master),
@@ -315,10 +316,15 @@ describe('performance + payload budgets (§4.9)', () => {
     // slice with per-family accounting. Per the slice instruction the
     // ceiling literal is set to this branch's measured total, so the
     // check now pins drift exactly at the INT-5 landing.
-    // Measured manifest total on this tree (INT-7 cache + INT-5
-    // vehicles/set pieces + INT-6 vistas reconciled): 23,705,925 B.
-    // The ceiling moves DELIBERATELY to the measured total of this
-    // branch, per the Top-Choice adoption accounting; final
-    // reconciliation lands when all slices merge.
-    expect(total).toBeLessThan(23_705_925 + 1);  });
+    // Reconciliation (parent merge drill, 2026-11-11): unified
+    // manifest = current master (447 entries, 27,641,424 B) with
+    // this slice's vista changes applied — the 24 band sprites
+    // (far/mid/near for 7 zones + camp) deleted, the 8 zone/camp
+    // bg records swapped to the branch's plain-painting records
+    // — = 423 entries, measured 29,582,984 B on the reconciled
+    // tree, every record asserted against its file. The ceiling
+    // literal follows the unified total +1. INT-2 gear (29
+    // sprites) is still in flight and re-pins when it lands.
+    expect(total).toBeLessThan(29_582_984 + 1);  });
+
 });

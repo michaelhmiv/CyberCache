@@ -1,0 +1,25 @@
+{
+  "sprite": "item-elemental-coating",
+  "anchors": {
+    "feet": {
+      "x": 0.5135,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5216,
+      "y": 0.637
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9325
+    },
+    "lootPoint": {
+      "x": 0.6947,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3504,
+      "y": 0.708
+    }
+  }
+}

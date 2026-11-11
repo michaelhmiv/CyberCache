@@ -1,0 +1,25 @@
+{
+  "sprite": "mat-forgeheart-ingots",
+  "anchors": {
+    "feet": {
+      "x": 0.4973,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5039,
+      "y": 0.5822
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5812
+    },
+    "lootPoint": {
+      "x": 0.4242,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2962,
+      "y": 0.7606
+    }
+  }
+}
