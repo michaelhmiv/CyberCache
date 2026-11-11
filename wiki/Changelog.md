@@ -22,6 +22,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Your shields, relics, class mods and ordnance are paintings now** — every one of the five shield forms, all sixteen relics, the four class-mod casings and the four ordnance forms renders as its full painterly portrait everywhere it appears: gear list, inspect sheet, loadout, compare and this manual's plates all show the same picture for the same item. A shield's element still recolors its glow — the blue Shock heart of a Nova turns Fire-orange, Cryo-cyan or Void-purple by palette, exactly the surfaces the old plates lit — and the Absorb shield keeps the plasma orb at its heart. A class mod's casing arrives with its deck window empty, and the live node field is drawn into that window from your actual boosts, seated where the casing's window really is; the Void Prism keeps the nebula turning in its eye. Nothing about the items themselves changed — same names, same stats, same effects — only how they're pictured.
 - **Your weapons are paintings now** — every gun in the game pictures as its adopted Top-Choice painting: one portrait for each type × manufacturer, and each named legendary has a portrait of its own, the same picture in your hunter's hands, on its card, and in a market listing. What makes a copy yours rides on top of the painting: its element lights the painting's glow window in the element's colors (a Kinetic gun's window stays plain grey), its affixes stamp their decals onto the body, and its roll quality shows as condition — a beat-up gun looks beat-up and a godroll sparkles. A named legendary is never worn or stamped; its portrait is fixed, exactly as it was made. The old assembled-from-parts look is retired: your rolled parts still count in the stats exactly as before — they just no longer change the silhouette.
 - **The Standard Issue chest plate is unbroken steel now** — the glowing cyan slash that crossed the breastplate is painted out: at the shoulder it read as a third arm, and the plate was never meant to carry it. The slash is gone from the painting itself; every other light on the rig — visor, wrist, the pouch studs — burns exactly as it did, and the Bulwark and Dreadnought plates are untouched.
+- **The support arm aims with you now** — in the aim stance the far arm used to hang loose in the gap between the gun arm and the chest, its shoulder hidden, reading as a stray little arm at the armpit. It now swings forward and braces under the gun arm, hand up at the grip's underside, and it stays on the gun through the recoil beat. The Bulwark and Dreadnought rigs carry the same stance. Nothing else about the poses changed.
 
 
 
@@ -275,9 +276,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 232 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 233 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-11** — 11 merges
+**2026-11-11** — 12 merges
 
 - #484 — Boss setup-diversity (slice C2): mechanic legs collect + Bishop composite; CryoAmmo re-read measured and dropped
 - #485 — INT-7: Top-Choice cache screen — painted crate, opened ignition frame, buried prop swap
@@ -290,6 +291,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #492 — INT-10 (icons): the functional paintings — fixed set + baked state variants
 - #493 — INT-4: Top-Choice consumables + materials land; Cache Fragment deleted
 - #494 — Top-Choice INT-2: gear renders as adopted paintings (shields, relics, class mods, ordnance)
+- #495 — SI torso: paint out the cyan chest slash (reads as a third arm)
 
 **2026-11-10** — 15 merges
 

@@ -50,6 +50,11 @@ Every slot is covered from day one: head, torso, both arms
 the boot is part of the lower leg), and back. Everything else is
 permanently available; there are no limited-time windows yet.
 
+When your hunter aims, the far arm works as the support arm: it
+comes up under the weapon and braces it from below, so the stance
+reads as a proper two-handed aim on every set — standard-issue,
+Bulwark, and Dreadplate alike.
+
 <!-- GENERATED from src/content/skins.ts, src/lib/pixel/skinParts.ts, src/lib/pixel/partsCompositor.ts, src/lib/pixel/standardIssue.ts — do not edit by hand -->
 <!-- wiki-gen:skins-pictured -->
 ## The wave-1 sets, pictured
