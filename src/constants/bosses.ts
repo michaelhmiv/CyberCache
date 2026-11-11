@@ -60,7 +60,7 @@ export const REGION_1_BOSSES: BossDef[] = [
     mechanic: {
       id: 'enrage_50',
       name: 'Enrage Protocol',
-      description: 'Boss enrages at 50% HP, doubling damage. Needs high DPS to finish fast.',
+      description: 'At 50% HP the boss enrages. The fight is a kill-speed check: your DPS is measured against the enrage line (1.3) — fall short and the enrage taxes the whole attempt.',
       checkType: 'dps',
       threshold: 1.3,
     },
@@ -116,7 +116,7 @@ export const REGION_1_BOSSES: BossDef[] = [
     mechanic: {
       id: 'shield_regen',
       name: 'Rapid Shield Regen',
-      description: 'Shield regenerates quickly if not broken within 15s.',
+      description: 'The shield knits itself back together mid-fight. Your shield break is measured against the regen line (1.2) — break less than the line and the loop taxes the whole attempt.',
       checkType: 'shieldBreak',
       threshold: 1.2,
     },
@@ -125,7 +125,7 @@ export const REGION_1_BOSSES: BossDef[] = [
       {
         id: 'shield_regen_loop',
         name: 'Shield Regen Loop',
-        description: 'Break the shield quickly or the boss regenerates it and stalls the fight.',
+        description: 'Shield pressure is measured against the regen line (1.2): out-break it or the loop keeps the shield ahead of your damage.',
         type: 'shieldBreak',
         targetValue: 1.2,
         recommendedCounters: ['Shock weapon', 'Shock Ammo', 'Ordnance Charge', 'Jammer'],
@@ -161,7 +161,7 @@ export const REGION_1_BOSSES: BossDef[] = [
     mechanic: {
       id: 'burning_ground',
       name: 'Burning Ground',
-      description: 'Leaves burning ground; survival check is harder.',
+      description: 'The ground itself burns for the whole fight. Your survival is measured against the burn line (1.4) — a pool that merely survives the boss is not enough here.',
       checkType: 'survival',
       threshold: 1.4,
     },
@@ -263,7 +263,7 @@ export const REGION_1_BOSSES: BossDef[] = [
     mechanic: {
       id: 'heavy_repair',
       name: 'Heavy Repair',
-      description: 'Heavy armor repair. Needs Anti-Heal or Armor Break.',
+      description: 'Heavy armor repair. Your armor break is measured against the repair line (1.5) — Corrosive and Ordnance throughput, or the repairs tax the whole attempt.',
       checkType: 'armorBreak',
       threshold: 1.5,
     },
@@ -272,7 +272,7 @@ export const REGION_1_BOSSES: BossDef[] = [
       {
         id: 'armor_repair_loop',
         name: 'Armor Repair Phase',
-        description: 'The boss repairs armor faster than weak armor break can remove it.',
+        description: 'The boss repairs armor against the repair line (1.5): armor break below the line never gets ahead of the repairs.',
         type: 'armorBreak',
         targetValue: 1.45,
         recommendedCounters: ['Corrosive weapon', 'Corrosive Ammo', 'Armor-Piercing Ammo', 'Phase Shift Grenade'],
@@ -308,8 +308,12 @@ export const REGION_1_BOSSES: BossDef[] = [
     mechanic: {
       id: 'three_phase',
       name: 'Three-Phase Siege',
-      description: 'Shield -> Armor -> Enrage. Must break each layer.',
+      description: 'Shield -> Armor -> Enrage. All three layers are measured — shield break 1.25, armor break 1.25, kill speed 1.35 — and the weakest layer taxes the whole attempt.',
       checkType: 'mechanic',
+      // Slice C2: the siege's leg is the min over these three
+      // ratios — the same numbers this boss's phases advertise as
+      // targets (a suite pin keeps the two in agreement).
+      composite: { shieldBreak: 1.25, armorBreak: 1.25, dps: 1.35 },
     },
     tags: ['shield', 'armor', 'enrage', 'multiPhase', 'siege'],
     phases: [
@@ -574,7 +578,7 @@ export const REGION_1_BOSSES: BossDef[] = [
     mechanic: {
       id: 'living_armor',
       name: 'Living Armor',
-      description: 'Heartwood plating regrows as fast as it cracks. Sustained armor break — Corrosive and Ordnance — or the Maw simply out-grows your damage.',
+      description: 'Heartwood plating regrows as it cracks. Your armor break is measured against the regrowth line (1.5) — sustained Corrosive and Ordnance throughput, or the Maw out-grows your damage and taxes the attempt.',
       checkType: 'armorBreak',
       threshold: 1.5,
     },

@@ -244,6 +244,19 @@ export function endlessEncounterForDepth(
       // encounters carry none by design (owner ruling D3), even when
       // the kit they borrow wears one on the ladder.
       cadence: undefined,
+      // Mechanic thresholds are authored-boss demands (slice C2):
+      // the sim collects a checkType + threshold mechanic's number
+      // on the ladder, and a generated Chamber encounter must sim
+      // exactly as it did before C2 — so the borrowed mechanic is
+      // presented WITHOUT its threshold and WITHOUT any composite
+      // (the Scrap Bishop's siege), name and description unchanged
+      // (the only mechanic facts the Chamber's own intel surfaces).
+      // Trait gates are not stripped: their requiredLoadoutTrait +
+      // threshold have priced Chamber fights since they shipped,
+      // and they still do.
+      mechanic: kit.mechanic.requiredLoadoutTrait
+        ? kit.mechanic
+        : { ...kit.mechanic, threshold: undefined, composite: undefined },
       level,
       health: Math.round(Math.max(kit.health, par.health) * hpMult),
       shield: Math.round(Math.max(kit.shield, par.shield) * hpMult),
