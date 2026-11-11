@@ -83,14 +83,15 @@ const RoamPixiStageLazy = React.lazy(() =>
 );
 import { BossFightStage } from '@/components/pixelArt/BossFightStage';
 import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMoment';
-import { DROP_RISE_GRIDS, dropRisePalette } from '@/lib/pixel/dropRiseIcons';
+import { DROP_RISE_MASTERS, type DropRiseKind } from '@/lib/pixel/iconMasters';
+import { tintedDropRiseCanvas } from '@/lib/pixel/iconTint';
 import { getLiveTurfScene } from '@/constants/liveTurfVisuals';
 import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore, useSalvageFeedStore, useExtractionFeedStore } from '@/store';
 import { MONSTERS, getMonster } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { Rarity } from '@/types/game';
 import { MATERIAL_VISUALS, ESSENCE_VISUALS, RESOURCE_VISUALS } from '@/constants/visualAssets';
-import { PixelGridCanvas } from '@/components/pixelArt/PixelGridCanvas';
+
 import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
 import type { Weapon } from '@/types/items';
@@ -179,9 +180,68 @@ const dropAssetColor = (typeName: string): string => {
 };
 
 
+/**
+ * INT-9 — the drop rise's painted marker. The texel grids
+ * (DROP_RISE_GRIDS) are replaced by the Wave 13 painted masters:
+ * material/essence/fragment/scrap ship as grayscale luminance masters
+ * re-tinted at runtime to the drop's own base hue through the
+ * drop-rise palette ramp (iconTint.ts — the masters' form survives
+ * because the mapping is monotone in luminance; the hue identity is
+ * the drop's, exactly as the grids' palette made it). Credits and
+ * crate ship in their fixed identity colorways, as they did on the
+ * grids (fixed bases #FFD700 / the crate's grey fallback).
+ */
+export const DropRiseMasterIcon: React.FC<{ kind: DropRiseKind; base: string }> = ({ kind, base }) => {
+  const retinted = kind === 'material' || kind === 'essence' || kind === 'fragment' || kind === 'scrap';
+  const ref = React.useRef<HTMLCanvasElement>(null);
+  const [, setReady] = React.useState(0);
+  React.useEffect(() => {
+    if (!retinted) return;
+    const canvas = tintedDropRiseCanvas(DROP_RISE_MASTERS[kind], base);
+    if (!canvas) {
+      // Master not decoded yet — its onload invalidated the tint cache;
+      // re-render shortly to pick the tinted canvas up.
+      const t = window.setTimeout(() => setReady((n) => n + 1), 60);
+      return () => window.clearTimeout(t);
+    }
+    const host = ref.current;
+    if (!host) return;
+    const ctx = host.getContext('2d');
+    if (!ctx) return;
+    host.width = canvas.width;
+    host.height = canvas.height;
+    ctx.clearRect(0, 0, host.width, host.height);
+    ctx.drawImage(canvas, 0, 0);
+    return undefined;
+  }, [kind, base, retinted]);
+  if (!retinted) {
+    return (
+      <img
+        src={DROP_RISE_MASTERS[kind]}
+        width={30}
+        height={30}
+        style={{ width: 30, height: 30 }}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+      />
+    );
+  }
+  return (
+    <canvas
+      ref={ref}
+      width={60}
+      height={60}
+      style={{ width: 30, height: 30 }}
+      aria-hidden="true"
+      data-drop-rise-master={kind}
+    />
+  );
+};
+
 export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, label }) => {
   const isScrap = label.toLowerCase().includes('scrap');
-  const kind: keyof typeof DROP_RISE_GRIDS =
+  const kind: DropRiseKind =
     tone === 'material' || tone === 'essence' || tone === 'fragment'
       ? tone
       : tone === 'cash'
@@ -205,12 +265,7 @@ export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, 
         : null;
   return (
     <div className="flex h-full flex-col items-center" style={{ paddingTop: 9 }}>
-      <PixelGridCanvas
-        rows={DROP_RISE_GRIDS[kind]}
-        palette={dropRisePalette(base)}
-        style={{ width: 30, height: 30 }}
-        aria-hidden="true"
-      />
+      <DropRiseMasterIcon kind={kind} base={base} />
       {tag ? (
         <span
           style={{
