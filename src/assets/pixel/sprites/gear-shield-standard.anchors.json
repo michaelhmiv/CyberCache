@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-shield-standard",
+  "src": "top-choice/wave3-shields/renders/standard-top.png",
+  "out": "src/assets/pixel/sprites/gear-shield-standard.png",
+  "width": 1867,
+  "height": 895,
+  "anchors": {
+    "feet": {
+      "x": 0.5002,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5002,
+      "y": 0.5536
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5991
+    },
+    "lootPoint": {
+      "x": 0.5008,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2361,
+      "y": 0.7117
+    }
+  }
+}

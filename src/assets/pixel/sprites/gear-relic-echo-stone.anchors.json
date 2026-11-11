@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-echo-stone",
+  "src": "top-choice/wave4-relics/renders/echo-stone-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-echo-stone.png",
+  "width": 1296,
+  "height": 943,
+  "anchors": {
+    "feet": {
+      "x": 0.4661,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4914,
+      "y": 0.5038
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5218
+    },
+    "lootPoint": {
+      "x": 0.4675,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2635,
+      "y": 0.6939
+    }
+  }
+}

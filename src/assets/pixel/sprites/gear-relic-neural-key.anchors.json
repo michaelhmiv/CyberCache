@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-neural-key",
+  "src": "top-choice/wave4-relics/renders/neural-key-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-neural-key.png",
+  "width": 1955,
+  "height": 1087,
+  "anchors": {
+    "feet": {
+      "x": 0.0022,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5047,
+      "y": 0.5476
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5215
+    },
+    "lootPoint": {
+      "x": 0.2907,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2628,
+      "y": 0.5421
+    }
+  }
+}

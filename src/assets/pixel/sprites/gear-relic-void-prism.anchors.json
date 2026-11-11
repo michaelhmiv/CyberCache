@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-void-prism",
+  "src": "top-choice/wave4-relics/renders/void-prism-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-void-prism.png",
+  "width": 1652,
+  "height": 1140,
+  "anchors": {
+    "feet": {
+      "x": 0.4827,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5038,
+      "y": 0.5032
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.3689
+    },
+    "lootPoint": {
+      "x": 0.4696,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3256,
+      "y": 0.6725
+    }
+  }
+}

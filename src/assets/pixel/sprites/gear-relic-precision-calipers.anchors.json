@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-precision-calipers",
+  "src": "top-choice/wave4-relics/renders/precision-calipers-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-precision-calipers.png",
+  "width": 1928,
+  "height": 932,
+  "anchors": {
+    "feet": {
+      "x": 0.3838,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4972,
+      "y": 0.3221
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.2062
+    },
+    "lootPoint": {
+      "x": 0.7402,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.292,
+      "y": 0.6169
+    }
+  }
+}

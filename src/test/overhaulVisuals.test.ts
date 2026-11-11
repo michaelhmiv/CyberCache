@@ -271,6 +271,48 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
+    // Top-Choice INT-3 hero (2026-11-11): the 42 adopted Wave 8
+    // painterly masters replace the pxl hero sprites. The 37 rig
+    // parts ship AT their design frames — partsCompositor's
+    // placePartExact copies part sources 1:1 at rotation 0 ("a
+    // direct copy, not a resample"), so source px == design px is
+    // the rig's placement law; the paintings are downscaled onto
+    // the exact grid the game composes on (premultiplied LANCZOS;
+    // ship alpha split at the keying threshold >127 so coverage is
+    // visible coverage, not the darkness ramp's pale wash).
+    // The 5 gear-* mounted portraits are scaled-display art
+    // (gearMounts declares display widths) and keep a hi-def ship
+    // form, like weapon rasters. Hero family 59,346 B -> 249,625 B
+    // (per-part accounting in scripts/top-choice-hero-swap.py and
+    // the INT-3 PR body). Dread Head has no master (two pipeline
+    // refusals; owner ruling: leave) and its sprite is unchanged;
+    // the hood is untouched.
+    // Top-Choice INT-1 weapons (2026-11-11): the production
+    // sprite layer for the adopted weapon paintings lands — 26
+    // legendaries (legendary-painting-*, 2,903,472 B) + 36 bases
+    // (weapon-base-*, 2,422,978 B) registered behind their trims
+    // (spriteProduction / weaponPaintingData), palette-256 with
+    // true alpha via the Wave 15 key_white recipe at the 1440
+    // card-width class. NO existing sprite file is modified and
+    // the in-game weapon renderers are untouched — the compositors
+    // still paint from authored data (V4); wiring the paintings
+    // into PixelWeapon is the scoped renderer step recorded in
+    // docs/top-choice-weapon-integration.md (needs the owner's
+    // source-of-truth / variety / element rulings first).
+    // INT-2 gear paintings (2026-11-11): the Top-Choice gear family
+    // lands — 29 NEW manifest sprites carrying the adopted Wave
+    // 3/4/5/6 masters (keyed, content-cropped, palette-256, native
+    // master size; derived by scripts/wiki-gen/
+    // derive-gear-paintings.py): shields 5 = 1,553,437 B, relics
+    // 16 = 3,505,470 B, class mods 4 = 888,116 B, ordnance
+    // 4 = 674,508 B — family total 6,621,531 B. The families REPLACE
+    // nothing in the manifest (gear rendered 100% procedurally
+    // before; the grammars stay as the fallback for identities with
+    // no painting). Manifest total 6,721,903 → 13,343,434 B. Per
+    // the slice instruction the ceiling literal is set to this
+    // branch's measured total, so the check now pins drift exactly
+    // at the INT-2 landing (the parent reconciles the pin across
+    // the parallel INT slices at merge time).
     // Vistas plain-bg (2026-11-11, INT-6): the layered vista sets
     // (24 band strips 38,227 B + 8 texel backgrounds 17,957 B =
     // 56,184 B) leave the bundle; the 8 adopted master paintings
@@ -316,15 +358,16 @@ describe('performance + payload budgets (§4.9)', () => {
     // slice with per-family accounting. Per the slice instruction the
     // ceiling literal is set to this branch's measured total, so the
     // check now pins drift exactly at the INT-5 landing.
-    // Reconciliation (parent merge drill, 2026-11-11): unified
-    // manifest = current master (447 entries, 27,641,424 B) with
-    // this slice's vista changes applied — the 24 band sprites
-    // (far/mid/near for 7 zones + camp) deleted, the 8 zone/camp
-    // bg records swapped to the branch's plain-painting records
-    // — = 423 entries, measured 29,582,984 B on the reconciled
-    // tree, every record asserted against its file. The ceiling
-    // literal follows the unified total +1. INT-2 gear (29
-    // sprites) is still in flight and re-pins when it lands.
-    expect(total).toBeLessThan(29_582_984 + 1);  });
+    // Reconciliation (parent merge drill, 2026-11-11, FINAL):
+    // manifest = master after the INT-6 vistas landing (423
+    // entries, 29,582,984 B — the 24 band sprites deleted, the
+    // 8 zone/camp bg records swapped to the plain paintings) +
+    // this slice's 29 gear entries (+6,621,531 B) = 452
+    // entries, measured 36,204,515 B on the reconciled tree,
+    // every record asserted against its file; the ceiling
+    // literal follows the unified total +1. All ten Top-Choice
+    // integration slices have now landed — this pin is the
+    // program's final manifest state.
+    expect(total).toBeLessThan(36_204_515 + 1);  });
 
 });

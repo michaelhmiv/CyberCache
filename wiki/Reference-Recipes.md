@@ -13,7 +13,7 @@ depends on the rarity you choose when you queue it.
 
 ## Materials & essences
 
-<!-- GENERATED from src/constants/visualAssets.ts, src/lib/pixel/itemArt.ts, src/assets/pixel/manifest.json — do not edit by hand -->
+<!-- GENERATED from src/constants/visualAssets.ts, src/lib/pixel/materialArt.ts, src/lib/pixel/smallItemCore.ts — do not edit by hand -->
 <!-- wiki-gen:materials -->
 Every material and essence, drawn as the object it renders as in game — form and colorway are how it reads in the Workshop, the market, and your inventory. The Band column is the processing finish the art itself wears: raw goods are worn and jumbled, refined goods are the same stuff aligned, composites carry their lamination seam.
 

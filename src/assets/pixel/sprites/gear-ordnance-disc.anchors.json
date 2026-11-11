@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-ordnance-disc",
+  "src": "top-choice/wave6-ordnance/renders/disc-top.png",
+  "out": "src/assets/pixel/sprites/gear-ordnance-disc.png",
+  "width": 1986,
+  "height": 1099,
+  "anchors": {
+    "feet": {
+      "x": 0.5184,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5219,
+      "y": 0.584
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5729
+    },
+    "lootPoint": {
+      "x": 0.5206,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2735,
+      "y": 0.6448
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-class-mod-demolition",
+  "src": "top-choice/wave5-classmods/renders/classmod-demolition-top.png",
+  "out": "src/assets/pixel/sprites/gear-class-mod-demolition.png",
+  "width": 2060,
+  "height": 1016,
+  "anchors": {
+    "feet": {
+      "x": 0.5004,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5005,
+      "y": 0.5569
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4945
+    },
+    "lootPoint": {
+      "x": 0.4996,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2435,
+      "y": 0.6733
+    }
+  }
+}

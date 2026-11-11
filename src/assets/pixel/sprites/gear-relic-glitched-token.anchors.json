@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-glitched-token",
+  "src": "top-choice/wave4-relics/renders/glitched-token-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-glitched-token.png",
+  "width": 1567,
+  "height": 1446,
+  "anchors": {
+    "feet": {
+      "x": 0.5248,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5063,
+      "y": 0.5536
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6277
+    },
+    "lootPoint": {
+      "x": 0.5618,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3311,
+      "y": 0.6654
+    }
+  }
+}

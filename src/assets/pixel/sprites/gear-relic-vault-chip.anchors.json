@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-vault-chip",
+  "src": "top-choice/wave4-relics/renders/vault-chip-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-vault-chip.png",
+  "width": 1582,
+  "height": 1119,
+  "anchors": {
+    "feet": {
+      "x": 0.431,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4893,
+      "y": 0.5136
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6843
+    },
+    "lootPoint": {
+      "x": 0.2356,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2348,
+      "y": 0.6465
+    }
+  }
+}

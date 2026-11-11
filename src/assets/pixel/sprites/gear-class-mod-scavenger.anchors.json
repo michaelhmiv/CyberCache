@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-class-mod-scavenger",
+  "src": "top-choice/wave5-classmods/renders/classmod-scavenger-top.png",
+  "out": "src/assets/pixel/sprites/gear-class-mod-scavenger.png",
+  "width": 1863,
+  "height": 908,
+  "anchors": {
+    "feet": {
+      "x": 0.4968,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4993,
+      "y": 0.4774
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.617
+    },
+    "lootPoint": {
+      "x": 0.4996,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2426,
+      "y": 0.6932
+    }
+  }
+}

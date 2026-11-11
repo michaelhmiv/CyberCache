@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-shield-nova",
+  "src": "top-choice/wave3-shields/renders/nova-top.png",
+  "out": "src/assets/pixel/sprites/gear-shield-nova.png",
+  "width": 1947,
+  "height": 873,
+  "anchors": {
+    "feet": {
+      "x": 0.5002,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4999,
+      "y": 0.4928
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6462
+    },
+    "lootPoint": {
+      "x": 0.4998,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2318,
+      "y": 0.6869
+    }
+  }
+}

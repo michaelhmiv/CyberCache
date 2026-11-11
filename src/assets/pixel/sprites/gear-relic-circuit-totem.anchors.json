@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-circuit-totem",
+  "src": "top-choice/wave4-relics/renders/circuit-totem-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-circuit-totem.png",
+  "width": 1676,
+  "height": 1088,
+  "anchors": {
+    "feet": {
+      "x": 0.503,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5008,
+      "y": 0.6509
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9434
+    },
+    "lootPoint": {
+      "x": 0.4793,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3314,
+      "y": 0.7324
+    }
+  }
+}

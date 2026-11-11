@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GearItem } from '@/types/items';
 import {
   bespokeSpriteIdForGear,
@@ -10,7 +10,19 @@ import {
   type GearDensity,
   type GearGrammar,
 } from '@/lib/pixel/gearCardCompositor';
-import { getPixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite, hasManifestEntry } from '@/lib/pixel/manifest';
+import {
+  applyPaletteSwap,
+  drawPaintedNodeDeck,
+  loadSpriteImage,
+  paintedImageDataUrl,
+  paintedRarityColor,
+  paintedSpriteSize,
+  paletteSwapFor,
+  resolvePaintedGear,
+  type PaintedGearResolution,
+} from '@/lib/pixel/gearPaintedRender';
+import { decodePng } from '@/lib/pixel/pngCodec';
 import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { useDeferredArt } from './useDeferredArt';
 
@@ -21,9 +33,17 @@ import { useDeferredArt } from './useDeferredArt';
  *
  * - Bespoke resolution FIRST: a named item with registered bespoke
  *   art renders its fixed sprite instead of a grammar composition
- *   (the weapons' legendary pattern). No bespoke gear art exists
- *   yet — the registry is empty — but the order is structural, so
- *   a future named shield/relic can never be shadowed by grammar.
+ *   (the weapons' legendary pattern). The name registry stays empty,
+ *   but the order is structural, so a named shield/relic can never
+ *   be shadowed by grammar.
+ * - Painted resolution SECOND (Top-Choice INT-2, 2026-11-11): every
+ *   shield, relic, class mod and ordnance item resolves to its
+ *   adopted Top-Choice painting (form-keyed for shields/ordnance/
+ *   class mods, name-keyed for relics — gearPaintedRender.ts), with
+ *   the element colorway applied in palette space and, for class
+ *   mods, the live node deck drawn into the casing's measured
+ *   window. Only an item with no painting (a class mod whose tree
+ *   names no casing) falls through to the grammar.
  * - Otherwise the item's kind grammar composes deterministically
  *   from the record itself; the render is cached module-wide by
  *   signature, so lists never repaint texels.
@@ -34,6 +54,10 @@ import { useDeferredArt } from './useDeferredArt';
 
 const CARD_PAINT_SCALE = 2;
 const THUMB_PAINT_SCALE = 4;
+
+/** Painted-render object URLs by render signature (module-wide, so a
+ *  list of the same form+colorway decodes once). */
+const paintedUrlCache = new Map<string, string>();
 
 interface PixelGearProps {
   item?: GearItem;
@@ -102,10 +126,82 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
     : undefined;
   const bespokeSprite = bespoke ? getPixelSprite(bespoke) : undefined;
 
+  // Painted layer (INT-2): the adopted Top-Choice painting for this
+  // item, when its identity resolves to one. The test seam
+  // (bespokeRegistry) keeps the painted layer out of fixture renders.
+  const painted: PaintedGearResolution | undefined = useMemo(() => {
+    if (!item || bespokeRegistry || bespokeSprite) return undefined;
+    try {
+      return resolvePaintedGear(item, grammar);
+    } catch {
+      return undefined; // derivation refusal — the grammar path below decides
+    }
+  }, [item, grammar, bespokeRegistry, bespokeSprite]);
+  const paintedSprite = painted ? getPixelSprite(painted.spriteId) : undefined;
+  // The painted render's existence is decided by the MANIFEST
+  // DECLARATION (pure JSON — identical in the vite build, vitest,
+  // and node), never by the glob-backed URL map: glob results vary
+  // by environment, and the placeholder must mount wherever the
+  // declaration says the painting exists. The URL feed below only
+  // serves the <img> once bytes resolve.
+  const paintedDeclared = painted ? hasManifestEntry(painted.spriteId) : false;
+
   const render = useMemo(
-    () => (active && resolved && !bespokeSprite ? composeGearCached(resolved, grammar, density) : undefined),
-    [active, resolved, bespokeSprite, grammar, density],
+    () => (active && resolved && !bespokeSprite && !paintedDeclared ? composeGearCached(resolved, grammar, density) : undefined),
+    [active, resolved, bespokeSprite, paintedDeclared, grammar, density],
   );
+
+  // The painted render: sprite bytes -> element colorway in palette
+  // space -> decode -> (class mods) the live deck in the measured
+  // window -> an object URL the <img> paints. Cached per signature so
+  // lists never re-fetch or re-decode the same item twice.
+  const paintedSignature = painted && paintedDeclared
+    ? `painted|${painted.kind}|${painted.form}|${painted.element ?? ''}|${painted.rarity}`
+      + (painted.kind === 'classMod'
+        ? `|${JSON.stringify((item as { nodeBoosts?: Record<string, number> } | undefined)?.nodeBoosts ?? {})}`
+        : '')
+    : undefined;
+  const [paintedUrl, setPaintedUrl] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (!painted || !paintedSprite || !paintedSignature) {
+      setPaintedUrl(undefined);
+      return;
+    }
+    let cancelled = false;
+    const cached = paintedUrlCache.get(paintedSignature);
+    if (cached) {
+      setPaintedUrl(cached);
+      return;
+    }
+    void (async () => {
+      const swap = paletteSwapFor(painted);
+      let url: string | undefined;
+      if (!swap && painted.kind !== 'classMod') {
+        url = paintedSprite.url; // the master's own colors — serve the file as-is
+      } else {
+        const base = await loadSpriteImage(painted.spriteId, paintedSprite.url);
+        if (!base) return;
+        let image = base;
+        if (swap) {
+          try {
+            const res = await fetch(paintedSprite.url);
+            if (res.ok) {
+              image = decodePng(applyPaletteSwap(new Uint8Array(await res.arrayBuffer()), swap));
+            }
+          } catch { /* keep the master's own colors */ }
+        }
+        if (painted.kind === 'classMod' && item) {
+          image = { width: image.width, height: image.height, data: new Uint8Array(image.data) };
+          drawPaintedNodeDeck(image, item);
+        }
+        url = paintedImageDataUrl(image);
+      }
+      if (cancelled || !url) return;
+      paintedUrlCache.set(paintedSignature, url);
+      setPaintedUrl(url);
+    })();
+    return () => { cancelled = true; };
+  }, [painted, paintedSprite, paintedSignature, item]);
 
   const paintScale = density === 'card' ? CARD_PAINT_SCALE : THUMB_PAINT_SCALE;
 
@@ -134,13 +230,62 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
     );
   }
 
+  if (painted && paintedDeclared) {
+    const spriteW = paintedSprite?.width ?? paintedSpriteSize(painted.spriteId)?.width ?? 1;
+    const spriteH = paintedSprite?.height ?? paintedSpriteSize(painted.spriteId)?.height ?? 1;
+    const height = Math.round(size * (spriteH / spriteW));
+    const glow = painted.rarity === 'Epic' || painted.rarity === 'Legendary';
+    if (!paintedUrl) {
+      // Mount at final geometry while the painting decodes — no
+      // layout shift when the art lands (the deferred pattern).
+      return (
+        <canvas
+          width={spriteW}
+          height={spriteH}
+          className={className}
+          style={{
+            width: fluid ? '100%' : size,
+            height: fluid ? 'auto' : height,
+            filter: glow ? `drop-shadow(0 0 6px ${paintedRarityColor(painted.rarity)})` : undefined,
+          }}
+          role="img"
+          aria-label={item?.name ?? `${painted.rarity} ${painted.kind}`}
+          data-testid={testId}
+          data-painted-sprite={painted.spriteId}
+          data-painted-form={painted.form}
+          data-deferred-art="pending"
+        />
+      );
+    }
+    return (
+      <img
+        src={paintedUrl}
+        alt={item?.name ?? 'Painted gear'}
+        width={fluid ? undefined : size}
+        height={fluid ? undefined : height}
+        className={className}
+        style={{
+          width: fluid ? '100%' : undefined,
+          height: fluid ? 'auto' : undefined,
+          filter: glow ? `drop-shadow(0 0 6px ${paintedRarityColor(painted.rarity)})` : undefined,
+        }}
+        data-testid={testId}
+        data-pixel-sprite={painted.spriteId}
+        data-painted-sprite={painted.spriteId}
+        data-painted-form={painted.form}
+        data-painted-element={painted.element ?? undefined}
+        draggable={false}
+      />
+    );
+  }
+
   if (!render) {
     // Deferred and not yet activated: mount the canvas at its FINAL
     // geometry (the plate grid is a pure function of grammar +
     // density, so this box is exactly the box the painted canvas
     // will occupy) with the compose + paint still pending. No
     // layout shift when the art lands.
-    if (defer && !active && resolved && !bespokeSprite) {
+    if (defer && !active && resolved && !bespokeSprite && !paintedDeclared) {
       const grid = gearGridFor(grammar, density);
       const height = Math.round(size * (grid.height / grid.width));
       return (

@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-ordnance-dart",
+  "src": "top-choice/wave6-ordnance/renders/dart-top.png",
+  "out": "src/assets/pixel/sprites/gear-ordnance-dart.png",
+  "width": 2044,
+  "height": 1101,
+  "anchors": {
+    "feet": {
+      "x": 0.4968,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.3703,
+      "y": 0.4643
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4459
+    },
+    "lootPoint": {
+      "x": 0.0555,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2106,
+      "y": 0.5687
+    }
+  }
+}

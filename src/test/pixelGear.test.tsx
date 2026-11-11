@@ -73,7 +73,11 @@ describe('GearIllustration — shield flipped (slice 1), relic flipped (slice 4)
       affixes: [], sourceTag: DropSource.WorldDrop, isLocked: false,
     } as unknown as GearItem;
     const { container } = render(<GearIllustration item={relic} size="card" showBadges={false} />);
-    expect(container.querySelector('canvas')).not.toBeNull();
+    // INT-2: the plate is the relic's adopted painting — the mounted
+    // node is the placeholder canvas or the resolved <img> (relics
+    // carry no colorway swap, so jsdom settles onto the <img>); both
+    // carry the painting's sprite identity.
+    expect(container.querySelector('[data-painted-sprite="gear-relic-echo-stone"]')).not.toBeNull();
     expect(container.querySelector('svg')).toBeNull();
   });
 });

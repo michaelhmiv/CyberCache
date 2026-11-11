@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-cache-relic",
+  "src": "top-choice/wave4-relics/renders/cache-relic-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-cache-relic.png",
+  "width": 1511,
+  "height": 929,
+  "anchors": {
+    "feet": {
+      "x": 0.4975,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4986,
+      "y": 0.5206
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5787
+    },
+    "lootPoint": {
+      "x": 0.4977,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2354,
+      "y": 0.7122
+    }
+  }
+}

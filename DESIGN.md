@@ -1433,6 +1433,57 @@ outline measures 2 cells at its can shoulder — both
 recorded in the suite, neither re-authored: the owner
 approved the form as authored).
 
+**INT-2 — Top-Choice gear paintings land (2026-11-11;
+§8 exception, owner-ruled).** The owner adopted the Top-Choice
+program's painted masters wholesale (2026-11-11), and the four
+gear families integrate as PAINTINGS, superseding §8's density
+law for these families only: the weapons' One Grammar precedent
+inverted — where V4 retired paintings into authored data, the
+gear families ship the paintings themselves. Every shield,
+relic, class mod and ordnance item now renders its adopted
+master (Waves 3–6) through the bespoke layer the gear core has
+carried since slice 0 (`gearPaintedData.ts` +
+`gearPaintedRender.ts`, checked by PixelGear ahead of grammar):
+form-keyed for shields (behavior), ordnance (effect-rolled form)
+and class mods (tree); name-keyed for relics — the registry's
+native fit, since a relic's name is its form
+(`BESPOKE_GEAR_SPRITES` itself stays empty: it is name-keyed
+only, and three of the four families are not). Element colorways
+are palette-space swaps of the master, executed on the PNG's
+PLTE in index space: shields by Wave 3's zone rule + hue targets
+run per form (Standard reproduces the wave's proof exactly —
+56 glow entries, white-hot heart unswapped by design); ordnance
+by Wave 6's core→accent blend with the body hue ceiling measured
+per form at integration, as its NOTES prescribe (Spike keeps the
+published rule verbatim). Rarity stays presentation: the
+Epic/Legendary drop-shadow glow rides the painted render exactly
+as it rode the canvas. **The class-mod deck contract stands:**
+casings ship with their windows EMPTY — the live node deck is
+code, drawn at runtime into the window rect MEASURED on each
+casing (Wave 5's deck-proof method; the measured rects are data
+in `PAINTED_CLASS_MOD_WINDOWS`, superseding the canonical
+`NODE_DECK_ORIGINS` seat for the painted render only). Affix
+pips are not drawn over the paintings: the masters bake each
+family's canonical furniture (Wave 6's plaque note states the
+same disposition). Owner rulings carried verbatim: the Absorb
+shield keeps its plasma-orb core (attempt-1 master); the Void
+Prism keeps its nebula eye. Ancient Module's master wears a
+painted fake-checkerboard ground that border keying cannot
+remove, so it is OBJECT-keyed (largest connected component — the
+Wave 15 call). The grammars remain the fallback for identities
+with no painting (a class mod whose tree names no casing renders
+the neutral housing grammar, as before) and remain the S2/S3
+craft corpus; the wiki gear plates re-derive from the paintings
+through this same pipeline, so card, inspect, list and Manual
+show one render per item. **Payload:** +29 manifest sprites,
+6,621,531 B (shields 1,553,437 · relics 3,505,470 · class mods
+888,116 · ordnance 674,508 — keyed native-size palette-256,
+derived by `scripts/wiki-gen/derive-gear-paintings.py` from the
+adopted masters at their ledger sizes 1,585,353 / 3,550,449 /
+896,489 / 680,734 B); manifest total 6,721,903 → 13,343,434 B
+and the §4.9 ceiling pin moves to this branch's measured total
+with the accounting in the test comment.
+
 **V4 — the 26 bespoke legendaries join the grammar
 (2026-11-08).** The One Grammar carve-out above is retired:
 the 26 painted legendary sprites (1,478,328 B) are deleted,

@@ -148,26 +148,38 @@ describe('class-mod marriage — registration + dispatch', () => {
     expect(GEAR_GRAMMARS.classMod).toBe(classModGrammar);
   });
 
-  it('GearIllustration renders a class mod as a canvas with the core signature', () => {
+  it('GearIllustration renders a class mod as its Top-Choice casing painting', () => {
+    // INT-2 (2026-11-11): the adopted Wave 5 casing outranks the
+    // grammar composition in the render seam — the painted branch
+    // mounts the casing's placeholder canvas carrying the sprite
+    // identity; the live node deck is drawn into the casing's
+    // measured window when the painting decodes (gearPaintedRender).
     const item = FIXTURES['fixer-epic-boosted'];
     const { container } = render(<GearIllustration item={item} size="showcase" showBadges={false} />);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas!.dataset.signature).toBe(cardOf(item).signature);
+    expect(canvas!.dataset.paintedSprite).toBe('gear-class-mod-fixer');
+    expect(canvas!.dataset.paintedForm).toBe('fixer');
   });
 
-  it('a relic renders its pixel plate too (slice 4 landed last)', () => {
+  it('a relic renders its painting too (slice 4 landed last; INT-2 painted)', () => {
     // This case pinned the relic SVG route while slices 1–3 were
-    // the flipped set; slice 4 flipped relics, so the pin now
-    // asserts the plate. The fixture carries a real pool name —
-    // relic form is keyed to it.
+    // the flipped set; slice 4 flipped relics to the plate, and
+    // INT-2 now renders the adopted Wave 4 painting in that slot.
+    // The fixture carries a real pool name — relic form is keyed to it.
     const relic: Relic = {
       id: 'test_relic', name: 'Echo Stone', level: 5, rarity: Rarity.Rare,
       affixes: [], sourceTag: DropSource.WorldDrop, isLocked: false,
     };
     const { container } = render(<GearIllustration item={relic} size="card" showBadges={false} />);
     expect(container.querySelector('svg')).toBeNull();
-    expect(container.querySelector('canvas')).not.toBeNull();
+    // The mounted node is the placeholder canvas or the resolved
+    // <img> (relics carry no colorway swap, so jsdom settles onto
+    // the <img>); both carry the painting's sprite identity.
+    const painted = container.querySelector<HTMLElement>('[data-painted-sprite]');
+    expect(painted).not.toBeNull();
+    expect(painted!.dataset.paintedSprite).toBe('gear-relic-echo-stone');
+    expect(painted!.dataset.paintedForm).toBe('echo-stone');
   });
 });
 

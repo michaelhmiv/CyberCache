@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-servo-bench-rig",
+  "src": "top-choice/wave4-relics/renders/servo-bench-rig-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-servo-bench-rig.png",
+  "width": 1445,
+  "height": 890,
+  "anchors": {
+    "feet": {
+      "x": 0.1794,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5394,
+      "y": 0.4208
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4329
+    },
+    "lootPoint": {
+      "x": 0.5145,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.1784,
+      "y": 0.7728
+    }
+  }
+}
