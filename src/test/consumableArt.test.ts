@@ -28,7 +28,7 @@ function filledCount(rows: string[]): number {
 describe('consumableArt — coverage', () => {
   it('has exactly one art row per consumable type', () => {
     expect(Object.keys(CONSUMABLE_ART).sort()).toEqual([...ALL_IDS].sort());
-    expect(ALL_IDS).toHaveLength(43);
+    expect(ALL_IDS).toHaveLength(44);
   });
 
   it('resolves an art row for every type, chassis from the def silhouette', () => {
@@ -42,14 +42,14 @@ describe('consumableArt — coverage', () => {
 });
 
 describe('consumableArt — recognizability', () => {
-  it('renders all 43 types as pairwise-distinct object sprites', () => {
+  it('renders all 44 types as pairwise-distinct object sprites', () => {
     const seen = new Map<string, string>();
     for (const id of ALL_IDS) {
       const key = composeConsumable(id).rows.join('/');
       expect(seen.has(key), `${id} renders identically to ${seen.get(key)}`).toBe(false);
       seen.set(key, id);
     }
-    expect(seen.size).toBe(43);
+    expect(seen.size).toBe(44);
   });
 
   it('separates the declared-visual twins by form, not just hue', () => {

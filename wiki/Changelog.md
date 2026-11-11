@@ -7,6 +7,9 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The cache got a new portrait** — the app icon and logo were re-rendered at full painterly quality: the same navy cache crate with its lid cracked in two and the gold burst pouring out, on the same vivid rust field — now with crisp, continuous surfaces instead of the old pixel finish. It is the same logo everywhere it appears: the home-screen icon, the web logo and favicon, and the store icon all carry the new rendering, and at small sizes the crate and burst still read at a glance.
 - **The launch screen matches now** — the Android splash used to open on an old orange cache device that was never the logo; it now shows the new portrait instead: the whole navy crate and its gold burst, framed as an emblem on the same dark gradient field the old splash used, in every size and orientation the app ships.
 
+## 2026-11-10 — Fights move faster now
+
+- **Overclock Serum** — a new craftable from the bench (30 Scrap + 2 Ballistic Parts): your weapon fires 15% faster for a full minute. Higher-quality batches push the boost further, up toward +30%. It is a crafters' item — the vendor does not stock it — and it stacks with your damage tonics instead of replacing them: more hits, same punch per hit.
 ## 2026-11-10 — Scrap earns its keep
 
 - **Crafting consumables costs real Scrap now** — the Scrap legs on consumable recipes were priced back when Scrap barely moved; they now run two to eight times higher, tiered by the item: a Patch Kit costs 10 Scrap, a Med Kit 40, a Shield Cell 100, an Adrenaline Shot 300. Batch recipes follow the same curve. Everything else about the recipes — the other inputs, the craft times, what the items do — is unchanged.
@@ -232,9 +235,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 214 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 215 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-10** — 8 merges
+**2026-11-10** — 9 merges
 
 - #469 — Anim-replay loop: deterministic replay + B2 metrics + CI workflow (Track A baseline)
 - #470 — Anim fix iteration: enemy approach + walk articulation, stride saturation, loop-instrument repairs
@@ -244,6 +247,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #474 — Tuning T1R — Passive shield recharge (owner ruling 2026-11-10)
 - #475 — Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)
 - #477 — Tuning T3 — scrap portfolio (D3/P7+P8): repriced recipe Scrap legs + 25-Scrap listing deposit [migration 0087, do not merge before live apply]
+- #479 — Logo swap: adopt the Top-Choice re-render on every surface
 
 **2026-11-09** — 2 merges
 
