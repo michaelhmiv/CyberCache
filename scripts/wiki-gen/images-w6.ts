@@ -21,7 +21,13 @@
  *   - Vehicles: src/lib/vehicles/vehicles.ts (the classes); a class's
  *     sprite id is `vehicle-<class id, underscores as dashes>` — the
  *     rule GaragePanel.tsx and LiveTurfDiorama.tsx resolve by. The
- *     affix/wear overlays are the remaining vehicle-* sprites.
+ *     affix/wear overlays are the remaining vehicle-* sprites. Vehicle
+ *     plates are the one re-pointed source in INT-5: the plates used to
+ *     re-encode the (then tiny) class sprites at native size; since the
+ *     Top-Choice paintings landed the plates derive from the shipped
+ *     sprites through the Wave 15 recipe instead — fitted into the
+ *     pre-swap plate boxes −8px, LANCZOS, keyed alpha preserved (see
+ *     vehiclePlatePng below).
  *   - Skins: src/content/skins.ts (the catalog) over the render-side
  *     defs in src/lib/pixel/skinParts.ts, composed by the game's own
  *     parts compositor (src/lib/pixel/partsCompositor.ts) — the set
@@ -142,6 +148,115 @@ function halvedSpritePng(spriteId: string): Uint8Array {
 /** PNG sprite art re-encoded through the codec at native size. */
 function nativeSpritePng(spriteId: string): Uint8Array {
   return encodePng(decodePng(spriteFileBytes(spriteId)));
+}
+
+/**
+ * Vehicle plate treatment (Top-Choice INT-5, Wave 15 recipe): the
+ * class and overlay plates are the shipped sprite fitted into the
+ * plate's PRE-SWAP canvas — the box the plate occupied before the
+ * Top-Choice paintings landed (class plates 128px wide at the class's
+ * sprite aspect, overlays at their sprite aspect, both inset 8px per
+ * Wave 15's "plate box −8px" fit) — centered on transparency, keyed
+ * alpha preserved, RGBA (vehicle plates do not take the weapons'
+ * palette snap). Wave 15's derived reference plates measured 154,511 B
+ * for the thirteen; the plates below are the same recipe over the
+ * adopted colorway bases and the riding overlays. Without the fit, the
+ * native-size re-encode would carry the full painting payload into
+ * the wiki (9.1 MB for the thirteen) where Wave 15 budgeted ~155 KB.
+ */
+const VEHICLE_PLATE_BOXES: Record<string, { width: number; height: number }> = {
+  // class plates — the pre-swap class sprite dims (128 wide x aspect)
+  'vehicle-scrap-bike': { width: 128, height: 63 },
+  'vehicle-dune-buggy': { width: 128, height: 60 },
+  'vehicle-utility-rover': { width: 111, height: 64 },
+  'vehicle-cargo-hauler': { width: 128, height: 52 },
+  'vehicle-armored-crawler': { width: 128, height: 48 },
+  'vehicle-relay-skimmer': { width: 128, height: 46 },
+  'vehicle-leviathan-rig': { width: 128, height: 64 },
+  // overlay plates — the pre-swap overlay sprite dims
+  'vehicle-affix-armor-plate': { width: 93, height: 64 },
+  'vehicle-affix-cargo-rack': { width: 94, height: 64 },
+  'vehicle-affix-reinforced-frame': { width: 103, height: 64 },
+  'vehicle-affix-scanner-array': { width: 64, height: 64 },
+  'vehicle-condition-scuff': { width: 128, height: 56 },
+  'vehicle-condition-smoke': { width: 128, height: 58 },
+};
+
+/** Fit the decoded sprite into the plate box −8px (LANCZOS), centered. */
+function vehiclePlatePng(spriteId: string): Uint8Array {
+  const box = VEHICLE_PLATE_BOXES[spriteId];
+  if (!box) throw new Error(`images-w6: no vehicle plate box for "${spriteId}"`);
+  const src = decodePng(spriteFileBytes(spriteId));
+  const fitW = box.width - 8;
+  const fitH = box.height - 8;
+  const scale = Math.min(fitW / src.width, fitH / src.height);
+  const w = Math.max(1, Math.round(src.width * scale));
+  const h = Math.max(1, Math.round(src.height * scale));
+  // Lanczos-3 resample over premultiplied RGBA, so edges do not darken
+  // or bleed keying leftovers (the boxDownscaleHalf treatment, generalized).
+  const K = (t: number): number => {
+    if (t === 0) return 1;
+    if (Math.abs(t) >= 3) return 0;
+    const pt = Math.PI * t;
+    return (Math.sin(pt) / pt) * (Math.sin(pt / 3) / (pt / 3));
+  };
+  const out = new Float64Array(w * h * 4);
+  const inv = 1 / scale;
+  for (let y = 0; y < h; y++) {
+    const cy = (y + 0.5) * inv - 0.5;
+    const y0 = Math.floor(cy - 3 * inv);
+    const y1 = Math.ceil(cy + 3 * inv);
+    for (let x = 0; x < w; x++) {
+      const cx = (x + 0.5) * inv - 0.5;
+      const x0 = Math.floor(cx - 3 * inv);
+      const x1 = Math.ceil(cx + 3 * inv);
+      let r = 0, g = 0, b = 0, a = 0, wsum = 0;
+      for (let sy = y0; sy <= y1; sy++) {
+        if (sy < 0 || sy >= src.height) continue;
+        const wy = K((sy - cy) * scale);
+        if (wy === 0) continue;
+        for (let sx = x0; sx <= x1; sx++) {
+          if (sx < 0 || sx >= src.width) continue;
+          const wgt = wy * K((sx - cx) * scale);
+          if (wgt === 0) continue;
+          const i = (sy * src.width + sx) * 4;
+          const af = src.data[i + 3] / 255;
+          r += src.data[i] * af * wgt;
+          g += src.data[i + 1] * af * wgt;
+          b += src.data[i + 2] * af * wgt;
+          a += src.data[i + 3] * wgt;
+          wsum += wgt;
+        }
+      }
+      const o = (y * w + x) * 4;
+      if (wsum > 0 && a > 0) {
+        const un = 255 / Math.max(a, 1e-9);
+        out[o] = Math.min(255, r * un);
+        out[o + 1] = Math.min(255, g * un);
+        out[o + 2] = Math.min(255, b * un);
+        out[o + 3] = Math.min(255, a / wsum);
+      }
+    }
+  }
+  const fitted: RgbaImage = {
+    width: w,
+    height: h,
+    data: new Uint8Array(out.map((v) => Math.round(v))),
+  };
+  const canvas: RgbaImage = {
+    width: box.width,
+    height: box.height,
+    data: new Uint8Array(box.width * box.height * 4),
+  };
+  const ox = Math.floor((box.width - w) / 2);
+  const oy = Math.floor((box.height - h) / 2);
+  for (let y = 0; y < h; y++) {
+    canvas.data.set(
+      fitted.data.subarray(y * w * 4, (y + 1) * w * 4),
+      ((oy + y) * box.width + ox) * 4,
+    );
+  }
+  return encodePng(canvas);
 }
 
 /* ------------------------------------------------------------------ */
@@ -351,12 +466,12 @@ export function vehiclePlates(): GenAsset[] {
   const plates: GenAsset[] = [];
   for (const v of VEHICLE_CLASSES) {
     const spriteId = vehicleSpriteIdForClass(v.id);
-    plates.push({ path: `${VEHICLE_PLATE_DIR}/${spriteId.replace(/^vehicle-/, '')}.png`, bytes: nativeSpritePng(spriteId) });
+    plates.push({ path: `${VEHICLE_PLATE_DIR}/${spriteId.replace(/^vehicle-/, '')}.png`, bytes: vehiclePlatePng(spriteId) });
   }
   for (const overlay of VEHICLE_OVERLAYS) {
     plates.push({
       path: `${VEHICLE_PLATE_DIR}/${overlay.spriteId.replace(/^vehicle-/, '')}.png`,
-      bytes: nativeSpritePng(overlay.spriteId),
+      bytes: vehiclePlatePng(overlay.spriteId),
     });
   }
   return sortAssets(plates);
@@ -364,13 +479,15 @@ export function vehiclePlates(): GenAsset[] {
 
 export function vehicleClassImgTag(v: VehicleClassDef): string {
   const spriteId = vehicleSpriteIdForClass(v.id);
-  const entry = spriteEntry(spriteId);
-  return `<img src="${VEHICLE_PLATE_DIR}/${spriteId.replace(/^vehicle-/, '')}.png" alt="${v.displayName}" width="${entry.width}">`;
+  const box = VEHICLE_PLATE_BOXES[spriteId];
+  if (!box) throw new Error(`images-w6: no vehicle plate box for "${spriteId}"`);
+  return `<img src="${VEHICLE_PLATE_DIR}/${spriteId.replace(/^vehicle-/, '')}.png" alt="${v.displayName}" width="${box.width}">`;
 }
 
 export function vehicleOverlayImgTag(overlay: (typeof VEHICLE_OVERLAYS)[number]): string {
-  const entry = spriteEntry(overlay.spriteId);
-  return `<img src="${VEHICLE_PLATE_DIR}/${overlay.spriteId.replace(/^vehicle-/, '')}.png" alt="${overlay.label}" width="${entry.width}">`;
+  const box = VEHICLE_PLATE_BOXES[overlay.spriteId];
+  if (!box) throw new Error(`images-w6: no vehicle plate box for "${overlay.spriteId}"`);
+  return `<img src="${VEHICLE_PLATE_DIR}/${overlay.spriteId.replace(/^vehicle-/, '')}.png" alt="${overlay.label}" width="${box.width}">`;
 }
 
 export function vehicleOverlaysBody(): string {

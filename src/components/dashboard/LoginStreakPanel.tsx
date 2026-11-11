@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { DISPLAY_CALENDAR_MASTER } from '@/lib/pixel/iconMasters';
 import { ClaimPulse } from '@/components/common/ClaimPulse';
 import {
   formatLoginStreakReward,
@@ -289,7 +290,21 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
           className="relative shrink-0 border-2 border-border-light bg-black/50 p-2"
           style={{ color: STREAK_ACCENT }}
         >
-          <PxIcon name="calendar" size={40} />
+          {/* INT-9 — the calendar hero is the painted master (Wave 13).
+              Tint verification: the wrapper's color is the constant
+              STREAK_ACCENT in every state — claimable/fresh only add
+              the MedalGlow overlay below — so the glyph never carried
+              state through its tint and the fixed-color master loses
+              nothing. Same 40px slot, same padded plate. */}
+          <img
+            src={DISPLAY_CALENDAR_MASTER}
+            width={40}
+            height={40}
+            style={{ width: 40, height: 40, display: 'block' }}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+          />
           {(claimable || fresh) && <MedalGlow />}
         </div>
         <div className="min-w-0">

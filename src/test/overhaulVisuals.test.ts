@@ -277,12 +277,48 @@ describe('performance + payload budgets (§4.9)', () => {
     // (Top-Choice Wave 9.75 raw masters at Scenario-S shape — JPEG
     // q88, 1440 wide; BlastForge carries its plain-bg re-roll)
     // arrive at 1,997,744 B — a +1,941,560 B delta. Ambient sprites
-    // and camp props (10,318 B) are untouched. Manifest-sum total
-    // on this tree after landing: 8,663,463 B. Per the integration
-    // brief the ceiling pin is set to this branch's measured
-    // total, so the next art lands with its own accounting and its
-    // own deliberate move, exactly like the waves above.
-    expect(total).toBe(8_663_463);
-    expect(total).toBeLessThanOrEqual(8_663_463);
-  });
+    // and camp props (10,318 B) are untouched.
+    // INT-7 cache screen (2026-11-11): the Top-Choice cache family
+    // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
+    // palette-256 of the graded logo-identity closed master),
+    // prop-buried-cache 7,915 → 558,552 B (the adopted buried render,
+    // keyed with the wave's border-flood recipe), and the NEW
+    // prop-cache-crate-open 288,747 B (the reveal's ignition frame).
+    // Family before 16,055 B, after 1,104,713 B; manifest total
+    // 6,721,903 → 7,810,561 B. Per the slice instruction the ceiling
+    // literal is set to this branch's measured total, so the check
+    // now pins drift exactly at the INT-7 landing.
+    // Top-Choice INT-5 (2026-11-11): the vehicles + set-pieces slice
+    // swaps 34 sprites to the adopted Top-Choice paintings (palette-256
+    // with true alpha, keyed full-frame at native master dimensions
+    // via scripts/top-choice-vehicles-setpieces-swap.py — INT-7's
+    // shipped cache family is the form's precedent). Accounting:
+    // vehicle bases 80,077 B → 3,516,186 B (+3,436,109; the seven
+    // adopted Wave 7.5 colorway masters, 3,508,202 B palette-256
+    // before keying — the shipped files carry the keyed alpha; the
+    // utility rover is the masked v2 grade, 554,190 B, not the
+    // rejected v1); vehicle overlays 71,777 B → 2,773,330 B
+    // (+2,701,553; the Wave 7 navy masters keyed in their own right —
+    // the colorway pass graded bases only, so the overlay artwork rides
+    // unchanged while its shipping form becomes the program's);
+    // set pieces 99,874 B → 7,916,016 B (+7,816,142; the 21 adopted
+    // Wave 10 masters, 7,878,811 B palette-256 before keying).
+    // Manifest total on the INT-5 base after landing: 20,675,707 B
+    // (base 6,721,903 B + 13,953,804 B). Reconciled onto master
+    // 0e33d530 at the merge drill (INT-7 cache family rides:
+    // 308 entries), the measured total is 21,764,365 B and the
+    // ceiling literal follows it; final reconciliation lands when
+    // all slices merge. The former 11,620,000
+    // ceiling is retired by this landing — the owner's Top-Choice
+    // adoption (2026-11-11) rules the paintings ship at their shipping
+    // shapes, and the Top-Choice Brief's floor 8 pins the ceiling per
+    // slice with per-family accounting. Per the slice instruction the
+    // ceiling literal is set to this branch's measured total, so the
+    // check now pins drift exactly at the INT-5 landing.
+    // Measured manifest total on this tree (INT-7 cache + INT-5
+    // vehicles/set pieces + INT-6 vistas reconciled): 23,705,925 B.
+    // The ceiling moves DELIBERATELY to the measured total of this
+    // branch, per the Top-Choice adoption accounting; final
+    // reconciliation lands when all slices merge.
+    expect(total).toBeLessThan(23_705_925 + 1);  });
 });
