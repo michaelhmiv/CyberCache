@@ -3,6 +3,31 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-10",
+      "merges": [
+        {
+          "number": 471,
+          "title": "Vehicle chip on Home's Strip, right of the 7/7 (owner decision 2026-11-10)"
+        },
+        {
+          "number": 472,
+          "title": "Tuning T4 — Boss first-attempt discount (D4/P10)"
+        },
+        {
+          "number": 473,
+          "title": "Tuning T2 (D2): consumable magnitudes — ammo up, survival heals to % of pool, ordnance riders ×4"
+        },
+        {
+          "number": 474,
+          "title": "Tuning T1R — Passive shield recharge (owner ruling 2026-11-10)"
+        },
+        {
+          "number": 475,
+          "title": "Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)"
+        }
+      ]
+    },
+    {
       "date": "2026-11-08",
       "merges": [
         {
