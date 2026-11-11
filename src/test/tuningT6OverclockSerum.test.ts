@@ -160,8 +160,8 @@ describe('T6 — roaming: the cadence window runs 60 seconds and lapses', () => 
       state = result.state;
       lastConsumed = result.consumed;
       if (tick <= 20) {
-        expect(result.mods.attackSpeedMultiplier, ).toBeCloseTo(1.15, 10);
-        expect(result.mods.dpsMultiplier, ).toBe(1);
+        expect(result.mods.attackSpeedMultiplier).toBeCloseTo(1.15, 10);
+        expect(result.mods.dpsMultiplier).toBe(1);
       } else {
         expect(result.mods.attackSpeedMultiplier).toBe(1);
       }
@@ -175,7 +175,7 @@ describe('T6 — roaming: the cadence window runs 60 seconds and lapses', () => 
     for (let tick = 1; tick <= 40; tick += 1) {
       const result = processTick(state, tickCtx(state, tick, inventory));
       state = result.state;
-      expect(result.mods.attackSpeedMultiplier, ).toBeCloseTo(1.15, 10);
+      expect(result.mods.attackSpeedMultiplier).toBeCloseTo(1.15, 10);
     }
     const after = processTick(state, tickCtx(state, 41, inventory));
     expect(after.mods.attackSpeedMultiplier).toBe(1);
