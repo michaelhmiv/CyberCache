@@ -1,0 +1,25 @@
+{
+  "sprite": "item-phase-shift-grenade",
+  "anchors": {
+    "feet": {
+      "x": 0.5171,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5711,
+      "y": 0.5594
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5105
+    },
+    "lootPoint": {
+      "x": 0.7259,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3157,
+      "y": 0.7067
+    }
+  }
+}

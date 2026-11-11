@@ -269,6 +269,22 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
+    // Top-Choice INT-3 hero (2026-11-11): the 42 adopted Wave 8
+    // painterly masters replace the pxl hero sprites. The 37 rig
+    // parts ship AT their design frames — partsCompositor's
+    // placePartExact copies part sources 1:1 at rotation 0 ("a
+    // direct copy, not a resample"), so source px == design px is
+    // the rig's placement law; the paintings are downscaled onto
+    // the exact grid the game composes on (premultiplied LANCZOS;
+    // ship alpha split at the keying threshold >127 so coverage is
+    // visible coverage, not the darkness ramp's pale wash).
+    // The 5 gear-* mounted portraits are scaled-display art
+    // (gearMounts declares display widths) and keep a hi-def ship
+    // form, like weapon rasters. Hero family 59,346 B -> 249,625 B
+    // (per-part accounting in scripts/top-choice-hero-swap.py and
+    // the INT-3 PR body). Dread Head has no master (two pipeline
+    // refusals; owner ruling: leave) and its sprite is unchanged;
+    // the hood is untouched.
     // Top-Choice INT-1 weapons (2026-11-11): the production
     // sprite layer for the adopted weapon paintings lands — 26
     // legendaries (legendary-painting-*, 2,903,472 B) + 36 bases
@@ -295,6 +311,7 @@ describe('performance + payload budgets (§4.9)', () => {
     // branch's measured total, so the check now pins drift exactly
     // at the INT-2 landing (the parent reconciles the pin across
     // the parallel INT slices at merge time).
+
 
     // INT-7 cache screen (2026-11-11): the Top-Choice cache family
     // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
@@ -334,13 +351,16 @@ describe('performance + payload budgets (§4.9)', () => {
     // ceiling literal is set to this branch's measured total, so the
     // check now pins drift exactly at the INT-5 landing.
     // Reconciliation (parent merge drill, 2026-11-11): unified
-    // manifest = master (INT-1/INT-5/INT-7/INT-10 landings, 370
-    // entries, 27,090,815 B) + this slice's 29 gear entries
-    // (+6,621,531 B) = 399 entries, measured 33,712,346 B on the
+    // manifest = master (INT-1/INT-3/INT-4/INT-5/INT-7/INT-10
+    // landings, 447 entries, 27,641,424 B — the five gear-*
+    // mounted portraits ride at the hi-def records the INT-3
+    // reconciliation settled) + this slice's 29 gear entries
+    // (+6,621,531 B) = 476 entries, measured 34,262,955 B on the
     // reconciled tree, every record asserted against its file;
-    // the ceiling literal follows the unified total +1.
-    // In-flight siblings (INT-3 hero, INT-4 items, INT-6 vistas)
-    // re-pin with their own accounting as they land.
-    expect(total).toBeLessThan(33_712_346 + 1);  });
+    // the ceiling literal follows the unified total +1. One
+    // sibling remains in flight (INT-6 vistas) and re-pins as
+    // it lands.
+    expect(total).toBeLessThan(34_262_955 + 1);  });
+
 
 });

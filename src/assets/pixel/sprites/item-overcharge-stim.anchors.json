@@ -1,0 +1,25 @@
+{
+  "sprite": "item-overcharge-stim",
+  "anchors": {
+    "feet": {
+      "x": 0.6155,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.604,
+      "y": 0.4705
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.1199
+    },
+    "lootPoint": {
+      "x": 0.6053,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.4466,
+      "y": 0.6438
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "sprite": "item-incendiary-ammo",
+  "anchors": {
+    "feet": {
+      "x": 0.5318,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5362,
+      "y": 0.5767
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.877
+    },
+    "lootPoint": {
+      "x": 0.5228,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2842,
+      "y": 0.6898
+    }
+  }
+}

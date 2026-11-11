@@ -1,0 +1,25 @@
+{
+  "sprite": "item-redline-tonic",
+  "anchors": {
+    "feet": {
+      "x": 0.5569,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5547,
+      "y": 0.482
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6
+    },
+    "lootPoint": {
+      "x": 0.5568,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3791,
+      "y": 0.6341
+    }
+  }
+}

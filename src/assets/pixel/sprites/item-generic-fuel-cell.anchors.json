@@ -1,0 +1,25 @@
+{
+  "sprite": "item-generic-fuel-cell",
+  "anchors": {
+    "feet": {
+      "x": 0.5724,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5712,
+      "y": 0.6226
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9328
+    },
+    "lootPoint": {
+      "x": 0.5561,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3489,
+      "y": 0.7287
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "sprite": "item-master-patch-kit",
+  "anchors": {
+    "feet": {
+      "x": 0.4934,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4857,
+      "y": 0.5701
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9294
+    },
+    "lootPoint": {
+      "x": 0.4969,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2934,
+      "y": 0.728
+    }
+  }
+}
