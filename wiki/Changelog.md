@@ -5,6 +5,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 ## 2026-11-10 — A sharper cache
 
 - **The cache got a new portrait** — the app icon and logo were re-rendered at full painterly quality: the same navy cache crate with its lid cracked in two and the gold burst pouring out, on the same vivid rust field — now with crisp, continuous surfaces instead of the old pixel finish. It is the same logo everywhere it appears: the home-screen icon, the web logo and favicon, and the store icon all carry the new rendering, and at small sizes the crate and burst still read at a glance.
+- **The launch screen matches now** — the Android splash used to open on an old orange cache device that was never the logo; it now shows the new portrait instead: the whole navy crate and its gold burst, framed as an emblem on the same dark gradient field the old splash used, in every size and orientation the app ships.
 
 ## 2026-11-10 — Scrap earns its keep
 
