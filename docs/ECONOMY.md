@@ -355,6 +355,34 @@ day, and the minted/salvaged ratio (average yield per destroyed
 legendary should sit between 1 and 4 — outside that band, something
 is mis-attributing).
 
+## Decision record — passive shield recharge (2026-11-10)
+
+**Ruling (owner, 2026-11-10):** adopt Borderlands-style passive
+shield recharge as a NEW mechanic, with damage-tick suppression as
+its governing law. This closes the D1 arc of the 2026-11-10 economy
+tuning package: D1 was first approved as *suppressing* an existing
+recharge; the T1 premise check (`T1-PREMISE-CHECK.md`, in the
+tuning program's prep folder) then proved no recharge mechanic
+existed — `rechargeRate` was a generated, displayed stat that no
+engine consumed, a fact the repo itself stated in three places.
+Presented with that finding, the owner re-ruled the same day: add
+the mechanic deliberately ("that's what Borderlands does" — the
+game's north star), suppression rule included.
+
+**Terms:** consume the generated `rechargeRate` as-is (10 + 1.5 ×
+item level per second, affix and behavior transforms included —
+Turtle's halved rate is now a real tradeoff). A tick restores
+rate × 3 (the 3-second tick) only when the hunter took zero damage
+(shield or HP) that tick; the first damage-free tick recharges, no
+additional delay; never above the equipped shield's capacity. The
+boss sim folds it pooled (`modelShieldRechargeForBoss`): continuous
+boss damage leaves no damage-free tick, so it restores nothing
+mid-fight. No stat numbers changed anywhere — the generator formula
+included. Expected economy effect: Shield Cell demand softens for
+roaming sustain (pressure now comes from exposure/pool math, per
+the premise check), and dented shields stop being a standing belt
+tax between fights.
+
 ## Tuning decisions — D2 consumable magnitudes (2026-11-10)
 
 Owner ruling 2026-11-10: D2 (the economy tuning brief's consumable

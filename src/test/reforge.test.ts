@@ -239,7 +239,7 @@ describe('bake/unbake — exact inverses over generated corpora', () => {
       expect(reapplied.hp).toBe(shield.hp);
       expect(bag.mitigation).toBe(shield.mitigation);
       // Recharge rate is exact except the documented Turtle half-step
-      // grid ambiguity (<= 0.1); it is consumed by no engine.
+      // grid ambiguity (<= 0.1); both engines consume it (2026-11-10).
       if (behavior === 'turtle') {
         expect(Math.abs(reapplied.rechargeRate - shield.rechargeRate)).toBeLessThanOrEqual(0.1 + 1e-9);
       } else {

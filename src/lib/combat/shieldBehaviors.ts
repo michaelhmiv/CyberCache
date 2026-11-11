@@ -18,15 +18,22 @@
  * Standard — no behavior, no extra RNG draws, outcomes bit-identical
  * to the pre-behavior engines. Player items are never rewritten.
  *
- * Recharge reality check: the shipped game has NO shield recharge
- * mechanic in either authoritative sim. In roaming, shield HP only
- * rises via Shield Cell consumable restores (roamingConsumableEngine);
- * in boss fights the "refill" is the Shield Cell / Nano Swarm pool.
- * `rechargeRate` is a generated, displayed stat that no engine
- * consumes. Turtle therefore halves the generated `rechargeRate` stat
- * (the tradeoff is real wherever the stat is read) and its capacity
- * edge stands alone in the current sims — documented here rather than
- * inventing a recharge mechanic inside a behavior slice.
+ * Recharge (owner ruling 2026-11-10 — Borderlands parity): shields
+ * passively recharge at their generated `rechargeRate` (per second),
+ * governed by ONE suppression rule in both authoritative sims: a tick
+ * recharges only if the hunter took no damage (shield or HP) during
+ * it; the first damage-free tick recharges — there is no additional
+ * delay counter. In roaming the Chef claim sim applies it per tick
+ * through `shieldRechargeAmount` below (capped at capacity; Shield
+ * Cell restores, Absorb procs, and the extraction coolant restore are
+ * unchanged and stack on top). The boss sim folds it through
+ * `modelShieldRechargeForBoss`: its pooled model prices boss damage
+ * as continuous across the exposure window, so the suppression rule
+ * leaves no damage-free tick inside a fight and recharge restores
+ * nothing mid-fight — its boss-surface value is that a dented shield
+ * genuinely refills between engagements instead of staying dented
+ * until a Shield Cell is spent. Turtle's halved `rechargeRate` is
+ * therefore a real tradeoff in both sims, not a paper one.
  */
 import { Rarity } from '../../types/game';
 
@@ -171,9 +178,9 @@ export function applyShieldBehaviorGenerationStats(
  * rounding error is < 0.5 pre-image). Recharge rate inverts onto the
  * generator's own 0.1 grid — the ×0.5 rounding can leave the true
  * pre-image ambiguous by one 0.1 step in rare half-step cases;
- * rechargeRate is consumed by no engine (see the module header), and
- * the affix's own contribution is applied and removed exactly
- * relative to the recovered base either way.
+ * rechargeRate is consumed by both combat sims (see the module
+ * header), and the affix's own contribution is applied and removed
+ * exactly relative to the recovered base either way.
  */
 export function invertShieldBehaviorGenerationStats(
   behavior: ShieldBehaviorId,
@@ -212,6 +219,31 @@ export function ampDamageMultiplier(
 ): number {
   if (behavior !== 'amp' || capacity <= 0) return 1;
   return shieldHp >= capacity ? 1 + SHIELD_BEHAVIOR_TUNING.ampPct : 1;
+}
+
+/**
+ * Passive shield recharge for ONE tick (owner ruling 2026-11-10):
+ * the amount of shield HP a damage-free tick restores, at the
+ * shield's generated `rechargeRate` per second over `tickSeconds`,
+ * never past capacity. The suppression rule is the whole mechanic:
+ * a tick in which the hunter took any damage (shield or HP) restores
+ * nothing, and the first damage-free tick recharges in full — no
+ * delay counter. Behavior-independent (a Turtle shield simply
+ * carries its halved rate in the stat itself). The Chef claim sim is
+ * the caller; the boss sim's pooled translation is
+ * `modelShieldRechargeForBoss` below.
+ */
+export function shieldRechargeAmount(args: {
+  shieldHp: number;
+  capacity: number;
+  rechargeRate: number;
+  tookDamage: boolean;
+  tickSeconds: number;
+}): number {
+  const { shieldHp, capacity, rechargeRate, tookDamage, tickSeconds } = args;
+  if (tookDamage || capacity <= 0 || rechargeRate <= 0 || tickSeconds <= 0) return 0;
+  if (shieldHp >= capacity) return 0;
+  return Math.min(capacity - shieldHp, rechargeRate * tickSeconds);
 }
 
 /**
@@ -264,8 +296,9 @@ export interface BossShieldBehaviorModel {
  * Fold a shield behavior into the boss sim's pooled terms. The sim
  * models a fixed 30-second fight: the boss deals `totalIncomingDamage`
  * (pre-mitigation), the hunter's shield pool is `capacity` plus a
- * consumable `refillPool` (Shield Cells + Nano Swarms — the only
- * shield restoration that exists in a boss fight).
+ * consumable `refillPool` (Shield Cells + Nano Swarms — the fight's
+ * active shield restoration; passive recharge is folded separately
+ * by `modelShieldRechargeForBoss` below).
  *
  * Modeling choices (expected-value, like everything else in the sim):
  *   - Nova fires when cumulative post-mitigation damage depletes the
@@ -325,4 +358,45 @@ export function modelShieldBehaviorForBoss(args: {
       behavior === 'amp' ? 1 + SHIELD_BEHAVIOR_TUNING.ampPct * uptime : 1,
     shieldUptimeFraction: uptime,
   };
+}
+
+/**
+ * Passive recharge in the boss sim's pooled terms (owner ruling
+ * 2026-11-10): the shield HP restored over the fight, in
+ * POST-mitigation units (the units shield HP absorbs — the sim
+ * converts when folding into its survival pool, exactly as it does
+ * for Absorb's negated damage).
+ *
+ * The roaming rule is per-tick suppression: a tick recharges only if
+ * no damage landed in it. The pooled model has no per-hit timeline
+ * and prices the boss's damage as CONTINUOUS across the exposure
+ * window (`totalIncomingDamage` spread over `fightSeconds`), so
+ * every modeled tick takes damage and the rule leaves no damage-free
+ * tick inside the fight: while the boss deals any damage, expected
+ * in-fight recharge is zero. With no incoming damage there is also
+ * nothing to restore — the sim starts every attempt at full shield.
+ * Both branches are the rule, not an omission: inventing a boss
+ * attack cadence to manufacture damage-free ticks would be pricing
+ * fiction. Recharge's boss-surface value is real but lives between
+ * fights (roaming ticks refill a dented shield), and if a future
+ * boss model ever prices discrete attacks, the damage-free share
+ * plugs into this fold.
+ */
+export function modelShieldRechargeForBoss(args: {
+  capacity: number;
+  rechargeRate: number;
+  totalIncomingDamage: number;
+  mitigation: number;
+  fightSeconds?: number;
+}): number {
+  const { capacity, rechargeRate, totalIncomingDamage } = args;
+  if (capacity <= 0 || rechargeRate <= 0) return 0;
+  const mitigation = Math.min(0.8, Math.max(0, args.mitigation));
+  const postMitDamage = Math.max(0, totalIncomingDamage) * (1 - mitigation);
+  const fightSeconds = args.fightSeconds ?? 30;
+  // Continuous damage → no damage-free ticks in the window; no
+  // damage → the pool never dents. Either way the rule restores 0.
+  const damageFreeSeconds = postMitDamage > 0 ? 0 : fightSeconds;
+  const dent = Math.min(capacity, postMitDamage);
+  return Math.min(dent, rechargeRate * damageFreeSeconds);
 }

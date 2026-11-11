@@ -39,7 +39,7 @@ Your maximum HP comes from one formula, used everywhere:
 
 At level 1 with no shield that is 760 HP; the shield you equip adds its capacity directly on top. Your shield's **mitigation** then reduces the damage that gets through, capped at 80% — mitigation is why two hunters with the same HP pool can have very different survival in practice.
 
-One honest warning about a stat you will see on shield cards: **recharge rate is displayed, but no combat engine currently consumes it.** Shields do not passively recharge during a fight. Shield HP comes back through Shield Cell and Nano Swarm consumables — in roaming and in boss fights alike — so plan your belt accordingly and do not pay extra for a recharge number.
+One stat on shield cards is worth understanding properly: **recharge rate is live.** Whenever a full tick (three seconds) passes without you taking any damage — shield or HP — your shield recharges at its printed rate, up to its full capacity. Take a hit and that tick's recharge is lost; there is no extra delay beyond the tick itself, so the first quiet tick starts the refill. Shield Cell and Nano Swarm consumables still restore instantly on top of this, but a dented shield no longer stays dented until you spend one — break off, catch a quiet few seconds, and it comes back on its own. Boss fights are priced as one continuous pressure window, so do not count on recharge mid-fight there; its gift is that a shield dented out roaming refills before your next attempt instead of taxing your belt.
 
 ## Shield behaviors
 
@@ -49,7 +49,7 @@ Every shield is generated with one of five behaviors, shown on its card with its
 - **Nova** — when the shield breaks, it erupts for damage equal to **150% of its capacity**. It can burst again only after the shield has been restored above **50%** of capacity.
 - **Absorb** — each hit taken while the shield is up has a **15% chance to be fully absorbed**, and an absorb restores **5% of capacity** in shield HP.
 - **Amp** — while your shield is at **full charge**, your damage is increased by **25%**. The moment the shield takes a hit, the bonus is gone until it is full again — Amp rewards builds that avoid or restore damage quickly.
-- **Turtle** — capacity is multiplied by **1.5×**, at the cost of a halved recharge-rate stat. Given the recharge note above, in current fights Turtle is effectively the big-pool option: more shield HP up front, nothing else changes.
+- **Turtle** — capacity is multiplied by **1.5×**, at the cost of a halved recharge rate. With recharge live, that is a real trade: the big pool refills at half speed, so a Turtle hunter under steady pressure waits noticeably longer to come back to full.
 
 ## Action skills
 

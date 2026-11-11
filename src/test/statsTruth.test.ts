@@ -286,8 +286,15 @@ describe('stats truth — roaming claim (HTTP)', () => {
     store.seedProfile({ id: B, player_level: 10 });
 
     const survival = { currentHp: 10000, shieldHp: 0, maxHp: 10000 };
-    seedEquipped(store, A, 'shield', makeShield(0.8));
-    seedEquipped(store, B, 'shield', makeShield(0));
+    // T1R (passive shield recharge, 2026-11-10): a live recharge rate
+    // refills the shield from 0 on miss ticks and absorbs later hits,
+    // which drowns this HP comparison (observed in T1R's CI: the
+    // unmitigated hunter's HP damage fell to 21 vs the >30 sanity
+    // floor). This test isolates MITIGATION, so the fixture shields
+    // carry a zero rate; recharge has its own suite
+    // (shieldRecharge.test.ts).
+    seedEquipped(store, A, 'shield', { ...makeShield(0.8), rechargeRate: 0 });
+    seedEquipped(store, B, 'shield', { ...makeShield(0), rechargeRate: 0 });
     const claimMit = await post(base, '/api/claim', {
       playerId: A, areaId: 'dustwaste_frontier', ticks: 20, tickCount: 20, playerLevel: 10,
       survival,
