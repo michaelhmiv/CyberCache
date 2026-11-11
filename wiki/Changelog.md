@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-11 — The big icons are paintings now
+
+- **The tab sigils, the streak calendar, and the loot rises are painted now** — the four bottom-bar sigils (Home, Gear, Market, Hunter), the calendar on the login-streak plate, and every marker that rises off a find on the stage — material, essence, fragment, scrap, credits, and the cache crate — are full paintings instead of the old texel glyphs. They sit in exactly the slots the glyphs sat in, at exactly the same sizes, and they show exactly what they showed before. The rises keep each drop's own color: the painting is re-tinted to the drop's hue as it rises, so a green material still rises green and a violet essence violet. The small working icons everywhere else — buttons, rows, badges — are unchanged.
+
 ## 2026-11-11 — Boss mechanics collect
 
 - **A boss's mechanic now charges what it advertises** — the line printed in a boss's prep is the line the fight measures: the Siltstalker's enrage is a kill-speed check (DPS 1.3), the Heap Guard's regen loop a shield-break check (1.2), Ashgut's burning ground a survival check (1.4), and the Rust Prophet's repairs and the Verdant Maw's regrowth are armor-break checks (1.5). Meet the line and the mechanic costs nothing; fall short and the shortfall taxes the attempt in proportion — no cliff, no free pass. The Scrap Bishop's three-phase siege measures all three of its layers (shield 1.25, armor 1.25, kill speed 1.35) and taxes on the weakest. Trait gates, the Mirror's adaptation, and the Widow's and Omega's ramps work exactly as before, and the Endless Chamber is untouched — the demands belong to the ladder.
