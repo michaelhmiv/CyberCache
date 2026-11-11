@@ -404,3 +404,82 @@ is to be rebaselined after the fleet measures the new magnitudes.
 **Where it lives.** The pre-escalation base fee has one derivation, `bossBaseFee` (with `firstClearEntryFee`) in `src/lib/bossFees.ts`, read by every surface that names a price: the verify-boss route's charge AND its insufficient-credits refusal (`src/server/routes/claim.ts`), the boss prep panel, and the boss picker. "Has beaten this boss" is the existing victory record — `boss_state.defeatedBossIds` on the profile, maintained by the boss-attempt applier. No new storage, no migration: the fact already existed and already drove the entry-vs-rematch branch; D4 extends that same branch's undefeated side. Escalation is untouched and composes on top of the base — for a never-beaten boss today's victory count is always 0, so escalation first bites on the rematch base after a same-day victory.
 
 **Watch.** Attempts should spread further up the ladder earlier (the Mirror is attemptable holding 2,500 cr instead of 5,000), and time-to-first-Mirror-attempt should roughly halve for new hunters. **Falsifier (from the tuning brief):** if open-beta humans routinely reach the Mirror holding ≫10,000 cr, the discount is a giveaway on a non-binding fee — remove it and keep fees flat.
+
+## Tuning decisions — D3 scrap portfolio (2026-11-10)
+
+Owner ruling 2026-11-10: D3 (the economy tuning brief's scrap
+portfolio package) approved as a package — proposals P7 and P8
+implemented; P9 NOT implemented and the P8 expiry leg NOT
+implemented, both on premise findings verified against the shipped
+code before building (below).
+
+- **P7 — consumable recipe Scrap legs repriced, tiered ×2–8.** 38
+  consumable recipes carry Scrap legs (30 legacy registry recipes,
+  4 vehicle consumables, 3 batch recipes, 1 standing recipe; the
+  brief's "37 of 43" used a different count basis). Staples ×2–3:
+  Patch Kit 4 → 10, Field Patch Kit 6 → 15, Fuel Cell 6 → 15,
+  Master Patch Kit 8 → 20, Ammo Pack 10 → 25, Med Kit 15 → 40.
+  Mid band ×5: Ordnance and Salvage Contract 12 → 60; the elemental
+  ammos, Elemental Coating, Luck Charm, Magnetized Payload, Signal
+  Scrambler 15 → 75; High-Capacity Ammo Pack, EMP Charge, Corrosive
+  Charge, Workshop Rush Ticket 18 → 90; Shield Cell, Void Ammo,
+  Target Painter, Scanner, Jammer, Loot Beacon, ThrowTech Decoy Kit
+  20 → 100; Med Kit (Refined), Overcharge Stim, Dataskimmer
+  25 → 125. High band ×6–8: Nano-Swarm 30 → 200, Insurance Contract
+  30 → 200, Phase Shift Grenade 30 → 250, Adrenaline Shot 40 → 300.
+  Batch recipes keep migration 0038's construction law (a batch leg
+  is exactly 2.5× the single leg): Patch Kit Batch 10 → 25, Ordnance
+  Batch 30 → 150, Shield Cell Batch 50 → 250. The repricing moves
+  the catalog literals — the TS registry and the SQL catalog
+  restated in migration 0087 — so the per-recipe recipeScrap.<id>
+  lever keeps resolving on top and a running job's escrow snapshot
+  is never repriced. No consumable magnitudes change (T2's shipped
+  state stands); refining legs, gear frames, cosmetic part legs and
+  the tint leg are out of scope and untouched.
+- **P8 — market listing deposit: 25 Scrap.** Charged on listing
+  creation across all seven create paths (gear/vehicle, cosmetic,
+  consumable, material, core, essence — the fragment path is
+  retired), snapshotted onto the listing (migration 0087's
+  deposit_scrap column; the InMemory twin holds it per listing id),
+  **refunded in full when the item sells** (the brief's own terms)
+  and **burned on cancel** — the cancel result carries
+  deposit_burned so the burn is traceable in the activity ledger.
+  A seller who cannot cover the deposit cannot list (refused before
+  anything moves; a listing OF Scrap itself must clear the deposit
+  against the post-escrow remainder). Quick-Buy fills a stack in
+  legs: partial legs refund nothing — the deposit rides with the
+  listing and refunds on the leg that closes it. The figure is a
+  live lever, marketListingDepositScrap (clamp [0, 100000], default
+  owned by src/lib/market/listingDeposit.ts), and a lever move never
+  reprices a live listing. Pre-0087 listings hold 0 and refund 0.
+  The 5% sale fee and its floor are untouched — the deposit is a
+  separate Scrap hold beside the credit fee — and the Sell form
+  labels it before listing: "Listing deposit: 25 Scrap · refunded
+  on sale · burned on cancel". Deposit facts ride the existing
+  verified-action ledger payloads (creates carry deposit_scrap,
+  cancels carry deposit_burned); migration 0087 deliberately does
+  not restate the metrics fold — a deposit breakout can be folded
+  from those payloads later with no flow change.
+- **P8 expiry leg — premise false, not built.** The brief prices a
+  burn on listing expiry, but listings never expire in the shipped
+  game: src/lib/market/listingAge.ts states it verbatim (listedAt
+  is the sole timestamp), the 'expired' status in migration 0003's
+  CHECK is never set by any code or migration, and no expires_at
+  column, sweep or TTL exists. If listing expiry is ever designed,
+  the deposit's burn-on-expire leg rides that slice.
+- **P9 — premise false, not built.** The brief proposed moving
+  reforge's cost to Scrap on the unconfirmed assumption it might
+  charge credits. Reforge already charges Scrap only — 3× the
+  salvage value of a same-rarity/level item — plus legendary cores
+  on Legendary-rarity gear, both destroyed on use and metered
+  (scrap_destroyed_reforge, legendary_cores_spent); the cost is
+  already lever-addressable (reforgeScrapScalar,
+  reforgeLegendaryCoreCost). No credit cost exists to move. The
+  brief's fallback (vehicle-side scrap costs) needs its own slice
+  if wanted.
+
+**Watch / falsifiers (from the tuning brief).** P7: if consumables
+crafted falls more than 25% against the pre-T3 baseline, halve the
+mid tier. P8: if listings per day collapses more than 60% while
+buys stay flat, cut the deposit to 10. Migration 0087 is applied
+manually, staging rehearsal first — the Chef never runs migrations.
