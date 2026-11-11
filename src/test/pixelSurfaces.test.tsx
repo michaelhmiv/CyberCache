@@ -153,25 +153,37 @@ describe('GearIllustration — weapon branch renders pixel (inventory/market/ins
     // the pin now asserts the last flip instead.
     const { container } = render(<GearIllustration item={classMod} size={46} showBadges={false} />);
     expect(container.querySelector('svg')).toBeNull();
-    const canvas = container.querySelector('canvas');
-    expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-density')).toBe('thumb');
+    // INT-2 (2026-11-11): married gear renders its adopted painting —
+    // the node is the painted <img> carrying data-painted-sprite
+    // (jsdom resolves the decode synchronously; the pending canvas
+    // placeholder carries the same identity). The slice-era
+    // data-density='thumb' canvas pin is superseded by the painting.
+    const painted = container.querySelector('[data-painted-sprite]');
+    expect(painted).not.toBeNull();
   });
 
   it('renders a married relic as its pixel plate (gear marriage, slice 4)', () => {
     const { container } = render(<GearIllustration item={relic} size={46} showBadges={false} />);
     expect(container.querySelector('svg')).toBeNull();
-    const canvas = container.querySelector('canvas');
-    expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-density')).toBe('thumb');
+    // INT-2 (2026-11-11): married gear renders its adopted painting —
+    // the node is the painted <img> carrying data-painted-sprite
+    // (jsdom resolves the decode synchronously; the pending canvas
+    // placeholder carries the same identity). The slice-era
+    // data-density='thumb' canvas pin is superseded by the painting.
+    const painted = container.querySelector('[data-painted-sprite]');
+    expect(painted).not.toBeNull();
   });
 
   it('renders a married shield as its pixel plate (gear marriage, slice 1)', () => {
     const { container } = render(<GearIllustration item={shield} size={46} showBadges={false} />);
     expect(container.querySelector('svg')).toBeNull();
-    const canvas = container.querySelector('canvas');
-    expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-density')).toBe('thumb');
+    // INT-2 (2026-11-11): married gear renders its adopted painting —
+    // the node is the painted <img> carrying data-painted-sprite
+    // (jsdom resolves the decode synchronously; the pending canvas
+    // placeholder carries the same identity). The slice-era
+    // data-density='thumb' canvas pin is superseded by the painting.
+    const painted = container.querySelector('[data-painted-sprite]');
+    expect(painted).not.toBeNull();
   });
 });
 
