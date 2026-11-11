@@ -893,6 +893,21 @@ In code: weapons compose through `weaponCompositor.ts` /
 the shared plate engine `gearCardCompositor.ts` (+ `PixelGear`),
 whose detail kit enforces the thumb discipline structurally.
 
+**Owner-approved exception — the reveal light kit (2026-11-10).**
+The "glow is hard-edged texel shapes" rule above governs ITEM ART.
+The cache reveal's light is not item art, and by the owner's ruling
+the stepped dashes read as noise on that one stage: inside the
+cache loot moment only, the beam and god-ray canvases present
+SMOOTH light (continuous tapered fan shafts, a three-stop god-ray
+falloff, feathered beam bands, and a gold sparks/embers
+particulate) — a Top-Choice presentation carve-out, scoped by the
+moment's own container in `PixelFx.tsx`. The exception changes
+drawing only: every Sample B timing (the loot ladder, beam-in, the
+rise, the ignite stagger, the tone chase, the spin) is untouched,
+and every other surface — combat FX, the bench kit, even the
+shockwave ring inside the moment itself — keeps the stepped texel
+treatment exactly as shipped.
+
 ### 8.1 The pxl craft standard (owner-approved sweep, 2026-11-06)
 
 Composited item art follows the pxl craft discipline (hue-shifted

@@ -280,8 +280,21 @@ export const GhostHpBar: React.FC<{
 // exploration used (five-tone ramp bands, concentric stepped ellipses,
 // texel fan rays). The pre-redesign DOM versions used linear/radial/
 // conic gradients — a smooth column the owner rejected on sight
-// ("looks like a dividing bar"): the beam now RADIATES, with stepped
-// rays fanning and pulsing outward from behind the rising item.
+// ("looks like a dividing bar"): the beam now RADIATES, with rays
+// fanning and pulsing outward from behind the rising item.
+//
+// Owner-approved exception (2026-11-10, the Top-Choice light kit):
+// INSIDE the cache loot moment (data-testid="cache-loot-moment") the
+// beam and god-ray canvases back at full CSS resolution and paint
+// smooth — continuous tapered fan shafts, a smooth three-stop god-ray
+// falloff, the beam's three bands feathered at their edges, and a
+// gold sparks/embers particulate riding the beam — because on that
+// one surface the stepped dashes read as noise against the reveal.
+// This is a change of DRAWING only: every timing quantity (the
+// MOVEMENT envelopes, the ignite stagger, the tone-chase cadence, the
+// spin period) is the shipped formula, bit for bit. Everywhere else —
+// combat FX, the bench kit, and the shockwave ring even inside the
+// moment — the stepped texel grid stands exactly as shipped.
 
 interface LootPoint {
   /** Beam base X, % of the offset parent. */
@@ -318,13 +331,21 @@ function paintEllipse(
 }
 
 /**
- * Drives a quarter-resolution stepped canvas. The canvas fills its
- * offset parent; `drawRef.current` paints one frame in CELL
- * coordinates at tMs since mount. Animated on a rAF loop unless
- * `reduced` (one settled frame at `staticMs`) or the loop's `runMs`
- * budget is spent (one-shot effects). Silently inert where a 2d
- * context is unavailable (jsdom) — the element and its testid render
- * regardless.
+ * Drives a stepped canvas. The canvas fills its offset parent;
+ * `drawRef.current` paints one frame in CELL coordinates at tMs since
+ * mount. Animated on a rAF loop unless `reduced` (one settled frame
+ * at `staticMs`) or the loop's `runMs` budget is spent (one-shot
+ * effects). Silently inert where a 2d context is unavailable (jsdom)
+ * — the element and its testid render regardless.
+ *
+ * Backing resolution is scoped (the light kit's one carve-out): a
+ * beam or god-ray canvas inside the loot moment
+ * ([data-testid="cache-loot-moment"]) backs at FULL CSS resolution so
+ * its smooth painters draw continuous light; every other canvas this
+ * driver runs — the shockwave ring inside the moment included —
+ * backs on the shipped quarter-resolution texel grid. The draw
+ * callback always receives CELL counts; smooth painters scale to CSS
+ * px internally.
  */
 /** The canvas 2d context, or null where unavailable (jsdom, or a
  *  context the browser refuses) — one try/catch so callers branch on
@@ -356,9 +377,16 @@ function useSteppedCanvas(
     const paint = (tMs: number) => {
       const wCells = Math.max(1, Math.ceil(canvas.clientWidth / TEXEL_PX));
       const hCells = Math.max(1, Math.ceil(canvas.clientHeight / TEXEL_PX));
-      if (canvas.width !== wCells) canvas.width = wCells;
-      if (canvas.height !== hCells) canvas.height = hCells;
-      context.clearRect(0, 0, wCells, hCells);
+      // Scoped smooth backing (light kit): only the beam and god-ray
+      // canvases, only inside the loot moment. The shockwave ring and
+      // every canvas anywhere else keep the texel grid.
+      const inMoment = !!canvas.closest('[data-testid="cache-loot-moment"]');
+      const smooth = inMoment && (canvas.dataset.testid === 'fx-loot-beam' || canvas.dataset.testid === 'fx-god-rays');
+      const bw = smooth ? Math.max(1, canvas.clientWidth) : wCells;
+      const bh = smooth ? Math.max(1, canvas.clientHeight) : hCells;
+      if (canvas.width !== bw) canvas.width = bw;
+      if (canvas.height !== bh) canvas.height = bh;
+      context.clearRect(0, 0, bw, bh);
       drawRef.current(context, wCells, hCells, tMs);
       context.globalAlpha = 1;
     };
@@ -411,12 +439,13 @@ const FAN_RAY_ANGLES: readonly { deg: number; lenF: number }[] = [
 ];
 
 /**
- * The radiating fan: stepped texel rays spreading outward from the
- * glow center behind the risen item. Rays ignite staggered inside the
- * beam-in window (each a few frames after its neighbour), then keep
- * pulsing — length breathing on the twinkle period, tone chasing
- * base → light → pale — for the rest of the step. This is the piece
- * that makes the light read as light going off, not a partition.
+ * The radiating fan on the STEPPED grid: texel rays spreading outward
+ * from the glow center behind the risen item. This painter serves the
+ * beam wherever it renders outside the loot moment — and stays as the
+ * record of the shipped construction. Rays ignite staggered inside
+ * the beam-in window (each a few frames after its neighbour), then
+ * keep pulsing — length breathing on the twinkle period, tone chasing
+ * base → light → pale — for the rest of the step.
  */
 function paintFanRays(
   ctx: CanvasRenderingContext2D,
@@ -446,6 +475,152 @@ function paintFanRays(
   ctx.globalAlpha = 1;
 }
 
+/**
+ * The radiating fan as continuous tapered light volumes — the light
+ * kit's in-moment painter. Same ignition stagger (60ms + i×28 inside
+ * the beam-in window), same pulse (twinkle period, i×1.7 phase), same
+ * tone chase (280ms cadence over base → light → pale), same peak
+ * alpha (0.5, modulated along the shaft). What changes: each ray is
+ * one filled quadrilateral narrowing from its base width to a point,
+ * painted in three lengthwise segments whose alphas fall off toward
+ * the tip, so the ray reads as a shaft of light instead of stepped
+ * dashes. Coordinates arrive in CSS px from the full-resolution
+ * caller.
+ */
+function paintFanRaysSmooth(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  ramp: FiveToneRamp,
+  tMs: number,
+  baseLenPx: number,
+): void {
+  const tones = [ramp.base, ramp.light, ramp.pale];
+  const segFracs: readonly (readonly [number, number, number])[] = [
+    [0, 0.45, 0.5],
+    [0.45, 0.75, 0.3],
+    [0.75, 1, 0.14],
+  ];
+  FAN_RAY_ANGLES.forEach((ray, i) => {
+    const ignite = easeOutCubic((tMs - 60 - i * 28) / Math.max(1, MOVEMENT.LOOT_BEAM_IN_MS - 60));
+    if (ignite <= 0) return;
+    const pulse = 1 + 0.13 * Math.sin((tMs / MOVEMENT.LOOT_TWINKLE_MS) * Math.PI * 2 + i * 1.7);
+    const len = baseLenPx * ray.lenF * ignite * pulse;
+    const rad = ((ray.deg - 90) * Math.PI) / 180;
+    const dx = Math.cos(rad);
+    const dy = Math.sin(rad);
+    const px = -dy;
+    const py = dx;
+    const baseHalf = 3.4; // CSS px at the shaft base
+    const start = TEXEL_PX * 2; // shipped rays begin 2 cells out
+    ctx.fillStyle = tones[(Math.floor(tMs / 280) + i) % tones.length];
+    for (const [f0, f1, alpha] of segFracs) {
+      const d0 = start + (len - start) * f0;
+      const d1 = start + (len - start) * f1;
+      const w0 = baseHalf * (1 - f0 * 0.85);
+      const w1 = baseHalf * (1 - f1 * 0.85);
+      ctx.globalAlpha = alpha;
+      ctx.beginPath();
+      ctx.moveTo(cx + dx * d0 + px * w0, cy + dy * d0 + py * w0);
+      ctx.lineTo(cx + dx * d1 + px * w1, cy + dy * d1 + py * w1);
+      ctx.lineTo(cx + dx * d1 - px * w1, cy + dy * d1 - py * w1);
+      ctx.lineTo(cx + dx * d0 - px * w0, cy + dy * d0 - py * w0);
+      ctx.closePath();
+      ctx.fill();
+    }
+  });
+  ctx.globalAlpha = 1;
+}
+
+interface GoldSparksSpec {
+  /** Fraction across the beam's ground span (−1..1). */
+  fx: number;
+  sizePx: number;
+  delayMs: number;
+  durationMs: number;
+  swayPx: number;
+  opacity: number;
+  ember: boolean;
+}
+
+const GOLD_SPARK_TONES = ['#FFEA3A', '#FFC65C', '#FFF3A0'] as const;
+
+/**
+ * The gold sparks/embers particulate (light kit, owner-approved
+ * 2026-11-10). Deterministic field from the kit's own particleField:
+ * bright sparks burst radially out of the ground junction inside the
+ * beam-in window and settle fast; warm embers then rise out of the
+ * beam column, swaying, on the shipped ember cadence (particleField
+ * delay/duration fractions of EMBER_RISE_MS), with every lifetime
+ * CLAMPED into the owning step's duration so no particle outlives its
+ * celebration. Count scales with the tier's beam width (14 sparks +
+ * 10 embers at the 68px legendary beam; fewer, dimmer at lower
+ * tiers). Pure presentation.
+ */
+function paintGoldSparks(
+  ctx: CanvasRenderingContext2D,
+  cxPx: number,
+  groundPx: number,
+  topPx: number,
+  tMs: number,
+  opts: { widthPx: number; durationMs: number },
+): void {
+  const legendary = opts.widthPx >= 68;
+  const sparkN = Math.max(5, Math.round(opts.widthPx / 5));
+  const emberN = Math.max(3, Math.round(opts.widthPx / 7));
+  const dur = Math.max(600, opts.durationMs);
+  const field = particleField('cache-gold-sparks', sparkN + emberN);
+  const span = opts.widthPx * (legendary ? 3.4 : 2.2);
+  for (let i = 0; i < field.length; i += 1) {
+    const p = field[i];
+    const spec: GoldSparksSpec = {
+      fx: (p.xPct / 100) * 2 - 1,
+      sizePx: p.size,
+      delayMs: p.delayMs,
+      durationMs: p.durationMs,
+      swayPx: p.swayPx,
+      opacity: p.opacity,
+      ember: i >= sparkN,
+    };
+    if (!spec.ember) {
+      // Burst spark: radial out of the junction, beam-in-fast.
+      const life = Math.min(420, dur * 0.35);
+      const lt = tMs - (spec.delayMs % 160);
+      if (lt < 0 || lt > life) continue;
+      const lp = lt / life;
+      const ang = spec.fx * 1.15 + Math.PI / 2;
+      const dist = easeOutCubic(lp) * span * (0.35 + 0.65 * Math.abs(spec.fx));
+      const x = cxPx + spec.fx * dist * 0.9;
+      const y = groundPx - Math.abs(Math.sin(ang)) * dist * 0.82 + lp * lp * 26;
+      const a = spec.opacity * (1 - lp) * (legendary ? 0.95 : 0.6);
+      if (a <= 0.02) continue;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = GOLD_SPARK_TONES[i % GOLD_SPARK_TONES.length];
+      const s = Math.max(1.4, spec.sizePx * (1 - lp * 0.5));
+      ctx.fillRect(x - s / 2, y - s / 2, s, s);
+    } else {
+      // Rising ember: born at the junction after the burst, climbs
+      // the beam column on the shipped ember cadence, clamped to the
+      // step's own duration.
+      const delay = Math.min(300 + (spec.delayMs % Math.max(1, dur - 700)), dur * 0.5);
+      const life = Math.min(spec.durationMs, dur - delay);
+      const lt = tMs - delay;
+      if (lt < 0 || lt > life || life <= 0) continue;
+      const lp = lt / life;
+      const rise = easeOutCubic(lp) * (groundPx - topPx) * 0.85;
+      const x = cxPx + spec.fx * opts.widthPx * 0.42 + Math.sin(lp * 5 + i * 1.3) * spec.swayPx * 0.5;
+      const y = groundPx - 4 - rise;
+      const fade = Math.sin(Math.PI * Math.min(1, lp)) * spec.opacity * (legendary ? 0.9 : 0.55);
+      if (fade <= 0.02) continue;
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = GOLD_SPARK_TONES[(i + 1) % GOLD_SPARK_TONES.length];
+      const s = Math.max(1.2, spec.sizePx * 0.8);
+      ctx.fillRect(x - s / 2, y - s / 2, s, s);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
 interface LootBeamPaintOpts {
   xPct: number;
   groundYPct: number;
@@ -462,10 +637,116 @@ interface LootBeamPaintOpts {
   radiant: boolean;
 }
 
-/** One frame of the stepped loot light: glow field (concentric stepped
- *  ellipses travelling with the rise), the radiating fan, the beam's
- *  three ramp bands with their hot ground junction, and the stepped
- *  ground flare — the approved exploration's construction, live. */
+/** True when the beam's canvas is one of the light kit's scoped
+ *  smooth surfaces: a beam canvas with the loot moment in its
+ *  ancestry. The driver makes the same decision for the backing
+ *  resolution; the painter must agree with it, so both read the one
+ *  rule. jsdom hosts and ctx-less mounts fall back to the grid. */
+function beamCanvasIsSmooth(ctx: CanvasRenderingContext2D): boolean {
+  const canvas = (ctx as CanvasRenderingContext2D & { canvas?: HTMLCanvasElement }).canvas;
+  return !!canvas?.closest?.('[data-testid="cache-loot-moment"]');
+}
+
+function paintLootBeamFrameSmooth(
+  ctx: CanvasRenderingContext2D,
+  wCells: number,
+  hCells: number,
+  tMs: number,
+  opts: LootBeamPaintOpts,
+): void {
+  // FX register is flat by law (DESIGN.md §8): the beam keeps the legacy
+  // straight ramp — the S1 hue training is item-art only.
+  const ramp = fiveToneRamp(opts.color, 'straight');
+  const W = wCells * TEXEL_PX;
+  const H = hCells * TEXEL_PX;
+  const cx = (opts.xPct / 100) * W;
+  const ground = (opts.groundYPct / 100) * H;
+  const ignition = easeOutCubic(tMs / MOVEMENT.LOOT_BEAM_IN_MS);
+  const strength = 0.55 + 0.45 * easeOutCubic(tMs / 700);
+
+  // The glow center rides the rise: it starts at the ground junction
+  // and travels to the item's hover point on the rise's own budget.
+  const riseMs = Math.max(200, Math.min(MOVEMENT.LOOT_RISE_MS, opts.durationMs - 300));
+  const riseP = easeOutCubic((tMs - 120) / riseMs);
+  const glowHome = opts.glowYPct !== undefined ? (opts.glowYPct / 100) * H : ground - H * 0.24;
+  const glowY = ground - 2 * TEXEL_PX + (glowHome - (ground - 2 * TEXEL_PX)) * riseP;
+  const glowStrength = tMs < 120 ? 0 : 0.7 + 0.3 * riseP;
+  const glowRxCells = opts.widthPx >= 68 ? 47 : opts.widthPx >= 34 ? 40 : opts.widthPx >= 22 ? 34 : 26;
+  const glowRx = glowRxCells * TEXEL_PX;
+
+  if (opts.radiant && glowStrength > 0) {
+    const glowRy = glowRx * 0.52;
+    const bands: readonly (readonly [number, keyof FiveToneRamp, number])[] = [
+      [1, 'deep', 76],
+      [0.8, 'dark', 96],
+      [0.6, 'base', 116],
+      [0.4, 'light', 136],
+    ];
+    for (const [f, tone, a] of bands) {
+      paintEllipse(ctx, cx, glowY, glowRx * f, glowRy * f, ramp[tone], (a / 255) * glowStrength);
+    }
+    paintEllipse(ctx, cx, glowY, glowRx * 0.22, glowRy * 0.22, ramp.pale, (122 / 255) * glowStrength);
+  }
+
+  // The radiating fan — behind the item, over the backdrop.
+  if (opts.radiant && tMs > 60) paintFanRaysSmooth(ctx, cx, glowY, ramp, tMs, glowRx * 1.9);
+
+  // Beam — the shipped three-band identity (base / light / white core
+  // over the same width fractions and peak alphas), drawn with soft
+  // lateral falloff: nested soft-edged rects per band so the edges
+  // feather into the scene instead of cutting it.
+  const topMargin = H * 0.02;
+  const beamTop = ground - (ground - topMargin) * (0.45 + 0.55 * ignition);
+  const beamPx = Math.max(6, opts.widthPx);
+  const beamBands: readonly (readonly [number, keyof FiveToneRamp | null, number])[] = [
+    [1, 'base', 165],
+    [0.55, 'light', 175],
+    [0.26, null, 215],
+  ];
+  for (const [wf, tone, a] of beamBands) {
+    const w = beamPx * wf;
+    const feather = Math.max(3, w * 0.22);
+    for (let s = 3; s >= 1; s -= 1) {
+      const ww = w + feather * (s - 1) * 0.8;
+      ctx.globalAlpha = ((a / 255) * strength) / s;
+      ctx.fillStyle = tone ? ramp[tone] : '#FFFFFF';
+      ctx.fillRect(cx - ww / 2, beamTop, ww, ground - beamTop);
+    }
+  }
+  // Hot junction where the beam meets the ground (shipped 3-cell bar,
+  // same span and alpha).
+  ctx.globalAlpha = (120 / 255) * strength;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(cx - beamPx / 2, ground - 3 * TEXEL_PX, beamPx, 3 * TEXEL_PX);
+  ctx.globalAlpha = 1;
+
+  // Ground flare — concentric ellipses, white heart outward (the
+  // incumbent's own width formula).
+  const flareRx = (opts.widthPx * opts.flareScale * 2.4) / 2;
+  const flareRy = flareRx * 0.22;
+  const flareBands: readonly (readonly [number, keyof FiveToneRamp | null, number])[] = [
+    [1, 'dark', 60],
+    [0.78, 'base', 95],
+    [0.55, 'light', 130],
+    [0.32, null, 170],
+  ];
+  for (const [f, tone, a] of flareBands) {
+    paintEllipse(ctx, cx, ground, flareRx * f, flareRy * f, tone ? ramp[tone] : '#FFFFFF', (a / 255) * strength);
+  }
+  ctx.globalAlpha = 1;
+
+  // Gold sparks/embers particulate — the light kit's added layer,
+  // riding the beam's own step (see paintGoldSparks).
+  paintGoldSparks(ctx, cx, ground, beamTop, tMs, { widthPx: opts.widthPx, durationMs: opts.durationMs });
+}
+
+/** One frame of the loot light. On the light kit's scoped surface
+ *  (the beam inside the cache loot moment) the frame paints smooth at
+ *  full canvas resolution; everywhere else it paints stepped: glow
+ *  field (concentric stepped ellipses travelling with the rise), the
+ *  radiating fan, the beam's three ramp bands with their hot ground
+ *  junction, and the stepped ground flare — the approved exploration's
+ *  construction, live. Both painters share every timing envelope. */
 function paintLootBeamFrame(
   ctx: CanvasRenderingContext2D,
   wCells: number,
@@ -473,6 +754,10 @@ function paintLootBeamFrame(
   tMs: number,
   opts: LootBeamPaintOpts,
 ): void {
+  if (beamCanvasIsSmooth(ctx)) {
+    paintLootBeamFrameSmooth(ctx, wCells, hCells, tMs, opts);
+    return;
+  }
   // FX register is flat by law (DESIGN.md §8): the beam keeps the legacy
   // straight ramp — the S1 hue training is item-art only.
   const ramp = fiveToneRamp(opts.color, 'straight');
@@ -546,10 +831,12 @@ function paintLootBeamFrame(
 }
 
 /**
- * The rarity light at a ground loot point: stepped five-tone beam,
- * radiating texel fan, glow field, and ground flare, all composited
- * on one quarter-resolution canvas. Width and flare scale with the
- * celebration tier (lootCelebrationForRarity).
+ * The rarity light at a ground loot point: five-tone beam, radiating
+ * fan, glow field, and ground flare, all composited on one canvas.
+ * Inside the cache loot moment the canvas backs at full resolution
+ * and presents smooth (the light kit); anywhere else it backs on the
+ * quarter-resolution texel grid and presents pixelated. Width and
+ * flare scale with the celebration tier (lootCelebrationForRarity).
  */
 export const LootBeam: React.FC<
   LootPoint & {
@@ -588,16 +875,23 @@ export const LootBeam: React.FC<
       ref={canvasRef}
       data-testid="fx-loot-beam"
       className="pointer-events-none absolute inset-0 z-20 h-full w-full"
-      style={{ imageRendering: 'pixelated' }}
+      // The light kit presents this canvas smoothly — inside the loot
+      // moment it backs at full resolution (see useSteppedCanvas);
+      // outside it, the stepped backing upscales softly instead of on
+      // the hard texel grid. The ring keeps its stepped identity.
+      style={{ imageRendering: 'auto' }}
     />
   );
 };
 
 /**
- * Rotating god-ray disc behind the risen legendary weapon — stepped
- * wedges on the texel grid with a stepped radial falloff, turning one
- * slow revolution per LOOT_RAYS_SPIN_MS. Static (but present) under
- * reduced motion.
+ * Rotating god-ray disc behind the risen legendary weapon, turning
+ * one slow revolution per LOOT_RAYS_SPIN_MS. Static (but present)
+ * under reduced motion. Two painters share the geometry (9 wedges,
+ * 40° spacing, 11° width, 500ms fade-in): inside the loot moment the
+ * light kit's smooth three-stop radial falloff at full resolution;
+ * anywhere else the shipped stepped wedges on the texel grid with
+ * their two-band stepped falloff.
  */
 export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> = ({ xPct, yPct, size = 360, reduced = false }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -605,18 +899,26 @@ export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> =
   useEffect(() => {
     drawRef.current = (ctx, wCells, hCells, tMs) => {
     const ramp = fiveToneRamp('#FFEA3A', 'straight'); // legacy flat ramp — see paintLootBeamFrame
-    const cx = wCells / 2;
-    const cy = hCells / 2;
-    const radius = Math.min(wCells, hCells) / 2;
     const fadeIn = reduced ? 0.9 : Math.min(1, tMs / 500);
     const rotDeg = ((tMs / MOVEMENT.LOOT_RAYS_SPIN_MS) * 360) % 360;
-    // Two stepped falloff bands: the inner disc of each wedge burns
-    // brighter than its rim (the exploration's masked-fan falloff,
-    // quantized to texel rings instead of a smooth mask).
-    const passes: readonly (readonly [number, number, string])[] = [
-      [1, 0.13, ramp.light],
-      [0.5, 0.2, ramp.pale],
-    ];
+    const smooth = beamCanvasIsSmooth(ctx);
+    const cx = smooth ? (wCells * TEXEL_PX) / 2 : wCells / 2;
+    const cy = smooth ? (hCells * TEXEL_PX) / 2 : hCells / 2;
+    const radius = smooth ? (Math.min(wCells, hCells) / 2) * TEXEL_PX : Math.min(wCells, hCells) / 2;
+    // Smooth: a three-stop per-wedge radial falloff (rim → mid →
+    // core). Stepped: the shipped two falloff bands — the inner disc
+    // of each wedge burns brighter than its rim (the exploration's
+    // masked-fan falloff, quantized to texel rings).
+    const passes: readonly (readonly [number, number, string])[] = smooth
+      ? [
+          [0.5, 0.2, ramp.pale],
+          [0.78, 0.13, ramp.light],
+          [1, 0.055, ramp.light],
+        ]
+      : [
+          [1, 0.13, ramp.light],
+          [0.5, 0.2, ramp.pale],
+        ];
     for (const [rF, alpha, tone] of passes) {
       ctx.globalAlpha = alpha * fadeIn;
       ctx.fillStyle = tone;
@@ -646,7 +948,8 @@ export const GodRays: React.FC<FxPoint & { size?: number; reduced?: boolean }> =
         height: size,
         marginLeft: -size / 2,
         marginTop: -size / 2,
-        imageRendering: 'pixelated',
+        // Light-kit smooth presentation (see LootBeam).
+        imageRendering: 'auto',
       }}
     />
   );
