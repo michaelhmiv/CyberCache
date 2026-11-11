@@ -12,44 +12,34 @@
  *     legendary art id). PARSED from source text, not imported, keeping
  *     this generator free of game-module loading (the same reason
  *     legendaryEffects.ts parses applyLegendaryEffects comments as text).
- *   - src/lib/pixel/legendaryAuthoredData.ts — the authored pxl piece
- *     set behind each art id (the art itself, as data).
+ *   - scripts/wiki-gen/assets/weapons/legendary/ — the adopted Top-Choice
+ *     paintings for the 26, derived from the Wave 1 / Wave 1.5 masters by
+ *     scripts/wiki-gen/derive-weapon-paintings.py (INT-1; see the painted
+ *     plate section below).
  *   - src/lib/pixel/showcaseWeaponInput.ts + weaponCardCompositor.ts — the
- *     game's own representative-instance mapping and card renderer.
+ *     game's own representative-instance mapping and card renderer (still
+ *     the source for the W5 element-read plates in images-w5.ts).
  *
  * Resolution order mirrors PixelWeapon.tsx / legendaryArt.ts exactly: a
- * weapon's own name wins, else its legendary effect's name decides, else
- * the pixel compositor renders it procedurally. Every legendary resolves
- * to its authored set; the generator ASSERTS the resolved art id equals
- * the parity fixture's pinned id, so if the map, the fixture, and the
- * game ever drift apart the wiki build fails loudly instead of picturing
- * the wrong gun.
+ * weapon's own name wins, else its legendary effect's name decides. The
+ * generator ASSERTS the painted source set equals the parity fixture's
+ * pinned id set 1:1, so if the fixture and the paintings ever drift apart
+ * the wiki build fails loudly instead of picturing the wrong gun.
  *
- * Representative instances are built the showcase way: a fixed
- * ShowcaseItemPayload per legendary (fixed display name, the definition /
- * depicted weapon type from the parity fixture, a fixed pixel seed hashed
- * from the sprite id, rollQuality 100, no affixes) run through
- * showcaseWeaponInput(). Manufacturer and element are presentation-only
- * picks derived from the same fixed seed — the bespoke authored branch
- * ignores them; the identity palette comes from the authored set.
- *
- * Plate treatment (V4): a plate is the game's own card render of the
- * representative instance (composeWeaponCard — the same pixels the Gear
- * card and loot reveal show, halo furniture included), rasterized at 2x
- * paint scale to a 480x176 plate and displayed at 240 wide. Before V4 the
- * plates were 2:1 box-downscales of the 512px painted sprites; those
- * PNGs are deleted and the authored render is the only legendary art
- * left to picture. Byte-deterministic: same sources in, same bytes
- * out — the double-render diff is the gate, and wiki:gen:check
- * byte-compares the committed plates.
+ * Plate treatment (INT-1, Wave 15 disposition A1): a legendary plate is
+ * the adopted Top-Choice painting of that legendary, keyed and fitted
+ * into the 480x176 plate box as a bare object on transparency (the card
+ * frame/halo is presentation furniture and never enters a plate — the
+ * Wave 15 derivation recipe). Before INT-1 the plates were the game's
+ * V4 authored-data card renders; before V4, 2:1 box-downscales of the
+ * retired 512px painted sprites. Byte-deterministic: same sources in,
+ * same bytes out — wiki:gen:check byte-compares the committed plates.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { LEGENDARY_EFFECTS } from '../../src/constants/legendaryEffects';
-import type { ShowcaseItemPayload } from '../../src/lib/api/verifiedOps';
-import { encodePng, type RgbaImage } from '../../src/lib/pixel/pngCodec';
-import { showcaseWeaponInput } from '../../src/lib/pixel/showcaseWeaponInput';
+import { decodePng, encodePalettePng, type RgbaImage } from '../../src/lib/pixel/pngCodec';
 import { composeWeaponCard } from '../../src/lib/pixel/weaponCardCompositor';
 import type { PixelWeaponInput } from '../../src/lib/pixel/weaponCompositor';
 import type { GearRender } from '../../src/lib/pixel/gearCardCompositor';
@@ -57,8 +47,7 @@ import {
   LEGENDARY_ART_PARITY,
   type LegendaryArtParityRow,
 } from '../../src/test/legendaryParityTable';
-import { Element, Manufacturer } from '../../src/types/game';
-import { hashString } from '../../src/lib/utils/rng';
+import { LEGENDARY_PAINTING_SLUGS } from '../../src/lib/pixel/weaponPaintingData';
 import { REPO_ROOT, type GenAsset } from './lib';
 
 export const LEGENDARY_PLATE_DIR = 'images/weapons/legendary';
@@ -98,55 +87,199 @@ export function legendarySpriteIdForEffect(effectId: string): string {
   return legendarySpriteIdForName(effect.name);
 }
 
+/* ------------------------------------------------------------------ */
+/* Painted plate sources (Top-Choice integration INT-1)               */
+/* ------------------------------------------------------------------ */
+
 /**
- * bespokeSpriteIdForWeapon's order, re-implemented over the parsed map:
- * the weapon's own name wins, else its effect's name.
+ * The adopted Top-Choice paintings are the wiki's weapon art sources
+ * (Wave 15 dispositions A1/A2): keyed, content-cropped, palette-256
+ * files at the books' 1440 px card width, derived from the adopted
+ * wave masters by scripts/wiki-gen/derive-weapon-paintings.py and
+ * committed under scripts/wiki-gen/assets/weapons/. A plate is the
+ * painting fitted into the published plate box by the Wave 15 recipe:
+ * bare object on transparency, box minus a 28 px margin, centered,
+ * published as a palette-256 PNG in the master's own palette.
  */
-function resolveBespokeSpriteId(input: PixelWeaponInput): string | undefined {
-  const map = bespokeLegendarySprites();
-  if (input.name) {
-    const byName = map[input.name.trim().toLowerCase()];
-    if (byName) return byName;
+export const PAINTED_WEAPON_ASSETS = join(REPO_ROOT, 'scripts', 'wiki-gen', 'assets', 'weapons');
+const PLATE_WIDTH = 480;
+const PLATE_HEIGHT = 176;
+const PLATE_MARGIN = 28;
+
+export function paintedWeaponAssetBytes(kind: 'legendary' | 'frames', fileName: string): Uint8Array {
+  const path = join(PAINTED_WEAPON_ASSETS, kind, fileName);
+  if (!existsSync(path)) {
+    throw new Error(
+      `images: painted weapon source missing: scripts/wiki-gen/assets/weapons/${kind}/${fileName} — ` +
+        're-derive it with scripts/wiki-gen/derive-weapon-paintings.py',
+    );
   }
-  if (input.legendaryEffectId) {
-    const effect = LEGENDARY_EFFECTS.find((entry) => entry.id === input.legendaryEffectId);
-    if (effect) return map[effect.name.trim().toLowerCase()];
-  }
-  return undefined;
+  return new Uint8Array(readFileSync(path));
 }
 
-/* ------------------------------------------------------------------ */
-/* Representative instances (the showcaseWeaponInput way, fixed seeds) */
-/* ------------------------------------------------------------------ */
+/** The painted files present in one asset folder, sorted. */
+export function paintedWeaponAssetNames(kind: 'legendary' | 'frames'): string[] {
+  return readdirSync(join(PAINTED_WEAPON_ASSETS, kind))
+    .filter((f) => f.endsWith('.png'))
+    .sort();
+}
 
-const MANUFACTURERS = Object.values(Manufacturer);
-const ELEMENTS = Object.values(Element);
+/**
+ * Area-average resample fitting `img` inside maxW x maxH, aspect kept.
+ * Premultiplied-alpha accumulation (the boxDownscaleHalf discipline
+ * generalized to an arbitrary fit): transparent pixels contribute
+ * their alpha but not their RGB, so keyed edges never darken or bleed.
+ * Pure float math in a fixed loop order — byte-deterministic.
+ */
+function fitImageInto(img: RgbaImage, maxW: number, maxH: number): RgbaImage {
+  const scale = Math.min(maxW / img.width, maxH / img.height);
+  const width = Math.max(1, Math.round(img.width * scale));
+  const height = Math.max(1, Math.round(img.height * scale));
+  const data = new Uint8Array(width * height * 4);
+  const stepX = img.width / width;
+  const stepY = img.height / height;
+  for (let y = 0; y < height; y++) {
+    const y0 = y * stepY;
+    const y1 = y0 + stepY;
+    for (let x = 0; x < width; x++) {
+      const x0 = x * stepX;
+      const x1 = x0 + stepX;
+      let aSum = 0;
+      let rSum = 0;
+      let gSum = 0;
+      let bSum = 0;
+      let wSum = 0;
+      for (let yy = Math.floor(y0); yy < Math.ceil(y1); yy++) {
+        const wy = Math.min(y1, yy + 1) - Math.max(y0, yy);
+        if (wy <= 0) continue;
+        for (let xx = Math.floor(x0); xx < Math.ceil(x1); xx++) {
+          const wx = Math.min(x1, xx + 1) - Math.max(x0, xx);
+          if (wx <= 0) continue;
+          const w = wx * wy;
+          const i = (yy * img.width + xx) * 4;
+          const a = img.data[i + 3];
+          aSum += a * w;
+          rSum += img.data[i] * a * w;
+          gSum += img.data[i + 1] * a * w;
+          bSum += img.data[i + 2] * a * w;
+          wSum += w;
+        }
+      }
+      const o = (y * width + x) * 4;
+      if (aSum > 0) {
+        data[o] = Math.round(rSum / aSum);
+        data[o + 1] = Math.round(gSum / aSum);
+        data[o + 2] = Math.round(bSum / aSum);
+        data[o + 3] = Math.round(aSum / wSum);
+      }
+    }
+  }
+  return { width, height, data };
+}
 
-function representativeInput(row: LegendaryArtParityRow): PixelWeaponInput {
-  const seed = hashString(row.spriteId);
-  const item: ShowcaseItemPayload = {
-    id: `wiki-plate-${row.spriteId}`,
-    item_level: null,
-    rarity: 'Legendary',
-    is_locked: false,
-    runtime_state: 'inventory',
-    equipped_slot: null,
-    kind: 'weapon',
-    condition_current: null,
-    condition_max: null,
-    created_at: '2026-01-01T00:00:00.000Z',
-    payload: {
-      name: row.name,
-      weaponType: row.defType ?? row.depictedType,
-      manufacturer: MANUFACTURERS[seed % MANUFACTURERS.length],
-      element: ELEMENTS[Math.floor(seed / MANUFACTURERS.length) % ELEMENTS.length],
-      pixelSeed: seed,
-      rollQuality: 100,
-      affixes: [],
-      ...(row.effectId ? { legendaryEffectId: row.effectId } : {}),
-    },
+/**
+ * The source master's own palette: its unique RGBA colors in packed
+ * order, with a fully transparent entry guaranteed for the plate
+ * ground. Sources are palette-256 files by construction (at most 256
+ * unique colors); if the transparent entry must be added to a full
+ * palette, the least-used color gives up its slot.
+ */
+function sourcePalette(img: RgbaImage): [number, number, number, number][] {
+  const byKey = new Map<number, { color: [number, number, number, number]; count: number }>();
+  for (let i = 0; i < img.data.length; i += 4) {
+    const color: [number, number, number, number] = [img.data[i], img.data[i + 1], img.data[i + 2], img.data[i + 3]];
+    const key = ((color[3] << 24) | (color[0] << 16) | (color[1] << 8) | color[2]) >>> 0;
+    const entry = byKey.get(key);
+    if (entry) entry.count++;
+    else byKey.set(key, { color, count: 1 });
+  }
+  if (!byKey.has(0)) {
+    if (byKey.size >= 256) {
+      let rarestKey = -1;
+      let rarestCount = Infinity;
+      for (const [key, entry] of byKey) {
+        if (entry.count < rarestCount) {
+          rarestCount = entry.count;
+          rarestKey = key;
+        }
+      }
+      byKey.delete(rarestKey);
+    }
+    byKey.set(0, { color: [0, 0, 0, 0], count: 0 });
+  }
+  return [...byKey.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, entry]) => entry.color);
+}
+
+/**
+ * Snap every pixel to the nearest palette color, distance measured on
+ * premultiplied values so a keyed edge's coverage lands in alpha
+ * rather than hue. The plate then carries the master's own palette —
+ * no invented blends — and publishes as a palette-256 PNG, the form
+ * Wave 15 priced for these classes.
+ */
+function snapToPalette(
+  img: RgbaImage,
+  palette: [number, number, number, number][],
+): RgbaImage {
+  const premultiplied = palette.map(([r, g, b, a]) => [(r * a) / 255, (g * a) / 255, (b * a) / 255, a]);
+  const memo = new Map<number, [number, number, number, number]>();
+  const data = new Uint8Array(img.data.length);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const r = img.data[i];
+    const g = img.data[i + 1];
+    const b = img.data[i + 2];
+    const a = img.data[i + 3];
+    const key = ((a << 24) | (r << 16) | (g << 8) | b) >>> 0;
+    let snapped = memo.get(key);
+    if (!snapped) {
+      const pr = (r * a) / 255;
+      const pg = (g * a) / 255;
+      const pb = (b * a) / 255;
+      let best = Infinity;
+      let bestIdx = 0;
+      for (let j = 0; j < premultiplied.length; j++) {
+        const [cr, cg, cb, ca] = premultiplied[j];
+        const d = (pr - cr) ** 2 + (pg - cg) ** 2 + (pb - cb) ** 2 + (a - ca) ** 2;
+        if (d < best) {
+          best = d;
+          bestIdx = j;
+        }
+      }
+      snapped = palette[bestIdx];
+      memo.set(key, snapped);
+    }
+    data[i] = snapped[0];
+    data[i + 1] = snapped[1];
+    data[i + 2] = snapped[2];
+    data[i + 3] = snapped[3];
+  }
+  return { width: img.width, height: img.height, data };
+}
+
+/** One painted source fitted into the 480x176 weapon plate box. */
+export function fitPaintedPlate(sourcePng: Uint8Array): Uint8Array {
+  const src = decodePng(sourcePng);
+  const palette = sourcePalette(src);
+  const fitted = snapToPalette(
+    fitImageInto(src, PLATE_WIDTH - PLATE_MARGIN, PLATE_HEIGHT - PLATE_MARGIN),
+    palette,
+  );
+  const canvas: RgbaImage = {
+    width: PLATE_WIDTH,
+    height: PLATE_HEIGHT,
+    data: new Uint8Array(PLATE_WIDTH * PLATE_HEIGHT * 4),
   };
-  return showcaseWeaponInput(item);
+  const ox = Math.floor((PLATE_WIDTH - fitted.width) / 2);
+  const oy = Math.floor((PLATE_HEIGHT - fitted.height) / 2);
+  for (let y = 0; y < fitted.height; y++) {
+    canvas.data.set(
+      fitted.data.subarray(y * fitted.width * 4, (y + 1) * fitted.width * 4),
+      ((oy + y) * PLATE_WIDTH + ox) * 4,
+    );
+  }
+  return encodePalettePng(canvas, palette);
 }
 
 /* ------------------------------------------------------------------ */
@@ -289,25 +422,33 @@ export function legendaryPlateImgTag(name: string, spriteId: string): string {
 }
 
 function renderLegendaryPlate(row: LegendaryArtParityRow): GenAsset {
-  const input = representativeInput(row);
-  const spriteId = resolveBespokeSpriteId(input);
-  // V4: every legendary MUST resolve to its authored set — an
-  // unresolved representative input would silently picture a
-  // procedural gun, so it fails as loudly as a mismatched id.
-  if (spriteId !== row.spriteId) {
-    throw new Error(
-      `images: ${row.name} resolved to legendary art "${spriteId ?? '(none — procedural)'}" but the parity fixture pins "${row.spriteId}" — ` +
-        'the bespoke map, the fixture, and the game disagree; fix the source, not the wiki.',
-    );
-  }
   return {
     path: `${LEGENDARY_PLATE_DIR}/${legendaryPlateFileName(row.spriteId)}`,
-    bytes: encodePng(rasterizeWeaponCard(input)),
+    bytes: fitPaintedPlate(paintedWeaponAssetBytes('legendary', legendaryPlateFileName(row.spriteId))),
   };
 }
 
 /** All 26 legendary plates, sorted by path. Deterministic. */
 export function legendaryPlates(): GenAsset[] {
+  // INT-1: three sets must agree 1:1 — the parity fixture's pinned
+  // slugs, the production data's painting slugs (weaponPaintingData.ts,
+  // the manifest sprites' own record), and the painted source files.
+  // Any drift fails the build instead of picturing the wrong gun (the
+  // V4-era assertion, carried onto the new sources).
+  const paritySlugs = LEGENDARY_ART_PARITY.map((row) => row.spriteId.replace(/^legendary-/, '')).sort();
+  const productionSlugs = [...LEGENDARY_PAINTING_SLUGS].sort();
+  if (JSON.stringify(paritySlugs) !== JSON.stringify(productionSlugs)) {
+    throw new Error(
+      `images: production painting slugs drifted from the parity fixture — fixture [${paritySlugs.join(', ')}], production [${productionSlugs.join(', ')}]`,
+    );
+  }
+  const expected = paritySlugs.map((slug) => `${slug}.png`);
+  const present = paintedWeaponAssetNames('legendary');
+  if (JSON.stringify(expected) !== JSON.stringify(present)) {
+    throw new Error(
+      `images: painted legendary sources drifted from the parity fixture — expected [${expected.join(', ')}], found [${present.join(', ')}]`,
+    );
+  }
   return LEGENDARY_ART_PARITY.map(renderLegendaryPlate).sort((a, b) =>
     a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
   );

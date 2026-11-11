@@ -1,0 +1,25 @@
+{
+  "sprite": "item-magnetized-payload",
+  "anchors": {
+    "feet": {
+      "x": 0.5659,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5653,
+      "y": 0.56
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6348
+    },
+    "lootPoint": {
+      "x": 0.5632,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3285,
+      "y": 0.7001
+    }
+  }
+}

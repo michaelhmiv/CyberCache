@@ -1,0 +1,25 @@
+{
+  "sprite": "item-insurance-token",
+  "anchors": {
+    "feet": {
+      "x": 0.5822,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5823,
+      "y": 0.4972
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.8931
+    },
+    "lootPoint": {
+      "x": 0.5824,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3316,
+      "y": 0.7049
+    }
+  }
+}

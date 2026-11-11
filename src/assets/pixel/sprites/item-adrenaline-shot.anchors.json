@@ -1,0 +1,25 @@
+{
+  "sprite": "item-adrenaline-shot",
+  "anchors": {
+    "feet": {
+      "x": 0.6328,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.6281,
+      "y": 0.4338
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.1195
+    },
+    "lootPoint": {
+      "x": 0.6277,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.4362,
+      "y": 0.6224
+    }
+  }
+}

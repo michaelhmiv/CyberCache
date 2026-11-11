@@ -1,5 +1,6 @@
 import React from 'react';
 import { PX_ICONS, PX_ICON_TONE_FILLS, type PxIconName, type PxIconSize } from '@/lib/pixel/icons';
+import { colorFromClassName, normalizeIconColor, paintedIconFor } from '@/lib/pixel/iconPaintings';
 
 export type { PxIconName, PxIconSize };
 
@@ -11,16 +12,53 @@ interface PxIconProps {
   style?: React.CSSProperties;
   /** Accessible label; omit for decorative icons (aria-hidden). */
   title?: string;
+  /**
+   * The deliberate state color this site resolves (hex), when the site
+   * carries it in a variable the renderer cannot see (a wrapper's style,
+   * a registry value). Painted glyphs select their BAKED variant for
+   * this color (INT-10); stencil glyphs ignore it (tint via
+   * currentColor as before).
+   */
+  color?: string;
 }
 
 /**
- * The one way icons render in this UI. Draws the 16x16 duotone pixel icon
- * from `src/lib/pixel/icons.ts` as inline SVG with crisp edges; the mass
- * rects take `currentColor`, so tint with text color exactly where the old
- * glyph span took a color. Nearest-neighbour look at every token size —
- * never rasterized, never an emoji.
+ * The one way icons render in this UI.
+ *
+ * Painted glyphs (INT-9's big slots + INT-10's functional set, owner
+ * REBUILD ruling 2026-11-11) render their shipped painting: FIXED
+ * glyphs as-is, VARIANT glyphs as the baked variant matching the color
+ * this site resolves — the explicit `color` prop first, then
+ * style.color, then the className's theme token. No painting is ever
+ * tinted at runtime; selection is the whole mechanism.
+ *
+ * Everything else — the element badges' stencils (permanent, owner
+ * ruling), the wallet sheet, and any glyph without a painting — draws
+ * the 16x16 duotone pixel icon from `src/lib/pixel/icons.ts` as inline
+ * SVG with crisp edges; the mass rects take `currentColor`, so tint
+ * with text color exactly where the old glyph span took a color.
+ * Nearest-neighbour look at every token size — never an emoji.
  */
-export const PxIcon: React.FC<PxIconProps> = ({ name, size = 17, className, style, title }) => {
+export const PxIcon: React.FC<PxIconProps> = ({ name, size = 17, className, style, title, color }) => {
+  const styleColor = typeof style?.color === 'string' ? style.color : undefined;
+  const resolved = normalizeIconColor(color) ?? normalizeIconColor(styleColor) ?? colorFromClassName(className);
+  const painting = paintedIconFor(name, resolved);
+  if (painting) {
+    return (
+      <img
+        src={painting}
+        width={size}
+        height={size}
+        className={className}
+        style={{ display: 'inline-block', flex: 'none', verticalAlign: '-2px', ...style }}
+        alt={title ?? ''}
+        role={title ? 'img' : undefined}
+        aria-label={title}
+        aria-hidden={title ? undefined : true}
+        draggable={false}
+      />
+    );
+  }
   const rects = PX_ICONS[name];
   return (
     <svg

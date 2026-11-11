@@ -1,0 +1,25 @@
+{
+  "sprite": "item-target-painter",
+  "anchors": {
+    "feet": {
+      "x": 0.5096,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5156,
+      "y": 0.5882
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9366
+    },
+    "lootPoint": {
+      "x": 0.6614,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3427,
+      "y": 0.7101
+    }
+  }
+}

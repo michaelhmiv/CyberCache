@@ -1,0 +1,25 @@
+{
+  "sprite": "wallet-legendary-core",
+  "anchors": {
+    "feet": {
+      "x": 0.499,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4994,
+      "y": 0.5
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4696
+    },
+    "lootPoint": {
+      "x": 0.4997,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2723,
+      "y": 0.6936
+    }
+  }
+}

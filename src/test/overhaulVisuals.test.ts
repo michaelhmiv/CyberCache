@@ -285,6 +285,19 @@ describe('performance + payload budgets (§4.9)', () => {
     // the INT-3 PR body). Dread Head has no master (two pipeline
     // refusals; owner ruling: leave) and its sprite is unchanged;
     // the hood is untouched.
+    // Top-Choice INT-1 weapons (2026-11-11): the production
+    // sprite layer for the adopted weapon paintings lands — 26
+    // legendaries (legendary-painting-*, 2,903,472 B) + 36 bases
+    // (weapon-base-*, 2,422,978 B) registered behind their trims
+    // (spriteProduction / weaponPaintingData), palette-256 with
+    // true alpha via the Wave 15 key_white recipe at the 1440
+    // card-width class. NO existing sprite file is modified and
+    // the in-game weapon renderers are untouched — the compositors
+    // still paint from authored data (V4); wiring the paintings
+    // into PixelWeapon is the scoped renderer step recorded in
+    // docs/top-choice-weapon-integration.md (needs the owner's
+    // source-of-truth / variety / element rulings first).
+
     // INT-7 cache screen (2026-11-11): the Top-Choice cache family
     // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
     // palette-256 of the graded logo-identity closed master),
@@ -322,10 +335,18 @@ describe('performance + payload budgets (§4.9)', () => {
     // slice with per-family accounting. Per the slice instruction the
     // ceiling literal is set to this branch's measured total, so the
     // check now pins drift exactly at the INT-5 landing.
-    // Measured manifest total on this tree (hero reconciled onto
-    // the INT-5 landing): 21,954,644 B. The ceiling moves
-    // DELIBERATELY to the measured total of this branch, per the
-    // Top-Choice adoption accounting; final reconciliation lands
-    // when all slices merge.
-    expect(total).toBeLessThan(21_954_644 + 1);  });
+    // Reconciliation (parent merge drill, 2026-11-11): unified
+    // manifest = current master (INT-1/INT-4/INT-5/INT-7/INT-10
+    // landings, 447 entries, 27,451,145 B) with this slice's hero
+    // records applied — only five records actually differ from
+    // what master already carries, because the reconciled INT-2
+    // gear landing had taken the branch's hi-def forms for the
+    // five gear-* mounted portraits (the design-px records the
+    // aborted first reconciliation computed never matched the
+    // merged files); measured 27,641,424 B on the reconciled
+    // tree, every record asserted against its file; the ceiling
+    // literal follows the unified total +1. One sibling remains
+    // in flight (INT-6 vistas) and re-pins as it lands.
+    expect(total).toBeLessThan(27_641_424 + 1);  });
+
 });

@@ -1,0 +1,25 @@
+{
+  "sprite": "item-throw-tech-decoy-kit",
+  "anchors": {
+    "feet": {
+      "x": 0.5784,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5792,
+      "y": 0.6237
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9316
+    },
+    "lootPoint": {
+      "x": 0.5756,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3714,
+      "y": 0.8275
+    }
+  }
+}

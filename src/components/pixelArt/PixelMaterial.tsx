@@ -1,35 +1,31 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import {
-  composeMaterialCached,
-  paintMaterial,
-  type MaterialDensity,
-} from '@/lib/pixel/materialArt';
+import React, { useEffect, useRef } from 'react';
+import { getPixelSprite } from '@/lib/pixel/manifest';
+import { materialSpriteId, itemSpriteSignature } from '@/lib/pixel/itemArt';
 import { getMaterialVisual, getResourceVisual } from '@/constants/visualAssets';
 
 /**
  * PixelMaterial — renders a material / essence / the Scrap
- * resource as STUFF pixel art (src/lib/pixel/materialArt.ts), the
- * sibling of PixelGear for the goods economy. Replaces every
- * letter-mark improvisation the surfaces used to carry (the Belt &
- * Stacks glyph map, the Workshop's second map, the Market's
- * one-pack-for-everything, the MaterialBadge letter tile).
+ * resource as its adopted Top-Choice painting (Wave 12 master,
+ * INT-4): the manifest sprite registered for the id, drawn from
+ * itemArt.ts. One render for every surface (rows, market boxes,
+ * sheet stages, the diorama's rising finds) — the same sprite
+ * the wiki plates derive from.
  *
- * - `density`: 'object' (24-grid formed object — rows, market
- *   boxes, sheet stages) or 'thumb' (12-grid detail level 0,
- *   composed on its own grid, never a downscale — the 13–16px
- *   inline mounts).
- * - The render is cached module-wide by signature, so lists never
- *   repaint texels.
+ * History: this component painted the runtime STUFF compositor
+ * (materialArt.ts) until INT-4; the family shipped at ZERO
+ * sprite payload and now carries real sprites. The compositor
+ * stays in the tree as the S2 lint corpus's data source.
+ * `density` is retained on the props for call-site
+ * compatibility — the adopted master is the single render at
+ * every density (masters ship at 2× the largest display size).
  */
-
-const PAINT_SCALE = 4;
 
 interface PixelMaterialProps {
   /** Registry id: a MaterialType / EssenceType value, or 'Scrap'. */
   id: string;
-  /** Display width in CSS px (the grid is square; height follows). */
+  /** Display width in CSS px (the sprite is square; height follows). */
   size?: number;
-  density?: MaterialDensity;
+  density?: 'object' | 'thumb';
   className?: string;
   testId?: string;
 }
@@ -43,30 +39,36 @@ export const PixelMaterial: React.FC<PixelMaterialProps> = React.memo(({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const render = useMemo(() => composeMaterialCached(id, density), [id, density]);
+  const spriteId = materialSpriteId(id);
+  const sprite = spriteId ? getPixelSprite(spriteId) : undefined;
+  const signature = spriteId ? itemSpriteSignature(spriteId) : '';
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !sprite) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return; // jsdom / unsupported — element + signature still render
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    paintMaterial(ctx, render, PAINT_SCALE);
-  }, [render]);
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = sprite.url;
+  }, [sprite]);
 
   const label = id === 'Scrap' ? getResourceVisual('scrap').label : getMaterialVisual(id).label;
 
   return (
     <canvas
       ref={canvasRef}
-      width={render.width * PAINT_SCALE}
-      height={render.height * PAINT_SCALE}
+      width={sprite?.width ?? 104}
+      height={sprite?.height ?? 104}
       className={className}
-      style={{ width: size, height: size, imageRendering: 'pixelated', flex: 'none' }}
+      style={{ width: size, height: size, flex: 'none' }}
       role="img"
       aria-label={label}
       data-testid={testId}
-      data-signature={render.signature}
+      data-signature={signature}
       data-density={density}
       data-material-id={id}
     />

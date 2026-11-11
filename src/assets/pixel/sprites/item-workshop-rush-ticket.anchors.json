@@ -1,0 +1,25 @@
+{
+  "sprite": "item-workshop-rush-ticket",
+  "anchors": {
+    "feet": {
+      "x": 0.5379,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5379,
+      "y": 0.622
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6218
+    },
+    "lootPoint": {
+      "x": 0.5381,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2635,
+      "y": 0.6576
+    }
+  }
+}

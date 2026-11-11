@@ -1,0 +1,25 @@
+{
+  "sprite": "item-signal-scrambler",
+  "anchors": {
+    "feet": {
+      "x": 0.5122,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5304,
+      "y": 0.5937
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.0183
+    },
+    "lootPoint": {
+      "x": 0.7375,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3484,
+      "y": 0.7277
+    }
+  }
+}
