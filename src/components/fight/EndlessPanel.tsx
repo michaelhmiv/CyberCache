@@ -63,16 +63,16 @@ const fmtDate = (iso: string | null): string => {
 const EncounterVitals: React.FC<{ health: number; shield: number; armor: number; dps: number }> = ({ health, shield, armor, dps }) => {
   const max = Math.max(1, health, shield, armor);
   const rows = [
-    { label: 'HP', icon: 'heart' as PxIconName, value: health, color: 'bg-red', text: 'text-red' },
-    { label: 'Shield', icon: 'bolt' as PxIconName, value: shield, color: 'bg-cyan', text: 'text-cyan' },
-    { label: 'Armor', icon: 'armor' as PxIconName, value: armor, color: 'bg-purple', text: 'text-purple' },
+    { label: 'HP', icon: 'heart' as PxIconName, hex: '#FF4B5C', value: health, color: 'bg-red', text: 'text-red' },
+    { label: 'Shield', icon: 'bolt' as PxIconName, hex: '#F7D20B', value: shield, color: 'bg-cyan', text: 'text-cyan' },
+    { label: 'Armor', icon: 'armor' as PxIconName, hex: '#A855F7', value: armor, color: 'bg-purple', text: 'text-purple' },
   ];
   return (
     <div className="space-y-1.5" data-testid="endless-vitals">
       {rows.map((row) => (
         <div key={row.label} className="flex items-center gap-2">
           <div className="flex w-14 items-center gap-1 text-[9px] font-black uppercase text-text-muted">
-            <span className={`inline-flex ${row.text}`}><PxIcon name={row.icon} size={13} /></span>{row.label}
+            <span className={`inline-flex ${row.text}`}><PxIcon name={row.icon} size={13} color={row.hex} /></span>{row.label}
           </div>
           <div className="relative h-2.5 flex-1 overflow-hidden border-2 border-border bg-bg" style={slashClip}>
             <motion.div
