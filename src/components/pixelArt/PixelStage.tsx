@@ -4,12 +4,8 @@ import { anchorPoint, getPixelSprite, requirePixelSprite } from '@/lib/pixel/man
 import { MOVEMENT, shakeKeyframes } from '@/lib/pixel/movement';
 import { ROAM_APPROACH } from '@/lib/pixel/roamChoreography';
 import {
-  VISTA_LAYER_SLOTS,
   VISTA_STAGE_H,
   VISTA_STAGE_W,
-  vistaBandDisplayW,
-  vistaPanOffsets,
-  type VistaLayerId,
   type VistaPaintLayer,
   type VistaSceneSpec,
 } from '@/lib/pixel/vistaScenes';
@@ -58,27 +54,20 @@ interface PixelStageProps {
   shakeDurationMs?: number;
   children?: React.ReactNode;
   testId?: string;
-  /** Overhaul §4.5: when set (and the zone's layer re-cuts exist), the
-   *  stage renders far/mid/near parallax layers over the base plate,
-   *  plus the area's animated props and weather tint. */
+  /** Overhaul §4.5: when set, the stage renders the area's animated
+   *  props and weather tint. (The far/mid/near parallax re-cuts it
+   *  used to name retired with the vista band system — the zone
+   *  backgrounds are single master paintings now, see vistaScene.) */
   areaId?: string;
   /** Hot-area treatment (§3.5): sky shift + pennant + ember color. */
   hot?: boolean;
-  /** V1 vista scene (Full Visual Program): when set, the stage
-   *  renders the scene's authored tileable bands (height-fit + pan)
-   *  and its ambient elements from data, superseding the parallax
-   *  re-cuts, the animated props, and the generic embers. Only the
-   *  home diorama passes this; other stages keep their plates. */
+  /** Vista scene (Full Visual Program): when set, the stage
+   *  renders the scene's ambient elements from data over its one
+   *  background painting, superseding the animated props and the
+   *  generic embers. Only the home diorama passes this; other
+   *  stages keep their plates. (The V1 band layers + pan retired
+   *  with the plain-bg ruling, 2026-11-11.) */
   vistaScene?: VistaSceneSpec | null;
-  /** While true, the vista pan advances (roaming). Other modes hold
-   *  the pan where it is. */
-  vistaPanActive?: boolean;
-  /** Pan clock rate (Motion M2b): a STABLE ref object owned by the
-   *  caller — the travel beat's driver writes the stride-synced
-   *  rate into it per frame, and the stage's clock advances
-   *  panMs += dt × rate while the pan is active. Absent = rate 1
-   *  (the ambient drift, the pre-M2b behavior exactly). */
-  vistaPanRateRef?: { current: number };
 }
 
 export const PixelStage: React.FC<PixelStageProps> = ({
@@ -94,20 +83,9 @@ export const PixelStage: React.FC<PixelStageProps> = ({
   areaId,
   hot = false,
   vistaScene = null,
-  vistaPanActive = false,
-  vistaPanRateRef,
 }) => {
   const background = requirePixelSprite(backgroundId);
   const ground = groundY ?? background.anchors.groundLine?.y ?? 0.86;
-  // Parallax layers exist for zone backgrounds (zone-<slug>-bg); the
-  // re-cuts are zone-<slug>-far/-mid/-near in the manifest. A vista
-  // scene supersedes them with its authored tileable bands.
-  const zoneSlug = backgroundId.startsWith('zone-') && backgroundId.endsWith('-bg')
-    ? backgroundId.slice('zone-'.length, -'-bg'.length)
-    : undefined;
-  const farLayer = zoneSlug && areaId && !vistaScene ? getPixelSprite(`zone-${zoneSlug}-far`) : undefined;
-  const midLayer = zoneSlug && areaId && !vistaScene ? getPixelSprite(`zone-${zoneSlug}-mid`) : undefined;
-  const nearLayer = zoneSlug && areaId && !vistaScene ? getPixelSprite(`zone-${zoneSlug}-near`) : undefined;
   const visuals = areaId ? areaVisuals(areaId) : undefined;
   const pennant = hot ? getPixelSprite('prop-hot-pennant') : undefined;
   const shakeControls = useAnimationControls();
@@ -123,35 +101,23 @@ export const PixelStage: React.FC<PixelStageProps> = ({
     });
   }, [shakeKey, shakeIntensity, shakeDurationMs, reduced, shakeControls]);
 
-  // ── V1 vista rendering (DOM) ─────────────────────────────────────
-  // One rAF loop per stage: it advances the shared (wall, pan) clock,
-  // wraps the band strips via background-position (repeat-x tiling =
-  // seamless at any offset), and paints the ambient canvases from
-  // the scene data. No per-frame React renders — refs only.
-  const vistaFarBandRef = useRef<HTMLDivElement | null>(null);
-  const vistaMidBandRef = useRef<HTMLDivElement | null>(null);
-  const vistaNearBandRef = useRef<HTMLDivElement | null>(null);
+  // ── Vista ambient rendering (DOM) ────────────────────────────────
+  // One rAF loop per stage: it advances the wall clock and paints
+  // the ambient canvases from the scene data (far/mid/near behind
+  // the actors, stage over them). No per-frame React renders —
+  // refs only.
   const vistaFarCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const vistaMidCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const vistaNearCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const vistaStageCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const vistaClockRef = useRef<VistaClock>({ wallMs: 0, panMs: 0 });
+  const vistaClockRef = useRef<VistaClock>({ wallMs: 0 });
   const vistaPaintRef = useRef<(() => void) | null>(null);
-  const vistaPanActiveRef = useRef(vistaPanActive);
-  useEffect(() => {
-    vistaPanActiveRef.current = vistaPanActive;
-  }, [vistaPanActive]);
   const vistaSceneId = vistaScene?.id ?? null;
   useEffect(() => {
     if (!vistaScene) {
       vistaPaintRef.current = null;
       return;
     }
-    const bandRefs: Record<VistaLayerId, React.RefObject<HTMLDivElement | null>> = {
-      far: vistaFarBandRef,
-      mid: vistaMidBandRef,
-      near: vistaNearBandRef,
-    };
     const canvasRefs: Record<VistaPaintLayer, React.RefObject<HTMLCanvasElement | null>> = {
       far: vistaFarCanvasRef,
       mid: vistaMidCanvasRef,
@@ -161,16 +127,10 @@ export const PixelStage: React.FC<PixelStageProps> = ({
     const instances: VistaAmbientInstance[] = expandVistaAmbient(vistaScene);
     const paint = () => {
       const clock = vistaClockRef.current;
-      const panOffsets = vistaPanOffsets(vistaScene, clock.panMs);
       const anyCanvas = canvasRefs.stage.current ?? canvasRefs.far.current;
       const root = anyCanvas?.parentElement;
       const W = root?.clientWidth ?? 0;
       const H = root?.clientHeight ?? 0;
-      const scaleX = W > 0 ? W / VISTA_STAGE_W : 1;
-      for (const layer of ['far', 'mid', 'near'] as VistaLayerId[]) {
-        const div = bandRefs[layer].current;
-        if (div) div.style.backgroundPositionX = `${-panOffsets[layer] * scaleX}px`;
-      }
       if (instances.length === 0) return;
       const images = vistaImageMapFor(instances);
       for (const layer of ['far', 'mid', 'near', 'stage'] as VistaPaintLayer[]) {
@@ -187,7 +147,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
         ctx.setTransform(cw / VISTA_STAGE_W, 0, 0, ch / VISTA_STAGE_H, 0, 0);
         ctx.clearRect(0, 0, VISTA_STAGE_W, VISTA_STAGE_H);
         ctx.imageSmoothingEnabled = false;
-        paintVistaAmbientLayer({ ctx, instances, layer, images, clock, panOffsets });
+        paintVistaAmbientLayer({ ctx, instances, layer, images, clock });
       }
     };
     vistaPaintRef.current = paint;
@@ -199,9 +159,6 @@ export const PixelStage: React.FC<PixelStageProps> = ({
       const dt = Math.min(100, now - last);
       last = now;
       vistaClockRef.current.wallMs += dt;
-      if (vistaPanActiveRef.current) {
-        vistaClockRef.current.panMs += dt * (vistaPanRateRef?.current ?? 1);
-      }
       paint();
       raf = requestAnimationFrame(step);
     };
@@ -231,7 +188,6 @@ export const PixelStage: React.FC<PixelStageProps> = ({
     ro.observe(root);
     return () => ro.disconnect();
   }, [vistaSceneId]);
-  const vistaBandRefByLayer = { far: vistaFarBandRef, mid: vistaMidBandRef, near: vistaNearBandRef };
   const vistaCanvasRefByLayer = { far: vistaFarCanvasRef, mid: vistaMidCanvasRef, near: vistaNearCanvasRef };
 
   return (
@@ -246,89 +202,17 @@ export const PixelStage: React.FC<PixelStageProps> = ({
           animate={reduced ? undefined : { scale: [1.04, 1.1, 1.04] }}
           transition={reduced ? undefined : { duration: (MOVEMENT.BG_DRIFT_HALF_MS * 2) / 1000, repeat: Infinity, ease: 'easeInOut' }}
         />
-        {/* V1 vista bands: tileable authored bands, height-fit into
-            the same slots as the re-cuts, wrapped with repeat-x and
-            panned by the vista clock. Each band's ambient canvas
-            rides directly over it. */}
+        {/* Vista ambient layers behind the actors: far/mid/near
+            paint over the one background painting, in order. */}
         {vistaScene &&
-          (['far', 'mid', 'near'] as VistaLayerId[]).map((layer) => {
-            const slot = VISTA_LAYER_SLOTS[layer];
-            const sprite = requirePixelSprite(vistaScene.layers[layer]);
-            return (
-              <React.Fragment key={layer}>
-                <div
-                  data-testid={`pixel-layer-${layer}`}
-                  data-vista-band={layer}
-                  ref={vistaBandRefByLayer[layer]}
-                  className="pointer-events-none absolute left-0 w-full"
-                  style={{
-                    top: `${slot.topFrac * 100}%`,
-                    height: `${slot.heightFrac * 100}%`,
-                    backgroundImage: `url(${sprite.url})`,
-                    backgroundRepeat: 'repeat-x',
-                    backgroundSize: `${(vistaBandDisplayW(layer) / VISTA_STAGE_W) * 100}% 100%`,
-                    imageRendering: 'pixelated',
-                    ...(layer === 'near'
-                      ? {
-                          WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 30%)',
-                          maskImage: 'linear-gradient(to bottom, transparent, black 30%)',
-                        }
-                      : {}),
-                  }}
-                />
-                <canvas
-                  data-testid={`pixel-ambient-${layer}`}
-                  ref={vistaCanvasRefByLayer[layer]}
-                  className="pointer-events-none absolute inset-0 h-full w-full"
-                />
-              </React.Fragment>
-            );
-          })}
-        {/* Parallax re-cuts (overhaul §4.5): far drifts least, near
-            most; all motion is transform-only. The base plate stays
-            underneath so bands can never gap. */}
-        {farLayer && (
-          <motion.img
-            src={farLayer.url}
-            alt=""
-            draggable={false}
-            data-testid="pixel-layer-far"
-            className="pointer-events-none absolute left-0 top-0 w-full object-cover"
-            style={{ height: '62%', imageRendering: 'pixelated' }}
-            animate={reduced ? undefined : { x: [0, -6, 0], scale: [1.02, 1.05, 1.02] }}
-            transition={reduced ? undefined : { duration: 26, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        )}
-        {midLayer && (
-          <motion.img
-            src={midLayer.url}
-            alt=""
-            draggable={false}
-            data-testid="pixel-layer-mid"
-            className="pointer-events-none absolute left-0 w-full object-cover"
-            style={{ top: '36%', height: '52%', imageRendering: 'pixelated' }}
-            animate={reduced ? undefined : { x: [0, -14, 0] }}
-            transition={reduced ? undefined : { duration: 19, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        )}
-        {nearLayer && (
-          <motion.img
-            src={nearLayer.url}
-            alt=""
-            draggable={false}
-            data-testid="pixel-layer-near"
-            className="pointer-events-none absolute left-0 w-full object-cover"
-            style={{
-              top: '70%',
-              height: '32%',
-              imageRendering: 'pixelated',
-              WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 30%)',
-              maskImage: 'linear-gradient(to bottom, transparent, black 30%)',
-            }}
-            animate={reduced ? undefined : { x: [0, -22, 0] }}
-            transition={reduced ? undefined : { duration: 13, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        )}
+          (['far', 'mid', 'near'] as VistaPaintLayer[]).map((layer) => (
+            <canvas
+              key={layer}
+              data-testid={`pixel-ambient-${layer}`}
+              ref={vistaCanvasRefByLayer[layer]}
+              className="pointer-events-none absolute inset-0 h-full w-full"
+            />
+          ))}
         {/* Weather tint + hot-area sky shift (color/opacity only). */}
         {visuals && (
           <div
@@ -341,7 +225,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
             }}
           />
         )}
-        {/* The area's animated props drift across the mid band.
+        {/* The area's animated props drift across the stage.
             Superseded by the authored ambient sets on vista scenes. */}
         {visuals &&
           !vistaScene &&

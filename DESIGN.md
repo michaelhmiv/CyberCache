@@ -1991,22 +1991,26 @@ The eight authored vista sets replace the zone paintings as the
 home stage's backdrops: seven roaming areas (Dustwaste, Redline
 Circuit, Ironwood Bastion, BlastForge Yards, Prismatek, ThrowTech,
 HelixWorks) plus Camp. The paintings' JPG stacks (2,753,117 B)
-leave the bundle; the authored sets total 66,305 B.
+leave the bundle; the authored sets total 66,305 B. (The sets'
+band-stack form below is SUPERSEDED for vistas by the 2026-11-11
+plain-background landing — see "Vistas go plain" at the end of
+this entry; the ambient law and the sets' histories stand.)
 
-- **Bands display height-fit + pan, never object-cover.** Each
-  scene's far/mid/near bands are 1440 design-px wide (1.5x the
-  stage), authored tileable, and render wrapped — the DOM stage
-  tiles with repeat-x, the Pixi stage runs wrap pairs — so the
-  seam is invisible at any offset. While roaming, the scene PANS
-  across the band field on the proof model's parallax ratios
-  (far 0.25 / mid 0.55 / near 1.0, held as per-scene data in
-  `src/lib/pixel/vistaScenes.ts`). At rest the band's center crop
-  shows — the framing every set was composed for. The bg plate
-  stays a full-bleed cover sprite underneath. Boss and endless
-  ARENA backgrounds are not vista scenes and keep their own art;
-  panel scenes that borrow an area plate (crafting, extraction,
-  the cache stage) inherit the authored plate through the same
-  sprite swap, unchanged code.
+- **Bands display height-fit + pan, never object-cover.**
+  [Superseded for vistas 2026-11-11 — bands retired.] Each
+  scene's far/mid/near bands were 1440 design-px wide (1.5x the
+  stage), authored tileable, and rendered wrapped — the DOM stage
+  tiled with repeat-x, the Pixi stage ran wrap pairs — so the
+  seam was invisible at any offset. While roaming, the scene
+  PANNED across the band field on the proof model's parallax
+  ratios (far 0.25 / mid 0.55 / near 1.0, held as per-scene data
+  in `src/lib/pixel/vistaScenes.ts`). At rest the band's center
+  crop showed — the framing every set was composed for. The bg
+  plate stayed a full-bleed cover sprite underneath. Boss and
+  endless ARENA backgrounds are not vista scenes and keep their
+  own art; panel scenes that borrow an area plate (crafting,
+  extraction, the cache stage) inherit the authored plate through
+  the same sprite swap, unchanged code.
 - **Ambient life instances from data, on both renderers.**
   Each set's `ambient-motion.json` contract is normalized into
   data rows next to the scene spec; a deterministic sampler
@@ -2014,14 +2018,15 @@ leave the bundle; the authored sets total 66,305 B.
   (one canvas per paint layer) and the Pixi stage (the same
   canvases as textures), so parity is structural. Elements
   anchored to a band structure — a reactor core, a gate pulse, a
-  furnace mouth — ride the pan glued to their hero; free elements
-  keep their own clocks (Layered-Motion Law: nothing is baked
-  into a band, elements move independently of the pan and of each
-  other). The authored sets supersede the aprop drift system and
-  the generic ember spans on vista scenes (the Dustwaste ember
-  row IS the ember spec, drawn from its authored sprites).
-  Reduced motion holds the pan and paints one static frame;
-  fallbacks follow the existing stage rules.
+  furnace mouth — rode the pan glued to their hero [plain-bg
+  form: converted to stage space at their composed positions —
+  see "Vistas go plain"]; free elements keep their own clocks
+  (Layered-Motion Law: nothing is baked into a backdrop,
+  elements move independently of each other). The authored sets
+  supersede the aprop drift system and the generic ember spans
+  on vista scenes (the Dustwaste ember row IS the ember spec,
+  drawn from its authored sprites). Reduced motion paints one
+  static frame; fallbacks follow the existing stage rules.
 - **Camp is the idle backdrop.** Idle no longer shows the current
   area behind a lone crate: the authored camp scene serves, the
   hunter takes the fire seat, and the camp props (fireglow,
@@ -2033,14 +2038,17 @@ leave the bundle; the authored sets total 66,305 B.
   the §4.9 formula) — at, not over, the MAX_ANIMATED_NODES
   budget. The Pixi roam count drops 53 → 43 (ember pool stands
   down; ambient canvases join). Sprite payload: 8,260,959 B
-  manifest-sum after landing; the 11,620,000 ceiling is unmoved.
+  manifest-sum after landing; the 11,620,000 ceiling is unmoved
+  [both superseded by the plain-bg accounting below].
 - **Pinned by `src/test/vistaScenes.test.tsx`**: scene/sprite
   resolution, painting removal, scene selection (arenas null),
-  wrap math, instancing from data, band-anchored pan riding,
-  blink duty, and the DOM stage's vista DOM shape. Golden
-  baselines regenerated — every changed scene is background-
-  driven (the renderer composites scenes over the zone plate).
-  movement.ts is unmodified; gameplay and economics untouched.
+  wrap math [retired with the bands], instancing from data,
+  band-anchored pan riding [converted to stage positions in the
+  plain-bg form], blink duty, and the DOM stage's vista DOM
+  shape. Golden baselines regenerated — every changed scene is
+  background-driven (the renderer composites scenes over the zone
+  plate). movement.ts is unmodified; gameplay and economics
+  untouched.
 - **ThrowTech heap polish (2026-11-08).** The landing's named
   weakest form — the mid heap mound under the turret housing,
   whose facets were built from the field's own neighbor tones
@@ -2060,6 +2068,51 @@ leave the bundle; the authored sets total 66,305 B.
   0.54 → 0.50, near 0.46, seam steps identical); payload +197 B
   (vista total 66,502 B, ceiling unmoved).
 
+- **Vistas go plain — the master paintings ship whole
+  (owner ruling 2026-11-11).** The owner reviewed the Top-Choice
+  Wave 9.75 master paintings against the band stack in game and
+  ruled: the masters ship AS the backgrounds, whole — "use the
+  raw masters as plain background, not chop it up, and we can
+  add other things on top of it that moves later." This entry's
+  band claims are superseded FOR VISTAS: each scene's background
+  is now its ONE adopted master painting at shipping shape (JPEG
+  q88, 1440 wide; the Wave 9.75 `*-bg-top.png` masters — and for
+  BlastForge, whose adopted master was all flame sky with no
+  ground, the owner's chosen plain-bg re-roll: a ground-bearing
+  repaint composed on the game's own 0.86 ground line). The 24
+  far/mid/near band sprites leave the manifest and the vista
+  specs; both renderers stop drawing bands and their pan
+  machinery; the background painting keeps the stage's subtle
+  cover drift (scale 1.04–1.10) that predates the bands. What
+  survives of the Layered-Motion Law on vistas is its substance:
+  the ambient elements were never baked in — their data rows and
+  per-element motion specs stand unchanged, they still paint on
+  top in the same order relative to the actors (far/mid/near
+  behind, stage over), and rows that were band-anchored convert
+  to stage space through the retired bands' own display
+  transform at the rest framing, keeping the composed positions
+  the sets were framed for. The law itself stands for other
+  surfaces — separable ambient elements with per-element motion
+  specs as data, never one flattened scrolling reel. Actors
+  anchor on the paintings' ground lines as before (zones 0.86,
+  camp 0.9375 — verified against each painting; the new masters'
+  grounds were composed on those same lines, so no anchor
+  moved). Travel keeps its stride beat; no scenery layer pans
+  anymore — the stride alone carries the advance — and the M2b
+  multiplier survives as choreography data dividing by the
+  retired near rate's uniform baseline (10 design-px/s), its
+  flow==ground-speed law still asserted in the M2b tests.
+  Payload: the layered vista family
+  (66,502 B) is replaced by the 8 paintings (1,997,744 B) plus
+  the untouched ambient/props (10,318 B); manifest-sum total
+  8,663,463 B, and the ceiling pin moves to that measured total
+  per the integration brief. Pinned by the updated
+  `src/test/vistaScenes.test.tsx` (paintings resolve as
+  1440x960 JPEGs, no band id resolves, family bytes exact, ambient still
+  instances and renders), `panelPresence.test.tsx`, and the
+  node-budget and ceiling rows in `overhaulVisuals.test.ts`.
+  movement.ts is unmodified; gameplay and economics untouched.
+
 ### Presence — Full Visual Program M4c (2026-11-08)
 
 The stage came alive slice by slice (roam in Pixi, the work and
@@ -2072,16 +2125,18 @@ listing ran. M4c closes both, on the data the game already owns:
 
 - **Panel scenes inherit their vista.** The shared panel shell
   resolves the plate's authored vista scene
-  (`vistaSceneForBackground`) and the stage paints its bands and
-  ambient life from the SAME scene data the Home stage consumes
-  — one source, consumed never forked. The crafting bench stands
-  in BlastForge, the repair and shield-tech bays stand in
-  ThrowTech, the (panel-unmounted, one-stage law) extraction
-  scene stands in Dustwaste. The pan stays held — a workplace
-  doesn't travel — while the ambient elements move on their own
-  specs. A plate with no vista scene (an arena) keeps the plain
-  plate. The ambient life is canvas paint: no new DOM nodes, the
-  composition budgets hold.
+  (`vistaSceneForBackground`) and the stage paints its
+  background painting and ambient life from the SAME scene data
+  the Home stage consumes — one source, consumed never forked.
+  The crafting bench stands in BlastForge, the repair and
+  shield-tech bays stand in ThrowTech, the (panel-unmounted,
+  one-stage law) extraction scene stands in Dustwaste. The
+  ambient elements move on their own specs. A plate with no
+  vista scene (an arena) keeps the plain plate. The ambient
+  life is canvas paint: no new DOM nodes, the composition
+  budgets hold. (Plain-bg form, 2026-11-11: the band strips
+  this bullet once described retired with the vista band
+  system; the painting + ambient inheritance is unchanged.)
 - **The stall is a work-cycle tenant.** `marketListing` joins
   the registry as `stall` — the lowest amplitude in the registry,
   no strike, no sparks, long holds between small handling
@@ -2103,9 +2158,9 @@ listing ran. M4c closes both, on the data the game already owns:
   sampler-family work that pairs with the M2a leg program, not
   this slice.
 - **Pinned by `src/test/panelPresence.test.tsx`** (every panel
-  scene's bands + ambient canvases instanced from its vista
-  spec, data identity on the layer sprites, the arena null path,
-  canvas-not-nodes) and the stall rows in `workCycle.test.ts` /
+  scene's background painting + ambient canvases instanced from
+  its vista spec, data identity on the painting, the arena null
+  path, canvas-not-nodes) and the stall rows in `workCycle.test.ts` /
   `workCycleStage.test.tsx` — the M1-era pins that market
   listing never cycles were superseded deliberately, in place.
   movement.ts is unmodified; gameplay and economics untouched.
@@ -2264,8 +2319,10 @@ the next enemy walked in alone (MOTION-AUDIT §2.1C: travel did
 not exist). M2b is the advance M2a made possible: when a new
 target arrives while roaming — roam start, and every
 between-enemy step of a session — the hunter WALKS to it, on
-both renderers, and the vista pan moves at the speed of his own
-stride. **With this entry every Motion Reboot slice has
+both renderers, and the vista pan moves at the speed of his
+own stride (the plain-bg landing, 2026-11-11, retired the
+bands the pan rode — the stride beat itself is unchanged and
+now carries the advance alone). **With this entry every Motion Reboot slice has
 shipped** — M1 the work cycle, M2 the roam stage on Pixi, M2a
 the legs, M2b the travel, M3 endless on the main stage, M4a
 extraction works, M4b the bench item, M4c presence — and the
@@ -2288,16 +2345,16 @@ measured, not yet judged by his eye).
   pose is the base pose exactly, so arrival lands on the pose
   the beat system already holds and encounter handoffs (boss,
   endless, roam combat) are untouched downstream.
-- **Feet and ground agree by construction.** The pan rate is
+- **Feet and ground agree by construction.** The flow rate is
   derived from the stride spec itself — step length from the
   skeleton's leg and the spec's thigh swing, step time from the
   law-derived period, scaled at the roam placement's display
-  scale — and expressed as a multiplier on each scene's own
-  near-layer rate, so the authored parallax ratios hold under
-  the boost. While the amplitude ramps, the rate ramps with it;
-  at rest the rate is exactly 1, the ambient drift the roam
-  scene already ran. There is no second, tunable pan speed to
-  drift out of sync (one source, asserted exactly in the M2b
+  scale — and expressed as a multiplier on the vista's near-rate
+  baseline, so the ground moves at the gait's own speed. While
+  the amplitude ramps, the rate ramps with it; at rest the rate
+  is exactly 1, the ambient drift the roam scene already ran.
+  There is no second, tunable flow speed to drift out of sync
+  (one source, asserted exactly in the M2b
   tests).
 - **Game events preempt the beat, never wait for it.** A combat
   beat from a newer tick event disengages the advance mid-stride

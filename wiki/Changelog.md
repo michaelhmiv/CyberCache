@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-11 — The vistas are paintings now
+
+- **Every area's backdrop is its full master painting now** — the roaming grounds and camp used to be assembled from layered strips sliding past each other; each scene is now one complete painting, front to back: the Dustwaste sunset over its dunes, Redline's red sun over the circuit plain, Ironwood under its moon, BlastForge's yards under the smoke (the yards got a fresh painting with real ground under the cranes — the old sky was all flame), PrismaTek's crystal hills, ThrowTech's storm towers, HelixWorks' glowing skyline, and camp under its starfield. The life on top of the paintings is unchanged — the drifting clouds, rising embers, blinking lights and campfire smoke still move on their own clocks, and your hunter still anchors on the same ground line in every scene.
+- **The Field Manual's area plates follow suit** — each area's plate in the manual is the same painting the stage shows.
+
 ## 2026-11-11 — Boss mechanics collect
 
 - **A boss's mechanic now charges what it advertises** — the line printed in a boss's prep is the line the fight measures: the Siltstalker's enrage is a kill-speed check (DPS 1.3), the Heap Guard's regen loop a shield-break check (1.2), Ashgut's burning ground a survival check (1.4), and the Rust Prophet's repairs and the Verdant Maw's regrowth are armor-break checks (1.5). Meet the line and the mechanic costs nothing; fall short and the shortfall taxes the attempt in proportion — no cliff, no free pass. The Scrap Bishop's three-phase siege measures all three of its layers (shield 1.25, armor 1.25, kill speed 1.35) and taxes on the weakest. Trait gates, the Mirror's adaptation, and the Widow's and Omega's ramps work exactly as before, and the Endless Chamber is untouched — the demands belong to the ladder.
@@ -247,7 +252,11 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 221 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 222 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-11** — 1 merge
+
+- #484 — Boss setup-diversity (slice C2): mechanic legs collect + Bishop composite; CryoAmmo re-read measured and dropped
 
 **2026-11-10** — 15 merges
 

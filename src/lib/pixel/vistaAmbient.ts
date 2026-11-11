@@ -1,12 +1,12 @@
 /**
- * Vista ambient sampler + painter — Full Visual Program V1.
+ * Vista ambient sampler + painter — Full Visual Program V1, plain-bg
+ * form (2026-11-11).
  *
  * Instances expand from the scene's data rows (vistaScenes.ts) and
- * are sampled against a (wallMs, panMs) clock: wall time drives each
- * element's own motion; pan time moves ONLY the bands — band-anchored
- * elements ride the pan through the pan offsets (Layered-Motion
- * Law: ambient elements move independently of the band pan and of
- * each other; nothing is baked into a band).
+ * are sampled against a wall clock: wall time drives each element's
+ * own motion, and elements move independently of each other and of
+ * the background painting (nothing is baked into the painting).
+ * All anchors are stage space (960x640 design px).
  *
  * One painter draws into a 2D canvas in stage design space
  * (960x640); both stage renderers use it — the DOM stage paints one
@@ -16,20 +16,15 @@
  */
 import { PIXEL_TEXEL, getPixelSprite } from './manifest';
 import {
-  VISTA_LAYER_SLOTS,
   VISTA_STAGE_H,
   VISTA_STAGE_W,
-  vistaBandDisplayScale,
-  vistaBandDisplayW,
   type VistaAmbientElement,
-  type VistaLayerId,
   type VistaPaintLayer,
   type VistaSceneSpec,
 } from './vistaScenes';
 
 export interface VistaClock {
   wallMs: number;
-  panMs: number;
 }
 
 export interface VistaAmbientInstance {
@@ -40,7 +35,7 @@ export interface VistaAmbientInstance {
   /** Deterministic 0..1 hash of (scene, element, index). */
   seed: number;
   spriteId: string;
-  /** Anchor in the element's anchorSpace: x = center, y = bottom
+  /** Anchor in stage space: x = center, y = bottom
    *  (for 'sweep', y = center). */
   cx: number;
   bottom: number;
@@ -135,34 +130,22 @@ export function vistaSpriteDesignSize(spriteId: string, scale: number): { w: num
   return { w: s.width * PIXEL_TEXEL * scale, h: s.height * PIXEL_TEXEL * scale };
 }
 
-/** Stage-space anchor for an instance before its own motion: stage
- *  rows pass through; band rows convert through the layer's display
- *  scale and the current pan offset (unwrapped — the painter draws
- *  the wrapped copies). */
+/** Stage-space anchor for an instance before its own motion: every
+ *  row is authored in stage space, so the anchor passes through. */
 export function vistaInstanceStageAnchor(
   inst: VistaAmbientInstance,
-  panOffsets: Record<VistaLayerId, number>,
 ): { cx: number; bottom: number } {
-  const { el } = inst;
-  if (el.anchorSpace === 'stage') return { cx: inst.cx, bottom: inst.bottom };
-  const layer = el.layer as VistaLayerId;
-  const s = vistaBandDisplayScale(layer);
-  const slotTop = VISTA_STAGE_H * VISTA_LAYER_SLOTS[layer].topFrac;
-  return {
-    cx: inst.cx * s - panOffsets[layer],
-    bottom: slotTop + inst.bottom * s,
-  };
+  return { cx: inst.cx, bottom: inst.bottom };
 }
 
 export function sampleVistaAmbient(
   inst: VistaAmbientInstance,
   clock: VistaClock,
-  panOffsets: Record<VistaLayerId, number>,
 ): VistaSample {
   const { el } = inst;
   const m = el.motion;
   const t = clock.wallMs / 1000;
-  const anchor = vistaInstanceStageAnchor(inst, panOffsets);
+  const anchor = vistaInstanceStageAnchor(inst);
   const { w, h } = vistaSpriteDesignSize(inst.spriteId, el.scale);
   const out: VistaSample = {
     visible: true,
@@ -337,9 +320,7 @@ export function sampleVistaAmbient(
       const f = tri(clock.wallMs / m.durationMs + inst.phase);
       out.rotationDeg = lerp(m.angleDeg[0], m.angleDeg[1], f);
       out.ax = anchor.cx;
-      out.ay = el.anchorSpace === 'band'
-        ? VISTA_STAGE_H * VISTA_LAYER_SLOTS[el.layer as VistaLayerId].topFrac + inst.bottom * vistaBandDisplayScale(el.layer as VistaLayerId)
-        : anchor.bottom;
+      out.ay = anchor.bottom;
       break;
     }
     case 'flicker': {
@@ -365,9 +346,7 @@ export type VistaImageSource = {
 
 /**
  * Paint one paint-layer's instances into a 2D context already
- * transformed so 1 unit = 1 stage design px. Band-anchored samples
- * are drawn at their wrapped copies too, so an element crossing the
- * pan seam stays continuous.
+ * transformed so 1 unit = 1 stage design px.
  */
 export function paintVistaAmbientLayer(args: {
   ctx: CanvasRenderingContext2D;
@@ -375,14 +354,13 @@ export function paintVistaAmbientLayer(args: {
   layer: VistaPaintLayer;
   images: ReadonlyMap<string, VistaImageSource>;
   clock: VistaClock;
-  panOffsets: Record<VistaLayerId, number>;
 }): void {
-  const { ctx, instances, layer, images, clock, panOffsets } = args;
+  const { ctx, instances, layer, images, clock } = args;
   for (const inst of instances) {
     if (inst.el.layer !== layer) continue;
     const img = images.get(inst.spriteId);
     if (!img || img.width <= 0) continue;
-    const sample = sampleVistaAmbient(inst, clock, panOffsets);
+    const sample = sampleVistaAmbient(inst, clock);
     if (!sample.visible || sample.opacity <= 0.003) continue;
     const { w, h } = vistaSpriteDesignSize(inst.spriteId, inst.el.scale);
     if (w <= 0 || h <= 0) continue;
@@ -408,11 +386,6 @@ export function paintVistaAmbientLayer(args: {
       ctx.restore();
     };
     draw(sample.cx);
-    if (inst.el.anchorSpace === 'band') {
-      const dispW = vistaBandDisplayW(inst.el.layer as VistaLayerId);
-      if (sample.cx > VISTA_STAGE_W - w) draw(sample.cx - dispW);
-      if (sample.cx < w) draw(sample.cx + dispW);
-    }
   }
 }
 
@@ -424,7 +397,6 @@ export function paintVistaAmbient(args: {
   instances: VistaAmbientInstance[];
   images: ReadonlyMap<string, VistaImageSource>;
   clock: VistaClock;
-  panOffsets: Record<VistaLayerId, number>;
 }): void {
   for (const layer of ['far', 'mid', 'near', 'stage'] as VistaPaintLayer[]) {
     paintVistaAmbientLayer({ ...args, layer });

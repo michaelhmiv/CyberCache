@@ -489,16 +489,16 @@ const PixelSceneLayerDom: React.FC<{
   // Pixi stage feeds its own copy from the same observations —
   // travelChoreography owns the state machine, so the two can't
   // drift). While roaming with motion allowed, a rAF driver
-  // feeds the tracker, writes the stride-synced pan rate into
-  // the ref PixelStage's clock reads, and binds the stride
-  // execution on the hunter actor while the window is open.
+  // feeds the tracker and binds the stride execution on the
+  // hunter actor while the window is open. (The stride-synced
+  // scenery pan the tracker also fed retired with the vista
+  // bands, 2026-11-11 — the stride carries the beat.)
   // Leaving roaming (Stop, activity switch, a fight taking the
   // stage) cancels the run outright: the binding drops, the
-  // actor's own ramp hands the pose back, the pan rate resets.
+  // actor's own ramp hands the pose back.
   // Reduced motion never engages it — the pre-M2b picture.
   const travelRunRef = useRef<TravelRunState | null>(null);
   if (travelRunRef.current === null) travelRunRef.current = createTravelRun();
-  const travelPanRateRef = useRef(1);
   const [travelActive, setTravelActive] = useState(false);
   const travelInputsRef = useRef<{
     engaged: boolean;
@@ -520,8 +520,8 @@ const PixelSceneLayerDom: React.FC<{
   useEffect(() => {
     if (mode !== 'roaming' || reduced) {
       // Cancel on the next frame (the M2a actor's deferred-reset
-      // shape): the run clears, the pan rate restores, the stride
-      // binding drops — no stuck stride past the interrupt.
+      // shape): the run clears and the stride binding drops —
+      // no stuck stride past the interrupt.
       const id = requestAnimationFrame(() => {
         feedTravel(travelRunRef.current!, TRAVEL_SPECS.advance, {
           engaged: false,
@@ -530,7 +530,6 @@ const PixelSceneLayerDom: React.FC<{
           beatEventId: null,
           now: performance.now(),
         });
-        travelPanRateRef.current = 1;
         setTravelActive(false);
       });
       return () => cancelAnimationFrame(id);
@@ -540,14 +539,12 @@ const PixelSceneLayerDom: React.FC<{
       const run = travelRunRef.current!;
       feedTravel(run, TRAVEL_SPECS.advance, { ...travelInputsRef.current, now });
       const s = sampleTravel(run, TRAVEL_SPECS.advance, vistaScene, now);
-      travelPanRateRef.current = s.panRate;
       setTravelActive((prev) => (prev === s.active ? prev : s.active));
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(raf);
-      travelPanRateRef.current = 1;
     };
     // vistaScene identity follows its id (the spec objects are
     // module constants); the loop reads it through the closure.
@@ -1008,8 +1005,6 @@ const PixelSceneLayerDom: React.FC<{
       areaId={areaId}
       hot={hot}
       vistaScene={vistaScene}
-      vistaPanActive={mode === 'roaming'}
-      vistaPanRateRef={travelPanRateRef}
     >
       {/* No in-scene mode chip (QC papercut): the HTML title plate
           above already prints the activity label — the chip hung

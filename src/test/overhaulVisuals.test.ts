@@ -37,13 +37,15 @@ const AREA_SLUG: Record<string, string> = {
 };
 
 describe('manifest completeness (§4)', () => {
-  it('every area resolves its background + parallax re-cuts', () => {
+  it('every area resolves its one background painting (re-cuts retired)', () => {
     for (const area of ROAMING_AREAS) {
       const slug = AREA_SLUG[area.id];
       expect(has(`zone-${slug}-bg`), `${slug} bg`).toBe(true);
-      expect(has(`zone-${slug}-far`), `${slug} far`).toBe(true);
-      expect(has(`zone-${slug}-mid`), `${slug} mid`).toBe(true);
-      expect(has(`zone-${slug}-near`), `${slug} near`).toBe(true);
+      // The parallax re-cuts retired with the vista band system
+      // (plain-bg ruling, 2026-11-11): no band ids exist.
+      expect(has(`zone-${slug}-far`), `${slug} far retired`).toBe(false);
+      expect(has(`zone-${slug}-mid`), `${slug} mid retired`).toBe(false);
+      expect(has(`zone-${slug}-near`), `${slug} near retired`).toBe(false);
     }
   });
 
@@ -210,10 +212,11 @@ describe('performance + payload budgets (§4.9)', () => {
     expect(GRAMMAR.card.widthPx).toBeGreaterThan(0);
   });
 
-  it('a full V1 vista stage stays inside the animated-node budget', () => {
+  it('a full vista stage stays inside the animated-node budget', () => {
     // The vista composition swaps the DOM dressing, nothing else:
-    // the 3 parallax re-cut strips become 3 tileable band strips,
-    // and the 2 drifting aprops + the generic ember spans are
+    // the background is ONE plain painting (no band strips — the
+    // V1 band stack retired with the plain-bg ruling, 2026-11-11),
+    // and the drifting aprops + the generic ember spans are
     // superseded by 4 ambient canvases (far/mid/near/stage) whose
     // elements instance from scene data — canvas draws, not DOM
     // nodes, so the count is the canvases themselves.
@@ -221,7 +224,6 @@ describe('performance + payload budgets (§4.9)', () => {
       countPartNodes(STANDARD_ISSUE) + // hunter parts 10
       1 + // held weapon layer
       countRigNodes(enemyRig('brute')) + // enemy rig 4
-      3 + // vista band strips
       4 + // ambient canvases (far, mid, near, stage)
       1 + // weather tint
       1 + // hot pennant
@@ -269,6 +271,18 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
-    expect(total).toBeLessThan(11_620_000);
+    // Vistas plain-bg (2026-11-11, INT-6): the layered vista sets
+    // (24 band strips 38,227 B + 8 texel backgrounds 17,957 B =
+    // 56,184 B) leave the bundle; the 8 adopted master paintings
+    // (Top-Choice Wave 9.75 raw masters at Scenario-S shape — JPEG
+    // q88, 1440 wide; BlastForge carries its plain-bg re-roll)
+    // arrive at 1,997,744 B — a +1,941,560 B delta. Ambient sprites
+    // and camp props (10,318 B) are untouched. Manifest-sum total
+    // on this tree after landing: 8,663,463 B. Per the integration
+    // brief the ceiling pin is set to this branch's measured
+    // total, so the next art lands with its own accounting and its
+    // own deliberate move, exactly like the waves above.
+    expect(total).toBe(8_663_463);
+    expect(total).toBeLessThanOrEqual(8_663_463);
   });
 });

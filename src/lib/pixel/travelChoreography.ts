@@ -6,11 +6,11 @@
  * Between encounters the hunter used to teleport in place: a kill
  * swapped the target and the next enemy remounted with its walk-in
  * while the hunter stood at his mark, the world drifting at the
- * ambient pan. M2b inserts the missing beat — the ADVANCE. When a
+ * ambient pace. M2b inserts the missing beat — the ADVANCE. When a
  * new target arrives while roaming (roam start included), the
  * hunter WALKS: the M2a stride spec drives the legs through the
- * FK resolver, and the vista pan accelerates to the stride's own
- * ground speed, so feet and ground agree. The enemy's walk-in
+ * FK resolver, and the scenery flow accelerates to the stride's
+ * own ground speed, so feet and ground agree. The enemy's walk-in
  * (movement.ts WALK_IN_MS) is the beat's window: the two figures
  * arrive together, and the hunter settles into the exact pose the
  * beat system expects — downstream encounter handoffs (boss,
@@ -35,12 +35,12 @@
  * composed pose IS the base pose, byte-exact (M2a rest invariance
  * is the floor).
  *
- * No foot-skating by construction: the pan rate derives from the
- * stride spec itself — step length from the skeleton's leg and
- * the spec's thigh swing, step time from the law-derived period —
- * one source, asserted exactly in the M2b tests. While the
- * amplitude ramps, the pan rate ramps with it (rate = 1 at rest:
- * the ambient drift the roam scene already runs).
+ * No foot-skating by construction: the flow rate derives from
+ * the stride spec itself — step length from the skeleton's leg
+ * and the spec's thigh swing, step time from the law-derived
+ * period — one source, asserted exactly in the M2b tests. While
+ * the amplitude ramps, the flow rate ramps with it (rate = 1 at
+ * rest: the ambient drift the roam scene already runs).
  *
  * Presentation only. The beat never gates anything: a combat
  * beat from a NEWER tick event preempts it mid-stride (the
@@ -120,16 +120,21 @@ export function strideGroundSpeedPxS(stride: StrideSpec): number {
 }
 
 /**
- * The pan multiplier that makes the vista's ground layer move at
- * the gait's ground speed: the scene's own near-layer rate is
- * the yardstick (panPxS is per-scene data), so the far/mid
- * layers keep their authored parallax ratios under the boost.
- * A scene with no pan (camp) has no ground motion to sync — 1.
+ * The pan multiplier that made the vista's ground layer move at
+ * the gait's ground speed: the near-layer pan rate (the roaming
+ * scenes' uniform 10 design-px/s) was the yardstick. The bands
+ * it synced to retired with the plain-bg landing (2026-11-11)
+ * and no scenery layer pans anymore — the stride alone carries
+ * the advance — but the multiplier stays as choreography data:
+ * it keeps the M2b law (flow rate == ground speed) asserted in
+ * the tests and the tracker's sample shape unchanged for both
+ * renderers. Camp never roams — callers pass no scene and the
+ * tracker holds 1.
  */
-export function travelPanMultiplier(stride: StrideSpec, scene: VistaSceneSpec): number {
-  const near = scene.panPxS.near;
-  if (!(near > 0)) return 1;
-  return strideGroundSpeedPxS(stride) / near;
+export const TRAVEL_FLOW_BASELINE_PX_S = 10;
+
+export function travelPanMultiplier(stride: StrideSpec, _scene: VistaSceneSpec): number {
+  return strideGroundSpeedPxS(stride) / TRAVEL_FLOW_BASELINE_PX_S;
 }
 
 // ── The travel tracker ──────────────────────────────────────────
