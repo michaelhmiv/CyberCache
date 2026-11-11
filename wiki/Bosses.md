@@ -29,6 +29,10 @@ What you bring is also yours to choose: your loadout, a prepared belt of consuma
 
 If your belt commits more of a consumable than you currently hold, that belt row carries the quick-buy **+** — it opens the [[Crafting|quick-buy sheet]] priced for exactly the gap, so a prepared belt never silently shrinks to whatever is left on the shelf. The same holds for the [[Endless Mode|Endless Chamber]]'s belt.
 
+## Attack patterns
+
+Every boss also fights to a **pattern** — the rhythm its damage lands in, printed in its prep under Attack Pattern. Regular hits land every few seconds; a named **special** lands on a slower cycle, after a short wind-up you can read in advance, and carries a fixed share of the boss's total damage. The pattern never changes how much damage a boss deals in a fight — the same total, dealt on a beat. What the beat changes is the quiet: between hits there are whole seconds where nothing lands, and in that quiet a shield **recharges**, exactly as it does between roaming fights. Wide rhythms — the slow, heavy bosses — leave long quiet stretches where a fast-recharging shield comes back; a boss that hits every 3 seconds leaves none at all, and against those, capacity and mitigation are the answer, not recharge. Reading the pattern is part of reading the boss: it tells you which kind of shield the fight rewards before you spend the fee.
+
 ## The risk setting
 
 Each attempt is fought at one of four risk settings, chosen at prep:

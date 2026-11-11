@@ -1,4 +1,4 @@
-import { type BossDef, type BossAttemptResult, type BossPhase, type BossPrepAnalysis, type PhaseAnalysis } from '../../types/boss';
+import { type BossCadence, type BossDef, type BossAttemptResult, type BossPhase, type BossPrepAnalysis, type PhaseAnalysis } from '../../types/boss';
 import { type Weapon, type Shield, type Ordnance, type ClassMod, type Relic } from '../../types/items';
 import { Element, Manufacturer, RiskSetting, WeaponType } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
@@ -107,6 +107,20 @@ export interface BossSimulationOutput extends BossPrepAnalysis {
    * is boss.health (so the value is finite and large, not Infinity).
    */
   timeToKill: number;
+  /**
+   * Cadence facts (slice C1) when the boss carries an authored
+   * attack cadence: the timeline the sim folded, in the sim's own
+   * computed values. Facts about the BOSS (pattern, split, quiet
+   * windows), never about the player's odds — safe prep/result data
+   * under the Boss Intel Law. Absent for cadence-less bosses.
+   */
+  cadence?: {
+    damageFreeSeconds: number;
+    specialCount: number;
+    perSpecialDamage: number;
+    perHitDamage: number;
+    shieldRecharged: number;
+  };
   /** Echo of a fired action skill's tree (server resolutions only). */
   actionSkill?: { tree: string };
 }
@@ -521,6 +535,83 @@ function critShareOf(weapon: Weapon | null, critChanceBonus = 0): number {
   return critFactor / (1 + critFactor);
 }
 
+/**
+ * Boss attack cadence (slice C1, owner ruling 2026-11-10): the
+ * pooled fold of a boss's authored hit timeline. The sim's exposure
+ * window stays the flat 30 seconds (owner ruling D2) and the boss's
+ * total damage budget B is whatever the shipped folds already
+ * produced — cadence changes WHEN the damage lands, never how much:
+ * specials carry `specialShare` of B in equal beats, regular hits
+ * carry the rest in equal beats, and R + S = B exactly. Combat
+ * resolves on the game's 3-second tick (the tick the shield
+ * recharge rule is written in): an event at time t lands in tick
+ * ceil(t/3) − 1, the tick ENDING at t — so a boss hitting every 3
+ * seconds touches every tick and leaves no gap, while wider rhythms
+ * leave whole ticks quiet. The wind-up before a special deals no
+ * damage and needs no separate term: the special cycle already
+ * spaces its ticks, and the wind-up is that quiet, named. A tick
+ * with no damage event is damage-free; those seconds are what
+ * `modelShieldRechargeForBoss` restores in. Tick COUNTS are derived
+ * in closed form from the event times (identical arithmetic to
+ * walking the window event by event, without the loop); only the
+ * event TIMES themselves are enumerated, for the budget split, and
+ * any event scheduled past the window never lands inside it.
+ */
+export const BOSS_FIGHT_WINDOW_SECONDS = 30;
+export const BOSS_TICK_SECONDS = 3;
+
+export interface BossCadenceTimeline {
+  /** Total damage budget for the window (the shipped B, unchanged). */
+  totalDamage: number;
+  /** Budget carried by regular hits (B × (1 − specialShare)). */
+  regularBudget: number;
+  /** Budget carried by specials (B × specialShare). */
+  specialBudget: number;
+  /** Regular hits landing inside the window. */
+  hitCount: number;
+  /** Specials landing inside the window. */
+  specialCount: number;
+  /** Damage per regular hit (0 when no hit lands in the window). */
+  perHitDamage: number;
+  /** Damage per special (0 when no special lands in the window). */
+  perSpecialDamage: number;
+  /** Whole 3s ticks with no damage event, × 3. */
+  damageFreeSeconds: number;
+}
+
+export function bossCadenceTimeline(cadence: BossCadence, totalDamage: number): BossCadenceTimeline {
+  const windowSeconds = BOSS_FIGHT_WINDOW_SECONDS;
+  const tickSeconds = BOSS_TICK_SECONDS;
+  const ticks = windowSeconds / tickSeconds;
+  const events = (interval: number): number[] => {
+    const times: number[] = [];
+    if (interval > 0) {
+      for (let t = interval; t <= windowSeconds; t += interval) times.push(t);
+    }
+    return times;
+  };
+  const hitTimes = events(cadence.hitIntervalSeconds);
+  const specialTimes = events(cadence.specialEverySeconds);
+  const damaged = new Array<boolean>(ticks).fill(false);
+  for (const t of [...hitTimes, ...specialTimes]) {
+    const tick = Math.min(ticks - 1, Math.max(0, Math.ceil(t / tickSeconds) - 1));
+    damaged[tick] = true;
+  }
+  const cleanTicks = damaged.filter((d) => !d).length;
+  const specialBudget = totalDamage * cadence.specialShare;
+  const regularBudget = totalDamage - specialBudget;
+  return {
+    totalDamage,
+    regularBudget,
+    specialBudget,
+    hitCount: hitTimes.length,
+    specialCount: specialTimes.length,
+    perHitDamage: hitTimes.length > 0 ? regularBudget / hitTimes.length : 0,
+    perSpecialDamage: specialTimes.length > 0 ? specialBudget / specialTimes.length : 0,
+    damageFreeSeconds: cleanTicks * tickSeconds,
+  };
+}
+
 export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   const { primary, secondary, shield, ordnance, heavy, consumables, risk, boss, playerLevel, skillBonuses, relic, classMod, pityCount = 0, playerCredits = 0 } = input;
   const reasons: string[] = [];
@@ -690,6 +781,15 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // the pool itself received; Nova and Amp apply below (boss HP and
   // DPS respectively).
   const shieldBehavior = shieldBehaviorOf(shield);
+  // Cadence (slice C1): the boss's authored hit timeline, walked
+  // over the SAME budget the continuous model prices — the budget
+  // itself is only final after the stagger/burst folds below, so
+  // the timeline is walked there; here only the fact of a cadence
+  // is captured (the behavior model above keeps pricing off the
+  // raw boss.dps × 30 base exactly as before).
+  const bossCadence = boss.cadence;
+  let cadenceTimeline: BossCadenceTimeline | undefined;
+  let cadenceShieldRecharged = 0;
   const bossShieldModel =
     shield && shieldBehavior !== 'standard'
       ? modelShieldBehaviorForBoss({
@@ -723,18 +823,27 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
 
   // Passive shield recharge (owner ruling 2026-11-10): folded for
   // EVERY shield, Standard included — recharge is behavior-
-  // independent. The pooled model's boss damage is continuous across
-  // the exposure window, so the suppression rule (recharge only on
-  // damage-free ticks) restores nothing inside the fight itself; see
-  // modelShieldRechargeForBoss for the full reasoning. The restored
-  // amount is in post-mitigation shield units, converted into the
-  // pool's raw-equivalent units by the same factor as Absorb's fold.
+  // independent. For a cadence-less boss the pooled damage is
+  // continuous across the exposure window, so the suppression rule
+  // (recharge only on damage-free ticks) restores nothing inside
+  // the fight itself; see modelShieldRechargeForBoss for the full
+  // reasoning. A boss WITH an authored cadence (slice C1) has real
+  // damage-free ticks, and the fold below restores in them. The
+  // restored amount is in post-mitigation shield units, converted
+  // into the pool's raw-equivalent units by the same factor as
+  // Absorb's fold.
   const shieldRechargeRestored = shield
     ? modelShieldRechargeForBoss({
         capacity: playerShieldHP,
         rechargeRate: shield.rechargeRate ?? 0,
         totalIncomingDamage: boss.dps * 30,
         mitigation: shieldMitigation,
+        // Pre-cadence estimate on the raw base: the timeline walk
+        // below replaces this with the fold over the final budget
+        // whenever the boss carries a cadence.
+        damageFreeSeconds: bossCadence
+          ? bossCadenceTimeline(bossCadence, boss.dps * 30).damageFreeSeconds
+          : undefined,
       })
     : 0;
   if (shieldRechargeRestored > 0) {
@@ -799,6 +908,40 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   }
 
   const bossTotalDamage = boss.dps * 30 * staggerDamageMult * burstExposureMult;
+
+  // Cadence, walked on the final budget (slice C1): the timeline's
+  // split now sums to the folded B exactly, and its damage-free
+  // count drives the recharge fold over that same budget — the
+  // pre-estimate fold above is replaced whole (its contribution is
+  // backed out first, so nothing double-counts). The budget itself
+  // never moved: survival below still divides by the same B.
+  if (bossCadence && shield) {
+    cadenceTimeline = bossCadenceTimeline(bossCadence, bossTotalDamage);
+    totalSurvival -= shieldRechargeRestored / (1 - shieldMitigation);
+    cadenceShieldRecharged = modelShieldRechargeForBoss({
+      capacity: playerShieldHP,
+      rechargeRate: shield.rechargeRate ?? 0,
+      totalIncomingDamage: bossTotalDamage,
+      mitigation: shieldMitigation,
+      damageFreeSeconds: cadenceTimeline.damageFreeSeconds,
+    });
+    totalSurvival += cadenceShieldRecharged / (1 - shieldMitigation);
+  } else if (bossCadence) {
+    // No shield equipped: no recharge can land, but the pattern
+    // facts (and the special's name in the reasons) still report.
+    cadenceTimeline = bossCadenceTimeline(bossCadence, bossTotalDamage);
+  }
+  if (bossCadence && cadenceTimeline) {
+    const sharePct = Math.round(bossCadence.specialShare * 100);
+    const rechargeNote =
+      cadenceShieldRecharged > 0
+        ? ` Your shield recharges in the ${cadenceTimeline.damageFreeSeconds}s of quiet between hits.`
+        : '';
+    reasons.push(
+      `Attack pattern: hits every ${bossCadence.hitIntervalSeconds}s; ${bossCadence.specialName} every ${bossCadence.specialEverySeconds}s carries ~${sharePct}% of the damage.${rechargeNote}`,
+    );
+  }
+
   const survivalScore = totalSurvival / bossTotalDamage;
   // Overclock Ramp may tax this score once the kill time is known
   // (see the ramp block after the DPS check); until then it is the
@@ -1285,6 +1428,15 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     extraLootRollChance: rules.extraLootRollChance,
     effectiveDPS: dps,
     timeToKill,
+    cadence: cadenceTimeline
+      ? {
+          damageFreeSeconds: cadenceTimeline.damageFreeSeconds,
+          specialCount: cadenceTimeline.specialCount,
+          perSpecialDamage: cadenceTimeline.perSpecialDamage,
+          perHitDamage: cadenceTimeline.perHitDamage,
+          shieldRecharged: cadenceShieldRecharged,
+        }
+      : undefined,
     actionSkill: saturation ? { tree: saturation.tree } : undefined,
   };
 }

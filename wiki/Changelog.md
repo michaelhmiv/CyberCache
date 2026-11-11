@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-10 — Bosses have a rhythm
+
+- **Bosses attack in patterns now** — every boss's damage lands on a beat: regular hits on a steady interval, and a named special on a slower cycle that carries a fixed share of its damage — Refraction Burst, Event Horizon, The Maw Opens, and ten more, all printed in the boss's prep under Attack Pattern, wind-up included. The total damage a boss deals has not moved a single point; only the timing is new. The timing matters because of the quiet between hits: shields now recharge inside boss fights during the damage-free stretches, so a wide-rhythm boss lets a fast-recharging shield breathe, while a boss that hits every three seconds leaves no quiet at all — bring capacity instead.
+
 ## 2026-11-10 — Scrap earns its keep
 
 - **Crafting consumables costs real Scrap now** — the Scrap legs on consumable recipes were priced back when Scrap barely moved; they now run two to eight times higher, tiered by the item: a Patch Kit costs 10 Scrap, a Med Kit 40, a Shield Cell 100, an Adrenaline Shot 300. Batch recipes follow the same curve. Everything else about the recipes — the other inputs, the craft times, what the items do — is unchanged.
