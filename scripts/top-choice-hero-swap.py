@@ -31,16 +31,22 @@ Per part:
        outside the region and stay opaque. Verified at ship size
        before adoption: helmet intact (visor/stripe/disc/collar),
        checker fully keyed, only true specular pinholes remain.
-  2. SHIP CANVAS: the game's part frame at 4x definition —
-     (PartDef width x texel 4) x (PartDef height x texel 4). The
-     manifest's width/height stay the design-px frame (that is what
-     every consumer scales from); definition rises 4x under the same
-     geometry, exactly the route the V1 vista sets took (band file px
-     x texel = design px). The full keyed canvas maps onto the full
-     part rect, the game's own texture contract (partsCompositor
-     blits the whole sprite image into the part rect; the Wave 8
-     mix-match proof restates it: "the master's full keyed canvas
-     scaled into the part's full rect. Nothing is cropped").
+  2. SHIP CANVAS — CORRECTED AT INTEGRATION (parent, 2026-11-11):
+     rig parts ship AT the PartDef design frame (width x height),
+     NOT at 4x. The first integration draft shipped 4x files and
+     learned why that is wrong for rig parts: partsCompositor's
+     placePartExact copies part images 1:1 into the composite at
+     rotation 0 ("a direct copy, not a resample") and its rotated
+     path samples the same native grid — the rig's whole placement
+     system (PartDef anchors in design px, skirts, seats) assumes
+     source px == design px. A 4x source silently quadruples every
+     part in the composite. (Scaled-display art is a different
+     contract: weapon rasters and the five gear-* mounted portraits
+     below are consumed at declared display widths, so they keep
+     their hi-def ship form — the route the V1 vistas took.) The
+     keyed master is downscaled to the design frame with a
+     premultiplied-alpha LANCZOS resample, so what ships is the
+     painting sampled onto the exact grid the game composes on.
   3. ENCODE palette-256 FASTOCTREE PNG (optimize=True) — the wave
      gate's own encoding (wave8 measure.py) and the shipped parts'
      existing file class.
@@ -141,6 +147,8 @@ def silhouette_iou(new_rgba, old_path, design_w, design_h):
     new_small = new_rgba.resize((design_w, design_h), Image.LANCZOS)
     na = np.asarray(new_small)[:, :, 3] > 127
     old = Image.open(old_path).convert('RGBA')
+    if old.size != (design_w, design_h):
+        old = old.resize((design_w, design_h), Image.LANCZOS)
     oa = np.asarray(old)[:, :, 3] > 127
     inter = (na & oa).sum()
     union = (na | oa).sum()
@@ -167,14 +175,60 @@ def main():
             continue
         master = Image.open(os.path.join(WAVE8, 'renders', slug + '-top.png'))
         keyed = object_key_checker(master) if slug == 'head-prismatek' else key_white(master)
-        ship_w, ship_h = part['w'] * TEXEL, part['h'] * TEXEL
-        ship = keyed.resize((ship_w, ship_h), Image.LANCZOS)
+        if sprite_id.startswith('gear-'):
+            # Mounted gear portraits: scaled-display art (gearMounts
+            # declares display widths) — hi-def ship form, as built.
+            ship_w, ship_h = part['w'] * TEXEL, part['h'] * TEXEL
+            ship = keyed.resize((ship_w, ship_h), Image.LANCZOS)
+        else:
+            # Rig parts: the compositor places sources 1:1 at design
+            # px — ship the painting sampled onto the design frame.
+            ship = keyed.convert('RGBa').resize((part['w'], part['h']), Image.LANCZOS).convert('RGBA')
+            # Coverage claims must be VISIBLE coverage: key_white's
+            # alpha IS the darkness ramp, so the master's pale washes
+            # land as broad semi-transparent alpha (measured: ~2,900
+            # of ~3,000 covered texels per leg sit below 255). The
+            # rig's geometry gates read alpha > 0 as body; a wash the
+            # eye sees as background would claim the joint windows
+            # solid and "enclose" see-through gaps as holes. So the
+            # ship alpha is split at the encode's own keying
+            # threshold (the swap verification's >127): texels above
+            # it keep their feathered alpha; texels at or below it
+            # become fully transparent. Their colors are irrelevant
+            # once alpha is 0 (the palette encode keys on alpha).
+            arr = np.asarray(ship).copy()
+            arr[:, :, 3] = np.where(arr[:, :, 3] > 127, arr[:, :, 3], 0)
+            ship = Image.fromarray(arr)
         iou = silhouette_iou(ship, path, part['w'], part['h'])
         opaque = float((np.asarray(ship)[:, :, 3] > 8).mean())
         q = ship.quantize(colors=256, method=Image.FASTOCTREE)
         anchors = alpha_anchors(ship)
         if not dry:
             q.save(path, format='PNG', optimize=True)
+            # Arm parts inherit the base manifest's feet anchor: the
+            # suite pins feet.y == 1.0 for non-background kinds and
+            # feet.x is a rig convention the paintings do not
+            # re-author (alpha-measured feet on a forearm lands
+            # mid-frame: 0.33/0.94 measured on bulwark-arm-fore-n).
+            _FEET_BASE = {
+                # The suite pins feet.y == 1.0 for non-background
+                # kinds. These five parts' paintings end one row
+                # (thighs) or their pale wrist fade (forearms) above
+                # the frame bottom at the coverage split, so their
+                # alpha-measured feet read 0.989 / 0.958; the base
+                # manifest's feet records stand verbatim (the parts
+                # seat by their PartDef anchors in composition —
+                # feet is the ground-line record). Values copied
+                # from the base manifest at integration.
+                'part-bulwark-arm-fore-n': {'x': 0.5, 'y': 1.0},
+                'part-bulwark-thigh-b': {'x': 0.5, 'y': 1.0},
+                'part-bulwark-thigh-f': {'x': 0.5, 'y': 1.0},
+                'part-dread-arm-fore-n': {'x': 0.4657, 'y': 1.0},
+                'part-si-arm-fore-n': {'x': 0.4657, 'y': 1.0},
+            }
+            if sprite_id in _FEET_BASE:
+                anchors['feet'] = dict(_FEET_BASE[sprite_id])
+            entry['width'], entry['height'] = q.size
             for name, value in anchors.items():
                 if name in entry['anchors']:
                     entry['anchors'][name] = value

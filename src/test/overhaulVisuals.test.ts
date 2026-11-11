@@ -270,20 +270,24 @@ describe('performance + payload budgets (§4.9)', () => {
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
     // Top-Choice INT-3 hero (2026-11-11): the 42 adopted Wave 8
-    // painterly part masters replace the pxl part sprites at 4x
-    // definition (PartDef frame x texel 4), palette-256 encoded —
-    // the same declared-dimensions convention the V1 vista sets
-    // and the INT-1 legendaries already ship (manifest width/height
-    // are FILE pixels: design frame x texel). Hero family 59,346 B
-    // -> 1,175,189 B (+1,115,843 B; per-part accounting in
-    // scripts/top-choice-hero-swap.py and the INT-3 PR body).
-    // Dread Head has no master (two pipeline refusals; owner
-    // ruling: leave) and its sprite is unchanged; the hood is
-    // untouched. This branch also carries INT-7's cache family
-    // (manifest 308 entries). Measured manifest total on this
-    // tree: 8,927,197 B. The ceiling moves DELIBERATELY to the
-    // measured total of this branch, per the Top-Choice adoption
-    // accounting; final reconciliation lands when all slices merge.
-    expect(total).toBeLessThan(8_927_197 + 1);
+    // painterly masters replace the pxl hero sprites. The 37 rig
+    // parts ship AT their design frames — partsCompositor's
+    // placePartExact copies part sources 1:1 at rotation 0 ("a
+    // direct copy, not a resample"), so source px == design px is
+    // the rig's placement law; the paintings are downscaled onto
+    // the exact grid the game composes on (premultiplied LANCZOS;
+    // ship alpha split at the keying threshold >127 so coverage is
+    // visible coverage, not the darkness ramp's pale wash).
+    // The 5 gear-* mounted portraits are scaled-display art
+    // (gearMounts declares display widths) and keep a hi-def ship
+    // form, like weapon rasters. Hero family 59,346 B -> 249,625 B
+    // (per-part accounting in scripts/top-choice-hero-swap.py and
+    // the INT-3 PR body). Dread Head has no master (two pipeline
+    // refusals; owner ruling: leave) and its sprite is unchanged;
+    // the hood is untouched. Measured manifest total on this tree:
+    // 8,000,840 B. The ceiling moves DELIBERATELY to the measured
+    // total of this branch, per the Top-Choice adoption accounting;
+    // final reconciliation lands when all slices merge.
+    expect(total).toBeLessThan(8_000_840 + 1);
   });
 });
