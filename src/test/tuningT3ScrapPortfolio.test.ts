@@ -298,7 +298,15 @@ const scrapOf = (store: InMemoryWriteStore, id: string) =>
   store.seed.profiles.find((p) => p.id === id)!.materials['Scrap'] ?? 0;
 const creditsOf = (store: InMemoryWriteStore, id: string) =>
   store.seed.profiles.find((p) => p.id === id)!.credits;
-type Res = Record<string, any>;
+// The test's structural view of the twin's op results (only the
+// fields these assertions read).
+type Res = {
+  listing: { id: string; deposit_scrap: number };
+  item: { runtime_state: string };
+  deposit_burned: number;
+  market_fee: { fee_credits: number; seller_proceeds: number; fee_rate: number };
+  status: string;
+};
 
 describe('P8 — deposit charge, refund on sale, burn on cancel (twin)', () => {
   it('gear create charges 25 Scrap and stamps it on the listing', async () => {
