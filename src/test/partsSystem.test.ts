@@ -51,13 +51,41 @@ import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 
+// Top-Choice INT-3 (2026-11-11): hero part sprites now ship at 4x
+// definition (file px = design frame x manifest texel). The parts
+// geometry suites below (underlap, soles, holes, coverage) are
+// written in DESIGN pixels — that is the coordinate system PartDef
+// frames, poses, and thresholds live in — so this loader measures
+// every sprite on the design grid: each design cell is opaque when
+// any source texel under it is opaque. Same rule the shipped
+// compositor's design-grid sampling sees; no assertion changes.
+const DESIGN_TEXEL = (sprites as { texel?: number }).texel ?? 4;
+function toDesignGrid(img: RgbaImage, designW: number, designH: number): RgbaImage {
+  if (img.width === designW && img.height === designH) return img;
+  const sx = Math.max(1, Math.round(img.width / designW));
+  const sy = Math.max(1, Math.round(img.height / designH));
+  const out = new Uint8Array(designW * designH * 4);
+  for (let y = 0; y < designH; y++) {
+    for (let x = 0; x < designW; x++) {
+      let opaque = false;
+      for (let yy = y * sy; yy < Math.min((y + 1) * sy, img.height) && !opaque; yy++) {
+        for (let xx = x * sx; xx < Math.min((x + 1) * sx, img.width); xx++) {
+          if (img.data[(yy * img.width + xx) * 4 + 3] > 0) { opaque = true; break; }
+        }
+      }
+      if (opaque) out[(y * designW + x) * 4 + 3] = 255;
+    }
+  }
+  return { width: designW, height: designH, data: out };
+}
 const cache = new Map<string, RgbaImage | undefined>();
 const loadSprite: SpriteLoader = (id) => {
   if (!cache.has(id)) {
-    const entry = (sprites.sprites as Record<string, { src: string }>)[id];
+    const entry = (sprites.sprites as Record<string, { src: string; width: number; height: number }>)[id];
     let img: RgbaImage | undefined;
     if (entry) {
-      img = decodePng(new Uint8Array(readFileSync(join(process.cwd(), 'src/assets/pixel', entry.src))));
+      const raw = decodePng(new Uint8Array(readFileSync(join(process.cwd(), 'src/assets/pixel', entry.src))));
+      img = toDesignGrid(raw, Math.round(entry.width / DESIGN_TEXEL), Math.round(entry.height / DESIGN_TEXEL));
     }
     cache.set(id, img);
   }
@@ -240,8 +268,10 @@ describe('parts system — lint & registration', () => {
       if (!part) continue;
       const entry = entries[part.spriteId];
       expect(entry, `manifest entry for ${part.spriteId}`).toBeDefined();
-      expect(entry.width).toBe(part.width);
-      expect(entry.height).toBe(part.height);
+      // Manifest declares FILE pixels (design frame x texel) — the
+      // convention pixelManifest's dimension test enforces.
+      expect(entry.width).toBe(part.width * DESIGN_TEXEL);
+      expect(entry.height).toBe(part.height * DESIGN_TEXEL);
     }
   });
 });

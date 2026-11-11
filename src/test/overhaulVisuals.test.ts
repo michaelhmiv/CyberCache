@@ -269,6 +269,21 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
-    expect(total).toBeLessThan(11_620_000);
+    // Top-Choice INT-3 hero (2026-11-11): the 42 adopted Wave 8
+    // painterly part masters replace the pxl part sprites at 4x
+    // definition (PartDef frame x texel 4), palette-256 encoded —
+    // the same declared-dimensions convention the V1 vista sets
+    // and the INT-1 legendaries already ship (manifest width/height
+    // are FILE pixels: design frame x texel). Hero family 59,346 B
+    // -> 1,175,189 B (+1,115,843 B; per-part accounting in
+    // scripts/top-choice-hero-swap.py and the INT-3 PR body).
+    // Dread Head has no master (two pipeline refusals; owner
+    // ruling: leave) and its sprite is unchanged; the hood is
+    // untouched. This branch also carries INT-7's cache family
+    // (manifest 308 entries). Measured manifest total on this
+    // tree: 8,927,197 B. The ceiling moves DELIBERATELY to the
+    // measured total of this branch, per the Top-Choice adoption
+    // accounting; final reconciliation lands when all slices merge.
+    expect(total).toBeLessThan(8_927_197 + 1);
   });
 });
