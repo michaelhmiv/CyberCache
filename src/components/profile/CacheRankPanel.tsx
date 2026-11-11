@@ -296,7 +296,7 @@ const ChannelStrip: React.FC<{
             color: track.color,
           }}
         >
-          <PxIcon name={track.icon} size={17} />
+          <PxIcon name={track.icon} size={17} color={track.color} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate uppercase leading-tight" style={{ ...headStyle, fontSize: 15, color: INK }}>
@@ -436,7 +436,7 @@ const OutputBank: React.FC<{ state: CacheRankStateView }> = ({ state }) => {
         {state.tracks.map((track) => (
           <div key={track.id} className="flex items-center gap-1.5">
             <span style={{ color: track.color }}>
-              <PxIcon name={track.icon} size={13} />
+              <PxIcon name={track.icon} size={13} color={track.color} />
             </span>
             <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase" style={{ ...monoStyle, color: MUT }}>
               {track.name}

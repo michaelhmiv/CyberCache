@@ -71,14 +71,22 @@ describe('set seat records', () => {
   });
 
   it('the landed pieces ship at their authored canvas sizes', () => {
+    // Top-Choice INT-5 (2026-11-11): the adopted Wave 10 paintings
+    // are the authored canvases now — these are their shipped dims
+    // (the retired pixel sprites measured 96x68 / 76x68 / 116x87 /
+    // 100x87 / 84x36 / 96x68 / 104x68). Seat fractions are fractions
+    // of the sprite's own box by design (setSeats.ts header), so
+    // they carry over to the new canvases; per-piece seat-point
+    // precision against the paintings' compositions is a device
+    // eyeball item (work-cycle seating), not a size question.
     const authored: Record<string, [number, number]> = {
-      'set-refinery-crusher': [96, 68],
-      'set-refinery-furnace': [76, 68],
-      'set-bay-lift': [116, 87],
-      'set-calibration-rig': [100, 87],
-      'set-bay-tray': [84, 36],
-      'set-bay-wall-listing': [96, 68],
-      'set-vendor-stall': [104, 68],
+      'set-refinery-crusher': [1920, 1280],
+      'set-refinery-furnace': [1600, 1600],
+      'set-bay-lift': [1792, 1280],
+      'set-calibration-rig': [1728, 1440],
+      'set-bay-tray': [2480, 992],
+      'set-bay-wall-listing': [1920, 1280],
+      'set-vendor-stall': [1920, 1280],
     };
     for (const id of LANDED_PIECES) {
       const sprite = getPixelSprite(id);

@@ -813,7 +813,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   active ? 'border-amber bg-amber/15 text-amber' : 'border-border bg-surface text-text-muted'
                 }`}
               >
-                <PxIcon name={icon} size={13} />
+                <PxIcon name={icon} size={13} color={active ? '#FF9000' : '#8A847C'} />
                 <span>{short}</span>
                 <span className={active ? 'text-amber/80' : 'text-text-muted/70'}>{counts.total}</span>
                 {counts.equipped > 0 && <span className="rounded-full bg-amber px-1 py-0 text-[11px] text-bg">{counts.equipped} EQ</span>}

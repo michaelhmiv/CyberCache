@@ -760,6 +760,23 @@ shade is black at 35%, highlight is white at 45%, paper is white at 22%,
 and the knockout tone is near-black. A new icon that cannot be drawn in
 that hand does not ship.
 
+**Painted masters (owner ruling, 2026-11-11).** The sheet's glyphs also
+exist as full paintings, and the paintings are what the UI renders
+wherever a painting exists: first the big slots (the nav sigils, the
+streak calendar, the drop-rise markers — INT-9), then the everyday
+functional set (INT-10). A painting carries its own colors. State is
+never painted over a painting at runtime: where a call site carries
+state through tint, the painterly variant for that exact color is baked
+at build time from the painting's luminance (the drop-rise ramp
+discipline) and the site selects its baked file — one asset per
+deliberate color, enumerated by the icon state census. What has no
+painting stays on the sheet above, in the construction this section
+describes: the element badges are stencils permanently (their near-black
+silhouette on the element-color field is the information), and the
+wallet sheet and any glyph without a painting keep the `currentColor`
+mass-tint contract. That contract now survives only for that stencil
+residue.
+
 **The 52 icons** (canonical names — the registry key is the name):
 
 *Wallet — the Strip*
@@ -850,7 +867,15 @@ not text glyphs; any count that matters also prints at ≥ 11px at its
 destination (§5).
 
 **In code:** the sheet is the single registry at `src/lib/pixel/icons.ts`,
-rendered by `<PxIcon>` and tinted via `currentColor`;
+rendered by `<PxIcon>`. `<PxIcon>` is also where paintings resolve: it
+renders the shipped painting for a painted glyph — the base painting, or
+the baked variant for the deliberate color the site resolves (an
+explicit color, the site's own style color, or its theme token) — and
+the sheet drawing, tinted via `currentColor`, for the stencil residue.
+The paintings and their baked variants are standalone assets under
+`src/assets/icons/`, built by `scripts/build-icon-masters.py` from the
+adopted masters; the variant color sets are the state census's
+deliberate sets, kept in `src/lib/pixel/iconPaintingsData.ts`.
 `src/test/noEmojiIcons.test.ts` fails CI if an emoji-range character
 re-enters shipped screen or component sources. Icons drawn after the v2
 sheet — for shipped glyphs it had no counterpart for — live in the same

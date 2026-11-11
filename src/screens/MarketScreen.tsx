@@ -791,7 +791,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
             aria-pressed={market.activeTab === t.id}
             className={`flex min-h-[44px] shrink-0 items-center gap-1.5 border px-3 text-[11px] font-black transition-colors ${market.activeTab === t.id ? 'border-amber bg-amber text-bg' : 'border-border bg-surface-raised text-text-secondary'}`}
           >
-            <PxIcon name={t.px} size={17} />
+            <PxIcon name={t.px} size={17} color={market.activeTab === t.id ? '#050608' : '#B8B0A8'} />
             <span className="whitespace-nowrap">{t.label}</span>
           </button>
         ))}

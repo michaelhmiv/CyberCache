@@ -205,7 +205,7 @@ const SlotChip: React.FC<{
       }}
     >
       <div className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-text-muted">
-        <span className="inline-flex shrink-0" style={{ color: filled ? accent : undefined }}><PxIcon name={icon} size={15} /></span>
+        <span className="inline-flex shrink-0" style={{ color: filled ? accent : undefined }}><PxIcon name={icon} size={15} color={filled ? accent : undefined} /></span>
         <span>{label}</span>
       </div>
       {weapon && (
