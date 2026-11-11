@@ -329,11 +329,15 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   // old hard-coded Dustwaste backdrop is gone.
   const currentAreaId = useIdleStore((state) => state.selectedRoamingAreaId);
   const zoneBg = getPixelSprite(pixelBackgroundForArea(currentAreaId) ?? 'zone-dustwaste-bg');
-  // The cache itself, as shipped pixel art (the in-game crate prop —
-  // the same sprite the app icon carries). The procedural SVG chest
-  // retired with the item-moment reveal (census C-5): the lane, the
-  // decrypt overlay, and the reveal prop all show THIS crate, and no
-  // surface colors it by a rarity the roll hasn't happened yet.
+  // The cache itself (the in-game crate prop — the same crate identity
+  // the app icon carries): the Top-Choice logo-identity master (navy,
+  // brass, gold-lit cracks, hex medallion), keyed from the adopted
+  // painting. The procedural SVG chest retired with the item-moment
+  // reveal (census C-5): the lane, the decrypt overlay, and the reveal
+  // prop all show THIS crate, and no surface colors it by a rarity the
+  // roll hasn't happened yet. Painterly art renders smooth — the
+  // pixelated seat exception the light kit set inside the loot moment
+  // (PR #483) applies here too.
   const cachePropSprite = getPixelSprite('prop-cache-crate');
   const canOpenAnother = !opening && keys > 0;
 
@@ -360,7 +364,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
               src={cachePropSprite.url}
               alt=""
               draggable={false}
-              style={{ width: 150, imageRendering: 'pixelated' }}
+              style={{ width: 150 }}
             />
           )}
         </div>
@@ -423,7 +427,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                   src={cachePropSprite.url}
                   alt=""
                   draggable={false}
-                  style={{ width: 150, imageRendering: 'pixelated' }}
+                  style={{ width: 150 }}
                 />
               )}
             </motion.div>

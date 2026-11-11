@@ -446,23 +446,34 @@ const RisenItemScene: React.FC<{ step: LootMomentStep; xPct: number; groundYPct:
 };
 
 /**
- * The cache, demoted to packaging: the shipped cache-crate prop at
- * the beam base — a little bigger than the exploration's first pass
- * (128 CSS px; it read small next to the full-size risen item) — that
- * ghosts away across the rise and is gone by the peak frame.
+ * The cache at the beam base: the shipped cache-crate prop (Top-Choice
+ * logo-identity master, 128 CSS px; it read small next to the full-size
+ * risen item as pure pixel art) that ignites and ghosts away across the
+ * rise, gone by the peak frame. IGNITION (owner ruling 2026-11-10,
+ * cache-screen wave §3.4): the crate OPENS — the opened master
+ * crossfades in over the closed one, starting when the crate settles
+ * (the envelope's 0.1 keyframe) and completing exactly as the light
+ * kit's beam finishes igniting (MOVEMENT.LOOT_BEAM_IN_MS into the
+ * track) — then both states ghost away together on the envelope's own
+ * fade. Every beat derives from the shipped Sample B numbers; no
+ * timing is added or moved, and the ground-shadow ellipse stays
+ * code-drawn.
  */
 const CACHE_PROP_PX = 128;
 
 const CacheProp: React.FC<{ xPct: number; groundYPct: number; riseBudgetMs: number }> = ({ xPct, groundYPct, riseBudgetMs }) => {
   const sprite = getPixelSprite('prop-cache-crate');
+  const openSprite = getPixelSprite('prop-cache-crate-open');
   if (!sprite) return null;
+  const trackMs = riseBudgetMs + 350;
+  const igniteAt = Math.min(0.55, MOVEMENT.LOOT_BEAM_IN_MS / trackMs);
   return (
     <motion.div
       className="absolute z-50"
       style={{ left: `${xPct}%`, bottom: `${100 - groundYPct}%`, width: CACHE_PROP_PX, marginLeft: -CACHE_PROP_PX / 2 }}
       initial={{ opacity: 0, scale: 0.92, y: 6 }}
       animate={{ opacity: [0, 1, 1, 0], scale: [0.92, 1, 1, 0.95], y: [6, 0, 0, -4] }}
-      transition={{ duration: (riseBudgetMs + 350) / 1000, times: [0, 0.1, 0.55, 1], ease: 'easeOut' }}
+      transition={{ duration: trackMs / 1000, times: [0, 0.1, 0.55, 1], ease: 'easeOut' }}
     >
       {/* The ground shadow ghosts WITH the prop — a leftover dark
           ellipse under the deck reads as a hole in the flare. */}
@@ -472,8 +483,21 @@ const CacheProp: React.FC<{ xPct: number; groundYPct: number; riseBudgetMs: numb
         alt=""
         draggable={false}
         data-testid="loot-cache-prop"
-        style={{ width: CACHE_PROP_PX, imageRendering: 'pixelated' }}
+        style={{ width: CACHE_PROP_PX }}
       />
+      {openSprite && (
+        <motion.img
+          src={openSprite.url}
+          alt=""
+          draggable={false}
+          data-testid="loot-cache-prop-open"
+          className="absolute bottom-0 left-0"
+          style={{ width: CACHE_PROP_PX }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0, 1, 1, 0] }}
+          transition={{ duration: trackMs / 1000, times: [0, 0.1, igniteAt, 0.55, 1], ease: 'easeOut' }}
+        />
+      )}
     </motion.div>
   );
 };
