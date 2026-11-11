@@ -208,8 +208,24 @@ describe('P7 — migration 0087 restates the SQL catalog in sync', () => {
     }
   });
 
-  it('0087’s catalog deep-equals the TS catalog (the live parity pin)', () => {
-    expect(catalog0087).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+  it('0087’s catalog deep-equals the TS catalog minus 0086’s six retired helms', () => {
+    // Migration 0086 removed exactly six cosmetic helm recipes
+    // from the SQL catalog ONLY (the TS rows live on, delisted in
+    // code — Hero Pass H1). They are the entire TS↔SQL delta.
+    const retiredHelms = [
+      'recipe_skin_mfr_head_redline', 'recipe_skin_mfr_head_ironwood',
+      'recipe_skin_mfr_head_blastforge', 'recipe_skin_mfr_head_prismatek',
+      'recipe_skin_mfr_head_throwtech', 'recipe_skin_mfr_head_helixworks',
+    ];
+    const tsIds = ALL_CRAFT_RECIPES.map((r) => r.id);
+    const sqlIds = new Set(catalog0087.map((r) => r.id));
+    expect(tsIds.filter((id) => !sqlIds.has(id)).sort()).toEqual(
+      [...retiredHelms].sort(),
+    );
+    const tsLive = JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)) as CatalogRow[];
+    expect(catalog0087).toEqual(
+      tsLive.filter((r) => !retiredHelms.includes(r.id)),
+    );
   });
 
   it('0087 carries the deposit column, the lever read, and the burn report', () => {
