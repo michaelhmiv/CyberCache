@@ -2,6 +2,13 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-11 — A painted sign-in, a themed icon, a shareable link
+
+- **The sign-in screen's banner is a painting now** — the old pixel vista strip is replaced by the full painterly rendering of the same scene: banded rust dusk, mesas, the ruined skyline, and the cache crate itself — the adopted mark, charcoal shell and brass latches — cracked open with its gold beam pouring into the sky. Same slot, same framing; the finish is smooth instead of stepped.
+- **Android themed icons work now** — the launcher ships a monochrome layer, so on Android 13+ the home-screen icon tints with your wallpaper theme like every other app: the crate, its split lid and the burst gap, drawn as one clean silhouette.
+- **Shared links carry a preview** — the site's pages now declare a social preview image and card metadata, so a link to CyberCache posted anywhere shows the crate portrait instead of a bare URL.
+- **The store banner catches up** — the Play feature graphic is restaged with the adopted crate (it still carried the retired pre-painterly crate); it goes live with the next listing submission.
+
 ## 2026-11-11 — Boss mechanics collect
 
 - **A boss's mechanic now charges what it advertises** — the line printed in a boss's prep is the line the fight measures: the Siltstalker's enrage is a kill-speed check (DPS 1.3), the Heap Guard's regen loop a shield-break check (1.2), Ashgut's burning ground a survival check (1.4), and the Rust Prophet's repairs and the Verdant Maw's regrowth are armor-break checks (1.5). Meet the line and the mechanic costs nothing; fall short and the shortfall taxes the attempt in proportion — no cliff, no free pass. The Scrap Bishop's three-phase siege measures all three of its layers (shield 1.25, armor 1.25, kill speed 1.35) and taxes on the weakest. Trait gates, the Mirror's adaptation, and the Widow's and Omega's ramps work exactly as before, and the Endless Chamber is untouched — the demands belong to the ladder.
