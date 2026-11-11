@@ -22,6 +22,7 @@ import {
 import { vistaImageMapFor } from '@/lib/pixel/vistaImages';
 import { areaVisuals } from '@/content/areaPalettes';
 import { PixelEmbers } from './PixelFx';
+import { isResumeProbeEnabled, logResumeProbeEvent } from '@/lib/pixel/resumeProbe';
 
 /**
  * PixelStage (P1, movement system P2) — the anchor-driven stage for pixel
@@ -218,7 +219,15 @@ export const PixelStage: React.FC<PixelStageProps> = ({
     if (!vistaSceneId) return;
     const root = vistaStageCanvasRef.current?.parentElement;
     if (!root || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => vistaPaintRef.current?.());
+    const probeOn = isResumeProbeEnabled();
+    const ro = new ResizeObserver(() => {
+      if (probeOn) {
+        // Resume probe, DOM half of spec item 5: the DOM stage's
+        // resize fires join the shared ring buffer as 'dom' rows.
+        logResumeProbeEvent('resize', 'dom', { w: root.clientWidth, h: root.clientHeight });
+      }
+      vistaPaintRef.current?.();
+    });
     ro.observe(root);
     return () => ro.disconnect();
   }, [vistaSceneId]);

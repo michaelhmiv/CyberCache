@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import {
+  attachResumeProbeDomLifecycle,
+  buildHeartbeatData,
+  exposeResumeProbeSurface,
+  isResumeProbeEnabled,
+  logResumeProbeEvent,
+} from '@/lib/pixel/resumeProbe';
 
 import { PixelStage, PixelActor } from '@/components/pixelArt/PixelStage';
 import {
@@ -358,6 +367,77 @@ const BenchRiseIcon: React.FC<{ entry: WorkshopCompletionView }> = ({ entry }) =
   return <BenchItemRender plan={benchRisePlanForEntry(entry, items)} testId="bench-rise-render" />;
 };
 
+/**
+ * Resume probe, DOM half (DEVICE-PROBE-SPEC items 1 + 4): the
+ * mirrored visibility lifecycle + Capacitor appStateChange rows,
+ * and a rAF heartbeat — a counter over this renderer's own rAF
+ * drivers' clock, sampled at 1s while visible — so a DOM-path
+ * freeze is distinguishable from a Pixi-only one in the shared
+ * ring buffer. Installed only when the probe gate is on; the
+ * transient Suspense-fallback instance never installs (it is a
+ * placeholder, discarded at the renderer swap).
+ */
+function useDomResumeProbe(enabled: boolean): void {
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let detachDom: () => void;
+    try {
+      exposeResumeProbeSurface();
+      logResumeProbeEvent('probe-init', 'dom', {});
+      detachDom = attachResumeProbeDomLifecycle('dom');
+    } catch {
+      /* a diagnostic probe must never fail the stage it observes */
+      return undefined;
+    }
+    const pluginHandles: PluginListenerHandle[] = [];
+    if (Capacitor.isNativePlatform()) {
+      void CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        logResumeProbeEvent('appStateChange', 'dom', { isActive });
+      })
+        .then((handle) => {
+          pluginHandles.push(handle);
+        })
+        .catch(() => {
+          /* the DOM lifecycle rows remain the fallback record */
+        });
+    }
+    let rafCount = 0;
+    let lastRafAt: number | null = null;
+    let raf = 0;
+    const loop = (now: number) => {
+      rafCount += 1;
+      lastRafAt = now;
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    const sampler = setInterval(() => {
+      if (document.hidden) return;
+      logResumeProbeEvent(
+        'dom-heartbeat',
+        'dom',
+        buildHeartbeatData({
+          count: rafCount,
+          lastAt: lastRafAt,
+          now: performance.now(),
+          extra: { hidden: document.hidden },
+        }),
+      );
+    }, 1000);
+    return () => {
+      detachDom();
+      cancelAnimationFrame(raf);
+      clearInterval(sampler);
+      for (const handle of pluginHandles) {
+        try {
+          void handle.remove();
+        } catch {
+          /* already removed */
+        }
+      }
+    };
+  }, [enabled]);
+}
+
 const PixelSceneLayerDom: React.FC<{
   backgroundId: string;
   /** Bespoke boss sprite id for boss fights (resolved by the parent from
@@ -401,6 +481,8 @@ const PixelSceneLayerDom: React.FC<{
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
   const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
+  // Resume probe (diagnostic only; see useDomResumeProbe above).
+  useDomResumeProbe(!transientFallback && isResumeProbeEnabled());
 
   // ── Travel beat (Motion Reboot M2b) ─────────────────────────
   // The DOM renderer's half of the shared travel tracker (the

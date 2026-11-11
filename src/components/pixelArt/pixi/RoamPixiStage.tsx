@@ -1,6 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
+import {
+  attachResumeProbeDomLifecycle,
+  buildHeartbeatData,
+  exposeResumeProbeSurface,
+  isResumeProbeEnabled,
+  logResumeProbeEvent,
+} from '@/lib/pixel/resumeProbe';
 import { CritFlash, DamageNumber } from '../PixelFx';
 import { DropRiseIcon } from '@/components/dashboard/LiveTurfDiorama';
 import { LootMoment } from '../LootMoment';
@@ -274,6 +283,10 @@ interface RoamRuntime {
   /** Last computed near-band pan offset in stage px (probe). */
   lastPanNearPx: number;
   fps: { lastMs: number; deltas: number[] };
+  /** Resume probe heartbeat state (DEVICE-PROBE-SPEC item 3):
+   *  advanced by the ticker callback only while the probe is
+   *  enabled; read by the probe's 1s sampler. Diagnostic only. */
+  probeTick: { lastTickAt: number | null; tickCount: number };
 }
 
 function createRoamRuntime(): RoamRuntime {
@@ -296,6 +309,81 @@ function createRoamRuntime(): RoamRuntime {
     strideWeapon: undefined,
     lastPanNearPx: 0,
     fps: { lastMs: 0, deltas: [] },
+    probeTick: { lastTickAt: null, tickCount: 0 },
+  };
+}
+
+/**
+ * Resume probe install (DEVICE-PROBE-SPEC items 1–3 + 5's Pixi
+ * half): visibility lifecycle, Capacitor appStateChange, WebGL
+ * context lost/restored on the Pixi canvas, and the 1s ticker
+ * heartbeat sampler. Installed ONLY when the probe gate is on
+ * (DEV build, ?resumeProbe=1, or the on-device storage flag);
+ * returns the teardown that removes every listener and timer it
+ * created. Diagnostic only — the contextlost preventDefault is
+ * the spec's probe-only exercise of the restore path; nothing here
+ * changes rendering behavior.
+ */
+function installRoamResumeProbe(app: Application, runtime: RoamRuntime): () => void {
+  exposeResumeProbeSurface();
+  const canvas = app.canvas;
+  const sizeSnapshot = () => ({
+    rendererW: app.renderer.width,
+    rendererH: app.renderer.height,
+    clientW: canvas.clientWidth,
+    clientH: canvas.clientHeight,
+  });
+  logResumeProbeEvent('probe-init', 'pixi', sizeSnapshot());
+  const detachDom = attachResumeProbeDomLifecycle('pixi');
+  const onContextLost = (event: Event) => {
+    // Probe ONLY (spec item 2): preventDefault asks the browser to
+    // offer the restore path so the probe can observe whether it
+    // ever completes on-device.
+    event.preventDefault();
+    logResumeProbeEvent('webglcontextlost', 'pixi', sizeSnapshot());
+  };
+  const onContextRestored = () => {
+    logResumeProbeEvent('webglcontextrestored', 'pixi', sizeSnapshot());
+  };
+  canvas.addEventListener('webglcontextlost', onContextLost);
+  canvas.addEventListener('webglcontextrestored', onContextRestored);
+  const pluginHandles: PluginListenerHandle[] = [];
+  if (Capacitor.isNativePlatform()) {
+    void CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      logResumeProbeEvent('appStateChange', 'pixi', { isActive });
+    })
+      .then((handle) => {
+        pluginHandles.push(handle);
+      })
+      .catch(() => {
+        /* the DOM lifecycle rows remain the fallback record */
+      });
+  }
+  const sampler = setInterval(() => {
+    if (document.hidden) return;
+    logResumeProbeEvent(
+      'pixi-heartbeat',
+      'pixi',
+      buildHeartbeatData({
+        count: runtime.probeTick.tickCount,
+        lastAt: runtime.probeTick.lastTickAt,
+        now: performance.now(),
+        extra: { tickerStarted: app.ticker.started, hidden: document.hidden },
+      }),
+    );
+  }, 1000);
+  return () => {
+    detachDom();
+    canvas.removeEventListener('webglcontextlost', onContextLost);
+    canvas.removeEventListener('webglcontextrestored', onContextRestored);
+    clearInterval(sampler);
+    for (const handle of pluginHandles) {
+      try {
+        void handle.remove();
+      } catch {
+        /* already removed */
+      }
+    }
   };
 }
 
@@ -1126,6 +1214,8 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
     let cancelled = false;
     let app: Application | null = null;
     let resizeObserver: ResizeObserver | null = null;
+    let probeCleanup: (() => void) | null = null;
+    const probeEnabled = isResumeProbeEnabled();
     const runtime = (runtimeRef.current ??= createRoamRuntime());
     const init = async () => {
       const host = hostRef.current;
@@ -1541,13 +1631,34 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       runtime.poseKey = '';
       setSceneReady(true);
       app.ticker.add(() => {
+        const now = performance.now();
+        if (probeEnabled) {
+          runtime.probeTick.tickCount += 1;
+          runtime.probeTick.lastTickAt = now;
+        }
         const tickEnv = envRef.current;
-        if (tickEnv) tickStage(runtime, tickEnv, performance.now());
+        if (tickEnv) tickStage(runtime, tickEnv, now);
       });
+      if (probeEnabled && app) {
+        try {
+          probeCleanup = installRoamResumeProbe(app, runtime);
+        } catch {
+          // A diagnostic probe must never fail the stage it
+          // observes: a broken install means no probe, not a
+          // fallback renderer.
+          probeCleanup = null;
+        }
+      }
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(() => {
           const nw = host.clientWidth;
           const nh = host.clientHeight;
+          if (probeEnabled) {
+            // Spec item 5: every observer fire is a row, zeros
+            // included — a resume that resizes without the
+            // observer firing is visible as a gap in this series.
+            logResumeProbeEvent('resize', 'pixi', { w: nw, h: nh });
+          }
           if (nw > 0 && nh > 0 && app) {
             runtime.size = { w: nw, h: nh };
             app.renderer.resize(nw, nh);
@@ -1561,6 +1672,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
     });
     return () => {
       cancelled = true;
+      probeCleanup?.();
       resizeObserver?.disconnect();
       if (app) {
         app.destroy(true, { children: true });
