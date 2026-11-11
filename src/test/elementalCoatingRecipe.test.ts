@@ -124,7 +124,41 @@ describe('recipe_elemental_coating — catalog presence and costing', () => {
   it('migration 0077 restates the catalog (89 recipes, deep-equal) and the bounds row', () => {
     const catalog = JSON.parse(MIGRATION_0077.split('$catalog$')[1]) as Array<Record<string, unknown>>;
     expect(catalog).toHaveLength(89);
-    expect(catalog).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    // Tuning T3 (2026-11-10) repriced the Scrap legs of 38
+    // consumable recipes in the live catalog (pinned against
+    // migration 0087 in tuningT3ScrapPortfolio); 0077's rows for
+    // those are historical, so the deep-equal carves them out
+    // mechanically — a carved row differs from its TS row ONLY in
+    // inputs.Scrap (canonical stringify, the gateRemovalStep2 form).
+    const tsRecipes = JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)) as Array<Record<string, unknown>>;
+    const tsById = new Map(tsRecipes.map((r) => [String(r.id), r]));
+    const canon = (v: unknown): string => {
+      if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
+      if (v && typeof v === 'object') {
+        return `{${Object.keys(v as Record<string, unknown>).sort()
+          .map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`).join(',')}}`;
+      }
+      return JSON.stringify(v);
+    };
+    const stripScrap = (row: Record<string, unknown>) => {
+      const clone = JSON.parse(JSON.stringify(row)) as Record<string, unknown>;
+      delete (clone.inputs as Record<string, number>)['Scrap'];
+      return clone;
+    };
+    const repricedByT3 = new Set(
+      catalog
+        .filter((r) => {
+          const ts = tsById.get(String(r.id));
+          return ts !== undefined
+            && canon(stripScrap(r as Record<string, unknown>)) === canon(stripScrap(ts))
+            && (r.inputs as Record<string, number>)['Scrap'] !== (ts.inputs as Record<string, number>)['Scrap'];
+        })
+        .map((r) => String(r.id)),
+    );
+    expect(repricedByT3.size).toBe(38);
+    const withoutRepriced = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => !repricedByT3.has(String(r.id)));
+    expect(withoutRepriced(catalog as Array<Record<string, unknown>>)).toEqual(withoutRepriced(tsRecipes));
     expect(MIGRATION_0077).toContain("('ElementalCoating', 75::numeric, 150::numeric)");
     // Provenance + the owner's apply order ride in the header.
     expect(MIGRATION_0077).toContain('chain head = 0073');
