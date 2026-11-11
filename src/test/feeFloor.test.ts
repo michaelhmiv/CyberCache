@@ -143,7 +143,7 @@ function baseSeed(): WriteSeed {
     cache_rank_spends: { marketProceeds: 10 },
   } as Partial<ProfileRowData>;
   s.profiles = [
-    profile({ id: S, username: 'tongue', credits: 0, materials: { Scrap: 10 }, ...maxed }),
+    profile({ id: S, username: 'tongue', credits: 0, materials: { Scrap: 100 }, ...maxed }), // T3: the gear listing in test 1 posts the 25-Scrap deposit (refunded on its sale; credit conservation below is untouched)
     profile({ id: B, username: 'buyer', credits: 100_000 }),
   ];
   s.items = [
