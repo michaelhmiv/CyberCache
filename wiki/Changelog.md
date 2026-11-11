@@ -10,6 +10,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 - **Enemies walk in and close on you now** — a roaming enemy used to appear near its mark and slide the last few steps rigidly; now it enters from well off its mark — about four times the old distance — body swaying and shifting with its stride as it comes, and settles closer to your hunter, so fights frame tighter. A shot that lands while it's still walking in plays through its stride instead of freezing it, and it arrives exactly on its fighting stance. Bosses keep their own entrance staging.
 - **The hunter's stride reaches full stretch** — the between-enemy advance used to spend its whole walk-in still warming up, peaking at about three-quarter stride as he arrived. His travel gait now builds to a full stride inside the walk and settles from there — same steps, same pace, the walk simply finishes becoming a walk before it ends.
+- **First attempts on a boss cost half price** — until you have beaten a boss, every attempt on it charges half its entry fee: the Mnemosyne Mirror's first clear costs 2,500 credits instead of 5,000, The Siltstalker's 100 instead of 200. The discount is per boss and ends for good at your first victory over it; rematch pricing takes over from there. The fee prep shows is still exactly the fee charged.
 
 ## 2026-11-10 — Consumables hit like they should
 
