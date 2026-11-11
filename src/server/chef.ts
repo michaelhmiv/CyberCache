@@ -1556,7 +1556,7 @@ export function processRoamingClaim(
 
   // Import emptyMods lazily to avoid circular deps in client imports
   let consumableMods = {
-    dpsMultiplier: 1, damageReductionPct: 0, bonusLootChance: 0,
+    dpsMultiplier: 1, attackSpeedMultiplier: 1, damageReductionPct: 0, bonusLootChance: 0,
     extraLootRollChance: 0, scrapYieldMultiplier: 1, rareDropChanceMod: 0,
     eventChanceBonus: 0, eventFindWeightBonus: 0, eventForeshadow: false,
     materialEventYieldBonus: 0, cacheEventWeightBonus: 0,
