@@ -15,8 +15,9 @@
  *     and at the Q175 cap = 1.2625 (DELTA mode, cap 1.30 — the
  *     sibling %-buff convention: cap = 1 + 2 x base delta);
  *   - the recipe in BOTH catalogs: TS registry (30 Scrap +
- *     2 Ballistic Parts, 20 min) and migration 0087's restated SQL
- *     catalog (deep-compared: 0086's 83 objects + exactly this one);
+ *     2 Ballistic Parts, 20 min) and migration 0088's restated SQL
+ *     catalog (deep-compared: migration 0087's 83 objects — T3's
+ *     catalog at its repriced Scrap legs — + exactly this one);
  *   - roaming: the engine's mods carry the cadence factor for
  *     exactly the 60s window (20 ticks at the 3s tick), one unit
  *     burned per window, auto-renewed while stock lasts, baseline
@@ -123,23 +124,23 @@ describe('T6 — the recipe in both catalogs', () => {
     expect(unified?.unitDurationMs).toBe(1200000);
   });
 
-  it('migration 0087 restates the SQL catalog: 0086 + exactly this recipe', () => {
-    const sql0086 = readFileSync(join(process.cwd(), 'db', 'migrations', '0086_retire_mfr_helm_recipes.sql'), 'utf8');
-    const sql0087 = readFileSync(join(process.cwd(), 'db', 'migrations', '0087_overclock_serum_recipe.sql'), 'utf8');
-    const cat86 = JSON.parse(sql0086.split('$catalog$')[1]) as Array<Record<string, unknown>>;
+  it('migration 0088 restates the SQL catalog: 0087 (T3 prices) + exactly this recipe', () => {
+    const sql0087 = readFileSync(join(process.cwd(), 'db', 'migrations', '0087_scrap_portfolio.sql'), 'utf8');
+    const sql0088 = readFileSync(join(process.cwd(), 'db', 'migrations', '0088_overclock_serum_recipe.sql'), 'utf8');
     const cat87 = JSON.parse(sql0087.split('$catalog$')[1]) as Array<Record<string, unknown>>;
-    expect(cat86).toHaveLength(83);
-    expect(cat87).toHaveLength(84);
-    const serum = cat87.find((r) => r.id === 'recipe_overclock_serum');
+    const cat88 = JSON.parse(sql0088.split('$catalog$')[1]) as Array<Record<string, unknown>>;
+    expect(cat87).toHaveLength(83);
+    expect(cat88).toHaveLength(84);
+    const serum = cat88.find((r) => r.id === 'recipe_overclock_serum');
     expect(serum).toMatchObject({
       kind: 'consumable', name: 'Overclock Serum', category: 'offense',
       inputs: { Scrap: 30, BallisticParts: 2 }, unitDurationMs: 1200000,
       requiresLevel: 1, requiresBench: 1, station: 'bench', consumableType: SERUM,
     });
-    expect(cat87.indexOf(serum!)).toBe(cat87.findIndex((r) => r.id === 'recipe_overcharge') + 1);
-    for (const row of cat87) {
+    expect(cat88.indexOf(serum!)).toBe(cat88.findIndex((r) => r.id === 'recipe_overcharge') + 1);
+    for (const row of cat88) {
       if (row.id === 'recipe_overclock_serum') continue;
-      expect(row).toEqual(cat86.find((r) => r.id === row.id));
+      expect(row).toEqual(cat87.find((r) => r.id === row.id));
     }
   });
 });

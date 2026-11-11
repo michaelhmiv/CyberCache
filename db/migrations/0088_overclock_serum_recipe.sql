@@ -1,26 +1,33 @@
 -- =====================================================================
--- 0087 — cc_craft_recipe_catalog gains the Overclock Serum recipe
--- (tuning T6 — the P6 tempo item, owner ruling 2026-11-10).
+-- 0088 \u2014 cc_craft_recipe_catalog gains the Overclock Serum recipe
+-- (tuning T6 \u2014 the P6 tempo item, owner ruling 2026-11-10).
 --
 -- The tuning brief's P6 named the role only (+attack speed % for a
 -- window, crafter-only); PR #473 (tuning T2) deliberately stopped
 -- on it for lack of a spec. The owner's supplement (2026-11-10)
 -- supplies it: Overclock Serum, +15% attack speed for 60 seconds,
 -- recipe 30 Scrap + 2 Ballistic Parts, crafter-only (no vendor
--- listing — the def's vendorExcluded flag carries that rule; this
+-- listing \u2014 the def's vendorExcluded flag carries that rule; this
 -- catalog row is its craft path).
 --
 -- PROVENANCE: restated from the verified chain head, migration
--- 0086's cc_craft_recipe_catalog (grep-verified 2026-11-10: 0086 is
--- the highest-numbered restatement of the function). The body below
--- is 0086's function with ONLY recipe_overclock_serum added —
--- inserted immediately after recipe_overcharge in both catalogs
--- (the TS registry src/constants/craftingRecipes.ts carries the
--- same position) — verified by parsing both catalogs as JSON and
--- deep-comparing every recipe object: 83 -> 84, added id exactly
--- recipe_overclock_serum, none removed, none changed.
+-- 0087's cc_craft_recipe_catalog (0087 \u00a71, tuning T3 \u2014
+-- grep-verified 2026-11-10: 0087 is the highest-numbered
+-- restatement of the function, and its catalog is applied live on
+-- staging + production). The body below is 0087's live catalog
+-- \u2014 83 recipes at T3's repriced Scrap legs, carried verbatim
+-- \u2014 with ONLY recipe_overclock_serum added, inserted
+-- immediately after recipe_overcharge (the TS registry
+-- src/constants/craftingRecipes.ts carries the same position).
+-- Verified by parsing both catalogs as JSON and deep-comparing
+-- every recipe object: 83 -> 84, added id exactly
+-- recipe_overclock_serum, none removed, none changed \u2014 T3's 38
+-- repriced Scrap legs intact. (This slice was first prepared as
+-- 0087_overclock_serum_recipe.sql restated from 0086; T3 merged
+-- first and took 0087, so the file was renumbered to 0088 and its
+-- catalog rebuilt on 0087's before push.)
 --
--- Application: staging rehearsal first, then production — applied
+-- Application: staging rehearsal first, then production \u2014 applied
 -- manually by the parent before merge; the Chef never runs
 -- migrations.
 -- =====================================================================
@@ -39,7 +46,7 @@ as $$
     "name": "Med Kit",
     "category": "survival",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 40,
       "ReactiveComponents": 8
     },
     "unitDurationMs": 720000,
@@ -54,7 +61,7 @@ as $$
     "name": "Med Kit (Refined)",
     "category": "survival",
     "inputs": {
-      "Scrap": 25,
+      "Scrap": 125,
       "ReactiveComponents": 15,
       "VoidDust": 1
     },
@@ -70,7 +77,7 @@ as $$
     "name": "Shield Cell",
     "category": "survival",
     "inputs": {
-      "Scrap": 20,
+      "Scrap": 100,
       "ReactiveComponents": 12
     },
     "unitDurationMs": 900000,
@@ -85,7 +92,7 @@ as $$
     "name": "Nano-Swarm",
     "category": "survival",
     "inputs": {
-      "Scrap": 30,
+      "Scrap": 200,
       "ReactiveComponents": 20,
       "VoidDust": 2
     },
@@ -101,7 +108,7 @@ as $$
     "name": "Adrenaline Shot",
     "category": "survival",
     "inputs": {
-      "Scrap": 40,
+      "Scrap": 300,
       "ReactiveComponents": 25,
       "VoidDust": 3
     },
@@ -117,7 +124,7 @@ as $$
     "name": "Ammo Pack",
     "category": "offense",
     "inputs": {
-      "Scrap": 10,
+      "Scrap": 25,
       "BallisticParts": 6
     },
     "unitDurationMs": 600000,
@@ -132,7 +139,7 @@ as $$
     "name": "High-Capacity Ammo Pack",
     "category": "offense",
     "inputs": {
-      "Scrap": 18,
+      "Scrap": 90,
       "BallisticParts": 12,
       "TechFragments": 2
     },
@@ -148,7 +155,7 @@ as $$
     "name": "Armor-Piercing Ammo",
     "category": "offense",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "BallisticParts": 10
     },
     "unitDurationMs": 900000,
@@ -163,7 +170,7 @@ as $$
     "name": "Incendiary Ammo",
     "category": "offense",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "BallisticParts": 8,
       "IgnitionFluid": 3
     },
@@ -179,7 +186,7 @@ as $$
     "name": "Shock Ammo",
     "category": "offense",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "BallisticParts": 8,
       "ConduitWire": 3
     },
@@ -195,7 +202,7 @@ as $$
     "name": "Corrosive Ammo",
     "category": "offense",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "BallisticParts": 8,
       "AcidCompound": 3
     },
@@ -211,7 +218,7 @@ as $$
     "name": "Cryo Ammo",
     "category": "offense",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "BallisticParts": 8,
       "CryoGel": 3
     },
@@ -227,7 +234,7 @@ as $$
     "name": "Void Ammo",
     "category": "offense",
     "inputs": {
-      "Scrap": 20,
+      "Scrap": 100,
       "BallisticParts": 10,
       "VoidEssence": 5
     },
@@ -243,7 +250,7 @@ as $$
     "name": "Elemental Coating",
     "category": "offense",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "BallisticParts": 8,
       "VoidEssence": 3
     },
@@ -259,7 +266,7 @@ as $$
     "name": "Ordnance Charge",
     "category": "offense",
     "inputs": {
-      "Scrap": 12,
+      "Scrap": 60,
       "BallisticParts": 10
     },
     "unitDurationMs": 720000,
@@ -274,7 +281,7 @@ as $$
     "name": "EMP Charge",
     "category": "offense",
     "inputs": {
-      "Scrap": 18,
+      "Scrap": 90,
       "BallisticParts": 8,
       "ConduitWire": 4,
       "TechFragments": 2
@@ -291,7 +298,7 @@ as $$
     "name": "Corrosive Charge",
     "category": "offense",
     "inputs": {
-      "Scrap": 18,
+      "Scrap": 90,
       "BallisticParts": 8,
       "AcidCompound": 4,
       "TechFragments": 2
@@ -308,7 +315,7 @@ as $$
     "name": "Overcharge Stim",
     "category": "offense",
     "inputs": {
-      "Scrap": 25,
+      "Scrap": 125,
       "BallisticParts": 15,
       "VoidDust": 2
     },
@@ -339,7 +346,7 @@ as $$
     "name": "Target Painter",
     "category": "offense",
     "inputs": {
-      "Scrap": 20,
+      "Scrap": 100,
       "BallisticParts": 10,
       "TechFragments": 2
     },
@@ -355,7 +362,7 @@ as $$
     "name": "Phase Shift Grenade",
     "category": "offense",
     "inputs": {
-      "Scrap": 30,
+      "Scrap": 250,
       "BallisticParts": 15,
       "VoidDust": 5
     },
@@ -371,7 +378,7 @@ as $$
     "name": "Luck Booster",
     "category": "utility",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "TechFragments": 8
     },
     "unitDurationMs": 900000,
@@ -386,7 +393,7 @@ as $$
     "name": "Boss Scanner",
     "category": "utility",
     "inputs": {
-      "Scrap": 20,
+      "Scrap": 100,
       "TechFragments": 12
     },
     "unitDurationMs": 1200000,
@@ -401,7 +408,7 @@ as $$
     "name": "Insurance Token",
     "category": "utility",
     "inputs": {
-      "Scrap": 30,
+      "Scrap": 200,
       "TechFragments": 15,
       "VoidDust": 2
     },
@@ -417,7 +424,7 @@ as $$
     "name": "Data Skimmer",
     "category": "utility",
     "inputs": {
-      "Scrap": 25,
+      "Scrap": 125,
       "TechFragments": 15,
       "VoidDust": 3
     },
@@ -433,7 +440,7 @@ as $$
     "name": "Jammer",
     "category": "utility",
     "inputs": {
-      "Scrap": 20,
+      "Scrap": 100,
       "TechFragments": 10,
       "ConduitWire": 2
     },
@@ -449,7 +456,7 @@ as $$
     "name": "Magnetized Payload",
     "category": "utility",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "BallisticParts": 10,
       "TechFragments": 5
     },
@@ -465,7 +472,7 @@ as $$
     "name": "Signal Scrambler",
     "category": "utility",
     "inputs": {
-      "Scrap": 15,
+      "Scrap": 75,
       "TechFragments": 10,
       "ConduitWire": 2
     },
@@ -481,7 +488,7 @@ as $$
     "name": "Loot Beacon",
     "category": "utility",
     "inputs": {
-      "Scrap": 20,
+      "Scrap": 100,
       "TechFragments": 14,
       "VoidDust": 2
     },
@@ -497,7 +504,7 @@ as $$
     "name": "Salvage Contract",
     "category": "utility",
     "inputs": {
-      "Scrap": 12,
+      "Scrap": 60,
       "TechFragments": 8
     },
     "unitDurationMs": 960000,
@@ -512,7 +519,7 @@ as $$
     "name": "Workshop Rush Ticket",
     "category": "utility",
     "inputs": {
-      "Scrap": 18,
+      "Scrap": 90,
       "TechFragments": 12,
       "VoidDust": 1
     },
@@ -528,7 +535,7 @@ as $$
     "name": "Patch Kit",
     "category": "utility",
     "inputs": {
-      "Scrap": 4,
+      "Scrap": 10,
       "ReactiveComponents": 1
     },
     "unitDurationMs": 720000,
@@ -543,7 +550,7 @@ as $$
     "name": "Field Patch Kit",
     "category": "utility",
     "inputs": {
-      "Scrap": 6,
+      "Scrap": 15,
       "ReactiveComponents": 3,
       "TechFragments": 1,
       "HeartwoodResin": 1
@@ -560,7 +567,7 @@ as $$
     "name": "Master Patch Kit",
     "category": "utility",
     "inputs": {
-      "Scrap": 8,
+      "Scrap": 20,
       "ReactiveComponents": 5,
       "TechFragments": 3,
       "VoidDust": 1
@@ -581,7 +588,7 @@ as $$
     "name": "Fuel Cell",
     "category": "utility",
     "inputs": {
-      "Scrap": 6,
+      "Scrap": 15,
       "NitrocellGel": 1
     },
     "unitDurationMs": 900000,
@@ -933,7 +940,7 @@ as $$
     "name": "Shield Cell ×3 (Batch)",
     "category": "survival",
     "inputs": {
-      "Scrap": 50,
+      "Scrap": 250,
       "ReactiveComponents": 30
     },
     "unitDurationMs": 1980000,
@@ -950,7 +957,7 @@ as $$
     "name": "Patch Kit ×3 (Batch)",
     "category": "utility",
     "inputs": {
-      "Scrap": 10,
+      "Scrap": 25,
       "ReactiveComponents": 3
     },
     "unitDurationMs": 1584000,
@@ -967,7 +974,7 @@ as $$
     "name": "Ordnance Charge ×3 (Batch)",
     "category": "offense",
     "inputs": {
-      "Scrap": 30,
+      "Scrap": 150,
       "BallisticParts": 25
     },
     "unitDurationMs": 1584000,
@@ -1066,7 +1073,7 @@ as $$
     "inputs": {
       "MagnetiteCores": 2,
       "TechFragments": 12,
-      "Scrap": 20
+      "Scrap": 100
     },
     "unitDurationMs": 1500000,
     "requiresLevel": 1,

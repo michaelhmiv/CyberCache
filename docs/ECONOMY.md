@@ -491,9 +491,10 @@ tick damage rate's attack-rate term (roaming resolves damage per
 tick as a rate, so cadence scales that rate — the documented
 equivalent of more attacks; per-attack damage and the ordnance flat
 burst are untouched by it). Recipe: TS registry +
-`cc_craft_recipe_catalog` (migration 0087 restates the catalog:
-0086's 83 objects + this one; applied by the parent, staging
-rehearsal first — never by the Chef).
+`cc_craft_recipe_catalog` (migration 0088 restates the catalog:
+migration 0087's live catalog — T3's 83 objects at their repriced
+Scrap legs — + this one; applied by the parent, staging rehearsal
+first — never by the Chef).
 
 **Watch.** The fleet's consumables-used coverage (1 of 42 types in
 the week to 2026-11-10) should finally move: the serum is a
