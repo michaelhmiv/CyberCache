@@ -464,7 +464,7 @@ async function makeAdminServer(opts: { jobSecret?: string } = {}): Promise<Admin
   const economyConfig = new EconomyConfig(economyStore);
   const writeSeed: WriteSeed = emptyWriteSeed();
   writeSeed.profiles = [
-    profile({ id: S, username: 'seller', credits: 0 }),
+    profile({ id: S, username: 'seller', credits: 0, materials: { Scrap: 1000 } }), // T3: the purchase flow lists — deposit applies
     profile({ id: B, username: 'buyer', credits: 100_000 }),
   ];
   writeSeed.items = [
