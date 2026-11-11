@@ -126,8 +126,8 @@ describe('T6 — the recipe in both catalogs', () => {
   it('migration 0087 restates the SQL catalog: 0086 + exactly this recipe', () => {
     const sql0086 = readFileSync(join(process.cwd(), 'db', 'migrations', '0086_retire_mfr_helm_recipes.sql'), 'utf8');
     const sql0087 = readFileSync(join(process.cwd(), 'db', 'migrations', '0087_overclock_serum_recipe.sql'), 'utf8');
-    const cat86 = JSON.parse(sql0086.split('$')[1]) as Array<Record<string, unknown>>;
-    const cat87 = JSON.parse(sql0087.split('$')[1]) as Array<Record<string, unknown>>;
+    const cat86 = JSON.parse(sql0086.split('$catalog$')[1]) as Array<Record<string, unknown>>;
+    const cat87 = JSON.parse(sql0087.split('$catalog$')[1]) as Array<Record<string, unknown>>;
     expect(cat86).toHaveLength(83);
     expect(cat87).toHaveLength(84);
     const serum = cat87.find((r) => r.id === 'recipe_overclock_serum');
@@ -155,11 +155,11 @@ describe('T6 — roaming: the cadence window runs 60 seconds and lapses', () => 
     let state = activateFromInventory(inventory, 0);
     expect(state.slots.some((s) => s.consumableId === SERUM)).toBe(true);
     let lastConsumed: Array<{ id: string; count: number }> = [];
-    for (let tick = 1; tick <= 21; tick += 1) {
+    for (let tick = 0; tick <= 20; tick += 1) {
       const result = processTick(state, tickCtx(state, tick, inventory));
       state = result.state;
       lastConsumed = result.consumed;
-      if (tick <= 20) {
+      if (tick < 20) {
         expect(result.mods.attackSpeedMultiplier).toBeCloseTo(1.15, 10);
         expect(result.mods.dpsMultiplier).toBe(1);
       } else {
@@ -170,15 +170,23 @@ describe('T6 — roaming: the cadence window runs 60 seconds and lapses', () => 
   });
 
   it('auto-renews while stock lasts: 2 units cover 40 ticks', () => {
-    const inventory = { [SERUM]: 2 };
+    const inventory: Record<string, number> = { [SERUM]: 2 };
     let state = activateFromInventory(inventory, 0);
-    for (let tick = 1; tick <= 40; tick += 1) {
+    for (let tick = 0; tick <= 40; tick += 1) {
       const result = processTick(state, tickCtx(state, tick, inventory));
       state = result.state;
-      expect(result.mods.attackSpeedMultiplier).toBeCloseTo(1.15, 10);
+      // The caller owns the stock (Chef deducts result.consumed from the
+      // real inventory); mirror that here or the engine replenishes from
+      // a phantom second unit forever.
+      for (const c of result.consumed) {
+        inventory[c.id] = (inventory[c.id] ?? 0) - c.count;
+      }
+      if (tick < 40) {
+        expect(result.mods.attackSpeedMultiplier).toBeCloseTo(1.15, 10);
+      } else {
+        expect(result.mods.attackSpeedMultiplier).toBe(1);
+      }
     }
-    const after = processTick(state, tickCtx(state, 41, inventory));
-    expect(after.mods.attackSpeedMultiplier).toBe(1);
   });
 
   it('composes with a DPS buff: cadence AND damage both apply, neither folds into the other', () => {

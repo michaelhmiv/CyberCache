@@ -1101,7 +1101,7 @@ describe('migration 0043 — textual pins', () => {
     // catalog in skinsCosmetics.test.ts).
     // 88 since slice 9 (0073) added the Prime Laboratory relic
     // recipe (pinned against 0073 in econBenchRelic.test.ts).
-    expect(ALL_CRAFT_RECIPES).toHaveLength(89); // 88 + recipe_elemental_coating (0077)
+    expect(ALL_CRAFT_RECIPES).toHaveLength(90); // 89 + recipe_overclock_serum (0087, tuning T6)
     const sqlIds = new Set(catalog.map((r) => r.id));
     for (const recipe of ALL_CRAFT_RECIPES) {
       // recipe_calibration_core postdates 0043 (it lands in 0044's

@@ -63,9 +63,9 @@ describe('recipeScrap registry — generated from the catalog', () => {
     expect(Object.keys(RECIPE_SCRAP_SPECS).sort()).toEqual(
       scrapRecipes.map((r) => `recipeScrap.${r.id}`).sort(),
     );
-    // The catalog at this writing (66) — a catalog change updates
+    // The catalog at this writing (67) — a catalog change updates
     // this pin deliberately, in the same PR as the recipe.
-    expect(scrapRecipes.length).toBe(66);
+    expect(scrapRecipes.length).toBe(67);
   });
 
   it('defaults ARE the content literals (untouched config changes nothing)', () => {
@@ -123,7 +123,7 @@ describe('recipeScrap validation + resolution', () => {
     expect(resolved['recipe_patch_kit']).toBe(RECIPE_SCRAP_DEFAULTS['recipe_patch_kit']);
     expect(resolved['tint_craft']).toBe(25);
     expect(resolved['refine_refined_alloy']).toBe(10);
-    expect(Object.keys(resolved).length).toBe(66);
+    expect(Object.keys(resolved).length).toBe(67);
   });
 
   it('the EconomyConfig accessor serves the resolved map (and defaults on failure)', async () => {
@@ -194,7 +194,7 @@ describe('recipeScrap levers — the admin path', () => {
     expect(report.status).toBe(200);
     expect(report.json.recipeScrapCosts.recipe_fuel_cell).toBe(3);
     expect(report.json.recipeScrapDefaults.recipe_fuel_cell).toBe(6);
-    expect(Object.keys(report.json.recipeScrapCosts).length).toBe(66);
+    expect(Object.keys(report.json.recipeScrapCosts).length).toBe(67);
   });
 
   it('rejects out-of-spec values and unknown recipe keys', async () => {

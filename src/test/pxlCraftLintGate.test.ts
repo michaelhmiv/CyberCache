@@ -178,13 +178,13 @@ describe('pxl lint gate — corpus coverage', () => {
       'gear-ordnance': 20,
       'gear-classMod': 20,
       'gear-relic': 20,
-      consumable: 86,
+      consumable: 88,
       material: 52,
     };
     for (const [system, count] of Object.entries(expected)) {
       expect(bySystem.get(system)?.length, system).toBe(count);
     }
-    expect(corpus.length).toBe(366);
+    expect(corpus.length).toBe(368);
   });
 });
 

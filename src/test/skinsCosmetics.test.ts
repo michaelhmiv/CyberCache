@@ -90,7 +90,7 @@ describe('migration 0053 — catalog + schema pins', () => {
     const withoutSuperseded = (rows: Array<Record<string, unknown>>) =>
       rows.filter((r) => r.category !== 'cosmetics' && r.kind !== 'consumable' && !renamedBy0069.has(String(r.id)) && !changed9.has(String(r.id)) && r.id !== 'relic_prime_laboratory');
     expect(catalog.filter((r) => r.category === 'cosmetics')).toHaveLength(27);
-    expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(44); // 43 + recipe_overclock_serum (0087, tuning T6)
+    expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(43);
     expect(withoutSuperseded(catalog)).toEqual(
       withoutSuperseded(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
     );
@@ -176,7 +176,7 @@ describe('migration 0056 — cosmetic recipe levels removed', () => {
     const changed9 = changedBy0073(catalog);
     const withoutConsumables = (rows: Array<Record<string, unknown>>) =>
       rows.filter((r) => r.kind !== 'consumable' && !renamedBy0069.has(String(r.id)) && !changed9.has(String(r.id)) && r.id !== 'relic_prime_laboratory');
-    expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(44); // 43 + recipe_overclock_serum (0087, tuning T6)
+    expect(catalog.filter((r) => r.kind === 'consumable')).toHaveLength(43);
     expect(withoutConsumables(catalog)).toEqual(
       withoutConsumables(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES))),
     );
