@@ -345,9 +345,16 @@ describe('boss roster expansion — trait gates and layer checks', () => {
 
   it('Verdant Maw: Corrosive out-breaks Kinetic against the living armor', () => {
     const maw = bossById('verdant_maw');
-    const corrosive = simulateBoss(simInput(maw, { primary: makeWeapon({ element: Element.Corrosive }) }));
-    const kinetic = simulateBoss(simInput(maw, { primary: makeWeapon({ element: Element.Kinetic }) }));
+    // Slice C2 collects the Maw's Living Armor leg (armor break ÷
+    // 1.5): a lone standard primary floors BOTH builds at the 0.02
+    // win floor, where no win ordering can be read. The armor-break
+    // knob is raised so the comparison the test exists to make —
+    // Corrosive is this boss's answer — stays legible in win space;
+    // it now reads through the break score AND the collected leg.
+    const corrosive = simulateBoss(simInput(maw, { primary: makeWeapon({ element: Element.Corrosive, armorDamageMod: 8 }) }));
+    const kinetic = simulateBoss(simInput(maw, { primary: makeWeapon({ element: Element.Kinetic, armorDamageMod: 8 }) }));
     expect(corrosive.breakScore).toBeGreaterThan(kinetic.breakScore);
+    expect(corrosive.mechanicScore).toBeGreaterThan(kinetic.mechanicScore);
     expect(corrosive.winChance).toBeGreaterThan(kinetic.winChance);
   });
 });

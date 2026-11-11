@@ -780,6 +780,15 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   if (consumables['CryoAmmo'] > 0) {
     totalSurvival *= 1.15; // Boss does 15% less damage
   }
+  // Slice C2 measured the cadence re-read of this line (owner
+  // ruling D6: cryo priced as ×1.15 hit intervals in the fold) and
+  // DROPPED it on its own parity gate: the re-read's survival value
+  // measured 1.0000 on 11 of 13 matrix rows (1.0145 on the Widow /
+  // Omega pair) against this line's 1.1500 / 1.1667 — the recharge
+  // channel cannot carry the value, so shipping it would have been
+  // a ~13-point cryo nerf wearing a re-read's clothes. The flat
+  // read above stands; the parity numbers live in
+  // src/test/bossSetupDiversity.test.ts and docs/ECONOMY.md.
 
   // VoidAmmo reduces self shield by 5%
   if (consumables['VoidAmmo'] > 0) {
@@ -1333,6 +1342,68 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     if (mechanicScore < 1) {
       reasons.push(`Boss mechanic "${boss.mechanic.name}" is not fully countered.`);
       recommendations.push(`Increase ${boss.mechanic.requiredLoadoutTrait} through skills or gear.`);
+    }
+  } else if (boss.mechanic.composite) {
+    // Scrap Bishop (slice C2, owner rulings D1–D8, 2026-11-10): the
+    // one mechanic whose demand spans three axes. The composite its
+    // def declares — shield 1.25, armor 1.25, enrage-DPS 1.35, the
+    // same numbers its phases advertise as targets — becomes the
+    // leg: the weakest of the three ratios caps it, so no
+    // single-axis build maxes this boss. The branch keys on the
+    // declared composite, never the mechanic id: generated Chamber
+    // encounters are presented without it (see endless.ts), so the
+    // Chamber cannot collect the siege. Phases on every other boss
+    // stay reporting-only (ruling D5).
+    const composite = boss.mechanic.composite;
+    mechanicScore = Math.min(
+      1,
+      shieldBreakScore / composite.shieldBreak,
+      armorBreakScore / composite.armorBreak,
+      dpsScore / composite.dps,
+    );
+    if (mechanicScore < 1) {
+      reasons.push(`Boss mechanic "${boss.mechanic.name}" is not fully countered.`);
+      recommendations.push('Answer all three siege layers: shield break, armor break, and kill speed.');
+    }
+  } else if (
+    boss.mechanic.threshold !== undefined &&
+    boss.mechanic.checkType !== 'mechanic'
+  ) {
+    // Threshold mechanics (slice C2, owner rulings D1–D8,
+    // 2026-11-10): the mechanic leg COLLECTS the authored number.
+    // Every boss whose mechanic declares a checkType + threshold
+    // (Enrage Protocol's 1.3 DPS, Rapid Shield Regen's 1.2 shield
+    // break, Burning Ground's 1.4 survival, Heavy Repair's and
+    // Living Armor's 1.5 armor break) has advertised that demand on
+    // its prep screen since it shipped; until C2 no code read it.
+    // The leg is the same normalized ratio prep already prints for
+    // the matching phase: axis score ÷ threshold, capped at 1 —
+    // full strength from day one (ruling D4). Trait gates keep the
+    // branch above; adaptive_plating and overclock_ramp declare no
+    // threshold and keep their hard-coded paths untouched. The
+    // consumable patch below applies to the collected score in the
+    // same order it applies today, and the Jammer rule after it
+    // still forces enrage/phase mechanics to 1.
+    const axisScore =
+      boss.mechanic.checkType === 'survival'
+        ? effectiveSurvivalScore
+        : boss.mechanic.checkType === 'shieldBreak'
+          ? shieldBreakScore
+          : boss.mechanic.checkType === 'armorBreak'
+            ? armorBreakScore
+            : dpsScore;
+    mechanicScore = Math.min(1, axisScore / boss.mechanic.threshold);
+    if (mechanicScore < 1) {
+      reasons.push(`Boss mechanic "${boss.mechanic.name}" is not fully countered.`);
+      recommendations.push(
+        boss.mechanic.checkType === 'survival'
+          ? 'Raise survival: a bigger shield, mitigation, or heal pools.'
+          : boss.mechanic.checkType === 'shieldBreak'
+            ? 'Raise shield break throughput: Shock weapons, ordnance, or break consumables.'
+            : boss.mechanic.checkType === 'armorBreak'
+              ? 'Raise armor break throughput: Corrosive weapons, ordnance, or break consumables.'
+              : 'Raise kill speed: more DPS before the mechanic window closes.',
+      );
     }
   }
 

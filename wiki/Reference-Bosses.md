@@ -40,7 +40,7 @@ pool a boss draws from is not printed.
 - **Boss level:** 10 · **Recommended power:** 300
 - **Health / Shield / Armor:** 1500 / 500 / 0 · **Boss DPS:** 55
 - **Weaknesses:** Fire · **Resistances:** Cryo
-- **Mechanic — Enrage Protocol:** Boss enrages at 50% HP, doubling damage. Needs high DPS to finish fast.
+- **Mechanic — Enrage Protocol:** At 50% HP the boss enrages. The fight is a kill-speed check: your DPS is measured against the enrage line (1.3) — fall short and the enrage taxes the whole attempt.
 - **Attack pattern:** hits every 4s; special **Enrage Surge** every 12s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 200 cr / 300 cr
 - **Dedicated drops:** Bad Decision, Glass Sun
@@ -61,14 +61,14 @@ pool a boss draws from is not printed.
 - **Boss level:** 15 · **Recommended power:** 550
 - **Health / Shield / Armor:** 2000 / 1200 / 0 · **Boss DPS:** 70
 - **Weaknesses:** Shock · **Resistances:** Fire
-- **Mechanic — Rapid Shield Regen:** Shield regenerates quickly if not broken within 15s.
+- **Mechanic — Rapid Shield Regen:** The shield knits itself back together mid-fight. Your shield break is measured against the regen line (1.2) — break less than the line and the loop taxes the whole attempt.
 - **Attack pattern:** hits every 5s; special **Aegis Slam** every 15s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 400 cr / 500 cr
 - **Dedicated drops:** Ricochet Gospel, Thunder Receipt
 
 **Phases**
 
-- **Shield Regen Loop** (shieldBreak check) — Break the shield quickly or the boss regenerates it and stalls the fight. Counters: Shock weapon, Shock Ammo, Ordnance Charge, Jammer.
+- **Shield Regen Loop** (shieldBreak check) — Shield pressure is measured against the regen line (1.2): out-break it or the loop keeps the shield ahead of your damage. Counters: Shock weapon, Shock Ammo, Ordnance Charge, Jammer.
 
 **The arena** — every boss fights on its own ground:
 
@@ -81,7 +81,7 @@ pool a boss draws from is not printed.
 - **Boss level:** 22 · **Recommended power:** 900
 - **Health / Shield / Armor:** 3500 / 0 / 800 · **Boss DPS:** 95
 - **Weaknesses:** Corrosive · **Resistances:** Fire
-- **Mechanic — Burning Ground:** Leaves burning ground; survival check is harder.
+- **Mechanic — Burning Ground:** The ground itself burns for the whole fight. Your survival is measured against the burn line (1.4) — a pool that merely survives the boss is not enough here.
 - **Attack pattern:** hits every 3s; special **Eruption** every 15s after a 3s wind-up, carrying ~25% of its damage
 - **Entry / rematch:** 600 cr / 700 cr
 - **Dedicated drops:** Salvage Rights, Overclocked
@@ -122,14 +122,14 @@ pool a boss draws from is not printed.
 - **Boss level:** 35 · **Recommended power:** 2000
 - **Health / Shield / Armor:** 6000 / 0 / 2500 · **Boss DPS:** 130
 - **Weaknesses:** Corrosive · **Resistances:** Shock
-- **Mechanic — Heavy Repair:** Heavy armor repair. Needs Anti-Heal or Armor Break.
+- **Mechanic — Heavy Repair:** Heavy armor repair. Your armor break is measured against the repair line (1.5) — Corrosive and Ordnance throughput, or the repairs tax the whole attempt.
 - **Attack pattern:** hits every 6s; special **Prophet's Hammer** every 18s after a 3s wind-up, carrying ~40% of its damage
 - **Entry / rematch:** 1500 cr / 1800 cr
 - **Dedicated drops:** Vampiric Ledger, Echo Chamber
 
 **Phases**
 
-- **Armor Repair Phase** (armorBreak check) — The boss repairs armor faster than weak armor break can remove it. Counters: Corrosive weapon, Corrosive Ammo, Armor-Piercing Ammo, Phase Shift Grenade.
+- **Armor Repair Phase** (armorBreak check) — The boss repairs armor against the repair line (1.5): armor break below the line never gets ahead of the repairs. Counters: Corrosive weapon, Corrosive Ammo, Armor-Piercing Ammo, Phase Shift Grenade.
 
 **The arena** — every boss fights on its own ground:
 
@@ -142,7 +142,7 @@ pool a boss draws from is not printed.
 - **Boss level:** 45 · **Recommended power:** 3200
 - **Health / Shield / Armor:** 10000 / 3000 / 4000 · **Boss DPS:** 180
 - **Weaknesses:** Corrosive · **Resistances:** Fire
-- **Mechanic — Three-Phase Siege:** Shield -> Armor -> Enrage. Must break each layer.
+- **Mechanic — Three-Phase Siege:** Shield -> Armor -> Enrage. All three layers are measured — shield break 1.25, armor break 1.25, kill speed 1.35 — and the weakest layer taxes the whole attempt.
 - **Attack pattern:** hits every 5s; special **Siege Barrage** every 15s after a 3s wind-up, carrying ~35% of its damage
 - **Entry / rematch:** 2500 cr / 3000 cr
 - **Dedicated drops:** Chain Lightning, Void Bargain, Jackpot
@@ -230,7 +230,7 @@ pool a boss draws from is not printed.
 - **Boss level:** 65 · **Recommended power:** 12000
 - **Health / Shield / Armor:** 35000 / 0 / 9000 · **Boss DPS:** 355
 - **Weaknesses:** Fire · **Resistances:** Cryo
-- **Mechanic — Living Armor:** Heartwood plating regrows as fast as it cracks. Sustained armor break — Corrosive and Ordnance — or the Maw simply out-grows your damage.
+- **Mechanic — Living Armor:** Heartwood plating regrows as it cracks. Your armor break is measured against the regrowth line (1.5) — sustained Corrosive and Ordnance throughput, or the Maw out-grows your damage and taxes the attempt.
 - **Attack pattern:** hits every 6s; special **The Maw Opens** every 20s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 9500 cr / 11500 cr
 - **Dedicated drops:** Molten Core, Salvage Rights

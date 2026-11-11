@@ -33,6 +33,14 @@ If your belt commits more of a consumable than you currently hold, that belt row
 
 Every boss also fights to a **pattern** — the rhythm its damage lands in, printed in its prep under Attack Pattern. Regular hits land every few seconds; a named **special** lands on a slower cycle, after a short wind-up you can read in advance, and carries a fixed share of the boss's total damage. The pattern never changes how much damage a boss deals in a fight — the same total, dealt on a beat. What the beat changes is the quiet: between hits there are whole seconds where nothing lands, and in that quiet a shield **recharges**, exactly as it does between roaming fights. Wide rhythms — the slow, heavy bosses — leave long quiet stretches where a fast-recharging shield comes back; a boss that hits every 3 seconds leaves none at all, and against those, capacity and mitigation are the answer, not recharge. Reading the pattern is part of reading the boss: it tells you which kind of shield the fight rewards before you spend the fee.
 
+## Mechanics charge what they advertise
+
+A boss's mechanic names a demand, and the fight collects it. Where a mechanic states a line — the Siltstalker's enrage kill-speed line (DPS 1.3), the Heap Guard's shield-regen line (shield break 1.2), Ashgut's burn line (survival 1.4), the Rust Prophet's and the Verdant Maw's armor lines (armor break 1.5) — your matching score is measured against that line. Meet it and the mechanic costs you nothing; fall short and the shortfall taxes the whole attempt in proportion — half the line, half strength. There is no cliff and no free pass: the number on the prep screen is the number the fight uses.
+
+The Scrap Bishop's siege is the same rule three times at once: shield break 1.25, armor break 1.25, and kill speed 1.35 are all measured, and the weakest of the three sets the tax — a build that maxes one layer and skimps another is taxed on the skimped layer. The other bosses' phases stay what they have always been: reporting. A phase tells you what it checks and whether your build answers it; only the mechanic itself collects.
+
+Two mechanics work differently and always have: a trait gate (the Mirage Duster's, the Static Choir's, Sister Null's) is binary — bring the trait or fight at half strength — and the Mirror and the Widow/Omega answer specific counters (a second element; kill speed against the ramp) rather than a numeric line. Dune Tyrant, the tutorial, makes no demand at all.
+
 ## The risk setting
 
 Each attempt is fought at one of four risk settings, chosen at prep:

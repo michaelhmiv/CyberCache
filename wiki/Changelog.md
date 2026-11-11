@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-11 — Boss mechanics collect
+
+- **A boss's mechanic now charges what it advertises** — the line printed in a boss's prep is the line the fight measures: the Siltstalker's enrage is a kill-speed check (DPS 1.3), the Heap Guard's regen loop a shield-break check (1.2), Ashgut's burning ground a survival check (1.4), and the Rust Prophet's repairs and the Verdant Maw's regrowth are armor-break checks (1.5). Meet the line and the mechanic costs nothing; fall short and the shortfall taxes the attempt in proportion — no cliff, no free pass. The Scrap Bishop's three-phase siege measures all three of its layers (shield 1.25, armor 1.25, kill speed 1.35) and taxes on the weakest. Trait gates, the Mirror's adaptation, and the Widow's and Omega's ramps work exactly as before, and the Endless Chamber is untouched — the demands belong to the ladder.
+
 ## 2026-11-10 — The reveal's light, finished smooth
 
 - **The cache reveal's light draws smooth now** — on the reveal stage only, the beam and its fan of rays are continuous light instead of stepped dashes: the fan's shafts taper and fade toward their tips, the beam's bands feather at their edges, and the legendary's turning ray-disc falls off in three soft stops. Gold sparks burst where the beam meets the ground as it ignites, and warm embers rise through the column while your item climbs. Every timing is exactly what it was — the same beam-in, the same rise, the same staggered ignition, the same sixteen-second spin — only the light's finish changed. The shockwave ring keeps its stepped edge, and every other effect in the game (fights, the bench) keeps the texel grid untouched.
@@ -243,9 +247,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 215 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 221 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-10** — 9 merges
+**2026-11-10** — 15 merges
 
 - #469 — Anim-replay loop: deterministic replay + B2 metrics + CI workflow (Track A baseline)
 - #470 — Anim fix iteration: enemy approach + walk articulation, stride saturation, loop-instrument repairs
@@ -254,8 +258,14 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #473 — Tuning T2 (D2): consumable magnitudes — ammo up, survival heals to % of pool, ordnance riders ×4
 - #474 — Tuning T1R — Passive shield recharge (owner ruling 2026-11-10)
 - #475 — Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)
+- #476 — Tuning T6 — Overclock Serum (P6 tempo consumable, owner ruling 2026-11-10)
 - #477 — Tuning T3 — scrap portfolio (D3/P7+P8): repriced recipe Scrap legs + 25-Scrap listing deposit [migration 0087, do not merge before live apply]
+- #478 — Boss cadence C1: cadence engine + prep Attack Pattern block (owner D1–D8)
 - #479 — Logo swap: adopt the Top-Choice re-render on every surface
+- #480 — feat(branding): splash screens carry the adopted logo
+- #481 — Resume device probe: lifecycle/WebGL/ticker instrumentation (DEVICE-PROBE-SPEC)
+- #482 — Prism Coating ruling captured in ECONOMY.md; buried-cache retire stopped — asset is live
+- #483 — Light kit: productionize the reveal's smooth light
 
 **2026-11-09** — 2 merges
 

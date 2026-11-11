@@ -34,12 +34,36 @@
           "title": "Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)"
         },
         {
+          "number": 476,
+          "title": "Tuning T6 — Overclock Serum (P6 tempo consumable, owner ruling 2026-11-10)"
+        },
+        {
           "number": 477,
           "title": "Tuning T3 — scrap portfolio (D3/P7+P8): repriced recipe Scrap legs + 25-Scrap listing deposit [migration 0087, do not merge before live apply]"
         },
         {
+          "number": 478,
+          "title": "Boss cadence C1: cadence engine + prep Attack Pattern block (owner D1–D8)"
+        },
+        {
           "number": 479,
           "title": "Logo swap: adopt the Top-Choice re-render on every surface"
+        },
+        {
+          "number": 480,
+          "title": "feat(branding): splash screens carry the adopted logo"
+        },
+        {
+          "number": 481,
+          "title": "Resume device probe: lifecycle/WebGL/ticker instrumentation (DEVICE-PROBE-SPEC)"
+        },
+        {
+          "number": 482,
+          "title": "Prism Coating ruling captured in ECONOMY.md; buried-cache retire stopped — asset is live"
+        },
+        {
+          "number": 483,
+          "title": "Light kit: productionize the reveal's smooth light"
         }
       ]
     },

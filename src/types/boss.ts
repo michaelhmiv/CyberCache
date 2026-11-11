@@ -39,6 +39,15 @@ export interface BossMechanic {
   checkType: 'survival' | 'shieldBreak' | 'armorBreak' | 'dps' | 'mechanic';
   requiredLoadoutTrait?: string;
   threshold?: number;
+  /**
+   * Composite demand (slice C2): a mechanic whose leg is the min
+   * over several axis ratios instead of one threshold — the Scrap
+   * Bishop's three-phase siege. The numbers mirror the boss's
+   * phase targets (prep prints those); a suite pin keeps the two
+   * from drifting. Generated Chamber encounters are presented
+   * WITHOUT this field, so the Chamber never collects it.
+   */
+  composite?: { shieldBreak: number; armorBreak: number; dps: number };
 }
 
 export interface BossPhase {
