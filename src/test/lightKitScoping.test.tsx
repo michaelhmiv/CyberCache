@@ -104,7 +104,7 @@ beforeEach(() => {
       contexts.set(this, rec);
     }
     return rec as unknown as CanvasRenderingContext2D;
-  } as typeof HTMLCanvasElement.prototype.getContext;
+  } as unknown as typeof HTMLCanvasElement.prototype.getContext;
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get() { return CSS_W; } });
   Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get() { return CSS_H; } });
   vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
@@ -163,7 +163,7 @@ describe('light kit scoping — backing resolution', () => {
   it('keeps the shockwave ring on the texel grid INSIDE the moment', () => {
     render(
       <div data-testid="cache-loot-moment">
-        <ShockwaveRing xPct={50} yPct={74} color="#FFC740" />
+        <ShockwaveRing xPct={50} groundYPct={74} color="#FFC740" />
       </div>,
     );
     expect(canvasOf('fx-shockwave-ring').width).toBe(CELLS_W);
@@ -249,7 +249,7 @@ describe('light kit scoping — painter choice', () => {
       <div data-testid="cache-loot-moment">
         <LootBeam {...beamProps} reduced />
         <GodRays xPct={50} yPct={40} reduced />
-        <ShockwaveRing xPct={50} yPct={74} color="#FFC740" />
+        <ShockwaveRing xPct={50} groundYPct={74} color="#FFC740" />
       </div>,
     );
     expect(canvasOf('fx-loot-beam').style.imageRendering).toBe('auto');
