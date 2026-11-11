@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Themed (monochrome) launcher layer — Android 13+ adaptive-icon
+  <monochrome> slot. Hand-authored single-color vector of the adopted
+  CyberCache crate, traced from the Wave 14 shape reference
+  (monochrome-icon-silhouette.png: chest + both lid halves, derived from
+  the adopted logo master) and redrawn as clean vector geometry on the
+  108x108 dp adaptive grid, mark inside the 66 dp safe circle
+  (21..87 dp). Details the silhouette's color separation tore (latch
+  recesses reading as notches, ragged starburst rim) are resolved as
+  simple cut-outs: the lid split, the burst gap and three latch-slot
+  recesses on the chest face. Fill is black; the system tints it at
+  runtime.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#000000"
+        android:pathData="M30,50 L78,50 L78,72 L30,72 Z M36,58 L42,58 L42,67 L36,67 Z M50,58 L58,58 L58,67 L50,67 Z M66,58 L72,58 L72,67 L66,67 Z"/>
+    <path
+        android:fillColor="#000000"
+        android:pathData="M24,44 L42,26 L52,34 L46,46 L28,50 Z"/>
+    <path
+        android:fillColor="#000000"
+        android:pathData="M84,44 L66,26 L56,34 L62,46 L80,50 Z"/>
+</vector>
