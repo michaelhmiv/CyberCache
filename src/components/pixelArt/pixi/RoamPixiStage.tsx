@@ -68,13 +68,9 @@ import {
 } from '@/lib/pixel/roamChoreography';
 import type { PixelSprite } from '@/lib/pixel/manifest';
 import {
-  VISTA_LAYER_SLOTS,
   VISTA_STAGE_H,
   VISTA_STAGE_W,
-  vistaBandDisplayW,
-  vistaPanOffsets,
   vistaSceneForBackground,
-  type VistaLayerId,
   type VistaPaintLayer,
   type VistaSceneSpec,
 } from '@/lib/pixel/vistaScenes';
@@ -96,10 +92,9 @@ import type { Weapon } from '@/types/items';
  * same vista stack, same actors, same beats, same law — executed
  * continuously on one rAF clock instead of through DOM layers:
  *
- *  - the vista stack (base + far/mid/near parallax re-cuts) with
- *    the DOM stage's own drift tracks sampled per frame; the near
- *    layer's CSS mask fade is a baked alpha-gradient texture
- *    (same 0→30% fade function);
+ *  - the vista: one master background painting (cover + the DOM
+ *    stage's own drift track sampled per frame) with the scene's
+ *    ambient elements painted over it by the shared vista painter;
  *  - the hunter as a part set (layoutPartSet, the same layouts the
  *    DOM actor uses) with pose blending INCLUDING position — the
  *    M2 brief's upgrade over the pilot's rotation-only tweens —
@@ -200,12 +195,6 @@ interface Scene {
   app: Application;
   world: Container;
   vistaBase: Sprite;
-  vistaFar?: Sprite;
-  vistaMid?: Sprite;
-  vistaNear?: Sprite;
-  /** V1: wrap pairs per band layer (two sprites sharing the band
-   *  texture) when the background is an authored vista scene. */
-  vistaPairs?: Record<VistaLayerId, [Sprite, Sprite]>;
   vistaAmbientNodes?: VistaAmbientNode[];
   aprops: { sprite: Sprite; index: number }[];
   hunterRoot: Container;
@@ -253,8 +242,7 @@ interface RigPoseVals {
 interface RoamRuntime {
   scene: Scene | null;
   size: { w: number; h: number };
-  /** V1 vista clock: wall time drives ambient life; pan time
-   *  advances while this stage is mounted (roaming only). */
+  /** Vista clock: wall time drives the ambient life. */
   vistaClock: VistaClock;
   poseKey: string;
   /** F6: the enemy art key whose swap build is in flight (the
@@ -280,8 +268,6 @@ interface RoamRuntime {
    *  (the held weapon rides the striding grip, not the held
    *  beat-pose layout). */
   strideWeapon: PartSetLayout['weapon'];
-  /** Last computed near-band pan offset in stage px (probe). */
-  lastPanNearPx: number;
   fps: { lastMs: number; deltas: number[] };
   /** Resume probe heartbeat state (DEVICE-PROBE-SPEC item 3):
    *  advanced by the ticker callback only while the probe is
@@ -293,7 +279,7 @@ function createRoamRuntime(): RoamRuntime {
   return {
     scene: null,
     size: { w: 420, h: 286 },
-    vistaClock: { wallMs: 0, panMs: 0 },
+    vistaClock: { wallMs: 0 },
     poseKey: '',
     pendingRigKey: null,
     rigPoseKey: '',
@@ -307,7 +293,6 @@ function createRoamRuntime(): RoamRuntime {
     travelDriving: false,
     travelSample: null,
     strideWeapon: undefined,
-    lastPanNearPx: 0,
     fps: { lastMs: 0, deltas: [] },
     probeTick: { lastTickAt: null, tickCount: 0 },
   };
@@ -405,14 +390,6 @@ interface TickEnv {
    *  for non-vista backgrounds) + its expanded ambient instances. */
   vistaScene: VistaSceneSpec | null;
   vistaInstances: VistaAmbientInstance[];
-}
-
-/** Oscillating drift track (framer keyframes [a, b, a] easeInOut
- *  over `periodMs`, repeating) sampled on the raw clock. */
-function oscillate(now: number, periodMs: number, from: number, to: number): number {
-  const p = (now % periodMs) / periodMs;
-  const tri = p < 0.5 ? EASE.easeInOut(p * 2) : EASE.easeInOut((1 - p) * 2);
-  return from + (to - from) * tri;
 }
 
 /** Enemy presentation identity: which art the stage must show for
@@ -655,53 +632,12 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   scene.vistaBase.position.set(W / 2, H / 2);
   scene.vistaBase.width = baseTex.width * cover * drift;
   scene.vistaBase.height = baseTex.height * cover * drift;
-  const layer = (sprite: Sprite | undefined, topPct: number, heightPct: number, xAmp: number, periodS: number, scaleFrom?: number, scaleTo?: number) => {
-    if (!sprite) return;
-    const tex = sprite.texture;
-    // object-cover over the layer's box (full width × band
-    // height), object-position 50% 50%: scale to cover, crop the
-    // vertical overflow evenly — the DOM img's exact geometry.
-    const lh = (heightPct / 100) * H;
-    const coverScale = Math.max(W / tex.width, lh / tex.height);
-    const w2 = tex.width * coverScale;
-    const h2 = tex.height * coverScale;
-    const x = oscillate(now, periodS * 1000, 0, -xAmp);
-    const sc = scaleFrom !== undefined && scaleTo !== undefined ? oscillate(now, periodS * 1000, scaleFrom, scaleTo) : 1;
-    sprite.width = w2 * sc;
-    sprite.height = h2 * sc;
-    sprite.position.set(x, (topPct / 100) * H + (lh - h2 * sc) / 2);
-  };
-  if (scene.vistaPairs && env.vistaScene) {
-    // ── V1 vista: bands wrap (two sprites per layer, offsets mod
-    // the displayed band width — seamless at any offset), the pan
-    // advances while roaming, and the ambient canvases repaint
-    // from the scene data through the SHARED painter (DOM parity
-    // is structural). The old sway/scale oscillation is dropped
-    // for vista bands: the pan replaces it, matching the DOM
-    // stage exactly.
+  if (env.vistaScene) {
+    // ── Vista (plain-bg): the background is one master painting
+    // (cover + drift above); the ambient canvases repaint from
+    // the scene data through the SHARED painter (DOM parity is
+    // structural).
     rt.vistaClock.wallMs += frameDtMs;
-    // M2b: while the travel beat drives, the pan clock advances
-    // at the stride-synced rate — the ground moves at the gait's
-    // own ground speed (travelChoreography derives the rate from
-    // the stride spec; at amplitude 0 the rate is exactly 1, the
-    // ambient drift).
-    rt.vistaClock.panMs += frameDtMs * travel.panRate;
-    const panOffsets = vistaPanOffsets(env.vistaScene, rt.vistaClock.panMs);
-    rt.lastPanNearPx = panOffsets.near * (W / VISTA_STAGE_W);
-    const designScale = W / VISTA_STAGE_W;
-    for (const layerId of ['far', 'mid', 'near'] as VistaLayerId[]) {
-      const pair = scene.vistaPairs[layerId];
-      const slot = VISTA_LAYER_SLOTS[layerId];
-      const dispW = vistaBandDisplayW(layerId) * designScale;
-      const dispH = slot.heightFrac * H;
-      const off = ((panOffsets[layerId] * designScale) % dispW + dispW) % dispW;
-      pair[0].position.set(-off, slot.topFrac * H);
-      pair[0].width = dispW;
-      pair[0].height = dispH;
-      pair[1].position.set(-off + dispW, slot.topFrac * H);
-      pair[1].width = dispW;
-      pair[1].height = dispH;
-    }
     if (scene.vistaAmbientNodes && env.vistaInstances.length > 0) {
       const images = vistaImageMapFor(env.vistaInstances);
       for (const node of scene.vistaAmbientNodes) {
@@ -714,17 +650,13 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
         ctx.setTransform(W / VISTA_STAGE_W, 0, 0, H / VISTA_STAGE_H, 0, 0);
         ctx.clearRect(0, 0, VISTA_STAGE_W, VISTA_STAGE_H);
         ctx.imageSmoothingEnabled = false;
-        paintVistaAmbientLayer({ ctx, instances: env.vistaInstances, layer: node.layer, images, clock: rt.vistaClock, panOffsets });
+        paintVistaAmbientLayer({ ctx, instances: env.vistaInstances, layer: node.layer, images, clock: rt.vistaClock });
         (node.texture.source as unknown as { update?: () => void }).update?.();
         node.sprite.width = W;
         node.sprite.height = H;
         node.sprite.position.set(0, 0);
       }
     }
-  } else {
-    layer(scene.vistaFar, 0, 62, 6, 26, 1.02, 1.05);
-    layer(scene.vistaMid, 36, 52, 14, 19);
-    layer(scene.vistaNear, 70, 32, 22, 13);
   }
   // Animated props: linear left -8% → 104% over 34+17i s, delay 9i.
   // (Empty on vista scenes — the authored ambient sets supersede
@@ -1113,7 +1045,6 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
             panRate: Number(rt.travelSample.panRate.toFixed(2)),
           }
         : null,
-      panNearPx: Number(rt.lastPanNearPx.toFixed(1)),
       nodeCount: roamAnimatedNodeCount({
         partCount: scene.parts.length,
         gearCount: scene.gear.length,
@@ -1228,12 +1159,6 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       runtime.size = { w, h };
 
       const background = requirePixelSprite(initialProps.backgroundId);
-      const zoneSlug = initialProps.backgroundId.startsWith('zone-') && initialProps.backgroundId.endsWith('-bg')
-        ? initialProps.backgroundId.slice('zone-'.length, -'-bg'.length)
-        : undefined;
-      const farDef = zoneSlug ? getPixelSprite(`zone-${zoneSlug}-far`) : undefined;
-      const midDef = zoneSlug ? getPixelSprite(`zone-${zoneSlug}-mid`) : undefined;
-      const nearDef = zoneSlug ? getPixelSprite(`zone-${zoneSlug}-near`) : undefined;
       const visuals = initialModel.visuals;
       // V1: an authored vista scene supersedes the aprop drift
       // system (its ambient sets carry the aprops' successors).
@@ -1257,11 +1182,8 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       const eventPropDef = initialModel.eventPropId ? getPixelSprite(initialModel.eventPropId) : undefined;
       const statusDef = getPixelSprite(initialModel.dialect.statusSpriteId);
 
-      const [bgTex, farTex, midTex, nearTex, weaponTex] = await Promise.all([
+      const [bgTex, weaponTex] = await Promise.all([
         loadTexture(background.url),
-        farDef ? loadTexture(farDef.url) : Promise.resolve(null),
-        midDef ? loadTexture(midDef.url) : Promise.resolve(null),
-        nearDef ? loadTexture(nearDef.url) : Promise.resolve(null),
         weaponTextureForWeapon(initialProps.weapon),
       ]);
       // Warm the palette cache (part tints, gear tints, the enemy
@@ -1348,42 +1270,6 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       const vistaBase = new Sprite(bgTex);
       vistaBase.anchor.set(0.5, 0.5);
       world.addChild(vistaBase);
-      const mkLayer = (tex: Texture | null) => {
-        if (!tex) return undefined;
-        const sp = new Sprite(tex);
-        sp.anchor.set(0, 0);
-        world.addChild(sp);
-        return sp;
-      };
-      // The near layer's DOM mask fade, baked into its texture:
-      // render the layer multiplied by the gradient alpha.
-      let maskedNearTex: Texture | null = nearTex;
-      if (nearTex) {
-        const srcCanvas = (nearTex.source as unknown as { resource?: HTMLCanvasElement | HTMLImageElement }).resource;
-        if (srcCanvas) {
-          const cw = nearTex.width;
-          const ch = nearTex.height;
-          const masked = document.createElement('canvas');
-          masked.width = cw;
-          masked.height = ch;
-          const mctx = masked.getContext('2d');
-          if (mctx) {
-            mctx.drawImage(srcCanvas as CanvasImageSource, 0, 0, cw, ch);
-            mctx.globalCompositeOperation = 'destination-in';
-            const mg = mctx.createLinearGradient(0, 0, 0, ch);
-            mg.addColorStop(0, 'rgba(0,0,0,0)');
-            mg.addColorStop(0.3, 'rgba(0,0,0,1)');
-            mg.addColorStop(1, 'rgba(0,0,0,1)');
-            mctx.fillStyle = mg;
-            mctx.fillRect(0, 0, cw, ch);
-            maskedNearTex = nearest(Texture.from(masked));
-          }
-        }
-      }
-      let vistaFar: Sprite | undefined;
-      let vistaMid: Sprite | undefined;
-      let vistaNear: Sprite | undefined;
-      let vistaPairs: Scene['vistaPairs'];
       const vistaAmbientNodes: VistaAmbientNode[] = [];
       const mkAmbientNode = (layerId: VistaPaintLayer): VistaAmbientNode => {
         const canvas = document.createElement('canvas');
@@ -1396,31 +1282,12 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         return { layer: layerId, sprite, canvas, ctx: canvas.getContext('2d'), texture };
       };
       if (vistaScene) {
-        // Wrap pairs per band + one ambient canvas per band layer,
-        // interleaved band/ambient in world order.
-        vistaPairs = {} as Record<VistaLayerId, [Sprite, Sprite]>;
-        const layerTex: Record<VistaLayerId, Texture | null> = { far: farTex, mid: midTex, near: maskedNearTex };
-        for (const layerId of ['far', 'mid', 'near'] as VistaLayerId[]) {
-          const tex = layerTex[layerId];
-          if (!tex) continue;
-          const a = new Sprite(tex);
-          const b = new Sprite(tex);
-          a.anchor.set(0, 0);
-          b.anchor.set(0, 0);
-          world.addChild(a);
-          world.addChild(b);
-          vistaPairs[layerId] = [a, b];
+        // One ambient canvas per behind-actors paint layer, in
+        // world order over the base painting.
+        for (const layerId of ['far', 'mid', 'near'] as VistaPaintLayer[]) {
           const node = mkAmbientNode(layerId);
           world.addChild(node.sprite);
           vistaAmbientNodes.push(node);
-        }
-      } else {
-        vistaFar = mkLayer(farTex);
-        vistaMid = mkLayer(midTex);
-        if (maskedNearTex) {
-          vistaNear = new Sprite(maskedNearTex);
-          vistaNear.anchor.set(0, 0);
-          world.addChild(vistaNear);
         }
       }
       // Weather tint band (top 46%).
@@ -1587,10 +1454,6 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         app,
         world,
         vistaBase,
-        vistaFar,
-        vistaMid,
-        vistaNear,
-        vistaPairs,
         vistaAmbientNodes: vistaScene ? vistaAmbientNodes : undefined,
         aprops,
         hunterRoot,

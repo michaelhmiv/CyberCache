@@ -37,13 +37,15 @@ const AREA_SLUG: Record<string, string> = {
 };
 
 describe('manifest completeness (§4)', () => {
-  it('every area resolves its background + parallax re-cuts', () => {
+  it('every area resolves its one background painting (re-cuts retired)', () => {
     for (const area of ROAMING_AREAS) {
       const slug = AREA_SLUG[area.id];
       expect(has(`zone-${slug}-bg`), `${slug} bg`).toBe(true);
-      expect(has(`zone-${slug}-far`), `${slug} far`).toBe(true);
-      expect(has(`zone-${slug}-mid`), `${slug} mid`).toBe(true);
-      expect(has(`zone-${slug}-near`), `${slug} near`).toBe(true);
+      // The parallax re-cuts retired with the vista band system
+      // (plain-bg ruling, 2026-11-11): no band ids exist.
+      expect(has(`zone-${slug}-far`), `${slug} far retired`).toBe(false);
+      expect(has(`zone-${slug}-mid`), `${slug} mid retired`).toBe(false);
+      expect(has(`zone-${slug}-near`), `${slug} near retired`).toBe(false);
     }
   });
 
@@ -210,10 +212,11 @@ describe('performance + payload budgets (§4.9)', () => {
     expect(GRAMMAR.card.widthPx).toBeGreaterThan(0);
   });
 
-  it('a full V1 vista stage stays inside the animated-node budget', () => {
+  it('a full vista stage stays inside the animated-node budget', () => {
     // The vista composition swaps the DOM dressing, nothing else:
-    // the 3 parallax re-cut strips become 3 tileable band strips,
-    // and the 2 drifting aprops + the generic ember spans are
+    // the background is ONE plain painting (no band strips — the
+    // V1 band stack retired with the plain-bg ruling, 2026-11-11),
+    // and the drifting aprops + the generic ember spans are
     // superseded by 4 ambient canvases (far/mid/near/stage) whose
     // elements instance from scene data — canvas draws, not DOM
     // nodes, so the count is the canvases themselves.
@@ -221,7 +224,6 @@ describe('performance + payload budgets (§4.9)', () => {
       countPartNodes(STANDARD_ISSUE) + // hunter parts 10
       1 + // held weapon layer
       countRigNodes(enemyRig('brute')) + // enemy rig 4
-      3 + // vista band strips
       4 + // ambient canvases (far, mid, near, stage)
       1 + // weather tint
       1 + // hot pennant
@@ -311,7 +313,13 @@ describe('performance + payload budgets (§4.9)', () => {
     // branch's measured total, so the check now pins drift exactly
     // at the INT-2 landing (the parent reconciles the pin across
     // the parallel INT slices at merge time).
-
+    // Vistas plain-bg (2026-11-11, INT-6): the layered vista sets
+    // (24 band strips 38,227 B + 8 texel backgrounds 17,957 B =
+    // 56,184 B) leave the bundle; the 8 adopted master paintings
+    // (Top-Choice Wave 9.75 raw masters at Scenario-S shape — JPEG
+    // q88, 1440 wide; BlastForge carries its plain-bg re-roll)
+    // arrive at 1,997,744 B — a +1,941,560 B delta. Ambient sprites
+    // and camp props (10,318 B) are untouched.
 
     // INT-7 cache screen (2026-11-11): the Top-Choice cache family
     // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
@@ -350,17 +358,16 @@ describe('performance + payload budgets (§4.9)', () => {
     // slice with per-family accounting. Per the slice instruction the
     // ceiling literal is set to this branch's measured total, so the
     // check now pins drift exactly at the INT-5 landing.
-    // Reconciliation (parent merge drill, 2026-11-11): unified
-    // manifest = master (INT-1/INT-3/INT-4/INT-5/INT-7/INT-10
-    // landings, 447 entries, 27,641,424 B — the five gear-*
-    // mounted portraits ride at the hi-def records the INT-3
-    // reconciliation settled) + this slice's 29 gear entries
-    // (+6,621,531 B) = 476 entries, measured 34,262,955 B on the
-    // reconciled tree, every record asserted against its file;
-    // the ceiling literal follows the unified total +1. One
-    // sibling remains in flight (INT-6 vistas) and re-pins as
-    // it lands.
-    expect(total).toBeLessThan(34_262_955 + 1);  });
-
+    // Reconciliation (parent merge drill, 2026-11-11, FINAL):
+    // manifest = master after the INT-6 vistas landing (423
+    // entries, 29,582,984 B — the 24 band sprites deleted, the
+    // 8 zone/camp bg records swapped to the plain paintings) +
+    // this slice's 29 gear entries (+6,621,531 B) = 452
+    // entries, measured 36,204,515 B on the reconciled tree,
+    // every record asserted against its file; the ceiling
+    // literal follows the unified total +1. All ten Top-Choice
+    // integration slices have now landed — this pin is the
+    // program's final manifest state.
+    expect(total).toBeLessThan(36_204_515 + 1);  });
 
 });

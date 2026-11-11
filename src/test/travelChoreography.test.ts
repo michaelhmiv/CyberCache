@@ -36,11 +36,12 @@ import {
   feedTravel,
   sampleTravel,
   strideGroundSpeedPxS,
+  TRAVEL_FLOW_BASELINE_PX_S,
   travelPanMultiplier,
   travelStrideSpec,
   type TravelRunState,
 } from '@/lib/pixel/travelChoreography';
-import { CAMP_VISTA_SCENE, VISTA_SCENES, VISTA_STAGE_H } from '@/lib/pixel/vistaScenes';
+import { VISTA_SCENES, VISTA_STAGE_H } from '@/lib/pixel/vistaScenes';
 
 const SPEC = TRAVEL_SPECS.advance;
 const SCENE = VISTA_SCENES.dustwaste_frontier;
@@ -77,15 +78,15 @@ describe('travel choreography — the data', () => {
     expect(expected).toBeLessThan(125);
   });
 
-  it('the pan multiplier makes the near layer move at exactly the ground speed', () => {
+  it('the flow multiplier makes the scenery flow at exactly the ground speed', () => {
     const stride = STRIDE_SPECS.stride;
     for (const scene of Object.values(VISTA_SCENES)) {
-      if (scene.panPxS.near <= 0) continue;
-      const rate = travelPanMultiplier(stride, scene) * scene.panPxS.near;
+      // Plain-bg (2026-11-11): the retired near-band rate is the
+      // fixed baseline the multiplier divides by, so the product
+      // is the gait's ground speed for every roaming scene.
+      const rate = travelPanMultiplier(stride, scene) * TRAVEL_FLOW_BASELINE_PX_S;
       expect(rate).toBeCloseTo(strideGroundSpeedPxS(stride), 8);
     }
-    // No-pan scenes (camp) have no ground motion to sync.
-    expect(travelPanMultiplier(stride, CAMP_VISTA_SCENE)).toBe(1);
   });
 });
 
