@@ -620,6 +620,20 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     consumableCritBonus += fx.critChanceBonus ?? 0;
   }
 
+  // Attack-speed read (tuning T6): def-declared attackSpeedMultiplier
+  // (Overclock Serum declares 1.15, quality-scaling to its 1.30 cap)
+  // multiplies once per prepared TYPE — the same per-type discipline
+  // as the crit read above — and feeds the chain's step-1 cadence
+  // term for every weapon. Boss attempts price over the sim's 30s
+  // nominal window (calculateAmmoWindows); the serum's 60s window
+  // covers it entirely, so the buff applies attempt-wide, exactly
+  // how the sim treats every other pre-fight buff (none are
+  // window-discounted).
+  let consumableAttackSpeedMult = 1;
+  for (const { fx } of preparedFx) {
+    consumableAttackSpeedMult *= fx.attackSpeedMultiplier ?? 1;
+  }
+
   let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
 
   // Shield mitigation: % damage reduction effectively multiplies the survival pool.
@@ -1001,6 +1015,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       ammoEfficiency: ammoEff,
       bossDamageMod: primary.bossDamageMod,
       bonusStatusChance: skillStatusChance,
+      attackSpeedMultiplier: consumableAttackSpeedMult,
     });
     primaryDPS = chainDps * sub50CritMult(primary);
   }
@@ -1020,6 +1035,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       legendaryDamageMult: 1, // secondary doesn't get the primary's legendary bonus
       bossDamageMod: secondary.bossDamageMod,
       bonusStatusChance: skillStatusChance,
+      attackSpeedMultiplier: consumableAttackSpeedMult,
     });
     secondaryDPS = chainDps * secContrib * sub50CritMult(secondary);
   }
@@ -1039,6 +1055,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
       legendaryDamageMult: 1,
       bossDamageMod: heavy.bossDamageMod,
       bonusStatusChance: skillStatusChance,
+      attackSpeedMultiplier: consumableAttackSpeedMult,
     });
     heavyDPS = chainDps * 0.5 * (1 + (skillBonuses.heavyDamageBonus || 0));
     // Heavy Weapon Burst small nodes (Phase 2d): the heavy slot's own
