@@ -22,10 +22,10 @@ describe('Field Manual (HelpScreen)', () => {
     // 313, +1 One Grammar (Skins [[Gear]] cross-reference), +2 Hero
     // Pass H1 (Skins + Crafting [[Manufacturer Standing]] links) = 316,
     // +3 AL-4 trace pass (Activity-Log Extraction, Repair Board, and
-    // Shield-Tech cross-references) = 319, +2 boss cadence C1 (Combat
-    // and Endless-Mode each cross-reference [[Bosses]] for the attack
-    // pattern) = 321.
-    expect(await screen.findByText('321', {}, { timeout: 10000 })).toBeTruthy();
+    // Shield-Tech cross-references) = 319, +1 boss cadence C1 (Combat
+    // cross-references [[Bosses]] for the attack pattern; the
+    // Endless-Mode cadence note is link-free by design) = 320.
+    expect(await screen.findByText('320', {}, { timeout: 10000 })).toBeTruthy();
   });
 
   it('carries no trace of the retired guided tour or hand-written sections', () => {
