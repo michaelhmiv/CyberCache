@@ -229,16 +229,16 @@ describe('§9.2/§9.4 catalog and copy pins', () => {
     }
   });
 
-  it('batch numbers are byte-identical to the shipped catalog (no-change pin)', () => {
+  it('batch numbers are byte-identical to the shipped catalog (no-change pin; figures track tuning T3's repricing)', () => {
     const shield = getCraftRecipe('recipe_shield_cell_batch')!;
-    expect(shield.inputs).toEqual({ Scrap: 50, ReactiveComponents: 30 });
+    expect(shield.inputs).toEqual({ Scrap: 250, ReactiveComponents: 30 });
     expect(shield.unitDurationMs).toBe(1980000);
     expect(shield.outputQuantity).toBe(3);
     const patch = getCraftRecipe('recipe_patch_kit_batch')!;
-    expect(patch.inputs).toEqual({ Scrap: 10, ReactiveComponents: 3 });
+    expect(patch.inputs).toEqual({ Scrap: 25, ReactiveComponents: 3 });
     expect(patch.unitDurationMs).toBe(1584000);
     const ord = getCraftRecipe('recipe_ordnance_batch')!;
-    expect(ord.inputs).toEqual({ Scrap: 30, BallisticParts: 25 });
+    expect(ord.inputs).toEqual({ Scrap: 150, BallisticParts: 25 });
     expect(ord.unitDurationMs).toBe(1584000);
   });
 
