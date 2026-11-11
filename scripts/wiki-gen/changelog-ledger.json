@@ -28,6 +28,14 @@
         {
           "number": 474,
           "title": "Tuning T1R — Passive shield recharge (owner ruling 2026-11-10)"
+        },
+        {
+          "number": 475,
+          "title": "Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)"
+        },
+        {
+          "number": 477,
+          "title": "Tuning T3 — scrap portfolio (D3/P7+P8): repriced recipe Scrap legs + 25-Scrap listing deposit [migration 0087, do not merge before live apply]"
         }
       ]
     },
