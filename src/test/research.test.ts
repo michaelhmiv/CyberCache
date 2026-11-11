@@ -357,13 +357,13 @@ describe('batch recipes (Production Systems unlock)', () => {
     }
     // Shield Cell has no TS base recipe (vendor-only single; its base
     // lives only in the SQL catalog — a pre-existing divergence), so
-    // pin its batch against the SQL base numbers (20/12, 900,000 ms).
+    // pin its batch against the SQL base numbers (100/12, 900,000 ms — the single leg repriced 20 -> 100 by tuning T3).
     const shield = BATCH_RECIPES.find((r) => r.id === 'recipe_shield_cell_batch')!;
-    expect(shield.inputs).toEqual({ Scrap: 50, ReactiveComponents: 30 });
+    expect(shield.inputs).toEqual({ Scrap: 250, ReactiveComponents: 30 });
     expect(shield.unitDurationMs).toBe(1_980_000);
     // The one fractional case: Patch Kit ReactiveComponents 1 × 2.5 → 3.
     const patch = BATCH_RECIPES.find((r) => r.id === 'recipe_patch_kit_batch')!;
-    expect(patch.inputs).toEqual({ Scrap: 10, ReactiveComponents: 3 });
+    expect(patch.inputs).toEqual({ Scrap: 25, ReactiveComponents: 3 }); // T3: 2.5x the repriced single leg (10)
   });
 });
 
