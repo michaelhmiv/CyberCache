@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-11 — Vehicles and set pieces, painted whole
+
+- **Your vehicles are paintings now** — every class wears its new colors: the Scrap Bike in rust red and black, the Dune Buggy in olive and sand, the Utility Rover in safety orange with its white roof panels, the Cargo Hauler in rust brown, the Armored Crawler in gunmetal olive, the Relay Skimmer keeping its teal-cyan, and the Leviathan Rig in charcoal and rust-brown — the flagship is a full portrait now where a plain blockout used to stand. The Garage, the roaming diorama, and the market draw the same paintings, and the affix and wear overlays — cargo racks, scanner arrays, scuffs and smoke — ride over them exactly as before.
+- **The world's furniture matches** — the benches, the bay lift and its trays, the vendor stall and sign, the dispatch board, the extraction rig, the refinery, the research shelves, the resurrection pod, and the war-room table are all painted at the same quality now, everywhere they stand in the workshop, the market, and your Home.
+
 ## 2026-11-11 — Boss mechanics collect
 
 - **A boss's mechanic now charges what it advertises** — the line printed in a boss's prep is the line the fight measures: the Siltstalker's enrage is a kill-speed check (DPS 1.3), the Heap Guard's regen loop a shield-break check (1.2), Ashgut's burning ground a survival check (1.4), and the Rust Prophet's repairs and the Verdant Maw's regrowth are armor-break checks (1.5). Meet the line and the mechanic costs nothing; fall short and the shortfall taxes the attempt in proportion — no cliff, no free pass. The Scrap Bishop's three-phase siege measures all three of its layers (shield 1.25, armor 1.25, kill speed 1.35) and taxes on the weakest. Trait gates, the Mirror's adaptation, and the Widow's and Omega's ramps work exactly as before, and the Endless Chamber is untouched — the demands belong to the ladder.
