@@ -14,8 +14,9 @@ import type { BossDef } from '../types/boss';
  *    Corrosive ×1.30 is a DELIBERATE delta over the old ×1.25
  *    hardcode);
  *  - Prism Coating's break effect is real (changes the outcome);
- *  - the generic survival pool (legacy three bit-identical at their
- *    pooled values; MedKit Refined joins at its def 260);
+ *  - the generic survival pool (priced from the defs; since tuning
+ *    T2 the survival family pools as % of the hunter pool — MedKit
+ *    Refined joins at 30% of pool);
  *  - quality read in boss attempts (Luck/Data/Insurance rule totals
  *    scale with the def's declared quality scaling; Q100 = base);
  *  - mechanic flats / repair suppression / crit bonus reads.
@@ -166,10 +167,10 @@ describe('wiring — generic break reader', () => {
   it('Prism Coating\'s break effect is real: consuming it changes the sim outcome', () => {
     const bareShield = simWith({}, { boss: shieldBoss });
     const coatedShield = simWith({ PrismCoating: 1 }, { boss: shieldBoss });
-    expect(coatedShield.breakScore / bareShield.breakScore).toBeCloseTo(1.12, 6);
+    expect(coatedShield.breakScore / bareShield.breakScore).toBeCloseTo(1.18, 6);
     const bareArmor = simWith({}, { boss: armorBoss });
     const coatedArmor = simWith({ PrismCoating: 1 }, { boss: armorBoss });
-    expect(coatedArmor.breakScore / bareArmor.breakScore).toBeCloseTo(1.12, 6);
+    expect(coatedArmor.breakScore / bareArmor.breakScore).toBeCloseTo(1.18, 6);
     // A winnable-but-break-bound boss: the coating moves the actual
     // outcome number, not just the intermediate break totals.
     const winnable = { health: 2000, dps: 30 };
@@ -221,29 +222,36 @@ describe('wiring — generic survival pool', () => {
     return (withItem.survivalScore - base.survivalScore) * 300;
   };
 
-  it('legacy pool identity at Q100: MedKit pools 150, Shield Cell pools 100, NanoSwarm pools 250', () => {
-    expect(poolOf({ MedKit: 1 })).toBeCloseTo(150, 4);
-    expect(poolOf({ ShieldCell: 1 })).toBeCloseTo(100, 4);
-    expect(poolOf({ NanoSwarm: 1 })).toBeCloseTo(250, 4);
+  it('pool identity at Q100 (T2 %-of-pool): MedKit pools 260, Shield Cell pools 0 in this shield-less fixture, NanoSwarm pools 379.17', () => {
+    // The sim hunter pool is 1300 (level 10, no shield equipped), so
+    // Med Kit = 20% × 1300 at face, Nano Swarm = 35% × 1300 at the
+    // sim's 5/6 repair rate, and Shield Cell = 25% of a zero shield
+    // capacity — nothing to restore without a shield (nonzero restore
+    // pricing is pinned in tuningT2Consumables / damageContract).
+    expect(poolOf({ MedKit: 1 })).toBeCloseTo(260, 4);
+    expect(poolOf({ ShieldCell: 1 })).toBeCloseTo(0, 4);
+    expect(poolOf({ NanoSwarm: 1 })).toBeCloseTo(379.1667, 4);
   });
 
-  it('MedKit Refined enters the pool at its def heal of 260 (it used to add zero)', () => {
-    expect(poolOf({ MedKitRefined: 1 })).toBeCloseTo(260, 4);
+  it('MedKit Refined enters the pool at 30% of the 1300 pool — 390 (it used to add zero)', () => {
+    expect(poolOf({ MedKitRefined: 1 })).toBeCloseTo(390, 4);
     expect(poolOf({ MedKitRefined: 1 })).toBeGreaterThan(poolOf({ MedKit: 1 }));
   });
 
-  it('Adrenaline Shot\'s def-declared 80 heal pools like any other heal', () => {
+  it('Adrenaline Shot\'s def-declared 10%-of-pool heal pools like any other heal', () => {
     // The sim's long-standing Adrenaline rule multiplies the WHOLE
     // survival pool ×1.25 whenever a shot is prepared, so the pooled
-    // delta is (1300 hunter HP + 80) × 1.25 − 1300 = 425. Without the
-    // heal pooling it would be 1300 × 0.25 = 325 — the extra 100 is
-    // exactly the 80 heal × 1.25, proving the heal entered the pool.
-    expect(poolOf({ AdrenalineShot: 1 })).toBeCloseTo(425, 4);
+    // delta is (1300 hunter HP + 130 heal) × 1.25 − 1300 = 487.5.
+    // Without the heal pooling it would be 1300 × 0.25 = 325 — the
+    // extra 162.5 is exactly the 130 heal (10% of pool, T2) × 1.25,
+    // proving the heal entered the pool.
+    expect(poolOf({ AdrenalineShot: 1 })).toBeCloseTo(487.5, 4);
   });
 
-  it('pool contributions scale by the def quality read: a Q150 MedKit pools 225', () => {
-    expect(poolOf({ MedKit: 1 }, { MedKit: 150 })).toBeCloseTo(225, 4);
-    expect(poolOf({ ShieldCell: 1 }, { ShieldCell: 150 })).toBeCloseTo(150, 4);
+  it('pool contributions scale by the def quality read: a Q150 MedKit pools 390', () => {
+    expect(poolOf({ MedKit: 1 }, { MedKit: 150 })).toBeCloseTo(390, 4);
+    // Shield Cell stays 0 at any quality in this shield-less fixture.
+    expect(poolOf({ ShieldCell: 1 }, { ShieldCell: 150 })).toBeCloseTo(0, 4);
   });
 });
 
@@ -334,11 +342,11 @@ describe('wiring — ElementalCoating fold pin (#379 reader folded into the gene
   // def-driven break loop. These pins prove the fold preserved #379's
   // behavior EXACTLY ONCE: the coating is one def in the loop, priced
   // per type (never per unit, never squared by a leftover special
-  // case), with crafted quality scaling the def's 1.08 base.
+  // case), with crafted quality scaling the def’s 1.15 base (T2).
   const shieldBoss = { armor: 0 };
   const armorBoss = { shield: 0 };
 
-  it('Q100 coating multiplies the shield break score by exactly the def’s 1.08', () => {
+  it('Q100 coating multiplies the shield break score by exactly the def’s 1.15', () => {
     const bare = simWith({}, { boss: shieldBoss });
     const coated = simWith(
       { ElementalCoating: 1 },
@@ -346,28 +354,28 @@ describe('wiring — ElementalCoating fold pin (#379 reader folded into the gene
     );
     expect(bare.breakScore).toBeGreaterThan(0);
     expect(bare.breakScore).toBeLessThan(1); // the multiplier is not capped away
-    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.08, 6);
+    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.15, 6);
   });
 
-  it('Q100 coating multiplies the armor break score by exactly the def’s 1.08', () => {
+  it('Q100 coating multiplies the armor break score by exactly the def’s 1.15', () => {
     const bare = simWith({}, { boss: armorBoss });
     const coated = simWith(
       { ElementalCoating: 1 },
       { boss: armorBoss, consumableQuality: { ElementalCoating: 100 } },
     );
-    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.08, 6);
+    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.15, 6);
   });
 
-  it('a 150-quality batch multiplies by 1.12 — the fold keeps #379’s quality scaling', () => {
+  it('a 150-quality batch multiplies by 1.225 — the fold keeps #379’s quality scaling', () => {
     const bare = simWith({}, { boss: shieldBoss });
     const coated = simWith(
       { ElementalCoating: 1 },
       { boss: shieldBoss, consumableQuality: { ElementalCoating: 150 } },
     );
-    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.12, 6);
+    expect(coated.breakScore / bare.breakScore).toBeCloseTo(1.225, 6);
   });
 
-  it('two units price identically to one — per type, exactly once (a leftover special case would square it to ×1.1664)', () => {
+  it('two units price identically to one — per type, exactly once (a leftover special case would square it to ×1.3225)', () => {
     const bare = simWith({}, { boss: shieldBoss });
     const one = simWith(
       { ElementalCoating: 1 },
@@ -378,6 +386,6 @@ describe('wiring — ElementalCoating fold pin (#379 reader folded into the gene
       { boss: shieldBoss, consumableQuality: { ElementalCoating: 100 } },
     );
     expect(two.breakScore).toBeCloseTo(one.breakScore, 10);
-    expect(two.breakScore / bare.breakScore).toBeCloseTo(1.08, 6);
+    expect(two.breakScore / bare.breakScore).toBeCloseTo(1.15, 6);
   });
 });
