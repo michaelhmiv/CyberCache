@@ -269,6 +269,16 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
-    expect(total).toBeLessThan(11_620_000);
+    // INT-7 cache screen (2026-11-11): the Top-Choice cache family
+    // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
+    // palette-256 of the graded logo-identity closed master),
+    // prop-buried-cache 7,915 → 558,552 B (the adopted buried render,
+    // keyed with the wave's border-flood recipe), and the NEW
+    // prop-cache-crate-open 288,747 B (the reveal's ignition frame).
+    // Family before 16,055 B, after 1,104,713 B; manifest total
+    // 6,721,903 → 7,810,561 B. Per the slice instruction the ceiling
+    // literal is set to this branch's measured total, so the check
+    // now pins drift exactly at the INT-7 landing.
+    expect(total).toBeLessThan(7_810_562);
   });
 });
