@@ -183,8 +183,8 @@ describe('scrap meters — the real write routes move the counters', () => {
     const award = Number(recycle.json.scrap_award);
     expect(award).toBeGreaterThan(0);
 
-    // Crafting burn: Fuel Cell prices in Scrap (6 per unit) — two
-    // units escrow 12 Scrap at enqueue.
+    // Crafting burn: Fuel Cell prices in Scrap (15 per unit,
+    // repriced by tuning T3) — two units escrow 30 Scrap at enqueue.
     const setAction = await post('/api/activity/set', {
       nonce: nonce(), activity_kind: 'crafting', activity_payload: {}, public_payload: {},
     });
@@ -197,10 +197,10 @@ describe('scrap meters — the real write routes move the counters', () => {
     const after = await metricsForToday();
     expect(after.scrapMintedSalvage).toBe(award);
     expect(after.scrapMintedTotal).toBe(award);
-    expect(after.scrapDestroyedCrafting).toBe(12);
-    expect(after.scrapDestroyedTotal).toBe(12);
-    expect(after.netScrapChange).toBe(award - 12);
+    expect(after.scrapDestroyedCrafting).toBe(30);
+    expect(after.scrapDestroyedTotal).toBe(30);
+    expect(after.netScrapChange).toBe(award - 30);
     // The materials fold's Scrap leg agrees on this day (no tint).
-    expect(after.materialsDestroyedCrafting['Scrap']).toBe(12);
+    expect(after.materialsDestroyedCrafting['Scrap']).toBe(30);
   });
 });

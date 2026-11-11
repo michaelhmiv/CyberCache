@@ -877,6 +877,7 @@ describe('cache rank consumers — writes store', () => {
         writeProfile({
           id: A, credits: 0, skill_spends: { scav_fee_1: 5 },
           cache_rank_spends: { marketProceeds: 10 },
+          materials: { Scrap: 1000 }, // T3: A's listing posts the 25-Scrap deposit
         } as Partial<ProfileRowData> & { id: string }),
         writeProfile({ id: B, credits: 100_000 }),
       ];

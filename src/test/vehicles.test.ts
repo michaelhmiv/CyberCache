@@ -642,7 +642,7 @@ describe('vehicle market sale (writes mirror)', () => {
   it('lists as kind vehicle and sells intact — payload and condition preserved, 5% fee destroyed', async () => {
     const seed = emptyWriteSeed();
     seed.profiles = [
-      profile({ id: S, credits: 0 }),
+      profile({ id: S, credits: 0, materials: { Scrap: 100 } }), // T3: the vehicle listing posts the 25-Scrap deposit
       profile({ id: B, credits: 100_000 }),
     ];
     seed.items = [vehicleWriteItem()];

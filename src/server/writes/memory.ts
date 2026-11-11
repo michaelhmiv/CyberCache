@@ -18,6 +18,10 @@ import {
   type MarketFeeBreakdown,
 } from '../../lib/market/marketFee.js';
 import {
+  MARKET_LISTING_DEPOSIT_SCRAP,
+  clampListingDepositScrap,
+} from '../../lib/market/listingDeposit.js';
+import {
   compareQuickBuyRows,
   isQuickBuyGoodKind,
   planMarketSweep,
@@ -323,6 +327,16 @@ export interface InMemoryWriteOptions {
    * the mirror.
    */
   cacheRankLeverProvider?: () => Partial<CacheRankLeverValues>;
+  /**
+   * Live market listing-deposit lever (economy_config
+   * 'marketListingDepositScrap', 0087), resolved per listing
+   * creation — the mirror of the cc_market_create* functions
+   * reading the table inside their transaction. Defaults to
+   * MARKET_LISTING_DEPOSIT_SCRAP. Production creations run the SQL
+   * path; this provider exists so tests exercise the lever through
+   * the mirror.
+   */
+  listingDepositProvider?: () => number | Promise<number>;
 }
 
 function clone<T>(value: T): T {
@@ -345,6 +359,7 @@ export class InMemoryWriteStore implements WriteStore {
   private readonly shieldTechLeverProvider: () => Partial<ShieldTechLeverValues>;
   private readonly reforgeLeverProvider: () => Partial<ReforgeLeverValues>;
   private readonly cacheRankLeverProvider: () => Partial<CacheRankLeverValues>;
+  private readonly listingDepositProvider: () => number | Promise<number>;
   private craftViews = new Map<string, CraftProfileView>();
   /** Cache Rank grant log (0031 mirror of the cc_cache_rank_grant ledger rows) for test introspection. */
   readonly cacheRankGrantLog: Array<{ playerId: string; fromLevel: number; toLevel: number; tokens: number }> = [];
@@ -352,6 +367,14 @@ export class InMemoryWriteStore implements WriteStore {
   private profiles = new Map<string, ProfileRowData>();
   private items = new Map<string, WriteItemData>();
   private listings = new Map<string, WriteListingData>();
+  /** Listing deposits held per listing id (0087 mirror): the Scrap
+   *  charged at creation, snapshotted so a later lever move never
+   *  reprices a live listing; refunded on sale, burned on cancel.
+   *  Seed / pre-0087 listings carry no entry and read as 0 — the
+   *  same default the SQL column carries. Kept twin-side (not on
+   *  WriteListingData) so the shared row shape stays untouched; the
+   *  SQL column is the production truth. */
+  private listingDeposits = new Map<string, number>();
   private jobs = new Map<string, ServiceJobData>();
   private activities = new Map<string, ActiveActionData>();
   private snapshots = new Map<string, RuntimeSnapshotData>();
@@ -374,6 +397,7 @@ export class InMemoryWriteStore implements WriteStore {
     this.shieldTechLeverProvider = opts.shieldTechLeverProvider ?? (() => ({}));
     this.reforgeLeverProvider = opts.reforgeLeverProvider ?? (() => ({}));
     this.cacheRankLeverProvider = opts.cacheRankLeverProvider ?? (() => ({}));
+    this.listingDepositProvider = opts.listingDepositProvider ?? (() => MARKET_LISTING_DEPOSIT_SCRAP);
     // Maps hold the seed's own objects so test-visible state stays in sync.
     for (const p of this.seed.profiles) {
       // Econ 5 (0069): a seed's legacy `scrap` amount folds into the
@@ -665,7 +689,42 @@ export class InMemoryWriteStore implements WriteStore {
   }
 
   private listingJson(listing: WriteListingData): Json {
-    return clone(listing) as unknown as Json;
+    // 0087: the held deposit rides the listing JSON exactly as the
+    // SQL row's deposit_scrap column does (0 when none was charged).
+    const json = clone(listing) as unknown as Record<string, unknown>;
+    return { ...json, deposit_scrap: this.listingDeposits.get(listing.id) ?? 0 } as unknown as Json;
+  }
+
+  /** The lever-resolved listing deposit for a new listing (0087). */
+  private async resolvedListingDeposit(): Promise<number> {
+    return clampListingDepositScrap(await this.listingDepositProvider());
+  }
+
+  /**
+   * Charge the listing deposit against the seller's Scrap stack,
+   * mirroring the SQL create functions (0087): refuses BEFORE any
+   * escrow moves when the stack cannot cover it. Returns the amount
+   * charged — the snapshot the listing carries.
+   */
+  private chargeListingDeposit(p: ProfileRowData | null, deposit: number): number {
+    if (deposit > 0) {
+      const scrap = p?.materials?.['Scrap'] ?? 0;
+      if (!p || scrap < deposit) throw writeError('Insufficient scrap for the listing deposit');
+      p.materials = { ...(p.materials ?? {}), Scrap: scrap - deposit };
+      this.touch(p);
+    }
+    return deposit;
+  }
+
+  /** Refund the deposit held on a listing to its seller (the sale
+   *  paths, 0087) and clear the hold. A missing seller or a zero
+   *  hold refunds nothing. */
+  private refundListingDeposit(seller: ProfileRowData | null, listingId: string): void {
+    const deposit = this.listingDeposits.get(listingId) ?? 0;
+    this.listingDeposits.delete(listingId);
+    if (!seller || deposit <= 0) return;
+    seller.materials = { ...(seller.materials ?? {}), Scrap: ((seller.materials?.['Scrap'] ?? 0) + deposit) };
+    this.touch(seller);
   }
 
   private jobJson(job: ServiceJobData): Json {
@@ -1274,6 +1333,10 @@ export class InMemoryWriteStore implements WriteStore {
       if (takeQty >= stackQty) {
         listing.status = 'sold';
         listing.sold_at = this.nowIso();
+        // Listing deposit (0087): refunded to the seller only on
+        // the leg that CLOSES the listing — partial legs leave it
+        // held with the listing, the mirror of cc_quickbuy_fill.
+        this.refundListingDeposit(seller, listing.id);
       } else {
         listing.quantity = stackQty - takeQty;
         listing.price_credits -= charge;
@@ -4281,7 +4344,11 @@ export class InMemoryWriteStore implements WriteStore {
         quality_percent: typeof payload.quality === 'number' ? payload.quality : null,
         seller_type: 'player',
       };
+      // Listing deposit (0087): charged once for the listing,
+      // after every refusal above, before the listing exists.
+      const cosmeticDeposit = this.chargeListingDeposit(p, await this.resolvedListingDeposit());
       this.insertListing(cosmeticListing);
+      this.listingDeposits.set(cosmeticListing.id, cosmeticDeposit);
       item.runtime_state = 'listed';
       this.touchItem(item);
       this.recalcNetWorth(playerId);
@@ -4320,7 +4387,12 @@ export class InMemoryWriteStore implements WriteStore {
       // item's supply_mode is provenance, never seller identity.
       seller_type: 'player',
     };
+    // Listing deposit (0087): charged once for the listing, before
+    // it exists — the gear/vehicle branch of the single charge the
+    // SQL cc_market_create makes ahead of its branch split.
+    const deposit = this.chargeListingDeposit(p, await this.resolvedListingDeposit());
     this.insertListing(listing);
+    this.listingDeposits.set(listing.id, deposit);
     item.runtime_state = 'listed';
     this.touchItem(item);
     this.recalcNetWorth(playerId);
@@ -4353,6 +4425,9 @@ export class InMemoryWriteStore implements WriteStore {
     if (!batch) throw writeError('Consumable batch not found');
     if (!consumableListable(batch.consumable_type)) throw writeError('Consumable not listable on the player market');
     if (batch.quantity < qty) throw writeError('Insufficient consumable quantity');
+    // Listing deposit (0087): after batch validation, before the
+    // escrow decrement — the mirror of cc_market_create_consumable.
+    const deposit = this.chargeListingDeposit(p, await this.resolvedListingDeposit());
     batch.quantity -= qty;
     batch.updated_at = this.nowIso();
     if (p) {
@@ -4383,6 +4458,7 @@ export class InMemoryWriteStore implements WriteStore {
       seller_type: 'player',
     };
     this.insertListing(listing);
+    this.listingDeposits.set(listing.id, deposit);
     this.recalcNetWorth(playerId);
     const result: Json = {
       action_type: 'cc_market_create',
@@ -4414,7 +4490,16 @@ export class InMemoryWriteStore implements WriteStore {
     const p = this.profileOrNull(playerId);
     const materials = asNumberMap(p?.materials);
     if ((materials[materialId] ?? 0) < qty) throw writeError('Insufficient material quantity');
+    // Listing deposit (0087) with the same-stack rule: when the
+    // listed material IS Scrap, the deposit must clear against the
+    // stack that remains AFTER the escrow leaves — checked before
+    // anything moves, the mirror of cc_market_create_material.
+    const deposit = await this.resolvedListingDeposit();
+    if ((materials['Scrap'] ?? 0) - (materialId === 'Scrap' ? qty : 0) < deposit) {
+      throw writeError('Insufficient scrap for the listing deposit');
+    }
     materials[materialId] = (materials[materialId] ?? 0) - qty;
+    if (deposit > 0) materials['Scrap'] = (materials['Scrap'] ?? 0) - deposit;
     if (p) {
       p.materials = materials;
       this.touch(p);
@@ -4436,6 +4521,7 @@ export class InMemoryWriteStore implements WriteStore {
       seller_type: 'player',
     };
     this.insertListing(listing);
+    this.listingDeposits.set(listing.id, deposit);
     this.recalcNetWorth(playerId);
     const result: Json = {
       action_type: 'cc_market_create',
@@ -4471,6 +4557,8 @@ export class InMemoryWriteStore implements WriteStore {
     if (prior) return prior;
     const p = this.profileOrNull(playerId);
     if (!p || (p.legendary_cores ?? 0) < qty) throw writeError('Insufficient legendary core quantity');
+    // Listing deposit (0087): charged before the core escrow moves.
+    const deposit = this.chargeListingDeposit(p, await this.resolvedListingDeposit());
     p.legendary_cores = (p.legendary_cores ?? 0) - qty;
     this.touch(p);
     const listing: WriteListingData = {
@@ -4489,6 +4577,7 @@ export class InMemoryWriteStore implements WriteStore {
       seller_type: 'player',
     };
     this.insertListing(listing);
+    this.listingDeposits.set(listing.id, deposit);
     this.recalcNetWorth(playerId);
     const result: Json = {
       action_type: 'cc_market_create',
@@ -4514,6 +4603,8 @@ export class InMemoryWriteStore implements WriteStore {
     const p = this.profileOrNull(playerId);
     const essences = asNumberMap(p?.essences);
     if ((essences[essenceId] ?? 0) < qty) throw writeError('Insufficient essence quantity');
+    // Listing deposit (0087): charged before the essence escrow moves.
+    const deposit = this.chargeListingDeposit(p, await this.resolvedListingDeposit());
     essences[essenceId] = (essences[essenceId] ?? 0) - qty;
     if (p) {
       p.essences = essences;
@@ -4536,6 +4627,7 @@ export class InMemoryWriteStore implements WriteStore {
       seller_type: 'player',
     };
     this.insertListing(listing);
+    this.listingDeposits.set(listing.id, deposit);
     this.recalcNetWorth(playerId);
     const result: Json = {
       action_type: 'cc_market_create',
@@ -4604,11 +4696,18 @@ export class InMemoryWriteStore implements WriteStore {
       p.essences = essences;
       this.touch(p);
     }
+    // Listing deposit (0087): cancelling BURNS the deposit — it is
+    // not returned with the escrow above. The burn is reported on
+    // the result so the ledger carries the fact (Trace Law), the
+    // mirror of cc_market_cancel.
+    const depositBurned = this.listingDeposits.get(listingId) ?? 0;
+    this.listingDeposits.delete(listingId);
     const result: Json = {
       action_type: 'cc_market_cancel',
       profile: p ? this.profileSnapshot(p) : null,
       listing: this.listingJson(listing),
       item: item ? this.itemJson(item) : null,
+      deposit_burned: depositBurned,
     };
     return this.record(playerId, 'cc_market_cancel', key, result);
   }
@@ -4704,6 +4803,10 @@ export class InMemoryWriteStore implements WriteStore {
       seller.credits += feeBreakdown.sellerProceeds;
       this.touch(seller);
     }
+    // Listing deposit (0087): a completed sale refunds the deposit
+    // the seller posted at creation, in full — the mirror of
+    // cc_accept_listing. The 5% fee above is untouched by it.
+    this.refundListingDeposit(seller, listing.id);
     listing.status = 'sold';
     listing.sold_at = this.nowIso();
     const item = soldItem;
@@ -4843,6 +4946,10 @@ export class InMemoryWriteStore implements WriteStore {
     this.seed.listings = this.seed.listings.filter((l) => l.seller_user_id !== playerId && !(l.item_instance_id !== null && ownItemIds.has(l.item_instance_id)));
     for (const l of [...this.listings.values()]) {
       if (l.seller_user_id === playerId || (l.item_instance_id !== null && ownItemIds.has(l.item_instance_id))) this.listings.delete(l.id);
+    }
+    // 0087: holds on listings that no longer exist die with them.
+    for (const id of [...this.listingDeposits.keys()]) {
+      if (!this.listings.has(id)) this.listingDeposits.delete(id);
     }
     this.seed.items = this.seed.items.filter((i) => i.owner_user_id !== playerId);
     for (const id of ownItemIds) this.items.delete(id);

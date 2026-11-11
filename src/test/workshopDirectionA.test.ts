@@ -195,11 +195,11 @@ describe('readiness classification — the mock fixture, live derivation', () =>
 
   it('selected units reprice the material gate (totals honesty)', () => {
     const recipe = getCraftRecipe('recipe_medkit')!;
-    // A leaner wallet for the gate arithmetic: 42 Scrap in stock.
+    // A leaner wallet for the gate arithmetic: 100 Scrap in stock.
     const lean = fixtureCtx();
-    lean.materials = { ...lean.materials, Scrap: 42 };
+    lean.materials = { ...lean.materials, Scrap: 100 };
     const two = deriveRecipeReadiness(recipe, lean, { units: 2 });
-    expect(two.classification).toBe('craftable'); // 42/30 + 17/16 still holds
+    expect(two.classification).toBe('craftable'); // 100/80 + 17/16 still holds (Med Kit leg 40 since T3)
     const ten = deriveRecipeReadiness(recipe, lean, { units: 10 });
     expect(ten.blockerFamilies).toEqual(['materials']);
     expect(ten.shortages.map((s) => s.key)).toContain('Scrap');

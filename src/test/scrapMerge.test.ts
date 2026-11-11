@@ -159,7 +159,43 @@ describe('scrap merge — migration 0069 pins', () => {
       MIGRATION_0077.split('$catalog$')[1],
     ) as Array<Record<string, unknown>>;
     expect(catalog0077).toHaveLength(89);
-    expect(catalog0077).toEqual(JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)));
+    // Tuning T3 (2026-11-10) repriced the Scrap legs of 38
+    // consumable recipes in the live catalog (the new figures are
+    // pinned against migration 0087 in tuningT3ScrapPortfolio);
+    // 0077's rows for those are historical. The deep-equal carves
+    // them out mechanically: a carved row must differ from its TS
+    // row ONLY in inputs.Scrap (canonical stringify, sorted keys —
+    // the gateRemovalStep2 form), and everything else in 0077's
+    // catalog still deep-equals the TS catalog.
+    const tsRecipes = JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)) as Array<Record<string, unknown>>;
+    const tsById = new Map(tsRecipes.map((r) => [String(r.id), r]));
+    const canon = (v: unknown): string => {
+      if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
+      if (v && typeof v === 'object') {
+        return `{${Object.keys(v as Record<string, unknown>).sort()
+          .map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`).join(',')}}`;
+      }
+      return JSON.stringify(v);
+    };
+    const stripScrap = (row: Record<string, unknown>) => {
+      const clone = JSON.parse(JSON.stringify(row)) as Record<string, unknown>;
+      delete (clone.inputs as Record<string, number>)['Scrap'];
+      return clone;
+    };
+    const repricedByT3 = new Set(
+      catalog0077
+        .filter((r) => {
+          const ts = tsById.get(String(r.id));
+          return ts !== undefined
+            && canon(stripScrap(r)) === canon(stripScrap(ts))
+            && (r.inputs as Record<string, number>)['Scrap'] !== (ts.inputs as Record<string, number>)['Scrap'];
+        })
+        .map((r) => String(r.id)),
+    );
+    expect(repricedByT3.size).toBe(38);
+    const withoutRepriced = (rows: Array<Record<string, unknown>>) =>
+      rows.filter((r) => !repricedByT3.has(String(r.id)));
+    expect(withoutRepriced(catalog0077)).toEqual(withoutRepriced(tsRecipes));
     // 65 recipes price in Scrap after the rename; none keys the old id.
     expect(catalog.filter((r) => JSON.stringify(r.inputs ?? {}).includes('"Scrap"'))).toHaveLength(65);
     expect(JSON.stringify(catalog)).not.toContain('ScrapAlloy');
@@ -272,7 +308,7 @@ describe('scrap merge — writes twin settles on the stack', () => {
     const created = (await store.marketCreateMaterial(A, nonce(), 'Scrap', 400, 500)) as {
       listing?: { id?: string };
     };
-    expect(stackOf(store, A)).toBe(100_000 - 400);
+    expect(stackOf(store, A)).toBe(100_000 - 400 - 25); // escrow + the T3 listing deposit (refunded on the sale below)
     const listingId = created.listing?.id;
     expect(listingId).toBeTruthy();
     const bCreditsBefore = store.seed.profiles.find((p) => p.id === B)!.credits;

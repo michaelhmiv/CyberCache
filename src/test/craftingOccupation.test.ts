@@ -50,7 +50,7 @@ function seed(): WriteSeed {
   s.profiles = [
     profile({
       id: P,
-      materials: { Scrap: 1000, ReactiveComponents: 1000, BallisticParts: 500, TechFragments: 500, VoidDust: 100, RefinedAlloy: 50, TemperedParts: 50, ForgeheartIngots: 50 },
+      materials: { Scrap: 100_000, ReactiveComponents: 1000, BallisticParts: 500, TechFragments: 500, VoidDust: 100, RefinedAlloy: 50, TemperedParts: 50, ForgeheartIngots: 50 }, // Scrap raised (T3): the shared wallet funds the whole sequential suite at repriced legs; every assertion below is relative
       consumables: { WorkshopRushTicket: 1 },
     }),
     profile({ id: POOR, player_level: 1, credits: 100, materials: {} }),
@@ -116,8 +116,8 @@ describe('crafting occupation — job model through the shipped routes', () => {
       nonce: nonce(), bench: 1, recipe_id: 'recipe_medkit', units: 2,
     });
     expect(res.status).toBe(200);
-    // MedKit = 15 Scrap + 8 ReactiveComponents PER UNIT (brief §2.1).
-    expect(prof(P).materials.Scrap).toBe(before.Scrap - 30);
+    // MedKit = 40 Scrap + 8 ReactiveComponents PER UNIT (Scrap leg repriced 15 -> 40 by tuning T3).
+    expect(prof(P).materials.Scrap).toBe(before.Scrap - 80);
     expect(prof(P).materials.ReactiveComponents).toBe(before.ReactiveComponents - 16);
     const view = await get('/api/workshop/me', h.tokens[P]);
     const job = view.json.jobs.find((j: { recipeId: string }) => j.recipeId === 'recipe_medkit');
@@ -182,9 +182,9 @@ describe('crafting occupation — job model through the shipped routes', () => {
     advance(15 * 60 * 1000 + 60 * 1000); // unit 1 done (15m), 1m into unit 2
     const cancel = await post('/api/ops/craft-cancel', h.tokens[P], { nonce: nonce(), job_id: jobId });
     expect(cancel.status).toBe(200);
-    // ShieldCell inputs 20 Scrap + 12 Reactive per unit.
-    // Refund: in-progress floor(50%) = 10 + 6; unstarted 100% = 20 + 12.
-    expect(prof(P).materials.Scrap - matsAfterEnqueue.Scrap).toBe(30);
+    // ShieldCell inputs 100 Scrap + 12 Reactive per unit (Scrap leg repriced 20 -> 100 by tuning T3).
+    // Refund: in-progress floor(50%) = 50 + 6; unstarted 100% = 100 + 12.
+    expect(prof(P).materials.Scrap - matsAfterEnqueue.Scrap).toBe(150);
     expect(prof(P).materials.ReactiveComponents - matsAfterEnqueue.ReactiveComponents).toBe(18);
     expect(prof(P).consumables.ShieldCell).toBe(1); // completed unit kept
   });
@@ -294,7 +294,7 @@ describe('crafting occupation — job model through the shipped routes', () => {
       nonce: nonce(), bench: 1, recipe_id: 'recipe_medkit', units: 1,
     });
     expect(res.status).toBe(200);
-    expect(prof(GUEST).materials.Scrap).toBe(alloyBefore - 15); // MedKit escrow, same as verified
+    expect(prof(GUEST).materials.Scrap).toBe(alloyBefore - 40); // MedKit escrow, same as verified (leg repriced by T3)
     const setRes = await post('/api/activity/set', h.tokens[GUEST], {
       nonce: nonce(), activity_kind: 'crafting', activity_payload: {}, public_payload: {},
     });
@@ -318,7 +318,7 @@ describe('crafting occupation — job model through the shipped routes', () => {
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(second.json.job.jobId ?? second.json.job.id).toBe(first.json.job.jobId ?? first.json.job.id);
-    expect(matsBefore - prof(P).materials.Scrap).toBe(10); // AmmoPack = 10 Scrap, once
+    expect(matsBefore - prof(P).materials.Scrap).toBe(25); // AmmoPack = 25 Scrap, once (repriced by T3)
     await post('/api/ops/craft-cancel', h.tokens[P], { nonce: nonce(), job_id: (first.json.job.jobId ?? first.json.job.id) as string });
   });
 

@@ -117,6 +117,10 @@ function writeSeed(): WriteSeed {
     profile({
       id: S, username: 'seller', credits: 0,
       cache_token_parts: 4, cache_tokens: 0, legendary_cores: 3,
+      // Tuning T3: listing creation posts a 25-Scrap deposit — the
+      // seller carries a Scrap stack so creates reach the escrow
+      // moves these tests pin (no test here asserts the stack).
+      materials: { Scrap: 1000 },
       essences: { IgnitionFluid: 6, CryoGel: 2 },
     }),
     profile({

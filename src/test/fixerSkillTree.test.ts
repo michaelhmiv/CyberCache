@@ -855,7 +855,7 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
     ) => {
       const store = makeStore((s) => {
         s.profiles = [
-          profile({ id: P, credits: 0, skill_spends: spends }),
+          profile({ id: P, credits: 0, skill_spends: spends, materials: { Scrap: 1000 } }), // T3: the sale posts the listing deposit
           profile({ id: Q, credits: 100_000 }),
         ];
         s.items = [gearData(ITEM_1, P, payload)];
@@ -903,7 +903,7 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
   it('market: House Brand applies to crafted consumable batches (batch_origin rule)', async () => {
     const store = makeStore((s) => {
       s.profiles = [
-        profile({ id: P, credits: 0, consumables: { MedKit: 2 }, skill_spends: { fix_major_3: 1 } }),
+        profile({ id: P, credits: 0, consumables: { MedKit: 2 }, skill_spends: { fix_major_3: 1 }, materials: { Scrap: 1000 } }), // T3: deposit
         profile({ id: Q, credits: 100_000 }),
       ];
       s.consumableBatches = [{

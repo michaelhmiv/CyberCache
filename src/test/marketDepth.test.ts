@@ -265,9 +265,9 @@ function batch(overrides: Partial<ConsumableBatchData> & { id: string; owner_use
 function writeSeed(): WriteSeed {
   const s = emptyWriteSeed();
   s.profiles = [
-    profile({ id: S, username: 'seller', credits: 0, consumables: { MedKit: 10 }, materials: { Scrap: 40, VoidDust: 3 } }),
+    profile({ id: S, username: 'seller', credits: 0, consumables: { MedKit: 10 }, materials: { Scrap: 200, VoidDust: 3 } }), // Scrap 200 (T3): the sequence below posts five deposits — two cancel-burns, one sale refund, one cancel-burn, then the material listing
     profile({ id: B, username: 'buyer', credits: 100_000 }),
-    profile({ id: K, username: 'skilled', credits: 0, consumables: { ShieldCell: 2 }, skill_spends: { scav_fee_1: 5 } }),
+    profile({ id: K, username: 'skilled', credits: 0, consumables: { ShieldCell: 2 }, skill_spends: { scav_fee_1: 5 }, materials: { Scrap: 100 } }), // T3: K's listing posts the 25-Scrap deposit
     profile({ id: G, username: 'guest', account_type: 'guest', email_verified_at: null, consumables: { MedKit: 5 } }),
   ];
   s.consumableBatches = [
@@ -481,7 +481,7 @@ describe('market depth — write paths', () => {
     const listing = created.json.listing as Record<string, unknown>;
     expect(listing.listing_kind).toBe('material');
     expect(listing.identity_key).toBe('mat:Scrap');
-    expect(profileOf(S)?.materials.Scrap).toBe(30);
+    expect(profileOf(S)?.materials.Scrap).toBe(90); // 200 − 4×25 deposits (3 burned on cancels, 1 refunded on the consumable sale) − 10 escrowed here − 25 deposit on this listing
 
     const accepted = await post(h, '/api/ops/market-accept', h.tokens[B], {
       nonce: nonce(), listing_id: listing.id,

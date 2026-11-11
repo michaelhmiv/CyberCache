@@ -286,7 +286,7 @@ describe('signature materials (§2.5)', () => {
       scrap: 0,
       cache_tokens: 0,
       cache_token_parts: 0,
-      materials: { Siltglass: 3 },
+      materials: { Siltglass: 3, Scrap: 1000 }, // T3: listing the Siltglass posts the 25-Scrap deposit
       essences: {},
       consumables: {},
       skill_spends: {},
