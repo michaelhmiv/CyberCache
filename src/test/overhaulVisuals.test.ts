@@ -279,7 +279,7 @@ describe('performance + payload budgets (§4.9)', () => {
     // 6,721,903 → 7,810,561 B. Per the slice instruction the ceiling
     // literal is set to this branch's measured total, so the check
     // now pins drift exactly at the INT-7 landing.
-        // Top-Choice INT-5 (2026-11-11): the vehicles + set-pieces slice
+    // Top-Choice INT-5 (2026-11-11): the vehicles + set-pieces slice
     // swaps 34 sprites to the adopted Top-Choice paintings (palette-256
     // with true alpha, keyed full-frame at native master dimensions
     // via scripts/top-choice-vehicles-setpieces-swap.py — INT-7's
@@ -306,8 +306,6 @@ describe('performance + payload budgets (§4.9)', () => {
     // slice with per-family accounting. Per the slice instruction the
     // ceiling literal is set to this branch's measured total, so the
     // check now pins drift exactly at the INT-5 landing.
-    expect(total).toBeLessThan(20_675_708);
     expect(total).toBeLessThan(21_764_366);
->>>>>>> origin/master
   });
 });
