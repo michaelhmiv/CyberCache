@@ -1,0 +1,25 @@
+{
+  "sprite": "item-calibration-core",
+  "anchors": {
+    "feet": {
+      "x": 0.5617,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5616,
+      "y": 0.5328
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4847
+    },
+    "lootPoint": {
+      "x": 0.5616,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3526,
+      "y": 0.6246
+    }
+  }
+}

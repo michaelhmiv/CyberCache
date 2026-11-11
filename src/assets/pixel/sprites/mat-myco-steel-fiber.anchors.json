@@ -1,0 +1,25 @@
+{
+  "sprite": "mat-myco-steel-fiber",
+  "anchors": {
+    "feet": {
+      "x": 0.4289,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4912,
+      "y": 0.4398
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.2788
+    },
+    "lootPoint": {
+      "x": 0.5001,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.294,
+      "y": 0.6338
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "sprite": "mat-composite-plating",
+  "anchors": {
+    "feet": {
+      "x": 0.4939,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4894,
+      "y": 0.6346
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9417
+    },
+    "lootPoint": {
+      "x": 0.4885,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2497,
+      "y": 0.7259
+    }
+  }
+}

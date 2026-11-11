@@ -1,0 +1,25 @@
+{
+  "sprite": "item-forgeheart-charge",
+  "anchors": {
+    "feet": {
+      "x": 0.5558,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5811,
+      "y": 0.5562
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.3278
+    },
+    "lootPoint": {
+      "x": 0.7826,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3207,
+      "y": 0.6806
+    }
+  }
+}

@@ -1534,6 +1534,38 @@ each, confined to the hunter's frame).
 
 ---
 
+### 8.2 Top-Choice item paintings — consumables, materials, wallet (INT-4, 2026-11-11)
+
+The §8 density law governs composited texel art. The goods
+families left that regime under the owner's Top-Choice adoption
+(2026-11-11): consumables (Wave 11), materials + essences
+(Wave 12), and the wallet resources (Wave 12) now render as
+adopted painterly masters, shipped as manifest sprites
+(kind `item`) — produced by `scripts/topchoice-items-key.py`
+(Wave 9 white-key lineage; Prism Shards object-keyed past its
+painted checkerboard), fitted at 2× the family's largest
+display size, palette-256 with true alpha. `itemArt.ts` owns
+the id → sprite maps; `PixelConsumable` / `PixelMaterial` /
+`PixelWalletIcon` draw the sprites, so the one painting is the
+render on every surface and in the wiki plates. Fine detail
+at display size — not texel discipline — is the register for
+this family now, matching the game's adopted paintings.
+
+The runtime compositors (`consumableArt.ts` / `materialArt.ts`)
+leave the render path but stay in the tree: their rows remain
+the S2 pxl-lint corpus's data source. Materials move from
+ZERO sprite payload to real sprites with this landing
+(+360,330 B across the three families; the ceiling pin's
+accounting comment carries the per-family split).
+
+Cache Fragment is deleted with this landing (owner ruling
+2026-11-11): registry entry, wallet glyph mapping, Dashboard
+reward-icon mapping, and wiki presence removed. The abolished
+currency's storage counters in historical payloads still
+decode — they are data fields, never display.
+
+---
+
 ## 9. Surfacing — one canonical door per feature
 
 The coverage audit's closing rule, and this system's: **every feature has

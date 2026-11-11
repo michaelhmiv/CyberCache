@@ -1,0 +1,25 @@
+{
+  "sprite": "item-overclock-serum",
+  "anchors": {
+    "feet": {
+      "x": 0.5893,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5648,
+      "y": 0.5205
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9388
+    },
+    "lootPoint": {
+      "x": 0.5697,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3879,
+      "y": 0.7457
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "sprite": "mat-magnetite-cores",
+  "anchors": {
+    "feet": {
+      "x": 0.4989,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4949,
+      "y": 0.5982
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.9433
+    },
+    "lootPoint": {
+      "x": 0.4978,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3067,
+      "y": 0.7169
+    }
+  }
+}

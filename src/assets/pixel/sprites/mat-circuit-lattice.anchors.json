@@ -1,0 +1,25 @@
+{
+  "sprite": "mat-circuit-lattice",
+  "anchors": {
+    "feet": {
+      "x": 0.589,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5672,
+      "y": 0.4925
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.891
+    },
+    "lootPoint": {
+      "x": 0.5649,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3192,
+      "y": 0.6948
+    }
+  }
+}

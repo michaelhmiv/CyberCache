@@ -323,5 +323,22 @@ describe('performance + payload budgets (§4.9)', () => {
     // DELIBERATELY to the measured total of this branch, per the
     // Top-Choice adoption accounting; final reconciliation lands
     // when all slices merge.
-    expect(total).toBeLessThan(27_090_815 + 1);  });
+    expect(total).toBeLessThan(27_451_145 + 1);  });
+    // INT-4 Top-Choice consumables + materials (2026-11-11): the
+    // adopted Wave 11/12 masters land as manifest sprites (kind
+    // 'item', 77 entries) — consumables 44 × 104px +199,879 B
+    // (they carried no sprite payload before; the runtime texel
+    // compositor leaves the render path), materials + essences
+    // 26 × 104px +136,794 B (ZERO sprite payload before — the
+    // STUFF compositor + wallet glyphs), wallet resources
+    // 7 × 80px +23,657 B. Measured on this branch: pre-INT-4
+    // manifest total 6,721,903 B → 7,082,233 B (+360,330 B).
+    // Reconciliation (parent merge drill, 2026-11-11): unified
+    // manifest = master (INT-1/INT-5/INT-7 landings, 370 entries,
+    // 27,090,815 B) + this slice's 77 item entries (+360,330 B)
+    // = 447 entries, measured 27,451,145 B on the reconciled
+    // tree; the ceiling literal follows the unified total +1.
+    // In-flight siblings (INT-2 gear, INT-3 hero, INT-6 vistas)
+    // re-pin with their own accounting as they land.
+
 });
