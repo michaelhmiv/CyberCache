@@ -79,11 +79,11 @@ A strong matchup deals ×1.3 damage; a weak one ×0.7 (from `getElementMatchup`,
 | **Legendary** | 4–5 | +20 | 100% | ×8 | 1 |
 <!-- /wiki-gen:weapons -->
 
-<!-- GENERATED from src/constants/weaponTypes.ts, src/constants/manufacturers.ts, src/lib/pixel/weaponCardCompositor.ts, src/lib/pixel/showcaseWeaponInput.ts — do not edit by hand -->
+<!-- GENERATED from src/constants/weaponTypes.ts, src/constants/manufacturers.ts, scripts/wiki-gen/assets/weapons/frames/ — do not edit by hand -->
 <!-- wiki-gen:weapon-frames -->
 ### Weapon frames, pictured
 
-One representative Rare, Kinetic instance per type × manufacturer — frame and maker grammar are the variables; element and affixes are held neutral, and the seeds are fixed, so these are the same guns on every render. How the finished gun reads with an element lit is the next table.
+The adopted Top-Choice painting for each type × manufacturer — the maker's silhouette dialect is the variable. The masters are element-neutral, so no frame here carries an element light of its own; how a frame reads with an element lit is the next table.
 
 | Type | Redline | Ironwood | BlastForge | Prismatek | ThrowTech | HelixWorks |
 | --- | --- | --- | --- | --- | --- | --- |

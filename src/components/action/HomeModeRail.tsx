@@ -78,7 +78,7 @@ export const HomeModeRail: React.FC<HomeModeRailProps> = ({ activeStop, onSelect
             }`}
             style={lit ? { boxShadow: 'inset 0 2px 0 #FFC44D' } : undefined}
           >
-            <PxIcon name={def.icon} size={17} />
+            <PxIcon name={def.icon} size={17} color={lit ? '#FF9000' : '#B8B0A8'} />
             <span className="text-[11px] font-black uppercase tracking-[0.08em]">{def.label}</span>
           </motion.button>
         );

@@ -207,8 +207,11 @@ describe('ActionFeed — loot-log weapon thumbs render pixel', () => {
       />,
     );
     // V4: the feed thumb is the stage-density bespoke render — a
-    // canvas with the shared stage signature, never an <img>.
-    expect(container.querySelector('img')).toBeNull();
+    // canvas with the shared stage signature, never a baked sprite.
+    // (INT-10, 2026-11-11: functional icons render as <img>
+    // paintings elsewhere in the row, so the no-baked-sprite pin
+    // is scoped to the thumb itself: no img stands in for it.)
+    expect(container.querySelector('canvas')?.parentElement?.querySelector('img')).toBeFalsy();
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
     expect(canvas?.getAttribute('data-signature')).toBe(compositorSignature(legendaryWeapon));

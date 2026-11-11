@@ -42,7 +42,7 @@ export const VisualBadge: React.FC<VisualBadgeProps> = ({
       title={asset.label}
       aria-label={asset.label}
     >
-      {asset.icon ? <PxIcon name={asset.icon} size={size === 'lg' ? 26 : size === 'md' ? 17 : 13} /> : <span className={`leading-none ${classes.mark}`}>{asset.mark}</span>}
+      {asset.icon ? <PxIcon name={asset.icon} size={size === 'lg' ? 26 : size === 'md' ? 17 : 13} color={asset.color} /> : <span className={`leading-none ${classes.mark}`}>{asset.mark}</span>}
       {label && <span className={`leading-none text-text-primary ${classes.label}`}>{asset.shortLabel}</span>}
     </span>
   );
@@ -54,6 +54,6 @@ export const AssetMark: React.FC<{ asset: VisualAsset; className?: string }> = (
     style={{ color: asset.color, backgroundColor: `${asset.color}18`, clipPath: 'polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px)' }}
     title={asset.label}
   >
-    {asset.icon ? <PxIcon name={asset.icon} size={17} /> : asset.mark}
+    {asset.icon ? <PxIcon name={asset.icon} size={17} color={asset.color} /> : asset.mark}
   </span>
 );

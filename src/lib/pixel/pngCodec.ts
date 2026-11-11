@@ -179,6 +179,117 @@ export function encodePng(image: RgbaImage): Uint8Array {
   return out;
 }
 
+/**
+ * Encode an RGBA image as a palette PNG (color type 3 + tRNS) using a
+ * caller-supplied palette of at most 256 RGBA entries. Every pixel of
+ * the image must exactly equal a palette entry (the caller quantizes);
+ * an unlisted color throws. Rows are filtered per row with the
+ * standard minimum-sum-of-absolute-signed-bytes heuristic across all
+ * five PNG filters — deterministic for a given image. Added for the
+ * wiki's painted plates (Top-Choice INT-1), whose published form is
+ * palette-256 like the plates they replaced.
+ */
+export function encodePalettePng(
+  image: RgbaImage,
+  palette: readonly (readonly [number, number, number, number])[],
+): Uint8Array {
+  const { width, height, data } = image;
+  if (palette.length === 0 || palette.length > 256) {
+    throw new Error(`encodePalettePng: palette has ${palette.length} entries (1..256)`);
+  }
+  const indexByColor = new Map<number, number>();
+  palette.forEach(([r, g, b, a], i) => {
+    const key = ((a << 24) | (r << 16) | (g << 8) | b) >>> 0;
+    if (!indexByColor.has(key)) indexByColor.set(key, i);
+  });
+  const indices = new Uint8Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    const o = i * 4;
+    const key = ((data[o + 3] << 24) | (data[o] << 16) | (data[o + 1] << 8) | data[o + 2]) >>> 0;
+    const idx = indexByColor.get(key);
+    if (idx === undefined) {
+      throw new Error('encodePalettePng: a pixel color is not in the palette');
+    }
+    indices[i] = idx;
+  }
+  const ihdr = new Uint8Array(13);
+  const view = new DataView(ihdr.buffer);
+  view.setUint32(0, width);
+  view.setUint32(4, height);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 3; // color type: palette
+  const plte = new Uint8Array(palette.length * 3);
+  palette.forEach(([r, g, b], i) => {
+    plte[i * 3] = r;
+    plte[i * 3 + 1] = g;
+    plte[i * 3 + 2] = b;
+  });
+  const parts: Uint8Array[] = [new Uint8Array(PNG_SIGNATURE), chunk('IHDR', ihdr), chunk('PLTE', plte)];
+  // tRNS carries the alpha of every entry up to the last non-opaque one.
+  let lastAlpha = -1;
+  palette.forEach(([, , , a], i) => {
+    if (a !== 255) lastAlpha = i;
+  });
+  if (lastAlpha >= 0) {
+    const trns = new Uint8Array(lastAlpha + 1);
+    palette.forEach(([, , , a], i) => {
+      if (i <= lastAlpha) trns[i] = a;
+    });
+    parts.push(chunk('tRNS', trns));
+  }
+  // Filtered index rows (bpp = 1): per row keep the filter whose
+  // signed-byte absolute sum is smallest.
+  const raw = new Uint8Array((width + 1) * height);
+  for (let y = 0; y < height; y++) {
+    const row = indices.subarray(y * width, (y + 1) * width);
+    const prev = y > 0 ? indices.subarray((y - 1) * width, y * width) : null;
+    const filtered = new Uint8Array(width);
+    let bestFilter = 0;
+    let bestScore = Infinity;
+    let bestRow: Uint8Array = filtered;
+    for (let filter = 0; filter <= 4; filter++) {
+      let score = 0;
+      for (let x = 0; x < width; x++) {
+        const a = x > 0 ? row[x - 1] : 0;
+        const b = prev ? prev[x] : 0;
+        const c = prev && x > 0 ? prev[x - 1] : 0;
+        let predictor = 0;
+        if (filter === 1) predictor = a;
+        else if (filter === 2) predictor = b;
+        else if (filter === 3) predictor = (a + b) >> 1;
+        else if (filter === 4) {
+          const p = a + b - c;
+          const pa = Math.abs(p - a);
+          const pb = Math.abs(p - b);
+          const pc = Math.abs(p - c);
+          predictor = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+        }
+        const v = (row[x] - predictor) & 0xff;
+        filtered[x] = v;
+        score += v < 128 ? v : 256 - v;
+      }
+      if (score < bestScore) {
+        bestScore = score;
+        bestFilter = filter;
+        bestRow = filtered.slice();
+      }
+    }
+    const o = y * (width + 1);
+    raw[o] = bestFilter;
+    raw.set(bestRow, o + 1);
+  }
+  const idat = deflateSync(Buffer.from(raw), { level: 6 });
+  parts.push(chunk('IDAT', new Uint8Array(idat)), chunk('IEND', new Uint8Array(0)));
+  const total = parts.reduce((sum, p) => sum + p.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
 /** Pixel-diff with tolerance: returns the fraction of pixels whose
  *  per-channel delta exceeds `channelTolerance`, ignoring fully
  *  transparent pairs. Sizes must match. */

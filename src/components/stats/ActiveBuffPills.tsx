@@ -112,7 +112,7 @@ const BuffPill = memo(function BuffPill({
             className="mt-0.5 truncate text-[7px] leading-tight"
             style={{ color: accent }}
           >
-            <span className="inline-flex items-center gap-1"><PxIcon name="star5" size={13} /> {activePerk}</span>
+            <span className="inline-flex items-center gap-1"><PxIcon name="star5" size={13} color={accent} /> {activePerk}</span>
           </div>
         )}
       </div>

@@ -4,7 +4,10 @@
  * W4 pipeline (images.ts) to every remaining gear & goods family.
  *
  * Sources of truth (nothing here invents art):
- *   - Weapon frames / element reads: the game's card compositor
+ *   - Weapon frames: the adopted Top-Choice paintings (Wave 15
+ *     disposition A2) — one per type x manufacturer from
+ *     scripts/wiki-gen/assets/weapons/frames/, fitted by images.ts'
+ *     painted-plate path. Element reads: the game's card compositor
  *     (src/lib/pixel/weaponCardCompositor.ts via showcaseWeaponInput,
  *     exactly as W4) over representative instances built from
  *     src/constants/{weaponTypes,manufacturers,elements}.ts.
@@ -21,6 +24,7 @@
  *     ASSERTS the derived variant is the family the plate claims.
  *     Before INT-2 the plates were the pixel plate engine's grammar
  *     compositions; before that, procedural SVG illustrations.
+
  *   - Consumables: the game's consumable compositor
  *     (src/lib/pixel/consumableArt.ts) — the formed object each
  *     consumable renders as in game, over the defs in
@@ -33,11 +37,13 @@
  *     these plates used to digitize retired with census C-2.)
  *
  * Representative-instance rules (fixed, so plates are stable):
- *   - Frames: one Rare, Kinetic, rollQuality-75 instance per type x
- *     manufacturer, no affixes, pixelSeed = hash of the plate id. The
- *     audit's table said "Legendary finish"; the W5 brief overrides to
- *     mid-rarity representatives — a Rare frame is the gun players
- *     actually hold, and the legendary finish already has its own page.
+ *   - Frames: the adopted Wave 2 painting per type x manufacturer.
+ *     The generator asserts the painted source set equals the
+ *     type x manufacturer enumeration 1:1, so a missing or stray
+ *     painting fails the build instead of picturing the wrong gun.
+ *     (Pre-INT-1 these were Rare, Kinetic, rollQuality-75 compositor
+ *     instances; the paintings are element-neutral masters, the
+ *     Kinetic read of each base.)
  *   - Element reads: per type, ONE representative frame (the diagonal
  *     maker pairing type[i] <-> manufacturer[i] in source order, one
  *     fixed seed for the whole row) re-rolled with each element. Only
@@ -87,7 +93,15 @@ import { encodePng } from '../../src/lib/pixel/pngCodec';
 import { DropSource, Element, Rarity } from '../../src/types/game';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield } from '../../src/types/items';
 import { hashString } from '../../src/lib/utils/rng';
-import { PLATE_DISPLAY_WIDTH, rasterizeWeaponCard } from './images';
+import {
+  fitPaintedPlate,
+  paintedWeaponAssetBytes,
+  paintedWeaponAssetNames,
+  PLATE_DISPLAY_WIDTH,
+  rasterizeGearRender,
+  rasterizeWeaponCard,
+} from './images';
+import { WEAPON_BASE_PAINTING_STEMS } from '../../src/lib/pixel/weaponPaintingData';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePng } from '../../src/lib/pixel/pngCodec';
@@ -98,6 +112,7 @@ import {
   resolvePaintedGear,
 } from '../../src/lib/pixel/gearPaintedRender';
 import { REPO_ROOT } from './lib';
+
 import { type GenAsset, type GenBlock, table } from './lib';
 
 export const FRAME_PLATE_DIR = 'images/weapons/frames';
@@ -121,7 +136,7 @@ function sortAssets(assets: GenAsset[]): GenAsset[] {
 }
 
 /* ------------------------------------------------------------------ */
-/* Weapon frames + element reads (the card compositor, as W4)          */
+/* Weapon frames (painted, INT-1) + element reads (the card compositor) */
 /* ------------------------------------------------------------------ */
 
 const WEAPON_TYPE_LIST = Object.values(WEAPON_TYPES);
@@ -157,24 +172,33 @@ function frameFileStem(typeId: string, makerId: string): string {
 }
 
 export function weaponFramePlates(): GenAsset[] {
-  const plates: GenAsset[] = [];
-  for (const type of WEAPON_TYPE_LIST) {
-    for (const maker of MANUFACTURER_LIST) {
-      const stem = frameFileStem(type.id, maker.id);
-      plates.push(
-        weaponPlate(FRAME_PLATE_DIR, stem, {
-          name: `${type.name} — ${maker.name}`,
-          weaponType: type.id,
-          manufacturer: maker.id,
-          element: Element.Kinetic,
-          pixelSeed: hashString(`wiki-frame-${stem}`),
-          rollQuality: 75,
-          affixes: [],
-        }),
-      );
-    }
+  // INT-1: three sets must agree 1:1 — the type x manufacturer
+  // enumeration, the production data's painting stems
+  // (weaponPaintingData.ts, the manifest sprites' own record), and
+  // the painted source files. Any drift fails the build instead of
+  // picturing the wrong gun.
+  const enumerated = WEAPON_TYPE_LIST.flatMap((type) =>
+    MANUFACTURER_LIST.map((maker) => frameFileStem(type.id, maker.id)),
+  ).sort();
+  const production = [...WEAPON_BASE_PAINTING_STEMS].sort();
+  if (JSON.stringify(enumerated) !== JSON.stringify(production)) {
+    throw new Error(
+      `images-w5: production painting stems drifted from the type x manufacturer enumeration — enumerated [${enumerated.join(', ')}], production [${production.join(', ')}]`,
+    );
   }
-  return sortAssets(plates);
+  const expected = enumerated.map((stem) => `${stem}.png`);
+  const present = paintedWeaponAssetNames('frames');
+  if (JSON.stringify(expected) !== JSON.stringify(present)) {
+    throw new Error(
+      `images-w5: painted frame sources drifted from the type x manufacturer enumeration — expected [${expected.join(', ')}], found [${present.join(', ')}]`,
+    );
+  }
+  return sortAssets(
+    expected.map((fileName) => ({
+      path: `${FRAME_PLATE_DIR}/${fileName}`,
+      bytes: fitPaintedPlate(paintedWeaponAssetBytes('frames', fileName)),
+    })),
+  );
 }
 
 function elementFileStem(typeId: string, elementId: string): string {
@@ -216,7 +240,7 @@ function weaponFramesBody(): string {
   return [
     '### Weapon frames, pictured',
     '',
-    'One representative Rare, Kinetic instance per type × manufacturer — frame and maker grammar are the variables; element and affixes are held neutral, and the seeds are fixed, so these are the same guns on every render. How the finished gun reads with an element lit is the next table.',
+    'The adopted Top-Choice painting for each type × manufacturer — the maker\'s silhouette dialect is the variable. The masters are element-neutral, so no frame here carries an element light of its own; how a frame reads with an element lit is the next table.',
     '',
     table(['Type', ...MANUFACTURER_LIST.map((m) => m.name)], rows),
   ].join('\n');
@@ -227,8 +251,7 @@ export const weaponFramesBlock: GenBlock = {
   owners: [
     'src/constants/weaponTypes.ts',
     'src/constants/manufacturers.ts',
-    'src/lib/pixel/weaponCardCompositor.ts',
-    'src/lib/pixel/showcaseWeaponInput.ts',
+    'scripts/wiki-gen/assets/weapons/frames/',
   ],
   render: weaponFramesBody,
   assets: weaponFramePlates,

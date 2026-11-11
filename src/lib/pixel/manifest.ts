@@ -11,7 +11,13 @@ import type { MonsterArchetype } from '@/constants/monsters';
  * beams) — never hand-tuned pixel offsets per screen.
  */
 
-export type PixelSpriteKind = 'character' | 'enemy' | 'prop' | 'weapon-legendary' | 'background';
+export type PixelSpriteKind =
+  | 'character'
+  | 'enemy'
+  | 'prop'
+  | 'weapon-legendary'
+  | 'weapon-base'
+  | 'background';
 
 export interface PixelAnchor {
   x: number;

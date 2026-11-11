@@ -269,6 +269,18 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
+    // Top-Choice INT-1 weapons (2026-11-11): the production
+    // sprite layer for the adopted weapon paintings lands — 26
+    // legendaries (legendary-painting-*, 2,903,472 B) + 36 bases
+    // (weapon-base-*, 2,422,978 B) registered behind their trims
+    // (spriteProduction / weaponPaintingData), palette-256 with
+    // true alpha via the Wave 15 key_white recipe at the 1440
+    // card-width class. NO existing sprite file is modified and
+    // the in-game weapon renderers are untouched — the compositors
+    // still paint from authored data (V4); wiring the paintings
+    // into PixelWeapon is the scoped renderer step recorded in
+    // docs/top-choice-weapon-integration.md (needs the owner's
+    // source-of-truth / variety / element rulings first).
     // INT-2 gear paintings (2026-11-11): the Top-Choice gear family
     // lands — 29 NEW manifest sprites carrying the adopted Wave
     // 3/4/5/6 masters (keyed, content-cropped, palette-256, native
@@ -283,6 +295,7 @@ describe('performance + payload budgets (§4.9)', () => {
     // branch's measured total, so the check now pins drift exactly
     // at the INT-2 landing (the parent reconciles the pin across
     // the parallel INT slices at merge time).
+
     // INT-7 cache screen (2026-11-11): the Top-Choice cache family
     // lands — prop-cache-crate 8,140 → 257,414 B (the keyed-crop
     // palette-256 of the graded logo-identity closed master),
@@ -320,12 +333,14 @@ describe('performance + payload budgets (§4.9)', () => {
     // slice with per-family accounting. Per the slice instruction the
     // ceiling literal is set to this branch's measured total, so the
     // check now pins drift exactly at the INT-5 landing.
-    // INT-2 reconciliation onto master d7c27be8 (2026-11-11, the
-    // INT-5/INT-7 landings above ride): the merged manifest is
-    // 337 entries with a measured total of 28,385,896 B, and the
-    // ceiling literal follows it — the drift pin now sits exactly
-    // at the combined landing. Final reconciliation lands when
-    // all INT slices merge.
-    expect(total).toBeLessThan(28_385_897);
-  });
+    // Reconciliation (parent merge drill, 2026-11-11): unified
+    // manifest = master (INT-1/INT-5/INT-7/INT-10 landings, 370
+    // entries, 27,090,815 B) + this slice's 29 gear entries
+    // (+6,621,531 B) = 399 entries, measured 33,712,346 B on the
+    // reconciled tree, every record asserted against its file;
+    // the ceiling literal follows the unified total +1.
+    // In-flight siblings (INT-3 hero, INT-4 items, INT-6 vistas)
+    // re-pin with their own accounting as they land.
+    expect(total).toBeLessThan(33_712_346 + 1);  });
+
 });
