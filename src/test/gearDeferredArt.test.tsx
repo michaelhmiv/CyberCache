@@ -137,26 +137,28 @@ describe('deferred gear art', () => {
     expect(canvas.height).toBe(132);
   });
 
-  it('defers non-weapon gear the same way (plate grid geometry)', async () => {
+  it('painted gear ignores deferral — the painting mounts at final geometry at once', async () => {
+    // INT-2 (2026-11-11): shields render their adopted Top-Choice
+    // painting, which never composes — there is nothing for the
+    // deferral queue to defer. The painted placeholder canvas mounts
+    // immediately at the sprite's own geometry, deferred or not, and
+    // carries the painting's identity instead of a signature.
     installIO();
     const shield = makeShield('s-1', 'Deferred Aegis');
     const immediate = render(<GearIllustration item={shield} size={46} />);
-    const immediateSig = immediate.container.querySelector('canvas')!.getAttribute('data-signature');
-    expect(immediateSig).toBeTruthy();
-    const box = {
-      w: immediate.container.querySelector('canvas')!.width,
-      h: immediate.container.querySelector('canvas')!.height,
-    };
+    const immediateCanvas = immediate.container.querySelector('canvas')!;
+    expect(immediateCanvas.getAttribute('data-painted-sprite')).toBe('gear-shield-standard');
+    const box = { w: immediateCanvas.width, h: immediateCanvas.height };
     immediate.unmount();
 
     const deferred = render(<GearIllustration item={shield} size={46} defer />);
     const pending = deferred.container.querySelector('canvas')!;
-    expect(pending.getAttribute('data-deferred-art')).toBe('pending');
+    expect(pending.getAttribute('data-painted-sprite')).toBe('gear-shield-standard');
     expect(pending.width).toBe(box.w);
     expect(pending.height).toBe(box.h);
     await fireAllObservers(true);
     const canvas = deferred.container.querySelector('canvas')!;
-    expect(canvas.getAttribute('data-signature')).toBe(immediateSig);
+    expect(canvas.getAttribute('data-painted-sprite')).toBe('gear-shield-standard');
   });
 
   it('does not activate while off-screen', async () => {
@@ -187,11 +189,17 @@ describe('deferred gear art', () => {
     expect(rows).toHaveLength(12);
     for (const row of rows) {
       expect(row.querySelector('canvas[data-signature]')).toBeNull();
-      expect(row.querySelector('[data-deferred-art="pending"]')).not.toBeNull();
+      // INT-2: painted shields mount their painting placeholder at
+      // once (nothing composes, nothing defers); grammar-rendered
+      // weapons still mount the deferred placeholder.
+      const shieldRow = row.querySelector('[data-painted-sprite]') !== null;
+      if (!shieldRow) expect(row.querySelector('[data-deferred-art="pending"]')).not.toBeNull();
     }
     await fireAllObservers(true);
     for (const row of rows) {
-      expect(row.querySelector('canvas[data-signature]')).not.toBeNull();
+      const settled = row.querySelector('canvas[data-signature]')
+        ?? row.querySelector('[data-painted-sprite]');
+      expect(settled).not.toBeNull();
     }
   });
 });

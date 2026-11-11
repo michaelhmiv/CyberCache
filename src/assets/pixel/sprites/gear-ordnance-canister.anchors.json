@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-ordnance-canister",
+  "src": "top-choice/wave6-ordnance/renders/canister-top.png",
+  "out": "src/assets/pixel/sprites/gear-ordnance-canister.png",
+  "width": 1481,
+  "height": 1120,
+  "anchors": {
+    "feet": {
+      "x": 0.7553,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.7567,
+      "y": 0.5161
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5297
+    },
+    "lootPoint": {
+      "x": 0.7566,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.7567,
+      "y": 0.5161
+    }
+  }
+}

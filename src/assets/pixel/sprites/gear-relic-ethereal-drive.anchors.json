@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-ethereal-drive",
+  "src": "top-choice/wave4-relics/renders/ethereal-drive-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-ethereal-drive.png",
+  "width": 1969,
+  "height": 1184,
+  "anchors": {
+    "feet": {
+      "x": 0.4349,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5362,
+      "y": 0.5145
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4954
+    },
+    "lootPoint": {
+      "x": 0.6542,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.314,
+      "y": 0.6236
+    }
+  }
+}

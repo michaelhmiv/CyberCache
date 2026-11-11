@@ -189,7 +189,7 @@ Weapons are pictured in the frames and element tables above; the
 legendaries have their own page ([[Reference-Legendary-Effects]]).
 See [[Gear]] for how the slots play.
 
-<!-- GENERATED from src/lib/pixel/gearCardCompositor.ts, src/lib/pixel/shieldGrammar.ts, src/lib/pixel/ordnanceGrammar.ts, src/lib/pixel/classModGrammar.ts, src/lib/pixel/relicGrammar.ts, src/lib/combat/shieldBehaviors.ts — do not edit by hand -->
+<!-- GENERATED from src/lib/pixel/gearCardCompositor.ts, src/lib/pixel/gearPaintedData.ts, src/lib/pixel/gearPaintedRender.ts, src/lib/pixel/shieldGrammar.ts, src/lib/pixel/ordnanceGrammar.ts, src/lib/pixel/classModGrammar.ts, src/lib/pixel/relicGrammar.ts, src/lib/combat/shieldBehaviors.ts — do not edit by hand -->
 <!-- wiki-gen:gear-plates -->
 ### Shields
 

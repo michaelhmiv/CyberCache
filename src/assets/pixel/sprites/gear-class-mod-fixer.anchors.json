@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-class-mod-fixer",
+  "src": "top-choice/wave5-classmods/renders/classmod-fixer-top.png",
+  "out": "src/assets/pixel/sprites/gear-class-mod-fixer.png",
+  "width": 1984,
+  "height": 1088,
+  "anchors": {
+    "feet": {
+      "x": 0.555,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5528,
+      "y": 0.5197
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.655
+    },
+    "lootPoint": {
+      "x": 0.543,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2908,
+      "y": 0.6437
+    }
+  }
+}

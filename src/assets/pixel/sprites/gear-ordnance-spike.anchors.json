@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-ordnance-spike",
+  "src": "top-choice/wave6-ordnance/renders/spike-top.png",
+  "out": "src/assets/pixel/sprites/gear-ordnance-spike.png",
+  "width": 2156,
+  "height": 1118,
+  "anchors": {
+    "feet": {
+      "x": 0.513,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5141,
+      "y": 0.4826
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4642
+    },
+    "lootPoint": {
+      "x": 0.5198,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3001,
+      "y": 0.5433
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-scrap-core",
+  "src": "top-choice/wave4-relics/renders/scrap-core-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-scrap-core.png",
+  "width": 1336,
+  "height": 1110,
+  "anchors": {
+    "feet": {
+      "x": 0.5,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4939,
+      "y": 0.6163
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.718
+    },
+    "lootPoint": {
+      "x": 0.5769,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2531,
+      "y": 0.7207
+    }
+  }
+}

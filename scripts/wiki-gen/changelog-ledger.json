@@ -3,6 +3,15 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-11",
+      "merges": [
+        {
+          "number": 484,
+          "title": "Boss setup-diversity (slice C2): mechanic legs collect + Bishop composite; CryoAmmo re-read measured and dropped"
+        }
+      ]
+    },
+    {
       "date": "2026-11-10",
       "merges": [
         {

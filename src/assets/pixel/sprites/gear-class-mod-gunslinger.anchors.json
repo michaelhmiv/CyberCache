@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-class-mod-gunslinger",
+  "src": "top-choice/wave5-classmods/renders/classmod-gunslinger-top.png",
+  "out": "src/assets/pixel/sprites/gear-class-mod-gunslinger.png",
+  "width": 2124,
+  "height": 1067,
+  "anchors": {
+    "feet": {
+      "x": 0.5091,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5213,
+      "y": 0.5022
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6023
+    },
+    "lootPoint": {
+      "x": 0.5323,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3028,
+      "y": 0.6549
+    }
+  }
+}

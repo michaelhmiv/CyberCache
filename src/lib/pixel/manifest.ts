@@ -44,6 +44,15 @@ interface ManifestFile {
 
 const manifest = manifestData as ManifestFile;
 
+/**
+ * Raw manifest entry access lives in gearManifestData.ts — pure
+ * JSON, no Vite asset glob — because node-side tooling (the wiki
+ * generator) loads modules that need declared sprite geometry, and
+ * import.meta.glob does not exist there. Re-exported here so
+ * existing import sites keep working.
+ */
+export { getManifestEntry, hasManifestEntry } from './gearManifestData';
+
 /** Canonical texel size (source pixels per rendered pixel at 1x). */
 export const PIXEL_TEXEL = manifest.texel;
 
@@ -61,8 +70,12 @@ for (const [path, url] of Object.entries(spriteUrls)) {
 const sprites = new Map<string, PixelSprite>();
 for (const [id, entry] of Object.entries(manifest.sprites)) {
   const fileName = entry.src.split('/').pop() ?? entry.src;
-  const url = urlByFileName.get(fileName);
-  if (!url) continue; // integrity is enforced by src/test/pixelManifest.test.ts
+  // Declared entries always resolve: a missing glob URL (glob
+  // results vary by environment — the eager glob can drop large
+  // files under vitest) falls back to the declared path so a
+  // declared sprite is never silently absent from the map.
+  // Integrity is enforced by src/test/pixelManifest.test.ts.
+  const url = urlByFileName.get(fileName) ?? entry.src;
   sprites.set(id, {
     id,
     url,

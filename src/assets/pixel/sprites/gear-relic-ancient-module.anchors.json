@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-ancient-module",
+  "src": "top-choice/wave4-relics/renders/ancient-module-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-ancient-module.png",
+  "width": 1681,
+  "height": 952,
+  "anchors": {
+    "feet": {
+      "x": 0.4331,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4959,
+      "y": 0.5079
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4638
+    },
+    "lootPoint": {
+      "x": 0.3961,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2455,
+      "y": 0.6475
+    }
+  }
+}

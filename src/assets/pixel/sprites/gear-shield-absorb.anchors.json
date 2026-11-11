@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-shield-absorb",
+  "src": "top-choice/wave3-shields/renders/absorb-top.png",
+  "out": "src/assets/pixel/sprites/gear-shield-absorb.png",
+  "width": 1907,
+  "height": 918,
+  "anchors": {
+    "feet": {
+      "x": 0.4984,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5004,
+      "y": 0.4249
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.3855
+    },
+    "lootPoint": {
+      "x": 0.5101,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2266,
+      "y": 0.6099
+    }
+  }
+}

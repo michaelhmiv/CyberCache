@@ -8,14 +8,19 @@
  *     (src/lib/pixel/weaponCardCompositor.ts via showcaseWeaponInput,
  *     exactly as W4) over representative instances built from
  *     src/constants/{weaponTypes,manufacturers,elements}.ts.
- *   - Gear: the game's pixel plate engine — representative items run
- *     through each kind's grammar derivation in src/lib/pixel/
- *     (shieldGrammar / ordnanceGrammar / classModGrammar /
- *     relicGrammar) and composed by gearCardCompositor.ts, rasterized
- *     by images.ts' rasterizeGearRender. W5 originally exported the
- *     procedural SVG illustrations; gear marriage slice 5 retired
- *     that island and re-pointed these plates at the compositor, the
- *     same generator approach as the weapon plates above.
+ *   - Gear: the adopted Top-Choice paintings (INT-2, 2026-11-11) —
+ *     scripts/wiki-gen/assets/gear/, derived from the Wave 3/4/5/6
+ *     masters by derive-gear-paintings.py (Wave 15's derivation
+ *     recipe: key_white, content crop, fit into the plate box). The
+ *     plates are the paintings at the plates' published geometry,
+ *     re-rendered through the game's own painted-gear pipeline
+ *     (gearPaintedRender: palette-space element colorway + the live
+ *     node deck for class mods), so a plate shows the same render
+ *     signature the game shows. Representative items still run
+ *     through each kind's grammar derivation, and the generator
+ *     ASSERTS the derived variant is the family the plate claims.
+ *     Before INT-2 the plates were the pixel plate engine's grammar
+ *     compositions; before that, procedural SVG illustrations.
  *   - Consumables: the game's consumable compositor
  *     (src/lib/pixel/consumableArt.ts) — the formed object each
  *     consumable renders as in game, over the defs in
@@ -66,7 +71,7 @@ import { composeConsumable } from '../../src/lib/pixel/consumableArt';
 import { composeMaterial, materialArtRow } from '../../src/lib/pixel/materialArt';
 import { SHIELD_BEHAVIORS, type ShieldBehaviorId } from '../../src/lib/combat/shieldBehaviors';
 import { SKILL_NODES } from '../../src/constants/skillTrees';
-import { composeGear, type GearComposeInput, type GearGrammar } from '../../src/lib/pixel/gearCardCompositor';
+import { type GearGrammar } from '../../src/lib/pixel/gearCardCompositor';
 import { SHIELD_FAMILY_ROWS, shieldGrammar } from '../../src/lib/pixel/shieldGrammar';
 import {
   ORDNANCE_EFFECT_FORMS,
@@ -80,9 +85,19 @@ import type { ShowcaseItemPayload } from '../../src/lib/api/verifiedOps';
 import { showcaseWeaponInput } from '../../src/lib/pixel/showcaseWeaponInput';
 import { encodePng } from '../../src/lib/pixel/pngCodec';
 import { DropSource, Element, Rarity } from '../../src/types/game';
-import type { ClassMod, Ordnance, Relic, Shield } from '../../src/types/items';
+import type { ClassMod, GearItem, Ordnance, Relic, Shield } from '../../src/types/items';
 import { hashString } from '../../src/lib/utils/rng';
-import { PLATE_DISPLAY_WIDTH, rasterizeGearRender, rasterizeWeaponCard } from './images';
+import { PLATE_DISPLAY_WIDTH, rasterizeWeaponCard } from './images';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { decodePng } from '../../src/lib/pixel/pngCodec';
+import {
+  applyPaletteSwap,
+  drawPaintedNodeDeck,
+  paletteSwapFor,
+  resolvePaintedGear,
+} from '../../src/lib/pixel/gearPaintedRender';
+import { REPO_ROOT } from './lib';
 import { type GenAsset, type GenBlock, table } from './lib';
 
 export const FRAME_PLATE_DIR = 'images/weapons/frames';
@@ -264,8 +279,25 @@ export const weaponElementsBlock: GenBlock = {
  * exported. Every builder ASSERTS the derived variant is the
  * family the plate claims to show.
  */
-function gearPlatePng(input: GearComposeInput, grammar: GearGrammar): Uint8Array {
-  return encodePng(rasterizeGearRender(composeGear(input, grammar, 'card')));
+/* ------------------------------------------------------------------ */
+/* Painted gear plates (INT-2): the adopted Top-Choice paintings,      */
+/* derived into scripts/wiki-gen/assets/gear/ by                       */
+/* derive-gear-paintings.py and re-rendered through the game's own     */
+/* painted pipeline (colorway + live deck), so plate and game agree.   */
+/* ------------------------------------------------------------------ */
+
+const GEAR_ASSET_DIR = join(REPO_ROOT, 'scripts', 'wiki-gen', 'assets', 'gear');
+
+function paintedGearPlatePng(item: GearItem, grammar: GearGrammar, plateName: string): Uint8Array {
+  const resolution = resolvePaintedGear(item, grammar);
+  if (!resolution) {
+    throw new Error(`images-w5: no Top-Choice painting resolves for the ${plateName} plate item`);
+  }
+  const source = new Uint8Array(readFileSync(join(GEAR_ASSET_DIR, `${plateName}.png`)));
+  const swapped = applyPaletteSwap(source, paletteSwapFor(resolution));
+  const image = decodePng(swapped);
+  if (resolution.kind === 'classMod') drawPaintedNodeDeck(image, item);
+  return encodePng(image);
 }
 
 /** Plate colorways: one element per behavior, so the body paint varies across the row. */
@@ -370,7 +402,7 @@ export function gearPlates(): GenAsset[] {
     if (input.variant !== behavior) {
       throw new Error(`images-w5: shield plate item derived variant ${input.variant}, not ${behavior}`);
     }
-    plates.push({ path: `${GEAR_PLATE_DIR}/shield-${behavior}.png`, bytes: gearPlatePng(input, shieldGrammar) });
+    plates.push({ path: `${GEAR_PLATE_DIR}/shield-${behavior}.png`, bytes: paintedGearPlatePng(item, shieldGrammar, `shield-${behavior}`) });
   }
   for (const form of Object.keys(ORDNANCE_FORM_ROWS) as OrdnanceFormId[]) {
     const item = ordnancePlateItem(form);
@@ -378,7 +410,7 @@ export function gearPlates(): GenAsset[] {
     if (input.variant !== form) {
       throw new Error(`images-w5: ordnance plate item (${item.effect}) derived variant ${input.variant}, not ${form}`);
     }
-    plates.push({ path: `${GEAR_PLATE_DIR}/ordnance-${form}.png`, bytes: gearPlatePng(input, ordnanceGrammar) });
+    plates.push({ path: `${GEAR_PLATE_DIR}/ordnance-${form}.png`, bytes: paintedGearPlatePng(item, ordnanceGrammar, `ordnance-${form}`) });
   }
   for (const tree of CLASS_MOD_TREE_ORDER) {
     const item = classModPlateItem(tree);
@@ -386,7 +418,7 @@ export function gearPlates(): GenAsset[] {
     if (input.variant !== tree) {
       throw new Error(`images-w5: class mod plate item derived variant ${input.variant}, not ${tree}`);
     }
-    plates.push({ path: `${GEAR_PLATE_DIR}/class-mod-${kebab(tree)}.png`, bytes: gearPlatePng(input, classModGrammar) });
+    plates.push({ path: `${GEAR_PLATE_DIR}/class-mod-${kebab(tree)}.png`, bytes: paintedGearPlatePng(item, classModGrammar, `class-mod-${kebab(tree)}`) });
   }
   for (const row of RELIC_FORM_ROWS) {
     const item = relicPlateItem(row);
@@ -394,7 +426,7 @@ export function gearPlates(): GenAsset[] {
     if (input.variant !== `${row.formId}/world`) {
       throw new Error(`images-w5: relic plate item (${row.name}) derived variant ${input.variant}, not ${row.formId}/world`);
     }
-    plates.push({ path: `${GEAR_PLATE_DIR}/relic-${row.formId}.png`, bytes: gearPlatePng(input, relicGrammar) });
+    plates.push({ path: `${GEAR_PLATE_DIR}/relic-${row.formId}.png`, bytes: paintedGearPlatePng(item, relicGrammar, `relic-${row.formId}`) });
   }
   return sortAssets(plates);
 }
@@ -460,6 +492,8 @@ export const gearPlatesBlock: GenBlock = {
   id: 'gear-plates',
   owners: [
     'src/lib/pixel/gearCardCompositor.ts',
+    'src/lib/pixel/gearPaintedData.ts',
+    'src/lib/pixel/gearPaintedRender.ts',
     'src/lib/pixel/shieldGrammar.ts',
     'src/lib/pixel/ordnanceGrammar.ts',
     'src/lib/pixel/classModGrammar.ts',

@@ -140,6 +140,14 @@ every surface — since the V4 pass, that art is hand-authored pixel
 data (one authored piece set per legendary) rendered by the same
 weapon compositor as every procedural gun, not a painted sprite.
 
+Shields, relics, class mods and ordnance picture differently: each
+form is a full painting, the same portrait on every surface. A
+shield's element recolors the painting's lit surfaces — its
+emitter heart and glow lines — while the body stays the same
+metal in every colorway; a class mod's casing painting arrives
+with its deck window empty, and the live node field is drawn into
+that window from the mod's own boosts.
+
 ## Rarity and affixes
 
 Gear rolls in **5 rarities**, and rarity sets how many affixes (rolled

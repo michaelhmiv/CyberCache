@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-prime-laboratory",
+  "src": "top-choice/wave4-relics/renders/prime-laboratory-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-prime-laboratory.png",
+  "width": 1885,
+  "height": 1139,
+  "anchors": {
+    "feet": {
+      "x": 0.4656,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4457,
+      "y": 0.6067
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.5378
+    },
+    "lootPoint": {
+      "x": 0.4668,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.309,
+      "y": 0.6828
+    }
+  }
+}

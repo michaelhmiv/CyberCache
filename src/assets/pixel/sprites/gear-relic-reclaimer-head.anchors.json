@@ -1,0 +1,29 @@
+{
+  "sprite": "gear-relic-reclaimer-head",
+  "src": "top-choice/wave4-relics/renders/reclaimer-head-top.png",
+  "out": "src/assets/pixel/sprites/gear-relic-reclaimer-head.png",
+  "width": 1867,
+  "height": 1012,
+  "anchors": {
+    "feet": {
+      "x": 0.5559,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5483,
+      "y": 0.3335
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.4125
+    },
+    "lootPoint": {
+      "x": 0.5391,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3244,
+      "y": 0.5426
+    }
+  }
+}

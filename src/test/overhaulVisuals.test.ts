@@ -269,6 +269,20 @@ describe('performance + payload budgets (§4.9)', () => {
     // the weapon compositors. Manifest-sum total after V4:
     // 6,782,631 B. The ceiling stays 11,620,000 by the same owner
     // ruling — held, not lowered.
-    expect(total).toBeLessThan(11_620_000);
+    // INT-2 gear paintings (2026-11-11): the Top-Choice gear family
+    // lands — 29 NEW manifest sprites carrying the adopted Wave
+    // 3/4/5/6 masters (keyed, content-cropped, palette-256, native
+    // master size; derived by scripts/wiki-gen/
+    // derive-gear-paintings.py): shields 5 = 1,553,437 B, relics
+    // 16 = 3,505,470 B, class mods 4 = 888,116 B, ordnance
+    // 4 = 674,508 B — family total 6,621,531 B. The families REPLACE
+    // nothing in the manifest (gear rendered 100% procedurally
+    // before; the grammars stay as the fallback for identities with
+    // no painting). Manifest total 6,721,903 → 13,343,434 B. Per
+    // the slice instruction the ceiling literal is set to this
+    // branch's measured total, so the check now pins drift exactly
+    // at the INT-2 landing (the parent reconciles the pin across
+    // the parallel INT slices at merge time).
+    expect(total).toBeLessThan(13_343_435);
   });
 });

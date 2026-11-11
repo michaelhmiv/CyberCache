@@ -92,24 +92,32 @@ describe('shield grammar — registration + dispatch', () => {
     expect(Object.keys(SHIELD_FAMILY_ROWS).sort()).toEqual([...BEHAVIORS].sort());
   });
 
-  it('GearIllustration renders a shield as the pixel plate, never the SVG', () => {
+  it('GearIllustration renders a shield as its Top-Choice painting, never the SVG', () => {
+    // INT-2 (2026-11-11): the adopted Wave 3 painting outranks the
+    // grammar composition in the render seam — a legacy shield with
+    // no behavior field reads Standard, and the painted branch
+    // mounts its placeholder canvas at the sprite's geometry
+    // carrying the painting's identity (the decode lands async in
+    // a real browser; jsdom keeps the placeholder).
     const shield = makeShield();
+    delete shield.behavior;
     const { container } = render(<GearIllustration item={shield} size="card" showBadges={false} />);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
     expect(container.querySelector('svg')).toBeNull();
-    const expected = composeGear(shieldGrammar.inputFromItem!(shield), shieldGrammar, 'card');
-    expect(canvas!.dataset.signature).toBe(expected.signature);
-    expect(canvas!.dataset.density).toBe('card');
+    expect(canvas!.dataset.paintedSprite).toBe('gear-shield-standard');
+    expect(canvas!.dataset.paintedForm).toBe('standard');
   });
 
-  it('GearIllustration renders a shield thumb at the thumb density', () => {
+  it('GearIllustration renders a shield thumb from the same painting', () => {
+    // One render signature per item: the thumb is the same painting
+    // at a smaller CSS size, not a second composition.
     const shield = makeShield();
+    delete shield.behavior;
     const { container } = render(<GearIllustration item={shield} size={46} showBadges={false} />);
     const canvas = container.querySelector('canvas');
-    const expected = composeGear(shieldGrammar.inputFromItem!(shield), shieldGrammar, 'thumb');
-    expect(canvas!.dataset.signature).toBe(expected.signature);
-    expect(canvas!.dataset.density).toBe('thumb');
+    expect(canvas).not.toBeNull();
+    expect(canvas!.dataset.paintedSprite).toBe('gear-shield-standard');
   });
 });
 
