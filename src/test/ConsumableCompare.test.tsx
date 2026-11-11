@@ -23,7 +23,7 @@ describe('ConsumableCompare', () => {
   });
 
   it('shows green tone for candidate that has more of a positive effect', () => {
-    // MedKit: healHp 150. MedKitRefined: healHp 260. Refined is better heal.
+    // MedKit: healHpPctOfPool 0.20. MedKitRefined: 0.30. Refined is better heal.
     const { container } = render(
       <ConsumableCompare currentId="MedKit" candidateId="MedKitRefined" />,
     );
@@ -32,7 +32,7 @@ describe('ConsumableCompare', () => {
   });
 
   it('shows red tone when candidate is worse than current', () => {
-    // MedKitRefined: healHp 260. MedKit: healHp 150. MedKit is worse heal.
+    // MedKitRefined: healHpPctOfPool 0.30. MedKit: 0.20. MedKit is worse heal.
     const { container } = render(
       <ConsumableCompare currentId="MedKitRefined" candidateId="MedKit" />,
     );

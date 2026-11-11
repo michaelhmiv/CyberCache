@@ -226,11 +226,11 @@ describe('DPS modifier chain', () => {
       expect(result).toBeCloseTo(rawDps * 1.12, 4);
     });
 
-    it('applies IncendiaryAmmo (+8% per stack)', () => {
+    it('applies IncendiaryAmmo (+12% per stack)', () => {
       const weapon = makeWeapon({ element: Element.Shock });
       const rawDps = 100 * 5 * (1 + 0.2 * 1.5);
       const result = computeWeaponDps({ weapon, consumables: { IncendiaryAmmo: 1 } });
-      expect(result).toBeCloseTo(rawDps * 1.08, 4);
+      expect(result).toBeCloseTo(rawDps * 1.12, 4);
     });
 
     it('applies VoidAmmo (+22% per stack)', () => {
@@ -247,8 +247,8 @@ describe('DPS modifier chain', () => {
         weapon,
         consumables: { TargetPainter: 1, OverchargeStim: 1, IncendiaryAmmo: 1, VoidAmmo: 1 },
       });
-      // 1.15 * 1.12 * 1.08 * 1.22 = 1.6970688
-      expect(result).toBeCloseTo(rawDps * 1.6970688, 3);
+      // 1.15 * 1.12 * 1.12 * 1.22 = 1.7599232
+      expect(result).toBeCloseTo(rawDps * 1.7599232, 3);
     });
 
     it('stacks multiple of the same consumable type linearly then percentified', () => {

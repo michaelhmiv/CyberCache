@@ -828,7 +828,7 @@ export function processRoamingClaim(
   let roamingState: RoamingConsumableState | undefined = request.roamingConsumableState;
   if (!roamingState) {
     // Activate ALL owned consumables from inventory (no slot gating).
-    roamingState = activateFromInventory(consumableInventory, tickCount - ticks, request.consumableQualityProfile);
+    roamingState = activateFromInventory(consumableInventory, tickCount - ticks, request.consumableQualityProfile, { maxHp: survMaxHp, shieldCapacity });
   }
   const consumedConsumables: Record<string, number> = {};
 
@@ -1563,6 +1563,7 @@ export function processRoamingClaim(
         tickIndex: currentTickIndex,
         currentHp: survHp,
         maxHp: survMaxHp,
+        shieldCapacity,
         inventory: consumableInventory,
         masteryLevels,
         consumableQualityProfile: request.consumableQualityProfile,
@@ -1592,7 +1593,7 @@ export function processRoamingClaim(
       }
 
       // Apply Nano Swarm regen
-      const survState = getSurvivalState(roamingState);
+      const survState = getSurvivalState(roamingState, { maxHp: survMaxHp, shieldCapacity });
       if (survState.nanoSwarmHealThisTick > 0 && survHp > 0 && !survDead) {
         survHp = Math.min(survMaxHp, survHp + survState.nanoSwarmHealThisTick);
       }
@@ -2178,7 +2179,8 @@ export function processRoamingClaim(
   }
 
   // Compute buffer consumption from absorption (flat stacking model),
-  // per type: each full def-healHp of a type's pool absorbed = 1 unit of
+  // per type: each full per-unit heal (flat, or % of pool at this
+  // claim's pools) of a type's pool absorbed = 1 unit of
   // that type consumed. (The pre-repair code lumped both Med Kit types
   // into the base type's count at a hard-coded 150/unit, so Refined
   // absorption was charged as base Med Kits — or not at all, since
@@ -2188,7 +2190,7 @@ export function processRoamingClaim(
       if (!isBufferConsumable(slot.consumableId)) continue;
       const initialCount = initialBufferCounts[slot.consumableId] ?? 0;
       if (initialCount <= 0) continue;
-      const perUnit = bufferHealPerUnit(slot.consumableId, slot.qualityPercent ?? 100);
+      const perUnit = bufferHealPerUnit(slot.consumableId, slot.qualityPercent ?? 100, { maxHp: survMaxHp, shieldCapacity });
       if (perUnit <= 0) continue;
       const remainingFull = Math.floor(Math.max(0, slot.remainingBuffer) / perUnit);
       const consumed = initialCount - remainingFull;
@@ -2240,7 +2242,7 @@ export function processRoamingClaim(
     },
     // Server-authoritative survival HP for client synchronization
     survival: (() => {
-      const ss = roamingState ? getSurvivalState(roamingState) : null;
+      const ss = roamingState ? getSurvivalState(roamingState, { maxHp: survMaxHp, shieldCapacity }) : null;
       return {
         currentHp: survHp,
         shieldHp: survShield,

@@ -210,13 +210,14 @@ describe('Chef engine — def-driven outcomes', () => {
       tickCount: 20,
       playerLevel: 30,
       equippedGear: [],
-      survival: { currentHp: 5000, shieldHp: 0, maxHp: 5000, mitigation: 0 },
+      survival: { currentHp: 3000, shieldHp: 0, maxHp: 3000, mitigation: 0 },
       consumableInventory: { MedKitRefined: 2 },
     });
 
     // The slot exists (pre-repair it never activated), Helix damage
-    // (115–195 per hit) drains the full 2 × 260 pool, and the charge
-    // lands on the Refined type at its own def rate.
+    // (115–195 per hit) drains the full 2 × 30%-of-pool buffer
+    // (900/unit at this 3,000 pool), and the charge lands on the
+    // Refined type at its own def rate.
     expect(result.roamingConsumableState?.slots.map((s) => s.consumableId)).toEqual(['MedKitRefined']);
     expect(result.survival.medKitBuffer).toBe(0);
     expect(result.consumedConsumables).toEqual({ MedKitRefined: 2 });

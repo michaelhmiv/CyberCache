@@ -308,10 +308,10 @@ export const ActionScreenContextual: React.FC<{
     const playerState = usePlayerStore.getState();
     const medKitCount = playerState.consumables['MedKit'] ?? 0;
     if (medKitCount > 0) {
-      survivalStore.setMedKitBuffer(medKitCount * computeMedKitBuffer('MedKit'));
+      survivalStore.setMedKitBuffer(medKitCount * computeMedKitBuffer('MedKit', survivalStore.maxHp));
     }
     if ((playerState.consumables['NanoSwarm'] ?? 0) > 0) {
-      survivalStore.startNanoSwarm(30); // 30 ticks × 10 HP = 300 HP
+      survivalStore.startNanoSwarm(30); // local mirror — the Chef syncs authoritative ticks; the swarm repairs 35% of pool over 30s (T2/P4)
     }
     return startAction(buildRoamingLootActivity(target, activityWeapon), makeRunEvent('ROAMING AREA', `Hunter is roaming ${target.name}.`, 'patrol', 'run_started'));
   }, [activityWeapon, idle, selectedArea, startAction]);

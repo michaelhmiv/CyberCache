@@ -713,7 +713,7 @@ describe('simulateBoss shield behaviors', () => {
     const two = simulateBoss(
       bossInput({
         shield: makeShield({ behavior: 'nova', hp: 200 }),
-        consumables: { ShieldCell: 2 }, // +200 refill pool ≥ 50% of capacity
+        consumables: { ShieldCell: 3 }, // +125 refill pool ≥ 50% of capacity (3 × 25% of the 200 capacity, at the sim's 5/6 field rate)
       }),
     );
     expect(two.timeToKill).toBeCloseTo((10000 - 600) / one.effectiveDPS, 4);

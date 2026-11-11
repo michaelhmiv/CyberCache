@@ -32,15 +32,26 @@ export function buildEffectSummary(
     parts.push(`+${Math.round(buff.value)} HP buffer`);
   } else if (typeof e.healHp === 'number' && e.healHp > 0) {
     parts.push(`Heal ${Math.round(e.healHp)} HP`);
+  } else if (typeof e.healHpPctOfPool === 'number' && e.healHpPctOfPool > 0) {
+    parts.push(`Heal ${Math.round(e.healHpPctOfPool * 100)}% of pool`);
   }
   if (typeof e.shieldRestore === 'number' && e.shieldRestore > 0) {
     parts.push(`+${Math.round(e.shieldRestore)} Shield`);
+  }
+  if (typeof e.shieldRestorePctOfCapacity === 'number' && e.shieldRestorePctOfCapacity > 0) {
+    parts.push(`Shield +${Math.round(e.shieldRestorePctOfCapacity * 100)}% of cap`);
   }
   if (typeof e.repairTotalHp === 'number' && e.repairTotalHp > 0) {
     const dur = typeof e.repairDurationSeconds === 'number' && e.repairDurationSeconds > 0
       ? ` / ${Math.round(e.repairDurationSeconds)}s`
       : '';
     parts.push(`Repair ${Math.round(e.repairTotalHp)} HP${dur}`);
+  }
+  if (typeof e.repairTotalHpPctOfPool === 'number' && e.repairTotalHpPctOfPool > 0) {
+    const dur = typeof e.repairDurationSeconds === 'number' && e.repairDurationSeconds > 0
+      ? ` / ${Math.round(e.repairDurationSeconds)}s`
+      : '';
+    parts.push(`Repair ${Math.round(e.repairTotalHpPctOfPool * 100)}% of pool${dur}`);
   }
 
   // ─ Multiplier effects (delta from 1.0) ─

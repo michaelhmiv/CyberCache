@@ -178,6 +178,7 @@ export function buildCharacterStatSummary(input: CharacterStatSummaryInput): Cha
     consumableInventory,
     activeBuffs,
     medKitBuffer: survivalStoreBuffer,
+    survivalPool: mechanics.maxHp.value,
   });
 
   const dpsConsumableContribs = consumableSources.dps;

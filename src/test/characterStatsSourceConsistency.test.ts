@@ -78,8 +78,8 @@ describe('character stat source consistency', () => {
       expect.arrayContaining([
         expect.objectContaining({
           source: 'Med Kit ×12',
-          value: 1800,
-          display: '1,800',
+          value: 1824,
+          display: '1,824',
           bucket: 'consumable',
         }),
       ]),
@@ -89,8 +89,8 @@ describe('character stat source consistency', () => {
       expect.arrayContaining([
         expect.objectContaining({
           label: 'Med Kit ×12',
-          value: 1800,
-          display: '1,800',
+          value: 1824,
+          display: '1,824',
         }),
       ]),
     );

@@ -64,22 +64,23 @@ describe('Elemental Coating — the def is a live craftable', () => {
     expect(def.runtime.activityScopes).toEqual(['boss']);
   });
 
-  it('keeps its shipped effect: 1.08 shield + armor break at quality 100', () => {
+  it('keeps its shipped effect: 1.15 shield + armor break at quality 100', () => {
     const at100 = getConsumableRuntimeEffects('ElementalCoating', 100);
-    expect(at100.shieldBreakMultiplier).toBeCloseTo(1.08, 10);
-    expect(at100.armorBreakMultiplier).toBeCloseTo(1.08, 10);
+    expect(at100.shieldBreakMultiplier).toBeCloseTo(1.15, 10);
+    expect(at100.armorBreakMultiplier).toBeCloseTo(1.15, 10);
   });
 
   it('crafted quality actually scales the effect, like its peers', () => {
     expect(def.quality.craftMin).toBe(75);
     expect(def.quality.craftMax).toBe(150);
     const at150 = getConsumableRuntimeEffects('ElementalCoating', 150);
-    // multiplierDelta: 1 + 0.08 × 1.5 = 1.12 — a perfect baseline
-    // coating reaches exactly Prism Coating's base value.
-    expect(at150.shieldBreakMultiplier).toBeCloseTo(1.12, 10);
-    expect(at150.armorBreakMultiplier).toBeCloseTo(1.12, 10);
+    // multiplierDelta: 1 + 0.15 × 1.5 = 1.225 — since T2 raised the
+    // whole break family, a perfect baseline coating overshoots
+    // Prism Coating's 1.18 base.
+    expect(at150.shieldBreakMultiplier).toBeCloseTo(1.225, 10);
+    expect(at150.armorBreakMultiplier).toBeCloseTo(1.225, 10);
     const prism = getConsumableRuntimeEffects('PrismCoating', 100);
-    expect(prism.shieldBreakMultiplier).toBeCloseTo(1.12, 10); // the premium still starts higher
+    expect(prism.shieldBreakMultiplier).toBeCloseTo(1.18, 10); // the premium still starts higher
   });
 });
 
@@ -242,7 +243,7 @@ describe('boss sim — a prepared coating moves the break score', () => {
     skillBonuses: {}, pityCount: 0, playerCredits: 0,
   } as const;
 
-  it('quality 100 multiplies the break score by the def’s 1.08', () => {
+  it('quality 100 multiplies the break score by the def’s 1.15', () => {
     const bare = simulateBoss({ ...base });
     const coated = simulateBoss({
       ...base,
@@ -251,17 +252,17 @@ describe('boss sim — a prepared coating moves the break score', () => {
     });
     expect(bare.breakScore).toBeGreaterThan(0);
     expect(bare.breakScore).toBeLessThan(1); // the multiplier is not capped away
-    expect(coated.breakScore).toBeCloseTo(bare.breakScore * 1.08, 10);
+    expect(coated.breakScore).toBeCloseTo(bare.breakScore * 1.15, 10);
   });
 
-  it('a 150-quality batch multiplies by 1.12 — crafted quality is priced', () => {
+  it('a 150-quality batch multiplies by 1.225 — crafted quality is priced', () => {
     const bare = simulateBoss({ ...base });
     const coated = simulateBoss({
       ...base,
       consumables: { ElementalCoating: 1 },
       consumableQuality: { ElementalCoating: 150 },
     });
-    expect(coated.breakScore).toBeCloseTo(bare.breakScore * 1.12, 10);
+    expect(coated.breakScore).toBeCloseTo(bare.breakScore * 1.225, 10);
   });
 
   it('the attempt charges the coating (onAttempt, win or lose)', () => {

@@ -583,22 +583,28 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // prices each field at the pooled model's long-standing field
   // rate: direct heal at face, shield restore and repair at 5/6 of
   // face — the discount the sim has always applied to those two
-  // fields. The legacy three therefore resolve bit-identically at
-  // any quality: MedKit healHp 150 × 1, Shield Cell shieldRestore
-  // 120 × 100/120 = the sim's 100 pool value, NanoSwarm
-  // repairTotalHp 300 × 250/300 = 250. What changes is membership:
-  // the pool is no longer a hardcoded guest list — MedKit Refined's
-  // declared 260 heal pools like any other heal (it used to be
-  // consumed on losses and add zero), and Adrenaline Shot's declared
-  // 80 heal pools too.
+  // fields.
+  //
+  // Tuning T2/P4 (2026-11-10): the survival family no longer declares
+  // flat amounts — heals and repairs declare a fraction of the
+  // survival pool (playerHP + playerShieldHP, the same pool the
+  // roaming engine prices), shield restores a fraction of shield
+  // capacity. The fractions resolve against THIS attempt's pools
+  // before the field rate applies: a Q100 Med Kit pools
+  // 0.20 × pool at face, a Shield Cell 0.25 × playerShieldHP × 5/6,
+  // a Nano Swarm 0.35 × pool × 5/6. A flat declaration, if one ever
+  // returns, still prices exactly as before. Membership is unchanged
+  // from the wiring package: MedKit Refined's and Adrenaline Shot's
+  // declared heals pool like any other heal.
   const preparedFx = preparedBossEffects(consumables, input.consumableQuality);
+  const survivalPoolTotal = playerHP + playerShieldHP;
   let medkitHealing = 0;
   let shieldCellBoost = 0;
   let nanoSwarmRepair = 0;
   for (const { count, fx } of preparedFx) {
-    medkitHealing += count * (fx.healHp ?? 0);
-    shieldCellBoost += count * (fx.shieldRestore ?? 0) * (100 / 120);
-    nanoSwarmRepair += count * (fx.repairTotalHp ?? 0) * (250 / 300);
+    medkitHealing += count * (fx.healHp ?? (fx.healHpPctOfPool ?? 0) * survivalPoolTotal);
+    shieldCellBoost += count * (fx.shieldRestore ?? (fx.shieldRestorePctOfCapacity ?? 0) * playerShieldHP) * (100 / 120);
+    nanoSwarmRepair += count * (fx.repairTotalHp ?? (fx.repairTotalHpPctOfPool ?? 0) * survivalPoolTotal) * (250 / 300);
   }
 
   // Generic crit read (wiring package): def-declared critChanceBonus
