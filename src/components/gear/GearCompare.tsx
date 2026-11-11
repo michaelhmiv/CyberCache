@@ -16,9 +16,9 @@
  * Direction of "better" is declared per stat, never assumed from
  * the sign alone (the ConsumableCompare discipline): every entry
  * carries its own verdict, and facts with no honest verdict —
- * element, shield behavior, recharge (no engine consumes
- * rechargeRate; ARCHITECTURE.md shield-defense row) — print as
- * neutral lines, never green/red.
+ * element, shield behavior, recharge (a rate whose worth depends
+ * on how much quiet time a build gets; ARCHITECTURE.md
+ * shield-defense row) — print as neutral lines, never green/red.
  */
 import React from 'react';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
@@ -93,8 +93,10 @@ function shieldDeltas(current: Shield, candidate: Shield): DeltaEntry[] {
   return [
     numDelta('HP', current.hp, candidate.hp),
     pctDelta('Mit', current.mitigation, candidate.mitigation),
-    // Recharge is an item FACT only: no engine consumes
-    // rechargeRate, so its delta is never colored as a trade.
+    // Recharge prints as an item FACT: the engines consume
+    // rechargeRate (suppression-ruled, shieldBehaviors.ts), but a
+    // rate delta's worth depends on the build's quiet time, so its
+    // delta is never colored as a trade.
     (() => {
       const entry = numDelta('Rech', current.rechargeRate, candidate.rechargeRate);
       return { ...entry, better: null };

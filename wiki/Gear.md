@@ -15,7 +15,9 @@ Your loadout has eight slots. Seven are gear:
   damage, with its own effect.
 - **Shield** — hit points, recharge rate, and damage mitigation, plus a
   behavior archetype on newer shields (Standard, and types such as Nova,
-  Absorb, Amp, and Turtle). A shield's art shows its behavior: each
+  Absorb, Amp, and Turtle). The recharge rate is live: on any tick where
+  you take no damage, the shield refills at that rate, up to full (the
+  Combat page carries the full rule). A shield's art shows its behavior: each
   archetype has its own form (Standard's finned housing, Nova's shutter
   ring, Absorb's shelled orb, Amp's capacitor towers, Turtle's bulwark
   slab), the body wears its element's colors, and the frame carries its
