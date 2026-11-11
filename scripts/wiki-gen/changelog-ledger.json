@@ -6,6 +6,14 @@
       "date": "2026-11-10",
       "merges": [
         {
+          "number": 469,
+          "title": "Anim-replay loop: deterministic replay + B2 metrics + CI workflow (Track A baseline)"
+        },
+        {
+          "number": 470,
+          "title": "Anim fix iteration: enemy approach + walk articulation, stride saturation, loop-instrument repairs"
+        },
+        {
           "number": 471,
           "title": "Vehicle chip on Home's Strip, right of the 7/7 (owner decision 2026-11-10)"
         },
@@ -24,6 +32,23 @@
         {
           "number": 475,
           "title": "Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)"
+        },
+        {
+          "number": 477,
+          "title": "Tuning T3 — scrap portfolio (D3/P7+P8): repriced recipe Scrap legs + 25-Scrap listing deposit [migration 0087, do not merge before live apply]"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-09",
+      "merges": [
+        {
+          "number": 467,
+          "title": "AL-4: Activity Log full trace pass — every action leaves a record"
+        },
+        {
+          "number": 468,
+          "title": "Owner ruling: one ad rail on every platform (iOS included)"
         }
       ]
     },

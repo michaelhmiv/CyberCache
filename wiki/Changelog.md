@@ -6,6 +6,11 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 - **Bosses attack in patterns now** — every boss's damage lands on a beat: regular hits on a steady interval, and a named special on a slower cycle that carries a fixed share of its damage — Refraction Burst, Event Horizon, The Maw Opens, and ten more, all printed in the boss's prep under Attack Pattern, wind-up included. The total damage a boss deals has not moved a single point; only the timing is new. The timing matters because of the quiet between hits: shields now recharge inside boss fights during the damage-free stretches, so a wide-rhythm boss lets a fast-recharging shield breathe, while a boss that hits every three seconds leaves no quiet at all — bring capacity instead.
 
+## 2026-11-10 — A sharper cache
+
+- **The cache got a new portrait** — the app icon and logo were re-rendered at full painterly quality: the same navy cache crate with its lid cracked in two and the gold burst pouring out, on the same vivid rust field — now with crisp, continuous surfaces instead of the old pixel finish. It is the same logo everywhere it appears: the home-screen icon, the web logo and favicon, and the store icon all carry the new rendering, and at small sizes the crate and burst still read at a glance.
+- **The launch screen matches now** — the Android splash used to open on an old orange cache device that was never the logo; it now shows the new portrait instead: the whole navy crate and its gold burst, framed as an emblem on the same dark gradient field the old splash used, in every size and orientation the app ships.
+
 ## 2026-11-10 — Scrap earns its keep
 
 - **Crafting consumables costs real Scrap now** — the Scrap legs on consumable recipes were priced back when Scrap barely moved; they now run two to eight times higher, tiered by the item: a Patch Kit costs 10 Scrap, a Med Kit 40, a Shield Cell 100, an Adrenaline Shot 300. Batch recipes follow the same curve. Everything else about the recipes — the other inputs, the craft times, what the items do — is unchanged.
@@ -231,15 +236,23 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 209 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 214 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-10** — 5 merges
+**2026-11-10** — 8 merges
 
+- #469 — Anim-replay loop: deterministic replay + B2 metrics + CI workflow (Track A baseline)
+- #470 — Anim fix iteration: enemy approach + walk articulation, stride saturation, loop-instrument repairs
 - #471 — Vehicle chip on Home's Strip, right of the 7/7 (owner decision 2026-11-10)
 - #472 — Tuning T4 — Boss first-attempt discount (D4/P10)
 - #473 — Tuning T2 (D2): consumable magnitudes — ammo up, survival heals to % of pool, ordnance riders ×4
 - #474 — Tuning T1R — Passive shield recharge (owner ruling 2026-11-10)
 - #475 — Tuning T5 — Elite dial 12% → 18% (P2, owner ruling 2026-11-10)
+- #477 — Tuning T3 — scrap portfolio (D3/P7+P8): repriced recipe Scrap legs + 25-Scrap listing deposit [migration 0087, do not merge before live apply]
+
+**2026-11-09** — 2 merges
+
+- #467 — AL-4: Activity Log full trace pass — every action leaves a record
+- #468 — Owner ruling: one ad rail on every platform (iOS included)
 
 **2026-11-08** — 12 merges
 
