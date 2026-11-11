@@ -229,7 +229,7 @@ describe('§9.2/§9.4 catalog and copy pins', () => {
     }
   });
 
-  it('batch numbers are byte-identical to the shipped catalog (no-change pin; figures track tuning T3's repricing)', () => {
+  it('batch numbers are byte-identical to the shipped catalog (no-change pin; figures track the tuning T3 repricing)', () => {
     const shield = getCraftRecipe('recipe_shield_cell_batch')!;
     expect(shield.inputs).toEqual({ Scrap: 250, ReactiveComponents: 30 });
     expect(shield.unitDurationMs).toBe(1980000);
