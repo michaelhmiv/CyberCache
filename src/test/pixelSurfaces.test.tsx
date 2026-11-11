@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { ActionFeed } from '@/components/action/ActionWorkspace';
-import { composePixelWeapon, type PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
-import { composeWeaponCard } from '@/lib/pixel/weaponCardCompositor';
+import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
+import { resolveWeaponPainting, weaponPaintingShell } from '@/lib/pixel/weaponPaintingRender';
 import { generateWeapon } from '@/server/lib/generators/weaponGenerator';
 import { createRNG } from '@/lib/utils/rng';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -16,16 +16,19 @@ import type { ClassMod, Relic, Shield as ShieldItem, Weapon } from '@/types/item
  * weapons through GearIllustration; the ActionFeed loot log draws
  * them directly. (The legacy common/WeaponCard surface was deleted
  * 2026-11-07 — no production importer remained; GearIllustration is
- * the one card surface.) All of them must resolve to the ONE pixel
- * renderer: the bespoke authored set for named legendaries (V4 —
- * composed by the same compositor, never a baked sprite), the
- * deterministic parts-kit compositor for everything else.
+ * the one card surface.) All of them must resolve to the ONE weapon
+ * renderer: since the painted renderer (Top-Choice renderer slice,
+ * 2026-11-11) that is the weapon's adopted Top-Choice painting —
+ * the bespoke legendary painting for named legendaries, the
+ * type x manufacturer base painting for everything else — with
+ * element/decals/condition as overlays. (Re-pinned from the V4
+ * compositor signatures; the surface-agreement law is unchanged.)
  *
  * Weapon marriage (slice 1): CARD surfaces (GearIllustration)
- * render at card density (240×88 card compositor) and
- * share the CARD signature; the ActionFeed loot log keeps the stage
- * density (120×44) and the stage signature. Within each density,
- * every surface agrees exactly.
+ * render at card density (240×88) and share the CARD signature;
+ * the ActionFeed loot log keeps the stage density (120×44) and
+ * the stage signature. Within each density, every surface agrees
+ * exactly.
  */
 
 const proceduralWeapon = generateWeapon(
@@ -100,41 +103,51 @@ const sharedInput = (weapon: Weapon) => ({
   legendaryEffectId: weapon.legendaryEffectId,
 } satisfies PixelWeaponInput);
 
-/** Stage-density signature (ActionFeed loot log). */
-const compositorSignature = (weapon: Weapon) => composePixelWeapon(sharedInput(weapon)).signature;
-/** Card-density signature (GearIllustration card surfaces). */
-const cardCompositorSignature = (weapon: Weapon) => composeWeaponCard(sharedInput(weapon)).signature;
+/** Stage-density painting signature (ActionFeed loot log). */
+const paintingSignature = (weapon: Weapon) => {
+  const input = sharedInput(weapon);
+  return weaponPaintingShell(input, resolveWeaponPainting(input)!, 'stage').signature;
+};
+/** Card-density painting signature (GearIllustration card surfaces). */
+const cardPaintingSignature = (weapon: Weapon) => {
+  const input = sharedInput(weapon);
+  return weaponPaintingShell(input, resolveWeaponPainting(input)!, 'card').signature;
+};
+const paintedSpriteId = (weapon: Weapon) => resolveWeaponPainting(sharedInput(weapon))!.spriteId;
 
 describe('GearIllustration — weapon branch renders pixel (inventory/market/inspect/chest path)', () => {
-  it('renders a procedural weapon as the compositor canvas with the shared signature', () => {
+  it('renders a procedural weapon as its base painting canvas with the shared signature', () => {
     const { container } = render(<GearIllustration item={proceduralWeapon} size={50} showBadges={false} />);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-signature')).toBe(cardCompositorSignature(proceduralWeapon));
+    expect(canvas?.getAttribute('data-painted-sprite')).toBe('weapon-base-shotgun-blast-forge');
+    expect(canvas?.getAttribute('data-painted-sprite')).toBe(paintedSpriteId(proceduralWeapon));
+    expect(canvas?.getAttribute('data-signature')).toBe(cardPaintingSignature(proceduralWeapon));
     expect(canvas?.getAttribute('data-density')).toBe('card');
     // The old vector weapon SVG (aria-label "Rarity Element Type") is gone.
     expect(container.querySelector('svg')).toBeNull();
   });
 
-  it('renders a named legendary as its bespoke authored set, resolved via its effect', () => {
+  it('renders a named legendary as its bespoke painting, resolved via its effect', () => {
     const { container } = render(<GearIllustration item={legendaryWeapon} size="showcase" showBadges animate />);
-    // V4: no baked sprite anywhere — the legendary composes through
-    // the card compositor like every other weapon, and its
-    // signature is the bespoke render of its authored set.
-    expect(container.querySelector('img')).toBeNull();
+    // The legendary renders its bespoke painting on the shared
+    // canvas (the painted layer paints into the canvas; no <img>
+    // stands in for the weapon itself).
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-signature')).toBe(cardCompositorSignature(legendaryWeapon));
+    expect(canvas?.getAttribute('data-painted-sprite')).toBe('legendary-painting-glass-sun');
+    expect(canvas?.getAttribute('data-signature')).toBe(cardPaintingSignature(legendaryWeapon));
     expect(canvas?.getAttribute('data-signature')).not.toBe(
-      cardCompositorSignature({ ...legendaryWeapon, legendaryEffectId: undefined } as Weapon),
+      cardPaintingSignature({ ...legendaryWeapon, legendaryEffectId: undefined } as Weapon),
     );
   });
 
-  it('keeps the compositor fallback for a legendary with no named effect', () => {
+  it('renders a legendary with no named effect as its base painting', () => {
     const { container } = render(<GearIllustration item={plainLegendary} size={46} showBadges={false} />);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-signature')).toBe(cardCompositorSignature(plainLegendary));
+    expect(canvas?.getAttribute('data-painted-sprite')).toBe('weapon-base-shotgun-blast-forge');
+    expect(canvas?.getAttribute('data-signature')).toBe(cardPaintingSignature(plainLegendary));
   });
 
   it('maps named sizes to the shared pixel widths (thumb/card/showcase)', () => {
@@ -188,7 +201,7 @@ describe('GearIllustration — weapon branch renders pixel (inventory/market/ins
 });
 
 describe('ActionFeed — loot-log weapon thumbs render pixel', () => {
-  it('renders the compositor canvas for a weapon drop entry', () => {
+  it('renders the painting canvas for a weapon drop entry', () => {
     const { container } = render(
       <ActionFeed
         entries={[{ id: 'e1', label: 'Weapon drop', detail: 'Epic shotgun', gear: proceduralWeapon }]}
@@ -196,25 +209,27 @@ describe('ActionFeed — loot-log weapon thumbs render pixel', () => {
     );
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-signature')).toBe(compositorSignature(proceduralWeapon));
+    expect(canvas?.getAttribute('data-painted-sprite')).toBe('weapon-base-shotgun-blast-forge');
+    expect(canvas?.getAttribute('data-signature')).toBe(paintingSignature(proceduralWeapon));
     expect(canvas?.style.width).toBe('46px');
   });
 
-  it('renders the bespoke authored set for a legendary drop entry', () => {
+  it('renders the bespoke painting for a legendary drop entry', () => {
     const { container } = render(
       <ActionFeed
         entries={[{ id: 'e2', label: 'Legendary drop', detail: 'Glass Sun', gear: legendaryWeapon }]}
       />,
     );
-    // V4: the feed thumb is the stage-density bespoke render — a
-    // canvas with the shared stage signature, never a baked sprite.
+    // The feed thumb is the stage-density bespoke painting — a
+    // canvas with the shared stage signature.
     // (INT-10, 2026-11-11: functional icons render as <img>
     // paintings elsewhere in the row, so the no-baked-sprite pin
     // is scoped to the thumb itself: no img stands in for it.)
     expect(container.querySelector('canvas')?.parentElement?.querySelector('img')).toBeFalsy();
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
-    expect(canvas?.getAttribute('data-signature')).toBe(compositorSignature(legendaryWeapon));
+    expect(canvas?.getAttribute('data-painted-sprite')).toBe('legendary-painting-glass-sun');
+    expect(canvas?.getAttribute('data-signature')).toBe(paintingSignature(legendaryWeapon));
   });
 
   it('still shows the plain feed dot for entries without gear', () => {

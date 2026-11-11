@@ -8,7 +8,7 @@ import { getPixelSprite } from '@/lib/pixel/manifest';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Shield, Weapon } from '@/types/items';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
-import { composeWeaponCardCached } from '@/lib/pixel/weaponCardCompositor';
+import { resolveWeaponPainting, weaponPaintingShell } from '@/lib/pixel/weaponPaintingRender';
 
 const makeShield = (overrides: Partial<Shield> = {}): Shield =>
   ({
@@ -134,11 +134,15 @@ describe('LootMoment — full mode (stage surface)', () => {
     expect(screen.getByTestId('fx-shockwave-ring')).toBeTruthy();
     expect(screen.getByTestId('fx-twinkles')).toBeTruthy();
     expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
-    // The named legendary rises as its bespoke authored render (V4).
+    // The named legendary rises as its bespoke painting (painted
+    // renderer, 2026-11-11 — name wins over the effect it carries:
+    // Emberfall's painting, not Glass Sun's).
     const risen = screen.getByTestId('loot-risen-weapon');
     expect(risen.tagName).toBe('CANVAS');
+    expect(risen.getAttribute('data-painted-sprite')).toBe('legendary-painting-emberfall');
+    const input = pixelWeaponInputFromWeapon(emberfall);
     expect(risen.getAttribute('data-signature')).toBe(
-      composeWeaponCardCached(pixelWeaponInputFromWeapon(emberfall)).signature,
+      weaponPaintingShell(input, resolveWeaponPainting(input)!, 'card').signature,
     );
     const hero = screen.getByTestId('loot-card-hero');
     expect(hero.textContent).toContain('Emberfall');
