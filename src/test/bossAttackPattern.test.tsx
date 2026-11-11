@@ -51,7 +51,7 @@ function renderPrep(boss: BossDef) {
     selectedRisk: RiskSetting.Balanced,
     attemptHistory: [],
   });
-  const builtActivity = buildBossFightActivity(boss, null, 'prep');
+  const builtActivity = buildBossFightActivity(boss, undefined, 'prep');
   useActivityStore.setState({
     current: {
       ...builtActivity,

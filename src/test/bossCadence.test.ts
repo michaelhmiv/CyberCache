@@ -22,7 +22,11 @@
  * consumables, survivalScore × (dps × 30) reconstructs the budget
  * bit-exactly whenever the folds (stagger / burst / ramp) are 1 —
  * the fixtures keep them 1 by construction (no skills, no action
- * skill, and the ramp bosses' TTK inside the 20s grace window).
+ * skill, and every boss's fixture weapon calibrated so its TTK
+ * lands at ~10s, inside the ramp's 20s grace window — a flat
+ * weapon leaves the late roster at 40–98s TTKs, where the two
+ * ramp bosses' output survivalScore is ramp-taxed and the
+ * reconstruction cannot hold).
  */
 import { describe, expect, it } from 'vitest';
 import { REGION_1_BOSSES } from '../constants/bosses';
@@ -43,7 +47,7 @@ function makeWeapon(overrides: Partial<Weapon> = {}): Weapon {
     name: 'Parity Gun',
     level: 50,
     rarity: Rarity.Epic,
-    weaponType: WeaponType.Rifle,
+    weaponType: WeaponType.Sniper,
     manufacturer: Manufacturer.Redline,
     element: Element.Kinetic,
     rollQuality: 75,
@@ -108,6 +112,21 @@ function inputFor(boss: BossDef, shield: Shield | null): BossSimulationInput {
     pityCount: 0,
     playerCredits: 0,
   } as BossSimulationInput;
+}
+
+/**
+ * The fixture weapon, calibrated per boss: probe the flat weapon's
+ * TTK, then scale baseDamage so the kill lands at ~10s — inside the
+ * overclock ramp's 20s grace for the two ramp bosses, and clear of
+ * every other TTK-sensitive fold. DPS scales linearly with
+ * baseDamage through the chain, so one probe pins the scale.
+ */
+function calibratedInputFor(boss: BossDef, shield: Shield | null): BossSimulationInput {
+  const probe = simulateBoss(inputFor(boss, null));
+  const scale = probe.timeToKill / 10;
+  const input = inputFor(boss, shield);
+  input.primary = makeWeapon({ baseDamage: 100 * scale });
+  return input;
 }
 
 function withoutCadence(boss: BossDef): BossDef {
@@ -177,8 +196,8 @@ describe('boss cadence — acceptance', () => {
   it('(1) budget invariance: survivalScore × base budget is identical cadence on/off', () => {
     for (const boss of REGION_1_BOSSES) {
       const shield = makeShield({ hp: 1200, rechargeRate: 0 });
-      const on = simulateBoss(inputFor(boss, shield));
-      const off = simulateBoss(inputFor(withoutCadence(boss), shield));
+      const on = simulateBoss(calibratedInputFor(boss, shield));
+      const off = simulateBoss(calibratedInputFor(withoutCadence(boss), shield));
       // Fixture sanity: no fold may move the budget (ramp inside grace).
       expect(on.timeToKill, boss.id).toBeLessThan(20);
       expect(off.timeToKill, boss.id).toBeLessThan(20);
@@ -228,6 +247,11 @@ describe('boss cadence — acceptance', () => {
   });
 
   it('(4) special bound: no single special exceeds 35% of the parity pool', () => {
+    // Parity pool = hunter HP at the boss's level + a 5,000 shield.
+    // The two slowest cycles (Maw 20s, Sister Null 18s) land ONE
+    // special in the window, so their shares (0.30 / 0.27) are set
+    // by this bound — at the archetype table's 0.45 / 0.40 first
+    // estimates a single hit would carry ~50% of this pool.
     for (const boss of REGION_1_BOSSES) {
       const tl = bossCadenceTimeline(boss.cadence!, boss.dps * 30);
       const parityPool = computeHunterMaxHp(boss.level, 0) + 5000;

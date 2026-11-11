@@ -231,7 +231,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 35000 / 0 / 9000 · **Boss DPS:** 355
 - **Weaknesses:** Fire · **Resistances:** Cryo
 - **Mechanic — Living Armor:** Heartwood plating regrows as fast as it cracks. Sustained armor break — Corrosive and Ordnance — or the Maw simply out-grows your damage.
-- **Attack pattern:** hits every 6s; special **The Maw Opens** every 20s after a 3s wind-up, carrying ~45% of its damage
+- **Attack pattern:** hits every 6s; special **The Maw Opens** every 20s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 9500 cr / 11500 cr
 - **Dedicated drops:** Molten Core, Salvage Rights
 
@@ -253,7 +253,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 47000 / 3500 / 0 · **Boss DPS:** 415
 - **Weaknesses:** Void · **Resistances:** Kinetic
 - **Mechanic — Rift Anchor:** She anchors the fight to a void rift that swallows clean hits. Status pressure collapses the rift — bring status chance (Procedural Loads) or fight at half effect.
-- **Attack pattern:** hits every 5s; special **Event Horizon** every 18s after a 3s wind-up, carrying ~40% of its damage
+- **Attack pattern:** hits every 5s; special **Event Horizon** every 18s after a 3s wind-up, carrying ~27% of its damage
 - **Entry / rematch:** 13000 cr / 15500 cr
 - **Dedicated drops:** Void Bargain, Jackpot
 
