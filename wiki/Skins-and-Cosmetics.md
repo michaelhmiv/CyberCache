@@ -50,10 +50,12 @@ Every slot is covered from day one: head, torso, both arms
 the boot is part of the lower leg), and back. Everything else is
 permanently available; there are no limited-time windows yet.
 
-When your hunter aims, the far arm works as the support arm: it
-comes up under the weapon and braces it from below, so the stance
-reads as a proper two-handed aim on every set — standard-issue,
-Bulwark, and Dreadplate alike.
+The hunter is drawn in strict side view, so in the combat
+stances — aiming and riding out the recoil — the far arm is not
+drawn at all: only the gun arm shows. Your shield rides the far
+arm, so it sits out those two stances too and is back on the arm
+at rest. This holds on every set — standard-issue, Bulwark, and
+Dreadplate alike.
 
 <!-- GENERATED from src/content/skins.ts, src/lib/pixel/skinParts.ts, src/lib/pixel/partsCompositor.ts, src/lib/pixel/standardIssue.ts — do not edit by hand -->
 <!-- wiki-gen:skins-pictured -->

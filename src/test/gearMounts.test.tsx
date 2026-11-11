@@ -239,7 +239,13 @@ describe('M3 gear mounts — the mount data law', () => {
 
 describe('M3 gear mounts — raster proofs (composePartSet)', () => {
   it('the geared, armed render is EXACTLY its declared layers in paint order', () => {
-    const render = composePartSet(STANDARD_ISSUE, PART_POSES.aim, loadSprite, {
+    // RE-PINNED 2026-11-11 (far-arm suppression): this inventory
+    // proof used to compose the aim pose, but aim now suppresses
+    // the far arm (and swallows its shield) by owner ruling, so
+    // the EXACT full layer inventory — every part slot + every
+    // gear layer + the weapon — is asserted on idle, where every
+    // declared layer is drawn. Same expected set, unchanged.
+    const render = composePartSet(STANDARD_ISSUE, PART_POSES.idle, loadSprite, {
       weapon: { kind: 'compositor', input: PISTOL },
       gear: FULL_GEAR,
     });
@@ -301,27 +307,59 @@ describe('M3 gear mounts — raster proofs (composePartSet)', () => {
   });
 
   it('gear follows the mounting part through poses (the arm carries the shield)', () => {
-    const aimRender = composePartSet(STANDARD_ISSUE, PART_POSES.aim, loadSprite, { gear: FULL_GEAR });
+    // RE-PINNED 2026-11-11 (far-arm suppression): this leg used to
+    // run aim vs hit, but the far arm is pose-suppressed in aim now
+    // (owner ruling: the strict side view never draws it in combat
+    // poses), so the shield mount no longer resolves in aim — the
+    // swallow rule follows the part, pinned explicitly in the next
+    // test. The follow-through leg runs idle vs hit instead: the
+    // nearest pose pair where the arm IS drawn, same assertions
+    // (mount travel > 5 stage px — measured 8.8 — and layer
+    // centroids tracking the mount within 7).
+    const idleRender = composePartSet(STANDARD_ISSUE, PART_POSES.idle, loadSprite, { gear: FULL_GEAR });
     const hitRender = composePartSet(STANDARD_ISSUE, PART_POSES.hit, loadSprite, { gear: FULL_GEAR });
-    const aimLayout = layoutPartSet(STANDARD_ISSUE, PART_POSES.aim);
+    const idleLayout = layoutPartSet(STANDARD_ISSUE, PART_POSES.idle);
     const hitLayout = layoutPartSet(STANDARD_ISSUE, PART_POSES.hit);
     const shieldItem = FULL_GEAR.find((g) => g.kind === 'shield')!;
-    const aimMount = resolveGearMount(aimLayout, shieldItem)!.stage;
+    const idleMount = resolveGearMount(idleLayout, shieldItem)!.stage;
     const hitMount = resolveGearMount(hitLayout, shieldItem)!.stage;
-    const mountDelta = { x: hitMount.x - aimMount.x, y: hitMount.y - aimMount.y };
+    const mountDelta = { x: hitMount.x - idleMount.x, y: hitMount.y - idleMount.y };
     expect(Math.hypot(mountDelta.x, mountDelta.y)).toBeGreaterThan(5);
-    const aimC = layerCentroid(aimRender.layers.get('gear:shield')!);
+    const idleC = layerCentroid(idleRender.layers.get('gear:shield')!);
     const hitC = layerCentroid(hitRender.layers.get('gear:shield')!);
-    expect(Math.abs(hitC.x - aimC.x - mountDelta.x)).toBeLessThan(7);
-    expect(Math.abs(hitC.y - aimC.y - mountDelta.y)).toBeLessThan(7);
+    expect(Math.abs(hitC.x - idleC.x - mountDelta.x)).toBeLessThan(7);
+    expect(Math.abs(hitC.y - idleC.y - mountDelta.y)).toBeLessThan(7);
     // The pauldron rides the torso the same way.
     const pauldronItem = FULL_GEAR.find((g) => g.kind === 'pauldron')!;
-    const pAim = resolveGearMount(aimLayout, pauldronItem)!.stage;
+    const pIdle = resolveGearMount(idleLayout, pauldronItem)!.stage;
     const pHit = resolveGearMount(hitLayout, pauldronItem)!.stage;
-    const pAimC = layerCentroid(aimRender.layers.get('gear:pauldron')!);
+    const pIdleC = layerCentroid(idleRender.layers.get('gear:pauldron')!);
     const pHitC = layerCentroid(hitRender.layers.get('gear:pauldron')!);
-    expect(Math.abs(pHitC.x - pAimC.x - (pHit.x - pAim.x))).toBeLessThan(7);
-    expect(Math.abs(pHitC.y - pAimC.y - (pHit.y - pAim.y))).toBeLessThan(7);
+    expect(Math.abs(pHitC.x - pIdleC.x - (pHit.x - pIdle.x))).toBeLessThan(7);
+    expect(Math.abs(pHitC.y - pIdleC.y - (pHit.y - pIdle.y))).toBeLessThan(7);
+  });
+
+  it('pose suppression: the far arm and its shield do not render in aim or recoil', () => {
+    // Owner ruling 2026-11-11: strict side view — the far arm is
+    // not drawn in combat poses (two rotation tunings still left
+    // it reading as a stray arm in the armpit gap). The shield
+    // rides that arm, so it is swallowed with it; the part still
+    // RESOLVES geometrically (placement, mount anchor, supportHand
+    // joint all present) so no geometry gate or extent moves.
+    const shieldItem = FULL_GEAR.find((g) => g.kind === 'shield')!;
+    for (const poseName of ['aim', 'recoil'] as const) {
+      const render = composePartSet(STANDARD_ISSUE, PART_POSES[poseName], loadSprite, { gear: FULL_GEAR });
+      expect(render.layers.has('armFar'), poseName).toBe(false);
+      expect(render.layers.has('gear:shield'), poseName).toBe(false);
+      const layout = layoutPartSet(STANDARD_ISSUE, PART_POSES[poseName]);
+      expect(layout.placements.armFar?.hidden, poseName).toBe(true);
+      expect(resolveGearMount(layout, shieldItem), poseName).toBeUndefined();
+      expect(layout.anchorStages.has('armFar:mount:shieldMount'), poseName).toBe(true);
+    }
+    // Non-combat poses still draw the arm and carry the shield.
+    const idle = composePartSet(STANDARD_ISSUE, PART_POSES.idle, loadSprite, { gear: FULL_GEAR });
+    expect(idle.layers.has('armFar')).toBe(true);
+    expect(idle.layers.has('gear:shield')).toBe(true);
   });
 
   it('swallow rule: an item whose mount is absent renders nothing', () => {

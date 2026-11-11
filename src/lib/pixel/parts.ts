@@ -187,6 +187,13 @@ export interface PartPoseTransform {
   rotate?: number;
   x?: number;
   y?: number;
+  /** Pose-level part suppression: the part still RESOLVES (its
+   *  placement, anchors and joints stay in the layout — geometry
+   *  gates and actor extents never move), but no render path draws
+   *  it in this pose, and gear mounted on it does not resolve (the
+   *  swallow rule follows the part). For parts a strict side view
+   *  never shows in a given stance — the far arm in combat poses. */
+  hidden?: boolean;
 }
 
 export type PartPose = Partial<Record<PartSlot, PartPoseTransform>>;
@@ -218,23 +225,24 @@ export const PART_POSES: Record<PartsPoseName, PartPose> = {
     torso: { rotate: 1 },
     armUpperN: { rotate: -7, y: -1 },
     armForeN: { rotate: -4 },
-    // The far (support) arm rotates fully forward so it braces
-    // under the gun arm, hand ending at the grip's underside. At
-    // the old -28 the single-piece arm dangled in the gap between
-    // the gun arm and the torso — shoulder hidden behind the
-    // torso, it read as a small extra arm growing from the armpit
-    // (owner flag, 2026-11-11). A true foregrip seat is out of
-    // the part's reach (shoulder→supportHand ≈ 45px vs ≈ 64px+ to
-    // the foregrip), so the brace-under-grip read is the shipped
-    // shape; recoil carries the matching -51 so the support arm
-    // stays on the gun through the kick.
-    armFar: { rotate: -52 },
+    // The far arm is NOT DRAWN in combat poses (owner ruling,
+    // 2026-11-11). The game is a strict side view: rotated forward
+    // the single-piece far arm swung out from behind the torso
+    // into the open gap under the gun arm — shoulder hidden, it
+    // read as a small extra arm growing from the armpit. Two
+    // rotation tunings (-28, then the -52 brace) both failed the
+    // owner's zoom audit, so the part is suppressed outright: it
+    // still resolves geometrically (placement + supportHand joint
+    // stay in the layout), it simply never paints. The shield
+    // mounted on it follows the swallow rule and does not render
+    // in these poses either — it rides an arm that isn't there.
+    armFar: { hidden: true },
     head: { rotate: 3 },
   },
   recoil: {
     armUpperN: { rotate: 5, x: -2 },
     armForeN: { rotate: 7, x: -3 },
-    armFar: { rotate: -51 },
+    armFar: { hidden: true },
     head: { rotate: -2 },
   },
   hit: {

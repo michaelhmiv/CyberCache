@@ -104,7 +104,11 @@ export function resolveGearMount(
   const anchorKey = `${spec.slot}:mount:${spec.mount}`;
   const stage = layout.anchorStages.get(anchorKey);
   const placement = layout.placements[spec.slot];
-  if (!stage || !placement) return undefined;
+  // A pose-suppressed carrying part (placement.hidden — the far
+  // arm in combat poses) swallows its gear too: the item rides an
+  // arm that is not drawn, so it renders nothing rather than
+  // floating where the arm would have been.
+  if (!stage || !placement || placement.hidden) return undefined;
   return {
     stage: { x: stage.x + (item.fanOffsetX ?? 0), y: stage.y },
     rotationDeg: placement.rotationDeg,
