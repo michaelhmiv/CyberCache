@@ -42,7 +42,9 @@ The setting changes how the fight is modeled, not the boss: the boss's stats, ph
 
 ## Fees
 
-Every attempt costs an entry fee, charged win or lose. The first boss is free to attempt (rematch 100 credits); fees climb the ladder from there — 200 credits for The Siltstalker, up through 18,000 for a first attempt on Vaultkeeper Omega, with rematches priced a little higher than first entries.
+Every attempt costs an entry fee, charged win or lose. The first boss is free to attempt (rematch 100 credits); fees climb the ladder from there — a 200-credit sticker price for The Siltstalker, up through 18,000 for Vaultkeeper Omega, with rematches priced a little higher than first entries.
+
+**First-clear discount:** until you have beaten a boss, every attempt on it costs **half the entry fee** — The Siltstalker's first clear costs 100 credits, the Mnemosyne Mirror's 2,500 instead of 5,000, Vaultkeeper Omega's 9,000 instead of 18,000. The discount is per boss and ends permanently at your first victory over it; from then on, rematch pricing applies.
 
 **Rematch escalation:** each victory you score over a boss doubles that boss's next fee for the rest of the day (UTC), up to **8× the base fee**. Beating the same boss a fourth time today means the fifth attempt costs eight times the sticker price. The escalation resets at the day boundary, and the fee shown at prep is the fee you will be charged.
 

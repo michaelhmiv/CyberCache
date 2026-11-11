@@ -25,7 +25,7 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { assembleStatSummaryInput } from '@/lib/stats/assembleStatSummaryInput';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
-import { escalatedBossFee } from '@/lib/bossFees';
+import { escalatedBossFee, firstClearEntryFee } from '@/lib/bossFees';
 import { BossStamp } from '@/components/common/BossStamp';
 
 interface BossPickerListProps {
@@ -180,7 +180,7 @@ export const BossPickerList: React.FC<BossPickerListProps> = ({ onSelect }) => {
             {/* Pity / Entry Info */}
             <div className="flex items-center justify-between text-[10px]">
               <span className="text-text-muted">
-                {boss.entryCost > 0 ? `Entry: ${boss.entryCost}cr` : 'Free entry'}
+                {(isDefeated ? boss.entryCost : firstClearEntryFee(boss.entryCost)) > 0 ? `Entry: ${isDefeated ? boss.entryCost : firstClearEntryFee(boss.entryCost)}cr` : 'Free entry'}
                 {boss.rematchCost > 0 && ` · Rematch: ${escalatedBossFee(boss.rematchCost, bossStore.bossVictoriesToday[boss.id] ?? 0)}cr`}
               </span>
               {pity > 0 && (
