@@ -209,7 +209,11 @@ describe('migration 0044 — catalog + consumable parity pins', () => {
           && r.id !== 'relic_prime_laboratory'
           // Elemental Coating's recipe postdates 0044 (0077); its SQL
           // parity is pinned against 0077 in elementalCoatingRecipe.test.ts.
-          && r.id !== 'recipe_elemental_coating',
+          && r.id !== 'recipe_elemental_coating'
+          // The Overclock Serum recipe postdates 0044 the same way
+          // (0087, tuning T6); pinned against 0087 in
+          // tuningT6OverclockSerum.test.ts.
+          && r.id !== 'recipe_overclock_serum',
       ).map((r) => r.id).sort(),
     );
     // The slice's own recipe matches the TS catalog field for field

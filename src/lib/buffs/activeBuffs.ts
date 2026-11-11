@@ -260,6 +260,16 @@ export const CONSUMABLE_ACTIVATORS: Record<ConsumableType, ConsumableActivator> 
     defaultValue: 1.12,
     source: 'chef-result',
   },
+  // Overclock Serum (tuning T6): the roaming window is a real
+  // registry duration (60s per unit, auto-renewed while stock
+  // lasts), so the buff pill reads it from the def like the ammo
+  // family's coverage windows.
+  [ConsumableType.OverclockSerum]: {
+    durationSource: 'registryCoverage',
+    defaultDurationMs: 60_000,
+    defaultValue: 1.15,
+    source: 'chef-result',
+  },
 
   // ORDNANCE (6) — phase break
   [ConsumableType.CorrosiveCharge]: {

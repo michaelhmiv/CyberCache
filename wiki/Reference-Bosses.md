@@ -21,6 +21,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 800 / 0 / 0 · **Boss DPS:** 30
 - **Weaknesses:** Kinetic · **Resistances:** —
 - **Mechanic — No Special Mechanic:** Tutorial boss. No special requirement.
+- **Attack pattern:** hits every 6s; special **Sand Slam** every 18s after a 3s wind-up, carrying ~35% of its damage
 - **Entry / rematch:** 0 cr / 100 cr
 - **Dedicated drops:** Debt Collector, Warranty Void
 
@@ -40,6 +41,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 1500 / 500 / 0 · **Boss DPS:** 55
 - **Weaknesses:** Fire · **Resistances:** Cryo
 - **Mechanic — Enrage Protocol:** Boss enrages at 50% HP, doubling damage. Needs high DPS to finish fast.
+- **Attack pattern:** hits every 4s; special **Enrage Surge** every 12s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 200 cr / 300 cr
 - **Dedicated drops:** Bad Decision, Glass Sun
 
@@ -60,6 +62,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 2000 / 1200 / 0 · **Boss DPS:** 70
 - **Weaknesses:** Shock · **Resistances:** Fire
 - **Mechanic — Rapid Shield Regen:** Shield regenerates quickly if not broken within 15s.
+- **Attack pattern:** hits every 5s; special **Aegis Slam** every 15s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 400 cr / 500 cr
 - **Dedicated drops:** Ricochet Gospel, Thunder Receipt
 
@@ -79,6 +82,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 3500 / 0 / 800 · **Boss DPS:** 95
 - **Weaknesses:** Corrosive · **Resistances:** Fire
 - **Mechanic — Burning Ground:** Leaves burning ground; survival check is harder.
+- **Attack pattern:** hits every 3s; special **Eruption** every 15s after a 3s wind-up, carrying ~25% of its damage
 - **Entry / rematch:** 600 cr / 700 cr
 - **Dedicated drops:** Salvage Rights, Overclocked
 
@@ -98,6 +102,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 5000 / 1500 / 0 · **Boss DPS:** 110
 - **Weaknesses:** Shock · **Resistances:** Kinetic
 - **Mechanic — Phase Out:** Boss phases out periodically. Needs Stagger or Scanner to pin.
+- **Attack pattern:** hits every 6s; special **Mirage Flurry** every 15s after a 3s wind-up, carrying ~45% of its damage
 - **Entry / rematch:** 1000 cr / 1200 cr
 - **Dedicated drops:** Borrowed Time, Kickback
 
@@ -118,6 +123,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 6000 / 0 / 2500 · **Boss DPS:** 130
 - **Weaknesses:** Corrosive · **Resistances:** Shock
 - **Mechanic — Heavy Repair:** Heavy armor repair. Needs Anti-Heal or Armor Break.
+- **Attack pattern:** hits every 6s; special **Prophet's Hammer** every 18s after a 3s wind-up, carrying ~40% of its damage
 - **Entry / rematch:** 1500 cr / 1800 cr
 - **Dedicated drops:** Vampiric Ledger, Echo Chamber
 
@@ -137,6 +143,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 10000 / 3000 / 4000 · **Boss DPS:** 180
 - **Weaknesses:** Corrosive · **Resistances:** Fire
 - **Mechanic — Three-Phase Siege:** Shield -> Armor -> Enrage. Must break each layer.
+- **Attack pattern:** hits every 5s; special **Siege Barrage** every 15s after a 3s wind-up, carrying ~35% of its damage
 - **Entry / rematch:** 2500 cr / 3000 cr
 - **Dedicated drops:** Chain Lightning, Void Bargain, Jackpot
 
@@ -158,6 +165,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 14000 / 2500 / 1500 · **Boss DPS:** 215
 - **Weaknesses:** Fire · **Resistances:** Shock
 - **Mechanic — Spinneret Overclock:** Her loom-arms spin faster the longer the fight runs: boss damage ramps up with time-to-kill. Burst her down — a slow fight is a losing fight.
+- **Attack pattern:** hits every 3s; special **Web Nova** every 12s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 3500 cr / 4200 cr
 - **Dedicated drops:** Hot Swapper, Echo Chamber
 
@@ -179,6 +187,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 19000 / 6000 / 0 · **Boss DPS:** 255
 - **Weaknesses:** Kinetic · **Resistances:** Cryo
 - **Mechanic — Adaptive Plating:** The Mirror attunes to your primary weapon: its element is struck from her weaknesses and read as resisted. Carry a second answer — sidearms and heavies keep their bite.
+- **Attack pattern:** hits every 5s; special **Refraction Burst** every 15s after a 3s wind-up, carrying ~40% of its damage
 - **Entry / rematch:** 5000 cr / 6000 cr
 - **Dedicated drops:** Phase Shifter, Stable Loop
 
@@ -200,6 +209,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 26000 / 0 / 3000 · **Boss DPS:** 300
 - **Weaknesses:** Cryo · **Resistances:** Fire
 - **Mechanic — Harmonic Shroud:** A chord of interference bends incoming fire off-beat. Stagger breaks the harmony — bring stagger chance (Demolition tree) or the fight drags at half effect.
+- **Attack pattern:** hits every 4s; special **Feedback Wail** every 12s after a 3s wind-up, carrying ~35% of its damage
 - **Entry / rematch:** 7000 cr / 8400 cr
 - **Dedicated drops:** Chain Lightning, Cryo Stasis
 
@@ -221,6 +231,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 35000 / 0 / 9000 · **Boss DPS:** 355
 - **Weaknesses:** Fire · **Resistances:** Cryo
 - **Mechanic — Living Armor:** Heartwood plating regrows as fast as it cracks. Sustained armor break — Corrosive and Ordnance — or the Maw simply out-grows your damage.
+- **Attack pattern:** hits every 6s; special **The Maw Opens** every 20s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 9500 cr / 11500 cr
 - **Dedicated drops:** Molten Core, Salvage Rights
 
@@ -242,6 +253,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 47000 / 3500 / 0 · **Boss DPS:** 415
 - **Weaknesses:** Void · **Resistances:** Kinetic
 - **Mechanic — Rift Anchor:** She anchors the fight to a void rift that swallows clean hits. Status pressure collapses the rift — bring status chance (Procedural Loads) or fight at half effect.
+- **Attack pattern:** hits every 5s; special **Event Horizon** every 18s after a 3s wind-up, carrying ~27% of its damage
 - **Entry / rematch:** 13000 cr / 15500 cr
 - **Dedicated drops:** Void Bargain, Jackpot
 
@@ -263,6 +275,7 @@ pool a boss draws from is not printed.
 - **Health / Shield / Armor:** 64000 / 8000 / 10000 · **Boss DPS:** 485
 - **Weaknesses:** Void · **Resistances:** Fire, Shock
 - **Mechanic — Final Overclock:** The Vaultkeeper's core spins up the longer the vault is contested: damage ramps with time-to-kill on top of the siege layers. Break him fast, layer by layer.
+- **Attack pattern:** hits every 5s; special **Final Overclock** every 15s after a 3s wind-up, carrying ~35% of its damage
 - **Entry / rematch:** 18000 cr / 21000 cr
 - **Dedicated drops:** Jackpot, Void Bargain, Chain Lightning
 

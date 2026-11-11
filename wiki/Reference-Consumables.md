@@ -60,6 +60,7 @@ is the quality band a crafted batch can roll, against the game's
 | <img src="images/consumables/prism-coating.png" alt="Prism Coating" width="48"> | **Prism Coating** | Ammo | Prism Coating consumed: rounds coated in elemental grit. | 800 | Crafter-only | 75–150% (cap 175%) |
 | <img src="images/consumables/throw-tech-decoy-kit.png" alt="ThrowTech Decoy Kit" width="48"> | **ThrowTech Decoy Kit** | Tactical | ThrowTech Decoy Kit deployed: fire drawn off the hunter. | 700 | Crafter-only | 75–150% (cap 175%) |
 | <img src="images/consumables/helix-calibration-kit.png" alt="Helix Calibration Kit" width="48"> | **Helix Calibration Kit** | Economy | Helix Calibration Kit consumed: loot rolls calibrated. | 500 | Crafter-only | 75–150% (cap 175%) |
+| <img src="images/consumables/overclock-serum.png" alt="Overclock Serum" width="48"> | **Overclock Serum** | Corrupted | Overclock Serum consumed: attack speed up for a minute. | 400 | Crafter-only | 70–150% (cap 175%) |
 <!-- /wiki-gen:consumables -->
 
 ---

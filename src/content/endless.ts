@@ -240,6 +240,10 @@ export function endlessEncounterForDepth(
     const par = parBossForLevel(d);
     const def: BossDef = {
       ...kit,
+      // Cadence is authored-boss intel (slice C1): generated Chamber
+      // encounters carry none by design (owner ruling D3), even when
+      // the kit they borrow wears one on the ladder.
+      cadence: undefined,
       level,
       health: Math.round(Math.max(kit.health, par.health) * hpMult),
       shield: Math.round(Math.max(kit.shield, par.shield) * hpMult),

@@ -39,6 +39,7 @@
  * | Regen (Nano Swarm) | repairTotalHp / repairTotalHpPctOfPool + repairDurationSeconds | healPerTick = total ÷ duration ticks |
  * | Reactive (Adrenaline) | dpsMultiplier + runtime.threshold (hpBelowThreshold) | burst of repairDurationSeconds when HP < threshold |
  * | Coverage (ammo/tactical/economy) | ammoCoveredSeconds or roaming durationSeconds | modifier window, auto-renewed while stock lasts |
+ * | Cadence (Overclock Serum) | attackSpeedMultiplier + roaming durationSeconds | attack-rate factor on the tick damage rate for the window (60s), auto-renewed while stock lasts |
  * | Ordnance | family 'ordnance' + ordnanceBonusDps | interval burst, consumed per fire |
  *
  * % of pool (tuning T2/P4): %-of-pool effects resolve against the
@@ -142,6 +143,16 @@ export interface RoamingConsumableState {
 export interface RoamingConsumableMods {
   /** Multiplicative DPS modifier (ammo, adrenaline, tactical). */
   dpsMultiplier: number;
+  /**
+   * Attack-speed (cadence) multiplier — tuning T6. The Chef folds
+   * it into the per-tick damage rate's attack-rate term: roaming
+   * resolves damage per 3s tick as a rate (DPS x tick), so attack
+   * cadence is expressed as a multiplier on that rate — the
+   * documented equivalent of +15% more attacks; per-attack damage
+   * is untouched. Ordnance's flat burst is NOT cadence-scaled (it
+   * is not weapon attacks).
+   */
+  attackSpeedMultiplier: number;
   /** Damage reduction 0-1 applied to monster attackPower (Shield Cell). */
   damageReductionPct: number;
   /** Bonus loot chance 0-1 added to gear drop threshold. */
@@ -178,6 +189,7 @@ export interface RoamingConsumableMods {
 export function emptyMods(): RoamingConsumableMods {
   return {
     dpsMultiplier: 1,
+    attackSpeedMultiplier: 1,
     damageReductionPct: 0,
     bonusLootChance: 0,
     extraLootRollChance: 0,
@@ -759,6 +771,11 @@ export function processTick(
         mods.dpsMultiplier *= effects.dpsMultiplier;
       }
     }
+
+    // Attack-speed (cadence) multiplier — tuning T6: a separate
+    // channel from dpsMultiplier, multiplicative like it, so a
+    // cadence buff and a DPS buff compose without double-counting.
+    if (effects.attackSpeedMultiplier) mods.attackSpeedMultiplier *= effects.attackSpeedMultiplier;
 
     if (effects.damageReductionPct) mods.damageReductionPct = Math.max(mods.damageReductionPct, effects.damageReductionPct);
     if (effects.bonusLootChance) mods.bonusLootChance += effects.bonusLootChance;

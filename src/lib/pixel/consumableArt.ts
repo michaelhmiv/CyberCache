@@ -226,6 +226,10 @@ export const CONSUMABLE_ART: Readonly<Record<string, ConsumableArtRow>> = {
   [T.VoidAmmo]: { chassis: 'rounds', variant: 'row', casing: '#3A2E4A' },
   [T.OverchargeStim]: { chassis: 'syringe', variant: 'overcharge', body: '#3A3044' },
   [T.RedlineTonic]: { chassis: 'syringe', variant: 'tonic', body: '#33383E' },
+  // The tempo serum: teal-dark housing under a cyan dose — the
+  // cyan separates it from both stim siblings on colorway alone
+  // (purple overcharge, red tonic).
+  [T.OverclockSerum]: { chassis: 'syringe', variant: 'overclock', body: '#2E4A4A' },
 };
 
 /** The art row for a consumable type id. Falls back to the def's
@@ -606,6 +610,10 @@ const paintSyringe: Painter = (cv, R, A, variant, icon) => {
   if (variant === 'tonic') {
     cv.rect(7, 9, 1, 9, 'd'); cv.rect(16, 9, 1, 9, 'd'); // twin rails
     cv.set(11, 21 - 1, A.base); // tonic drip at the tip
+  }
+  if (variant === 'overclock') {
+    cv.rect(8, 10, 1, 7, 'd'); // one cooling rail, left side only
+    cv.set(12, 20, A.hot); // charged drip, like the overcharge
   }
 };
 

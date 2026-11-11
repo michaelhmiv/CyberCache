@@ -367,7 +367,11 @@ describe('migration 0024 parity pins', () => {
           // The Elemental Coating recipe postdates 0024 the same
           // way; its parity is pinned against 0077 in
           // elementalCoatingRecipe.test.ts.
-          r.id !== 'recipe_elemental_coating',
+          r.id !== 'recipe_elemental_coating' &&
+          // The Overclock Serum recipe postdates 0024 the same
+          // way (0087, tuning T6); pinned against 0087 in
+          // tuningT6OverclockSerum.test.ts.
+          r.id !== 'recipe_overclock_serum',
       ).map(projectRecipe),
     );
   });
