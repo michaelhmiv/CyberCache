@@ -297,7 +297,7 @@ surface and rides the same lever registry:
 | `eventChanceBase` | 0.05 | 0..0.15 | Per-tick roaming event roll. 0 silences events. Hard ceiling = the brief's 15% clamp. |
 | `eventValueBudgetPct` | 0.08 | 0..0.5 | The anti-leak budget the event tables were authored against: expected event value per tick ≤ this fraction of a plain tick's value (`eventValuePerTick` vs `plainTickValue` in `src/content/roamingEvents.ts`, asserted in tests). |
 | `hotAreaMaterialBonus` | 0.2 | 0..1 | Extra material-find chance in the day's hot area. |
-| `eliteEscalationChance` | 0.12 | 0..1 | Chance an elite rotating into the kill cycle escalates into the area's named elite (HP ×3, Epic-floor drop). |
+| `eliteEscalationChance` | 0.18 | 0..1 | Chance an elite rotating into the kill cycle escalates into the area's named elite (HP ×3, Epic-floor drop). |
 | `hotAreaYieldBonus` | 0.1 | 0..1 | Yield bonus in the hot area (danger also ×1.15 — a code constant, `HOT_AREA_DANGER_MULTIPLIER`). |
 | `absoluteOfflineCapHours` | 24 | 1..24 (int) | The AFK ceiling: effective cap = min(earned tier + keystone, user limiter, this). |
 
@@ -435,6 +435,29 @@ is to be rebaselined after the fleet measures the new magnitudes.
 
 **Watch.** Attempts should spread further up the ladder earlier (the Mirror is attemptable holding 2,500 cr instead of 5,000), and time-to-first-Mirror-attempt should roughly halve for new hunters. **Falsifier (from the tuning brief):** if open-beta humans routinely reach the Mirror holding ≫10,000 cr, the discount is a giveaway on a non-binding fee — remove it and keep fees flat.
 
+## Elite escalation dial (tuning proposal P2, owner ruling 2026-11-10)
+
+Owner ruling 2026-11-10: P2 (the economy tuning brief's elite
+pressure dial) approved — GO.
+
+- **Change.** The named-elite escalation chance rises 0.12 → 0.18 at
+  both of its homes: the shipped constant `ELITE_ESCALATION_CHANCE`
+  in `src/content/roamingEvents.ts` and this lever's default
+  (`eliteEscalationChance`, in the lever table above). No other
+  change — no elite stat, reward, or other rate moves.
+- **Mechanism.** The kill cycle rotates the area roster in order, so
+  an elite is every 4th target; when an elite target rotates in, it
+  escalates into the area's named elite (HP ×3, drops floored at
+  Epic) with probability equal to this dial. Named-elite encounters
+  therefore rise from ~3% to ~4.5% of targets — per elite target,
+  from about 1 in 8 to about 1 in 5.6. An Elite Patrol roaming event
+  still forces escalation regardless of the dial.
+- **Watch.** Elites are the roaming fights that already cost real
+  pool; slightly more of them sharpens the belt-check moments without
+  touching trash pacing. **Falsifier (from the tuning brief):** if
+  fleet data post-recharge (P1 was re-ruled as passive shield
+  recharge, slice T1R) shows elite share of deaths ≫ elite share of
+  fights, revert the dial.
 
 ## Tuning decisions — P6 supplement: Overclock Serum, the tempo consumable (tuning T6, 2026-11-10)
 
