@@ -302,10 +302,14 @@ function expectIconKey(button: HTMLElement) {
   expect(chip.className).toContain('h-[28px]');
   expect(chip.className).toContain('items-center');
   expect(chip.className).toContain('justify-center');
-  // INT-10 (2026-11-11): the glyph is a painting now (owner's
-  // paintings ruling) — it renders as an <img> standing at the
-  // same 20px; the pin's purpose is unchanged.
-  expect(button.querySelector('img')?.getAttribute('width')).toBe('20');
+  // The glyph stands at 20px in the chip (SVG stencil or, since
+  // INT-10, a painting <img> for glyphs that have one); the pin's
+  // purpose is unchanged — never back toward label-era sizes.
+  // (INT-10 note: in the fresh-guest state every chip glyph —
+  // key, clock, calendar, orders — is stencil-residue by the
+  // INT-10 census, so the svg read is the live one here.)
+  const glyphEl = button.querySelector('svg') ?? button.querySelector('img');
+  expect(glyphEl?.getAttribute('width')).toBe('20');
 }
 
 beforeEach(() => {
