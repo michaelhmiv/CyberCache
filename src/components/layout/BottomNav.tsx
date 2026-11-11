@@ -1,5 +1,5 @@
 import React from 'react';
-import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { NAV_SIGIL_MASTERS } from '@/lib/pixel/iconMasters';
 import { motion } from 'framer-motion';
 import { getNavSigil } from '@/constants/navSigils';
 
@@ -35,14 +35,29 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => 
                   transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
               )}
-              <span
-                className="relative z-10 font-black leading-none"
-                style={{
-                  fontSize: '18px',
-                  color: isActive ? undefined : sigil.color,
-                }}
-              >
-                <PxIcon name={sigil.icon} size={17} />
+              {/* INT-9 — the sigil is the painted master now (Wave 13).
+                  Tint verification: the old PxIcon rode the span's
+                  color, which is the tab's FIXED identity color when
+                  inactive and undefined (button text color) when
+                  active — but the active state is carried by the
+                  button's amber background (and the layoutId pill),
+                  not by the icon, so the fixed-color master loses no
+                  state signal. It ships in the tab's own identity
+                  colorway (home orange, pack violet, tag gold, person
+                  cyan). The span's old color style went with the
+                  glyph; the label below still inherits the button's
+                  classes, so active/inactive text treatment is
+                  unchanged. */}
+              <span className="relative z-10 leading-none">
+                <img
+                  src={NAV_SIGIL_MASTERS[sigil.icon]}
+                  width={17}
+                  height={17}
+                  style={{ width: 17, height: 17 }}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                />
               </span>
               {/* DESIGN.md §5 type floor: labels render at 11px — the
                   four-tab bar has the width for honest sizes, so the

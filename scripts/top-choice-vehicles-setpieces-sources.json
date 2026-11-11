@@ -1,0 +1,342 @@
+{
+ "set-bay-lift": {
+  "before_bytes": 403,
+  "bytes": 237797,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-bay-lift-top.png",
+  "master_size": [
+   1792,
+   1280
+  ]
+ },
+ "set-bay-tray": {
+  "before_bytes": 217,
+  "bytes": 139081,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-bay-tray-top.png",
+  "master_size": [
+   2480,
+   992
+  ]
+ },
+ "set-bay-wall-listing": {
+  "before_bytes": 276,
+  "bytes": 387243,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-bay-wall-listing-top.png",
+  "master_size": [
+   1920,
+   1280
+  ]
+ },
+ "set-bench-basic": {
+  "before_bytes": 429,
+  "bytes": 223221,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-bench-basic-top.png",
+  "master_size": [
+   1600,
+   1600
+  ]
+ },
+ "set-bench-forge": {
+  "before_bytes": 502,
+  "bytes": 293534,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-bench-forge-top.png",
+  "master_size": [
+   1792,
+   1344
+  ]
+ },
+ "set-bench-lab": {
+  "before_bytes": 464,
+  "bytes": 232825,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-bench-lab-top.png",
+  "master_size": [
+   1600,
+   1600
+  ]
+ },
+ "set-calibration-rig": {
+  "before_bytes": 598,
+  "bytes": 185166,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-calibration-rig-top.png",
+  "master_size": [
+   1728,
+   1440
+  ]
+ },
+ "set-dispatch-board": {
+  "before_bytes": 12729,
+  "bytes": 533926,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-dispatch-board-top.png",
+  "master_size": [
+   2000,
+   1200
+  ]
+ },
+ "set-dispatch-pad": {
+  "before_bytes": 11514,
+  "bytes": 417377,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-dispatch-pad-top.png",
+  "master_size": [
+   1792,
+   1344
+  ]
+ },
+ "set-dispatch-route": {
+  "before_bytes": 9445,
+  "bytes": 444327,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-dispatch-route-top.png",
+  "master_size": [
+   1792,
+   1344
+  ]
+ },
+ "set-extract-crates": {
+  "before_bytes": 6965,
+  "bytes": 470637,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-extract-crates-top.png",
+  "master_size": [
+   1600,
+   1600
+  ]
+ },
+ "set-extract-rig": {
+  "before_bytes": 4706,
+  "bytes": 406505,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-extract-rig-top.png",
+  "master_size": [
+   1280,
+   1920
+  ]
+ },
+ "set-extract-stakes": {
+  "before_bytes": 10601,
+  "bytes": 466403,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-extract-stakes-top.png",
+  "master_size": [
+   2000,
+   1200
+  ]
+ },
+ "set-refinery-crusher": {
+  "before_bytes": 563,
+  "bytes": 256953,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-refinery-crusher-top.png",
+  "master_size": [
+   1920,
+   1280
+  ]
+ },
+ "set-refinery-furnace": {
+  "before_bytes": 327,
+  "bytes": 269341,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-refinery-furnace-top.png",
+  "master_size": [
+   1600,
+   1600
+  ]
+ },
+ "set-research-shelf": {
+  "before_bytes": 6590,
+  "bytes": 573975,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-research-shelf-top.png",
+  "master_size": [
+   1280,
+   1920
+  ]
+ },
+ "set-research-terminal": {
+  "before_bytes": 10382,
+  "bytes": 480154,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-research-terminal-top.png",
+  "master_size": [
+   1792,
+   1344
+  ]
+ },
+ "set-resurrection-pod": {
+  "before_bytes": 4202,
+  "bytes": 516066,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-resurrection-pod-top.png",
+  "master_size": [
+   912,
+   2736
+  ]
+ },
+ "set-vendor-sign": {
+  "before_bytes": 7872,
+  "bytes": 528943,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-vendor-sign-top.png",
+  "master_size": [
+   1600,
+   1600
+  ]
+ },
+ "set-vendor-stall": {
+  "before_bytes": 626,
+  "bytes": 353077,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-vendor-stall-top.png",
+  "master_size": [
+   1920,
+   1280
+  ]
+ },
+ "set-war-room-table": {
+  "before_bytes": 10463,
+  "bytes": 499465,
+  "key": "white",
+  "master": "wave10-setpieces/renders/set-war-room-table-top.png",
+  "master_size": [
+   2000,
+   1200
+  ]
+ },
+ "vehicle-affix-armor-plate": {
+  "before_bytes": 12589,
+  "bytes": 466797,
+  "key": "white",
+  "master": "wave7-vehicles/renders/affix-armor-plate-top.png",
+  "master_size": [
+   1792,
+   1232
+  ]
+ },
+ "vehicle-affix-cargo-rack": {
+  "before_bytes": 12418,
+  "bytes": 565922,
+  "key": "white",
+  "master": "wave7-vehicles/renders/affix-cargo-rack-top.png",
+  "master_size": [
+   1904,
+   1280
+  ]
+ },
+ "vehicle-affix-reinforced-frame": {
+  "before_bytes": 11682,
+  "bytes": 545160,
+  "key": "white",
+  "master": "wave7-vehicles/renders/affix-reinforced-frame-top.png",
+  "master_size": [
+   2048,
+   1248
+  ]
+ },
+ "vehicle-affix-scanner-array": {
+  "before_bytes": 7485,
+  "bytes": 379193,
+  "key": "white",
+  "master": "wave7-vehicles/renders/affix-scanner-array-top.png",
+  "master_size": [
+   1600,
+   1600
+  ]
+ },
+ "vehicle-armored-crawler": {
+  "before_bytes": 11975,
+  "bytes": 521124,
+  "key": "white",
+  "master": "wave7-vehicles/colorways/armored-crawler-colorway-top.png",
+  "master_size": [
+   2560,
+   960
+  ]
+ },
+ "vehicle-cargo-hauler": {
+  "before_bytes": 16981,
+  "bytes": 744814,
+  "key": "white",
+  "master": "wave7-vehicles/colorways/cargo-hauler-colorway-top.png",
+  "master_size": [
+   2480,
+   1008
+  ]
+ },
+ "vehicle-condition-scuff": {
+  "before_bytes": 13611,
+  "bytes": 586224,
+  "key": "grey",
+  "master": "wave7-vehicles/renders/condition-scuff-top.png",
+  "master_size": [
+   2304,
+   1008
+  ]
+ },
+ "vehicle-condition-smoke": {
+  "before_bytes": 13292,
+  "bytes": 230034,
+  "key": "white",
+  "master": "wave7-vehicles/renders/condition-smoke-top.png",
+  "master_size": [
+   2224,
+   1008
+  ]
+ },
+ "vehicle-dune-buggy": {
+  "before_bytes": 14928,
+  "bytes": 597279,
+  "key": "white",
+  "master": "wave7-vehicles/colorways/dune-buggy-colorway-top.png",
+  "master_size": [
+   2320,
+   1088
+  ]
+ },
+ "vehicle-leviathan-rig": {
+  "before_bytes": 403,
+  "bytes": 261668,
+  "key": "white",
+  "master": "wave7-vehicles/colorways/leviathan-rig-colorway-top.png",
+  "master_size": [
+   2240,
+   1120
+  ]
+ },
+ "vehicle-relay-skimmer": {
+  "before_bytes": 9485,
+  "bytes": 357642,
+  "key": "white",
+  "master": "wave7-vehicles/colorways/relay-skimmer-colorway-top.png",
+  "master_size": [
+   2448,
+   880
+  ]
+ },
+ "vehicle-scrap-bike": {
+  "before_bytes": 15570,
+  "bytes": 476572,
+  "key": "white",
+  "master": "wave7-vehicles/colorways/scrap-bike-colorway-top.png",
+  "master_size": [
+   2080,
+   1008
+  ]
+ },
+ "vehicle-utility-rover": {
+  "before_bytes": 11435,
+  "bytes": 557087,
+  "key": "white",
+  "master": "wave7-vehicles/colorways/utility-rover-colorway2-top.png",
+  "master_size": [
+   2048,
+   1152
+  ]
+ }
+}

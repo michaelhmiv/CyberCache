@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { MOVEMENT } from '@/lib/pixel/movement';
+import { getPixelSprite } from '@/lib/pixel/manifest';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Shield, Weapon } from '@/types/items';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
@@ -169,6 +170,26 @@ describe('LootMoment — full mode (stage surface)', () => {
     expect(hero.textContent).not.toContain('0.1%');
     // Gear carries no rollQuality — no quality chip.
     expect(hero.textContent).not.toContain('QUALITY');
+  });
+
+  it('ignites the cache prop: the opened crate frame rides the closed one (INT-7)', () => {
+    render(<LootMoment items={[makeShield()]} surface="stage" propCache testId="lm" />);
+    const closed = screen.getByTestId('loot-cache-prop');
+    const opened = screen.getByTestId('loot-cache-prop-open');
+    // One asset family, two states: closed = the lane/decrypt crate,
+    // opened = the adopted ignition frame (wave §3.4, owner ruling
+    // 2026-11-10). Both resolve through the manifest, never baked art.
+    expect(closed.getAttribute('src')).toBe(getPixelSprite('prop-cache-crate')?.url);
+    expect(opened.getAttribute('src')).toBe(getPixelSprite('prop-cache-crate-open')?.url);
+    expect(closed.getAttribute('src')).not.toBe(opened.getAttribute('src'));
+    // Painterly masters render smooth at the prop seat (the light
+    // kit's scoped exception, PR #483) — no texel upscale.
+    expect((closed as HTMLImageElement).style.imageRendering).not.toBe('pixelated');
+    expect((opened as HTMLImageElement).style.imageRendering).not.toBe('pixelated');
+    // The opened frame is bottom-seated on the same ground line as
+    // the closed crate it replaces.
+    expect(opened.className).toContain('absolute');
+    expect(opened.className).toContain('bottom-0');
   });
 
   it('climbs the ladder: earlier drops stack as plain cards under the current hero', () => {
