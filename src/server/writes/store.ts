@@ -17,7 +17,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { mapProfile, SHOWCASE_LIMIT, type ProfileRowData } from '../reads/store.js';
-import { xpToNextLevel } from '../../content/simulation.js';
+import { MAX_PLAYER_LEVEL, xpToNextLevel } from '../../content/simulation.js';
 import type { GearItem } from '../../types/items.js';
 import { isUsableWeaponPayload, skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
 import { finalizePendingCraftedCosmetics, finalizePendingCraftedGear } from './craftFinalize.js';
@@ -554,6 +554,11 @@ export function applyXp(level: number, xp: number, award: number): { player_leve
   let nextLevel = Math.max(1, Math.floor(level));
   let nextXp = Math.max(0, Math.floor(xp)) + Math.max(0, Math.floor(award));
   for (;;) {
+    // Level cap (audit HTR-06): at MAX_PLAYER_LEVEL the loop stops —
+    // the level (and with it the level−1 skill budget) never mints
+    // past the cap. Leftover XP stays banked on the row; the SQL
+    // twin (cc_apply_xp, migration 0093) exits identically.
+    if (nextLevel >= MAX_PLAYER_LEVEL) break;
     const needed = xpToNextLevel(nextLevel);
     if (nextXp < needed) break;
     nextXp -= needed;
@@ -566,6 +571,24 @@ export function skillSpendTotal(spends: Json): number {
   let total = 0;
   for (const value of Object.values(spends)) {
     if (typeof value === 'number' && Number.isFinite(value)) total += Math.max(0, Math.floor(value));
+  }
+  return total;
+}
+
+/**
+ * The BUDGET cost of a set of spends: Σ points × per_point_cost from the
+ * node definitions (small 1 / major 3 / keystone 5). The budget gate and
+ * the respec price read this — not the raw count above (audit HTR-01;
+ * SQL twin: cc_skill_spend_cost, migration 0089; client twin:
+ * skillSpendCost in lib/skills/skillBonuses). Unknown ids price at 1.
+ */
+export function skillSpendCost(spends: Json, nodes: SkillNodeData[]): number {
+  const costById = new Map(nodes.map((n) => [n.id, n.per_point_cost]));
+  let total = 0;
+  for (const [nodeId, value] of Object.entries(spends)) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      total += Math.max(0, Math.floor(value)) * (costById.get(nodeId) ?? 1);
+    }
   }
   return total;
 }

@@ -36,13 +36,17 @@ import { humanizeWorkshopError } from '@/lib/workshop/errors';
  * never switches the action by itself.
  */
 
-function bannerReason(activeActionKind: string | null): string {
+function bannerReason(activeActionKind: string | null, bossPhase?: string | null): string {
   switch (activeActionKind) {
     case 'roaming_loot':
       return "you're roaming";
     case 'boss_prep':
+      return "you're prepping for a boss";
     case 'boss_fight':
-      return "you're in a boss fight";
+      // Boss prep collapsed into the boss_fight kind (bossPhase
+      // 'prep' | 'fight' | 'resolved') — only the fight phase is a
+      // fight. Standing in prep must not claim one (audit H-05).
+      return bossPhase === 'fight' ? "you're in a boss fight" : "you're prepping for a boss";
     case 'endless_run':
       return "you're in the Chaos Chamber";
     case 'extraction':
@@ -155,7 +159,7 @@ export const HomeCraftBench: React.FC<{
             : isService
               ? <>Workshop Service is your current action — <span className="font-bold text-text-primary">{activity.current.targetLabel ?? 'service work'}</span> is progressing in Repairs &amp; Service below. The craft bench is paused meanwhile.</>
               : benchJobs.length > 0
-                ? <>Bench paused — {bannerReason(kind)}. {benchJobs.length} job{benchJobs.length === 1 ? '' : 's'} waiting; jobs progress only while Crafting holds the action slot.</>
+                ? <>Bench paused — {bannerReason(kind, activity.current.bossPhase)}. {benchJobs.length} job{benchJobs.length === 1 ? '' : 's'} waiting; jobs progress only while Crafting holds the action slot.</>
                 : 'The bench is idle. Queue a recipe below — jobs run while Crafting is your action.'}
         </div>
 

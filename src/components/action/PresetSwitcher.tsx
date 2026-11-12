@@ -141,7 +141,7 @@ const ApplyReport: React.FC<{
         <button
           type="button"
           onClick={dismissApplyReport}
-          className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black"
+          className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black"
         >
           Done
         </button>
@@ -161,7 +161,7 @@ const ApplyReport: React.FC<{
         <button
           type="button"
           onClick={dismissApplyReport}
-          className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black"
+          className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black"
         >
           Dismiss
         </button>
@@ -178,7 +178,7 @@ const ApplyReport: React.FC<{
               <button
                 type="button"
                 onClick={() => void delistAndReapply(report.presetId, outcome.listingId as string)}
-                className="bl-primary shrink-0 px-2 py-1 text-[11px] font-black"
+                className="bl-primary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black"
               >
                 Delist &amp; equip
               </button>
@@ -187,7 +187,7 @@ const ApplyReport: React.FC<{
               <button
                 type="button"
                 onClick={() => void recallAndReapply(report.presetId, outcome.missionId as string)}
-                className="bl-primary shrink-0 px-2 py-1 text-[11px] font-black"
+                className="bl-primary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black"
               >
                 Recall mission
               </button>
@@ -196,7 +196,7 @@ const ApplyReport: React.FC<{
               <button
                 type="button"
                 onClick={() => onPickReplacement(outcome.slot)}
-                className="bl-primary shrink-0 px-2 py-1 text-[11px] font-black"
+                className="bl-primary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black"
               >
                 Pick a replacement
               </button>
@@ -296,13 +296,7 @@ export const PresetSwitcher: React.FC<{
               type="button"
               onClick={() => loadPreset(preset.id)}
               onContextMenu={(e) => { e.preventDefault(); setManageId(preset.id); }}
-              className={`shrink-0 flex items-center gap-1 border-2 px-2 py-1 text-[10px] font-black uppercase tracking-wide transition-colors ${
-                isActive
-                  ? 'border-amber bg-amber/15 text-amber'
-                  : isMatched
-                    ? 'border-amber/30 bg-amber/5 text-text-primary'
-                    : 'border-border bg-bg/70 text-text-muted hover:border-amber/40'
-              }`}
+              className={`shrink-0 flex items-center gap-1 border-2 px-2 py-1 min-h-[44px] min-w-[44px] text-[10px] font-black uppercase tracking-wide transition-colors ${ isActive ? 'border-amber bg-amber/15 text-amber' : isMatched ? 'border-amber/30 bg-amber/5 text-text-primary' : 'border-border bg-bg/70 text-text-muted hover:border-amber/40' }`}
               style={signClip}
             >
               <PxIcon
@@ -320,7 +314,7 @@ export const PresetSwitcher: React.FC<{
           <button
             type="button"
             onClick={() => setSaveOpen(true)}
-            className="shrink-0 flex items-center gap-1 border-2 border-dashed border-border bg-bg/40 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted hover:border-amber/40 hover:text-amber transition-colors"
+            className="shrink-0 flex items-center gap-1 border-2 border-dashed border-border bg-bg/40 px-2 py-1 min-h-[44px] min-w-[44px] text-[10px] font-black uppercase tracking-wide text-text-muted hover:border-amber/40 hover:text-amber transition-colors"
             style={signClip}
           >
             <PxIcon name="plus" size={13} />
@@ -333,7 +327,7 @@ export const PresetSwitcher: React.FC<{
           <button
             type="button"
             onClick={() => setListOpen(true)}
-            className="shrink-0 flex items-center gap-1 border-2 border-border bg-bg/40 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted hover:border-amber/40 hover:text-amber transition-colors"
+            className="shrink-0 flex items-center gap-1 border-2 border-border bg-bg/40 px-2 py-1 min-h-[44px] min-w-[44px] text-[10px] font-black uppercase tracking-wide text-text-muted hover:border-amber/40 hover:text-amber transition-colors"
             style={signClip}
             data-testid="preset-manage-button"
           >
@@ -355,7 +349,7 @@ export const PresetSwitcher: React.FC<{
           <button
             type="button"
             onClick={clearPresetError}
-            className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black"
+            className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black"
           >
             Dismiss
           </button>
@@ -388,8 +382,8 @@ export const PresetSwitcher: React.FC<{
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setSaveOpen(false); }}
               />
-              <button type="button" onClick={handleSave} className="bl-primary px-2 py-1 text-[10px] font-black">Save</button>
-              <button type="button" onClick={() => setSaveOpen(false)} className="bl-secondary px-2 py-1 text-[10px]">Cancel</button>
+              <button type="button" onClick={handleSave} className="bl-primary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px] font-black">Save</button>
+              <button type="button" onClick={() => setSaveOpen(false)} className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px]">Cancel</button>
             </div>
           </motion.div>
         )}
@@ -443,7 +437,7 @@ export const PresetSwitcher: React.FC<{
                               if (rowRenameName.trim()) renamePreset(preset.id, rowRenameName.trim());
                               setRowRenameId(null);
                             }}
-                            className="bl-primary px-2 py-1 text-[10px]"
+                            className="bl-primary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px]"
                           >
                             OK
                           </button>
@@ -457,27 +451,27 @@ export const PresetSwitcher: React.FC<{
                               className={isActive ? 'text-amber' : 'text-text-muted'}
                             />
                             <span className="min-w-0 flex-1 truncate text-xs font-black text-text-primary">{preset.name}</span>
-                            {isActive && <span className="text-[8px] font-black uppercase tracking-wider text-amber">Active</span>}
+                            {isActive && <span className="text-[11px] font-black uppercase tracking-wider text-amber">Active</span>}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             <button
                               type="button"
                               onClick={() => { loadPreset(preset.id); setListOpen(false); }}
-                              className="bl-primary px-2 py-1 text-[9px] font-black"
+                              className="bl-primary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[9px] font-black"
                             >
                               Apply
                             </button>
                             <button
                               type="button"
                               onClick={() => { setRowRenameId(preset.id); setRowRenameName(preset.name); }}
-                              className="bl-secondary px-2 py-1 text-[9px] font-black"
+                              className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[9px] font-black"
                             >
                               Rename
                             </button>
                             <button
                               type="button"
                               onClick={() => setIconPickId(iconPickId === preset.id ? null : preset.id)}
-                              className="bl-secondary px-2 py-1 text-[9px] font-black"
+                              className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[9px] font-black"
                               aria-expanded={iconPickId === preset.id}
                             >
                               Icon
@@ -485,14 +479,14 @@ export const PresetSwitcher: React.FC<{
                             <button
                               type="button"
                               onClick={() => overwritePreset(preset.id)}
-                              className="bl-secondary px-2 py-1 text-[9px] font-black text-amber"
+                              className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[9px] font-black text-amber"
                             >
                               Overwrite
                             </button>
                             <button
                               type="button"
                               onClick={() => deletePreset(preset.id)}
-                              className="flex items-center gap-1 border border-red/30 bg-red/5 px-2 py-1 text-[9px] font-black text-red"
+                              className="flex items-center gap-1 border border-red/30 bg-red/5 px-2 py-1 min-h-[44px] min-w-[44px] text-[9px] font-black text-red"
                             >
                               <PxIcon name="x" size={13} /> Delete
                             </button>
@@ -591,7 +585,7 @@ export const PresetSwitcher: React.FC<{
                     autoFocus
                     onKeyDown={(e) => { if (e.key === 'Enter') handleRename(); }}
                   />
-                  <button type="button" onClick={handleRename} className="bl-primary px-2 py-1 text-[10px]">OK</button>
+                  <button type="button" onClick={handleRename} className="bl-primary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px]">OK</button>
                 </div>
               )}
 

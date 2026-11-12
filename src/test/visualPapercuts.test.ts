@@ -67,9 +67,9 @@ describe('render fixes (source shape)', () => {
     expect(bar).not.toContain('flex-[1.35]');
   });
 
-  it('M1 — market empty state waits for loading to finish', () => {
+  it('M1 — market empty state waits for loading to finish (and yields to the X-07 error state)', () => {
     const market = read('../screens/MarketScreen.tsx');
-    expect(market).toContain('!loadingListings && filteredListings.length === 0');
+    expect(market).toContain('!loadingListings && !buyError && filteredListings.length === 0');
   });
 
   it('P1 — profile handle actions are null-account safe', () => {

@@ -51,6 +51,10 @@ const MIGRATION_0073 = readFileSync(
   join(process.cwd(), 'db', 'migrations', '0073_bench_collapse_relic_merger.sql'),
   'utf8',
 );
+const MIGRATION_0092 = readFileSync(
+  join(process.cwd(), 'db', 'migrations', '0092_cosmetics_view_tier.sql'),
+  'utf8',
+);
 
 const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
@@ -492,5 +496,35 @@ describe('cosmetic equip — gameplay twin', () => {
     const state = await store.getCosmeticsState(A);
     expect(state?.selection.headVariant).toBe('mfr-redline');
     expect(state?.wearableVariantIds).toContain('mfr-redline');
+  });
+});
+
+// ─── Audit G-F4 — repaint-tier cosmetics must not break the view ────
+
+describe('audit G-F4 — cosmetics view tier handling', () => {
+  it('the gameplay twin lists a repaint-tier part with its string tier', async () => {
+    const store = new InMemoryChefGameplayStore(() => new Date('2026-10-29T12:00:00.000Z'));
+    store.seedProfile({ id: A, username: 'alpha' });
+    const itemId = '88888888-8888-4888-8888-888888888888';
+    store.seedItem({
+      id: itemId, owner_user_id: A, kind: 'cosmetic', runtime_state: 'available',
+      payload: {
+        name: 'Dreadplate Helm', partId: 'dread-head', slot: 'head', setId: 'dreadplate',
+        tier: 'repaint', quality: 88, tintPaletteId: 'crimson', origin: 'crafted', craftedBy: A,
+      },
+    } as never);
+    const state = await store.getCosmeticsState(A);
+    const part = state?.parts.find((p) => p.id === itemId);
+    expect(part).toBeTruthy();
+    expect(part?.tier).toBe('repaint');
+  });
+
+  it('migration 0092 restates cc_cosmetics_view with the string-union tier mapping', () => {
+    expect(MIGRATION_0092).toContain('create or replace function public.cc_cosmetics_view(p_player_id uuid)');
+    expect(MIGRATION_0092).toContain("case when i.payload ->> 'tier' in ('repaint', 'shaped')");
+    expect(MIGRATION_0092).toContain("else 'palette' end");
+    // The defect itself: no integer cast on the tier value survives.
+    expect(MIGRATION_0092).not.toContain("(i.payload ->> 'tier')::integer");
+    expect(MIGRATION_0092).not.toMatch(/->> 'tier'\)::/);
   });
 });

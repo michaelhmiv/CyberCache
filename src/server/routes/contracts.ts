@@ -69,13 +69,19 @@ const REFUSAL_MARKERS = [
   'Claimed contracts cannot be rerolled',
   'Contract complete — claim it or let it expire',
   'Contract expired',
-  'verified account',
   'Insufficient scrap',
   'No replacement contract available',
 ];
 
 function sendStoreError(res: Response, fallback: string, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err);
+  // Audit A-04: the verified-account refusal is 403 on every surface
+  // (the writes routes map it to 'forbidden'); it used to fall into
+  // the 409 refusal bucket here.
+  if (message.includes('verified account')) {
+    res.status(403).json({ error: 'forbidden', detail: message });
+    return;
+  }
   if (message.includes('Profile not found') || message.includes('Contract not found')) {
     res.status(404).json({ error: fallback, detail: message });
     return;

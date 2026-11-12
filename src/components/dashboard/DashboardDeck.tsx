@@ -343,7 +343,7 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
   // keeps in the consolidation; the Slots card and the Loadout
   // Bench shortcut left the deck — see the header note).
   const actions: LauncherAction[] = [
-    { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles.', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', primary: true, onClick: () => onNavigate('dispatch') },
+    { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', primary: true, onClick: () => onNavigate('dispatch') },
     { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, primary: true, onClick: () => onNavigate('chest') },
   ];
 
