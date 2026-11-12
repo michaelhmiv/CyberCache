@@ -32,6 +32,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Sign-out now leaves nothing behind on the device** — your "While You Were Away" recap used to survive sign-out and could pop up inside the next account's session on a shared device. Changing accounts or signing out clears it now, and your on-device snapshot copy is removed too (your own return still restores from the server as before).
 - **The Wardrobe opens again for repaint owners** — if you owned a repaint-tier cosmetic, your cosmetics page failed to load at all (the server tried to read the repaint tier as a number). It now reads tiers the way the rest of the game does, and your parts list normally.
 - **The market docs now match the market** — MECHANICS.md claimed listing was free; it has not been since the listing deposit shipped. Listing now correctly reads as a 25-scrap deposit, refunded when your item sells and burned if you cancel, alongside the 5% sale fee.
+- **Level 100 is the top now** — XP used to keep minting levels (and skill points) past 100 forever, and your level plate promised a "Level 101" that was never meant to exist. Level 100 is the summit: XP still banks, the plate reads MAX LEVEL, and the skill-point budget stops at its designed 99.
 
 
 

@@ -4,7 +4,7 @@ CyberCache is a **long-term game**. Levels, skills, Cache Rank, and mastery are 
 
 ## Levels and XP
 
-The XP curve totals **12,480,235 XP to reach level 100**. Early levels come fast; the curve steepens through the boss ladder and compounds hard in the prestige tail.
+The XP curve totals **12,480,235 XP to reach level 100 — and 100 is the cap**. Early levels come fast; the curve steepens through the boss ladder and compounds hard in the prestige tail. At the cap your plate reads MAX LEVEL: XP keeps banking on your hunter, but no further levels mint, so the skill-point budget stops at its designed 99.
 
 The pacing figures below are **modeled, not guaranteed** — they come from the game's own tuning model for a regular player roaming about six hours a day. Your mileage will vary with your areas, gear, and how much of your play is in higher-XP activities:
 
@@ -102,4 +102,4 @@ The Profile's Mastery section starts empty for a new hunter, and its empty state
 
 ---
 
-_Source of truth: `src/content/simulation.ts`, `src/content/xpResolver.ts`, `src/content/offlineCap.ts`, `src/content/cacheRank.ts`, `src/constants/skillTrees.ts`, `db/migrations/0004_write_apis.sql`, `db/migrations/0051_profile_lifetime_counters.sql`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._
+_Source of truth: `src/content/simulation.ts`, `src/content/xpResolver.ts`, `src/content/offlineCap.ts`, `src/content/cacheRank.ts`, `src/constants/skillTrees.ts`, `db/migrations/0004_write_apis.sql`, `db/migrations/0051_profile_lifetime_counters.sql`, `db/migrations/0093_xp_level_cap.sql`. Last synced from the repo `wiki/` directory — see `.sync-sha` for the master commit this page was published from._

@@ -17,7 +17,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { mapProfile, SHOWCASE_LIMIT, type ProfileRowData } from '../reads/store.js';
-import { xpToNextLevel } from '../../content/simulation.js';
+import { MAX_PLAYER_LEVEL, xpToNextLevel } from '../../content/simulation.js';
 import type { GearItem } from '../../types/items.js';
 import { isUsableWeaponPayload, skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
 import { finalizePendingCraftedCosmetics, finalizePendingCraftedGear } from './craftFinalize.js';
@@ -554,6 +554,11 @@ export function applyXp(level: number, xp: number, award: number): { player_leve
   let nextLevel = Math.max(1, Math.floor(level));
   let nextXp = Math.max(0, Math.floor(xp)) + Math.max(0, Math.floor(award));
   for (;;) {
+    // Level cap (audit HTR-06): at MAX_PLAYER_LEVEL the loop stops —
+    // the level (and with it the level−1 skill budget) never mints
+    // past the cap. Leftover XP stays banked on the row; the SQL
+    // twin (cc_apply_xp, migration 0093) exits identically.
+    if (nextLevel >= MAX_PLAYER_LEVEL) break;
     const needed = xpToNextLevel(nextLevel);
     if (nextXp < needed) break;
     nextXp -= needed;
