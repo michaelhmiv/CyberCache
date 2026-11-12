@@ -229,6 +229,31 @@ export function computeBossRelativeDps(
   );
 }
 
+/**
+ * The crit chance boss combat settles with — ONE composition,
+ * shared by the settling engine and every display of the number
+ * (audit HTR-04; owner ruling 2026-11-12: Hunter shows the fight
+ * number). simulateBoss reads it for the Gunslinger keystone's
+ * high-crit clause (Death by a Thousand Cuts, second clause:
+ * highCritBossDamage pays out only while this value exceeds
+ * 50%), and the Hunter surfaces print it as Crit %: the PRIMARY
+ * weapon's own crit chance, plus the crit granted by skill
+ * nodes, plus the crit bonus of any consumables in force.
+ *
+ * Displays call it with the consumable term at zero: a standing
+ * build number never prices transient buffs, so the printed
+ * chance is the sim's value before consumables — the same
+ * quantity, minus the one term that belongs to a specific
+ * fight's preparation.
+ */
+export function computeEffectiveCritChance(
+  primary: Weapon | null | undefined,
+  skillBonuses: Record<string, number>,
+  consumableCritBonus = 0,
+): number {
+  return (primary?.critChance || 0) + consumableCritBonus + (skillBonuses.critChance || 0);
+}
+
 /** A short human label for the active DPS context (for UI display). */
 export function describeDpsContext(
   weapon: Weapon,
