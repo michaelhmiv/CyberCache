@@ -51,6 +51,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Behind-the-scenes account safety fix** — the test version of the sign-in system could silently hand an email address to a brand-new Google account; it now refuses exactly the way the live system does, so the protection is actually covered by tests.
 - **You can always cancel your own market listing now** — the Cancel button no longer demands a verified account, matching the server: pulling down your own listing is recovery, not trading, so a lapsed verification can't trap a live listing anymore.
 - **Boss specials announce themselves** — when a boss starts winding up its big cadence attack, the fight stage now calls it out by name (Sand Slam, Eruption, Event Horizon, and the rest of the thirteen) with a red danger ring and a charging glow, for exactly the window before the hit lands. Regular attacks keep their existing small glow, so a special reads instantly differently from a jab. What is coming is always shown — the odds, as ever, are yours to judge.
+- **A graphics hiccup can't freeze the fight anymore** — if your device loses the game's graphics context mid-fight (a GPU reset, a driver stutter), the stage used to freeze on its last picture forever, with the fight still running behind it. Now the stage hands off to the backup renderer instead — the same fight, fully playable — instead of leaving you staring at a still frame.
 
 
 

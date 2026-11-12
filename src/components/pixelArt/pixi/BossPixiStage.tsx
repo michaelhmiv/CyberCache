@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { motion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
 import { CritFlash, DamageNumber, SpecialTelegraphFx } from '../PixelFx';
 import { specialTelegraphForBossPhase, type BossSpecialTelegraph } from '@/lib/pixel/bossTelegraph';
 import { PART_POSES, PARTS_FEET_X, PRIMARY_ANCHOR, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
@@ -772,6 +773,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
     let cancelled = false;
     let app: Application | null = null;
     let resizeObserver: ResizeObserver | null = null;
+    let contextRecoveryCleanup: (() => void) | null = null;
     const runtime = (runtimeRef.current ??= createStageRuntime());
     const init = async () => {
       const host = hostRef.current;
@@ -829,6 +831,14 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
       app.canvas.style.imageRendering = 'pixelated';
       app.canvas.style.display = 'block';
       host.appendChild(app.canvas);
+      // X-01/A-07: a lost WebGL context must not freeze the stage —
+      // route to the DOM fallback (the failed effect already forwards
+      // to onPixiError). Wired unconditionally, not probe-gated.
+      contextRecoveryCleanup = installWebglContextRecovery(app.canvas, {
+        onContextLost: () => {
+          if (!cancelled) setFailed(true);
+        },
+      });
 
       const world = new Container();
       app.stage.addChild(world);
@@ -993,6 +1003,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
     });
     return () => {
       cancelled = true;
+      contextRecoveryCleanup?.();
       resizeObserver?.disconnect();
       if (app) {
         app.destroy(true, { children: true });
