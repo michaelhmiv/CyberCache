@@ -9,7 +9,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import { assembleStatSummaryInput, type StatSummaryAssemblyState } from '@/lib/stats/assembleStatSummaryInput';
-import { effectiveSkillPoints } from '@/lib/skills/skillBonuses';
+import { computeSkillBonuses, effectiveSkillPoints } from '@/lib/skills/skillBonuses';
+import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
+import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
+import { simulateBoss } from '@/lib/simulation/bossSimulator';
+import { REGION_1_BOSSES } from '@/constants/bosses';
+import { RiskSetting } from '@/types/game';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { ClassMod, Weapon } from '@/types/items';
 import type { PlayerProfile } from '@/types/player';
@@ -150,5 +155,49 @@ describe('assembleStatSummaryInput', () => {
     const input = assembleStatSummaryInput(state(), { slot: 'shield', item: null });
     expect(input.classMod?.id).toBe('worn-mod');
     expect(input.spentSkills.scav_idle_1).toBe(5);
+  });
+});
+
+describe('audit HTR-05 — boss-context summaries carry the sim numbers', () => {
+  it('injects bossSimDps / bossSimShieldBreak equal to simulateBoss on the same loadout', () => {
+    const boss = REGION_1_BOSSES[0];
+    // Speed nodes maxed: the approximation weights attackSpeed at
+    // ×1.0, the sim's composite at ×0.3 — the worked divergence.
+    const s = state({ boss, spent: { gs_speed_1: 5, gs_speed_2: 5 } });
+    const input = assembleStatSummaryInput(s);
+    const sim = simulateBoss({
+      primary: s.weapons[0] ?? null,
+      secondary: s.weapons[1] ?? null,
+      heavy: s.weapons[2] ?? null,
+      ordnance: null,
+      shield: null,
+      classMod: s.classMod ?? null,
+      relic: null,
+      consumables: {},
+      risk: RiskSetting.Balanced,
+      boss,
+      playerLevel: s.player.level,
+      skillBonuses: computeSkillBonuses(s.spent, s.classModBoosts),
+    });
+    expect(input.bossSimDps).toBeCloseTo(sim.effectiveDPS, 6);
+    expect(input.bossSimShieldBreak).toBeCloseTo(sim.shieldBreakValue, 6);
+
+    // The printed Totals metrics are the sim's numbers (within 1%).
+    const summary = buildCharacterStatSummary(input);
+    const bossMetric = summary.all.find((m) => m.key === 'boss')!;
+    expect(Math.abs(bossMetric.value - sim.effectiveDPS) / sim.effectiveDPS).toBeLessThan(0.01);
+    const breakMetric = summary.all.find((m) => m.key === 'shieldBreak')!;
+    expect(Math.abs(breakMetric.value - sim.shieldBreakValue) / Math.max(1, sim.shieldBreakValue)).toBeLessThan(0.01);
+
+    // And the approximation the overrides replace genuinely disagrees
+    // on this build — the tripwire is not vacuous.
+    const approx = buildCharacterMechanicsSnapshot({ ...input, bossSimDps: undefined, bossSimShieldBreak: undefined });
+    expect(Math.abs(approx.simulatedBossDps.value - sim.effectiveDPS) / sim.effectiveDPS).toBeGreaterThan(0.01);
+  });
+
+  it('no boss in context → no overrides (standing Totals unchanged)', () => {
+    const input = assembleStatSummaryInput(state());
+    expect(input.bossSimDps).toBeUndefined();
+    expect(input.bossSimShieldBreak).toBeUndefined();
   });
 });

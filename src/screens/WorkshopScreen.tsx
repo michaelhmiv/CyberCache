@@ -140,13 +140,17 @@ function formatDurationShort(ms: number): string {
   return `${mins}m`;
 }
 
-function pausedReason(activeActionKind: string | null): string {
+function pausedReason(activeActionKind: string | null, bossPhase?: string | null): string {
   switch (activeActionKind) {
     case 'roaming_loot':
       return "you're roaming";
     case 'boss_prep':
+      return "you're prepping for a boss";
     case 'boss_fight':
-      return "you're in a boss fight";
+      // Boss prep collapsed into the boss_fight kind (bossPhase
+      // 'prep' | 'fight' | 'resolved') — only the fight phase is a
+      // fight. Standing in prep must not claim one (audit H-05).
+      return bossPhase === 'fight' ? "you're in a boss fight" : "you're prepping for a boss";
     case 'salvaging':
       return "you're salvaging";
     case 'market_listing':
@@ -855,7 +859,7 @@ export const WorkshopScreen: React.FC<{
         </div>
         {!isCrafting && activeJobs.length > 0 && (
           <div className="absolute right-2 top-2 bg-red/85 text-white text-[11px] font-black px-2 py-1" style={chipClip}>
-            <span className="inline-flex items-center gap-1"><PxIcon name="flag" size={13} /> Paused — {pausedReason(activity.current.kind)}</span>
+            <span className="inline-flex items-center gap-1"><PxIcon name="flag" size={13} /> Paused — {pausedReason(activity.current.kind, activity.current.bossPhase)}</span>
           </div>
         )}
         {isCrafting && runningJob && (
@@ -949,6 +953,7 @@ export const WorkshopScreen: React.FC<{
               playerLevel={player.level}
               masteries={masteries}
               activeActionKind={server?.activeActionKind ?? null}
+              bossPhase={activity.current.bossPhase}
               onCancel={(id) => void workshop.cancel(id)}
             />
           ))}
@@ -1048,8 +1053,9 @@ const JobCard: React.FC<{
   playerLevel: number;
   masteries: Record<string, { level: number; xp: number }>;
   activeActionKind: string | null;
+  bossPhase?: string | null;
   onCancel: (jobId: string) => void;
-}> = ({ job, playerLevel, masteries, activeActionKind, onCancel }) => {
+}> = ({ job, playerLevel, masteries, activeActionKind, bossPhase, onCancel }) => {
   const recipe = ALL_CRAFT_RECIPES.find((r) => r.id === job.recipeId);
   const xpPerUnit = craftUnitXp(job.unitDurationMs, playerLevel, CRAFT_XP_RATE_DEFAULT);
   const remainingUnits = job.unitsTotal - job.unitsCompleted;
@@ -1087,7 +1093,7 @@ const JobCard: React.FC<{
       : job.state === 'queued'
         ? 'Queued'
         : job.state === 'paused'
-          ? `Paused — ${pausedReason(activeActionKind)}`
+          ? `Paused — ${pausedReason(activeActionKind, bossPhase)}`
           : job.state;
   return (
     <MobileCard className="space-y-1.5">

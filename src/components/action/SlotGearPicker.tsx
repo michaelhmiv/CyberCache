@@ -353,7 +353,7 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
               <div className="text-sm font-black text-text-primary truncate">{currentItem.name}</div>
               <div className="text-[11px] text-text-muted">{currentItem.rarity} · Lv.{currentItem.level}</div>
             </div>
-            <button type="button" onClick={onUnequip} disabled={busy} className="bl-secondary px-2 py-1 text-[11px] font-black text-red shrink-0 disabled:opacity-50">
+            <button type="button" onClick={onUnequip} disabled={busy} className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black text-red shrink-0 disabled:opacity-50">
               {busy ? 'Working…' : 'Unequip'}
             </button>
           </div>

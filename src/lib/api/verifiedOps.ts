@@ -35,7 +35,20 @@ const requestId = (prefix: string): string => {
 const op = async (path: string, body: Record<string, unknown>): Promise<VerifiedResult> => {
   const result = await apiRequest<VerifiedResult>(path, { method: 'POST', body });
   syncVerifiedResult(result);
-  await saveCurrentRuntimeStores();
+  // The runtime snapshot save is display hydration only — never
+  // economy authority (ARCHITECTURE.md; runtimeSnapshotAuthority
+  // tests) — so it must never gate the op's result. Until the
+  // decrypt-hang fix (2026-11-11) this awaited the PUT
+  // /api/runtime/snapshot on every op's critical path: a stalled
+  // snapshot response left the caller waiting forever even though
+  // the server had already granted the result — the cache reveal
+  // shook on its decrypt overlay indefinitely after a successful
+  // make-item. Fire-and-forget: the save still runs (and the
+  // debounced persistence in runtimeSupabaseSync keeps retrying it
+  // on later store changes); its failure or stall costs nothing.
+  void saveCurrentRuntimeStores().catch(() => {
+    /* display hydration only — a failed save never reaches the caller */
+  });
   return result;
 };
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup / device-transfer exclusions (audit A-09).
+
+  The session record — access token + rotating refresh token as one
+  JSON value — lives in Capacitor Preferences, which on Android is the
+  SharedPreferences file "CapacitorStorage.xml" (the plugin's default
+  group; the app does not override it). Bearer credentials must never
+  ride a cloud backup or a device transfer: a restored stale refresh
+  token reads as token theft to the server and revokes the player's
+  sessions on every device. Everything else in the app may back up
+  normally (allowBackup stays true); only this file is excluded.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="CapacitorStorage.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="CapacitorStorage.xml" />
+    </device-transfer>
+</data-extraction-rules>
