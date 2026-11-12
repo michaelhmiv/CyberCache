@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import * as authService from '../lib/api/authService';
 import * as profileService from '../lib/api/profileService';
 import type { ApiUser } from '../lib/api/session';
@@ -52,6 +52,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authMessage, setAuthMessage] = useState<string | null>(() => parseAuthStatusMessage());
   const [authError, setAuthError] = useState<string | null>(null);
   const [authDiagnostic, setAuthDiagnostic] = useState<NativeAuthDiagnostic | null>(null);
+  // Audit X-08: a bootstrap that fails after the session user is set
+  // (profile fetch unreachable, item sync down) used to strand the
+  // app in the main UI with skeleton bars forever and a static error
+  // card. It is now a terminal state with a retry.
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const lastBootstrapUserRef = useRef<ApiUser | null>(null);
 
   const clearAuthStatus = useCallback(() => {
     setAuthError(null);
@@ -60,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadUser = useCallback(async (nextUser: ApiUser | null) => {
+    lastBootstrapUserRef.current = nextUser;
     stopRuntimeStorePersistence();
     resetRuntimeStoresToInitialState();
     useInitialBundleRevealStore.getState().reset();
@@ -79,86 +86,104 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(toAuthSessionUser(nextUser));
     if (!nextUser) {
       setAccount(null);
+      setBootstrapError(null);
       return;
     }
 
-    let profile = await profileService.ensureProfile(nextUser);
-
-    // Initial bundle (flow-fix F1): every account receives its
-    // starter economy exactly once — the op shipped with a Chef route
-    // and a client wrapper but no caller, so accounts started at zero
-    // forever. The grant is gated on the profile's own claim flag and
-    // the SQL refuses a second claim, so running this on every
-    // bootstrap is safe for fresh and pre-existing accounts alike. On
-    // grant, re-read the profile so the account state below carries
-    // the bundled balances; the op already synced stores itself.
-    //
-    // Audit UX-04: the runtime profile sync happens AFTER this
-    // bundle attempt, not before it — the first values the resource
-    // bar can paint already include the starter bundle, never a
-    // frame of pre-bundle zeros. Until the sync below lands, the
-    // player store's profileLoaded flag stays false and the bar
-    // renders skeletons.
-    //
-    // First-run reveal (audit FR-02): when THIS bootstrap performed
-    // the grant, present the one-time starter reveal from the parsed
-    // grant — already-granted accounts (and lost claim races) get no
-    // reveal, since ensureInitialBundle only returns a grant for the
-    // call that actually granted.
     try {
-      const wasClaimed = isInitialBundleClaimed(profile);
-      const bundleGrant = await ensureInitialBundle(profile);
-      if (!wasClaimed) {
-        profile = await profileService.ensureProfile(nextUser);
-        syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
-        if (bundleGrant) {
-          useInitialBundleRevealStore.getState().show(bundleGrant);
+      let profile = await profileService.ensureProfile(nextUser);
+
+      // Initial bundle (flow-fix F1): every account receives its
+      // starter economy exactly once — the op shipped with a Chef route
+      // and a client wrapper but no caller, so accounts started at zero
+      // forever. The grant is gated on the profile's own claim flag and
+      // the SQL refuses a second claim, so running this on every
+      // bootstrap is safe for fresh and pre-existing accounts alike. On
+      // grant, re-read the profile so the account state below carries
+      // the bundled balances; the op already synced stores itself.
+      //
+      // Audit UX-04: the runtime profile sync happens AFTER this
+      // bundle attempt, not before it — the first values the resource
+      // bar can paint already include the starter bundle, never a
+      // frame of pre-bundle zeros. Until the sync below lands, the
+      // player store's profileLoaded flag stays false and the bar
+      // renders skeletons.
+      //
+      // First-run reveal (audit FR-02): when THIS bootstrap performed
+      // the grant, present the one-time starter reveal from the parsed
+      // grant — already-granted accounts (and lost claim races) get no
+      // reveal, since ensureInitialBundle only returns a grant for the
+      // call that actually granted.
+      try {
+        const wasClaimed = isInitialBundleClaimed(profile);
+        const bundleGrant = await ensureInitialBundle(profile);
+        if (!wasClaimed) {
+          profile = await profileService.ensureProfile(nextUser);
+          syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+          if (bundleGrant) {
+            useInitialBundleRevealStore.getState().show(bundleGrant);
+          }
         }
+      } catch (error) {
+        console.warn('Initial bundle grant skipped:', error instanceof Error ? error.message : error);
       }
+
+      syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
+
+      await syncRuntimeItemsForUser(nextUser.id);
+
+      // Starter weapon: no client safety net is needed anymore. The
+      // Chef seeds it server-side when the profile row is created
+      // (db/migrations/0005 profile bootstrap + 0004's
+      // trg_seed_starter_weapon), and the item sync above picks it up —
+      // the same coverage the old cc_ensure_starter_weapon RPC provided.
+
+      let restoredSnapshot = false;
+      try {
+        restoredSnapshot = await restoreRuntimeStoresFromSupabase(nextUser.id);
+      } catch (error) {
+        console.warn('Runtime Supabase snapshot hydrate skipped:', error instanceof Error ? error.message : error);
+      }
+
+      if (!restoredSnapshot) {
+        await saveCurrentRuntimeStores(nextUser.id);
+      }
+
+      try {
+        await useActivityStore.getState().hydrate();
+        await settleActiveActivityRewards({ userId: nextUser.id });
+      } catch (error) {
+        console.warn('Active activity hydrate/settlement skipped:', error instanceof Error ? error.message : error);
+      }
+
+      // Hydrate combat stats. On first login this is a no-op (no row yet);
+      // subsequent logins restore the persisted kill counts and playtime.
+      try {
+        const loaded = await loadCombatStats(nextUser.id);
+        if (!loaded) await saveCombatStats(nextUser.id);
+      } catch (error) {
+        console.warn('Combat stats hydrate skipped:', error instanceof Error ? error.message : error);
+      }
+
+      startRuntimeStorePersistence(nextUser.id);
+      setAccount(profileService.profileRowToAccountState(profile, nextUser));
+      setBootstrapError(null);
     } catch (error) {
-      console.warn('Initial bundle grant skipped:', error instanceof Error ? error.message : error);
+      // Terminal bootstrap failure (audit X-08): the session user
+      // is set but nothing synced — App renders the retry state
+      // instead of a half-loaded main UI. Rethrow so the existing
+      // callers still record the error as before.
+      setBootstrapError(toMessage(error));
+      throw error;
     }
-
-    syncRuntimeProfile(profile as Parameters<typeof syncRuntimeProfile>[0]);
-
-    await syncRuntimeItemsForUser(nextUser.id);
-
-    // Starter weapon: no client safety net is needed anymore. The
-    // Chef seeds it server-side when the profile row is created
-    // (db/migrations/0005 profile bootstrap + 0004's
-    // trg_seed_starter_weapon), and the item sync above picks it up —
-    // the same coverage the old cc_ensure_starter_weapon RPC provided.
-
-    let restoredSnapshot = false;
-    try {
-      restoredSnapshot = await restoreRuntimeStoresFromSupabase(nextUser.id);
-    } catch (error) {
-      console.warn('Runtime Supabase snapshot hydrate skipped:', error instanceof Error ? error.message : error);
-    }
-
-    if (!restoredSnapshot) {
-      await saveCurrentRuntimeStores(nextUser.id);
-    }
-
-    try {
-      await useActivityStore.getState().hydrate();
-      await settleActiveActivityRewards({ userId: nextUser.id });
-    } catch (error) {
-      console.warn('Active activity hydrate/settlement skipped:', error instanceof Error ? error.message : error);
-    }
-
-    // Hydrate combat stats. On first login this is a no-op (no row yet);
-    // subsequent logins restore the persisted kill counts and playtime.
-    try {
-      const loaded = await loadCombatStats(nextUser.id);
-      if (!loaded) await saveCombatStats(nextUser.id);
-    } catch (error) {
-      console.warn('Combat stats hydrate skipped:', error instanceof Error ? error.message : error);
-    }
-
-    startRuntimeStorePersistence(nextUser.id);
-    setAccount(profileService.profileRowToAccountState(profile, nextUser));
   }, []);
+
+  const retryBootstrap = useCallback(() => {
+    const target = lastBootstrapUserRef.current;
+    if (!target) return;
+    setBootstrapError(null);
+    loadUser(target).catch((error) => setAuthError(toMessage(error)));
+  }, [loadUser]);
 
   const refreshAccount = useCallback(async () => {
     if (!rawUser) return;
@@ -284,7 +309,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     markVerificationReminderSeen,
     signOut,
     refreshAccount,
-  }), [user, account, loading, actionLoading, authMode, authMessage, authError, authDiagnostic, clearAuthStatus, continueAsGuest, signInWithEmail, signInWithGoogle, registerWithEmail, sendPasswordReset, updatePassword, markVerificationReminderSeen, signOut, refreshAccount]);
+    bootstrapError,
+    retryBootstrap,
+  }), [user, account, loading, actionLoading, authMode, authMessage, authError, authDiagnostic, clearAuthStatus, continueAsGuest, signInWithEmail, signInWithGoogle, registerWithEmail, sendPasswordReset, updatePassword, markVerificationReminderSeen, signOut, refreshAccount, bootstrapError, retryBootstrap]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

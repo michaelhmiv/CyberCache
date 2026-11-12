@@ -18,7 +18,7 @@
  *   every session set/clear so AuthProvider can (re)load the user.
  */
 import { Preferences } from '@capacitor/preferences';
-import { apiUrl } from './config';
+import { API_REQUEST_TIMEOUT_MS, apiUrl } from './config';
 
 export interface ChefAccount {
   id: string;
@@ -171,11 +171,18 @@ export function refreshSession(): Promise<ChefSession | null> {
     refreshPromise = (async () => {
       const stored = current ?? (await loadStoredSession());
       if (!stored) return null;
+      // Bounded like every transport request (config.ts): a refresh
+      // whose response never arrives must not wedge the 401 retry in
+      // http.ts — the abort lands in the catch below, which keeps the
+      // stored session and lets the original 401 surface.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch(apiUrl('/auth/refresh'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken: stored.refreshToken }),
+          signal: controller.signal,
         });
         if (!response.ok) {
           await setSession(null);
@@ -189,6 +196,8 @@ export function refreshSession(): Promise<ChefSession | null> {
         // may still be valid); the caller surfaces the original error.
         console.warn('[api/session] refresh request failed:', error);
         return null;
+      } finally {
+        clearTimeout(timer);
       }
     })().finally(() => {
       refreshPromise = null;
