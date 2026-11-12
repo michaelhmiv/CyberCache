@@ -210,6 +210,13 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
   const victoriesToday = recordValue(profile.boss_victories_today);
   if (victoriesToday) useBossStore.setState({ bossVictoriesToday: victoriesToday });
 
+  // The server-composed vendor buyback rate (audit G-F3): applied
+  // only when the profile carries it, so op snapshots without the
+  // field never clear a rate an earlier read provided.
+  if (typeof profile.vendor_buyback_rate === 'number') {
+    usePlayerStore.setState({ vendorBuybackRate: profile.vendor_buyback_rate });
+  }
+
   const bossState = profile.boss_state;
   if (bossState && typeof bossState === 'object' && !Array.isArray(bossState)) {
     const raw = bossState as Record<string, unknown>;
