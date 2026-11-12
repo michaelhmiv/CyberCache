@@ -289,9 +289,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 236 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 237 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-11** — 15 merges
+**2026-11-11** — 16 merges
 
 - #484 — Boss setup-diversity (slice C2): mechanic legs collect + Bishop composite; CryoAmmo re-read measured and dropped
 - #485 — INT-7: Top-Choice cache screen — painted crate, opened ignition frame, buried prop swap
@@ -308,6 +308,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #496 — Painted weapon renderer — Top-Choice paintings as the weapon render (renderer slice)
 - #497 — Aim/recoil poses: far arm braces under the gun arm instead of dangling
 - #498 — Suppress the far arm in aim/recoil: strict side view draws one arm
+- #499 — Reveal Corona: physical light in the cache loot moment (Impeccable direction A) + header law
 
 **2026-11-10** — 15 merges
 
