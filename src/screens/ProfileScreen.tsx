@@ -218,7 +218,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const weapons = inventory.getWeapons();
   const totalItems = inventory.items.length;
   const xpToNext = xpToNextLevel(player.level);
-  const xpProgress = Math.round((player.xp / xpToNext) * 100);
+  // Clamped (audit HTR-06): banked XP past a threshold — above all
+  // at the level cap — must never print a progress over 100%.
+  const xpProgress = Math.min(100, Math.round((player.xp / xpToNext) * 100));
   const spentSkillPoints = skillStore.getTotalSpent();
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
   const verifiedLabel = account?.accountType === 'verified'
