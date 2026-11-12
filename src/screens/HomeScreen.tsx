@@ -1,8 +1,25 @@
 import React from 'react';
+import { X } from 'lucide-react';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { DashboardDeck } from '@/components/dashboard/DashboardDeck';
 import { ActionScreenContextual } from '@/screens/ActionScreenContextual';
+import { useActivityStore } from '@/store';
+
+/** The occupation displacement strip (audit H-02) — see HomeScreen. */
+const DisplacementNotice: React.FC = () => {
+  const notice = useActivityStore((s) => s.displacementNotice);
+  const clear = useActivityStore((s) => s.clearDisplacementNotice);
+  if (!notice) return null;
+  return (
+    <div data-testid="displacement-notice" className="flex items-center justify-between gap-2 border border-amber/50 bg-amber/10 px-3 py-2">
+      <span className="text-[11px] font-bold text-text-primary">{notice}</span>
+      <button type="button" onClick={clear} aria-label="Dismiss" className="shrink-0 text-text-muted hover:text-text-primary">
+        <X size={13} />
+      </button>
+    </div>
+  );
+};
 
 interface HomeScreenProps {
   onNavigate: (screen: string) => void;
@@ -62,6 +79,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSe
             + streak / contracts / weekly claim chips — first
             paint, no scroll, nothing else above the Stage (§4). */}
         <DashboardTopBar onNavigate={onNavigate} />
+        {/* Occupation displacement notice (audit H-02): when a start
+            ends a different productive occupation — a rail tap
+            pausing a running bench, a boss selection ending a roam —
+            the switch is named here instead of happening silently.
+            The strip renders only while a notice is waiting. */}
+        <DisplacementNotice />
         {/* The Stage block — mode rail, diorama, belt, lit workspace. */}
         <div className="scroll-mt-2">
           <ActionScreenContextual onOpenBossSelect={() => onOpenBossSelect?.()} onNavigate={onNavigate} craftBenchIntent={craftBenchIntent} />

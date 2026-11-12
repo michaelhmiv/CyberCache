@@ -33,7 +33,9 @@ Each tree also carries a signature [[Actions and Occupations|action skill]]. Bec
 
 **Spending a point:** tap any node to open its brief. The brief's **Spend** button is always there — when a point can't be spent yet, the button stays disabled and the brief says why in plain terms: no points banked (earn one per level), a prerequisite node to buy first, or the node already maxed.
 
-**Respec:** you can retrain at any time, refunding all spent points, for **100 credits per spent point**. Retraining a heavily invested build is expensive by design — plan the big spends.
+Nodes charge their listed cost against that budget: ordinary nodes cost **1 point**, each tree's major nodes cost **3**, and its keystone costs **5** — the Spend button always names the price before you commit. Filling all four trees would take 303 points against the 99 a level-100 hunter earns, so no build ever buys everything.
+
+**Respec:** you can retrain at any time, refunding all spent points, for **100 credits per budget point spent** (a major refunds as the 3 points it cost, a keystone as 5). Retraining a heavily invested build is expensive by design — plan the big spends.
 
 ## Offline earnings
 

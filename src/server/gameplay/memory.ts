@@ -1942,6 +1942,15 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     const prior = this.ledger.get(ledgerKey);
     if (prior) return prior;
     if (!nonce || nonce.length < 8) throw new GameplayStoreError('A reroll nonce is required');
+    // Reroll is a transact-class action in the same economy as the claim
+    // (audit A-03): it consumes the set's free reroll and then charges
+    // scrap, steering a board a guest can never claim. It carries the
+    // claim's verified-account gate, in the same position — before any
+    // instance state is read or moved.
+    const facts = await this.getContractsFacts(playerId);
+    if (facts && facts.account_type === 'guest') {
+      throw new GameplayStoreError('Contracts require a verified account — link Google sign-in to claim rewards');
+    }
     const inst = this.contractInstances.find((i) => i.id === instanceId && i.user_id === playerId);
     if (!inst) throw new GameplayStoreError('Contract not found');
     if (inst.status === 'claimed') throw new GameplayStoreError('Claimed contracts cannot be rerolled');
