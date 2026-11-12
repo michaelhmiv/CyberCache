@@ -52,6 +52,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **You can always cancel your own market listing now** — the Cancel button no longer demands a verified account, matching the server: pulling down your own listing is recovery, not trading, so a lapsed verification can't trap a live listing anymore.
 - **Boss specials announce themselves** — when a boss starts winding up its big cadence attack, the fight stage now calls it out by name (Sand Slam, Eruption, Event Horizon, and the rest of the thirteen) with a red danger ring and a charging glow, for exactly the window before the hit lands. Regular attacks keep their existing small glow, so a special reads instantly differently from a jab. What is coming is always shown — the odds, as ever, are yours to judge.
 - **A graphics hiccup can't freeze the fight anymore** — if your device loses the game's graphics context mid-fight (a GPU reset, a driver stutter), the stage used to freeze on its last picture forever, with the fight still running behind it. Now the stage hands off to the backup renderer instead — the same fight, fully playable — instead of leaving you staring at a still frame.
+- **Your hunter name can wait** — signing in used to stop the game cold and demand a hunter name before a single tab would open. The ask is now an invitation with a **Not now** door: claim a name when you're ready, or skip it and play. The game asks again when you first reach the Standings — the one place the name is actually on show.
 
 
 

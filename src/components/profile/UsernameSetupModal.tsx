@@ -13,6 +13,10 @@ interface Props {
   canRenameAt?: string | null;
   onComplete?: () => void;
   onClose?: () => void;
+  /** Label for the dismiss control (rendered when not forced and
+   * onClose is supplied). The App shell's invitation passes
+   * "Not now" (audit G-F5: the prompt defers, it never walls). */
+  dismissLabel?: string;
 }
 
 export const UsernameSetupModal: React.FC<Props> = ({
@@ -22,6 +26,7 @@ export const UsernameSetupModal: React.FC<Props> = ({
   canRenameAt,
   onComplete,
   onClose,
+  dismissLabel,
 }) => {
   const auth = useAuth();
   const [value, setValue] = useState('');
@@ -93,7 +98,7 @@ export const UsernameSetupModal: React.FC<Props> = ({
         <div className="text-xs text-text-muted">
           {isRename
             ? 'You can change your hunter name once every 7 days.'
-            : 'Leaderboards and public profiles require a unique hunter name. This is how other players see you.'}
+            : 'Your hunter name is how other players see you on the standings and in public profiles.'}
         </div>
         {isLocked && canRenameAt && (
           <div className="text-xs text-amber">
@@ -122,7 +127,7 @@ export const UsernameSetupModal: React.FC<Props> = ({
         </form>
         {!force && onClose && (
           <button onClick={onClose} className="w-full text-xs text-text-muted hover:text-amber">
-            Cancel
+            {dismissLabel ?? 'Cancel'}
           </button>
         )}
       </MobileCard>
