@@ -571,6 +571,24 @@ export function skillSpendTotal(spends: Json): number {
 }
 
 /**
+ * The BUDGET cost of a set of spends: Σ points × per_point_cost from the
+ * node definitions (small 1 / major 3 / keystone 5). The budget gate and
+ * the respec price read this — not the raw count above (audit HTR-01;
+ * SQL twin: cc_skill_spend_cost, migration 0089; client twin:
+ * skillSpendCost in lib/skills/skillBonuses). Unknown ids price at 1.
+ */
+export function skillSpendCost(spends: Json, nodes: SkillNodeData[]): number {
+  const costById = new Map(nodes.map((n) => [n.id, n.per_point_cost]));
+  let total = 0;
+  for (const [nodeId, value] of Object.entries(spends)) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      total += Math.max(0, Math.floor(value)) * (costById.get(nodeId) ?? 1);
+    }
+  }
+  return total;
+}
+
+/**
  * Vendor pricing used to live here as a hardcoded VENDOR_CATALOG
  * record — the second of three copies. It now derives from the ONE
  * vendor catalog (src/lib/vendor/catalog.ts): staples + date-seeded

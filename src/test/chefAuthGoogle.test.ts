@@ -83,9 +83,17 @@ describe('POST /api/auth/google', () => {
     expect(linked.status).toBe(200);
     expect(linked.json.account.id).toBe(guest.json.account.id);
     expect(linked.json.account.email).toBe('guest@gmail.com');
+    // Linking promotes the account in place (audit A-01): it stops being a
+    // guest, so the economy gate and the client both treat it as verified.
+    expect(linked.json.account).toMatchObject({ isGuest: false, emailVerified: true });
+    // The session issued at link time no longer carries the guest claim —
+    // the claim downstream gates read (audit A-01, second half).
+    const claims = JSON.parse(Buffer.from(linked.json.accessToken.split('.')[1], 'base64url').toString('utf8'));
+    expect(claims.guest).toBe(false);
     // And a later bare Google sign-in lands on that same account.
     const again = await post('/api/auth/google', { idToken: googleToken({ sub: 'google-sub-guest', email: 'guest@gmail.com' }) });
     expect(again.json.account.id).toBe(guest.json.account.id);
+    expect(again.json.account.isGuest).toBe(false);
   });
 
   it('rejects a forged token with a stable error code', async () => {

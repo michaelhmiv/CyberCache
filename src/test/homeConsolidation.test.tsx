@@ -358,6 +358,9 @@ describe('vehicle chip — gone from the belt (owner decision 2026-11-10)', () =
 describe('Hunter → Profile — Totals & Sources door', () => {
   it('the door opens the full source breakdown, unfocused', { timeout: 20_000 }, async () => {
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): the Totals door lives on the
+    // Profile stop — open it first.
+    fireEvent.click(screen.getByTestId('hub-door-profile'));
     const door = await screen.findByTestId('profile-totals-sources-door');
     fireEvent.click(door);
     expect(await screen.findByText('Source Breakdown')).toBeTruthy();
