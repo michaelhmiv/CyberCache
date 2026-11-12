@@ -1,9 +1,22 @@
 import { useSyncExternalStore } from 'react';
+import { usePresentationActive } from '@/hooks/usePresentationActive';
+
+const listeners = new Set<() => void>();
+let timer: ReturnType<typeof setInterval> | undefined;
 
 function subscribe(callback: () => void) {
-  const id = setInterval(callback, 1000);
-  return () => clearInterval(id);
+  listeners.add(callback);
+  timer ??= setInterval(() => listeners.forEach((listener) => listener()), 1000);
+  return () => {
+    listeners.delete(callback);
+    if (listeners.size === 0) {
+      clearInterval(timer);
+      timer = undefined;
+    }
+  };
 }
+
+const subscribePaused = () => () => {};
 
 let cachedSnapshot = Math.floor(Date.now() / 1000) * 1000;
 
@@ -27,6 +40,7 @@ function getSnapshot(): number {
  * (useMemo, etc.) without triggering React Compiler's
  * impure-function-in-render lint.
  */
-export function useNow(): number {
-  return useSyncExternalStore(subscribe, getSnapshot);
+export function useNow(enabled = true): number {
+  const active = usePresentationActive();
+  return useSyncExternalStore(active && enabled ? subscribe : subscribePaused, getSnapshot);
 }

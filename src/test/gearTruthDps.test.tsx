@@ -16,6 +16,7 @@ import { render, screen, within } from '@testing-library/react';
 import { ActionLoadout } from '@/components/action/ActionLoadout';
 import { BossPickerList } from '@/components/fight/BossPickerList';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
+import { assembleStatSummaryInput } from '@/lib/stats/assembleStatSummaryInput';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import { computeEffectiveDpsFromGear } from '@/lib/combat/loadoutSurvival';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -78,7 +79,7 @@ function summaryDps(bossId?: string): number {
   const player = usePlayerStore.getState();
   const loadout = useLoadoutStore.getState();
   const boss = bossId ? REGION_1_BOSSES.find((b) => b.id === bossId) : undefined;
-  const summary = buildCharacterStatSummary({
+  const summary = buildCharacterStatSummary(assembleStatSummaryInput({
     player: player as never,
     weapons: [loadout.getWeapon('primary'), loadout.getWeapon('secondary'), loadout.getWeapon('heavy')]
       .filter((w): w is Weapon => !!w),
@@ -86,13 +87,14 @@ function summaryDps(bossId?: string): number {
     classMod: loadout.getClassMod(),
     relic: loadout.getRelic(),
     ordnance: loadout.getOrdnance(),
-    spentSkills: useSkillStore.getState().spent,
+    spent: useSkillStore.getState().spent,
+    classModBoosts: useSkillStore.getState().classModBoosts,
     boss,
     activeBuffs: [],
     consumableMods: buildConsumableInventoryMods(player.consumables),
     consumableInventory: player.consumables,
     medKitBuffer: useSurvivalStore.getState().medKitBuffer,
-  });
+  }));
   return summary.all.find((entry) => entry.key === 'dps')?.value ?? 0;
 }
 

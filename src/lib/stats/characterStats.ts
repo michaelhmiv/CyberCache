@@ -1,10 +1,8 @@
 import { SKILL_NODES } from '@/constants/skillTrees';
 import { WeaponType } from '@/types/game';
-import type { PlayerProfile } from '@/types/player';
 import type { Affix, ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { BossDef } from '@/types/boss';
-import { computeStandardDps } from '@/lib/stats/dpsChain';
-import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
+import { buildCharacterMechanicsSnapshot, type BuildCharacterMechanicsSnapshotInput, type CharacterMechanicsSnapshot, type MechanicsScalar } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { ACTIVITY_MODULE_DEFS } from '@/content/activityModuleDefs';
 import { cacheRankBonuses } from '@/content/cacheRank';
@@ -55,7 +53,7 @@ export type CharacterStatSummary = {
 };
 
 export type CharacterStatSummaryInput = {
-  player: PlayerProfile;
+  player: BuildCharacterMechanicsSnapshotInput['player'];
   weapons: Array<Weapon | undefined>;
   shield?: Shield;
   classMod?: ClassMod;
@@ -86,7 +84,6 @@ const whole = formatWhole;
 // DPS computation is delegated to the unified modifier chain. The standard
 // target (no weakness, no resistance, no consumables) is the right baseline
 // for the dashboard stat summary — boss-relative DPS lives in the boss sim.
-const weaponDps = (weapon: Weapon) => computeStandardDps(weapon);
 const gearAffixes = (gear: Array<GearItem | undefined>, stat: string) => gear.flatMap((item) => ('affixes' in (item ?? {}) && Array.isArray(item?.affixes) ? item.affixes.filter((affix) => affix.stat === stat).map((affix) => ({ item, affix })) : []));
 
 function skillTotal(spent: Record<string, number>, key: string) {
@@ -117,9 +114,22 @@ function metric(key: string, label: string, value: number, display: string, deta
   return { key, label, value, display, detail, tone, contributions: contributions.filter((entry) => entry.value !== 0), stacked, sourceActivity };
 }
 
-export function buildCharacterStatSummary(input: CharacterStatSummaryInput): CharacterStatSummary {
+function mechanicsSources(scalar: MechanicsScalar, tone: StatTone, format = whole): StatContribution[] {
+  return scalar.contributions.map((entry) => ({
+    source: entry.bucket === 'server' ? 'Combat adjustment' : entry.source,
+    detail: entry.bucket === 'server' ? 'Slot weights and combat modifiers' : entry.bucket === 'skill' ? 'Build bonus' : 'Equipped loadout',
+    value: entry.value,
+    display: format(entry.value),
+    tone,
+    bucket: entry.bucket,
+  }));
+}
+
+export function buildCharacterStatSummary(
+  input: CharacterStatSummaryInput,
+  mechanics: CharacterMechanicsSnapshot = buildCharacterMechanicsSnapshot(input),
+): CharacterStatSummary {
   const { player, weapons, shield, classMod, relic, ordnance, spentSkills, boss, activeBuffs = [], medKitBuffer: survivalStoreBuffer = 0, consumableInventory } = input;
-  const mechanics = buildCharacterMechanicsSnapshot(input);
   const liveWeapons = weapons.filter((weapon): weapon is Weapon => !!weapon);
   const gear = [...liveWeapons, shield, classMod, relic, ordnance];
   const baseHealth = mechanics.maxHp.contributions.find((entry) => entry.stat === 'baseHp')?.value ?? mechanics.maxHp.value;
@@ -165,7 +175,7 @@ export function buildCharacterStatSummary(input: CharacterStatSummaryInput): Cha
       weaknessMatchBonus
     : 0;
   const totalDpsForBoss = baseDpsForBoss * (1 + weaponDamageBonus + affixDamageBonus + bossSkillBonus + cacheRankDamageBonus);
-  const dpsDisplayValue = boss ? totalDpsForBoss : totalDps;
+  const dpsDisplayValue = boss ? (input.bossSimDps ?? totalDpsForBoss) : totalDps;
   const dpsDetail = boss
     ? `vs ${boss.name} (${(boss.weaknesses[0] ?? 'no weakness').toLowerCase()})`
     : 'weapons + skills + affixes';
@@ -184,8 +194,6 @@ export function buildCharacterStatSummary(input: CharacterStatSummaryInput): Cha
     survivalPool: mechanics.maxHp.value,
   });
 
-  const dpsConsumableContribs = consumableSources.dps;
-  const economyConsumableContribs = consumableSources.rareFind;
 
   // Consumable HP buffers (Med Kit, refined Med Kit, future survival buffers)
   // come from the canonical consumable source builder. It prefers server
@@ -211,19 +219,27 @@ export function buildCharacterStatSummary(input: CharacterStatSummaryInput): Cha
 
   const healthContribs: StatContribution[] = [
     { source: 'Hunter chassis', segmentLabel: 'Chassis', detail: `Base + level ${player.level}`, value: scaledBaseHealth, display: whole(scaledBaseHealth), tone: 'muted', bucket: 'base' },
+    ...mechanicsSources(mechanics.maxHp, 'purple').filter((entry) => entry.bucket === 'skill'),
     shield ? { source: shield.name, segmentLabel: 'Shield', detail: 'Shield HP pool', value: Math.round(shieldHp), display: whole(Math.round(shieldHp)), tone: 'cyan', bucket: 'gear' } : undefined,
     ...consumableSources.health.filter((entry) => entry.value !== 0),
     mitigationHp > 0 ? { source: shield?.name ?? 'Shield', detail: `Mitigation ${pct(totalMitigation)}`, value: mitigationHp, display: whole(mitigationHp), tone: 'cyan', bucket: 'gear' as (typeof healthContribs)[number]['bucket'] } : undefined,
   ].filter(Boolean) as StatContribution[];
 
-  const dpsContribs: StatContribution[] = [
-    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `${weapon.weaponType} · ${weapon.element}`, value: weaponDps(weapon), display: whole(weaponDps(weapon)), tone: 'red' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })),
-    ...skillContribs(spentSkills, 'weaponDamage', baseDps, whole),
-    ...skillContribs(spentSkills, 'attackSpeed', baseDps, whole),
-    ...skillContribs(spentSkills, 'critChance', baseDps * 0.5, whole),
-    ...skillContribs(spentSkills, 'critDamage', baseDps * 0.5, whole),
-    ...affixContribs(gear, 'weaponDamage', baseDps, whole),
-    ...dpsConsumableContribs.filter((entry) => entry.value !== 0),
+  const dpsSourceBase = boss ? baseDpsForBoss : baseDps;
+  const dpsContribs: StatContribution[] = boss && input.bossSimDps !== undefined
+    ? mechanicsSources(mechanics.simulatedBossDps, 'red')
+    : [
+    ...mechanicsSources(boss ? mechanics.bossRelativeDps : mechanics.standardWeaponDps, 'red'),
+    ...skillContribs(spentSkills, 'weaponDamage', dpsSourceBase, whole),
+    ...skillContribs(spentSkills, 'attackSpeed', dpsSourceBase, whole),
+    ...skillContribs(spentSkills, 'critChance', dpsSourceBase * 0.5, whole),
+    ...skillContribs(spentSkills, 'critDamage', dpsSourceBase * 0.5, whole),
+    ...affixContribs(gear, 'weaponDamage', dpsSourceBase, whole),
+    { source: 'Cache Rank', detail: 'Heavy Hand', value: dpsSourceBase * cacheRankDamageBonus, display: whole(dpsSourceBase * cacheRankDamageBonus), tone: 'purple', bucket: 'skill' },
+    ...(boss ? skillContribs(spentSkills, 'bossDamageMod', dpsSourceBase, whole) : []),
+    ...(focusFireBonus ? skillContribs(spentSkills, 'bossDamageSniperPistol', dpsSourceBase, whole) : []),
+    ...(launcherBonus ? skillContribs(spentSkills, 'launcherBossDps', dpsSourceBase, whole) : []),
+    ...(weaknessMatchBonus ? skillContribs(spentSkills, 'weaknessMatchDamage', dpsSourceBase, whole) : []),
   ];
 
   // DPS label: shows "Base DPS" (raw pooled weapon power) or "Effective DPS"
@@ -231,43 +247,18 @@ export function buildCharacterStatSummary(input: CharacterStatSummaryInput): Cha
   // "what my gear says on paper" vs "what it actually does to this target."
   const dpsLabel = boss ? 'Effective DPS' : 'Base DPS';
 
-  const bossContribs: StatContribution[] = [
-    { source: 'Base DPS', detail: 'Weapons + skills + affixes before boss mods', value: totalDps, display: whole(totalDps), tone: 'red', bucket: 'base' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' },
-    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `Boss dmg mod +${Math.round(weapon.bossDamageMod * 100)}%`, value: totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length), display: whole(totalDps * weapon.bossDamageMod / Math.max(1, liveWeapons.length)), tone: 'amber' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })),
-    ...skillContribs(spentSkills, 'bossDamageMod', totalDps, whole),
-    ...skillContribs(spentSkills, 'bossDamageSniperPistol', totalDps, whole),
-    ...skillContribs(spentSkills, 'launcherBossDps', totalDps, whole),
-    ...skillContribs(spentSkills, 'weaknessMatchDamage', totalDps, whole),
-    ...dpsConsumableContribs.filter((entry) => entry.value !== 0),
-    // Relic & classMod contributions to boss DPS
-    ...(relic ? relic.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: relic.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })) : []),
-    ...(classMod ? classMod.affixes.filter((a) => a.stat === 'bossDamageMod').map((a) => ({ source: classMod.name, detail: a.displayText, value: totalDps * a.value, display: whole(totalDps * a.value), tone: 'amber' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })) : []),
-  ];
-
-  const breakContribs = (type: 'shield' | 'armor'): StatContribution[] => [
-    ...liveWeapons.map((weapon) => ({ source: weapon.name, detail: `${type === 'shield' ? 'Shield' : 'Armor'} modifier`, value: weaponDps(weapon) * Math.max(0, type === 'shield' ? weapon.shieldDamageMod : weapon.armorDamageMod), display: whole(weaponDps(weapon) * Math.max(0, type === 'shield' ? weapon.shieldDamageMod : weapon.armorDamageMod)), tone: type === 'shield' ? 'cyan' as StatTone : 'amber' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' })),
-    ordnance ? { source: ordnance.name, detail: `${ordnance.effect} ordnance`, value: type === 'shield' ? ordnance.shieldDamage : ordnance.armorDamage, display: whole(type === 'shield' ? ordnance.shieldDamage : ordnance.armorDamage), tone: 'red' as StatTone, bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' } : undefined,
-    ...skillContribs(spentSkills, type === 'shield' ? 'shieldDamageMod' : 'armorDamageMod', baseDps, whole),
-    ...skillContribs(spentSkills, type === 'shield' ? 'ordnanceShieldBreak' : 'explosiveArmorBreak', baseDps, whole),
-  ].filter(Boolean) as StatContribution[];
-
-  const utilityContribs = (keys: string[], scalar = 1): StatContribution[] => [
-    ...liveWeapons.flatMap((weapon) => keys.flatMap((key) => key in weapon ? [{ source: weapon.name, detail: key, value: Number((weapon as unknown as Record<string, number>)[key]), display: signedPct(Number((weapon as unknown as Record<string, number>)[key])), tone: 'amber' as StatTone, bucket: 'weapon' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' }] : [])),
-    ...keys.flatMap((key) => skillContribs(spentSkills, key, scalar, signedPct)),
-    ...keys.flatMap((key) => affixContribs(gear, key, scalar, signedPct)),
-  ];
-
   const healthStacked = sourcesToSegments(healthContribs, 'green');
 
   const all = [
     metric('health', 'Effective HP', effectiveHpWithBuffer, hpDisplay, hpDeltaPct !== 0 ? `HP pool ${whole(totalHealth)} · mitigation counted as HP (${hpDeltaSign}${hpDeltaPct}% from base)` : `HP pool ${whole(totalHealth)} · mitigation counted as HP`, 'green', healthContribs, healthStacked),
     metric('dps', dpsLabel, dpsDisplayValue, whole(dpsDisplayValue), dpsDetail, 'red', dpsContribs),
-    metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', bossContribs),
-    metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', [...breakContribs('shield'), ...consumableSources.shieldBreak]),
-    metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', [...breakContribs('armor'), ...consumableSources.armorBreak]),
-    metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', [...utilityContribs(['rareDropChanceMod', 'rareDropChance']), ...economyConsumableContribs.filter((entry) => entry.value !== 0)]),
-    metric('offline', 'Offline', offline, signedPct(offline), 'idle earning modifiers', 'green', [...utilityContribs(['offlineEarningsMod', 'offlineEarnings']), ...consumableSources.offline]),
-    metric('scrap', 'Scrap Yield', scrap, signedPct(scrap), 'salvage and scrap modifiers', 'cyan', [...utilityContribs(['scrapYieldMod', 'scrapYield', 'salvageBonus', 'lowRarityScrapBonus']), ...consumableSources.scrap]),
+    metric('roamingDps', 'Roaming DPS', mechanics.roamingDps.value, whole(mechanics.roamingDps.value), 'Standing roaming loadout · before temporary effects and target defense', 'red', mechanicsSources(mechanics.roamingDps, 'red')),
+    metric('boss', 'vs Boss', bossDps, whole(bossDps), 'Effective DPS with all boss modifiers applied', 'amber', mechanicsSources(mechanics.simulatedBossDps, 'amber')),
+    metric('shieldBreak', 'Shield Break', shieldBreak, whole(shieldBreak), 'weapon mods + ordnance + skills', 'cyan', mechanicsSources(mechanics.shieldBreak, 'cyan')),
+    metric('armorBreak', 'Armor Break', armorBreak, whole(armorBreak), 'armor mods + ordnance + skills', 'purple', mechanicsSources(mechanics.armorBreak, 'purple')),
+    metric('rareFind', 'Rare Find', rareFind, signedPct(rareFind), 'drop chance modifiers', 'amber', mechanicsSources(mechanics.lootRareFind, 'amber', signedPct)),
+    metric('offline', 'Offline', offline, signedPct(offline), 'idle earning modifiers', 'green', mechanicsSources(mechanics.offlineEarningModifier, 'green', signedPct)),
+    metric('scrap', 'Scrap Yield', scrap, signedPct(scrap), 'salvage and scrap modifiers', 'cyan', mechanicsSources(mechanics.scrapModifier, 'cyan', signedPct)),
     metric('ordnance', 'Ordnance', ordnanceDamage, whole(ordnanceDamage), ordnance ? `${ordnance.effect} · ${ordnance.element}` : 'no ordnance slotted', 'red', ordnance ? [{ source: ordnance.name, detail: `${ordnance.effect} payload`, value: ordnanceDamage, display: whole(ordnanceDamage), tone: 'red', bucket: 'gear' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime' }] : []),
   ];
 
@@ -298,11 +289,12 @@ export function buildCharacterStatSummary(input: CharacterStatSummaryInput): Cha
   const activityModuleMetrics: StatMetric[] = Object.values(ACTIVITY_MODULE_DEFS).flatMap((def) =>
     def.subStats.map((sub) => {
       const value = activityModTotals[def.activityKind][sub.key] ?? 0;
+      const format = sub.displayFormat.includes('%') ? signedPct : whole;
       return metric(
         sub.key,
         sub.label,
         value,
-        signedPct(value),
+        format(value),
         `${def.name} · sub-stat`,
         'amber',
         value > 0
@@ -315,7 +307,7 @@ export function buildCharacterStatSummary(input: CharacterStatSummaryInput): Cha
                   source: g.name ?? 'Gear',
                   detail: a.displayText ?? sub.label,
                   value: a.subStats![sub.key],
-                  display: signedPct(a.subStats![sub.key]),
+                  display: format(a.subStats![sub.key]),
                   tone: 'amber' as StatTone,
                   bucket: 'activity' as 'base' | 'gear' | 'weapon' | 'skill' | 'activity' | 'consumable' | 'server' | 'runtime',
                 })))
@@ -326,5 +318,5 @@ export function buildCharacterStatSummary(input: CharacterStatSummaryInput): Cha
     }),
   );
 
-  return { headline: [all[0], all[1], all[2], all[5]], all: [...all, ...activityModuleMetrics] };
+  return { headline: all.filter((m) => ['health', 'dps', 'boss', 'rareFind'].includes(m.key)), all: [...all, ...activityModuleMetrics] };
 }

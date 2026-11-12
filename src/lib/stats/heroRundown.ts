@@ -235,16 +235,16 @@ export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
       tone: 'red',
       delta,
     };
-    // Damage per tick: the contract applies 3 seconds of DPS per
-    // tick (variance 0.85–1.15 and monster defense resolve per
-    // target; the expectation at variance 1.0 against an
-    // undefended target is DPS × tick). Same derivation, same delta.
+    // Roaming settles a different input from standard weapon DPS:
+    // wave/break pools and ordnance participate. Read the Chef's
+    // shared derivation from the snapshot, then apply the tick window.
+    const tickDps = bossContext ? undefined : snapshot.roamingDps;
     dmgTick = {
       key: 'dmgTick',
       label: 'Dmg/tick',
-      display: formatWhole(dpsMetric.value * STAGE_TICK_SECONDS),
+      display: formatWhole((tickDps?.value ?? dpsMetric.value) * STAGE_TICK_SECONDS),
       tone: 'red',
-      delta,
+      delta: tickDps ? stageStatDelta(tickDps.buckets.weapon, tickDps.value) ?? undefined : delta,
     };
   }
 

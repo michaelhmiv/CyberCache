@@ -97,10 +97,10 @@ export function buildSwapComparison(
   candidateInput: CharacterStatSummaryInput,
   facts: SwapComparisonFacts,
 ): SwapComparison {
-  const current = buildCharacterStatSummary(currentInput);
-  const candidate = buildCharacterStatSummary(candidateInput);
   const currentSnapshot = buildCharacterMechanicsSnapshot(currentInput);
   const candidateSnapshot = buildCharacterMechanicsSnapshot(candidateInput);
+  const current = buildCharacterStatSummary(currentInput, currentSnapshot);
+  const candidate = buildCharacterStatSummary(candidateInput, candidateSnapshot);
 
   const gains: TradeLine[] = [];
   const losses: TradeLine[] = [];

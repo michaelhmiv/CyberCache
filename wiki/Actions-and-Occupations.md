@@ -15,6 +15,8 @@ You run your action from **the stage on the Home tab** — pick an area, tap Sta
 
 ## Roaming
 
+The area's rate grids print **Base credits**, **Base scrap**, **Base gear** and **Base materials**: these are the area's starting rates, before your gear, skills, vehicle and hot-area bonuses. The feed records the settled rewards. The elapsed clock measures real seconds from the activity's start, including when you return to the tab. Each foreground sync processes at most 20 ticks; the separate away settlement keeps its earned-hours cap.
+
 Roaming is the core idle activity and the default state of the game. Your hunter works one of **7 areas**, resolved in **3-second ticks**, earning credits, XP, scrap, materials, and gear drops as the ticks land. **Every area is open from the start** — there are no level locks. Higher areas pay better against tougher opposition, and the area picker tells you honestly when an area outmatches your build: it shows the duel in real numbers (their damage per tick against your HP + shield pool, your damage against their health) and warns you before you switch — but the warning never blocks you. **Roam anyway** is always there.
 
 One earning rule keeps an open world honest: roaming pays its per-tick earnings (credits, scrap, XP, and the drop rolls) only while you have **killed something since your last death**. Die in an area too strong for you and the earnings pause until your next kill — presence alone never pays. The same rule settles your time away: if an area's basic wildlife would kill you before you could kill it, the away window settles at zero instead of paying for standing there.

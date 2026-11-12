@@ -1,0 +1,189 @@
+{
+  "viewport": {
+    "width": 412,
+    "height": 880
+  },
+  "renderer": "Chromium software WebGL / automatic DOM fallback; not a device FPS benchmark",
+  "source": "local client build + real Chef backend through TLS-verified request adapter",
+  "checks": [
+    {
+      "tab": "Gear",
+      "paintMs": 796,
+      "drawsInSecond": 0,
+      "sameCanvas": true
+    },
+    {
+      "tab": "Market",
+      "paintMs": 202,
+      "drawsInSecond": 0,
+      "sameCanvas": true
+    },
+    {
+      "tab": "Hunter",
+      "paintMs": 152,
+      "drawsInSecond": 0,
+      "sameCanvas": true
+    },
+    {
+      "tab": "Home",
+      "paintMs": 773,
+      "drawsInSecond": 13,
+      "sameCanvas": true
+    },
+    {
+      "tab": "Gear",
+      "paintMs": 177,
+      "drawsInSecond": 0,
+      "sameCanvas": true
+    },
+    {
+      "tab": "Home",
+      "paintMs": 670,
+      "drawsInSecond": 13,
+      "sameCanvas": true
+    },
+    {
+      "offscreenDrawsInSecond": 0
+    }
+  ],
+  "uncaughtErrors": [],
+  "httpStatusesAtLeast400": [
+    {
+      "status": 409,
+      "path": "/api/claim"
+    }
+  ],
+  "httpNote": "409 /api/claim is the existing duplicate/watermark guard; no uncaught application errors.",
+  "poses": {
+    "before": [
+      {
+        "step": "0-shot-impact",
+        "pose": "recoil",
+        "beatKind": "shot",
+        "beatMs": 144,
+        "enemyXPct": 66
+      },
+      {
+        "step": "0-shot-settled",
+        "pose": "recoil",
+        "beatKind": "shot",
+        "beatMs": 1205,
+        "enemyXPct": 66
+      },
+      {
+        "step": "1-shot-impact",
+        "pose": "recoil",
+        "beatKind": "shot",
+        "beatMs": 142,
+        "enemyXPct": 66
+      },
+      {
+        "step": "1-shot-settled",
+        "pose": "recoil",
+        "beatKind": "shot",
+        "beatMs": 1179,
+        "enemyXPct": 66
+      },
+      {
+        "step": "2-crit-impact",
+        "pose": "recoil",
+        "beatKind": "crit",
+        "beatMs": 161,
+        "enemyXPct": 66
+      },
+      {
+        "step": "2-crit-settled",
+        "pose": "recoil",
+        "beatKind": "crit",
+        "beatMs": 1191,
+        "enemyXPct": 66
+      },
+      {
+        "step": "3-playerHit-impact",
+        "pose": "hit",
+        "beatKind": "playerHit",
+        "beatMs": 106,
+        "enemyXPct": 66
+      },
+      {
+        "step": "3-playerHit-settled",
+        "pose": "hit",
+        "beatKind": "playerHit",
+        "beatMs": 1140,
+        "enemyXPct": 66
+      },
+      {
+        "step": "next-target",
+        "pose": "hit",
+        "beatKind": "playerHit",
+        "beatMs": 2713,
+        "enemyXPct": 66
+      }
+    ],
+    "after-final": [
+      {
+        "step": "0-shot-impact",
+        "pose": "recoil",
+        "beatKind": "shot",
+        "beatMs": 108,
+        "enemyXPct": 66
+      },
+      {
+        "step": "0-shot-settled",
+        "pose": "aim",
+        "beatKind": "shot",
+        "beatMs": 1244,
+        "enemyXPct": 66
+      },
+      {
+        "step": "1-shot-impact",
+        "pose": "recoil",
+        "beatKind": "shot",
+        "beatMs": 147,
+        "enemyXPct": 66
+      },
+      {
+        "step": "1-shot-settled",
+        "pose": "aim",
+        "beatKind": "shot",
+        "beatMs": 1182,
+        "enemyXPct": 66
+      },
+      {
+        "step": "2-crit-impact",
+        "pose": "recoil",
+        "beatKind": "crit",
+        "beatMs": 97,
+        "enemyXPct": 66
+      },
+      {
+        "step": "2-crit-settled",
+        "pose": "aim",
+        "beatKind": "crit",
+        "beatMs": 1176,
+        "enemyXPct": 66
+      },
+      {
+        "step": "3-playerHit-impact",
+        "pose": "hit",
+        "beatKind": "playerHit",
+        "beatMs": 69,
+        "enemyXPct": 66
+      },
+      {
+        "step": "3-playerHit-settled",
+        "pose": "aim",
+        "beatKind": "playerHit",
+        "beatMs": 1192,
+        "enemyXPct": 66
+      },
+      {
+        "step": "next-target",
+        "pose": "aim",
+        "beatKind": "playerHit",
+        "beatMs": 2689,
+        "enemyXPct": 66
+      }
+    ]
+  }
+}

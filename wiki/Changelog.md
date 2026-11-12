@@ -4,6 +4,9 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-12 — The audit fix wave
 
+- **Roaming recovers between exchanges** — recoil and hit poses return to ready instead of holding until another event. Hidden stages rest while other tabs are open and resume in place.
+- **Numbers explain the right quantities** — boss DPS uses the fight model, roaming Dmg/tick uses the roaming loadout, source rows include Cache Rank and reconcile to their totals, and extra slots print as counts. Area rates are labeled Base, elapsed time counts real seconds, and open consumable countdowns stay current. Foreground syncs also enforce their normal tick limit against malformed requests.
+
 
 
 - **Linking Google now upgrades your guest account, as promised** — signing in with Google from a guest account used to leave the account flagged as a guest underneath: the market, services, extraction and leaderboards stayed locked and the game kept asking you to link. The link now promotes the account in place — same account, same hunter, same progress — and the locks lift the moment you sign in.

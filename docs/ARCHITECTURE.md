@@ -77,6 +77,7 @@ Every displayed or awarded gameplay number must point to one owner:
 | Number | Owner | Display Contract |
 |---|---|---|
 | Standard DPS, boss-relative DPS | `src/lib/stats/dpsChain.ts` | UI reads through `buildCharacterMechanicsSnapshot()` / `buildCharacterStatSummary()` |
+| Standing roaming DPS / damage per tick | Existing Chef input `computeEffectiveDpsFromGear` in `src/lib/combat/loadoutSurvival.ts` | Snapshot `roamingDps` calls the same helper with effective skill points and Cache Rank; Home's Dmg/tick uses this input ×3, before target defense, variance and temporary effects. Standard weapon DPS is a separate build comparison. |
 | Max HP, shield HP, mitigation, effective HP | `src/lib/combat/damageContract.ts` + `src/lib/mechanics/buildCharacterMechanicsSnapshot.ts` | Snapshot buckets show `base`, `gear`, and effective mitigation |
 | Survival damage / death preview state | `src/server/chef.ts` for verified tick outcomes; `src/lib/combat/damageContract.ts` for pure math | Client survival slice hydrates display/runtime state only |
 | Kill cycle / monster HP display | `src/server/chef.ts` for verified tick advancement; `src/store/slices/killCycleSlice.ts` for animation state | Snapshot may hydrate display state, never rewards |
@@ -264,6 +265,17 @@ Bucket meaning:
 - `consumable`: temporary/prep consumable modifier contribution.
 - `server`: authoritative server/Chef override or settled value.
 - `runtime`: display hydration state that is not economy truth.
+
+Stat contribution rows must use the same units as their total and sum to
+that total. An inventory consumable's potential percentage is not an
+additive damage contribution. Reuse the already-built mechanics snapshot
+when deriving the summary; do not rebuild it for each view of the same input.
+
+Presentation visibility is owned by `usePresentationActive.ts`: keep-alive
+panes publish their visibility and Home additionally observes its stage's
+viewport intersection. Canvas tickers, DOM pose drivers and display clocks
+pause under this signal; Chef claims, activity heartbeats and settlement
+never consume it.
 
 Do not add new UI-local DPS, HP, survival, reward, or loot formulas. If a
 display needs a number that is not in the snapshot, add it to the snapshot and

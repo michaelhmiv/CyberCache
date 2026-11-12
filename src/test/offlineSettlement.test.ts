@@ -56,12 +56,13 @@ describe('Offline settlement — server authority', () => {
   it('foreground claim caps at 20 ticks (default maxTicks)', () => {
     const chef = readSource('src/server/chef.ts');
     expect(chef).toContain('maxTicks ?? 20');
-    // The foreground route does NOT override maxTicks, so it defaults to 20
+    // The body spread must explicitly strip the internal override. Merely
+    // omitting a route assignment let a client supply its own maxTicks.
     const route = readSource('src/server/routes/roamingHandler.ts');
     const claimHandler = route.slice(
       route.indexOf('createClaimHandler'),
     );
-    expect(claimHandler).not.toContain('maxTicks');
+    expect(claimHandler).toContain('maxTicks: undefined');
   });
 
   // Test 4: processRoamingClaim advances tick count by ticks processed

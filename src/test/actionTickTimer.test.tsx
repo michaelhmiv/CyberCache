@@ -14,40 +14,39 @@ import { ActionTickTimer } from '@/components/action/ActionTickTimer';
 describe('ActionTickTimer', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(0);
   });
   afterEach(() => {
     vi.useRealTimers();
   });
 
   it('shows "paused" when disabled', () => {
-    const { getByTestId } = render(<ActionTickTimer tickSeconds={3} enabled={false} />);
+    const { getByTestId } = render(<ActionTickTimer enabled={false} />);
     expect(getByTestId('action-tick-timer').textContent).toBe('paused');
   });
 
   it('advances once per second when enabled', () => {
-    const { getByTestId } = render(<ActionTickTimer tickSeconds={3} enabled />);
+    const { getByTestId } = render(<ActionTickTimer enabled />);
     expect(getByTestId('action-tick-timer').textContent).toBe('0m 0s');
     act(() => { vi.advanceTimersByTime(1000); });
-    expect(getByTestId('action-tick-timer').textContent).toBe('0m 3s');
+    expect(getByTestId('action-tick-timer').textContent).toBe('0m 1s');
     act(() => { vi.advanceTimersByTime(1000); });
-    expect(getByTestId('action-tick-timer').textContent).toBe('0m 6s');
+    expect(getByTestId('action-tick-timer').textContent).toBe('0m 2s');
   });
 
   it('rolls over to minutes correctly', () => {
-    const { getByTestId } = render(<ActionTickTimer tickSeconds={3} enabled />);
-    // 20 ticks × 3s = 60s = 1m 0s
-    act(() => { vi.advanceTimersByTime(20_000); });
+    const { getByTestId } = render(<ActionTickTimer enabled />);
+    act(() => { vi.advanceTimersByTime(60_000); });
     expect(getByTestId('action-tick-timer').textContent).toBe('1m 0s');
-    // 21 ticks × 3s = 63s = 1m 3s
     act(() => { vi.advanceTimersByTime(1_000); });
-    expect(getByTestId('action-tick-timer').textContent).toBe('1m 3s');
+    expect(getByTestId('action-tick-timer').textContent).toBe('1m 1s');
   });
 
   it('freezes and shows "paused" when enabled flips to false', () => {
-    const { getByTestId, rerender } = render(<ActionTickTimer tickSeconds={3} enabled />);
+    const { getByTestId, rerender } = render(<ActionTickTimer enabled />);
     act(() => { vi.advanceTimersByTime(3_000); });
-    expect(getByTestId('action-tick-timer').textContent).toBe('0m 9s');
-    rerender(<ActionTickTimer tickSeconds={3} enabled={false} />);
+    expect(getByTestId('action-tick-timer').textContent).toBe('0m 3s');
+    rerender(<ActionTickTimer enabled={false} />);
     expect(getByTestId('action-tick-timer').textContent).toBe('paused');
     act(() => { vi.advanceTimersByTime(5_000); });
     // Still "paused" — the interval was torn down on disable.
@@ -55,8 +54,17 @@ describe('ActionTickTimer', () => {
   });
 
   it('locks its rendered width so the parent row does not jiggle on digit count changes', () => {
-    const { getByTestId } = render(<ActionTickTimer tickSeconds={3} enabled />);
+    const { getByTestId } = render(<ActionTickTimer enabled />);
     const style = getByTestId('action-tick-timer').getAttribute('style') ?? '';
     expect(style).toMatch(/min-width/);
+  });
+
+  it('uses the activity start and catches up after throttled timers', () => {
+    vi.setSystemTime(30_000);
+    const { getByTestId } = render(<ActionTickTimer startedAt={new Date(0).toISOString()} enabled />);
+    expect(getByTestId('action-tick-timer')).toHaveTextContent('0m 30s');
+    vi.setSystemTime(95_000);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(getByTestId('action-tick-timer')).toHaveTextContent('1m 36s');
   });
 });

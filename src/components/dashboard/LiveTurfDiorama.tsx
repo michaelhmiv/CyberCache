@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { PresentationActiveContext, usePresentationActive, useStageVisible } from '@/hooks/usePresentationActive';
 import { motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -26,7 +27,7 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
-import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose } from '@/lib/pixel/roamChoreography';
+import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -555,6 +556,7 @@ const PixelSceneLayerDom: React.FC<{
   const travelRunRef = useRef<TravelRunState | null>(null);
   if (travelRunRef.current === null) travelRunRef.current = createTravelRun();
   const [travelActive, setTravelActive] = useState(false);
+  const presentationActive = usePresentationActive();
   const travelInputsRef = useRef<{
     engaged: boolean;
     targetKey: string | null;
@@ -573,6 +575,7 @@ const PixelSceneLayerDom: React.FC<{
   }, [mode, reduced, currentTargetId, travelBeatKind, travelBeatEventId]);
   const travelSceneId = vistaScene?.id ?? null;
   useEffect(() => {
+    if (!presentationActive) return;
     if (mode !== 'roaming' || reduced) {
       // Cancel on the next frame (the M2a actor's deferred-reset
       // shape): the run clears and the stride binding drops —
@@ -604,7 +607,7 @@ const PixelSceneLayerDom: React.FC<{
     // vistaScene identity follows its id (the spec objects are
     // module constants); the loop reads it through the closure.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, reduced, travelSceneId]);
+  }, [mode, reduced, travelSceneId, presentationActive]);
   // A real gear drop on the latest event gets the P3 loot moment (beam +
   // card at the enemy's loot point). Every other grant gets the rise
   // that pictures it via lootRiseVisualForEvent — the cache crate is
@@ -654,6 +657,15 @@ const PixelSceneLayerDom: React.FC<{
     consumables: [loadoutConsumables.PreFight, loadoutConsumables.MidFight, loadoutConsumables.Emergency],
   });
   const isEliteEvent = !!event && (event.tone === 'event' || event.tone === 'event_major') && event.family === 'elite';
+  const [poseAge, setPoseAge] = useState({ eventId: '', elapsedMs: 0 });
+  const poseEventId = event?.id ?? '';
+  const poseBeatKind = beat?.kind ?? null;
+  useEffect(() => {
+    const timers = roamPoseRecoveryTimes(poseBeatKind ? { kind: poseBeatKind } : null)
+      .map((elapsedMs) => setTimeout(() => setPoseAge({ eventId: poseEventId, elapsedMs }), elapsedMs));
+    return () => timers.forEach(clearTimeout);
+  }, [poseEventId, poseBeatKind]);
+  const actorPoses = roamPosesAt(beat, !!weapon, poseAge.eventId === poseEventId ? poseAge.elapsedMs : 0);
   const eventProp = event && (event.tone === 'event' || event.tone === 'event_major') && event.propId
     ? getPixelSprite(event.propId)
     : undefined;
@@ -663,24 +675,10 @@ const PixelSceneLayerDom: React.FC<{
     ? weapon
       ? 'idle'
       : 'relaxed'
-    : beat?.kind === 'shot' || beat?.kind === 'crit'
-      ? 'recoil'
-      : beat?.kind === 'playerHit'
-        ? 'hit'
-        : beat?.kind === 'kill'
-          ? 'celebrate'
-          : weapon
-            ? 'aim'
-            : 'relaxed';
+    : actorPoses.hunter;
   const enemyPose = isEliteEvent
     ? ENEMY_POSES.idle
-    : beat?.kind === 'playerHit'
-      ? ENEMY_POSES.lunge
-      : beat?.kind === 'shot' || beat?.kind === 'crit'
-        ? ENEMY_POSES.hit
-        : beat?.kind === 'kill'
-          ? ENEMY_POSES.death
-          : ENEMY_POSES.idle;
+    : ENEMY_POSES[actorPoses.enemy];
   // ── Walk-in articulation clock (animation fix iteration) ────
   // While the current target is inside its walk-in window, the
   // rig wrapper's remount instant starts a rAF clock; the rig
@@ -704,7 +702,7 @@ const PixelSceneLayerDom: React.FC<{
     // scene mounts as its own instance without the flag — via the
     // switch above, or fresh after a Pixi failure — and the clock
     // engages there exactly as before.
-    if (transientFallback || reduced || mode !== 'roaming' || isEliteEvent || !currentTargetId) return;
+    if (!presentationActive || transientFallback || reduced || mode !== 'roaming' || isEliteEvent || !currentTargetId) return;
     let raf = 0;
     const t0 = performance.now();
     const loop = (now: number) => {
@@ -722,7 +720,7 @@ const PixelSceneLayerDom: React.FC<{
     // walkKey carries target + elite identity; the loop re-arms
     // per spawn exactly like the wrapper's remount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walkKey, reduced, mode, transientFallback]);
+  }, [walkKey, reduced, mode, transientFallback, presentationActive]);
   const walkDelta = walkPoseState?.key === walkKey ? walkPoseState : null;
   const enemyRigPose: RigPose = walkDelta
     ? Object.fromEntries(
@@ -1724,6 +1722,8 @@ const RoamHunterHpPlate: React.FC<{ groundY: number }> = ({ groundY }) => {
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
 export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, boss, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, endlessRunId, stageControls }) => {
+  const stageRef = useRef<HTMLElement | null>(null);
+  const stageVisible = useStageVisible(stageRef);
   const reduced = !!useReducedMotion();
   const latestEvent = useTickFeedStore((state) => state.events[0]);
   // A new tick event re-renders this diorama so the stage can react.
@@ -1804,7 +1804,8 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
     : 0.86;
 
   return (
-    <section className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
+    <PresentationActiveContext.Provider value={stageVisible}>
+    <section ref={stageRef} className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
       {showFightStage && fightPresentation ? (
         /* The boss fight's animated home (One-Stage Law): the
            decided fight plays HERE, on the main stage, in place of
@@ -1897,5 +1898,6 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
         </div>
       ) : null}
     </section>
+    </PresentationActiveContext.Provider>
   );
 };

@@ -321,7 +321,7 @@ describe('buildCharacterStatSummary — activity module metrics (PR #2)', () => 
 
 
 describe('buildCharacterStatSummary — consumable active buff source rows', () => {
-  it('adds active consumables to the correct contribution bucket by family', () => {
+  it('keeps unpriced consumable percentages out of additive DPS source rows', () => {
     const player = makePlayer();
     const weapon = makeWeapon({ id: 'w1' });
     const summary = buildCharacterStatSummary({
@@ -341,9 +341,11 @@ describe('buildCharacterStatSummary — consumable active buff source rows', () 
         value: 1.05,
       }],
     });
-    // Ammo family → DPS contributions
+    // A displayed 1.05× buff is not 1.05 damage. Standing DPS does
+    // not apply this display-only value, so its sources cannot add it.
     const dps = summary.all.find((metric) => metric.key === 'dps')!;
-    expect(dps.contributions.some((entry) => entry.bucket === 'consumable' && /Ammo Pack/i.test(entry.source))).toBe(true);
+    expect(dps.contributions.some((entry) => entry.bucket === 'consumable')).toBe(false);
+    expect(dps.contributions.reduce((sum, entry) => sum + entry.value, 0)).toBeCloseTo(dps.value, 8);
     // Survival family should NOT appear in DPS
     const summary2 = buildCharacterStatSummary({
       player,
