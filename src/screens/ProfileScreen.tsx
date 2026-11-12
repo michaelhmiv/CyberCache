@@ -138,10 +138,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const { summary: totalsSummary } = useCharacterStatSummary();
   const activityKind = useActivityStore((s) => s.current.kind);
   const [stop, setStop] = useState<HunterStop>(() => (focusSection === 'skills' ? 'trees' : focusSection === 'research' ? 'research' : focusSection === 'wardrobe' ? 'wardrobe' : 'hub'));
-  // Stops whose content mounts lazily on first visit and stays
-  // mounted (the two full screens: Collections, Standings) — the
-  // always-resident stops are the panels that already lived here.
-  const [visitedStops, setVisitedStops] = useState<ReadonlySet<HunterStop>>(() => new Set<HunterStop>(['hub']));
   const standingsBadge = useStandingsBadge();
   // The hub's Research door reports the real enrollment — the same
   // Chef research state the ResearchPanel renders. Loaded here so
@@ -156,7 +152,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
 
   const goToStop = React.useCallback((next: HunterStop) => {
     setStop(next);
-    setVisitedStops((prev) => (prev.has(next) ? prev : new Set(prev).add(next)));
   }, []);
 
   // Deep-link focus: 'skills' lands on the Skill Trees stop. The
@@ -323,19 +318,27 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     setDetailMetric(payload);
   };
 
-  const stopSection = (id: HunterStop, children: React.ReactNode) => (
-    <motion.section
-      key={id}
-      data-testid={`hunter-section-${id}`}
-      initial={false}
-      animate={{ opacity: stop === id ? 1 : 0, y: stop === id ? 0 : 6 }}
-      transition={{ duration: reduceMotion ? 0 : 0.18 }}
-      className={stop === id ? 'space-y-2' : 'hidden'}
-      aria-hidden={stop !== id}
-    >
-      {children}
-    </motion.section>
-  );
+  // Perf (tab-switch latency, 2026-11-12): ONLY the active stop is
+  // in the DOM. The previous shape rendered every stop at once and
+  // hid the inactive ones with CSS (~2,485 DOM nodes on HUNTER),
+  // so every tab switch paid the full subtree's layout/paint cost.
+  // Unselected sections are absent — see
+  // src/test/hunterLazySections.test.tsx.
+  const stopSection = (id: HunterStop, children: React.ReactNode) => {
+    if (stop !== id) return null;
+    return (
+      <motion.section
+        key={id}
+        data-testid={`hunter-section-${id}`}
+        initial={false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.18 }}
+        className="space-y-2"
+      >
+        {children}
+      </motion.section>
+    );
+  };
 
   return (
     <div className="bl-page space-y-2 p-4 pb-20">
@@ -568,7 +571,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       {stopSection('collections', (
         <>
           <PlatesBackRow stopLabel={STOP_LABELS.collections} onBack={() => goToStop('hub')} />
-          {visitedStops.has('collections') ? <CollectionsScreen embedded /> : null}
+          <CollectionsScreen embedded />
         </>
       ))}
 
@@ -607,12 +610,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       ))}
 
       {stopSection('standings', (
-        visitedStops.has('standings') ? (
-          <>
-            <PlatesBackRow stopLabel={STOP_LABELS.standings} onBack={() => goToStop('hub')} />
-            <LeaderboardsScreen embedded focusEarningsNonce={earningsFocusNonce} />
-          </>
-        ) : null
+        <>
+          <PlatesBackRow stopLabel={STOP_LABELS.standings} onBack={() => goToStop('hub')} />
+          <LeaderboardsScreen embedded focusEarningsNonce={earningsFocusNonce} />
+        </>
       ))}
 
       {stopSection('wardrobe', (
