@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+- **A stalled cache opening can't trap you on the decrypt screen anymore** — opening a cache used to wait on the server with no time limit at two points in a row, so a connection that stalled (without ever failing) left the cache shaking on the DECRYPTING overlay forever: no beam, no reveal, no error, and no way out short of killing the app. Every server request now has a hard time limit, a stall ends as a plain "took too long" error with the open button live again for a retry, and the background save that used to sit between the forge and the reveal no longer gates it — the weapon the server forged reaches its reveal as soon as it is granted. Timings, odds, and the reveal itself are untouched.
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
