@@ -139,4 +139,14 @@ describe('skillSlice — class mod boosts', () => {
     // Total = 3 + 2 + 1 + 18 = 24
     expect(total).toBeGreaterThan(3); // more than just manual
   });
+
+  it('spend budget prices majors at 3 and keystones at 5; respec quotes the budget (audit HTR-01)', () => {
+    useSkillStore.setState({ spent: { 'gs_dmg_1': 3, 'fix_major_1': 1, 'fix_keystone': 1 } });
+    const state = useSkillStore.getState();
+    // The budget the level gate charges: 3×1 + 3 + 5 = 11 — not the raw
+    // count of 5 trained points. Respec quotes budget × 100cr, matching
+    // the server's cc_retrain charge.
+    expect(state.getSpentBudget()).toBe(11);
+    expect(state.respecCost()).toBe(1100);
+  });
 });
