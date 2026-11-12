@@ -288,6 +288,7 @@ export const GaragePanel: React.FC<{
             key={vehicle.id}
             vehicle={vehicle}
             equipped={vehicle.id === equippedId}
+            outOfFuel={outOfFuel}
             onNavigate={onNavigate}
             kitCounts={{
               PatchKit: consumables.PatchKit ?? 0,
@@ -331,6 +332,10 @@ export const GaragePanel: React.FC<{
 const VehicleCard: React.FC<{
   vehicle: VehicleDisplay;
   equipped: boolean;
+  /** The panel's one derived fuel state — the same value that drives
+   * the out-of-fuel banner (audit G-F6: one derived yield value
+   * feeding both surfaces). */
+  outOfFuel: boolean;
   kitCounts: Record<string, number>;
   rushTickets: number;
   repairJob?: WorkshopJobView;
@@ -344,13 +349,19 @@ const VehicleCard: React.FC<{
   onRequestService?: () => void;
   onNavigate?: (screen: string) => void;
 }> = ({
-  vehicle, equipped, kitCounts, rushTickets, repairJob, repairMasteryLevel,
+  vehicle, equipped, outOfFuel, kitCounts, rushTickets, repairJob, repairMasteryLevel,
   busy, onEquip, onUnequip, onStartRepair, onWorkRepair, onCancelRepair, onRequestService,
   onNavigate,
 }) => {
   const def = getVehicleClass(vehicle.vehicleClassId);
   const fraction = conditionFraction(vehicle.conditionCurrent, vehicle.conditionMax);
-  const effective = effectiveVehicleYield(vehicle, fraction, 1);
+  // One derived yield for the whole Garage (audit G-F6): the tank is
+  // a single shared pool, so an empty tank zeroes every card's
+  // "effective yield now" exactly as the banner states — the card
+  // used to print the condition-only figure (×1.15) while the banner
+  // above it said ×1.00. (Wrecked already reads ×1.00 through the
+  // condition fraction; VehicleButton gates the same way.)
+  const effective = outOfFuel ? 1 : effectiveVehicleYield(vehicle, fraction, 1);
   const worn = vehicle.conditionCurrent < vehicle.conditionMax;
   const wrecked = vehicle.conditionCurrent <= 0;
   const totalKits = (kitCounts.PatchKit ?? 0) + (kitCounts.FieldPatchKit ?? 0) + (kitCounts.MasterPatchKit ?? 0);
