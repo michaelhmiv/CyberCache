@@ -456,7 +456,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                                 unlocked={prerequisitesMet || currentPoints > 0 || isMaxed}
                                 spentPoints={currentPoints}
                                 locked={!prerequisitesMet && currentPoints === 0 && !isMaxed}
-                                size={20}
+                                size={30}
                                 animate={node.type === 'keystone' && currentPoints > 0}
                               />
                               <div className="truncate text-[11px] font-black text-text-primary">{node.name}</div>
