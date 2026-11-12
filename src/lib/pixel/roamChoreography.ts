@@ -314,6 +314,54 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
   };
 }
 
+/** One target's walk-in clock: which target key the clock belongs
+ *  to and when (renderer wall-clock ms) its approach began. */
+export interface RoamWalkState {
+  targetKey: string;
+  startMs: number;
+}
+
+/**
+ * Resolve one frame of the enemy walk-in from STATE — the seam
+ * that keeps the enemy's presence a function of the current
+ * target, not of having witnessed a transition:
+ *
+ *  - a target key that differs from the clock's (a fresh spawn,
+ *    or the stage's very first frame for a target that was
+ *    already active when the stage mounted) starts a new clock
+ *    at `now` — the enemy walks in even if the encounter began
+ *    before the stage existed;
+ *  - inside the window, `walkMs` is the live walk-local time the
+ *    model is derived with;
+ *  - at/after the window — including after an arbitrarily long
+ *    gap (tab hidden, ticker paused) — `walkMs` is `undefined`:
+ *    the SETTLED derivation (`enemyWalk: null`, offset 0, alpha
+ *    1). The walk never restarts for the same target and the
+ *    spawn frame is never a resting state. That is the DOM
+ *    stage's semantics (its framer wrapper holds the animate end
+ *    state, x 0% / opacity 1, after the walk-in completes).
+ *
+ * Pure: the renderers own the clock storage, this owns the rule.
+ */
+export function resolveRoamWalkFrame(
+  prev: RoamWalkState | null,
+  targetKey: string,
+  now: number,
+): { walk: RoamWalkState; walkMs: number | undefined } {
+  const walk = prev && prev.targetKey === targetKey ? prev : { targetKey, startMs: now };
+  const elapsedMs = now - walk.startMs;
+  return { walk, walkMs: elapsedMs < MOVEMENT.WALK_IN_MS ? Math.max(0, elapsedMs) : undefined };
+}
+
+/** The walk wrapper's alpha for a derived model: fully opaque
+ *  once settled (`enemyWalk: null`), fading in with the approach
+ *  while walking. The one derivation both the stage and its
+ *  tests read, so a settled enemy can never compute alpha 0. */
+export function enemyWalkAlpha(model: RoamSceneModel): number {
+  const offsetXPct = model.enemyWalk?.offsetXPct ?? 0;
+  return 1 - offsetXPct / ROAM_APPROACH.spawnOffsetXPct;
+}
+
 // ── Beat tracks (the DOM stage's keyframe tables, sampled) ──────────
 
 export interface RoamBeatSample {

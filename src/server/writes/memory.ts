@@ -202,7 +202,7 @@ import {
   recipeMaterials,
   recipeQualityBounds,
   salvageScrap,
-  skillSpendTotal,
+  skillSpendCost,
   validateShowcasePins,
   validateUsername,
   writeError,
@@ -4216,7 +4216,10 @@ export class InMemoryWriteStore implements WriteStore {
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
-    const total = skillSpendTotal(p.skill_spends as Json);
+    // Respec prices BUDGET points (audit HTR-01): majors refund at their
+    // 3-point cost, keystones at 5 — the SQL twin charges
+    // cc_skill_spend_cost × 100 (migration 0089).
+    const total = skillSpendCost(p.skill_spends as Json, this.seed.skillNodes);
     const cost = total * 100;
     if (p.credits < cost) throw writeError('Insufficient credits');
     p.credits -= cost;
@@ -4241,7 +4244,9 @@ export class InMemoryWriteStore implements WriteStore {
     const missing = node.requires.filter((req) => (spends[req] ?? 0) < 1);
     if (missing.length) throw writeError(`Missing prerequisites: ${missing.join(', ')}`);
     const budget = Math.max(0, p.player_level - 1);
-    const totalAfter = skillSpendTotal(spends as Json) + 1;
+    // The train debits the node's LISTED cost (audit HTR-01): a major
+    // costs 3 budget points, a keystone 5 — never a flat 1.
+    const totalAfter = skillSpendCost(spends as Json, this.seed.skillNodes) + node.per_point_cost;
     if (totalAfter > budget) throw writeError(`Insufficient skill points: have ${budget}, need ${totalAfter}`);
     spends[cleanNode] = current + 1;
     p.skill_spends = spends;
