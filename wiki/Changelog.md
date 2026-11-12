@@ -40,6 +40,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The small buttons are proper tap targets now** — the little text buttons that used to stand only about 25px tall (Save, Cancel and OK in the build presets, Unequip, Change Boss, the extraction panel's Close and Settle, the Gear bulk Lock/Unlock and clear-filters chip, the sign-in banner's Dismiss, Collections' Retry and their kin) now meet the 44px tap law, big enough to hit reliably on a phone. Nothing moved and nothing about what they do changed; they are just taller.
 - **Hunter Totals now call the big health number what it is** — the total that counts your shield's mitigation as extra health is labeled **Effective HP**, and its breakdown names your actual HP pool beside it, so it can't be mistaken for your roaming health bar. The values themselves are unchanged.
 - **The bench's pause message names the real blocker** — standing in boss prep with jobs queued no longer claims "you're in a boss fight" when no fight is running; it says you're prepping for a boss. The fight wording now appears only while a fight is actually on.
+- **First launch is quieter under the hood** — a fresh account's starter bundle (5,000 credits, 500 scrap, 3 cache keys and the Scrap Bike) is now requested exactly once per session, so the duplicate request that used to bounce off the server on a new player's first screen is gone. The bundle itself is unchanged.
 
 
 

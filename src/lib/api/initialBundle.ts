@@ -29,6 +29,18 @@
  * snapshot and the pre-grant profile this call was handed; a result
  * without a usable snapshot yields null (no fabricated reveal — the
  * grant itself still landed and synced through the op).
+ *
+ * H-06: AuthProvider's bootstrap reaches loadUser twice at startup
+ * (the initial session read AND the auth-state listener's immediate
+ * fire), and both runs could hold a stale unclaimed profile — so the
+ * op fired twice and the second POST 400'd ('Initial bundle already
+ * claimed') on every fresh guest's first screen. The guard below
+ * makes ensureInitialBundle itself once-per-profile-per-session:
+ * concurrent calls join the in-flight grant, and a completed grant
+ * (or an already-claimed answer) settles the profile for the rest of
+ * the session, so a later bootstrap holding a stale profile snapshot
+ * returns quietly instead of re-firing the op. A failed grant does
+ * NOT settle — the next session load retries, as before.
  */
 import { verifiedOps, type VerifiedResult } from './verifiedOps';
 import type { ProfileRow } from './profileService';
@@ -108,16 +120,43 @@ export function parseInitialBundleGrant(
  * the bundle (AuthProvider logs and continues; the next session load
  * retries, since the profile still reads unclaimed).
  */
+/** In-flight grants by profile id — concurrent bootstraps join one op (H-06). */
+const inFlightGrants = new Map<string, Promise<InitialBundleGrant | null>>();
+/** Profiles whose grant this session has completed or seen claimed (H-06). */
+const settledGrants = new Set<string>();
+
+/** Test hook: the guard is module state, so suites reset it between cases. */
+export function resetInitialBundleGuard(): void {
+  inFlightGrants.clear();
+  settledGrants.clear();
+}
+
 export async function ensureInitialBundle(
-  profile: Pick<ProfileRow, 'boss_state' | 'credits' | 'scrap' | 'cache_tokens'> | null | undefined,
+  profile: Pick<ProfileRow, 'id' | 'boss_state' | 'credits' | 'scrap' | 'cache_tokens'> | null | undefined,
   grant: () => Promise<VerifiedResult> = () => verifiedOps.initialBundle(),
 ): Promise<InitialBundleGrant | null> {
   if (!profile || isInitialBundleClaimed(profile)) return null;
-  try {
-    const result = await grant();
-    return parseInitialBundleGrant(profile, result);
-  } catch (error) {
-    if (isAlreadyClaimedError(error)) return null;
-    throw error;
+  const key = profile.id;
+  if (key) {
+    if (settledGrants.has(key)) return null;
+    const inFlight = inFlightGrants.get(key);
+    if (inFlight) return inFlight;
   }
+  const attempt = (async (): Promise<InitialBundleGrant | null> => {
+    try {
+      const result = await grant();
+      if (key) settledGrants.add(key);
+      return parseInitialBundleGrant(profile, result);
+    } catch (error) {
+      if (isAlreadyClaimedError(error)) {
+        if (key) settledGrants.add(key);
+        return null;
+      }
+      throw error;
+    } finally {
+      if (key) inFlightGrants.delete(key);
+    }
+  })();
+  if (key) inFlightGrants.set(key, attempt);
+  return attempt;
 }
