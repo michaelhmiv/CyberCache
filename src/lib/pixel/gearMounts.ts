@@ -7,7 +7,11 @@
  * PRESENCE, in fixed stage spots, blind to pose. M3 hangs them on
  * the parts actor's declared mounts instead:
  *
- *   shield   → the far (support) arm's `shieldMount`
+ *   shield   → the far (support) arm's `shieldMount` — EXCEPT in
+ *              poses that suppress the far arm (aim/recoil, owner
+ *              ruling 2026-11-11): there the shield REMOUNTS to the
+ *              torso's `shieldTorsoMount`, so it stays visible in
+ *              every combat pose instead of vanishing with the arm
  *   relic    → the torso's `chestMount`
  *   pauldron → the torso's `shoulderMount` (the shoulderExtraN mount)
  *   belt     → the torso's `beltMount`, consumables fanned on the band
@@ -78,6 +82,19 @@ export const GEAR_MOUNT_POINTS: Record<GearMountKind, { slot: PartSlot; mount: s
   belt: { slot: 'torso', mount: 'beltMount' },
 };
 
+/** The shield's combat remount (owner ruling, 2026-11-11): in the
+ *  poses that suppress the far arm (aim/recoil — the strict side
+ *  view draws one arm), the shield leaves the arm and hangs on the
+ *  torso's dedicated shield mount instead, held across the body,
+ *  so an equipped shield is visible in EVERY pose. Every other
+ *  pose keeps the arm mount, byte-identical. A torso that does not
+ *  declare this mount swallows the shield in those poses (the
+ *  swallow rule still holds — gear never floats at a default). */
+export const SHIELD_TORSO_MOUNT: { slot: PartSlot; mount: string } = {
+  slot: 'torso',
+  mount: 'shieldTorsoMount',
+};
+
 export interface ResolvedGearMount {
   /** Stage point (S-REF frame px) the gear's anchor sits on,
    *  including the belt fan offset. */
@@ -90,31 +107,54 @@ export interface ResolvedGearMount {
   anchorKey: string;
 }
 
-/** Resolve an item's mount against a posed part layout. Returns
- *  undefined when the carrying part or its mount is absent — the
- *  swallow rule: the item renders nothing rather than floating. */
-export function resolveGearMount(
-  layout: {
-    anchorStages: Map<string, PartPoint>;
-    placements: Partial<Record<PartSlot, PartPlacement>>;
-  },
+type GearMountLayout = {
+  anchorStages: Map<string, PartPoint>;
+  placements: Partial<Record<PartSlot, PartPlacement>>;
+};
+
+/** Resolve one declared mount point against a posed layout.
+ *  Returns undefined when the carrying part is absent, the mount
+ *  is undeclared, or the part is pose-suppressed — the swallow
+ *  rule: the item renders nothing rather than floating. */
+function resolveMountPoint(
+  layout: GearMountLayout,
+  slot: PartSlot,
+  mount: string,
   item: MountedGearItem,
 ): ResolvedGearMount | undefined {
-  const spec = GEAR_MOUNT_POINTS[item.kind];
-  const anchorKey = `${spec.slot}:mount:${spec.mount}`;
+  const anchorKey = `${slot}:mount:${mount}`;
   const stage = layout.anchorStages.get(anchorKey);
-  const placement = layout.placements[spec.slot];
-  // A pose-suppressed carrying part (placement.hidden — the far
-  // arm in combat poses) swallows its gear too: the item rides an
-  // arm that is not drawn, so it renders nothing rather than
-  // floating where the arm would have been.
+  const placement = layout.placements[slot];
   if (!stage || !placement || placement.hidden) return undefined;
   return {
     stage: { x: stage.x + (item.fanOffsetX ?? 0), y: stage.y },
     rotationDeg: placement.rotationDeg,
-    slot: spec.slot,
+    slot,
     anchorKey,
   };
+}
+
+/** Resolve an item's mount against a posed part layout. Returns
+ *  undefined when the carrying part or its mount is absent — the
+ *  swallow rule: the item renders nothing rather than floating.
+ *
+ *  The shield is the one exception to a suppressed carrier
+ *  swallowing its gear (owner ruling, 2026-11-11): when the far
+ *  arm is pose-suppressed (aim/recoil), the shield remounts to the
+ *  torso (`SHIELD_TORSO_MOUNT`) so it remains visible through the
+ *  whole fight. The remount applies ONLY while the arm is hidden;
+ *  in every other pose the arm mount resolves exactly as before. */
+export function resolveGearMount(
+  layout: GearMountLayout,
+  item: MountedGearItem,
+): ResolvedGearMount | undefined {
+  const spec = GEAR_MOUNT_POINTS[item.kind];
+  const primary = resolveMountPoint(layout, spec.slot, spec.mount, item);
+  if (primary) return primary;
+  if (item.kind === 'shield' && layout.placements[spec.slot]?.hidden) {
+    return resolveMountPoint(layout, SHIELD_TORSO_MOUNT.slot, SHIELD_TORSO_MOUNT.mount, item);
+  }
+  return undefined;
 }
 
 /* -- Instance keying (skins brief §5, S4 row) -------------------- */

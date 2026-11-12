@@ -80,6 +80,16 @@ export const VehicleStripChip: React.FC<{
   const wheel = <PxIcon name="wheel" size={13} className="shrink-0 text-text-secondary" />;
 
   const rootClass = `relative flex min-w-0 flex-1 basis-0 items-center transition-transform active:scale-[0.96] after:absolute after:inset-x-0 after:-inset-y-[9px] after:content-['']`;
+  // Remedy states (audit H-04): the state/door words are short,
+  // fixed, and must print WHOLE — they are the chip's whole purpose
+  // in this state. On the elastic basis-0 root the wallet's other
+  // residents squeezed the cell below the words' width at real
+  // phone widths and the readout clipped them mid-word ("OUT OF" /
+  // "BUY CE"). The remedy root therefore sizes to its content
+  // (flex-none); the Strip row is overflow-x-auto by design and
+  // absorbs the few pixels. Healthy and on-foot states keep the
+  // elastic root — their name is the designed elastic part.
+  const remedyRootClass = `relative flex flex-none items-center transition-transform active:scale-[0.96] after:absolute after:inset-x-0 after:-inset-y-[9px] after:content-['']`;
 
   if (!equipped) {
     return (
@@ -126,7 +136,7 @@ export const VehicleStripChip: React.FC<{
         data-state={outOfFuel ? 'out-of-fuel' : 'worn-out'}
         aria-label={aria}
         onClick={() => onNavigate?.(target)}
-        className={rootClass}
+        className={remedyRootClass}
       >
         <span
           data-testid="vehicle-chip-readout"

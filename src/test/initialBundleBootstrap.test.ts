@@ -22,7 +22,7 @@ vi.mock('@/lib/api/verifiedOps', () => ({
   verifiedOps: { initialBundle: vi.fn() },
 }));
 
-import { ensureInitialBundle, isInitialBundleClaimed, parseInitialBundleGrant } from '@/lib/api/initialBundle';
+import { ensureInitialBundle, isInitialBundleClaimed, parseInitialBundleGrant, resetInitialBundleGuard } from '@/lib/api/initialBundle';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import type { ProfileRow } from '@/lib/api/profileService';
 
@@ -68,6 +68,7 @@ describe('isInitialBundleClaimed', () => {
 describe('ensureInitialBundle', () => {
   beforeEach(() => {
     vi.mocked(verifiedOps.initialBundle).mockReset();
+    resetInitialBundleGuard();
   });
 
   it('grants a fresh account exactly once and returns the parsed grant', async () => {
@@ -89,6 +90,42 @@ describe('ensureInitialBundle', () => {
     await ensureInitialBundle(profile(), grant);
     await expect(ensureInitialBundle(claimedProfile(), grant)).resolves.toBeNull();
     expect(grant).toHaveBeenCalledTimes(1);
+  });
+
+  it('concurrent bootstraps share one grant — the op fires exactly once (H-06)', async () => {
+    let release!: (value: ReturnType<typeof grantResult>) => void;
+    const grant = vi.fn(
+      () =>
+        new Promise<ReturnType<typeof grantResult>>((resolvePromise) => {
+          release = resolvePromise;
+        }),
+    );
+    const first = ensureInitialBundle(profile(), grant as never);
+    const second = ensureInitialBundle(profile(), grant as never);
+    release(grantResult());
+    await expect(first).resolves.toEqual(EXPECTED_GRANT);
+    await expect(second).resolves.toEqual(EXPECTED_GRANT);
+    expect(grant).toHaveBeenCalledTimes(1);
+  });
+
+  it('a stale unclaimed snapshot after a completed grant does not re-fire the op (H-06)', async () => {
+    // The played failure: bootstrap #2 read the profile before
+    // bootstrap #1's grant landed, so its snapshot still reads
+    // unclaimed — it must return quietly instead of POSTing into a 400.
+    const grant = vi.fn(async () => grantResult());
+    await expect(ensureInitialBundle(profile(), grant)).resolves.toEqual(EXPECTED_GRANT);
+    await expect(ensureInitialBundle(profile(), grant)).resolves.toBeNull();
+    expect(grant).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failed grant does not settle — the next bootstrap retries (H-06)', async () => {
+    const grant = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValue(grantResult());
+    await expect(ensureInitialBundle(profile(), grant as never)).rejects.toThrow('network down');
+    await expect(ensureInitialBundle(profile(), grant as never)).resolves.toEqual(EXPECTED_GRANT);
+    expect(grant).toHaveBeenCalledTimes(2);
   });
 
   it('never calls the grant for an already-claimed profile', async () => {

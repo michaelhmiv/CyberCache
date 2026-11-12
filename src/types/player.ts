@@ -42,4 +42,11 @@ export interface PlayerProfile {
   lastClaimedTick: number;
   /** Vehicle tank, in fuel units (0021). Server-side state; one Generic Fuel Cell = 100 units. */
   vehicleFuel: number;
+  /**
+   * Effective vendor buyback rate, composed server-side and carried
+   * on the profile read (audit G-F3). Absent/null until a profile
+   * carrying it syncs; the Vendor screen falls back to the code
+   * default rate only while unset.
+   */
+  vendorBuybackRate?: number | null;
 }

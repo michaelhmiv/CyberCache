@@ -60,7 +60,7 @@ export class TabErrorBoundary extends React.Component<
               is unaffected.
             </div>
             {this.state.error && (
-              <div className="mt-3 overflow-auto rounded border border-border bg-surface p-2 text-left font-mono text-[10px] text-red">
+              <div className="mt-3 overflow-auto rounded border border-border bg-surface p-2 text-left font-mono text-[11px] text-red">
                 {this.state.error.message}
               </div>
             )}
