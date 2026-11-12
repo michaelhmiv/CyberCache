@@ -31,6 +31,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Your sign-in no longer rides an Android backup** — the app's session (the token that keeps you signed in) is now excluded from Android cloud backups and device transfers, so restoring an old backup on another phone can't carry a stale sign-in that knocks you out everywhere. Everything else still backs up as before.
 - **Sign-out now leaves nothing behind on the device** — your "While You Were Away" recap used to survive sign-out and could pop up inside the next account's session on a shared device. Changing accounts or signing out clears it now, and your on-device snapshot copy is removed too (your own return still restores from the server as before).
 - **The Wardrobe opens again for repaint owners** — if you owned a repaint-tier cosmetic, your cosmetics page failed to load at all (the server tried to read the repaint tier as a number). It now reads tiers the way the rest of the game does, and your parts list normally.
+- **The market docs now match the market** — MECHANICS.md claimed listing was free; it has not been since the listing deposit shipped. Listing now correctly reads as a 25-scrap deposit, refunded when your item sells and burned if you cancel, alongside the 5% sale fee.
 
 
 

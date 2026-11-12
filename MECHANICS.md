@@ -546,7 +546,7 @@ Nothing outside the prepared set is ever touched.
 - Boss victory: level × 150 credits
 - Boss defeat: death fee (as above)
 - Vendor: buy consumables for credits
-- Market: listing is free in cc_market_create. A completed sale in cc_accept_listing charges a **5% market fee** (migration 0017; `MARKET_FEE_RATE` in src/lib/market/marketFee.ts), destroyed — the buyer pays the listed price and the seller receives 95%. The seller's Scavenger fee-reduction nodes reduce the fee as their defs describe: Darknet Broker −5% of the fee per point (to −25%), and Market Manipulator a further −15% for items the seller personally found (find drop source, not acquired from another player). NPC-seeded listings (supply_mode `npc_market`) are exempt — the NPC payout is unchanged
+- Market: listing in cc_market_create charges a **25-scrap deposit** (migration 0087; `MARKET_LISTING_DEPOSIT_SCRAP` in src/lib/market/listingDeposit.ts), refunded to the seller on a completed sale and burned on cancel. A completed sale in cc_accept_listing charges a **5% market fee** (migration 0017; `MARKET_FEE_RATE` in src/lib/market/marketFee.ts), destroyed — the buyer pays the listed price and the seller receives 95%. The seller's Scavenger fee-reduction nodes reduce the fee as their defs describe: Darknet Broker −5% of the fee per point (to −25%), and Market Manipulator a further −15% for items the seller personally found (find drop source, not acquired from another player). NPC-seeded listings (supply_mode `npc_market`) are exempt — the NPC payout is unchanged
 
 ### Cache Keys
 - Start with 3
