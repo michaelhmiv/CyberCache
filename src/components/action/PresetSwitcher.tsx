@@ -457,7 +457,7 @@ export const PresetSwitcher: React.FC<{
                               className={isActive ? 'text-amber' : 'text-text-muted'}
                             />
                             <span className="min-w-0 flex-1 truncate text-xs font-black text-text-primary">{preset.name}</span>
-                            {isActive && <span className="text-[8px] font-black uppercase tracking-wider text-amber">Active</span>}
+                            {isActive && <span className="text-[11px] font-black uppercase tracking-wider text-amber">Active</span>}
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             <button
