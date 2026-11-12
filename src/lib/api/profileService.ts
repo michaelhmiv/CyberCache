@@ -24,6 +24,8 @@ export interface ProfileRow {
   essences: Record<string, number>;
   consumables: Record<string, number>;
   skill_spends: Record<string, number>;
+  /** Server-composed effective vendor buyback rate (audit G-F3). */
+  vendor_buyback_rate?: number;
   boss_state: Record<string, unknown>;
   last_idle_claim_at: string;
   last_claimed_tick: number;
