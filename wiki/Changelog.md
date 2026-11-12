@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+- **The Hunter tab only builds the room you're standing in** — the tab used to construct every stop at once (Skill Trees, Research, Collections, Standings, Wardrobe, Account, and the full Profile & Record) and merely hide the ones you weren't looking at, so opening the tab and moving around it dragged the whole building along. Now only the open stop exists; the others aren't built until their door is tapped, and they leave when you walk back to the menu. Nothing about what any stop shows, tracks, or does has changed — the doors, the badges, the deep links that land you straight on Skill Trees, Research, or the Wardrobe all work exactly as before. The tab is simply carrying the one room you're in instead of all nine.
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
