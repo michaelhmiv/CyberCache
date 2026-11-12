@@ -119,6 +119,7 @@ const initialPlayerState = (): PlayerProfile => ({
   lastWorkshopTick: Date.now(),
   lastClaimedTick: 0,
   vehicleFuel: 0,
+  vendorBuybackRate: null,
 });
 
 function normalizeBatch(raw: ConsumableBatch): ConsumableBatch {

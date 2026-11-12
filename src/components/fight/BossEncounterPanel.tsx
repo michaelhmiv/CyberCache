@@ -554,7 +554,7 @@ export const BossEncounterPanel: React.FC<{
               <button
                 type="button"
                 onClick={onChangeBoss}
-                className="bl-secondary px-2 py-1 text-[9px] font-black text-amber"
+                className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[9px] font-black text-amber"
                 style={{ backgroundColor: 'rgba(10,7,5,0.88)' }}
               >
                 Change Boss
@@ -570,7 +570,7 @@ export const BossEncounterPanel: React.FC<{
                 <div className="text-[10px] text-text-muted">Tier {boss.tier} · Lv.{boss.level} · {boss.phases.length} phase{boss.phases.length === 1 ? '' : 's'}</div>
               </div>
             </div>
-            <button type="button" onClick={onChangeBoss} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
+            <button type="button" onClick={onChangeBoss} className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[9px] font-black text-amber">
               Change Boss
             </button>
           </div>
@@ -676,7 +676,7 @@ export const BossEncounterPanel: React.FC<{
                       type="button"
                       aria-label={`Prepare fewer ${def.name}`}
                       onClick={() => bossStore.setConsumablePrep(def.id, Math.max(0, count - 1))}
-                      className="bl-secondary px-2 py-1 text-xs font-black disabled:opacity-40"
+                      className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-xs font-black disabled:opacity-40"
                       disabled={count <= 0}
                     >
                       −
@@ -686,7 +686,7 @@ export const BossEncounterPanel: React.FC<{
                       type="button"
                       aria-label={`Prepare more ${def.name}`}
                       onClick={() => bossStore.setConsumablePrep(def.id, Math.min(owned, count + 1))}
-                      className="bl-secondary px-2 py-1 text-xs font-black disabled:opacity-40"
+                      className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-xs font-black disabled:opacity-40"
                       disabled={count >= owned}
                     >
                       +

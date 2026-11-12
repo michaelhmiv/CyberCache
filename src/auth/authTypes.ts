@@ -34,6 +34,14 @@ export interface AuthContextValue {
   markVerificationReminderSeen: () => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   refreshAccount: () => Promise<void>;
+  /**
+   * Terminal bootstrap failure (audit X-08): a session restored but
+   * its profile/bootstrap could not complete — the app must not
+   * enter the main UI half-loaded. Null when bootstrap is healthy.
+   */
+  bootstrapError: string | null;
+  /** Re-run the bootstrap for the last attempted user. */
+  retryBootstrap: () => void;
 }
 
 export interface AuthRedirectConfig {

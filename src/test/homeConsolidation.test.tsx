@@ -223,6 +223,12 @@ describe('hero rundown — one printing of each hero stat', () => {
     expect(screen.getAllByTestId('hero-stat-shield')).toHaveLength(1);
     expect(screen.getAllByTestId('hero-stat-mitigation')).toHaveLength(1);
     expect(screen.getAllByTestId('hero-stat-shieldBreak')).toHaveLength(1);
+    // Elasticity shares follow the labels (audit X-06): 'Shield
+    // Break' — the row's longest label — truncated mid-word at
+    // phone width on the old shares while 'Mit' held nearly as
+    // much room for three letters.
+    expect(within(rundown).getByTestId('hero-stat-shieldBreak').className).toContain('flex-[1.2]');
+    expect(within(rundown).getByTestId('hero-stat-mitigation').className).toContain('flex-[0.55]');
     expect(within(rundown).getByTestId('hero-stat-hp').textContent).toMatch(/\d[\d,]*\/\d[\d,]*/);
     expect(within(rundown).getByTestId('hero-stat-critChance').textContent).toContain('%');
     // The mode word is dead on the whole screen.
@@ -352,6 +358,9 @@ describe('vehicle chip — gone from the belt (owner decision 2026-11-10)', () =
 describe('Hunter → Profile — Totals & Sources door', () => {
   it('the door opens the full source breakdown, unfocused', { timeout: 20_000 }, async () => {
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): the Totals door lives on the
+    // Profile stop — open it first.
+    fireEvent.click(screen.getByTestId('hub-door-profile'));
     const door = await screen.findByTestId('profile-totals-sources-door');
     fireEvent.click(door);
     expect(await screen.findByText('Source Breakdown')).toBeTruthy();
