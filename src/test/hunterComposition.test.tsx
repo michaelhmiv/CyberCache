@@ -40,7 +40,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 const hoisted = vi.hoisted(() => ({
   auth: {
@@ -223,6 +223,9 @@ beforeEach(() => {
 describe('Hunter composition — the Profile stop in Register B (Service Telemetry)', () => {
   it('the trophy is the real standout item, printed whole, on the Pinned Units spec sheet', async () => {
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): open the Profile stop first —
+    // the hub renders alone until a door is tapped.
+    fireEvent.click(screen.getByTestId('hub-door-profile'));
 
     const row = await screen.findByTestId('trophy-weapon');
     // The rendered trophy IS the payload's instance: full name and
@@ -259,6 +262,8 @@ describe('Hunter composition — the Profile stop in Register B (Service Telemet
 describe('Hunter composition — the Now panel', () => {
   it('one feed carries activity, milestones, and the death record', async () => {
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): open the Profile stop first.
+    fireEvent.click(screen.getByTestId('hub-door-profile'));
 
     // The panel and its mock-mandated strapline.
     expect(await screen.findByText('Now')).toBeTruthy();

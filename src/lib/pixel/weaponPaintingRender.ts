@@ -76,7 +76,7 @@ import { CARD_WEAPON_HEIGHT, CARD_WEAPON_WIDTH } from './weaponCardCompositor';
 import { WEAPON_PAINTING_ZONES } from './weaponPaintingZones';
 import type { RgbaImage } from './pngCodec';
 
-export type WeaponPaintingDensity = 'stage' | 'card' | 'held';
+export type WeaponPaintingDensity = 'stage' | 'card' | 'held' | 'thumb';
 
 export interface WeaponPaintingResolution {
   kind: 'legendary' | 'base';
@@ -152,8 +152,14 @@ export function resolveWeaponPainting(input: PixelWeaponInput): WeaponPaintingRe
   return undefined;
 }
 
-/** Grid dimensions for a density (held shares the card grid). */
+/** Grid dimensions for a density (held shares the card grid).
+ *  Thumb is half the stage grid (60x22): the gear list row displays
+ *  weapon art at 46x17 CSS px, so the thumb grid still oversamples
+ *  the display ~1.3x per axis while quartering the per-item overlay
+ *  work and backing-store pixels of the stage render (latency
+ *  audit fix, 2026-11-12). */
 export function weaponPaintingGrid(density: WeaponPaintingDensity): { width: number; height: number } {
+  if (density === 'thumb') return { width: PIXEL_WEAPON_WIDTH / 2, height: PIXEL_WEAPON_HEIGHT / 2 };
   return density === 'stage'
     ? { width: PIXEL_WEAPON_WIDTH, height: PIXEL_WEAPON_HEIGHT }
     : { width: CARD_WEAPON_WIDTH, height: CARD_WEAPON_HEIGHT };
@@ -501,6 +507,38 @@ export interface WeaponPaintingRender extends WeaponPaintingShell {
 }
 
 /**
+ * Fitted-base cache (latency audit fix, 2026-11-12): the swap + fit
+ * half of a painting render depends ONLY on (sprite, element,
+ * density) — never on the instance's decals, condition, or seed.
+ * Before this cache, every list row re-ran the element swap over
+ * the full ~1,400x450 sprite and the area-average fit (~630k source
+ * samples) for EVERY item, because the per-render signature keys
+ * on per-instance fields and almost never repeats across a real
+ * inventory. The fitted bases are bounded (36 base paintings x 6
+ * elements + the legendary portraits, per density) and shared by
+ * every surface; the per-instance overlays still run per render,
+ * on a copy, so rendered pixels are unchanged.
+ */
+const fittedBaseCache = new Map<string, RgbaImage>();
+
+function fittedBase(
+  resolution: WeaponPaintingResolution,
+  density: WeaponPaintingDensity,
+  sprite: RgbaImage,
+  width: number,
+  height: number,
+): RgbaImage {
+  const key = `${density}|${resolution.spriteId}|${resolution.kind === 'base' ? resolution.element : ''}|${sprite.width}x${sprite.height}`;
+  const cached = fittedBaseCache.get(key);
+  if (cached) return cached;
+  const swapped = applyWeaponElementSwap(sprite, resolution);
+  const fitted = fitSpriteToGrid(swapped, width, height);
+  if (fittedBaseCache.size > 256) fittedBaseCache.clear();
+  fittedBaseCache.set(key, fitted);
+  return fitted;
+}
+
+/**
  * The full painting render for a density: element swap (sprite
  * space) -> fit (grid space) -> decals + condition (grid space).
  * The ORDER is the law the slice's tests pin: painting base first,
@@ -513,8 +551,8 @@ export function renderWeaponPainting(
   sprite: RgbaImage,
 ): WeaponPaintingRender {
   const shell = weaponPaintingShell(input, resolution, density);
-  const swapped = applyWeaponElementSwap(sprite, resolution);
-  const image = fitSpriteToGrid(swapped, shell.width, shell.height);
+  const base = fittedBase(resolution, density, sprite, shell.width, shell.height);
+  const image: RgbaImage = { width: base.width, height: base.height, data: new Uint8Array(base.data) };
   applyWeaponOverlays(image, shell, input);
   return { ...shell, image };
 }
