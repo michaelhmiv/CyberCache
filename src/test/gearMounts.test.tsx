@@ -18,12 +18,14 @@ import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import {
   GEAR_PAINT_ORDER,
+  SHIELD_TORSO_MOUNT,
   beltGearItems,
   mountedGearForLoadout,
   resolveGearMount,
   shieldElementTint,
   type MountedGearItem,
 } from '@/lib/pixel/gearMounts';
+import { BULWARK_SET } from '@/lib/pixel/skinParts';
 import { decodePng } from '@/lib/pixel/pngCodec';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import sprites from '@/assets/pixel/manifest.json';
@@ -209,8 +211,31 @@ describe('M3 gear mounts — the mount data law', () => {
     expect(STANDARD_ISSUE.parts.torso?.mounts?.beltMount).toBeDefined();
     expect(STANDARD_ISSUE.parts.torso?.mounts?.chestMount).toBeDefined();
     expect(STANDARD_ISSUE.parts.torso?.mounts?.shoulderMount).toBeDefined();
+    expect(STANDARD_ISSUE.parts.torso?.mounts?.shieldTorsoMount).toBeDefined();
     expect(STANDARD_ISSUE.parts.armFar?.mounts?.shieldMount).toBeDefined();
     expect(lintPartSet(STANDARD_ISSUE).errors).toEqual([]);
+    expect(BULWARK_SET.parts.torso?.mounts?.shieldTorsoMount).toBeDefined();
+    expect(lintPartSet(BULWARK_SET).errors.some((e) => e.includes('shieldTorsoMount'))).toBe(false);
+  });
+
+  it('a torso without the shield remount fails the lint (the shield must have somewhere to go in combat poses)', () => {
+    const torso = STANDARD_ISSUE.parts.torso!;
+    const broken: PartSetDef = {
+      ...STANDARD_ISSUE,
+      parts: {
+        ...STANDARD_ISSUE.parts,
+        torso: {
+          ...torso,
+          mounts: {
+            shoulderMount: torso.mounts!.shoulderMount,
+            chestMount: torso.mounts!.chestMount,
+            beltMount: torso.mounts!.beltMount,
+          },
+        },
+      },
+    };
+    const { errors } = lintPartSet(broken);
+    expect(errors.some((e) => e.includes('shieldTorsoMount'))).toBe(true);
   });
 
   it('a torso without the belt mount fails the lint (swallow rule at the data layer)', () => {
@@ -240,11 +265,12 @@ describe('M3 gear mounts — the mount data law', () => {
 describe('M3 gear mounts — raster proofs (composePartSet)', () => {
   it('the geared, armed render is EXACTLY its declared layers in paint order', () => {
     // RE-PINNED 2026-11-11 (far-arm suppression): this inventory
-    // proof used to compose the aim pose, but aim now suppresses
-    // the far arm (and swallows its shield) by owner ruling, so
-    // the EXACT full layer inventory — every part slot + every
-    // gear layer + the weapon — is asserted on idle, where every
-    // declared layer is drawn. Same expected set, unchanged.
+    // proof used to compose the aim pose, but aim suppresses the
+    // far arm part by owner ruling, so the EXACT full layer
+    // inventory — every part slot + every gear layer + the
+    // weapon — is asserted on idle, where every declared layer
+    // is drawn. Same expected set, unchanged. (The shield's aim
+    // remount to the torso is pinned separately below.)
     const render = composePartSet(STANDARD_ISSUE, PART_POSES.idle, loadSprite, {
       weapon: { kind: 'compositor', input: PISTOL },
       gear: FULL_GEAR,
@@ -310,12 +336,12 @@ describe('M3 gear mounts — raster proofs (composePartSet)', () => {
     // RE-PINNED 2026-11-11 (far-arm suppression): this leg used to
     // run aim vs hit, but the far arm is pose-suppressed in aim now
     // (owner ruling: the strict side view never draws it in combat
-    // poses), so the shield mount no longer resolves in aim — the
-    // swallow rule follows the part, pinned explicitly in the next
-    // test. The follow-through leg runs idle vs hit instead: the
-    // nearest pose pair where the arm IS drawn, same assertions
-    // (mount travel > 5 stage px — measured 8.8 — and layer
-    // centroids tracking the mount within 7).
+    // poses), so the ARM mount no longer resolves in aim — the
+    // shield remounts to the torso there instead, pinned explicitly
+    // in the next tests. The follow-through leg runs idle vs hit
+    // instead: the nearest pose pair where the arm IS drawn, same
+    // assertions (mount travel > 5 stage px — measured 8.8 — and
+    // layer centroids tracking the mount within 7).
     const idleRender = composePartSet(STANDARD_ISSUE, PART_POSES.idle, loadSprite, { gear: FULL_GEAR });
     const hitRender = composePartSet(STANDARD_ISSUE, PART_POSES.hit, loadSprite, { gear: FULL_GEAR });
     const idleLayout = layoutPartSet(STANDARD_ISSUE, PART_POSES.idle);
@@ -339,26 +365,85 @@ describe('M3 gear mounts — raster proofs (composePartSet)', () => {
     expect(Math.abs(pHitC.y - pIdleC.y - (pHit.y - pIdle.y))).toBeLessThan(7);
   });
 
-  it('pose suppression: the far arm and its shield do not render in aim or recoil', () => {
-    // Owner ruling 2026-11-11: strict side view — the far arm is
-    // not drawn in combat poses (two rotation tunings still left
-    // it reading as a stray arm in the armpit gap). The shield
-    // rides that arm, so it is swallowed with it; the part still
-    // RESOLVES geometrically (placement, mount anchor, supportHand
-    // joint all present) so no geometry gate or extent moves.
+  it('pose suppression: the far arm is not drawn in aim or recoil, and the shield remounts to the torso', () => {
+    // Owner rulings 2026-11-11, in sequence: strict side view —
+    // the far arm is not drawn in combat poses (two rotation
+    // tunings still left it reading as a stray arm in the armpit
+    // gap); then — the shield must NOT vanish with it. In aim and
+    // recoil the shield remounts to the torso's shieldTorsoMount
+    // (held across the body), so it renders in every combat pose.
+    // The arm part still RESOLVES geometrically (placement, mount
+    // anchor, supportHand joint all present) so no geometry gate
+    // or extent moves.
     const shieldItem = FULL_GEAR.find((g) => g.kind === 'shield')!;
     for (const poseName of ['aim', 'recoil'] as const) {
       const render = composePartSet(STANDARD_ISSUE, PART_POSES[poseName], loadSprite, { gear: FULL_GEAR });
       expect(render.layers.has('armFar'), poseName).toBe(false);
-      expect(render.layers.has('gear:shield'), poseName).toBe(false);
+      expect(render.layers.has('gear:shield'), poseName).toBe(true);
       const layout = layoutPartSet(STANDARD_ISSUE, PART_POSES[poseName]);
       expect(layout.placements.armFar?.hidden, poseName).toBe(true);
-      expect(resolveGearMount(layout, shieldItem), poseName).toBeUndefined();
       expect(layout.anchorStages.has('armFar:mount:shieldMount'), poseName).toBe(true);
+      const mount = resolveGearMount(layout, shieldItem);
+      expect(mount, poseName).toBeDefined();
+      expect(mount!.slot, poseName).toBe('torso');
+      expect(mount!.anchorKey, poseName).toBe('torso:mount:shieldTorsoMount');
+      expect(mount!.stage, poseName).toEqual(layout.anchorStages.get('torso:mount:shieldTorsoMount'));
+      expect(mount!.rotationDeg, poseName).toBe(layout.placements.torso!.rotationDeg);
+      // The rendered shield layer sits ON the torso mount.
+      const centroid = layerCentroid(render.layers.get('gear:shield')!);
+      expect(centroid.count, poseName).toBeGreaterThan(50);
+      expect(Math.abs(centroid.x - (mount!.stage.x - render.origin.x)), poseName).toBeLessThan(13);
+      expect(Math.abs(centroid.y - (mount!.stage.y - render.origin.y)), poseName).toBeLessThan(13);
     }
-    // Non-combat poses still draw the arm and carry the shield.
-    const idle = composePartSet(STANDARD_ISSUE, PART_POSES.idle, loadSprite, { gear: FULL_GEAR });
-    expect(idle.layers.has('armFar')).toBe(true);
+    // The remount anchor is the declared one (SHIELD_TORSO_MOUNT).
+    expect(SHIELD_TORSO_MOUNT).toEqual({ slot: 'torso', mount: 'shieldTorsoMount' });
+  });
+
+  it('the shield keeps the arm anchor in every pose where the arm is drawn (hit/idle/roam and the rest)', () => {
+    // The remount applies ONLY where the far arm is hidden; every
+    // other pose resolves the arm mount exactly as before the
+    // remount existed (idle's stage point is pinned at (119, 144)
+    // by the DOM-actor test below as well).
+    const shieldItem = FULL_GEAR.find((g) => g.kind === 'shield')!;
+    for (const poseName of ['idle', 'roam', 'hit', 'celebrate', 'work', 'relaxed'] as const) {
+      const layout = layoutPartSet(STANDARD_ISSUE, PART_POSES[poseName]);
+      const mount = resolveGearMount(layout, shieldItem);
+      expect(mount, poseName).toBeDefined();
+      expect(mount!.slot, poseName).toBe('armFar');
+      expect(mount!.anchorKey, poseName).toBe('armFar:mount:shieldMount');
+      expect(mount!.stage, poseName).toEqual(layout.anchorStages.get('armFar:mount:shieldMount'));
+      const render = composePartSet(STANDARD_ISSUE, PART_POSES[poseName], loadSprite, { gear: FULL_GEAR });
+      expect(render.layers.has('armFar'), poseName).toBe(true);
+      expect(render.layers.has('gear:shield'), poseName).toBe(true);
+    }
+    const idleLayout = layoutPartSet(STANDARD_ISSUE, PART_POSES.idle);
+    expect(resolveGearMount(idleLayout, shieldItem)!.stage).toEqual({ x: 119, y: 144 });
+  });
+
+  it('swallow rule still binds the remount: a torso without shieldTorsoMount renders no shield in aim/recoil', () => {
+    const torso = STANDARD_ISSUE.parts.torso!;
+    const noTorsoShieldMount: PartSetDef = {
+      ...STANDARD_ISSUE,
+      parts: {
+        ...STANDARD_ISSUE.parts,
+        torso: {
+          ...torso,
+          mounts: {
+            shoulderMount: torso.mounts!.shoulderMount,
+            chestMount: torso.mounts!.chestMount,
+            beltMount: torso.mounts!.beltMount,
+          },
+        },
+      },
+    };
+    for (const poseName of ['aim', 'recoil'] as const) {
+      const render = composePartSet(noTorsoShieldMount, PART_POSES[poseName], loadSprite, { gear: FULL_GEAR });
+      expect(render.layers.has('gear:shield'), poseName).toBe(false);
+      // The other torso gear is unaffected by the missing remount.
+      expect(render.layers.has('gear:relic'), poseName).toBe(true);
+    }
+    // At rest the same set still carries the shield on the arm.
+    const idle = composePartSet(noTorsoShieldMount, PART_POSES.idle, loadSprite, { gear: FULL_GEAR });
     expect(idle.layers.has('gear:shield')).toBe(true);
   });
 
@@ -507,6 +592,30 @@ describe('M3 gear mounts — the DOM actor', () => {
     expect(screen.queryByTestId('pixel-gear-relic')).toBeNull();
     expect(screen.queryByTestId('pixel-gear-pauldron')).toBeNull();
     expect(screen.queryByTestId('pixel-belt-prop')).toBeNull();
+  });
+
+  it('in aim and recoil the DOM actor mounts the shield on the torso, not the suppressed arm', () => {
+    // Owner ruling 2026-11-11 (shield remount): the same
+    // resolveGearMount the raster path uses drives the DOM actor,
+    // so the live figure carries the shield on
+    // torso:mount:shieldTorsoMount through the combat poses, at
+    // the torso mount's stage point in the posed layout.
+    for (const pose of ['aim', 'recoil'] as const) {
+      const { unmount } = render(<PixelPartsActor {...actorProps} pose={pose} gear={FULL_GEAR} />);
+      const shield = screen.getByTestId('pixel-gear-shield');
+      expect(shield.getAttribute('data-gear-mount'), pose).toBe('torso:mount:shieldTorsoMount');
+      expect(shield.getAttribute('data-gear-sprite'), pose).toBe('glyph-behavior-nova');
+      const layout = layoutPartSet(STANDARD_ISSUE, PART_POSES[pose]);
+      const mount = resolveGearMount(layout, FULL_GEAR[0])!;
+      const expectedLeft = ((mount.stage.x - 0.5 * FULL_GEAR[0].width) / SKELETON.frameWidth) * 100;
+      const expectedTop = ((mount.stage.y - 0.5 * FULL_GEAR[0].width) / SKELETON.frameHeight) * 100;
+      expect(parseFloat(shield.style.left), pose).toBeCloseTo(expectedLeft, 1);
+      expect(parseFloat(shield.style.top), pose).toBeCloseTo(expectedTop, 1);
+      unmount();
+    }
+    // And at rest the actor's shield is back on the arm mount.
+    render(<PixelPartsActor {...actorProps} pose="idle" gear={FULL_GEAR} />);
+    expect(screen.getByTestId('pixel-gear-shield').getAttribute('data-gear-mount')).toBe('armFar:mount:shieldMount');
   });
 
   it('swapping the equipped shield changes the mounted sprite', () => {

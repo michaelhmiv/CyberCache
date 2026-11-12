@@ -99,6 +99,14 @@ export const STANDARD_ISSUE: PartSetDef = {
         // fanned along the band. Stage (88, 178) at rest — the
         // band the overlay-era belt row hung at (top y≈179).
         beltMount: { x: 62, y: 112 },
+        // The shield's combat remount (owner ruling, 2026-11-11):
+        // in aim/recoil the far arm is suppressed, so the shield
+        // hangs here instead — low on the chest, toward the gun
+        // side, held across the body. Stage (100, 148) at rest:
+        // below the relic's chest mount and forward of the torso's
+        // mass, so the glyph reads as braced across the body and
+        // never coincides with the relic or the belt fan.
+        shieldTorsoMount: { x: 74, y: 82 },
       },
       paletteFamily: 'standard-issue',
     },

@@ -127,6 +127,24 @@ describe('vehicle strip chip — the stacked fit', () => {
     expect(chip.getAttribute('aria-label')).toContain('Scrap Bike');
   });
 
+  it('remedy root sizes to content so the state/door words print whole (audit H-04)', () => {
+    seedStores({ fuel: 0, consumables: {} });
+    render(<ResourceBar variant="home" onNavigate={vi.fn()} />);
+    const chip = screen.getByTestId('vehicle-strip-chip');
+    // The elastic basis-0 root let the wallet squeeze the remedy
+    // cell below the words' width ("OUT OF" / "BUY CE" in the
+    // audit's captures). The remedy root is content-sized instead;
+    // the strip's overflow-x-auto absorbs the few pixels.
+    expect(chip.className).toContain('flex-none');
+    expect(chip.className).not.toContain('basis-0');
+    const state = within(chip).getByTestId('vehicle-chip-state');
+    const door = within(chip).getByTestId('vehicle-chip-door');
+    expect(state.textContent).toBe('Out of fuel');
+    expect(door.textContent).toContain('Buy cells');
+    expect(state.className).toContain('whitespace-nowrap');
+    expect(door.className).toContain('whitespace-nowrap');
+  });
+
   it('remedy (worn out): the stack holds for Repair as well', () => {
     seedStores({ fuel: 50, bike: scrapBike({ conditionCurrent: 0, conditionMax: 100 }) });
     render(<ResourceBar variant="home" onNavigate={vi.fn()} />);

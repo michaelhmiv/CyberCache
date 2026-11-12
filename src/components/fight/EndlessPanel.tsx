@@ -136,6 +136,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
         setMe(facts);
         setRun(facts.activeRun);
         setStage(facts.activeRun ? 'run' : 'prep');
+        setError(null);
         return facts;
       })
       .catch((err) => {
@@ -448,7 +449,19 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
 
       {error && (
         <div className="flex items-start gap-2 border-2 border-red/40 bg-red/10 p-2 text-[11px] text-red">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {error}
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" /> <span className="flex-1">{error}</span>
+          {/* Every other data panel carries a Retry; the Chamber's
+              failure strip was the one exception (audit X-09). The
+              retry re-runs the same load that failed — for the intel
+              load it is the only recovery short of leaving the tab. */}
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="bl-secondary inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center px-2 py-1 text-[11px] font-black"
+            data-testid="endless-retry"
+          >
+            Retry
+          </button>
         </div>
       )}
 
