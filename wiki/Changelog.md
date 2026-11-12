@@ -24,6 +24,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **A failed load now offers a way back** — if the game couldn't reach the server while restoring your session, it used to open onto skeleton bars that never filled, with no way forward but killing the app. It now stops on a clear screen with a Retry button (and a sign-out if you need it).
 - **The web sign-in screen no longer offers a button that can only fail** — "Continue with Google" on the web build always ended in an error (sign-in lives in the app), and it dumped a developer debug packet on the screen for good measure. The web screen now says plainly that sign-in happens in the app, and guest entry stays front and center.
 - **Switching activities says what it cost** — starting a roam used to silently pause a running crafting bench, and picking a boss silently ended your roam. Now a notice names it: "Crafting paused — Roaming started" (your bench jobs resume when Crafting holds the slot again), "Roaming ended — Boss fight started", and so on for every switch.
+- **The out-of-fuel chip reads whole again** — at phone width its remedy text was clipped mid-word ("OUT OF" / "BUY CE"), hiding the one instruction the chip exists to give. The remedy chip now takes the room its words need. The hero rundown's "Shield Break" label gets the same treatment — it was truncating while the three-letter "Mit" sat on nearly as much room.
 
 
 
