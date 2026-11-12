@@ -51,7 +51,7 @@ const feedDot = (tone?: string) => {
 
 export const ActionStatChip: React.FC<ActionStat> = ({ label, value, tone = 'amber' }) => (
   <div className="border-2 border-border bg-bg/70 px-2 py-1.5" style={chipClip}>
-    <div className="text-[8px] font-black uppercase tracking-widest text-text-muted">{label}</div>
+    <div className="text-[11px] font-black uppercase tracking-widest text-text-muted">{label}</div>
     <div className={`truncate text-xs font-black ${toneText[tone]}`}>{value}</div>
   </div>
 );
@@ -66,14 +66,14 @@ export const RewardIntelPanel: React.FC<{
     <div className="mb-3 flex items-center gap-2">
       <span className="inline-flex text-amber"><PxIcon name="star" size={17} /></span>
       <div>
-        <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">{eyebrow}</div>
+        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-amber">{eyebrow}</div>
         <div className="text-sm font-black text-text-primary">{title}</div>
       </div>
     </div>
     <div className="grid grid-cols-3 gap-2">
       {stats.map((stat) => <ActionStatChip key={`${stat.label}-${stat.value}`} {...stat} />)}
     </div>
-    {children && <div className="mt-3 text-[10px] leading-snug text-text-muted">{children}</div>}
+    {children && <div className="mt-3 text-[11px] leading-snug text-text-muted">{children}</div>}
   </section>
 );
 
@@ -130,7 +130,7 @@ export const ActionFeed: React.FC<{
       <div className="mb-3 flex items-center gap-2">
         <PxIcon name="diamondIn" size={17} className="text-amber" />
         <div>
-          <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">reward stream</div>
+          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-amber">reward stream</div>
           <div className="text-sm font-black text-text-primary">{title}</div>
         </div>
       </div>
@@ -161,9 +161,9 @@ export const ActionFeed: React.FC<{
               )}
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[11px] font-black uppercase tracking-wide text-text-primary">{entry.label}</div>
-                <div className="text-[10px] leading-snug text-text-muted">{entry.detail}</div>
+                <div className="text-[11px] leading-snug text-text-muted">{entry.detail}</div>
                 {entry.gear && (
-                  <div className="mt-1 text-[9px] font-black uppercase tracking-wide text-amber">
+                  <div className="mt-1 text-[11px] font-black uppercase tracking-wide text-amber">
                     Tap to inspect →
                   </div>
                 )}
@@ -195,7 +195,7 @@ export const ActionFeed: React.FC<{
         contextLabel="Loot Log Inspect"
         actions={selectedGear && (onGearEquip || onGearSalvage) ? (
           <div>
-            {gearActionError && <div className="mb-2 border border-red/50 bg-red/10 p-2 text-[10px] font-bold text-red">{gearActionError}</div>}
+            {gearActionError && <div className="mb-2 border border-red/50 bg-red/10 p-2 text-[11px] font-bold text-red">{gearActionError}</div>}
             <div className="grid grid-cols-2 gap-2">
               {onGearEquip && (
                 <button
@@ -240,7 +240,7 @@ export const ContextualPickerSheet: React.FC<{
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <div className="bl-title text-2xl text-text-primary">{title}</div>
-            {detail && <div className="text-[10px] text-text-muted">{detail}</div>}
+            {detail && <div className="text-[11px] text-text-muted">{detail}</div>}
           </div>
           <button type="button" onClick={onClose} className="bl-secondary p-2 text-text-muted"><ChevronDown size={16} /></button>
         </div>

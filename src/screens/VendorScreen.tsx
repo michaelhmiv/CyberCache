@@ -45,6 +45,12 @@ export const VendorScreen: React.FC = () => {
   const player = usePlayerStore();
   const inventory = useInventoryStore();
   const loadout = useLoadoutStore();
+  // Sell quotes use the server-composed effective buyback rate from
+  // the profile read (lever + Appraiser's Eye + research, audit
+  // G-F3) — never the bare code default, which understated every
+  // quote for bonused sellers. The default remains only as the
+  // pre-sync fallback, before any profile has carried the rate.
+  const buybackRate = player.vendorBuybackRate ?? VENDOR_BUYBACK_RATE_DEFAULT;
   const [notice, setNotice] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [mode, setMode] = React.useState<'buy' | 'sell'>('buy');
@@ -276,7 +282,7 @@ export const VendorScreen: React.FC = () => {
             <span className="min-w-0">
               <span className="block text-xs font-black text-text-primary">Sell to Vendor — Buyback</span>
               <span className="block text-[11px] text-text-muted">
-                The vendor buys back gear, consumables, materials and essences at {Math.round(VENDOR_BUYBACK_RATE_DEFAULT * 100)}% of value.
+                The vendor buys back gear, consumables, materials and essences at {Math.round(buybackRate * 100)}% of value.
               </span>
             </span>
             <PxIcon name="chevR" size={17} className="shrink-0 text-amber" />
@@ -381,7 +387,7 @@ export const VendorScreen: React.FC = () => {
             <PxIcon name="vendor" size={17} /> Back to Vendor stock
           </button>
           <div className="text-[11px] text-text-muted">
-            The vendor pays {Math.round(VENDOR_BUYBACK_RATE_DEFAULT * 100)}% of vendor value at the standard rate.
+            The vendor pays {Math.round(buybackRate * 100)}% of vendor value at your current rate.
             Equipped and locked gear can&apos;t be sold. The confirmed payout is shown after each sale.
           </div>
 
@@ -390,7 +396,7 @@ export const VendorScreen: React.FC = () => {
             {sellableGear.length === 0 ? (
               <div className="py-4 text-center text-xs text-text-muted">No sellable gear — equipped and locked items stay with you.</div>
             ) : sellableGear.map(({ item, value }) => {
-              const payout = vendorBuybackPayout(value, VENDOR_BUYBACK_RATE_DEFAULT);
+              const payout = vendorBuybackPayout(value, buybackRate);
               const selling = busyId === `sell:gear:${item.id}`;
               return (
                 <MobileCard key={item.id} className="flex items-center justify-between gap-3">
@@ -417,8 +423,8 @@ export const VendorScreen: React.FC = () => {
             ) : sellableBatches.map((batch) => {
               const unitValue = consumableUnitVendorValue(batch.consumable_type, batch.quality_percent) ?? 0;
               const name = CONSUMABLES[batch.consumable_type as keyof typeof CONSUMABLES]?.name ?? batch.consumable_type;
-              const payoutOne = vendorBuybackPayout(unitValue, VENDOR_BUYBACK_RATE_DEFAULT);
-              const payoutAll = vendorBuybackPayout(unitValue * batch.quantity, VENDOR_BUYBACK_RATE_DEFAULT);
+              const payoutOne = vendorBuybackPayout(unitValue, buybackRate);
+              const payoutAll = vendorBuybackPayout(unitValue * batch.quantity, buybackRate);
               const selling = busyId?.startsWith(`sell:batch:${batch.id}`);
               return (
                 <MobileCard key={batch.id} className="space-y-2">
@@ -461,8 +467,8 @@ export const VendorScreen: React.FC = () => {
             {sellableMaterials.length === 0 ? (
               <div className="py-4 text-center text-xs text-text-muted">No materials or essences to sell.</div>
             ) : sellableMaterials.map(({ entry, owned }) => {
-              const payoutOne = vendorBuybackPayout(entry.unitPrice, VENDOR_BUYBACK_RATE_DEFAULT);
-              const payoutAll = vendorBuybackPayout(entry.unitPrice * owned, VENDOR_BUYBACK_RATE_DEFAULT);
+              const payoutOne = vendorBuybackPayout(entry.unitPrice, buybackRate);
+              const payoutAll = vendorBuybackPayout(entry.unitPrice * owned, buybackRate);
               const selling = busyId?.startsWith(`sell:mat:${entry.id}`);
               return (
                 <MobileCard key={entry.id} className="space-y-2">

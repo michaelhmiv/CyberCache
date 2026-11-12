@@ -80,7 +80,7 @@ const ActivityGlyph: React.FC<{ kind: ActivityKind; size?: number; className?: s
 const idleEvent: RunVisualEvent = {
   id: 'idle-loop-ready',
   label: 'ACTION READY',
-  detail: 'Choose a hunter action. The workspace below changes to the current action.',
+  detail: 'Choose a hunter action',
   tone: 'patrol',
   eventType: 'idle',
 };
