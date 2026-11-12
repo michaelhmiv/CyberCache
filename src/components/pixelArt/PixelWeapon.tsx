@@ -55,6 +55,7 @@ import { useDeferredArt } from './useDeferredArt';
 
 const PAINT_SCALE = 3; // supersampled backing store; CSS size stays exact
 const CARD_PAINT_SCALE = 2; // the card grid is already 2× the stage grid
+const THUMB_PAINT_SCALE = 2; // thumb grid 60x22 -> 120x44 backing for a 46x17 display
 
 /** Painting renders by signature (module-wide, like the compositor caches). */
 const paintingRenderCache = new Map<string, WeaponPaintingRender>();
@@ -87,9 +88,12 @@ interface PixelWeaponProps {
   className?: string;
   testId?: string;
   /** Composition density: 'stage' 120×44 small grid (default,
-   *  list rows / feed thumbs), 'card' 240×88 inspect, or 'held'
-   *  240×88 held mode (the stage's in-hand render). */
-  density?: 'stage' | 'card' | 'held';
+   *  list rows / feed thumbs), 'card' 240×88 inspect, 'held'
+   *  240×88 held mode (the stage's in-hand render), or 'thumb'
+   *  60×22 half-stage grid for the gear list's 46px rows (latency
+   *  audit fix, 2026-11-12 — the stage backing store was ~61x the
+   *  row's displayed pixels). */
+  density?: 'stage' | 'card' | 'held' | 'thumb';
   /**
    * Viewport-deferred composition (Gear cold-load fix): when set,
    * the canvas mounts at its final geometry immediately but the
@@ -117,7 +121,11 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     return pixelWeaponInputFromWeapon(weapon);
   }, [input, weapon]);
 
-  const paintScale = density === 'stage' ? PAINT_SCALE : CARD_PAINT_SCALE;
+  const paintScale = density === 'stage' ? PAINT_SCALE : density === 'thumb' ? THUMB_PAINT_SCALE : CARD_PAINT_SCALE;
+  // The texel-compositor fallback has no thumb composition of its
+  // own: a thumb request falls back to the stage render painted at
+  // 1x (120x44 — the same backing box the thumb painting occupies).
+  const fallbackScale = density === 'thumb' ? 1 : paintScale;
 
   // Painted layer: resolution is decided by the MANIFEST
   // declaration (never by whether the asset glob resolved), the
@@ -160,7 +168,7 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
   }, [active, resolved, painting, shell, density]);
 
   const stageRender = useMemo(
-    () => (active && resolved && !paintingDeclared && density === 'stage' ? composePixelWeaponCached(resolved) : undefined),
+    () => (active && resolved && !paintingDeclared && (density === 'stage' || density === 'thumb') ? composePixelWeaponCached(resolved) : undefined),
     [active, resolved, paintingDeclared, density],
   );
   const cardRender = useMemo(
@@ -181,8 +189,8 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     if (paintingRender) paintRgbaImage(ctx, paintingRender.image, paintScale);
     else if (heldRender) paintWeaponCard(ctx, heldRender, CARD_PAINT_SCALE);
     else if (cardRender) paintWeaponCard(ctx, cardRender, CARD_PAINT_SCALE);
-    else if (stageRender) paintPixelWeapon(ctx, stageRender, PAINT_SCALE);
-  }, [paintingRender, heldRender, cardRender, stageRender, paintScale]);
+    else if (stageRender) paintPixelWeapon(ctx, stageRender, density === 'thumb' ? 1 : PAINT_SCALE);
+  }, [paintingRender, heldRender, cardRender, stageRender, paintScale, density]);
 
   if (defer && !active && resolved) {
     // Deferred and not yet activated: mount the canvas at its FINAL
@@ -193,8 +201,8 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
     // ride the placeholder unchanged. This branch precedes the
     // painted branch on purpose: a deferred row must not expose a
     // signature (i.e. a composition) before it activates.
-    const gridW = density === 'stage' ? PIXEL_WEAPON_WIDTH : CARD_WEAPON_WIDTH;
-    const gridH = density === 'stage' ? PIXEL_WEAPON_HEIGHT : CARD_WEAPON_HEIGHT;
+    const gridW = density === 'stage' ? PIXEL_WEAPON_WIDTH : density === 'thumb' ? PIXEL_WEAPON_WIDTH / 2 : CARD_WEAPON_WIDTH;
+    const gridH = density === 'stage' ? PIXEL_WEAPON_HEIGHT : density === 'thumb' ? PIXEL_WEAPON_HEIGHT / 2 : CARD_WEAPON_HEIGHT;
     const height = Math.round(size * (gridH / gridW));
     return (
       <canvas
@@ -253,8 +261,8 @@ export const PixelWeapon: React.FC<PixelWeaponProps> = React.memo(({ weapon, inp
   return (
     <canvas
       ref={setCanvasRef}
-      width={render.width * paintScale}
-      height={render.height * paintScale}
+      width={render.width * fallbackScale}
+      height={render.height * fallbackScale}
       className={className}
       style={{
         width: fluid ? '100%' : size,
