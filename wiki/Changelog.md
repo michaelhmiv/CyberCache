@@ -42,6 +42,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The bench's pause message names the real blocker** — standing in boss prep with jobs queued no longer claims "you're in a boss fight" when no fight is running; it says you're prepping for a boss. The fight wording now appears only while a fight is actually on.
 - **First launch is quieter under the hood** — a fresh account's starter bundle (5,000 credits, 500 scrap, 3 cache keys and the Scrap Bike) is now requested exactly once per session, so the duplicate request that used to bounce off the server on a new player's first screen is gone. The bundle itself is unchanged.
 - **The Garage agrees with itself when the tank is dry** — the vehicle card's "Effective yield now" used to keep showing the fueled bonus (×1.15) while the banner above it said you were roaming on foot at ×1.00. Both now read from the same tank state: empty tank, ×1.00 everywhere.
+- **Stack prices in the Market now add up on the label** — a ×17 stack priced at 25cr used to read "1cr ea", which implies 17cr. The per-unit label now prints the exact price (1.47cr ea; whole credits when the price divides evenly), on both the listing row and the listing's detail header.
 
 
 
