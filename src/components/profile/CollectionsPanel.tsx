@@ -512,7 +512,7 @@ export const CollectionsPanel: React.FC<CollectionsPanelProps> = ({ payload, cor
           <div className="mt-3 flex items-center gap-2 font-mono text-[11px] text-red">
             <span>SIGNAL FAULT · {error}</span>
             {onRetry && (
-              <button type="button" className="bl-secondary px-2 py-1 text-[11px] font-black" onClick={onRetry}>
+              <button type="button" className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black" onClick={onRetry}>
                 Retry
               </button>
             )}

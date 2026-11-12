@@ -389,6 +389,9 @@ describe('F9 — Profile carries the guest Google link row', () => {
   it('guests see Link Google and tapping it starts the in-place upgrade', async () => {
     hoisted.auth.account = guestAccount;
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): the link row lives on the
+    // Account stop — open its door first.
+    fireEvent.click(screen.getByTestId('hub-door-account'));
     const row = await screen.findByText('Link Google');
     fireEvent.click(row.closest('button') ?? row);
     expect(hoisted.auth.signInWithGoogle).toHaveBeenCalledTimes(1);
@@ -396,6 +399,8 @@ describe('F9 — Profile carries the guest Google link row', () => {
 
   it('verified accounts do not see the link row', async () => {
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): open the Account stop first.
+    fireEvent.click(screen.getByTestId('hub-door-account'));
     // Let the screen settle, then assert absence.
     await screen.findByText('Sign Out');
     expect(screen.queryByText('Link Google')).toBeNull();

@@ -65,7 +65,7 @@ Targets below are the **base targets** (what B2 asks); other bands multiply them
 
 ## Rerolls
 
-Don't like a contract? **Each set allows one free reroll.** Further rerolls cost scrap — **100 scrap** in the daily set, **400 scrap** in the weekly set — and the scrap is destroyed. A reroll draws a fresh contract with a fresh baseline: work toward the old one does not transfer. A completed-but-unclaimed contract **cannot be rerolled** — claim it, or let it expire.
+Don't like a contract? **Each set allows one free reroll.** Further rerolls cost scrap — **100 scrap** in the daily set, **400 scrap** in the weekly set — and the scrap is destroyed. Rerolling is a transact-class action like claiming: guests can view the board, but a reroll requires an account — the server refuses it before the free reroll is consumed or any scrap moves. A reroll draws a fresh contract with a fresh baseline: work toward the old one does not transfer. A completed-but-unclaimed contract **cannot be rerolled** — claim it, or let it expire.
 
 ---
 
