@@ -27,6 +27,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The out-of-fuel chip reads whole again** — at phone width its remedy text was clipped mid-word ("OUT OF" / "BUY CE"), hiding the one instruction the chip exists to give. The remedy chip now takes the room its words need. The hero rundown's "Shield Break" label gets the same treatment — it was truncating while the three-letter "Mit" sat on nearly as much room.
 - **Guest rerolls on the contract board are closed** — a guest could reroll contracts (burning the board's free reroll, then spending real scrap) even though contract rewards have always required a linked account. Rerolling now asks for the same linked account claiming does, before anything is spent.
 - **Vendor sell quotes now show your real rate** — the sell screen always quoted the standard 40% buyback, but the vendor actually pays your levered rate (Appraiser's Eye and Street Economics raise it). Quotes, the percentage in the copy, and the payout now agree.
+- **A market outage no longer looks like an empty market** — if listings fail to load, the Buy stop now shows a proper error with a Retry button instead of "No listings found" and a prompt to sell your gear. Your own listings get the same treatment: a failed load says so, with its own Retry.
 
 
 
