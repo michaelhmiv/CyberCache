@@ -102,6 +102,15 @@ export interface BossSimulationOutput extends BossPrepAnalysis {
    */
   effectiveDPS: number;
   /**
+   * The sim's own shield-break total (primary at full weight,
+   * secondary at 0.3, element matchups, legendary multipliers,
+   * ordnance, consumable multipliers, skill term) — the raw value
+   * behind shieldBreakScore, exposed so display surfaces can print
+   * the engine's number instead of a display-layer approximation
+   * (audit HTR-05).
+   */
+  shieldBreakValue: number;
+  /**
    * Seconds to kill the boss at the current effective DPS. Already
    * guarded against division by zero — if effective DPS is 0 this
    * is boss.health (so the value is finite and large, not Infinity).
@@ -1515,6 +1524,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     bonusLootChance: rules.bonusLootChance,
     extraLootRollChance: rules.extraLootRollChance,
     effectiveDPS: dps,
+    shieldBreakValue: shieldBreak,
     timeToKill,
     cadence: cadenceTimeline
       ? {

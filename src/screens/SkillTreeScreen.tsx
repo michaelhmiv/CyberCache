@@ -159,7 +159,9 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   const player = usePlayerStore();
   const skillStore = useSkillStore();
 
-  const pointsSpent = skillStore.getTotalSpent();
+  // Budget points spent — weighted by listed cost (audit HTR-01), so
+  // Available, the spend gate, and the Respec quote all match the server.
+  const pointsSpent = skillStore.getSpentBudget();
   const pointsEarned = Math.max(0, player.level - 1);
   const pointsAvailable = Math.max(0, pointsEarned - pointsSpent);
   const nodes = getSkillTreeNodes(activeTree);
@@ -232,12 +234,30 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     }
   };
 
+  // Two-step respec (audit HTR-07): the first tap only ARMS the
+  // button — renamed to name the exact cost — and the second tap
+  // executes. A one-tap respec let a misclick burn the whole build
+  // and its cost (9,900cr at a full 99 points) with no undo. The arm
+  // records the spent total it was armed at; any change to the build
+  // disarms it (the derived check below), so a stale confirmation
+  // can never fire against a different build. At zero spends the
+  // button is disabled outright (the server refuses a zero-spend
+  // retrain too — 'Nothing to respec').
+  const [respecArm, setRespecArm] = useState<number | null>(null);
+  const respecConfirmed = respecArm !== null && respecArm === pointsSpent;
+
   const respec = async () => {
+    if (!respecConfirmed) {
+      setRespecArm(pointsSpent);
+      return;
+    }
     setErrorMessage(null);
     try {
       await verifiedOps.retrain();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to respec');
+    } finally {
+      setRespecArm(null);
     }
   };
 
@@ -246,21 +266,22 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   // embedded (Profile) — which suppressed both and made the working
   // cc_retrain flow unreachable. They now render in both modes, with
   // the exact cost semantics of the original header: cc_retrain
-  // charges total spent × 100cr server-side; the button is the whole
-  // confirmation (same as it ever was standalone).
+  // charges the weighted spent total × 100cr server-side.
   const respecButton = (
     <button
       onClick={respec}
-      disabled={pendingNodeId !== null}
-      className="flex min-h-[44px] shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-black uppercase tracking-wide disabled:opacity-50"
+      disabled={pendingNodeId !== null || pointsSpent === 0}
+      className={`flex min-h-[44px] shrink-0 items-center gap-1.5 px-3 py-2 text-xs font-black uppercase tracking-wide disabled:opacity-50 ${respecConfirmed ? 'animate-pulse' : ''}`}
       style={{
-        color: AMBER,
+        color: respecConfirmed ? '#FF7A59' : AMBER,
         border: '2px solid #000',
-        background: 'linear-gradient(158deg, #1D1811 0%, #0C0A08 100%)',
+        background: respecConfirmed
+          ? 'linear-gradient(158deg, #2A130D 0%, #170B06 100%)'
+          : 'linear-gradient(158deg, #1D1811 0%, #0C0A08 100%)',
         boxShadow: '3px 3px 0 rgba(0,0,0,0.7)',
       }}
     >
-      <RotateCcw size={13} /> Respec
+      <RotateCcw size={13} /> {respecConfirmed ? `Confirm Respec · ${skillStore.respecCost().toLocaleString()}cr` : 'Respec'}
     </button>
   );
 
@@ -435,7 +456,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
                                 unlocked={prerequisitesMet || currentPoints > 0 || isMaxed}
                                 spentPoints={currentPoints}
                                 locked={!prerequisitesMet && currentPoints === 0 && !isMaxed}
-                                size={20}
+                                size={30}
                                 animate={node.type === 'keystone' && currentPoints > 0}
                               />
                               <div className="truncate text-[11px] font-black text-text-primary">{node.name}</div>

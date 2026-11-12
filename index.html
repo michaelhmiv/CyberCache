@@ -122,6 +122,17 @@
               info.logs.map(function (l) { return '<div>' + l + '</div>'; }).join('') +
               '</div>'
             : '';
+          // Offline is not a boot failure (audit A-10): when the
+          // device has no connection, the bundle simply cannot load
+          // — say that, instead of diagnosing a broken app.
+          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            root.innerHTML =
+              '<div class="boot-fallback">' +
+              '<div class="boot-fallback-title">You\'re offline</div>' +
+              '<div class="boot-fallback-body">CyberCache could not load because this device has no connection. Reconnect, then reload to play.</div>' +
+              '</div>';
+            return;
+          }
           root.innerHTML =
             '<div class="boot-fallback">' +
             '<div class="boot-fallback-title">App did not boot</div>' +

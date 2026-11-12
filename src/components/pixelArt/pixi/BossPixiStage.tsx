@@ -3,7 +3,8 @@ import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { motion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
-import { CritFlash, DamageNumber } from '../PixelFx';
+import { CritFlash, DamageNumber, SpecialTelegraphFx } from '../PixelFx';
+import { specialTelegraphForBossPhase, type BossSpecialTelegraph } from '@/lib/pixel/bossTelegraph';
 import { PART_POSES, PARTS_FEET_X, PRIMARY_ANCHOR, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
 import {
   PART_PAINT_ORDER,
@@ -79,6 +80,13 @@ import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
  *    hit-stop freezes the phase clock briefly at impact — absorbed
  *    inside the 1150 ms phase, so the fight's total duration and
  *    FIGHT_TOTAL_BUDGET_MS are unchanged.
+ *  - cadence specials (slice C3) get the big wind-up telegraph: in
+ *    the phase the boss's authored cadence assigns its special to
+ *    (lib/pixel/bossTelegraph.ts), the generic glow is replaced by
+ *    a swelling charge glow on the boss for exactly the scheduled
+ *    wind-up window, plus the DOM overlay's danger ring at the
+ *    hunter's feet and the special's name callout. Regular counters
+ *    keep the generic glow; nothing about the fight changes.
  *  - particles are pre-allocated pools (sparks / embers / one-shot
  *    FX sprites); nothing spawns per frame. The live animated-node
  *    count stays under MOVEMENT.SEGMENT.MAX_ANIMATED_NODES.
@@ -116,6 +124,10 @@ interface PhaseModel {
   bossFeet: { xPct: number; yPct: number };
   bossDamage: number;
   playerDamage: number;
+  /** C3 special telegraph: non-null when this phase's counter is the
+   *  boss's cadence special (see bossTelegraph.ts) AND the phase
+   *  actually animates that counter (a lunge beat exists). */
+  special: BossSpecialTelegraph | null;
   hitStops: HitStopWindow[];
   shake?: { key: string; intensity: number; durationMs: number };
 }
@@ -139,6 +151,7 @@ interface Scene {
   casing: Sprite;
   hitFlash: Sprite;
   telegraph: Sprite;
+  specialGlow: Sprite;
   dustPuff: Sprite;
   dustRing: Sprite;
   sparks: Sprite[];
@@ -204,6 +217,15 @@ function derivePhaseModel(
   const beat = (kind: PhaseBeat['kind']) => beats.find((b) => b.kind === kind);
   const shotBeat = beat('shot') ?? beat('crit');
   const isCrit = !!beat('crit');
+  // C3: the special telegraph rides the phase's own counter — it is
+  // shown only when the choreography actually animates the attack
+  // (a lunge beat), in the phase the cadence schedule assigns the
+  // special to. Endless presentations (depthBadge) carry no cadence
+  // by ruling D3 and never telegraph a special.
+  const special =
+    !finished && !props.reduced && !props.depthBadge && beat('lunge')
+      ? specialTelegraphForBossPhase(props.bossId, phases.length, presentingIndex)
+      : null;
   const poseName: PartsPoseName = !props.weapon
     ? 'relaxed'
     : beat('playerHit')
@@ -241,6 +263,7 @@ function derivePhaseModel(
     bossFeet: actorAnchorPoint(stage.bossSprite, 'feet', stage.bossPlacement),
     bossDamage,
     playerDamage,
+    special,
     hitStops: hitStopWindows(beats),
     shake,
   };
@@ -604,7 +627,11 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
     scene.hitFlash.height = 120;
     scene.hitFlash.alpha = sampleTrack(te, { keys: [0, 0.5, 0], durationMs: MOVEMENT.HIT_REACTION_MS });
   }
-  scene.telegraph.visible = !!beat('telegraph') && !finished;
+  // The generic telegraph glow warns of a regular counter. A cadence
+  // special (C3) replaces it with the bigger charge treatment below —
+  // the two never stack, so a big attack reads differently from a jab
+  // at a glance.
+  scene.telegraph.visible = !!beat('telegraph') && !finished && !model.special;
   if (scene.telegraph.visible) {
     const spec = { durationMs: MOVEMENT.TELEGRAPH_MS, delayMs: MOVEMENT.BEAT_COUNTER_AT_MS, ease: EASE.easeInOut };
     const sc = sampleTrack(te, { ...spec, keys: [0.7, 1.05, 0.95, 1.15] });
@@ -612,6 +639,21 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
     scene.telegraph.width = 110 * sc;
     scene.telegraph.height = 110 * sc;
     scene.telegraph.alpha = sampleTrack(te, { ...spec, keys: [0, 0.9, 0.55, 1] });
+  }
+  // C3 special charge-up: visible ONLY inside the scheduled wind-up
+  // window (the telegraph's own startMs → landsAtMs from
+  // bossTelegraph.ts — the same beats this phase animates), swelling
+  // and brightening as the lunge approaches, gone the moment it lands.
+  const special = model.special;
+  const specialActive = !!special && !finished && te >= special.startMs && te < special.landsAtMs;
+  scene.specialGlow.visible = specialActive;
+  if (specialActive && special) {
+    const p = (te - special.startMs) / special.durationMs;
+    const sc = 0.85 + 0.5 * EASE.easeInOut(p);
+    scene.specialGlow.position.set(bossMassPx.x, bossMassPx.y);
+    scene.specialGlow.width = 200 * sc;
+    scene.specialGlow.height = 200 * sc;
+    scene.specialGlow.alpha = 0.45 + 0.55 * p;
   }
   scene.dustRing.visible = !!beat('death') && !finished;
   if (scene.dustRing.visible) {
@@ -682,6 +724,8 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
       bossScaleX: boss.scale,
       bossX: lungeX + boss.x,
       shakeKey: rt.shake?.key ?? null,
+      specialTelegraph: model.special?.specialName ?? null,
+      specialActive,
       nodeCount: pixiAnimatedNodeCount(scene.parts.length, !!scene.weaponRoot),
       fpsAvg: avg > 0 ? 1000 / avg : 0,
       frameDeltas: [...deltas],
@@ -879,6 +923,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
         return s;
       };
       const telegraph = mkSprite(radialTexture());
+      const specialGlow = mkSprite(radialTexture());
       const dustRing = mkSprite(ringTexture());
       const dustPuff = mkSprite(ellipseTexture('#C9A876'));
       const hitFlash = mkSprite(circleTexture('#FFFFFF'));
@@ -924,6 +969,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
         casing,
         hitFlash,
         telegraph,
+        specialGlow,
         dustPuff,
         dustRing,
         sparks,
@@ -1048,6 +1094,18 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
                 delayMs={MOVEMENT.BEAT_LUNGE_AT_MS}
               />
             )}
+          </div>
+        )}
+        {!finished && sceneReady && overlay.special && (
+          <div key={`special-${presentingIndex}`} className="absolute inset-0" data-testid="boss-special-layer">
+            <SpecialTelegraphFx
+              boss={overlay.bossMass}
+              hunterXPct={stageModel.hunterPlacement.xPct}
+              groundYPct={stageModel.groundY * 100}
+              specialName={overlay.special.specialName}
+              startMs={overlay.special.startMs}
+              landsAtMs={overlay.special.landsAtMs}
+            />
           </div>
         )}
         {finished && timeline.outcome && (

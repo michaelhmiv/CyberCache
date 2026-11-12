@@ -46,6 +46,7 @@ import { VehicleSprite } from '@/components/gear/GaragePanel';
 import { listEntranceProps } from '@/lib/animation/uiMotion';
 import { gearRowHeadline, priceRowHeadline } from '@/lib/gear/gearCardSummary';
 import { listingAgeLabel } from '@/lib/market/listingAge';
+import { fmtUnitPrice } from '@/lib/market/unitPriceLabel';
 import { resolveLookView } from '@/lib/pixel/lookResolution';
 import { skinPartCatalog, skinSetById } from '@/content/skins';
 import { conditionFraction, getVehicleClass } from '@/lib/vehicles/vehicles';
@@ -266,7 +267,7 @@ export const ListingRow: React.FC<ListingRowProps> = ({
     fact = [
       { node: listing.quantity > 1 ? `×${listing.quantity}` : null },
       { node: listing.kind === 'consumable' ? `${Math.round(listing.qualityPercent ?? 100)}% quality` : null },
-      { node: listing.quantity > 1 && listing.unitPrice > 0 ? `${fmt(listing.unitPrice)}cr ea` : null },
+      { node: listing.quantity > 1 && listing.unitPrice > 0 ? `${fmtUnitPrice(listing.unitPrice)}cr ea` : null },
       { node: sellerLabel, flex: true },
       { node: age },
     ];

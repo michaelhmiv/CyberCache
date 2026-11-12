@@ -160,6 +160,88 @@ export const TelegraphGlow: React.FC<FxPoint & { delayMs?: number; color?: strin
   />
 );
 
+/**
+ * Special telegraph (boss cadence slice C3) — the wind-up warning
+ * for a boss's BIG attack, staged identically by both boss stages.
+ * Three pieces, all keyed to the one scheduled wind-up window the
+ * caller passes in (startMs → landsAtMs inside the phase — the
+ * window `derivePhaseBeats` already schedules between its telegraph
+ * and lunge beats; see lib/pixel/bossTelegraph.ts):
+ *
+ *  - a large amber charge-up glow building on the boss,
+ *  - a red ground danger ring at the impact zone (the hunter's
+ *    feet, where the lunge lands),
+ *  - the special's name as a callout chip above the boss.
+ *
+ * Everything is invisible before the window opens and gone just
+ * after the attack lands — the warning exists exactly while the
+ * boss is winding up, never longer. Regular hits never mount this;
+ * they keep the small TelegraphGlow above.
+ */
+export const SpecialTelegraphFx: React.FC<{
+  /** Boss center-mass point (charge glow + callout anchor). */
+  boss: FxPoint;
+  /** Impact-zone center: the hunter's stage x, % of the stage. */
+  hunterXPct: number;
+  /** Ground line, % of the stage height (the marker's y). */
+  groundYPct: number;
+  specialName: string;
+  startMs: number;
+  landsAtMs: number;
+}> = ({ boss, hunterXPct, groundYPct, specialName, startMs, landsAtMs }) => {
+  const total = MOVEMENT.PHASE_INTERVAL_MS;
+  const t0 = startMs / total;
+  const t1 = landsAtMs / total;
+  const t2 = Math.min(1, (landsAtMs + 110) / total);
+  const times = [0, t0, (t0 + t1) / 2, t1, t2];
+  return (
+    <>
+      <motion.div
+        data-testid="boss-special-charge"
+        className="pointer-events-none absolute z-10 rounded-full"
+        style={{
+          left: `${boss.xPct}%`,
+          top: `${boss.yPct}%`,
+          width: 190,
+          height: 190,
+          marginLeft: -95,
+          marginTop: -95,
+          background: 'radial-gradient(circle, rgba(255,160,31,0.55) 0%, rgba(255,75,92,0.28) 45%, rgba(255,75,92,0) 70%)',
+        }}
+        initial={{ opacity: 0, scale: 0.7 }}
+        animate={{ opacity: [0, 0, 1, 1, 0], scale: [0.7, 0.8, 1.05, 1.2, 1.3] }}
+        transition={{ duration: total / 1000, times, ease: 'easeInOut' }}
+      />
+      <motion.div
+        data-testid="boss-special-danger"
+        className="pointer-events-none absolute z-20 rounded-[50%] border-[3px] border-[#FF4B5C]"
+        style={{
+          left: `${hunterXPct}%`,
+          top: `${groundYPct}%`,
+          width: 104,
+          height: 34,
+          marginLeft: -52,
+          marginTop: -17,
+          boxShadow: '0 0 14px rgba(255,75,92,0.65), inset 0 0 12px rgba(255,75,92,0.4)',
+        }}
+        initial={{ opacity: 0, scale: 0.7 }}
+        animate={{ opacity: [0, 0, 1, 1, 0], scale: [0.7, 0.8, 1, 1.08, 1.16] }}
+        transition={{ duration: total / 1000, times, ease: 'easeInOut' }}
+      />
+      <motion.div
+        data-testid="boss-special-telegraph"
+        className="pointer-events-none absolute z-30 -translate-x-1/2 border-2 border-[#FF4B5C] bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-[#FF8A94]"
+        style={{ left: `${boss.xPct}%`, top: `${Math.max(4, boss.yPct - 24)}%`, textShadow: '0 0 7px #000' }}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: [0, 0, 1, 1, 0], y: [4, 4, 0, 0, -2] }}
+        transition={{ duration: total / 1000, times, ease: 'easeOut' }}
+      >
+        {specialName}
+      </motion.div>
+    </>
+  );
+};
+
 /** Floating damage number. Crits render oversized in amber (spec §4). */
 export const DamageNumber: React.FC<FxPoint & { value: number; crit?: boolean; delayMs?: number; tone?: 'enemy' | 'player' }> = ({
   xPct,

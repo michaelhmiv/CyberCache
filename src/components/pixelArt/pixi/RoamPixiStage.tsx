@@ -61,8 +61,9 @@ import {
 } from '@/lib/pixel/movement';
 import { EASE, sampleTrack } from '@/lib/pixel/pixiChoreography';
 import {
-  ROAM_APPROACH,
   deriveRoamScene,
+  enemyWalkAlpha,
+  resolveRoamWalkFrame,
   roamAnimatedNodeCount,
   sampleRoamBeat,
   type RoamSceneModel,
@@ -376,10 +377,10 @@ function installRoamResumeProbe(app: Application, runtime: RoamRuntime): () => v
 interface TickEnv {
   props: RoamPixiStageProps;
   model: RoamSceneModel;
-  /** Re-derive the model with a live walk clock (the env model's
-   *  own walkMs is the spawn instant's 0): the tick calls this
-   *  per frame while a walk-in runs so the rig pose carries the
-   *  stride articulation, and memoizes the settled model. */
+  /** Re-derive the model with a live walk clock (the env model
+   *  itself is the SETTLED model — no walkMs): the tick calls
+   *  this per frame while a walk-in runs so the rig pose carries
+   *  the stride articulation, and rests on the settled model. */
   deriveModelAt: (walkMs: number) => RoamSceneModel;
   /** The hunter's part set + held-weapon fractions (Motion M2b:
    *  the travel stride composes layouts per frame from the same
@@ -542,15 +543,21 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const scene = rt.scene;
   if (!scene) return;
   const { props } = env;
-  // Walk-articulation: while a walk-in is live, the model is
-  // re-derived per frame with the walk clock so the rig pose
-  // carries the stride delta; the walk STATE itself (start time
-  // per target) is keyed below, in the pose block. The first tick
-  // of a walk starts the clock here so the pose and the offset
-  // share one origin.
+  // Walk-articulation: the walk frame is resolved FIRST, from
+  // state (resolveRoamWalkFrame) — a target the stage has no
+  // clock for (a fresh spawn, or one already active when the
+  // stage mounted) starts its walk-in on this very frame; inside
+  // the window the model is re-derived per frame with the walk
+  // clock so the rig pose carries the stride delta; at/after the
+  // window the frame is the SETTLED model (env.model), so the
+  // enemy stays present at alpha 1 for the rest of the target's
+  // life — the DOM stage's hold-at-end semantics. (The defect
+  // this replaces: the resting model was the spawn instant's,
+  // walkMs 0, so arrival snapped the enemy back to alpha 0.)
   const walkTargetKey = `${props.currentTargetId ?? 'none'}|${env.model.isEliteEvent ? 'elite' : 'std'}`;
-  const walkingNow = !!(rt.walk && rt.walk.targetKey === walkTargetKey && now - rt.walk.startMs < MOVEMENT.WALK_IN_MS);
-  const model = walkingNow && rt.walk ? env.deriveModelAt(now - rt.walk.startMs) : env.model;
+  const walkFrame = resolveRoamWalkFrame(rt.walk, walkTargetKey, now);
+  rt.walk = walkFrame.walk;
+  const model = walkFrame.walkMs !== undefined ? env.deriveModelAt(walkFrame.walkMs) : env.model;
   // F6: the enemy art follows the current target, not the mount's.
   syncEnemyArt(rt, env);
   const { w: W, h: H } = rt.size;
@@ -603,12 +610,10 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     rt.poseKey = poseKey;
     applyPartPose(scene.parts, model.hunterLayout, now, { poseName: model.hunterPoseName, blendPositions: true });
     resolveGearFrom(model.hunterLayout);
-    // Enemy walk-in restarts when the target changes (DOM: the
-    // walk wrapper is keyed by target id).
-    const targetKey = `${props.currentTargetId ?? 'none'}|${model.isEliteEvent ? 'elite' : 'std'}`;
-    if (rt.walk?.targetKey !== targetKey) {
-      rt.walk = { targetKey, startMs: now };
-    }
+    // The enemy walk-in clock is NOT keyed here anymore: it is
+    // resolved from state at the top of the tick
+    // (resolveRoamWalkFrame), so a target change starts the walk
+    // on the same frame even when this pose block does not run.
   }
 
   // ── Travel beat (Motion Reboot M2b): the shared tracker, fed
@@ -804,7 +809,7 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   scene.enemyHit.position.set(beatSample.enemyHit.x, beatSample.enemyHit.y);
   scene.enemyHit.alpha = beatSample.enemyHit.opacity;
   scene.enemyWalk.position.set((walkOffsetXPct / 100) * W, 0);
-  scene.enemyWalk.alpha = 1 - walkOffsetXPct / ROAM_APPROACH.spawnOffsetXPct;
+  scene.enemyWalk.alpha = enemyWalkAlpha(model);
   const enemyH = (model.enemyPlacement.heightPct / 100) * H;
   if (scene.rigRoot && model.rig) {
     const rig = model.rig;
@@ -1098,10 +1103,12 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         currentTargetId: props.currentTargetId,
         hunterSet: look.set,
         // The walk clock lives in the stage runtime (per-frame);
-        // the model handed to the seed build carries the spawn
-        // instant's pose (walkMs 0) and each tick re-derives with
-        // the live value below.
-        walkMs: 0,
+        // the model handed to the seed build — and the tick's
+        // resting frame — is the SETTLED model (no walkMs): the
+        // enemy at its settle point, alpha 1. Each tick re-derives
+        // with the live walkMs only inside the walk-in window
+        // (resolveRoamWalkFrame). A spawn-instant model here
+        // (walkMs 0) made arrival snap the enemy back to alpha 0.
       }),
     [props.backgroundId, props.areaId, props.weapon, props.event, props.targetMaxHp, props.currentTargetId, look.set],
   );

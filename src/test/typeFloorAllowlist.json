@@ -1,0 +1,179 @@
+{
+  "src/screens/ActionScreenContextual.tsx": {
+    "text-[9px]": 8,
+    "text-[10px]": 3
+  },
+  "src/screens/AuthScreen.tsx": {
+    "text-[10px]": 2
+  },
+  "src/screens/ChestScreen.tsx": {
+    "text-[10px]": 6
+  },
+  "src/screens/MarketScreen.tsx": {
+    "text-[10px]": 3
+  },
+  "src/screens/ProfileScreen.tsx": {
+    "text-[10px]": 2
+  },
+  "src/screens/SettingsScreen.tsx": {
+    "text-[10px]": 25,
+    "text-[8px]": 1
+  },
+  "src/components/action/ConsumablesChips.tsx": {
+    "text-[10px]": 1
+  },
+  "src/components/action/DeathOverlay.tsx": {
+    "text-[10px]": 3
+  },
+  "src/components/action/PresetSwitcher.tsx": {
+    "text-[10px]": 10,
+    "text-[9px]": 5
+  },
+  "src/components/action/SalvageToast.tsx": {
+    "text-[9px]": 2,
+    "text-[10px]": 1
+  },
+  "src/components/action/SwapUndoToast.tsx": {
+    "text-[10px]": 3
+  },
+  "src/components/activity/OfflineRecap.tsx": {
+    "text-[10px]": 1
+  },
+  "src/components/activity/SettlementDebugOverlay.tsx": {
+    "text-[9px]": 1,
+    "text-[10px]": 1
+  },
+  "src/components/activity/StarterBundleReveal.tsx": {
+    "text-[10px]": 1
+  },
+  "src/components/common/MaterialUsageSheet.tsx": {
+    "text-[9px]": 1,
+    "text-[10px]": 1
+  },
+  "src/components/common/PickerSheet.tsx": {
+    "text-[10px]": 1
+  },
+  "src/components/common/RollQualityBadge.tsx": {
+    "text-[10px]": 1
+  },
+  "src/components/consumables/ConsumableCompare.tsx": {
+    "text-[9px]": 1,
+    "text-[8px]": 1
+  },
+  "src/components/consumables/ConsumableInspectSheet.tsx": {
+    "text-[9px]": 3,
+    "text-[10px]": 14
+  },
+  "src/components/consumables/ConsumablePicker.tsx": {
+    "text-[8px]": 3,
+    "text-[9px]": 7,
+    "text-[10px]": 2
+  },
+  "src/components/dashboard/ContractsPanel.tsx": {
+    "text-[10px]": 6
+  },
+  "src/components/dashboard/LiveTurfDiorama.tsx": {
+    "fontSize:8": 1,
+    "fontSize:9": 1
+  },
+  "src/components/debug/GlobalErrorBoundary.tsx": {
+    "text-[10px]": 3,
+    "text-[9px]": 2
+  },
+  "src/components/dispatch/DispatchPanel.tsx": {
+    "text-[10px]": 9
+  },
+  "src/components/fight/ActionSkillCard.tsx": {
+    "text-[9px]": 3,
+    "text-[10px]": 5
+  },
+  "src/components/fight/BossEncounterPanel.tsx": {
+    "text-[9px]": 16,
+    "text-[10px]": 20
+  },
+  "src/components/fight/BossPickerList.tsx": {
+    "text-[10px]": 8,
+    "text-[8px]": 1,
+    "text-[9px]": 3
+  },
+  "src/components/fight/EndlessPanel.tsx": {
+    "text-[9px]": 18,
+    "text-[10px]": 15
+  },
+  "src/components/fight/ExtractionPanel.tsx": {
+    "text-[10px]": 12,
+    "text-[9px]": 5
+  },
+  "src/components/gear/GearInspectSheet.tsx": {
+    "text-[9px]": 1,
+    "text-[10px]": 3
+  },
+  "src/components/gear/ReforgePanel.tsx": {
+    "text-[10px]": 8,
+    "text-[9px]": 2
+  },
+  "src/components/gear/Tape.tsx": {
+    "text-[10px]": 1
+  },
+  "src/components/gear/TurnInPanel.tsx": {
+    "text-[10px]": 5
+  },
+  "src/components/gear/itemStatDeck.tsx": {
+    "text-[9px]": 2,
+    "text-[10px]": 2
+  },
+  "src/components/pixelArt/ActionScenes.tsx": {
+    "text-[10px]": 2
+  },
+  "src/components/pixelArt/LootMoment.tsx": {
+    "text-[9px]": 1,
+    "text-[10px]": 1
+  },
+  "src/components/profile/LifetimeStatsPanel.tsx": {
+    "text-[10px]": 5
+  },
+  "src/components/profile/StatCard.tsx": {
+    "text-[10px]": 1,
+    "text-[9px]": 1
+  },
+  "src/components/profile/StatDetailPanel.tsx": {
+    "text-[9px]": 4,
+    "text-[10px]": 3
+  },
+  "src/components/progression/ProgressionHistoryCard.tsx": {
+    "text-[10px]": 3
+  },
+  "src/components/stats/ActiveBuffPills.tsx": {
+    "text-[10px]": 1,
+    "text-[9px]": 2
+  },
+  "src/components/stats/CharacterStatBar.tsx": {
+    "text-[8px]": 3,
+    "text-[9px]": 2
+  },
+  "src/components/stats/CharacterStatBreakdownModal.tsx": {
+    "text-[9px]": 1,
+    "text-[8px]": 3,
+    "text-[10px]": 1
+  },
+  "src/components/stats/CompositionBar.tsx": {
+    "text-[8px]": 3
+  },
+  "src/components/stats/ConsumableLedger.tsx": {
+    "text-[9px]": 11,
+    "text-[10px]": 7,
+    "text-[8px]": 6
+  },
+  "src/components/stats/MetricCard.tsx": {
+    "text-[10px]": 2,
+    "text-[8px]": 1,
+    "text-[9px]": 3
+  },
+  "src/components/vendor/RepDeskPanel.tsx": {
+    "text-[10px]": 9,
+    "text-[9px]": 1
+  },
+  "src/App.tsx": {
+    "text-[10px]": 1
+  }
+}
