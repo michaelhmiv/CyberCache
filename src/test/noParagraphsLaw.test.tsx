@@ -166,11 +166,11 @@ beforeEach(() => {
  *  the pixel actor's DOM is thousands of textless nodes. */
 function visibleDirectTexts(root: HTMLElement, { includePopUp = false } = {}): string[] {
   const out: string[] = [];
-  const styleCache = new Map<Element, CSSStyleDeclaration>();
-  const styleOf = (el: Element) => {
+  const styleCache = new Map<globalThis.Element, CSSStyleDeclaration>();
+  const styleOf = (el: globalThis.Element) => {
     let s = styleCache.get(el);
     if (!s) {
-      s = window.getComputedStyle(el as HTMLElement);
+      s = window.getComputedStyle(el);
       styleCache.set(el, s);
     }
     return s;
@@ -190,7 +190,7 @@ function visibleDirectTexts(root: HTMLElement, { includePopUp = false } = {}): s
     // implement that hiding, so emulate the browser truth here.
     if (!includePopUp && el.closest('details:not([open])')) return;
     if (el.classList.contains('sr-only') || el.closest('.sr-only')) return;
-    let node: Element | null = el;
+    let node: globalThis.Element | null = el;
     let hidden = false;
     while (node && node !== root) {
       const s = styleOf(node);
