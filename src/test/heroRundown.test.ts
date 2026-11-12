@@ -21,10 +21,12 @@ import {
   buildHeroRundown,
   buildMitigationMetric,
   buildShieldMetric,
-  pooledCrit,
+  fightCrit,
   stageStatDelta,
   type HeroRundownInput,
 } from '../lib/stats/heroRundown';
+import { computeEffectiveCritChance } from '../lib/stats/dpsChain';
+import { computeSkillBonuses } from '../lib/skills/skillBonuses';
 import type { CharacterStatSummary, StatMetric, StatTone } from '../lib/stats/characterStats';
 import type { CharacterMechanicsSnapshot } from '../lib/mechanics/buildCharacterMechanicsSnapshot';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '../types/game';
@@ -109,6 +111,8 @@ function baseInput(over: Partial<HeroRundownInput> = {}): HeroRundownInput {
     summary: summaryOf([metric('dps', 595, '595')]),
     snapshot: snapshotOf({ standardWeaponDps: 504 }),
     weapons: [makeWeapon()],
+    primary: makeWeapon(),
+    skillBonuses: {},
     survival: { currentHp: 812, maxHp: 1040, shieldHp: 260, isDead: false },
     bossContext: false,
     ...over,
@@ -194,6 +198,7 @@ describe('buildHeroRundown — the two rows', () => {
   it('unarmed: row 1 empties, row 2 still renders in full', () => {
     const model = buildHeroRundown(baseInput({
       weapons: [],
+      primary: null,
       snapshot: snapshotOf({ mitigation: 0.08, shield: 260 }),
       summary: summaryOf([metric('shieldBreak', 0, '0', 'cyan')]),
     }));
@@ -262,31 +267,74 @@ describe('buildHeroRundown — percentage-over-base deltas', () => {
   });
 });
 
-describe('pooledCrit + buildCritMetric — the Crit sheet', () => {
-  it('pools by standard-DPS weight, not a flat average', () => {
-    // Both weapons carry the same crit factor in the DPS chain
-    // (1 + chance × damage = 1.2), so their standard-DPS weights
-    // are exactly their damage weights, 3:1 — a flat average of
-    // the chances would read 0.15, the pool must read 0.175.
-    const heavy = makeWeapon({ id: 'heavy', baseDamage: 300, attackSpeed: 5, critChance: 0.2, critDamage: 1.0 });
-    const light = makeWeapon({ id: 'light', baseDamage: 100, attackSpeed: 5, critChance: 0.1, critDamage: 2.0 });
-    const pool = pooledCrit([heavy, light]);
-    expect(pool).not.toBeNull();
-    expect(pool?.chance).toBeCloseTo(0.175);
-    expect(pool?.damage).toBeCloseTo((3 * 1.0 + 1 * 2.0) / 4);
-  });
-
-  it('the sheet metric carries one weapon-bucket row per equipped weapon', () => {
-    const critMetric = buildCritMetric([makeWeapon({ name: 'Widowmaker', critChance: 0.25, critDamage: 1.2 })]);
+describe('fightCrit + buildCritMetric — the fight number (audit HTR-04)', () => {
+  it('the audit fixture: primary 25% + both crit nodes maxed (+30%) displays 55%', () => {
+    // gs_crit_1 / gs_crit_2 grant +3% crit chance per point, five
+    // points each — priced through the real node derivation
+    // (computeSkillBonuses), not a hand-fed 0.30, so the pin
+    // breaks if either the node table or the display drifts.
+    // On the pre-fix display this fixture read 25% (weapon-only
+    // pool) while the boss sim settled 55%.
+    const skillBonuses = computeSkillBonuses({ gs_crit_1: 5, gs_crit_2: 5 });
+    expect(skillBonuses.critChance).toBeCloseTo(0.30);
+    const primary = makeWeapon({ name: 'Widowmaker', critChance: 0.25, critDamage: 1.2 });
+    const model = buildHeroRundown(baseInput({ weapons: [primary], primary, skillBonuses }));
+    expect(model.critChance?.display).toBe('55%');
+    expect(model.critDamage?.display).toBe('×2.2');
+    const critMetric = buildCritMetric(primary, skillBonuses);
     expect(critMetric?.key).toBe('crit');
-    expect(critMetric?.display).toBe('25% · ×2.2');
-    expect(critMetric?.contributions).toHaveLength(1);
-    expect(critMetric?.contributions[0]).toMatchObject({ source: 'Widowmaker', bucket: 'weapon', display: '25% · ×2.2' });
+    expect(critMetric?.value).toBeCloseTo(0.55);
+    expect(critMetric?.display).toBe('55% · ×2.2');
   });
 
-  it('no weapons → no crit metric', () => {
-    expect(buildCritMetric([])).toBeNull();
-    expect(pooledCrit([])).toBeNull();
+  it('display and keystone clause read the same value — the shared composition', () => {
+    // simulateBoss feeds its high-crit clause (effective crit
+    // > 0.5) the output of computeEffectiveCritChance; the
+    // display must equal that function's output for the same
+    // build, consumables excluded (a standing display never
+    // prices transient buffs).
+    const primary = makeWeapon({ critChance: 0.25 });
+    const skillBonuses = { critChance: 0.30 };
+    expect(buildCritMetric(primary, skillBonuses)?.value)
+      .toBeCloseTo(computeEffectiveCritChance(primary, skillBonuses));
+    // The clause boundary is shared too: 0.20 + 0.30 lands
+    // exactly on 0.50 — strictly-over means the clause does not
+    // fire, and the display prints the same 50% it declined.
+    const edge = makeWeapon({ critChance: 0.20 });
+    expect(computeEffectiveCritChance(edge, skillBonuses)).toBeCloseTo(0.50);
+    expect(buildHeroRundown(baseInput({ weapons: [edge], primary: edge, skillBonuses })).critChance?.display).toBe('50%');
+  });
+
+  it('only the primary counts — a high-crit secondary never moves the display', () => {
+    const primary = makeWeapon({ name: 'Primary', critChance: 0.25, critDamage: 1.0 });
+    const secondary = makeWeapon({ id: 'secondary', name: 'Sidearm', critChance: 0.9, critDamage: 3.0 });
+    const model = buildHeroRundown(baseInput({ weapons: [primary, secondary], primary, skillBonuses: {} }));
+    expect(model.critChance?.display).toBe('25%');
+    // Crit × is the primary's own multiplier, not a blend.
+    expect(model.critDamage?.display).toBe('×2.0');
+  });
+
+  it('the sheet rows are the two terms the engine adds: primary + skill nodes', () => {
+    const primary = makeWeapon({ name: 'Widowmaker', critChance: 0.25, critDamage: 1.2 });
+    const critMetric = buildCritMetric(primary, { critChance: 0.30 });
+    expect(critMetric?.contributions).toHaveLength(2);
+    expect(critMetric?.contributions[0]).toMatchObject({ source: 'Widowmaker', bucket: 'weapon', display: '25% · ×2.2' });
+    expect(critMetric?.contributions[1]).toMatchObject({ bucket: 'skill', display: '+30%' });
+    // No skill crit → no skill row, just the weapon's own term.
+    const weaponOnly = buildCritMetric(primary, {});
+    expect(weaponOnly?.contributions).toHaveLength(1);
+    expect(weaponOnly?.display).toBe('25% · ×2.2');
+  });
+
+  it('no primary: skill crit alone still prints a chance, never a multiplier', () => {
+    expect(fightCrit(null, { critChance: 0.30 })).toMatchObject({ chance: 0.30, damage: null, skillChance: 0.30 });
+    expect(buildCritMetric(null, { critChance: 0.30 })?.display).toBe('30%');
+  });
+
+  it('nothing to print: no primary and no skill crit → no crit', () => {
+    expect(fightCrit(null, {})).toBeNull();
+    expect(fightCrit(undefined, { critChance: 0 })).toBeNull();
+    expect(buildCritMetric(null, {})).toBeNull();
   });
 });
 
