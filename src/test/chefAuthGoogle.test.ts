@@ -83,9 +83,54 @@ describe('POST /api/auth/google', () => {
     expect(linked.status).toBe(200);
     expect(linked.json.account.id).toBe(guest.json.account.id);
     expect(linked.json.account.email).toBe('guest@gmail.com');
+    // Linking promotes the account in place (audit A-01): it stops being a
+    // guest, so the economy gate and the client both treat it as verified.
+    expect(linked.json.account).toMatchObject({ isGuest: false, emailVerified: true });
+    // The session issued at link time no longer carries the guest claim —
+    // the claim downstream gates read (audit A-01, second half).
+    const claims = JSON.parse(Buffer.from(linked.json.accessToken.split('.')[1], 'base64url').toString('utf8'));
+    expect(claims.guest).toBe(false);
     // And a later bare Google sign-in lands on that same account.
     const again = await post('/api/auth/google', { idToken: googleToken({ sub: 'google-sub-guest', email: 'guest@gmail.com' }) });
     expect(again.json.account.id).toBe(guest.json.account.id);
+    expect(again.json.account.isGuest).toBe(false);
+  });
+
+
+  it('refuses a link when the Google identity is bound to a different account (audit A-12)', async () => {
+    // Account A binds subject S through a bare sign-in.
+    const a = await post('/api/auth/google', { idToken: googleToken({ sub: 'google-sub-bound', email: 'bound@gmail.com' }) });
+    expect(a.status).toBe(200);
+    // Guest B, signed in with progress at stake, tries to link S.
+    const guest = await post('/api/auth/guest', {});
+    const conflict = await post(
+      '/api/auth/google',
+      { idToken: googleToken({ sub: 'google-sub-bound', email: 'bound@gmail.com' }) },
+      guest.json.accessToken,
+    );
+    // Not a bare 200 session for A: an explicit 409 link conflict, and
+    // no session material for either account in the response.
+    expect(conflict.status).toBe(409);
+    expect(conflict.json.error).toBe('identity_link_conflict');
+    expect(conflict.json.message).toContain('already linked to another hunter');
+    expect(conflict.json.accessToken).toBeUndefined();
+    expect(conflict.json.account).toBeUndefined();
+    // B's own session is untouched by the refusal.
+    const me = await fetch(`${base}/api/auth/me`, { headers: { authorization: `Bearer ${guest.json.accessToken}` } });
+    expect(me.status).toBe(200);
+    expect((await me.json()).account.id).toBe(guest.json.account.id);
+    // Controls: bare sign-in with S still lands on A, and A re-linking
+    // its own identity (link id === bound id) still succeeds.
+    const bare = await post('/api/auth/google', { idToken: googleToken({ sub: 'google-sub-bound', email: 'bound@gmail.com' }) });
+    expect(bare.status).toBe(200);
+    expect(bare.json.account.id).toBe(a.json.account.id);
+    const ownRelink = await post(
+      '/api/auth/google',
+      { idToken: googleToken({ sub: 'google-sub-bound', email: 'bound@gmail.com' }) },
+      a.json.accessToken,
+    );
+    expect(ownRelink.status).toBe(200);
+    expect(ownRelink.json.account.id).toBe(a.json.account.id);
   });
 
   it('rejects a forged token with a stable error code', async () => {

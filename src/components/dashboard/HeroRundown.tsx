@@ -224,9 +224,15 @@ export const HeroRundown: React.FC<{
             <span className={`block h-full ${statToneRailClass[model.hp.tone]}`} style={{ width: `${Math.round(model.hp.fraction * 100)}%` }} />
           </span>
         </button>
-        {heroButton(model.shield, 'flex-[0.8]')}
-        {heroButton(model.mitigation, 'flex-[0.75]')}
-        {model.shieldBreak && heroButton(model.shieldBreak, 'flex-[0.95]')}
+        {heroButton(model.shield, 'flex-[0.75]')}
+        {heroButton(model.mitigation, 'flex-[0.55]')}
+        {/* Elasticity rebalance (audit X-06): 'Shield Break' is the
+            row's longest label and truncated mid-word ("SHIELD B…")
+            at phone width on the old shares, while 'Mit' — three
+            letters over a short percent — held nearly as much room.
+            The shares now follow the labels: Mit yields, Shield
+            Break gains, the total is unchanged. */}
+        {model.shieldBreak && heroButton(model.shieldBreak, 'flex-[1.2]')}
       </div>
       <HeroBuffLine activityKind={kind} />
       {focus && focusMetric && (

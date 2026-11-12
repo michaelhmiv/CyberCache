@@ -11,7 +11,7 @@
  *     markers, ONE headline stat per kind. Everything else is behind
  *     inspect, which is one tap on the row.
  */
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -32,6 +32,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
+import { useWindowedList } from '@/components/gear/useWindowedList';
 import { SalvageThresholdSheet } from '@/components/gear/SalvageThresholdSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { ElementBadge } from '@/components/gear/ElementBadge';
@@ -216,6 +217,9 @@ interface GearCardProps {
   compareArmed: boolean;
   onTap: (item: GearItem) => void;
   onCompareStart: (id: string) => void;
+  /** Absolute index in the filtered list — the windowing hook
+   *  measures mounted units by it (data-widx). */
+  windowIndex?: number;
 }
 
 /**
@@ -242,6 +246,7 @@ const GearCard = memo(({
   onTap,
   onCompareStart,
   compareArmed,
+  windowIndex,
 }: GearCardProps) => {
   const equipped = !!equippedSlot;
   const color = colorOf(item);
@@ -257,6 +262,7 @@ const GearCard = memo(({
       <motion.button
         whileTap={{ scale: 0.97 }}
         onClick={() => onTap(item)}
+        data-widx={windowIndex}
         className={`relative flex min-h-[132px] flex-col gap-1.5 rounded-xl border bg-surface p-2 text-left ${
           selected ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
         }`}
@@ -304,6 +310,12 @@ const GearCard = memo(({
   // load discipline (2026-11-05): art composes viewport-deferred
   // (`defer`) — a cold mount otherwise pays one compose + paint per
   // item inside the mount commit before anything can paint.
+  // Scale discipline (latency audit 2026-11-11, fix 2026-11-12):
+  // list weapons now compose at THUMB density (60x22 — the row
+  // displays 46x17, so stage's 360x132 backing store was ~61x the
+  // displayed pixels), and the hub windows the list itself
+  // (useWindowedList) so a 2,366-item inventory mounts only the
+  // on-screen rows instead of every row in one commit.
   const headline = gearRowHeadline(item, summary);
   const elementName = itemElement(item);
 
@@ -317,6 +329,7 @@ const GearCard = memo(({
         if (event.key === 'Enter' || event.key === ' ') onTap(item);
       }}
       data-testid="gear-list-row"
+      data-widx={windowIndex}
       data-kind={kindOf(item)}
       className={`relative flex min-h-[46px] w-full items-center gap-2 rounded-lg border bg-surface px-2 text-left ${
         selected || compareArmed ? 'border-amber ring-1 ring-amber/40' : equipped ? 'border-amber/50' : 'border-border'
@@ -342,7 +355,7 @@ const GearCard = memo(({
       </div>
 
       <div className="relative flex w-12 shrink-0 items-center justify-center">
-        <GearIllustration item={item} size={46} weaponDensity="stage" showBadges={false} defer />
+        <GearIllustration item={item} size={46} weaponDensity="thumb" showBadges={false} defer />
       </div>
 
       {/* The element badge takes the old level slot — in open space
@@ -558,6 +571,24 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
     sortDir,
     equippedIds,
   ]);
+
+  // Scroll windowing (latency audit fix, 2026-11-12): above the
+  // threshold only the on-screen slice of `items` mounts; selection,
+  // compare, salvage and counts all keep reading the full `items`
+  // array, so multi-select and Select All span the whole inventory
+  // exactly as before. The reset key tracks every input that
+  // reorders or replaces the set wholesale (view, kind, search,
+  // sort, filter count).
+  const gearContainerRef = useRef<HTMLDivElement | null>(null);
+  const gearWindow = useWindowedList({
+    containerRef: gearContainerRef,
+    count: items.length,
+    cols: viewMode === 'grid' ? 2 : 1,
+    estimate: viewMode === 'grid' ? 150 : 46,
+    gap: viewMode === 'grid' ? 8 : 6,
+    resetKey: `${viewMode}|${activeKind}|${search}|${sort}|${sortDir}|${filterCount}`,
+  });
+  const visibleItems = gearWindow.windowed ? items.slice(gearWindow.start, gearWindow.end) : items;
 
   const junkItems = useMemo(
     () => invItems.filter((item) => !item.isLocked && !equippedIds.has(item.id)),
@@ -1044,8 +1075,15 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         </div>
       )}
 
-      <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-2' : 'space-y-1.5'}>
-        {items.map((item) => (
+      <div
+        ref={gearContainerRef}
+        className={viewMode === 'grid' ? 'grid grid-cols-2 gap-2' : 'space-y-1.5'}
+        data-windowed={gearWindow.windowed || undefined}
+      >
+        {gearWindow.windowed && gearWindow.topSpacer > 0 && (
+          <div aria-hidden style={{ height: gearWindow.topSpacer }} className={viewMode === 'grid' ? 'col-span-2' : undefined} />
+        )}
+        {visibleItems.map((item, i) => (
           <GearCard
             key={item.id}
             item={item}
@@ -1056,8 +1094,12 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             compareArmed={compareA === item.id}
             onTap={handleItemTap}
             onCompareStart={handleCompareTap}
+            windowIndex={gearWindow.start + i}
           />
         ))}
+        {gearWindow.windowed && gearWindow.bottomSpacer > 0 && (
+          <div aria-hidden style={{ height: gearWindow.bottomSpacer }} className={viewMode === 'grid' ? 'col-span-2' : undefined} />
+        )}
       </div>
 
       {/* Filter sheet */}
