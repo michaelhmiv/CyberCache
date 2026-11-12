@@ -9,6 +9,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Linking Google now upgrades your guest account, as promised** — signing in with Google from a guest account used to leave the account flagged as a guest underneath: the market, services, extraction and leaderboards stayed locked and the game kept asking you to link. The link now promotes the account in place — same account, same hunter, same progress — and the locks lift the moment you sign in.
 - **Class mods no longer phantom-spend your skill points** — wearing a class mod with a tree bonus used to inflate the "points spent" count behind the scenes: the Hunter screen could announce "All points spent" with real points still in hand, quote a respec price higher than the server would charge, and even block you from spending points you actually had. Spent, available, and the respec quote now count only the points you really spent — the mod's boosts still strengthen your skills exactly as before.
 - **Local previews can no longer touch the live game by accident** — a copy of the game opened from a local address used to send its sign-ins and economy calls to the live production server unless it sat on one specific port, so a preview could silently play on the real economy. Local copies now talk only to whatever served them; pointing one at a real server is an explicit setting, never the default. The app itself is unchanged.
+- **Roaming enemies no longer vanish after their walk-in** — on the animated (Pixi) Home stage, an enemy faded in as it approached and then disappeared the moment it arrived, leaving its name plate and HP bar standing over an empty patch of ground while the fight went on without it. The enemy now walks in and stays in the fight at its settle point for as long as it is your target — including when the stage opens on a fight already in progress, and when you come back to the tab mid-fight. Nothing about the fight itself changed: same targets, same damage, same timings — the enemy was always there, and now you can see it.
 - **The Bulwark chest plate is unbroken steel now** — the shorter glowing cyan streak that ran beside the Bulwark plate's chest diamond is painted out, the same flaw the Standard Issue plate carried, along with the light it threw on the steel around it. The diamond itself — the framed gem set into the plate — is a deliberate light and burns exactly as it did, and every other accent on the set is untouched.
 
 
@@ -288,9 +289,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 237 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 236 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-11** — 16 merges
+**2026-11-11** — 15 merges
 
 - #484 — Boss setup-diversity (slice C2): mechanic legs collect + Bishop composite; CryoAmmo re-read measured and dropped
 - #485 — INT-7: Top-Choice cache screen — painted crate, opened ignition frame, buried prop swap
@@ -307,7 +308,6 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #496 — Painted weapon renderer — Top-Choice paintings as the weapon render (renderer slice)
 - #497 — Aim/recoil poses: far arm braces under the gun arm instead of dangling
 - #498 — Suppress the far arm in aim/recoil: strict side view draws one arm
-- #499 — Reveal Corona: physical light in the cache loot moment (Impeccable direction A) + header law
 
 **2026-11-10** — 15 merges
 
