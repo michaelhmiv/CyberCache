@@ -137,12 +137,19 @@ describe('deferred gear art', () => {
     expect(canvas.height).toBe(132);
   });
 
-  it('painted gear ignores deferral — the painting mounts at final geometry at once', async () => {
+  it('painted gear mounts its placeholder at once — the decode defers, the geometry does not', async () => {
     // INT-2 (2026-11-11): shields render their adopted Top-Choice
-    // painting, which never composes — there is nothing for the
-    // deferral queue to defer. The painted placeholder canvas mounts
-    // immediately at the sprite's own geometry, deferred or not, and
-    // carries the painting's identity instead of a signature.
+    // painting. The painted placeholder canvas mounts immediately
+    // at its final CSS geometry, deferred or not, and carries the
+    // painting's identity instead of a signature. Latency audit fix
+    // (2026-11-12): what changed is the pipeline behind it — the
+    // fetch + decode + encode now wait for deferred-art activation
+    // like every other row (previously they ran on mount for every
+    // row in the inventory), and the placeholder's backing store is
+    // capped at 2x the CSS box instead of the painting's native
+    // sprite size. The box assertions below therefore compare the
+    // deferred placeholder against the immediate render's box —
+    // both take the same capped branch, so they still agree.
     installIO();
     const shield = makeShield('s-1', 'Deferred Aegis');
     const immediate = render(<GearIllustration item={shield} size={46} />);
@@ -190,8 +197,9 @@ describe('deferred gear art', () => {
     for (const row of rows) {
       expect(row.querySelector('canvas[data-signature]')).toBeNull();
       // INT-2: painted shields mount their painting placeholder at
-      // once (nothing composes, nothing defers); grammar-rendered
-      // weapons still mount the deferred placeholder.
+      // once (the decode defers since the 2026-11-12 fix; the
+      // placeholder geometry does not); grammar-rendered weapons
+      // still mount the deferred placeholder.
       const shieldRow = row.querySelector('[data-painted-sprite]') !== null;
       if (!shieldRow) expect(row.querySelector('[data-deferred-art="pending"]')).not.toBeNull();
     }

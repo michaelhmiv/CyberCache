@@ -84,6 +84,28 @@ export function effectiveSkillPoints(
  * (can exceed maxPoints); treeBonus grants +1 to every node in the
  * named tree, capped at each node's maxPoints.
  */
+/**
+ * The BUDGET cost of a set of real spends: Σ points × the node's listed
+ * per-point cost (small 1 / major 3 / keystone 5). This — not the raw
+ * point count — is what the level−1 budget is charged and what respec
+ * prices at 100cr per unit (audit HTR-01: every train used to debit 1
+ * regardless of the listed cost, so the 99-vs-303 longevity design was
+ * silently ~16% cheaper and a keystone landed at level 10–13 instead
+ * of 21). Class-mod boosts never enter: this prices REAL spends only,
+ * the same ledger the server sums (SQL twin: cc_skill_spend_cost,
+ * migration 0089; Chef mirror: skillSpendCost in server/writes/store).
+ * Unknown ids price at 1 — a stale id must never zero out a ledger.
+ */
+export function skillSpendCost(spent: Record<string, number>): number {
+  let total = 0;
+  for (const [nodeId, points] of Object.entries(spent)) {
+    if (typeof points !== 'number' || !Number.isFinite(points) || points <= 0) continue;
+    const node = SKILL_NODES.find((n) => n.id === nodeId);
+    total += Math.floor(points) * (node ? node.cost : 1);
+  }
+  return total;
+}
+
 /** The flat effect-key → total map every skill-bonus consumer reads. */
 export type SkillBonuses = Record<string, number>;
 
