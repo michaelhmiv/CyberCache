@@ -2,6 +2,16 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+
+
+- **Linking Google now upgrades your guest account, as promised** — signing in with Google from a guest account used to leave the account flagged as a guest underneath: the market, services, extraction and leaderboards stayed locked and the game kept asking you to link. The link now promotes the account in place — same account, same hunter, same progress — and the locks lift the moment you sign in.
+- **Class mods no longer phantom-spend your skill points** — wearing a class mod with a tree bonus used to inflate the "points spent" count behind the scenes: the Hunter screen could announce "All points spent" with real points still in hand, quote a respec price higher than the server would charge, and even block you from spending points you actually had. Spent, available, and the respec quote now count only the points you really spent — the mod's boosts still strengthen your skills exactly as before.
+- **Local previews can no longer touch the live game by accident** — a copy of the game opened from a local address used to send its sign-ins and economy calls to the live production server unless it sat on one specific port, so a preview could silently play on the real economy. Local copies now talk only to whatever served them; pointing one at a real server is an explicit setting, never the default. The app itself is unchanged.
+
+
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
