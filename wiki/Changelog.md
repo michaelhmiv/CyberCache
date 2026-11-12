@@ -35,6 +35,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Level 100 is the top now** — XP used to keep minting levels (and skill points) past 100 forever, and your level plate promised a "Level 101" that was never meant to exist. Level 100 is the summit: XP still banks, the plate reads MAX LEVEL, and the skill-point budget stops at its designed 99.
 - **Respec asks first now** — respec used to fire on a single tap: one misclick could burn your whole build and its full cost with no undo. The button now arms a confirmation that names the exact cost before anything is spent, and it stays disabled when you have nothing spent to refund.
 - **Signing out on one device no longer signs you out everywhere** — a signed-out session's leftover refresh attempt was being read as token theft, which revoked your sessions on every device. Sign-outs are now marked for what they are; only genuinely replayed (rotated) tokens trigger the theft response.
+- **Explanatory paragraphs are off the screens for good** — a few had crept back: two chatty lines under the hero stats on Home, a tagline under the Inventory heading, and three paragraphs in the expanded Garage. They're trimmed to the facts and labels every other screen uses, and the game's no-paragraphs check now scans Home and the Gear page too, so they can't creep back unnoticed.
 
 
 

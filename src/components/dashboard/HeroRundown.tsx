@@ -300,14 +300,12 @@ const HeroBuffLine: React.FC<{ activityKind: ActivityKind }> = ({ activityKind }
         <>
           <span className="font-black uppercase tracking-wide text-text-secondary">Active: </span>
           <span className="text-green">{buffParts.join(' · ')}</span>
-          <span> — the deltas above include it. Tap a stat for its sources.</span>
         </>
       )}
       {modParts.length > 0 && (
         <span className={buffParts.length > 0 ? 'block' : undefined}>
           <span className="font-black uppercase tracking-wide text-text-secondary">{activityLabel} mods: </span>
           <span className="text-amber">{modParts.join(' · ')}</span>
-          {buffParts.length === 0 && <span> — folded into the numbers above. Tap a stat for its sources.</span>}
         </span>
       )}
     </div>

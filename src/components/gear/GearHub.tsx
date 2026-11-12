@@ -815,7 +815,6 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="text-base font-black leading-tight text-text-primary">Inventory</div>
-          <div className="truncate text-[11px] text-text-muted">Mobile gear triage: compare, equip, salvage, sell.</div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {hasAnyFilter && (
