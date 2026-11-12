@@ -461,8 +461,18 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
               {zoneBg && (
                 <img src={zoneBg.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover opacity-55" style={{ imageRendering: 'pixelated' }} />
               )}
+              {/* Header law (DESIGN.md §8): the header text is an
+                  unmodified top layer above every FX canvas; it sits
+                  on a soft dark underlay, and the beam's luminance is
+                  notched behind this band (headerBandPx below), so
+                  CACHE DECRYPTED reads clean at every reveal frame. */}
               <div className="absolute left-0 right-0 top-8 z-50 text-center">
-                <div className="text-xl font-black text-amber">CACHE DECRYPTED</div>
+                <div
+                  aria-hidden
+                  className="absolute left-1/2 top-1/2 -z-10 h-[76px] w-[min(560px,94vw)] -translate-x-1/2 -translate-y-1/2 rounded-[50%]"
+                  style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.34) 48%, rgba(0,0,0,0) 74%)' }}
+                />
+                <div className="relative text-xl font-black text-amber">CACHE DECRYPTED</div>
               </div>
               <LootMoment
                 items={revealed}
@@ -471,6 +481,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 anchorXPct={50}
                 groundYPct={74}
                 propCache
+                headerBandPx={{ top: 24, bottom: 72 }}
                 onDone={() => setMomentDone(true)}
                 testId="cache-loot-moment"
               />
