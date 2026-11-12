@@ -537,7 +537,13 @@ describe('device r2 — Dashboard Skill Trees door arrives at the embedded tree'
     const scrollSpy = vi.fn();
     window.HTMLElement.prototype.scrollIntoView = scrollSpy;
     render(<ProfileScreen />);
-    expect(await screen.findByTestId('profile-skill-trees')).toBeTruthy();
+    // Lazy sections (2026-11-12): without a focus the tab opens on
+    // the hub and the Skill Trees stop is not in the DOM at all —
+    // the pre-fix assertion (trees mounted-but-unscrolled) updated
+    // to the stronger absence guarantee; the no-scroll contract
+    // itself is unchanged.
+    expect(await screen.findByTestId('hunter-section-hub')).toBeTruthy();
+    expect(screen.queryByTestId('profile-skill-trees')).toBeNull();
     expect(scrollSpy).not.toHaveBeenCalled();
   });
 });

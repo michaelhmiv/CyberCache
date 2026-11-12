@@ -108,7 +108,7 @@ import {
   visibleAnnouncement,
 } from '@/store/slices/announcementsSlice';
 import { GAIN_GREEN } from '@/lib/ui/stripPulse';
-import { xpToNextLevel } from '@/content/simulation';
+import { MAX_PLAYER_LEVEL, xpToNextLevel } from '@/content/simulation';
 
 const STREAK_ACCENT = '#FF8A3D';
 const CONTRACTS_ACCENT = '#E8B33D';
@@ -755,7 +755,9 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
       {sheet === 'level' && (
         <PickerSheet
           title={`Level ${level}`}
-          subtitle={`${xp} / ${xpNeeded} XP · ${xpRemaining} to level ${level + 1}`}
+          subtitle={level >= MAX_PLAYER_LEVEL
+            ? `${xp} XP · MAX LEVEL`
+            : `${xp} / ${xpNeeded} XP · ${xpRemaining} to level ${level + 1}`}
           onClose={() => setSheet(null)}
         >
           <div className="space-y-3 p-3">

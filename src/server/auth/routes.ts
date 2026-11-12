@@ -39,6 +39,7 @@ function sessionBody(secret: string, session: Session) {
 function statusFor(code: AuthStoreError['code']): number {
   switch (code) {
     case 'email_taken': return 409;
+    case 'identity_link_conflict': return 409;
     case 'invalid_credentials': return 401;
     case 'invalid_refresh': return 401;
     case 'refresh_reuse': return 401;

@@ -371,6 +371,10 @@ describe('performance + payload budgets (§4.9)', () => {
     // SI torso slash fix (2026-11-11): part-si-torso re-derived
     // from the slash-painted-out Wave 8 master, 6,085 → 5,936 B
     // (−149 B); the ceiling literal follows the total +1.
-    expect(total).toBeLessThan(36_204_366 + 1);  });
+    // Bulwark torso slash fix (2026-11-11): part-bulwark-torso
+    // re-derived from the slash-painted-out Wave 8 master (the
+    // framed chest diamond accent preserved pixel-exact), 6,596 →
+    // 6,497 B (−99 B); the ceiling literal follows the total +1.
+    expect(total).toBeLessThan(36_204_267 + 1);  });
 
 });
