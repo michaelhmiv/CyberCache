@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+- **Roaming enemies no longer vanish after their walk-in** — on the animated (Pixi) Home stage, an enemy faded in as it approached and then disappeared the moment it arrived, leaving its name plate and HP bar standing over an empty patch of ground while the fight went on without it. The enemy now walks in and stays in the fight at its settle point for as long as it is your target — including when the stage opens on a fight already in progress, and when you come back to the tab mid-fight. Nothing about the fight itself changed: same targets, same damage, same timings — the enemy was always there, and now you can see it.
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
