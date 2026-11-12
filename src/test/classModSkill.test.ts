@@ -124,19 +124,25 @@ describe('skillSlice — class mod boosts', () => {
     expect(bonuses.survival).toBe(0);
   });
 
-  it('getTotalSpent includes class mod boosts', () => {
+  it('getTotalSpent counts REAL spends only — class mod boosts never enter spend accounting (audit HTR-02)', () => {
+    // The audit's worked fixture: 3 real points spent, a treeBonus mod with
+    // nodeBoosts applied. Before the fix this selector returned 3 + the
+    // tree's full node count + boosts, so the screens showed phantom spends,
+    // Available collapsed to 0, Respec quoted the phantom total × 100cr,
+    // and canSpend blocked spending the player's real points.
     useSkillStore.setState({ spent: { 'gs_dmg_1': 3 } });
-    const cm = makeClassMod({ treeBonus: 'Gunslinger', nodeBoosts: { 'gs_dmg_1': 2, 'gs_crit_1': 1 } });
+    const cm = makeClassMod({ treeBonus: 'Gunslinger', nodeBoosts: { 'gs_dmg_1': 2 } });
     useSkillStore.getState().applyClassMod(cm);
-    const total = useSkillStore.getState().getTotalSpent();
-    // 3 manual + 2 nodeBoost + 1 nodeBoost + treeBonus (points per node in Gunslinger tree)
-    // Gunslinger has 19 nodes total (12 small + 4 major + 1 keystone)
-    // treeBonus adds 1 per node where current < maxPoints.
-    // Most nodes start at 0, so treeBonus contributes 19.
-    // But gs_dmg_1 has 3 manual + 2 boost = 5 = maxPoints, so treeBonus doesn't add.
-    // gs_crit_1 has 1 boost, treeBonus adds 1 (capped at maxPoints 5), so 2 total.
-    // So treeBonus = 19 - 1 (gs_dmg_1 at cap) = 18.
-    // Total = 3 + 2 + 1 + 18 = 24
-    expect(total).toBeGreaterThan(3); // more than just manual
+    const state = useSkillStore.getState();
+    expect(state.getTotalSpent()).toBe(3);
+    // Level-20 budget is 19 points: Available = 19 − 3 = 16, so a further
+    // spend is allowed (SkillTreeScreen derives both from this selector).
+    expect(19 - state.getTotalSpent()).toBe(16);
+    // Respec quotes real spends × 100cr — the server's cc_retrain charge.
+    expect(state.respecCost()).toBe(300);
+    // The boosts still count where they belong — effective points for
+    // bonuses: gs_dmg_1 runs at 3 manual + 2 boost = 5 effective points
+    // (5 × 0.05 weaponDamage), well above the 0.15 the manual spends give.
+    expect(state.getBonuses().weaponDamage).toBeGreaterThanOrEqual(0.25);
   });
 });
