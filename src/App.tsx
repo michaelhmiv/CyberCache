@@ -112,7 +112,7 @@ function VerificationReminderBanner() {
 }
 
 function App() {
-  const { user, account, loading, authError } = useAuth();
+  const { user, account, loading, authError, bootstrapError, retryBootstrap, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('home');
   // Keep-alive (tab-switch latency, 2026-11-12): a tab's screen
   // mounts on FIRST visit and then stays mounted, hidden with
@@ -231,6 +231,36 @@ function App() {
 
   if (!user) {
     return <AuthScreen />;
+  }
+
+  // Terminal bootstrap failure (audit X-08): the session restored
+  // but the profile/bootstrap never completed — the main UI would
+  // render skeleton bars forever with no recovery. Offer the retry
+  // (and a way out) instead of entering half-loaded.
+  if (bootstrapError) {
+    return (
+      <div className="bl-page flex h-full items-center justify-center p-4 text-text-primary">
+        <div className="bl-card w-full max-w-xs space-y-3 p-5 text-center">
+          <div className="bl-title text-2xl text-amber">CyberCache</div>
+          <div className="text-xs font-bold uppercase tracking-widest text-text-muted">Could not finish loading your hunter</div>
+          <div className="text-xs text-red">{bootstrapError}</div>
+          <button
+            type="button"
+            onClick={retryBootstrap}
+            className="bl-primary w-full py-2 text-xs font-black uppercase tracking-wide"
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            onClick={() => { void signOut(); }}
+            className="bl-secondary w-full py-2 text-xs font-black uppercase tracking-wide text-text-secondary"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const handleNavigate = (screen: string) => {
