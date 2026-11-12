@@ -28,6 +28,8 @@ export type RuntimeProfilePayload = {
   consumable_batches?: ConsumableBatch[];
   /** Vehicle tank in fuel units (0021). */
   vehicle_fuel?: number | string;
+  /** Server-composed vendor buyback rate (audit G-F3); absent on snapshots that predate it. */
+  vendor_buyback_rate?: number | string;
   skill_spends?: Record<string, number>;
   boss_state?: Record<string, unknown>;
   /** Server-computed rematch-escalation state (UTC-day victory counts). */
