@@ -47,6 +47,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **A worn cosmetic that can't be found now says so in the developer console** — if a skin part you're wearing fails to load, the game still shows the stock part (as before), but the miss is now recorded on the resolved look instead of vanishing silently, so the problem can actually be found and fixed.
 - **The Chamber's error message now has a Retry button** — if the Endless Chamber facts fail to load, you no longer have to leave the tab and come back; tap Retry and it loads again right there.
 - **Leaderboards and social screens are now officially open to guests in the app's gate table too** — they already worked for guests; this removes a leftover rule that said otherwise, so nothing can accidentally lock guests out of viewing them again.
+- **No connection no longer reads as a broken app** — if the game can't load because your device is offline, the loading screen now says you're offline (and to reconnect and reload) instead of claiming the app failed to boot.
 
 
 
