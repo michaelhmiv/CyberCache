@@ -26,6 +26,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Switching activities says what it cost** — starting a roam used to silently pause a running crafting bench, and picking a boss silently ended your roam. Now a notice names it: "Crafting paused — Roaming started" (your bench jobs resume when Crafting holds the slot again), "Roaming ended — Boss fight started", and so on for every switch.
 - **The out-of-fuel chip reads whole again** — at phone width its remedy text was clipped mid-word ("OUT OF" / "BUY CE"), hiding the one instruction the chip exists to give. The remedy chip now takes the room its words need. The hero rundown's "Shield Break" label gets the same treatment — it was truncating while the three-letter "Mit" sat on nearly as much room.
 - **Guest rerolls on the contract board are closed** — a guest could reroll contracts (burning the board's free reroll, then spending real scrap) even though contract rewards have always required a linked account. Rerolling now asks for the same linked account claiming does, before anything is spent.
+- **Vendor sell quotes now show your real rate** — the sell screen always quoted the standard 40% buyback, but the vendor actually pays your levered rate (Appraiser's Eye and Street Economics raise it). Quotes, the percentage in the copy, and the payout now agree.
 
 
 
