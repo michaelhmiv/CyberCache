@@ -971,7 +971,7 @@ describe('standing routes', () => {
     expect(view.canUsePlayerEconomy).toBe(true);
   });
 
-  it('guests read the desk read-only; their ops refuse with 409', async () => {
+  it('guests read the desk read-only; their ops refuse with 403 (audit A-04)', async () => {
     const h = await makeRouteServer(routeStore());
     const res = await call(h, 'GET', '/api/standing/me', h.tokenGuest);
     expect(res.status).toBe(200);
@@ -979,7 +979,10 @@ describe('standing routes', () => {
     const op = await call(h, 'POST', '/api/standing/turn-in', h.tokenGuest, {
       nonce: 'guest-route-nonce-1', itemId: 'route-item-1',
     });
-    expect(op.status).toBe(409);
+    // One refusal, one status: the writes surface answers this same
+    // refusal 403 'forbidden'; the gameplay surface used to say 409.
+    expect(op.status).toBe(403);
+    expect(op.json.error).toBe('forbidden');
     expect(String(op.json.detail)).toContain('Verified account required');
   });
 
