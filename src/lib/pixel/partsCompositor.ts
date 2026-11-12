@@ -90,7 +90,9 @@ export interface PartPlacement {
   /** Pose-level suppression (PartPoseTransform.hidden): the
    *  placement resolves normally — anchors, joints and extents
    *  are unaffected — but render paths must not draw the part,
-   *  and gear mounted on it must not resolve. Absent = drawn. */
+   *  and gear mounted on it must not resolve (the shield is the
+   *  ruled exception: it remounts to the torso, gearMounts.ts).
+   *  Absent = drawn. */
   hidden?: boolean;
 }
 

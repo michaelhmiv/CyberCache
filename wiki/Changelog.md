@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+- **Your shield stays in the fight** — yesterday the far arm sat out the combat stances, and because your shield rode that arm, it sat them out too — gone for most of every fight, popping back at rest. The arm still sits out (the strict side view stands), but the shield now remounts to your torso while you aim and ride the recoil, held across your body, and returns to your arm the moment you stand at rest. It never leaves the figure; every other pose is exactly as it was.
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
@@ -277,9 +281,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 236 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 237 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-11** — 15 merges
+**2026-11-11** — 16 merges
 
 - #484 — Boss setup-diversity (slice C2): mechanic legs collect + Bishop composite; CryoAmmo re-read measured and dropped
 - #485 — INT-7: Top-Choice cache screen — painted crate, opened ignition frame, buried prop swap
@@ -296,6 +300,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #496 — Painted weapon renderer — Top-Choice paintings as the weapon render (renderer slice)
 - #497 — Aim/recoil poses: far arm braces under the gun arm instead of dangling
 - #498 — Suppress the far arm in aim/recoil: strict side view draws one arm
+- #499 — Reveal Corona: physical light in the cache loot moment (Impeccable direction A) + header law
 
 **2026-11-10** — 15 merges
 
