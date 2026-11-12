@@ -16,9 +16,11 @@ import {
   ImpactSparks,
   MuzzleFlash,
   ShellCasing,
+  SpecialTelegraphFx,
   TelegraphGlow,
   Tracer,
 } from './PixelFx';
+import { specialTelegraphForBossPhase } from '@/lib/pixel/bossTelegraph';
 import { getPixelSprite, pixelBossSpriteForBoss, requirePixelSprite } from '@/lib/pixel/manifest';
 import { bossArena, endlessBandTint } from '@/content/areaPalettes';
 import {
@@ -129,6 +131,16 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
   const beat = (kind: PhaseBeat['kind']) => beats.find((b) => b.kind === kind);
   const shotBeat = beat('shot') ?? beat('crit');
   const isCrit = !!beat('crit');
+  // C3 special telegraph (parity with the Pixi stage): this phase's
+  // counter is the boss's cadence special when the cadence schedule
+  // assigns a special to it AND the phase animates that counter (a
+  // lunge beat). Endless presentations (depthBadge) carry no cadence
+  // (ruling D3) and never telegraph a special. See
+  // lib/pixel/bossTelegraph.ts for the timing-honesty law.
+  const special =
+    !depthBadge && beat('lunge')
+      ? specialTelegraphForBossPhase(bossId, phases.length, presentingIndex)
+      : null;
 
   // Stage shake: derived from the phase's beats (crits and the death
   // beat shake hardest); the boss's drop-in landing is the fallback key.
@@ -396,7 +408,17 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
               </>
             )}
             {isCrit && <CritFlash />}
-            {beat('telegraph') && <TelegraphGlow xPct={bossMass.xPct} yPct={bossMass.yPct} delayMs={MOVEMENT.BEAT_COUNTER_AT_MS} />}
+            {beat('telegraph') && !special && <TelegraphGlow xPct={bossMass.xPct} yPct={bossMass.yPct} delayMs={MOVEMENT.BEAT_COUNTER_AT_MS} />}
+            {special && (
+              <SpecialTelegraphFx
+                boss={bossMass}
+                hunterXPct={hunterPlacement.xPct}
+                groundYPct={groundY * 100}
+                specialName={special.specialName}
+                startMs={special.startMs}
+                landsAtMs={special.landsAtMs}
+              />
+            )}
             {beat('playerHit') && (
               <DamageNumber xPct={hunterMass.xPct} yPct={hunterMass.yPct - 6} value={beat('playerHit')?.value ?? playerDamage} tone="player" delayMs={MOVEMENT.BEAT_LUNGE_AT_MS} />
             )}
