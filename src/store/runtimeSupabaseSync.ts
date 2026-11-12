@@ -68,6 +68,17 @@ async function removeLocalSnapshot(userId: string): Promise<void> {
     // best-effort cleanup
   }
 }
+
+/**
+ * Remove ONLY the on-device snapshot copy for a user (audit A-08).
+ * Sign-out calls this for the departing user: no previous-account
+ * runtime residue stays readable on the device, while the server
+ * snapshot — the same account's own restore point when they sign
+ * back in — is untouched.
+ */
+export async function clearLocalRuntimeSnapshot(userId: string): Promise<void> {
+  await removeLocalSnapshot(userId);
+}
 const riskSettings = ['Conservative', 'Balanced', 'Greedy', 'AllIn'];
 
 let activeUserId: string | null = null;
