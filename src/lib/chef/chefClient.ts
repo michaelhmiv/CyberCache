@@ -358,19 +358,51 @@ export interface ChefClaimError extends Error {
 }
 
 /**
+ * The raw-fetch family's one 401 recovery (audit A-06): run the attempt
+ * with the session token; on a 401, rotate the session ONCE through the
+ * shared refresh seam and retry ONCE with the fresh token — the same
+ * contract apiRequest (lib/api/http) has always honored. Before this,
+ * every function below threw the 401 as a permanent failure, so one
+ * hour into a session (the access token's TTL) the ticker's claims
+ * failed forever, roaming silently stopped paying, and the resume
+ * settle was swallowed to null — until some unrelated apiRequest call
+ * happened to refresh the shared session as a side effect.
+ *
+ * An explicit per-call jwt opts OUT of the refresh: that caller owns
+ * its credential, and rotating the app session would not change it.
+ * If the refresh itself is rejected, the seam has already cleared the
+ * session (signed-out state) and the original 401 response returns to
+ * the caller's normal error handling.
+ */
+async function fetchWithSessionRefresh(
+  attempt: (jwt: string | undefined) => Promise<Response>,
+  explicitJwt?: string,
+): Promise<Response> {
+  const jwt = explicitJwt || (await getSessionJwt());
+  const response = await attempt(jwt);
+  if (response.status !== 401 || explicitJwt) return response;
+  try {
+    const { refreshSession } = await import('@/lib/api/session');
+    const refreshed = await refreshSession();
+    if (refreshed) return attempt(refreshed.accessToken);
+  } catch {
+    // Refresh seam unreachable — surface the original 401 below.
+  }
+  return response;
+}
+
+/**
  * Submit a roaming tick claim to the Chef.
  */
 export async function submitClaim(request: ChefClaimRequest): Promise<ChefClaimResult> {
-  const jwt = request.jwt || (await getSessionJwt());
-
-  const response = await fetch(chefUrl('/claim'), {
+  const response = await fetchWithSessionRefresh((jwt) => fetch(chefUrl('/claim'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     },
     body: JSON.stringify({ ...request, jwt }),
-  });
+  }), request.jwt);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
@@ -393,16 +425,14 @@ export async function submitClaim(request: ChefClaimRequest): Promise<ChefClaimR
  * Verify a boss fight result with the Chef.
  */
 export async function verifyBossFight(request: ChefVerifyBossRequest): Promise<ChefVerifyBossResult> {
-  const jwt = request.jwt || (await getSessionJwt());
-
-  const response = await fetch(chefUrl('/verify-boss'), {
+  const response = await fetchWithSessionRefresh((jwt) => fetch(chefUrl('/verify-boss'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     },
     body: JSON.stringify({ ...request, jwt }),
-  });
+  }), request.jwt);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
@@ -459,16 +489,14 @@ export interface ChefResurrectResult {
  * credits).
  */
 export async function resurrectViaChef(request: ChefResurrectRequest): Promise<ChefResurrectResult> {
-  const jwt = request.jwt || (await getSessionJwt());
-
-  const response = await fetch(chefUrl('/resurrect'), {
+  const response = await fetchWithSessionRefresh((jwt) => fetch(chefUrl('/resurrect'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     },
     body: JSON.stringify({ ...request, jwt }),
-  });
+  }), request.jwt);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
@@ -490,16 +518,14 @@ export async function salvageItem(request: { playerId: string; itemId: string; j
   materials: Record<string, number>;
   essences: Record<string, number>;
 }> {
-  const jwt = request.jwt || (await getSessionJwt());
-
-  const response = await fetch(chefUrl('/salvage'), {
+  const response = await fetchWithSessionRefresh((jwt) => fetch(chefUrl('/salvage'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     },
     body: JSON.stringify({ ...request, jwt }),
-  });
+  }), request.jwt);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
@@ -640,16 +666,14 @@ export interface OfflineExtractionSettlementResult {
 export async function settleOffline(
   request: OfflineSettlementRequest,
 ): Promise<OfflineSettlementResult | OfflineCraftSettlementResult | OfflineExtractionSettlementResult | OfflineSettlementNoOp> {
-  const jwt = request.jwt || (await getSessionJwt());
-
-  const response = await fetch(chefUrl('/settle-offline'), {
+  const response = await fetchWithSessionRefresh((jwt) => fetch(chefUrl('/settle-offline'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
     },
     body: JSON.stringify({ ...request, jwt }),
-  });
+  }), request.jwt);
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
@@ -833,15 +857,14 @@ export function newEndlessNonce(kind: 'start' | 'encounter' | 'bank'): string {
 }
 
 async function endlessFetch<T>(path: string, init: RequestInit, failureLabel: string): Promise<T> {
-  const jwt = await getSessionJwt();
-  const response = await fetch(chefUrl(path), {
+  const response = await fetchWithSessionRefresh((jwt) => fetch(chefUrl(path), {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
       ...(init.headers ?? {}),
     },
-  });
+  }));
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}));
     const detail =
