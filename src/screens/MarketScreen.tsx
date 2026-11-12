@@ -215,11 +215,18 @@ function SalesGuidance({ stats, perUnit }: { stats?: PriceStats; perUnit?: boole
 interface MarketScreenProps {
   /** App navigation (the Strip's settings resident, DESIGN.md §1). */
   onNavigate?: (screen: string) => void;
+  /**
+   * Tab visibility under the keep-alive shell (2026-11-12): the
+   * screen stays mounted while other tabs show, so its mount-time
+   * fetches no longer re-run per visit. A false→true transition is
+   * the explicit refresh-on-return signal (see the effect below).
+   */
+  active?: boolean;
 }
 
 const EMPTY_PARTS: import('@/content/skins').CosmeticPartItemView[] = [];
 
-export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
+export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active = true }) => {
   const market = useMarketStore();
   const reduceMotion = useReducedMotion();
   const inventory = useInventoryStore();
@@ -462,6 +469,18 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
   const refreshListings = useCallback(async () => {
     await Promise.all([fetchBuyPage(0, false), refreshMine()]);
   }, [fetchBuyPage, refreshMine]);
+
+  // Refresh-on-return (tab keep-alive, 2026-11-12): the shell no
+  // longer remounts this screen per visit, so the mount-time
+  // listing fetches would go stale. A false→true `active`
+  // transition re-runs the same refresh the mount used to provide;
+  // the first mount is skipped (the mount effects already ran).
+  const wasActiveRef = React.useRef(active);
+  useEffect(() => {
+    const was = wasActiveRef.current;
+    wasActiveRef.current = active;
+    if (active && !was) void refreshListings();
+  }, [active, refreshListings]);
 
   useEffect(() => {
     if (!toastMessage) return;
