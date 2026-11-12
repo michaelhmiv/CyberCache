@@ -15,12 +15,14 @@ import { syncRuntimeProfile } from '../lib/api/verifiedStateSync';
 import { initializeNativeAuth } from '../lib/nativeAuth';
 import type { NativeAuthDiagnostic, NativeAuthDiagnosticError } from '../lib/nativeAuth';
 import {
+  clearLocalRuntimeSnapshot,
   resetRuntimeStoresToInitialState,
   restoreRuntimeStoresFromSupabase,
   saveCurrentRuntimeStores,
   startRuntimeStorePersistence,
   stopRuntimeStorePersistence,
 } from '../store/runtimeSupabaseSync';
+import { useOfflineRecapStore } from '../store/slices/offlineRecapSlice';
 import { useActivityStore } from '../store';
 import { loadCombatStats, saveCombatStats } from '../store/combatStatsSupabaseSync';
 import type { AccountState } from './accountState';
@@ -52,6 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authMessage, setAuthMessage] = useState<string | null>(() => parseAuthStatusMessage());
   const [authError, setAuthError] = useState<string | null>(null);
   const [authDiagnostic, setAuthDiagnostic] = useState<NativeAuthDiagnostic | null>(null);
+  /** Whose session the offline recap currently belongs to (A-08). */
+  const lastRecapOwnerRef = useRef<string | null>(null);
   // Audit X-08: a bootstrap that fails after the session user is set
   // (profile fetch unreachable, item sync down) used to strand the
   // app in the main UI with skeleton bars forever and a static error
@@ -67,6 +71,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUser = useCallback(async (nextUser: ApiUser | null) => {
     lastBootstrapUserRef.current = nextUser;
+    // Audit A-08: the offline recap is account-scoped data on an
+    // UNSCOPED storage key — it must not survive into another
+    // account's session (or past a sign-out). Reset it when the
+    // user changes or leaves; a same-user cold start keeps it (the
+    // re-open-after-relaunch feature is the same hunter's own).
+    const previousUserId = lastRecapOwnerRef.current;
+    if (previousUserId && previousUserId !== (nextUser?.id ?? null)) {
+      useOfflineRecapStore.getState().reset();
+    }
+    lastRecapOwnerRef.current = nextUser?.id ?? null;
     stopRuntimeStorePersistence();
     resetRuntimeStoresToInitialState();
     useInitialBundleRevealStore.getState().reset();
@@ -282,9 +296,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }), [account, refreshAccount, run]);
 
   const signOut = useCallback(() => run(async () => {
-    await saveCurrentRuntimeStores(rawUser?.id ?? null);
+    const departingUserId = rawUser?.id ?? null;
+    await saveCurrentRuntimeStores(departingUserId);
     await authService.signOut();
     await loadUser(null);
+    // Audit A-08: remove the departing user's on-device runtime
+    // snapshot copy — sign-out leaves no previous-account residue
+    // readable on this device. (The server snapshot stays: it is
+    // that same account's restore point when they sign back in.)
+    if (departingUserId) await clearLocalRuntimeSnapshot(departingUserId);
     setAuthMode('guest');
     return { ok: true, message: 'Signed out.' };
   }), [loadUser, rawUser?.id, run]);

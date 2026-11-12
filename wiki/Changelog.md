@@ -29,6 +29,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Vendor sell quotes now show your real rate** — the sell screen always quoted the standard 40% buyback, but the vendor actually pays your levered rate (Appraiser's Eye and Street Economics raise it). Quotes, the percentage in the copy, and the payout now agree.
 - **A market outage no longer looks like an empty market** — if listings fail to load, the Buy stop now shows a proper error with a Retry button instead of "No listings found" and a prompt to sell your gear. Your own listings get the same treatment: a failed load says so, with its own Retry.
 - **Your sign-in no longer rides an Android backup** — the app's session (the token that keeps you signed in) is now excluded from Android cloud backups and device transfers, so restoring an old backup on another phone can't carry a stale sign-in that knocks you out everywhere. Everything else still backs up as before.
+- **Sign-out now leaves nothing behind on the device** — your "While You Were Away" recap used to survive sign-out and could pop up inside the next account's session on a shared device. Changing accounts or signing out clears it now, and your on-device snapshot copy is removed too (your own return still restores from the server as before).
 
 
 
