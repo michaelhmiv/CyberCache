@@ -297,17 +297,42 @@ describe('training and respec — the budget does not change', () => {
     const train = (nodeId: string) => store.trainSkill(P, nonce(), nodeId);
 
     await expect(train('fix_major_1')).rejects.toThrow(/Missing prerequisites/);
-    for (let i = 0; i < 5; i++) await train('fix_craft_time_1'); // 5 pts
+    for (let i = 0; i < 5; i++) await train('fix_craft_time_1'); // 5 budget pts
     await train('fix_quality_1'); // 6
     await train('fix_quality_2'); // 7
-    const major = await train('fix_major_1'); // 8 (one budget point per train, both twins)
-    expect(major.node_id).toBe('fix_major_1');
-    // Budget is shared across ALL trees: 1 legacy point fits, the 10th fails.
-    await train('gs_dmg_1'); // 9
-    await expect(train('gs_dmg_2')).rejects.toThrow(/Insufficient skill points/);
+    // Weighted debit (audit HTR-01): the major's listed cost is 3, so the
+    // train needs 10 of a 9-point budget and rejects — under the old flat
+    // debit it sailed through as "8". This is the level-10 wall that keeps
+    // the keystone path at level 21 (see the next test).
+    await expect(train('fix_major_1')).rejects.toThrow(/Insufficient skill points/);
+    // Budget is shared across ALL trees: two 1-point trains fit, the next fails.
+    await train('gs_dmg_1'); // 8
+    await train('gs_dmg_2'); // 9
+    await expect(train('fix_craft_time_2')).rejects.toThrow(/Insufficient skill points/);
     const spends = store.seed.profiles[0].skill_spends as Record<string, number>;
     expect(spends.fix_craft_time_1).toBe(5);
-    expect(spends.fix_major_1).toBe(1);
+    expect(spends.fix_major_1).toBeUndefined();
+  });
+
+  it('the keystone path costs its listed 20 budget points: majors debit 3, the keystone 5 (audit HTR-01)', async () => {
+    const store = makeStore((s) => {
+      s.profiles = [profile({ id: P, player_level: 21 })]; // budget 20
+    });
+    const train = (nodeId: string) => store.trainSkill(P, nonce(), nodeId);
+
+    // Minimum honest path: 6 prerequisite smalls at 1 point each.
+    for (const small of ['fix_quality_1', 'fix_quality_2', 'fix_vehicle_yield_1', 'fix_vehicle_yield_2', 'fix_repair_speed_1', 'fix_repair_speed_2']) {
+      await train(small);
+    }
+    const major1 = await train('fix_major_1');
+    expect(major1.total_spent).toBe(9); // 6 + 3: the major debited its listed cost
+    await train('fix_major_2');
+    const major4 = await train('fix_major_4');
+    expect(major4.total_spent).toBe(15); // 6 + 3×3
+    const keystone = await train('fix_keystone');
+    expect(keystone.total_spent).toBe(20); // + 5: the keystone debited its listed cost
+    // Budget exactly exhausted at level 21 — nothing more trains.
+    await expect(train('fix_craft_time_1')).rejects.toThrow(/Insufficient skill points/);
   });
 
   it('respec charges total × 100cr INCLUDING Fixer points and zeroes them', async () => {
@@ -318,9 +343,10 @@ describe('training and respec — the budget does not change', () => {
       })];
     });
     const result = await store.retrain(P, nonce());
-    // 12 points × 100cr.
-    expect(result.total_price).toBe(1200);
-    expect(store.seed.profiles[0].credits).toBe(10_000 - 1200);
+    // Weighted (audit HTR-01): 5 + 5 small points, the major at its
+    // 3-point cost, the keystone at 5 → 18 budget points × 100cr.
+    expect(result.total_price).toBe(1800);
+    expect(store.seed.profiles[0].credits).toBe(10_000 - 1800);
     expect(store.seed.profiles[0].skill_spends).toEqual({});
   });
 });
