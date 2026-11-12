@@ -82,6 +82,13 @@ interface MemRefresh {
   expiresAt: Date;
   revokedAt: Date | null;
   replacedByHash: string | null;
+  /**
+   * Why the row was revoked (audit A-05 partial): 'logout' marks an
+   * explicit sign-out, so a later refresh attempt with that token is
+   * a plain invalid token — NOT token theft. Null covers rotation
+   * and theft-revocation, whose reuse keeps the nuke-all response.
+   */
+  revokedReason: string | null;
 }
 
 export class InMemoryAuthStore implements AuthStore {
@@ -92,7 +99,7 @@ export class InMemoryAuthStore implements AuthStore {
   private issueSession(account: MemAccount, now: Date): Session {
     const { token, hash } = newRefreshToken();
     const expiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
-    this.refreshTokens.set(hash, { hash, accountId: account.id, expiresAt, revokedAt: null, replacedByHash: null });
+    this.refreshTokens.set(hash, { hash, accountId: account.id, expiresAt, revokedAt: null, replacedByHash: null, revokedReason: null });
     return { account: publicAccount(account), refreshToken: token, refreshExpiresAt: expiresAt };
   }
 
@@ -142,6 +149,13 @@ export class InMemoryAuthStore implements AuthStore {
     const row = this.refreshTokens.get(hash);
     if (!row) throw new AuthStoreError('invalid_refresh', 'Refresh token is not recognized');
     if (row.revokedAt) {
+      // A token revoked by an explicit sign-out is not theft
+      // (audit A-05 partial): the client's own refresh can race the
+      // sign-out, and reading that as reuse revoked every session on
+      // every device. Refuse it plainly and touch nothing else.
+      if (row.revokedReason === 'logout') {
+        throw new AuthStoreError('invalid_refresh', 'Refresh token revoked');
+      }
       // A rotated/revoked token was presented again: treat as theft and
       // revoke every session for the account.
       for (const t of this.refreshTokens.values()) {
@@ -207,7 +221,10 @@ export class InMemoryAuthStore implements AuthStore {
 
   async logout(refreshToken: string): Promise<void> {
     const row = this.refreshTokens.get(hashRefreshToken(refreshToken));
-    if (row && !row.revokedAt) row.revokedAt = new Date();
+    if (row && !row.revokedAt) {
+      row.revokedAt = new Date();
+      row.revokedReason = 'logout';
+    }
   }
 
   async getAccount(id: string): Promise<Account | null> {
@@ -309,12 +326,17 @@ export class PgAuthStore implements AuthStore {
   async refresh(refreshToken: string, now: Date): Promise<Session> {
     const hash = hashRefreshToken(refreshToken);
     const { rows } = await this.db.query(
-      'select account_id, expires_at, revoked_at from auth_refresh_tokens where token_hash = $1',
+      'select account_id, expires_at, revoked_at, revoked_reason from auth_refresh_tokens where token_hash = $1',
       [hash],
     );
     if (rows.length === 0) throw new AuthStoreError('invalid_refresh', 'Refresh token is not recognized');
-    const row = rows[0] as { account_id: string; expires_at: Date; revoked_at: Date | null };
+    const row = rows[0] as { account_id: string; expires_at: Date; revoked_at: Date | null; revoked_reason: string | null };
     if (row.revoked_at) {
+      // A token revoked by an explicit sign-out is not theft
+      // (audit A-05 partial): refuse it plainly, revoke nothing else.
+      if (row.revoked_reason === 'logout') {
+        throw new AuthStoreError('invalid_refresh', 'Refresh token revoked');
+      }
       await this.db.query('update auth_refresh_tokens set revoked_at = $2 where account_id = $1 and revoked_at is null', [row.account_id, now]);
       throw new AuthStoreError('refresh_reuse', 'Refresh token reuse detected; all sessions revoked');
     }
@@ -386,7 +408,7 @@ export class PgAuthStore implements AuthStore {
   }
 
   async logout(refreshToken: string): Promise<void> {
-    await this.db.query('update auth_refresh_tokens set revoked_at = now() where token_hash = $1 and revoked_at is null', [hashRefreshToken(refreshToken)]);
+    await this.db.query("update auth_refresh_tokens set revoked_at = now(), revoked_reason = 'logout' where token_hash = $1 and revoked_at is null", [hashRefreshToken(refreshToken)]);
   }
 
   async getAccount(id: string): Promise<Account | null> {

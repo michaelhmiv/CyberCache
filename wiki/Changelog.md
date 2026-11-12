@@ -34,6 +34,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The market docs now match the market** — MECHANICS.md claimed listing was free; it has not been since the listing deposit shipped. Listing now correctly reads as a 25-scrap deposit, refunded when your item sells and burned if you cancel, alongside the 5% sale fee.
 - **Level 100 is the top now** — XP used to keep minting levels (and skill points) past 100 forever, and your level plate promised a "Level 101" that was never meant to exist. Level 100 is the summit: XP still banks, the plate reads MAX LEVEL, and the skill-point budget stops at its designed 99.
 - **Respec asks first now** — respec used to fire on a single tap: one misclick could burn your whole build and its full cost with no undo. The button now arms a confirmation that names the exact cost before anything is spent, and it stays disabled when you have nothing spent to refund.
+- **Signing out on one device no longer signs you out everywhere** — a signed-out session's leftover refresh attempt was being read as token theft, which revoked your sessions on every device. Sign-outs are now marked for what they are; only genuinely replayed (rotated) tokens trigger the theft response.
 
 
 
