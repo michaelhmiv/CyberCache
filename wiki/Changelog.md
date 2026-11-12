@@ -48,6 +48,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The Chamber's error message now has a Retry button** — if the Endless Chamber facts fail to load, you no longer have to leave the tab and come back; tap Retry and it loads again right there.
 - **Leaderboards and social screens are now officially open to guests in the app's gate table too** — they already worked for guests; this removes a leftover rule that said otherwise, so nothing can accidentally lock guests out of viewing them again.
 - **No connection no longer reads as a broken app** — if the game can't load because your device is offline, the loading screen now says you're offline (and to reconnect and reload) instead of claiming the app failed to boot.
+- **Behind-the-scenes account safety fix** — the test version of the sign-in system could silently hand an email address to a brand-new Google account; it now refuses exactly the way the live system does, so the protection is actually covered by tests.
 
 
 

@@ -205,6 +205,15 @@ export class InMemoryAuthStore implements AuthStore {
       account.isGuest = false;
       return this.issueSession(account, now);
     }
+    // No silent merge (audit A-13): the Postgres store refuses this
+    // exact case — its insert hits the email unique constraint and
+    // surfaces email_taken. This twin previously just overwrote
+    // byEmail, silently re-pointing email login to the brand-new
+    // Google account and orphaning the password account that owned
+    // the address. Same contract, same error.
+    if (identity.email && this.byEmail.has(identity.email)) {
+      throw new AuthStoreError('email_taken', 'That email already has an account; sign in and link Google from inside the app');
+    }
     const account: MemAccount = {
       id: randomUUID(),
       email: identity.email,
