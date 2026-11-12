@@ -60,6 +60,11 @@ export const BULWARK_PARTS: Record<string, PartDef> = {
       shoulderMount: { x: 76, y: 26 },
       chestMount: { x: 52, y: 66 },
       beltMount: { x: 50, y: 110 },
+      // The shield's combat remount (owner ruling, 2026-11-11):
+      // the Standard Issue mount's pelvis-relative offset
+      // (+26, −42) carried onto this torso, so the shield sits
+      // held across the body in aim/recoil on every rig.
+      shieldTorsoMount: { x: 74, y: 87 },
     },
     paletteFamily: 'bulwark',
   },

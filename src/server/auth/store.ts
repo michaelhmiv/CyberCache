@@ -26,11 +26,16 @@ export interface Session {
 
 export type AuthErrorCode =
   | 'email_taken'
+  | 'identity_link_conflict'
   | 'invalid_credentials'
   | 'invalid_refresh'
   | 'refresh_reuse'
   | 'not_guest'
   | 'validation';
+
+/** Audit A-12 refusal copy, shared by both stores' link-conflict throw. */
+export const IDENTITY_LINK_CONFLICT_MESSAGE =
+  'This Google account is already linked to another hunter — sign in with it instead, or link a different Google account';
 
 export class AuthStoreError extends Error {
   constructor(public readonly code: AuthErrorCode, message: string) {
@@ -173,6 +178,14 @@ export class InMemoryAuthStore implements AuthStore {
     const key = `${provider}:${identity.subject}`;
     const linkedId = this.identities.get(key);
     if (linkedId) {
+      // Audit A-12: a live link request (signed-in caller) that meets an
+      // identity bound to a DIFFERENT account is a conflict, never a
+      // silent account switch — the caller's progress would be left
+      // behind with a bare 200 for the other account. Re-linking one's
+      // own identity and bare sign-in (no link id) are unaffected.
+      if (linkAccountId && linkedId !== linkAccountId) {
+        throw new AuthStoreError('identity_link_conflict', IDENTITY_LINK_CONFLICT_MESSAGE);
+      }
       const account = this.accounts.get(linkedId);
       if (account) return this.issueSession(account, now);
     }
@@ -187,6 +200,9 @@ export class InMemoryAuthStore implements AuthStore {
       if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
         account.emailVerifiedAt = now;
       }
+      // Linking a real identity promotes the account in place (audit A-01):
+      // it stops being a guest, exactly as the email-register upgrade does.
+      account.isGuest = false;
       return this.issueSession(account, now);
     }
     const account: MemAccount = {
@@ -341,6 +357,12 @@ export class PgAuthStore implements AuthStore {
       [provider, identity.subject],
     );
     if (found.rows.length > 0) {
+      // Audit A-12: same link-conflict refusal as the in-memory store —
+      // a live link request meeting an identity bound to a different
+      // account refuses instead of silently switching accounts.
+      if (linkAccountId && (found.rows[0].account_id as string) !== linkAccountId) {
+        throw new AuthStoreError('identity_link_conflict', IDENTITY_LINK_CONFLICT_MESSAGE);
+      }
       const account = await this.getAccount(found.rows[0].account_id as string);
       if (account) return this.issueSession(account, now);
     }
@@ -358,6 +380,12 @@ export class PgAuthStore implements AuthStore {
       if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
         await this.db.query('update auth_accounts set email_verified_at = $2, updated_at = now() where id = $1', [account.id, now]);
         account.emailVerifiedAt = now;
+      }
+      // Linking a real identity promotes the account in place (audit A-01):
+      // it stops being a guest, exactly as the email-register upgrade does.
+      if (account.isGuest) {
+        await this.db.query('update auth_accounts set is_guest = false, updated_at = now() where id = $1', [account.id]);
+        account.isGuest = false;
       }
       return this.issueSession(account, now);
     }
