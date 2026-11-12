@@ -2,6 +2,14 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+
+
+- **Linking Google now upgrades your guest account, as promised** — signing in with Google from a guest account used to leave the account flagged as a guest underneath: the market, services, extraction and leaderboards stayed locked and the game kept asking you to link. The link now promotes the account in place — same account, same hunter, same progress — and the locks lift the moment you sign in.
+
+
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
@@ -24,7 +32,6 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The Standard Issue chest plate is unbroken steel now** — the glowing cyan slash that crossed the breastplate is painted out: at the shoulder it read as a third arm, and the plate was never meant to carry it. The slash is gone from the painting itself; every other light on the rig — visor, wrist, the pouch studs — burns exactly as it did, and the Bulwark and Dreadnought plates are untouched.
 - **The far arm sits out the fight** — in the aim stance the far (support) arm used to hang in the gap between the gun arm and the chest, its shoulder hidden, reading as a stray little arm at the armpit. Bracing it under the gun didn't cure the read, so it is simply not drawn in the combat stances now: the game is a strict side view, and in aim and recoil only the gun arm shows. Your shield rides that arm, so it sits out those two stances with it and is back on your arm at rest. The Bulwark and Dreadnought rigs follow the same rule. Every other pose is unchanged.
 - **The reveal's light is a corona now** — the glow behind a risen cache item used to be stacked golden discs, and around a legendary they read as stamped shapes next to the painting. Now the item hangs in a corona of real light: white-hot at the heart, falling off through gold to a warm amber wash, with dozens of fine rays radiating through it, and the slim beam landing in a soft bloom of light on the ground instead of a hard pool. The CACHE DECRYPTED header stays crisp through the peak of it — the beam's light is notched down behind the words over a soft shadow, so nothing washes out. Gold sparks and rising embers ride the column as before, the shockwave ring keeps its stepped edge, and every timing — the beam-in, the rise, the 2.6-second legendary hold — is exactly what it was.
-- **Linking Google now upgrades your guest account, as promised** — signing in with Google from a guest account used to leave the account flagged as a guest underneath: the market, services, extraction and leaderboards stayed locked and the game kept asking you to link. The link now promotes the account in place — same account, same hunter, same progress — and the locks lift the moment you sign in.
 
 
 
