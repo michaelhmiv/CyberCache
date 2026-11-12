@@ -573,6 +573,28 @@ describe('contracts — in-memory gameplay store', () => {
     }
   });
 
+  it('reroll refuses guests before anything moves (audit A-03)', async () => {
+    const { store } = makeStore('2026-11-02T08:00:00.000Z');
+    const guest = '33333333-3333-4333-8333-333333333333';
+    store.seedProfile({ id: guest, player_level: 12, scrap: 500 } as never);
+    // Guests are issued the board (they see everything) …
+    await store.issueContracts(guest, 'daily');
+    const facts = await store.getContractsFacts(guest);
+    expect(facts?.account_type).toBe('guest');
+    const inst = facts!.daily.instances[0];
+    // … but reroll is transact-class: it would burn the set's free reroll
+    // and then charge scrap steering a board the guest can never claim.
+    await expect(store.rerollContract(guest, 'reroll-nonce-9001', inst.id))
+      .rejects.toThrow('Contracts require a verified account');
+    // Nothing moved: the instance is untouched, no reroll was consumed,
+    // and no scrap left the profile.
+    const after = await store.getContractsFacts(guest);
+    expect(after!.daily.rerollsUsed).toBe(0);
+    expect(after!.daily.instances.map((i) => i.id)).toContain(inst.id);
+    expect(store.contractInstances.find((i) => i.id === inst.id)?.status).toBe('active');
+    expect(store.profiles.get(guest)!.materials['Scrap'] ?? 0).toBe(500);
+  });
+
   it('issued rewards ignore later lever moves (freeze at issuance)', async () => {
     const live: Partial<ContractLeverValues> = { contractRewardScalar: 1 };
     const { store, setNow } = makeStore('2026-11-02T08:00:00.000Z', () => live);
