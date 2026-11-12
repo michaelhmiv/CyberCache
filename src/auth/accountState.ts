@@ -73,20 +73,14 @@ export function canUseFeature(account: AccountState | null, feature: GatedFeatur
     return { allowed: true };
   }
 
-  if (feature === 'leaderboards') {
-    if (!isVerifiedAccount(account)) {
-      return { allowed: false, reason: 'Sign in with Google to unlock leaderboards.' };
-    }
-    if (!hasUsernameSet(account)) {
-      return { allowed: false, reason: 'Set a username to appear on leaderboards.' };
-    }
-    return { allowed: true };
-  }
-
-  if (feature === 'social') {
-    if (!hasUsernameSet(account)) {
-      return { allowed: false, reason: 'Set a username to use social features.' };
-    }
+  // Viewing is never gated (audit A-11): guests SEE everything with
+  // real data — the server serves guests the real leaderboard and
+  // the screens render it. Appearing on a board and transacting
+  // socially are enforced per-op on the server, not by this table;
+  // the old entries denied guests the view itself and contradicted
+  // the law (the GUEST-01 failure mode, one import away from
+  // re-walling a surface through FeatureGate).
+  if (feature === 'leaderboards' || feature === 'social') {
     return { allowed: true };
   }
 

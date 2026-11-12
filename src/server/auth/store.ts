@@ -26,11 +26,16 @@ export interface Session {
 
 export type AuthErrorCode =
   | 'email_taken'
+  | 'identity_link_conflict'
   | 'invalid_credentials'
   | 'invalid_refresh'
   | 'refresh_reuse'
   | 'not_guest'
   | 'validation';
+
+/** Audit A-12 refusal copy, shared by both stores' link-conflict throw. */
+export const IDENTITY_LINK_CONFLICT_MESSAGE =
+  'This Google account is already linked to another hunter — sign in with it instead, or link a different Google account';
 
 export class AuthStoreError extends Error {
   constructor(public readonly code: AuthErrorCode, message: string) {
@@ -77,6 +82,13 @@ interface MemRefresh {
   expiresAt: Date;
   revokedAt: Date | null;
   replacedByHash: string | null;
+  /**
+   * Why the row was revoked (audit A-05 partial): 'logout' marks an
+   * explicit sign-out, so a later refresh attempt with that token is
+   * a plain invalid token — NOT token theft. Null covers rotation
+   * and theft-revocation, whose reuse keeps the nuke-all response.
+   */
+  revokedReason: string | null;
 }
 
 export class InMemoryAuthStore implements AuthStore {
@@ -87,7 +99,7 @@ export class InMemoryAuthStore implements AuthStore {
   private issueSession(account: MemAccount, now: Date): Session {
     const { token, hash } = newRefreshToken();
     const expiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
-    this.refreshTokens.set(hash, { hash, accountId: account.id, expiresAt, revokedAt: null, replacedByHash: null });
+    this.refreshTokens.set(hash, { hash, accountId: account.id, expiresAt, revokedAt: null, replacedByHash: null, revokedReason: null });
     return { account: publicAccount(account), refreshToken: token, refreshExpiresAt: expiresAt };
   }
 
@@ -137,6 +149,13 @@ export class InMemoryAuthStore implements AuthStore {
     const row = this.refreshTokens.get(hash);
     if (!row) throw new AuthStoreError('invalid_refresh', 'Refresh token is not recognized');
     if (row.revokedAt) {
+      // A token revoked by an explicit sign-out is not theft
+      // (audit A-05 partial): the client's own refresh can race the
+      // sign-out, and reading that as reuse revoked every session on
+      // every device. Refuse it plainly and touch nothing else.
+      if (row.revokedReason === 'logout') {
+        throw new AuthStoreError('invalid_refresh', 'Refresh token revoked');
+      }
       // A rotated/revoked token was presented again: treat as theft and
       // revoke every session for the account.
       for (const t of this.refreshTokens.values()) {
@@ -159,6 +178,14 @@ export class InMemoryAuthStore implements AuthStore {
     const key = `${provider}:${identity.subject}`;
     const linkedId = this.identities.get(key);
     if (linkedId) {
+      // Audit A-12: a live link request (signed-in caller) that meets an
+      // identity bound to a DIFFERENT account is a conflict, never a
+      // silent account switch — the caller's progress would be left
+      // behind with a bare 200 for the other account. Re-linking one's
+      // own identity and bare sign-in (no link id) are unaffected.
+      if (linkAccountId && linkedId !== linkAccountId) {
+        throw new AuthStoreError('identity_link_conflict', IDENTITY_LINK_CONFLICT_MESSAGE);
+      }
       const account = this.accounts.get(linkedId);
       if (account) return this.issueSession(account, now);
     }
@@ -173,6 +200,9 @@ export class InMemoryAuthStore implements AuthStore {
       if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
         account.emailVerifiedAt = now;
       }
+      // Linking a real identity promotes the account in place (audit A-01):
+      // it stops being a guest, exactly as the email-register upgrade does.
+      account.isGuest = false;
       return this.issueSession(account, now);
     }
     // No silent merge (audit A-13): the Postgres store refuses this
@@ -200,7 +230,10 @@ export class InMemoryAuthStore implements AuthStore {
 
   async logout(refreshToken: string): Promise<void> {
     const row = this.refreshTokens.get(hashRefreshToken(refreshToken));
-    if (row && !row.revokedAt) row.revokedAt = new Date();
+    if (row && !row.revokedAt) {
+      row.revokedAt = new Date();
+      row.revokedReason = 'logout';
+    }
   }
 
   async getAccount(id: string): Promise<Account | null> {
@@ -302,12 +335,17 @@ export class PgAuthStore implements AuthStore {
   async refresh(refreshToken: string, now: Date): Promise<Session> {
     const hash = hashRefreshToken(refreshToken);
     const { rows } = await this.db.query(
-      'select account_id, expires_at, revoked_at from auth_refresh_tokens where token_hash = $1',
+      'select account_id, expires_at, revoked_at, revoked_reason from auth_refresh_tokens where token_hash = $1',
       [hash],
     );
     if (rows.length === 0) throw new AuthStoreError('invalid_refresh', 'Refresh token is not recognized');
-    const row = rows[0] as { account_id: string; expires_at: Date; revoked_at: Date | null };
+    const row = rows[0] as { account_id: string; expires_at: Date; revoked_at: Date | null; revoked_reason: string | null };
     if (row.revoked_at) {
+      // A token revoked by an explicit sign-out is not theft
+      // (audit A-05 partial): refuse it plainly, revoke nothing else.
+      if (row.revoked_reason === 'logout') {
+        throw new AuthStoreError('invalid_refresh', 'Refresh token revoked');
+      }
       await this.db.query('update auth_refresh_tokens set revoked_at = $2 where account_id = $1 and revoked_at is null', [row.account_id, now]);
       throw new AuthStoreError('refresh_reuse', 'Refresh token reuse detected; all sessions revoked');
     }
@@ -328,6 +366,12 @@ export class PgAuthStore implements AuthStore {
       [provider, identity.subject],
     );
     if (found.rows.length > 0) {
+      // Audit A-12: same link-conflict refusal as the in-memory store —
+      // a live link request meeting an identity bound to a different
+      // account refuses instead of silently switching accounts.
+      if (linkAccountId && (found.rows[0].account_id as string) !== linkAccountId) {
+        throw new AuthStoreError('identity_link_conflict', IDENTITY_LINK_CONFLICT_MESSAGE);
+      }
       const account = await this.getAccount(found.rows[0].account_id as string);
       if (account) return this.issueSession(account, now);
     }
@@ -345,6 +389,12 @@ export class PgAuthStore implements AuthStore {
       if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
         await this.db.query('update auth_accounts set email_verified_at = $2, updated_at = now() where id = $1', [account.id, now]);
         account.emailVerifiedAt = now;
+      }
+      // Linking a real identity promotes the account in place (audit A-01):
+      // it stops being a guest, exactly as the email-register upgrade does.
+      if (account.isGuest) {
+        await this.db.query('update auth_accounts set is_guest = false, updated_at = now() where id = $1', [account.id]);
+        account.isGuest = false;
       }
       return this.issueSession(account, now);
     }
@@ -367,7 +417,7 @@ export class PgAuthStore implements AuthStore {
   }
 
   async logout(refreshToken: string): Promise<void> {
-    await this.db.query('update auth_refresh_tokens set revoked_at = now() where token_hash = $1 and revoked_at is null', [hashRefreshToken(refreshToken)]);
+    await this.db.query("update auth_refresh_tokens set revoked_at = now(), revoked_reason = 'logout' where token_hash = $1 and revoked_at is null", [hashRefreshToken(refreshToken)]);
   }
 
   async getAccount(id: string): Promise<Account | null> {

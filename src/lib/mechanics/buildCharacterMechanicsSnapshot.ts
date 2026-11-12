@@ -54,6 +54,8 @@ export type BuildCharacterMechanicsSnapshotInput = {
   activityMods?: Record<string, number>;
   consumableMods?: Record<string, number>;
   bossSimDps?: number;
+  /** The boss sim's own shield-break total (audit HTR-05), same override pattern as bossSimDps. */
+  bossSimShieldBreak?: number;
 };
 
 function liveWeapons(weapons: Array<Weapon | undefined>): Weapon[] {
@@ -197,10 +199,11 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
       contribution('gear', 'Gear affixes', 'gearDamageMods', bossRelativeDps * (gearDamageBonus + gearBossBonus)),
       contribution('server', 'Server simulation override', 'bossSimDpsOverride', input.bossSimDps === undefined ? 0 : input.bossSimDps - bossDpsAfterPlayerMods),
     ]),
-    shieldBreak: scalar(shieldBreak, [
+    shieldBreak: scalar(input.bossSimShieldBreak ?? shieldBreak, [
       ...weapons.map((weapon) => contribution('weapon', weapon.name, 'shieldBreak', computeStandardDps(weapon) * Math.max(0, weapon.shieldDamageMod))),
       contribution('gear', input.ordnance?.name ?? 'No ordnance', 'ordnanceShieldBreak', input.ordnance?.shieldDamage ?? 0),
       contribution('skill', 'Skill tree', 'shieldBreakSkillMods', skillShieldBreak),
+      contribution('server', 'Boss simulation override', 'bossSimShieldBreakOverride', input.bossSimShieldBreak === undefined ? 0 : input.bossSimShieldBreak - shieldBreak),
     ]),
     armorBreak: scalar(armorBreak, [
       ...weapons.map((weapon) => contribution('weapon', weapon.name, 'armorBreak', computeStandardDps(weapon) * Math.max(0, weapon.armorDamageMod))),

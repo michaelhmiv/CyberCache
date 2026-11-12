@@ -41,7 +41,9 @@ import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import { issueAccessToken } from '../server/auth/tokens';
 import { earnedOfflineCapHours, nextOfflineCapMilestone, OFFLINE_CAP_MILESTONES, RESEARCH_OFFLINE_CAP_HOURS_TOTAL } from '@/content/offlineCap';
 import { bossBaseFee, bossFeeMultiplier, escalatedBossFee, utcDayStartIso } from '@/lib/bossFees';
-import { xpToNextLevel } from '@/content/simulation';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { MAX_PLAYER_LEVEL, xpToNextLevel } from '@/content/simulation';
 import { applyXp } from '../server/writes/store';
 
 const SECRET = 'test-secret-at-least-32-chars-long!!';
@@ -565,6 +567,29 @@ describe('tuning item 8 — applyXp (server mirror) follows the stretched curve'
     const halfway = Math.floor(xpToNextLevel(50) / 2);
     expect(applyXp(50, 0, halfway)).toEqual({ player_level: 50, player_xp: halfway });
     expect(applyXp(50, halfway, xpToNextLevel(50) - halfway)).toEqual({ player_level: 51, player_xp: 0 });
+  });
+
+  it('stops at the level cap (audit HTR-06)', () => {
+    expect(MAX_PLAYER_LEVEL).toBe(100);
+    // The audit's assertion: a fortune of XP at the cap goes nowhere.
+    expect(applyXp(100, 0, 10_000_000).player_level).toBe(100);
+    // Crossing into the cap lands exactly on it, remainder banked.
+    const crossed = applyXp(99, 0, xpToNextLevel(99) + 500);
+    expect(crossed.player_level).toBe(100);
+    expect(crossed.player_xp).toBe(500);
+    // A hypothetical pre-clamp profile above the cap never gains
+    // another level (and is never dragged down a level either) —
+    // the SQL twin's exit has the identical semantics.
+    expect(applyXp(105, 0, 1_000_000).player_level).toBe(105);
+  });
+
+  it('migration 0093 restates cc_apply_xp with the identical cap exit', () => {
+    const sql = readFileSync(join(process.cwd(), 'db', 'migrations', '0093_xp_level_cap.sql'), 'utf8');
+    expect(sql).toContain('create or replace function public.cc_apply_xp(current_level integer, current_xp bigint, xp_award bigint)');
+    expect(sql).toContain('exit when next_level >= 100;');
+    // The curve itself is untouched by the restatement.
+    expect(sql).toContain('power(next_level::numeric, 1.72)');
+    expect(sql).toContain('25377::numeric');
   });
 });
 
