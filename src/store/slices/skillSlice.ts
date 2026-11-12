@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { SKILL_NODES } from '../../constants/skillTrees';
-import { computeSkillBonuses } from '@/lib/skills/skillBonuses';
+import { computeSkillBonuses, skillSpendCost } from '@/lib/skills/skillBonuses';
 import type { ClassMod } from '../../types/items';
 
 export interface SkillState {
@@ -14,6 +14,8 @@ export interface SkillState {
   respec: (creditsAvailable: number) => boolean;
   getBonuses: () => Record<string, number>;
   getTotalSpent: () => number;
+  /** Budget points consumed by real spends (weighted: major 3, keystone 5). */
+  getSpentBudget: () => number;
   /** Apply a class mod's boosts. Called by loadoutSlice on equip. */
   applyClassMod: (classMod: ClassMod) => void;
   /** Remove all class mod boosts. Called by loadoutSlice on unequip. */
@@ -35,8 +37,10 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
   },
 
   respecCost: () => {
-    const total = Object.values(get().spent).reduce((a, b) => a + b, 0);
-    return total * 100;
+    // Respec prices BUDGET points (audit HTR-01): a major refunds as the
+    // 3 points it cost, a keystone as 5 — the server's cc_retrain charges
+    // cc_skill_spend_cost × 100, and this quote must equal that charge.
+    return get().getSpentBudget() * 100;
   },
 
   respec: (creditsAvailable) => {
@@ -64,6 +68,14 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
     // or a worn mod would phantom-spend the player's budget and lock
     // them out of spending real points.
     return Object.values(get().spent).reduce((a, b) => a + b, 0);
+  },
+
+  getSpentBudget: () => {
+    // The level−1 budget is spent in LISTED costs (audit HTR-01): smalls
+    // cost 1, majors 3, keystones 5. Availability, the spend gate, and
+    // the respec quote all read this weighted total of REAL spends —
+    // never the raw count, and never class-mod boosts.
+    return skillSpendCost(get().spent);
   },
 
   applyClassMod: (classMod) => {

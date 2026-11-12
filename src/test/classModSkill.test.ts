@@ -145,4 +145,14 @@ describe('skillSlice — class mod boosts', () => {
     // (5 × 0.05 weaponDamage), well above the 0.15 the manual spends give.
     expect(state.getBonuses().weaponDamage).toBeGreaterThanOrEqual(0.25);
   });
+
+  it('spend budget prices majors at 3 and keystones at 5; respec quotes the budget (audit HTR-01)', () => {
+    useSkillStore.setState({ spent: { 'gs_dmg_1': 3, 'fix_major_1': 1, 'fix_keystone': 1 } });
+    const state = useSkillStore.getState();
+    // The budget the level gate charges: 3×1 + 3 + 5 = 11 — not the raw
+    // count of 5 trained points. Respec quotes budget × 100cr, matching
+    // the server's cc_retrain charge.
+    expect(state.getSpentBudget()).toBe(11);
+    expect(state.respecCost()).toBe(1100);
+  });
 });
