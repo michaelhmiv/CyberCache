@@ -214,7 +214,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const totalItems = inventory.items.length;
   const xpToNext = xpToNextLevel(player.level);
   const xpProgress = Math.round((player.xp / xpToNext) * 100);
-  const spentSkillPoints = skillStore.getTotalSpent();
+  // Budget points spent — weighted by listed cost (audit HTR-01), so the
+  // hub's spent/available story agrees with the tree screen and the server.
+  const spentSkillPoints = skillStore.getSpentBudget();
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
   const verifiedLabel = account?.accountType === 'verified'
     ? 'Verified account'
