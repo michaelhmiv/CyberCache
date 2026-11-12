@@ -21,6 +21,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **One refusal, one answer** — actions that need a linked account (standing turn-ins, contract claims and rerolls) used to answer with a "wrong state" error while the market answered "not allowed" for the same refusal. They all answer "not allowed" now, so the sign-in prompt can always tell the difference.
 - **Your shield stays in the fight** — yesterday the far arm sat out the combat stances, and because your shield rode that arm, it sat them out too — gone for most of every fight, popping back at rest. The arm still sits out (the strict side view stands), but the shield now remounts to your torso while you aim and ride the recoil, held across your body, and returns to your arm the moment you stand at rest. It never leaves the figure; every other pose is exactly as it was.
 - **Long sessions no longer stall an hour in** — your sign-in token quietly expires after an hour, and the game's roaming connection didn't know how to renew it: claims started failing, "rewards are paused" appeared, and roaming silently stopped paying until you restarted the app. The roaming connection now renews the session and carries on, the same way the rest of the game already did.
+- **A failed load now offers a way back** — if the game couldn't reach the server while restoring your session, it used to open onto skeleton bars that never filled, with no way forward but killing the app. It now stops on a clear screen with a Retry button (and a sign-out if you need it).
 
 
 
