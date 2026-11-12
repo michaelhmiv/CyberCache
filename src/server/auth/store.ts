@@ -186,6 +186,9 @@ export class InMemoryAuthStore implements AuthStore {
       if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
         account.emailVerifiedAt = now;
       }
+      // Linking a real identity promotes the account in place (audit A-01):
+      // it stops being a guest, exactly as the email-register upgrade does.
+      account.isGuest = false;
       return this.issueSession(account, now);
     }
     const account: MemAccount = {
@@ -355,6 +358,12 @@ export class PgAuthStore implements AuthStore {
       if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
         await this.db.query('update auth_accounts set email_verified_at = $2, updated_at = now() where id = $1', [account.id, now]);
         account.emailVerifiedAt = now;
+      }
+      // Linking a real identity promotes the account in place (audit A-01):
+      // it stops being a guest, exactly as the email-register upgrade does.
+      if (account.isGuest) {
+        await this.db.query('update auth_accounts set is_guest = false, updated_at = now() where id = $1', [account.id]);
+        account.isGuest = false;
       }
       return this.issueSession(account, now);
     }
