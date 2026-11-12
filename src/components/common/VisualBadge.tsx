@@ -12,9 +12,9 @@ interface VisualBadgeProps {
 }
 
 const sizeClass = {
-  xs: { box: 'h-5 min-w-5 px-1 text-[8px]', mark: 'text-[9px]', label: 'text-[8px]' },
-  sm: { box: 'h-7 min-w-7 px-1.5 text-[9px]', mark: 'text-[10px]', label: 'text-[9px]' },
-  md: { box: 'h-9 min-w-9 px-2 text-[10px]', mark: 'text-xs', label: 'text-[10px]' },
+  xs: { box: 'h-5 min-w-5 px-1 text-[11px]', mark: 'text-[11px]', label: 'text-[11px]' },
+  sm: { box: 'h-7 min-w-7 px-1.5 text-[11px]', mark: 'text-[11px]', label: 'text-[11px]' },
+  md: { box: 'h-9 min-w-9 px-2 text-[11px]', mark: 'text-xs', label: 'text-[11px]' },
   lg: { box: 'h-11 min-w-11 px-2.5 text-xs', mark: 'text-sm', label: 'text-[11px]' },
 };
 

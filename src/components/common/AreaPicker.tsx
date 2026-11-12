@@ -140,7 +140,7 @@ const AreaCard: React.FC<{
           <div className="text-sm font-black text-text-primary">
             {area.name}
             {hot && (
-              <span className="ml-2 bg-[#E2483D] px-1.5 py-0.5 align-middle text-[9px] font-black uppercase tracking-wide text-white" data-testid="hot-area-badge">
+              <span className="ml-2 bg-[#E2483D] px-1.5 py-0.5 align-middle text-[11px] font-black uppercase tracking-wide text-white" data-testid="hot-area-badge">
                 Hot today · +materials
               </span>
             )}
@@ -155,21 +155,21 @@ const AreaCard: React.FC<{
               </span>
             )}
           </div>
-          <div className="mt-0.5 text-[10px] text-text-muted">{area.manufacturerInfluence} · <span className={dangerClass}>{area.dangerRating}</span></div>
-          <div className="mt-2 text-[10px] leading-snug text-text-secondary">{area.gameplayIdentity}</div>
+          <div className="mt-0.5 text-[11px] text-text-muted">{area.manufacturerInfluence} · <span className={dangerClass}>{area.dangerRating}</span></div>
+          <div className="mt-2 text-[11px] leading-snug text-text-secondary">{area.gameplayIdentity}</div>
         </button>
         {onTapStart && (
-          <button type="button" onClick={onTapStart} className="bl-secondary shrink-0 px-2 py-1 text-[9px] font-black text-amber">
+          <button type="button" onClick={onTapStart} className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black text-amber">
             Start Roam
           </button>
         )}
       </div>
-      <div className="relative mt-3 grid grid-cols-3 gap-1.5 text-[9px]">
+      <div className="relative mt-3 grid grid-cols-3 gap-1.5 text-[11px]">
         <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Rates</span><div className="font-black text-text-primary">{area.idleCreditsPerMinute}cr/min</div></div>
         <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Loot</span><div className="truncate font-black text-amber">{area.lootBias[0]}</div></div>
         <div className="bg-surface/80 p-1.5"><span className="text-text-muted">Rarity</span><div className="font-black text-text-primary">{bestRarity?.[0]}</div></div>
       </div>
-      <div className="relative mt-2 text-[9px] text-text-muted">{area.selectionHint}</div>
+      <div className="relative mt-2 text-[11px] text-text-muted">{area.selectionHint}</div>
       {pendingAction && assessment && tier !== 'none' && (
         <DangerWarning area={area} assessment={assessment} onConfirm={onConfirmDanger} onCancel={onCancelDanger} />
       )}

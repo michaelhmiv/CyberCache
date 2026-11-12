@@ -410,7 +410,7 @@ function App() {
             </motion.button>
             <div>
               <div className="bl-title text-2xl leading-none text-text-primary capitalize">{title}</div>
-              <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-text-muted">Sub-screen / field station</div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">Sub-screen / field station</div>
             </div>
           </div>
         </div>

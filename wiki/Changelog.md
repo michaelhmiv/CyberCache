@@ -36,6 +36,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Respec asks first now** — respec used to fire on a single tap: one misclick could burn your whole build and its full cost with no undo. The button now arms a confirmation that names the exact cost before anything is spent, and it stays disabled when you have nothing spent to refund.
 - **Signing out on one device no longer signs you out everywhere** — a signed-out session's leftover refresh attempt was being read as token theft, which revoked your sessions on every device. Sign-outs are now marked for what they are; only genuinely replayed (rotated) tokens trigger the theft response.
 - **Explanatory paragraphs are off the screens for good** — a few had crept back: two chatty lines under the hero stats on Home, a tagline under the Inventory heading, and three paragraphs in the expanded Garage. They're trimmed to the facts and labels every other screen uses, and the game's no-paragraphs check now scans Home and the Gear page too, so they can't creep back unnoticed.
+- **Small text you have to read is at the readable size now** — a few labels had slipped under the game's 11px floor: the "Unarmed" state word on the stage, workspace labels, badge labels, and the area picker's stats among them. They're all at the floor, and a new automated census keeps every screen honest from here on.
 
 
 
