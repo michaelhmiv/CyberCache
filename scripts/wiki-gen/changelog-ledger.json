@@ -64,6 +64,10 @@
         {
           "number": 498,
           "title": "Suppress the far arm in aim/recoil: strict side view draws one arm"
+        },
+        {
+          "number": 499,
+          "title": "Reveal Corona: physical light in the cache loot moment (Impeccable direction A) + header law"
         }
       ]
     },

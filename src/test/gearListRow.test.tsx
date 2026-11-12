@@ -27,10 +27,12 @@
  *  3. What left the face stays off it: no affix lines, no maker /
  *     type meta, no secondary stat pills in list rows.
  *  4. Equipped slot chip + lock glyph render on the one line.
- *  5. Render cost (freeze investigation 2026-11-04): list rows
- *     compose weapons at STAGE density (a quarter of the card
- *     texels); grid keeps CARD density. And a per-row DOM-node
- *     ceiling, so the row cannot quietly grow back into a card.
+ *  5. Render cost (freeze investigation 2026-11-04; latency audit
+ *     2026-11-11): list rows compose weapons at THUMB density
+ *     (60x22 — the row displays 46x17 CSS px; the stage backing
+ *     store was ~61x the displayed pixels per row); grid keeps CARD
+ *     density. And a per-row DOM-node ceiling, so the row cannot
+ *     quietly grow back into a card.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -243,10 +245,10 @@ describe('gear list row — one-line anatomy', () => {
 });
 
 describe('gear list row — render cost (freeze investigation guard)', () => {
-  it('list composes weapons at stage density; grid keeps card density', () => {
+  it('list composes weapons at thumb density; grid keeps card density', () => {
     renderHub([makeWeapon()]);
     const row = rowOf('Ember Sidearm');
-    expect(row.querySelector('[data-density="stage"]')).not.toBeNull();
+    expect(row.querySelector('[data-density="thumb"]')).not.toBeNull();
     expect(row.querySelector('[data-density="card"]')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Toggle inventory layout' }));
