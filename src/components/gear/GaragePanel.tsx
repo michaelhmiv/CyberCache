@@ -212,9 +212,6 @@ export const GaragePanel: React.FC<{
     >
       <div>
         <div className="text-lg font-black text-text-primary">Garage</div>
-        <div className="text-xs text-text-muted">
-          Your vehicle multiplies what every roaming tick yields — it never changes the tick rate. Out of fuel or worn out, you roam on foot at ×1.00.
-        </div>
       </div>
 
       <div className="border border-border bg-background/60 p-2 space-y-2">
@@ -234,29 +231,26 @@ export const GaragePanel: React.FC<{
         {!(outOfFuel && fuelCells > 0) && loadButtons}
         {notice && <div className="text-xs text-text-secondary">{notice}</div>}
         <div className="text-[11px] text-text-muted">
-          Patch Kits owned: {patchKits} — buy fuel cells and patch kits from the vendor.
+          Patch Kits owned: {patchKits} · Fuel cells and patch kits: Market vendor
         </div>
       </div>
 
       {outOfFuel && (
         <div className="space-y-2 border border-amber/60 bg-amber/10 p-2" data-testid="garage-out-of-fuel">
           <div className="text-xs font-bold text-amber">
-            Out of fuel — your vehicle pays no yield bonus and you roam on foot at ×1.00 until the tank has fuel in it.
+            Out of fuel — roaming on foot at ×1.00, no yield bonus
           </div>
           {fuelCells > 0 ? (
             <>
               <div className="text-[11px] text-text-muted">
-                Load a cell to bring the bonus back — each cell adds 100 fuel units:
+                Each cell adds 100 fuel units:
               </div>
               {loadButtons}
             </>
           ) : (
             <>
               <div className="text-[11px] text-text-muted" data-testid="garage-fuel-hint">
-                No Generic Fuel Cells in inventory — the Vendor in the Market sells them, and they
-                trade on the player market. Buy a few, then load them here: each cell adds 100 fuel
-                units. Out of fuel never stops roaming; the vehicle bonus just turns off until you
-                refuel.
+                No cells in inventory · Vendor in the Market sells them · each cell adds 100 fuel units · Bonus off until refuel
               </div>
               {onNavigate && (
                 <div className="flex flex-wrap gap-2">
@@ -285,7 +279,7 @@ export const GaragePanel: React.FC<{
       {error && <div className="text-xs text-red-400">{error}</div>}
 
       {vehicles.length === 0 && (
-        <div className="text-xs text-text-muted">No vehicles yet — your starter Scrap Bike is in your initial bundle; more vehicles trade on the player market.</div>
+        <div className="text-xs text-text-muted">No vehicles yet · Starter Scrap Bike: in your initial bundle · More on the player market</div>
       )}
 
       <div className="space-y-2">
@@ -446,7 +440,8 @@ const VehicleCard: React.FC<{
           </div>
           <div className="text-[11px] text-text-muted">
             {def ? def.displayName : vehicle.vehicleClassId}
-            {def ? ` · base yield ×${def.baseYield.toFixed(2)} · burns ${def.fuelBurnPerTick.toFixed(1)} fuel/tick` : ''}
+            {def && <span> · base yield ×{def.baseYield.toFixed(2)}</span>}
+            {def && <span> · burns {def.fuelBurnPerTick.toFixed(1)} fuel/tick</span>}
           </div>
           <div className="text-[11px] text-text-muted">
             Effective yield now: <span className="font-bold text-text-primary">×{effective.toFixed(2)}</span>
