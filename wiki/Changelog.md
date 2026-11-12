@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+- **Big inventories open instantly now** — the Gear list used to draw every single item you own before the tab could settle, so the deeper your stash got, the longer the rows sat as blank stencils waiting for their portraits. Now the list only draws the rows on your screen (plus a few above and below), each item's portrait is painted at the size the row actually shows instead of poster size, and portraits you've already seen are remembered — scroll back or hop between tabs and they are simply there. Nothing about your gear changed: same items, same order, same sorting, searching, selecting and scrapping — the list is just no longer doing two thousand portraits' worth of work to show you eighteen rows.
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
