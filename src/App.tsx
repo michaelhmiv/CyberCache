@@ -3,20 +3,39 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import { BottomNav } from './components/layout/BottomNav';
 import { ScreenWrapper } from './components/layout/ScreenWrapper';
-import { HomeScreen } from './screens/HomeScreen';
-import { InventoryScreen } from './screens/InventoryScreen';
-import { MarketScreen } from './screens/MarketScreen';
-import { ChestScreen } from './screens/ChestScreen';
-import { ProfileScreen } from './screens/ProfileScreen';
-import { LeaderboardsScreen } from './screens/LeaderboardsScreen';
 import { TabErrorBoundary } from './components/layout/TabErrorBoundary';
 import { DeathOverlay } from './components/action/DeathOverlay';
-import { SettingsScreen } from './screens/SettingsScreen';
-import { HelpScreen } from './screens/HelpScreen';
-import { CollectionsScreen } from './screens/CollectionsScreen';
-import { DispatchScreen } from './screens/DispatchScreen';
-import { ActivityLogScreen } from './screens/ActivityLogScreen';
 import { AuthScreen } from './screens/AuthScreen';
+
+// Code-split screens (tab-switch latency, 2026-11-12): the four tab
+// screens and every sub-screen are React.lazy chunks, not static
+// imports — the pre-fix shell parsed/evaluated all of them in the
+// single 3.7MB main chunk on every cold launch. AuthScreen stays
+// static: it is the signed-out gate and must paint immediately.
+const HomeScreen = React.lazy(() => import('./screens/HomeScreen').then((m) => ({ default: m.HomeScreen })));
+const InventoryScreen = React.lazy(() => import('./screens/InventoryScreen').then((m) => ({ default: m.InventoryScreen })));
+const MarketScreen = React.lazy(() => import('./screens/MarketScreen').then((m) => ({ default: m.MarketScreen })));
+const ProfileScreen = React.lazy(() => import('./screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen })));
+const ChestScreen = React.lazy(() => import('./screens/ChestScreen').then((m) => ({ default: m.ChestScreen })));
+const LeaderboardsScreen = React.lazy(() => import('./screens/LeaderboardsScreen').then((m) => ({ default: m.LeaderboardsScreen })));
+const SettingsScreen = React.lazy(() => import('./screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
+const HelpScreen = React.lazy(() => import('./screens/HelpScreen').then((m) => ({ default: m.HelpScreen })));
+const CollectionsScreen = React.lazy(() => import('./screens/CollectionsScreen').then((m) => ({ default: m.CollectionsScreen })));
+const DispatchScreen = React.lazy(() => import('./screens/DispatchScreen').then((m) => ({ default: m.DispatchScreen })));
+const ActivityLogScreen = React.lazy(() => import('./screens/ActivityLogScreen').then((m) => ({ default: m.ActivityLogScreen })));
+
+/** Suspense fallback in the shell's own register (the auth-loading
+ * card): a branded surface, fixed min-height, no layout explosion. */
+function TabPaneFallback({ label }: { label: string }) {
+  return (
+    <div className="bl-page flex min-h-[60vh] items-center justify-center p-4 text-text-primary">
+      <div className="bl-card w-full max-w-xs p-5 text-center">
+        <div className="bl-title text-4xl text-amber">CyberCache</div>
+        <div className="text-xs font-bold uppercase tracking-widest text-text-muted">Loading {label}…</div>
+      </div>
+    </div>
+  );
+}
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
 import { isGuestAccount, isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
@@ -95,6 +114,19 @@ function VerificationReminderBanner() {
 function App() {
   const { user, account, loading, authError } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('home');
+  // Keep-alive (tab-switch latency, 2026-11-12): a tab's screen
+  // mounts on FIRST visit and then stays mounted, hidden with
+  // display:none — switching tabs never unmounts/remounts a screen
+  // again (the Pixi stage init, the market fetches, and each pane's
+  // scroll position all survive a switch).
+  const [visitedTabs, setVisitedTabs] = useState<ReadonlySet<TabId>>(() => new Set<TabId>(['home']));
+  // Every tab activation goes through here so the visited set (the
+  // keep-alive mount list) grows in the same event as the switch —
+  // no effect-driven setState.
+  const activateTab = (tab: TabId) => {
+    setVisitedTabs((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)));
+    setActiveTab(tab);
+  };
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
   // Deep-link focus inside the Profile tab: 'skills' lands the player
@@ -203,7 +235,7 @@ function App() {
 
   const handleNavigate = (screen: string) => {
     if (screen === 'skills') {
-      setActiveTab('hunter');
+      activateTab('hunter');
       setSubScreen(null);
       setProfileFocus('skills');
       return;
@@ -212,7 +244,7 @@ function App() {
       // Research door (Workshop Direction A): the batch recipes'
       // gate names the Production Systems course — the door lands
       // ON the Research stop, not the Hunter tab's front door.
-      setActiveTab('hunter');
+      activateTab('hunter');
       setSubScreen(null);
       setProfileFocus('research');
       return;
@@ -222,7 +254,7 @@ function App() {
       // 2026-11-03): the Wardrobe's canonical home stays Hunter →
       // Profile — this is the DESIGN §9 secondary door, landing on
       // the Profile stop scrolled to the Wardrobe panel.
-      setActiveTab('hunter');
+      activateTab('hunter');
       setSubScreen(null);
       setProfileFocus('wardrobe');
       return;
@@ -235,13 +267,13 @@ function App() {
       // strip, the Garage remedy doors, and every other
       // onNavigate('workshop') caller lands on Home with the
       // bench open. No dead doors.
-      setActiveTab('home');
+      activateTab('home');
       setSubScreen(null);
       setHomeCraftIntent({ seq: Date.now() });
       return;
     }
     if (screen === 'loadout' || screen === 'loot') {
-      setActiveTab('gear');
+      activateTab('gear');
       setSubScreen(null);
       setInventoryTabIntent({ tab: 'loadout', seq: Date.now() });
       return;
@@ -250,7 +282,7 @@ function App() {
       // Garage door (audit UX-06): the Garage lives inside the
       // Loadout stop (owner ruling 2026-11-02, §11 F1 amended) —
       // land on Loadout with the vehicle section already expanded.
-      setActiveTab('gear');
+      activateTab('gear');
       setSubScreen(null);
       setInventoryTabIntent({ tab: 'loadout', expandVehicle: true, seq: Date.now() });
       return;
@@ -266,22 +298,22 @@ function App() {
       if (isMarketStopId(stop)) {
         useMarketStore.getState().requestMarketStop(stop);
       }
-      setActiveTab('market');
+      activateTab('market');
       setSubScreen(null);
       return;
     }
     if (screen === 'vendor') {
-      setActiveTab('market');
+      activateTab('market');
       setSubScreen(null);
       return;
     }
     if (screen === 'market') {
-      setActiveTab('market');
+      activateTab('market');
       setSubScreen(null);
       return;
     }
     if (topLevelTabs.includes(screen as TabId)) {
-      setActiveTab(screen as TabId);
+      activateTab(screen as TabId);
       setSubScreen(null);
       return;
     }
@@ -353,7 +385,9 @@ function App() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {screens[subScreen!] || <div className="p-4 text-text-primary">Unknown screen</div>}
+          <React.Suspense fallback={<TabPaneFallback label={title ?? 'Loading'} />}>
+            {screens[subScreen!] || <div className="p-4 text-text-primary">Unknown screen</div>}
+          </React.Suspense>
         </div>
       </div>
     );
@@ -378,24 +412,59 @@ function App() {
         <UsernameSetupModal force />
       )}
 
-      {subScreen ? (
-        renderSubScreen()
-      ) : (
-        <ScreenWrapper activeTab={activeTab}>
-          {activeTab === 'home' && <TabErrorBoundary surface="Home"><HomeScreen onNavigate={handleNavigate} onOpenBossSelect={() => setBossSelectOpen(true)} craftBenchIntent={homeCraftIntent} /></TabErrorBoundary>}
-          {activeTab === 'gear' && <TabErrorBoundary surface="Inventory"><InventoryScreen onNavigate={handleNavigate} tabIntent={inventoryTabIntent} /></TabErrorBoundary>}
-          {activeTab === 'market' && (
-            <TabErrorBoundary surface="Market">
-              {/* No whole-tab gate: the NPC vendor is open to guests.
-                  MarketScreen gates its player-market tabs internally. */}
-              <MarketScreen onNavigate={handleNavigate} />
-            </TabErrorBoundary>
-          )}
-          {activeTab === 'hunter' && <TabErrorBoundary surface="Profile"><ProfileScreen onNavigate={handleNavigate} focusSection={profileFocus} /></TabErrorBoundary>}
+      {/* Keep-alive tab panes (2026-11-12): every visited tab stays
+          mounted in its own ScreenWrapper scroller; the inactive
+          panes (and all panes while a sub-screen takes over) are
+          display:none. Intent props (profileFocus,
+          inventoryTabIntent, homeCraftIntent) are App state passed
+          as props, and each screen applies them via seq-guarded
+          render-phase adjustments — they reach already-mounted
+          screens exactly as they reached freshly-mounted ones.
+          TabErrorBoundary still wraps each screen individually. */}
+      {visitedTabs.has('home') && (
+        <ScreenWrapper hidden={!!subScreen || activeTab !== 'home'}>
+          <TabErrorBoundary surface="Home">
+            <React.Suspense fallback={<TabPaneFallback label="Home" />}>
+              <HomeScreen onNavigate={handleNavigate} onOpenBossSelect={() => setBossSelectOpen(true)} craftBenchIntent={homeCraftIntent} />
+            </React.Suspense>
+          </TabErrorBoundary>
+        </ScreenWrapper>
+      )}
+      {visitedTabs.has('gear') && (
+        <ScreenWrapper hidden={!!subScreen || activeTab !== 'gear'}>
+          <TabErrorBoundary surface="Inventory">
+            <React.Suspense fallback={<TabPaneFallback label="Gear" />}>
+              <InventoryScreen onNavigate={handleNavigate} tabIntent={inventoryTabIntent} />
+            </React.Suspense>
+          </TabErrorBoundary>
+        </ScreenWrapper>
+      )}
+      {visitedTabs.has('market') && (
+        <ScreenWrapper hidden={!!subScreen || activeTab !== 'market'}>
+          <TabErrorBoundary surface="Market">
+            {/* No whole-tab gate: the NPC vendor is open to guests.
+                MarketScreen gates its player-market tabs internally.
+                `active` is its refresh-on-return signal (keep-alive
+                means its mount fetches no longer re-run per visit). */}
+            <React.Suspense fallback={<TabPaneFallback label="Market" />}>
+              <MarketScreen onNavigate={handleNavigate} active={!subScreen && activeTab === 'market'} />
+            </React.Suspense>
+          </TabErrorBoundary>
+        </ScreenWrapper>
+      )}
+      {visitedTabs.has('hunter') && (
+        <ScreenWrapper hidden={!!subScreen || activeTab !== 'hunter'}>
+          <TabErrorBoundary surface="Profile">
+            <React.Suspense fallback={<TabPaneFallback label="Hunter" />}>
+              <ProfileScreen onNavigate={handleNavigate} focusSection={profileFocus} />
+            </React.Suspense>
+          </TabErrorBoundary>
         </ScreenWrapper>
       )}
 
-      <BottomNav activeTab={activeTab} onChange={(tab) => { setActiveTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); setHomeCraftIntent(null); }} />
+      {subScreen ? renderSubScreen() : null}
+
+      <BottomNav activeTab={activeTab} onChange={(tab) => { activateTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); setHomeCraftIntent(null); }} />
       <DeathOverlay />
       <SalvageToastContainer />
       {/* The offline recap no longer mounts here: it lives in the

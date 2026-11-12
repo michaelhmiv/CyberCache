@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+- **Tabs remember themselves** — switching between Home, Gear, Market, and Hunter used to tear the old tab down and rebuild the new one from nothing on every single tap: the roaming stage re-painted itself second by second, the Market re-fetched its listings, every scroll position reset. Now a tab is built the first time you visit it and then simply kept — switching is just showing and hiding, so you return to the exact screen you left: same scroll, same stage already alive, no reload pause. The Market still refreshes its listings when you come back to it, and each tab keeps its own place independently. Sub-screens (Cache, Collections, Settings, the Field Manual, and the rest) still take over the full view exactly as before.
+- **The game loads in pieces** — the whole game used to arrive as one enormous file that your phone had to chew through before anything appeared. It now arrives as a small core with each tab and sub-screen as its own piece, fetched the first time you open it and kept after that, so a cold start reaches a playable Home sooner and later starts reuse what's already on the device.
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
