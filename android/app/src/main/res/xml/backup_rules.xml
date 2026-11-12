@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Legacy (pre-API 31) full-backup rules — the same exclusion as
+  data_extraction_rules.xml, in the format older Android versions
+  read (audit A-09): the Capacitor Preferences file holding the
+  session's access + refresh tokens never enters a backup.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="CapacitorStorage.xml" />
+</full-backup-content>

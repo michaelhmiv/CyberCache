@@ -35,6 +35,16 @@ import {
 export interface ResolvedLook {
   set: PartSetDef;
   partPalettes: Partial<Record<PartSlot, { paletteId: string; spec: PaletteSpec }>>;
+  /**
+   * Worn parts that failed to resolve and silently fell back to
+   * Standard Issue for their slot (audit HTR-09): item ids the
+   * selection references but the parts map does not hold, and part
+   * ids with no catalog def (or a def for a different slot). The
+   * Wardrobe still reports these as worn — this list is the only
+   * signal that the stage is not showing them. Rendering behavior
+   * is unchanged; the list is empty in the healthy case.
+   */
+  missingParts: string[];
 }
 
 interface PartChoice {
@@ -46,6 +56,7 @@ interface PartChoice {
 function buildLook(headVariant: string, choices: Partial<Record<PartSlot, PartChoice>>): ResolvedLook {
   const parts: PartSetDef['parts'] = { ...STANDARD_ISSUE.parts };
   const partPalettes: ResolvedLook['partPalettes'] = {};
+  const missingParts: string[] = [];
   const applied = new Set<string>();
   let replaced = false;
 
@@ -53,7 +64,13 @@ function buildLook(headVariant: string, choices: Partial<Record<PartSlot, PartCh
     if (!choice || !isCosmeticSlot(slotRaw)) continue;
     const slot = slotRaw as PartSlot;
     const def = SKIN_PART_DEFS[choice.partId];
-    if (!def || def.slot !== slot) continue;
+    if (!def || def.slot !== slot) {
+      // A worn part with no (matching) catalog def: it renders as
+      // Standard Issue — record the miss instead of dropping it
+      // silently (audit HTR-09).
+      missingParts.push(choice.partId);
+      continue;
+    }
     parts[slot] = def;
     applied.add(slot);
     replaced = true;
@@ -67,8 +84,17 @@ function buildLook(headVariant: string, choices: Partial<Record<PartSlot, PartCh
     if (variant !== 'visor') replaced = true;
   }
 
-  if (!replaced) return { set: STANDARD_ISSUE, partPalettes };
-  return { set: { ...STANDARD_ISSUE, id: 'hunter-look', parts }, partPalettes };
+  if (!replaced) return { set: STANDARD_ISSUE, partPalettes, missingParts };
+  return { set: { ...STANDARD_ISSUE, id: 'hunter-look', parts }, partPalettes, missingParts };
+}
+
+function warnOnMissing(missingParts: string[]): void {
+  if (missingParts.length > 0) {
+    console.warn(
+      `[look] ${missingParts.length} worn cosmetic part(s) failed to resolve and render as Standard Issue:`,
+      missingParts.join(', '),
+    );
+  }
 }
 
 /** The local player's look from the server cosmetics state. */
@@ -78,18 +104,28 @@ export function resolveOwnLook(args: {
   fallbackHeadVariant: string;
 }): ResolvedLook {
   const choices: Partial<Record<PartSlot, PartChoice>> = {};
+  const missingParts: string[] = [];
   const equipped = args.selection?.equipped ?? {};
   for (const [slot, itemId] of Object.entries(equipped)) {
     if (!itemId) continue;
     const item = args.partsById.get(itemId);
-    if (!item) continue;
+    if (!item) {
+      // The selection says this item is worn, but the parts view
+      // does not hold it — it renders as Standard Issue while the
+      // Wardrobe reports it worn. Surface the miss (audit HTR-09).
+      missingParts.push(itemId);
+      continue;
+    }
     choices[slot as PartSlot] = {
       partId: item.partId,
       tintPaletteId: item.tintPaletteId,
       quality: item.quality,
     };
   }
-  return buildLook(args.selection?.headVariant ?? args.fallbackHeadVariant, choices);
+  const look = buildLook(args.selection?.headVariant ?? args.fallbackHeadVariant, choices);
+  const allMissing = [...missingParts, ...look.missingParts];
+  warnOnMissing(allMissing);
+  return { ...look, missingParts: allMissing };
 }
 
 /** Another hunter's look from the public look view (Standings). */
@@ -103,5 +139,7 @@ export function resolveLookView(view: HunterLookView): ResolvedLook {
       quality: part.quality,
     };
   }
-  return buildLook(view.headVariant, choices);
+  const look = buildLook(view.headVariant, choices);
+  warnOnMissing(look.missingParts);
+  return look;
 }
