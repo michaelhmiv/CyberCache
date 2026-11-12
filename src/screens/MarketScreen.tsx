@@ -49,6 +49,7 @@ import { fetchPriceStats } from '@/lib/api/marketPriceStats';
 import type { GearItem, Weapon } from '@/types/items';
 import type { Listing, MarketHistory } from '@/types/market';
 import { ListingRow, GearCandidateRow, VehicleCandidateRow } from '@/components/market/ListingRow';
+import { fmtUnitPrice } from '@/lib/market/unitPriceLabel';
 
 const getNow = () => Date.now();
 
@@ -183,7 +184,7 @@ function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; righ
       <div className="min-w-0 flex-1">
         <div className="text-xs font-black leading-snug text-text-primary">{listing.displayName}</div>
         <div className="text-[11px] text-text-muted">{meta}</div>
-        {listing.unitPrice > 0 && <div className="text-[11px] text-text-muted">{Math.round(listing.unitPrice).toLocaleString()}cr each</div>}
+        {listing.unitPrice > 0 && <div className="text-[11px] text-text-muted">{fmtUnitPrice(listing.unitPrice)}cr each</div>}
         {listing.kind === 'material' && listing.materialId && onShowUsage && (
           <button
             type="button"
