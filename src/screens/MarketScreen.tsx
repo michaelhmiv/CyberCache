@@ -265,6 +265,10 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
   const [buyListings, setBuyListings] = useState<Listing[]>([]);
   const [buyTotal, setBuyTotal] = useState(0);
   const [myListings, setMyListings] = useState<Listing[]>([]);
+  // Load-failure states (audit X-07): a failed fetch is a persistent,
+  // retryable error — never the empty-market copy. null = healthy.
+  const [buyError, setBuyError] = useState<string | null>(null);
+  const [mineError, setMineError] = useState<string | null>(null);
   const [priceStats, setPriceStats] = useState<Record<string, PriceStats>>({});
   const [usageMaterialId, setUsageMaterialId] = useState<string | null>(null);
   const [showBuyFilters, setShowBuyFilters] = useState(false);
@@ -379,8 +383,12 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
       const next = append ? [...buyListingsRef.current, ...page.listings] : page.listings;
       buyListingsRef.current = next;
       setBuyListings(next);
+      setBuyError(null);
       syncSharedListings();
     } catch (err) {
+      // Persistent error state with Retry (audit X-07) — the toast
+      // alone left an outage reading as an empty market.
+      setBuyError(err instanceof Error ? err.message : 'Unable to load market listings.');
       setToastMessage(err instanceof Error ? err.message : 'Unable to load market listings.');
     } finally {
       if (offset === 0) setLoadingListings(false);
@@ -398,9 +406,13 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
       const rows = await fetchMyMarketListings(currentUserId);
       myListingsRef.current = rows;
       setMyListings(rows);
+      setMineError(null);
       syncSharedListings();
-    } catch {
-      // My Listings failing must not take the Buy tab down with it.
+    } catch (err) {
+      // My Listings failing must not take the Buy tab down with it —
+      // but it must not be silent either (audit X-07): the Mine
+      // segment carries its own error row with a Retry.
+      setMineError(err instanceof Error ? err.message : 'Unable to load your listings.');
     }
   }, [currentUserId, syncSharedListings]);
 
@@ -855,7 +867,21 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
             </div>
           </div>
           <div className="space-y-2">
-            {!loadingListings && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell stop.</div>}
+            {buyError && (
+              <div data-testid="market-buy-error" className="space-y-2 border border-red/50 bg-red/10 px-3 py-3 text-center">
+                <div className="text-xs font-bold text-red">Market listings could not be loaded.</div>
+                <div className="text-[11px] text-text-muted">{buyError}</div>
+                <button
+                  type="button"
+                  onClick={() => { void fetchBuyPage(0, false); }}
+                  disabled={loadingListings}
+                  className="border border-border bg-surface-raised px-3 py-2 text-[11px] font-black uppercase text-text-primary disabled:opacity-50"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+            {!loadingListings && !buyError && filteredListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No listings found. List your own gear from the Sell stop.</div>}
             {filteredListings.map((listing, index) => {
               const seller = sellerDisplayName(listing, currentUserId);
               const stats = listing.identityKey ? priceStats[listing.identityKey] : undefined;
@@ -1189,7 +1215,20 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
               <option value="name">Sort: Name A-Z</option>
             </select>
           </div>
-          {sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
+          {mineError && (
+            <div data-testid="market-mine-error" className="space-y-2 border border-red/50 bg-red/10 px-3 py-3 text-center">
+              <div className="text-xs font-bold text-red">Your listings could not be loaded.</div>
+              <div className="text-[11px] text-text-muted">{mineError}</div>
+              <button
+                type="button"
+                onClick={() => { void refreshMine(); }}
+                className="border border-border bg-surface-raised px-3 py-2 text-[11px] font-black uppercase text-text-primary"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {!mineError && sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
           {sortedMyListings.map((listing, index) => {
             const preview = feePreview(listing.price, skillBonuses, listing.itemSnapshot?.sourceTag);
             return (
