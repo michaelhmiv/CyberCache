@@ -309,6 +309,9 @@ describe('Hunter arrangement — Trophy tile door + Collections stop', () => {
     });
 
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): the Trophy Shelf lives on the
+    // Profile stop — open its door first (the hub renders alone).
+    fireEvent.click(screen.getByTestId('hub-door-profile'));
 
     // The tile exists on the Trophy Shelf. The server count prints
     // exactly once in the B build — the record bank's Collection
@@ -352,7 +355,7 @@ describe('Hunter menu — the Arena Plates hub (owner pick, 2026-11-05)', () => 
   it('the tab opens on the menu: every resident has a door, and there is no rail', () => {
     render(<ProfileScreen onNavigate={() => {}} />);
 
-    expect(screen.getByTestId('hunter-section-hub').className).not.toContain('hidden');
+    expect(screen.getByTestId('hunter-section-hub')).toBeTruthy();
     for (const id of [
       'hub-door-trees',
       'hub-door-research',
@@ -404,15 +407,18 @@ describe('Hunter menu — the Arena Plates hub (owner pick, 2026-11-05)', () => 
     render(<ProfileScreen onNavigate={() => {}} />);
 
     fireEvent.click(screen.getByTestId('hub-door-wardrobe'));
-    expect(screen.getByTestId('hunter-section-wardrobe').className).not.toContain('hidden');
-    expect(screen.getByTestId('hunter-section-hub').className).toContain('hidden');
+    // Lazy sections (2026-11-12): unselected stops are ABSENT from
+    // the DOM, not CSS-hidden — assertions updated from the old
+    // 'hidden' class contract to absence.
+    expect(screen.getByTestId('hunter-section-wardrobe')).toBeTruthy();
+    expect(screen.queryByTestId('hunter-section-hub')).toBeNull();
     expect(screen.getByTestId('profile-wardrobe-anchor')).toBeTruthy();
 
     fireEvent.click(screen.getAllByTestId('hunter-back-menu')[0]);
-    expect(screen.getByTestId('hunter-section-hub').className).not.toContain('hidden');
+    expect(screen.getByTestId('hunter-section-hub')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('hub-door-trees'));
-    expect(screen.getByTestId('hunter-section-trees').className).not.toContain('hidden');
+    expect(screen.getByTestId('hunter-section-trees')).toBeTruthy();
     expect(await screen.findByTestId('profile-skill-trees')).toBeTruthy();
   });
 });
@@ -430,6 +436,8 @@ describe('Lifetime Record — partial payloads never blank the Profile screen', 
     vi.mocked(fetchCollections).mockResolvedValue({ legendary_cores: 0, discoveries: [] });
 
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): open the Profile stop first.
+    fireEvent.click(screen.getByTestId('hub-door-profile'));
 
     // The panel renders its empty states instead of throwing.
     const panel = await screen.findByTestId('lifetime-stats');
@@ -455,11 +463,18 @@ describe('Hunter arrangement — Standings door badge + stop', () => {
     );
 
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): the count badge rides the Standings
+    // door on the hub — read it there, before opening any stop
+    // (opening a stop unmounts the hub, doors and badges included).
+    const badge = await screen.findByTestId('hunter-standings-count');
+    expect(badge.textContent).toBe('2');
+    // The Standings door key lives on the Profile stop — open it
+    // before reading its pills.
+    fireEvent.click(screen.getByTestId('hub-door-profile'));
 
     const pill = await screen.findByTestId('standings-earnings-pill');
     expect(pill.textContent).toContain('2 race rewards earned');
     expect(screen.getByTestId('standings-ends-soon-pill')).toBeTruthy();
-    expect(screen.getByTestId('hunter-standings-count').textContent).toBe('2');
 
     fireEvent.click(screen.getByTestId('standings-door'));
     // The leaderboards board mounts behind the door (weekly races panel).
@@ -478,6 +493,8 @@ describe('Hunter arrangement — Standings door badge + stop', () => {
 
   it('quiet week: the door renders with NO badge pills and no menu count', async () => {
     render(<ProfileScreen onNavigate={() => {}} />);
+    // Lazy sections (2026-11-12): open the Profile stop first.
+    fireEvent.click(screen.getByTestId('hub-door-profile'));
     expect(await screen.findByTestId('standings-door')).toBeTruthy();
     // Let the badge fetch settle.
     await waitFor(() => expect(getWeeklyLeaderboards).toHaveBeenCalled());

@@ -37,15 +37,14 @@ interface GearIllustrationProps {
   /**
    * Weapon composition density override. Default 'card' — the
    * marriage rule: every card surface shows the same 240×88 image
-   * for the same weapon. Compact list rows pass 'stage' (120×44,
-   * DESIGN.md §8's detail-level-0 grid): a composed small-grid
-   * render at a quarter of the texels, never a downscale of the
-   * card render. The list is a scanning surface — at row size the
-   * two reads are the same silhouette + colorway — and the Gear
-   * freeze investigation (2026-11-04) priced card-density list
-   * rows at ~26 ms of compose per weapon on a cold cache.
+   * for the same weapon. Compact list rows pass 'thumb' (60×22,
+   * the latency-audit fix, 2026-11-12): the row displays the art at
+   * 46×17 CSS px, and even the stage grid's 360×132 backing store
+   * was ~61x the displayed pixels per row across a 2,366-item
+   * inventory. 'stage' (120×44) remains for feed/market rows that
+   * have not adopted the thumb grid yet.
    */
-  weaponDensity?: 'stage' | 'card';
+  weaponDensity?: 'stage' | 'card' | 'thumb';
   /**
    * Viewport-deferred composition (Gear cold-load fix): list
    * surfaces pass this so off-screen items mount at final geometry

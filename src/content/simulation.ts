@@ -107,6 +107,15 @@ export function xpToNextLevel(level: number): number {
   return XP_CURVE_FORMULA(level);
 }
 
+/**
+ * The level cap (audit HTR-06): the curve's design horizon — 0016
+ * models L100 as the ~24-month prestige summit and buildLevelCurve
+ * defaults to it. Both XP implementations (applyXp here-and-server,
+ * cc_apply_xp in SQL) clamp at this level; the skill budget
+ * (level − 1) therefore stops at the lawful 99 points.
+ */
+export const MAX_PLAYER_LEVEL = 100;
+
 export function buildLevelCurve(maxLevel = 100, assumptions: SimulationAssumptions = DEFAULT_SIMULATION_ASSUMPTIONS): LevelCurvePoint[] {
   const dailyXp = calculateDailyXp(assumptions).totalXp;
   let cumulativeXpToReach = 0;

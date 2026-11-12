@@ -81,6 +81,22 @@ describe('InMemoryAuthStore flows', () => {
     await store.logout(session.refreshToken);
     await expect(store.refresh(session.refreshToken, now)).rejects.toBeTruthy();
   });
+
+  it('a post-logout refresh attempt does not nuke the account\'s other sessions (audit A-05)', async () => {
+    const store = new InMemoryAuthStore();
+    const now = new Date();
+    // Two live sessions for one account (two devices).
+    const a = await store.register('twodevices@example.com', 'long-enough-password', now);
+    const b = await store.login('twodevices@example.com', 'long-enough-password', now);
+    await store.logout(a.refreshToken);
+    // The dead token reads as plainly invalid — not refresh_reuse…
+    await expect(store.refresh(a.refreshToken, now)).rejects.toMatchObject({ code: 'invalid_refresh' });
+    // …and session B is untouched: it still rotates normally. Before
+    // the fix, the refresh above hit the reuse branch and revoked B.
+    const b2 = await store.refresh(b.refreshToken, now);
+    expect(b2.account.id).toBe(b.account.id);
+    expect(b2.refreshToken).not.toBe(b.refreshToken);
+  });
 });
 
 describe('auth routes (HTTP)', () => {

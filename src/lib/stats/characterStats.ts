@@ -69,6 +69,9 @@ export type CharacterStatSummaryInput = {
    * "vs standard target" to "vs {boss.name} ({weakness1})".
    */
   boss?: BossDef;
+  /** Boss-sim overrides for the snapshot (audit HTR-05), supplied by the assembly when a boss is in context. */
+  bossSimDps?: number;
+  bossSimShieldBreak?: number;
   activeBuffs?: ActiveBuff[];
   consumableMods?: Record<string, number>;
   /** Server-authoritative MedKit HP buffer (from survival store / Chef result). */
