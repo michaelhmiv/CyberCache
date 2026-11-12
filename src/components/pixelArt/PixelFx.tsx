@@ -295,6 +295,20 @@ export const GhostHpBar: React.FC<{
 // spin period) is the shipped formula, bit for bit. Everywhere else —
 // combat FX, the bench kit, and the shockwave ring even inside the
 // moment — the stepped texel grid stands exactly as shipped.
+//
+// Corona grammar (2026-11-11, owner-approved Impeccable direction A —
+// DESIGN.md §8): on that same scoped surface the flat-shape grammar
+// is retired. The banded-ellipse glow field and ground flare read as
+// stamped discs next to the painted item art, so the in-moment
+// painters now draw physical light instead: a layered radial corona
+// (white-hot core → gold → amber wash, every edge a gradient falloff,
+// composited additively), ~50 fine irregular rays in place of the
+// nine fan shafts, a slimmer feathered beam landing in a soft ground
+// BLOOM, and the gold embers the kit already flies. The header law
+// rides with it: where a host header crosses the beam (the cache
+// reveal's CACHE DECRYPTED), the beam's luminance is notched to ~30%
+// behind the header band over the host's soft dark underlay, and the
+// header text stays an unmodified top layer above every canvas.
 
 interface LootPoint {
   /** Beam base X, % of the offset parent. */
@@ -475,19 +489,73 @@ function paintFanRays(
   ctx.globalAlpha = 1;
 }
 
+/** '#RRGGBB' + alpha → rgba() string for gradient stops. */
+function hexToRgba(hex: string, alpha: number): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+}
+
+interface CoronaRay {
+  /** Degrees from straight up, clockwise. */
+  deg: number;
+  /** Length as a fraction of the field's base length. */
+  lenF: number;
+  /** Half-width at the ray's base, CSS px. */
+  halfPx: number;
+  /** Peak alpha of the ray's root segment. */
+  alpha: number;
+  /** Ramp tone index: 0 base, 1 light, 2 pale. */
+  tone: number;
+  /** Pulse phase on the twinkle period. */
+  phase: number;
+}
+
 /**
- * The radiating fan as continuous tapered light volumes — the light
- * kit's in-moment painter. Same ignition stagger (60ms + i×28 inside
- * the beam-in window), same pulse (twinkle period, i×1.7 phase), same
- * tone chase (280ms cadence over base → light → pale), same peak
- * alpha (0.5, modulated along the shaft). What changes: each ray is
- * one filled quadrilateral narrowing from its base width to a point,
- * painted in three lengthwise segments whose alphas fall off toward
- * the tip, so the ray reads as a shaft of light instead of stepped
- * dashes. Coordinates arrive in CSS px from the full-resolution
- * caller.
+ * The Corona ray field (2026-11-11): ~50 fine irregular rays in place
+ * of the nine shipped fan shafts. Deterministic — one fixed-seed LCG
+ * table at module scope, so every frame, mount and test sees the same
+ * sky. Angles cover the full circle (downward rays run short: the
+ * deck and ground bloom own that space), lengths and alphas jitter,
+ * and a handful of hero rays carry the old fan's reach.
  */
-function paintFanRaysSmooth(
+const CORONA_RAYS: readonly CoronaRay[] = (() => {
+  let state = 0xC0FFEE;
+  const next = (): number => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  const rays: CoronaRay[] = [];
+  const COUNT = 50;
+  for (let i = 0; i < COUNT; i += 1) {
+    const deg = (i / COUNT) * 360 + (next() - 0.5) * 9;
+    const down = Math.abs(((deg + 180) % 360) - 180) < 55; // pointing at the ground
+    const hero = i % 9 === 0;
+    rays.push({
+      deg,
+      lenF: down ? 0.3 + next() * 0.25 : hero ? 0.92 + next() * 0.14 : 0.42 + next() * 0.5,
+      halfPx: 0.7 + next() * 1.1,
+      alpha: 0.13 + next() * 0.22,
+      tone: Math.floor(next() * 3),
+      phase: next() * Math.PI * 2,
+    });
+  }
+  return rays;
+})();
+
+/**
+ * The Corona's ray layer — fine tapered light, in-moment only. The
+ * envelope is the shipped fan's: rays ignite staggered inside the
+ * beam-in window (60ms + a per-ray share of the same ~225ms spread),
+ * then pulse on the twinkle period for the rest of the step. Each ray
+ * is one tapered quadrilateral in two lengthwise segments (root
+ * bright, tip faint), composited additively over the corona so the
+ * roots melt into the core instead of stamping on top of it.
+ * Coordinates arrive in CSS px from the full-resolution caller.
+ */
+function paintCoronaRays(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
@@ -496,29 +564,30 @@ function paintFanRaysSmooth(
   baseLenPx: number,
 ): void {
   const tones = [ramp.base, ramp.light, ramp.pale];
-  const segFracs: readonly (readonly [number, number, number])[] = [
-    [0, 0.45, 0.5],
-    [0.45, 0.75, 0.3],
-    [0.75, 1, 0.14],
-  ];
-  FAN_RAY_ANGLES.forEach((ray, i) => {
-    const ignite = easeOutCubic((tMs - 60 - i * 28) / Math.max(1, MOVEMENT.LOOT_BEAM_IN_MS - 60));
+  const start = 6; // CSS px — rays leave the corona's hot core
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  CORONA_RAYS.forEach((ray, i) => {
+    const ignite = easeOutCubic((tMs - 60 - i * 4.5) / Math.max(1, MOVEMENT.LOOT_BEAM_IN_MS - 60));
     if (ignite <= 0) return;
-    const pulse = 1 + 0.13 * Math.sin((tMs / MOVEMENT.LOOT_TWINKLE_MS) * Math.PI * 2 + i * 1.7);
+    const pulse = 1 + 0.13 * Math.sin((tMs / MOVEMENT.LOOT_TWINKLE_MS) * Math.PI * 2 + ray.phase);
     const len = baseLenPx * ray.lenF * ignite * pulse;
+    if (len <= start + 2) return;
     const rad = ((ray.deg - 90) * Math.PI) / 180;
     const dx = Math.cos(rad);
     const dy = Math.sin(rad);
     const px = -dy;
     const py = dx;
-    const baseHalf = 3.4; // CSS px at the shaft base
-    const start = TEXEL_PX * 2; // shipped rays begin 2 cells out
-    ctx.fillStyle = tones[(Math.floor(tMs / 280) + i) % tones.length];
-    for (const [f0, f1, alpha] of segFracs) {
+    ctx.fillStyle = tones[ray.tone];
+    const segs: readonly (readonly [number, number, number])[] = [
+      [0, 0.55, ray.alpha],
+      [0.55, 1, ray.alpha * 0.38],
+    ];
+    for (const [f0, f1, alpha] of segs) {
       const d0 = start + (len - start) * f0;
       const d1 = start + (len - start) * f1;
-      const w0 = baseHalf * (1 - f0 * 0.85);
-      const w1 = baseHalf * (1 - f1 * 0.85);
+      const w0 = ray.halfPx * (1 - f0 * 0.8);
+      const w1 = Math.max(0.12, ray.halfPx * (1 - f1 * 0.8));
       ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.moveTo(cx + dx * d0 + px * w0, cy + dy * d0 + py * w0);
@@ -529,6 +598,143 @@ function paintFanRaysSmooth(
       ctx.fill();
     }
   });
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+/**
+ * The Corona glow field — a layered radial corona in place of the
+ * shipped banded ellipses: white-hot core → gold → amber wash, every
+ * edge a gradient falloff, composited additively so the layers read
+ * as one body of light. Elliptical (the field's shipped 0.52 squash)
+ * via a scaled radial gradient.
+ */
+function paintCoronaGlow(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  ramp: FiveToneRamp,
+  strength: number,
+): void {
+  if (rx <= 0 || strength <= 0) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.translate(cx, cy);
+  ctx.scale(1, ry / rx);
+  ctx.translate(-cx, -cy);
+  const layer = (radius: number, stops: readonly (readonly [number, string, number])[]) => {
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    for (const [at, color, a] of stops) grad.addColorStop(at, hexToRgba(color, a * strength));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  // Amber wash — the field's full reach.
+  layer(rx, [
+    [0, ramp.base, 0.3],
+    [0.4, ramp.dark, 0.2],
+    [0.72, ramp.deep, 0.1],
+    [1, ramp.deep, 0],
+  ]);
+  // Gold body.
+  layer(rx * 0.58, [
+    [0, ramp.light, 0.42],
+    [0.55, ramp.base, 0.22],
+    [1, ramp.base, 0],
+  ]);
+  // White-hot core.
+  layer(rx * 0.27, [
+    [0, '#FFFFFF', 0.8],
+    [0.5, ramp.pale, 0.5],
+    [1, ramp.pale, 0],
+  ]);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+/**
+ * The ground BLOOM — the shipped concentric flare discs, drawn as
+ * light instead: one elliptical radial gradient (white heart → pale →
+ * rarity tone → nothing) over a wide faint wash, composited
+ * additively. Same footprint formula as the discs it replaces.
+ */
+function paintGroundBloom(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  ground: number,
+  rx: number,
+  ramp: FiveToneRamp,
+  strength: number,
+): void {
+  if (rx <= 0 || strength <= 0) return;
+  const ry = rx * 0.26;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.translate(cx, ground);
+  ctx.scale(1, ry / rx);
+  ctx.translate(-cx, -ground);
+  const layer = (radius: number, stops: readonly (readonly [number, string, number])[]) => {
+    const grad = ctx.createRadialGradient(cx, ground, 0, cx, ground, radius);
+    for (const [at, color, a] of stops) grad.addColorStop(at, hexToRgba(color, a * strength));
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, ground, radius, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  layer(rx * 1.6, [
+    [0, ramp.base, 0.1],
+    [1, ramp.base, 0],
+  ]);
+  layer(rx, [
+    [0, '#FFFFFF', 0.62],
+    [0.3, ramp.pale, 0.45],
+    [0.62, ramp.light, 0.22],
+    [1, ramp.light, 0],
+  ]);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+/** The beam's luminance multiplier behind the header band — the
+ *  header law's notch (DESIGN.md §8): the beam keeps ~30% of its
+ *  light where the host's header crosses it. */
+const HEADER_NOTCH_KEEP = 0.3;
+
+/**
+ * Applies the header notch: an erase pass (destination-out) over the
+ * beam column where it crosses the header band, feathered at the
+ * band's edges. Runs after the beam paints and before the sparks, so
+ * only the beam (and any corona spill behind it) is dimmed; the
+ * header text itself is a DOM layer above the canvas and is never
+ * touched. `band` is the header's span in CSS px from the host top.
+ */
+function paintHeaderNotch(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  halfSpanPx: number,
+  band: { top: number; bottom: number },
+): void {
+  const feather = 14;
+  const y0 = Math.max(0, band.top - feather);
+  const y1 = band.bottom + feather;
+  if (y1 <= y0 || halfSpanPx <= 0) return;
+  const grad = ctx.createLinearGradient(0, y0, 0, y1);
+  const cut = 1 - HEADER_NOTCH_KEEP;
+  grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  grad.addColorStop(Math.min(1, feather / (y1 - y0)), `rgba(0, 0, 0, ${cut})`);
+  grad.addColorStop(Math.max(0, 1 - feather / (y1 - y0)), `rgba(0, 0, 0, ${cut})`);
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - halfSpanPx, y0, halfSpanPx * 2, y1 - y0);
+  ctx.restore();
   ctx.globalAlpha = 1;
 }
 
@@ -635,6 +841,12 @@ interface LootBeamPaintOpts {
    *  (ordinary feed drops) paints the stepped beam + flare only —
    *  escalation stays scale, never a busier idle scene. */
   radiant: boolean;
+  /** The host header's span (CSS px from the host top) where it
+   *  crosses the beam — the smooth painter notches the beam's
+   *  luminance to ~30% behind it (the header law, DESIGN.md §8).
+   *  Only the in-moment smooth painter honors it; hosts without a
+   *  header over the beam omit it. */
+  headerBandPx?: { top: number; bottom: number };
 }
 
 /** True when the beam's canvas is one of the light kit's scoped
@@ -674,30 +886,23 @@ function paintLootBeamFrameSmooth(
   const glowRxCells = opts.widthPx >= 68 ? 47 : opts.widthPx >= 34 ? 40 : opts.widthPx >= 22 ? 34 : 26;
   const glowRx = glowRxCells * TEXEL_PX;
 
+  // The Corona glow field — layered radial light, no discs (the
+  // Corona grammar, DESIGN.md §8).
   if (opts.radiant && glowStrength > 0) {
-    const glowRy = glowRx * 0.52;
-    const bands: readonly (readonly [number, keyof FiveToneRamp, number])[] = [
-      [1, 'deep', 76],
-      [0.8, 'dark', 96],
-      [0.6, 'base', 116],
-      [0.4, 'light', 136],
-    ];
-    for (const [f, tone, a] of bands) {
-      paintEllipse(ctx, cx, glowY, glowRx * f, glowRy * f, ramp[tone], (a / 255) * glowStrength);
-    }
-    paintEllipse(ctx, cx, glowY, glowRx * 0.22, glowRy * 0.22, ramp.pale, (122 / 255) * glowStrength);
+    paintCoronaGlow(ctx, cx, glowY, glowRx, glowRx * 0.52, ramp, glowStrength);
   }
 
-  // The radiating fan — behind the item, over the backdrop.
-  if (opts.radiant && tMs > 60) paintFanRaysSmooth(ctx, cx, glowY, ramp, tMs, glowRx * 1.9);
+  // The Corona's fine ray field — behind the item, over the backdrop.
+  if (opts.radiant && tMs > 60) paintCoronaRays(ctx, cx, glowY, ramp, tMs, glowRx * 1.9);
 
-  // Beam — the shipped three-band identity (base / light / white core
-  // over the same width fractions and peak alphas), drawn with soft
+  // Beam — slimmer than the shipped column (the Corona's feathered
+  // shaft), same three-band identity (base / light / white core over
+  // the same width fractions and peak alphas) with deeper soft
   // lateral falloff: nested soft-edged rects per band so the edges
   // feather into the scene instead of cutting it.
   const topMargin = H * 0.02;
   const beamTop = ground - (ground - topMargin) * (0.45 + 0.55 * ignition);
-  const beamPx = Math.max(6, opts.widthPx);
+  const beamPx = Math.max(5, opts.widthPx * 0.7);
   const beamBands: readonly (readonly [number, keyof FiveToneRamp | null, number])[] = [
     [1, 'base', 165],
     [0.55, 'light', 175],
@@ -705,35 +910,32 @@ function paintLootBeamFrameSmooth(
   ];
   for (const [wf, tone, a] of beamBands) {
     const w = beamPx * wf;
-    const feather = Math.max(3, w * 0.22);
-    for (let s = 3; s >= 1; s -= 1) {
-      const ww = w + feather * (s - 1) * 0.8;
+    const feather = Math.max(3, w * 0.3);
+    for (let s = 4; s >= 1; s -= 1) {
+      const ww = w + feather * (s - 1) * 0.7;
       ctx.globalAlpha = ((a / 255) * strength) / s;
       ctx.fillStyle = tone ? ramp[tone] : '#FFFFFF';
       ctx.fillRect(cx - ww / 2, beamTop, ww, ground - beamTop);
     }
   }
   // Hot junction where the beam meets the ground (shipped 3-cell bar,
-  // same span and alpha).
+  // same span and alpha, on the slimmer column).
   ctx.globalAlpha = (120 / 255) * strength;
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(cx - beamPx / 2, ground - 3 * TEXEL_PX, beamPx, 3 * TEXEL_PX);
   ctx.globalAlpha = 1;
 
-  // Ground flare — concentric ellipses, white heart outward (the
-  // incumbent's own width formula).
-  const flareRx = (opts.widthPx * opts.flareScale * 2.4) / 2;
-  const flareRy = flareRx * 0.22;
-  const flareBands: readonly (readonly [number, keyof FiveToneRamp | null, number])[] = [
-    [1, 'dark', 60],
-    [0.78, 'base', 95],
-    [0.55, 'light', 130],
-    [0.32, null, 170],
-  ];
-  for (const [f, tone, a] of flareBands) {
-    paintEllipse(ctx, cx, ground, flareRx * f, flareRy * f, tone ? ramp[tone] : '#FFFFFF', (a / 255) * strength);
+  // Header law: notch the beam's luminance behind the host's header
+  // band (over the host's own soft dark underlay), so the header text
+  // — a DOM layer above this canvas — reads clean at every frame.
+  if (opts.headerBandPx) {
+    paintHeaderNotch(ctx, cx, beamPx * 1.1, opts.headerBandPx);
   }
-  ctx.globalAlpha = 1;
+
+  // Ground bloom — the flare's footprint (the incumbent's own width
+  // formula) drawn as a soft body of light instead of stacked discs.
+  const flareRx = (opts.widthPx * opts.flareScale * 2.4) / 2;
+  paintGroundBloom(ctx, cx, ground, flareRx, ramp, strength);
 
   // Gold sparks/embers particulate — the light kit's added layer,
   // riding the beam's own step (see paintGoldSparks).
@@ -742,11 +944,13 @@ function paintLootBeamFrameSmooth(
 
 /** One frame of the loot light. On the light kit's scoped surface
  *  (the beam inside the cache loot moment) the frame paints smooth at
- *  full canvas resolution; everywhere else it paints stepped: glow
- *  field (concentric stepped ellipses travelling with the rise), the
- *  radiating fan, the beam's three ramp bands with their hot ground
- *  junction, and the stepped ground flare — the approved exploration's
- *  construction, live. Both painters share every timing envelope. */
+ *  full canvas resolution — since the Corona grammar (2026-11-11), as
+ *  physical light: radial corona, fine rays, feathered beam, ground
+ *  bloom; everywhere else it paints stepped: glow field (concentric
+ *  stepped ellipses travelling with the rise), the radiating fan, the
+ *  beam's three ramp bands with their hot ground junction, and the
+ *  stepped ground flare — the approved exploration's construction,
+ *  live. Both painters share every timing envelope. */
 function paintLootBeamFrame(
   ctx: CanvasRenderingContext2D,
   wCells: number,
@@ -850,8 +1054,11 @@ export const LootBeam: React.FC<
     glowYPct?: number;
     /** Glow field + radiating fan (full celebrations only). */
     radiant?: boolean;
+    /** Host header span (CSS px from the host top) crossing the
+     *  beam — the header-law notch (in-moment painter only). */
+    headerBandPx?: { top: number; bottom: number };
   }
-> = ({ xPct, groundYPct, color, widthPx, flareScale = 2.6, reduced = false, durationMs, glowYPct, radiant = true }) => {
+> = ({ xPct, groundYPct, color, widthPx, flareScale = 2.6, reduced = false, durationMs, glowYPct, radiant = true, headerBandPx }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawRef = useRef<SteppedDraw>(() => {});
   // Latest-closure draw for the stepped-canvas loop: assigned in an
@@ -867,6 +1074,7 @@ export const LootBeam: React.FC<
         durationMs: durationMs ?? MOVEMENT.LOOT_LEGENDARY_MS,
         glowYPct,
         radiant,
+        headerBandPx,
       });
   });
   useSteppedCanvas(canvasRef, drawRef, { reduced, staticMs: 1400 });

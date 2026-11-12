@@ -936,6 +936,30 @@ and every other surface — combat FX, the bench kit, even the
 shockwave ring inside the moment itself — keeps the stepped texel
 treatment exactly as shipped.
 
+**The Corona grammar (owner-approved 2026-11-11; design authority:
+Impeccable, direction A "Corona").** Inside the same scoped surface,
+the light kit's flat shapes are retired: the banded-ellipse glow
+field and the concentric ground-flare discs read as stamped shapes
+next to the painted item art, so the in-moment painters now draw
+physical light. The settled treatment: a layered radial corona
+behind the risen item (white-hot core → gold → amber wash, every
+edge a gradient falloff, composited additively); ~50 fine irregular
+rays of varying length and alpha in place of the nine fan shafts,
+riding the shipped ignite-stagger and twinkle-pulse envelopes; the
+beam slimmer and feathered, landing in a soft ground BLOOM instead
+of the flare discs; and the gold sparks/embers particulate the kit
+already flies. Rarity grading is unchanged in structure — the full
+Corona is the legendary treatment, and lower grades keep their
+sequence and timings with the same falloff grammar substituted for
+any flat disc. **The header law** rides with the grammar: the
+reveal's CACHE DECRYPTED header renders as an unmodified top DOM
+layer above all FX, over a soft dark underlay, and the beam's core
+luminance is notched to ~30% behind the header band — the header
+must read perfectly over the beam at every frame of the sequence.
+Scope is unchanged: the Corona lives only inside the cache loot
+moment's container; the stepped grammar — shockwave ring included —
+stands everywhere else, and every Sample B timing is untouched.
+
 ### 8.1 The pxl craft standard (owner-approved sweep, 2026-11-06)
 
 Composited item art follows the pxl craft discipline (hue-shifted

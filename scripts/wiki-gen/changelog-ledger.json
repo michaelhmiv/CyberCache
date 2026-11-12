@@ -60,6 +60,10 @@
         {
           "number": 497,
           "title": "Aim/recoil poses: far arm braces under the gun arm instead of dangling"
+        },
+        {
+          "number": 498,
+          "title": "Suppress the far arm in aim/recoil: strict side view draws one arm"
         }
       ]
     },

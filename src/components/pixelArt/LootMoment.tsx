@@ -93,6 +93,11 @@ interface LootMomentProps {
    *  beam base (it ghosts away as the item rises). Boss fiction stays
    *  clean — no crate on the boss stage. */
   propCache?: boolean;
+  /** The host header's span (CSS px from the host top) where it
+   *  crosses the beam — forwarded to the beam so its luminance is
+   *  notched behind the header (the header law, DESIGN.md §8). Hosts
+   *  whose header doesn't cross the beam omit it. */
+  headerBandPx?: { top: number; bottom: number };
   /** Fired once when the moment finishes or is skipped through. */
   onDone?: () => void;
   testId?: string;
@@ -512,6 +517,7 @@ export const LootMoment: React.FC<LootMomentProps> = ({
   anchorXPct = 50,
   groundYPct = 84,
   propCache = false,
+  headerBandPx,
   onDone,
   testId,
 }) => {
@@ -639,6 +645,7 @@ export const LootMoment: React.FC<LootMomentProps> = ({
         durationMs={beamStep.celebration.durationMs}
         glowYPct={stageDeck ? stageGlowYPct : undefined}
         radiant={full}
+        headerBandPx={headerBandPx}
       />
 
       {/* Shockwave on the legendary step (once per step mount) */}

@@ -48,6 +48,21 @@ class RecordingContext {
 
   clearRect(...args: unknown[]) { this.record('clearRect', args); }
   fillRect(...args: unknown[]) { this.record('fillRect', args); }
+  // Gradient factories — the Corona painters (2026-11-11) draw their
+  // falloffs with real canvas gradients; the stub records the call
+  // and returns a no-op stop collector so painting can proceed.
+  createRadialGradient(...args: unknown[]) {
+    this.record('createRadialGradient', args);
+    return { addColorStop: () => {} };
+  }
+  createLinearGradient(...args: unknown[]) {
+    this.record('createLinearGradient', args);
+    return { addColorStop: () => {} };
+  }
+  save(...args: unknown[]) { this.record('save', args); }
+  restore(...args: unknown[]) { this.record('restore', args); }
+  translate(...args: unknown[]) { this.record('translate', args); }
+  scale(...args: unknown[]) { this.record('scale', args); }
   beginPath(...args: unknown[]) { this.record('beginPath', args); }
   closePath(...args: unknown[]) { this.record('closePath', args); }
   moveTo(...args: unknown[]) { this.record('moveTo', args); }
