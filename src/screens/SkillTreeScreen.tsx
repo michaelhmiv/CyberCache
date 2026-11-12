@@ -159,7 +159,9 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   const player = usePlayerStore();
   const skillStore = useSkillStore();
 
-  const pointsSpent = skillStore.getTotalSpent();
+  // Budget points spent — weighted by listed cost (audit HTR-01), so
+  // Available, the spend gate, and the Respec quote all match the server.
+  const pointsSpent = skillStore.getSpentBudget();
   const pointsEarned = Math.max(0, player.level - 1);
   const pointsAvailable = Math.max(0, pointsEarned - pointsSpent);
   const nodes = getSkillTreeNodes(activeTree);

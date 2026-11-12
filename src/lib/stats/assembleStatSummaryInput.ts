@@ -28,9 +28,12 @@ import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/type
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
 import {
   classModBoostsOf,
+  computeSkillBonuses,
   effectiveSkillPoints,
   type ClassModBoosts,
 } from '@/lib/skills/skillBonuses';
+import { simulateBoss } from '@/lib/simulation/bossSimulator';
+import { RiskSetting } from '@/types/game';
 import type { CharacterStatSummaryInput } from '@/lib/stats/characterStats';
 
 /** Gear slots a summary loadout carries (the vehicle slot never prices here). */
@@ -111,6 +114,43 @@ export function assembleStatSummaryInput(
     }
   }
 
+  const spentSkills = effectiveSkillPoints(state.spent, boosts);
+
+  // Audit HTR-05: when a boss is in context, the snapshot's boss
+  // metrics carry the boss SIM's own numbers through the bossSimDps /
+  // bossSimShieldBreak overrides — never the snapshot's display-layer
+  // approximation (which weights attackSpeed at ×1.0 where the sim's
+  // composite uses ×0.3, and sums shield break over all weapons where
+  // the sim weights the secondary at 0.3 with element matchups). The
+  // sim runs on the post-override loadout, so an equip comparison
+  // prices the candidate build. Balanced risk is the display
+  // precedent (mechanicsBalanceReport). With no boss in context there
+  // is no sim to run — the standing Totals keep the approximation,
+  // unchanged from before this fix.
+  let bossSimDps: number | undefined;
+  let bossSimShieldBreak: number | undefined;
+  if (state.boss) {
+    const sim = simulateBoss({
+      primary: weapons[0] ?? null,
+      secondary: weapons[1] ?? null,
+      heavy: weapons[2] ?? null,
+      ordnance: ordnance ?? null,
+      shield: shield ?? null,
+      classMod: classMod ?? null,
+      relic: relic ?? null,
+      consumables: state.consumableInventory ?? {},
+      risk: RiskSetting.Balanced,
+      boss: state.boss,
+      playerLevel: state.player.level,
+      // computeSkillBonuses folds effective points itself (raw
+      // spends + boosts) — the same derivation the Chef's
+      // skillBonusesFromRecords performs for the settling sim.
+      skillBonuses: computeSkillBonuses(state.spent, boosts),
+    });
+    bossSimDps = sim.effectiveDPS;
+    bossSimShieldBreak = sim.shieldBreakValue;
+  }
+
   return {
     player: state.player,
     weapons,
@@ -118,8 +158,10 @@ export function assembleStatSummaryInput(
     classMod,
     relic,
     ordnance,
-    spentSkills: effectiveSkillPoints(state.spent, boosts),
+    spentSkills,
     boss: state.boss,
+    bossSimDps,
+    bossSimShieldBreak,
     activeBuffs: state.activeBuffs,
     consumableMods: state.consumableMods,
     consumableInventory: state.consumableInventory,
