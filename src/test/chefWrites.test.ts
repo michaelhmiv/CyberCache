@@ -8,7 +8,9 @@
  * cross-player isolation, nonce replay (no double-pay), and 401s.
  */
 import express from 'express';
+import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
+import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { mountWriteRoutes } from '../server/writes/routes';
 import { InMemoryWriteStore } from '../server/writes/memory';
@@ -532,6 +534,19 @@ describe('market + services', () => {
     expect(res.json).toMatchObject({ error: 'forbidden', message: 'Verified account required' });
   });
 
+  it('vendor-buy carries the same economy gate (audit M-1)', async () => {
+    // Guest C is funded (100cr) and MedKit is always offered — before the
+    // gate this request reached the balance check and answered 400
+    // 'Insufficient credits'; the gate must refuse first, at 403, with
+    // no price/balance evaluation and no movement.
+    const res = await post(h, '/api/ops/vendor-buy', h.tokenC, { nonce: nonce(), item_key: 'MedKit', quantity: 1 });
+    expect(res.status).toBe(403);
+    expect(res.json).toMatchObject({ error: 'forbidden', message: 'Verified account required' });
+    const guest = h.store.seed.profiles.find((p) => p.id === C);
+    expect(guest?.credits).toBe(100);
+    expect((guest?.consumables as Record<string, number>).MedKit ?? 0).toBe(0);
+  });
+
   it('full listing lifecycle: create, cross-player cannot cancel, buyer purchases', async () => {
     const badPrice = await post(h, '/api/ops/market-create', h.tokenA, { nonce: nonce(), item_id: ITEM_A1, price_credits: 0 });
     expect(badPrice.status).toBe(400);
@@ -724,5 +739,29 @@ describe('activity, username, snapshots, push, reset', () => {
     } finally {
       await h2.close();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SQL pin — migration 0091 restates cc_vendor_buy with the economy gate
+// (audit M-1, Pg twin of the route test above)
+// ---------------------------------------------------------------------------
+
+describe('migration 0091 — cc_vendor_buy economy gate pin', () => {
+  const sql = readFileSync(
+    resolve(process.cwd(), 'db/migrations/0091_vendor_buy_economy_gate.sql'),
+    'utf8',
+  );
+
+  it('restates cc_vendor_buy with the can_use_player_economy guard', () => {
+    expect(sql).toContain('create or replace function public.cc_vendor_buy(p_player_id uuid, nonce text, item_key text, quantity integer default 1)');
+    expect(sql).toContain("if not public.can_use_player_economy(actor) then raise exception 'Verified account required'; end if;");
+  });
+
+  it('places the guard before any price or balance evaluation', () => {
+    const guardAt = sql.indexOf('can_use_player_economy(actor)');
+    expect(guardAt).toBeGreaterThan(-1);
+    expect(guardAt).toBeLessThan(sql.indexOf('unit_price := public.cc_vendor_price'));
+    expect(guardAt).toBeLessThan(sql.indexOf("raise exception 'Insufficient credits'"));
   });
 });

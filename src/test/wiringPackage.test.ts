@@ -45,7 +45,10 @@ function profile(over: Partial<ProfileRowData> & { id: string }): ProfileRowData
     materials: {}, essences: {}, consumables: {}, skill_spends: {}, boss_state: {},
     last_idle_claim_at: null, last_claimed_tick: 0,
     created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z',
-    account_type: 'verified', email: null, email_verified_at: null,
+    // Fully economy-eligible: vendor buy carries the verified-account
+    // gate (audit M-1), so the shipped-buy-path buyer is verified with
+    // a confirmed email.
+    account_type: 'verified', email: null, email_verified_at: '2026-10-01T00:00:00.000Z',
     verification_grace_expires_at: null, verification_reminder_last_seen_at: null,
     last_roaming_settled_at: null, last_settlement_nonce: null, offline_cap_hours: 2,
     legendary_cores: 0, workshop_tools: {},

@@ -1067,6 +1067,12 @@ export class InMemoryWriteStore implements WriteStore {
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
+    // Verified-account gate (audit M-1): every other money-moving op
+    // calls requireEconomy before any price/balance evaluation; vendor
+    // buy skipped it, so a guest reached the offer and balance checks.
+    // SQL twin: cc_vendor_buy carries the can_use_player_economy guard
+    // in the same position (migration 0091).
+    this.requireEconomy(playerId);
     // The ONE vendor catalog: staples always, rotation + Item of the
     // Day by the UTC date of this purchase (SQL twin: cc_vendor_price).
     const offer = vendorOfferFor(itemKey, vendorDateKey(this.nowFn()));
