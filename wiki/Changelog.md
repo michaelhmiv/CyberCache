@@ -4,7 +4,14 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-12 — The audit fix wave
 
+
+
+- **Linking Google now upgrades your guest account, as promised** — signing in with Google from a guest account used to leave the account flagged as a guest underneath: the market, services, extraction and leaderboards stayed locked and the game kept asking you to link. The link now promotes the account in place — same account, same hunter, same progress — and the locks lift the moment you sign in.
+- **Class mods no longer phantom-spend your skill points** — wearing a class mod with a tree bonus used to inflate the "points spent" count behind the scenes: the Hunter screen could announce "All points spent" with real points still in hand, quote a respec price higher than the server would charge, and even block you from spending points you actually had. Spent, available, and the respec quote now count only the points you really spent — the mod's boosts still strengthen your skills exactly as before.
+- **Local previews can no longer touch the live game by accident** — a copy of the game opened from a local address used to send its sign-ins and economy calls to the live production server unless it sat on one specific port, so a preview could silently play on the real economy. Local copies now talk only to whatever served them; pointing one at a real server is an explicit setting, never the default. The app itself is unchanged.
 - **Major and keystone skills now charge the price on the tin** — every skill train used to debit a single budget point, even the majors listed at 3 and the keystones listed at 5, so whole trees ran cheaper than designed and a keystone could land far earlier than intended. Trains now debit the listed cost on every path, and the respec quote prices the same budget points the server charges. Points you already trained stay trained — nothing is retro-charged.
+
+
 
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
