@@ -742,7 +742,7 @@ completion is impossible and choices stay real. Each track caps at
 | Fast Learner (XP) | +1% XP | +10% | Chef rates + craft/repair completion XP (both twins) |
 | Salvage Hound (scrap) | +1% scrap | +10% | Chef claim/boss salvage/endless scrap |
 | Heavy Hand (damage) | +0.5% damage | +5% | Chef derived DPS + boss sim seam |
-| Thick Skin (max HP) | +1% max HP | +10% | Mechanics snapshot + boss sim (base HP only; shield HP unscaled) |
+| Thick Skin (max HP) | +1% max HP | +10% | The ONE canonical HP pool (computeCanonicalMaxHp, owner ruling HTR-03 2026-11-12): mechanics snapshot, boss sim, roaming survival store, idle-ticker survival stats, offline danger gate, boss-fight HP bar (base HP only; shield HP unscaled) |
 | Cache Optimizer (quality) | +0.02 cache quality | +0.20 | `cc_make_item` draw + TS twin — WIRES the dead `cacheQuality` skill effect (#216) into the same lane: non-minimum rarity tiers' weights × (1 + q) |
 | Silver Tongue (market) | +0.5% of post-fee proceeds | +5% | `cc_accept_listing` + TS fee mirror — see order below |
 

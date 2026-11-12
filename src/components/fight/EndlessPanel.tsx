@@ -24,6 +24,7 @@ import type { SkillTreeType } from '@/types/game';
 import { ActionSkillCard } from './ActionSkillCard';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { endlessDepthBand, endlessEncounterForDepth } from '../../content/endless';
+import { cacheRankBonuses } from '@/content/cacheRank';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { LootMoment } from '../pixelArt/LootMoment';
@@ -298,7 +299,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
       loot: [],
       extraLoot: false,
     };
-    const initialTimeline = buildInitialTimeline(fightOutcome, nextEncounter.health, player.level, shield?.hp ?? 0);
+    const initialTimeline = buildInitialTimeline(fightOutcome, nextEncounter.health, player.level, shield?.hp ?? 0, cacheRankBonuses(player.cacheRankSpends).maxHp);
     // One-Stage Law (Motion Reboot M3, the #431 pattern): the
     // animated fight plays on the MAIN STAGE, not in this card.
     // Every timeline snapshot is published to the boss store —
