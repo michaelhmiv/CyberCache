@@ -74,7 +74,11 @@ describe('embedded Skill Trees (Profile) — respec reachable', () => {
     render(<SkillTreeScreen embedded />);
     expect(screen.getByText('Spent').nextSibling?.textContent).toBe('3');
 
+    // Two-step flow (audit HTR-07): the first click only arms the
+    // confirmation; the second executes.
     fireEvent.click(screen.getByRole('button', { name: /respec/i }));
+    expect(mockRetrain).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /confirm respec/i }));
     expect(mockRetrain).toHaveBeenCalledTimes(1);
 
     await waitFor(() => {
@@ -83,6 +87,23 @@ describe('embedded Skill Trees (Profile) — respec reachable', () => {
     // All 5 earned points are available again, and respec is now free.
     expect(screen.getByText('Available').nextSibling?.textContent).toBe('5');
     expect(screen.getByText('Respec returns every spent point — cost 0cr (100cr per point spent).')).toBeTruthy();
+  });
+
+  it('one Respec click never calls retrain; the confirmation names the exact cost (audit HTR-07)', () => {
+    render(<SkillTreeScreen embedded />);
+    fireEvent.click(screen.getByRole('button', { name: /^respec$/i }));
+    expect(mockRetrain).not.toHaveBeenCalled();
+    // 3 points spent × 100cr — the armed button names the exact cost.
+    expect(screen.getByRole('button', { name: /confirm respec · 300cr/i })).toBeTruthy();
+  });
+
+  it('disables Respec at zero spends (audit HTR-07)', () => {
+    useSkillStore.setState({ spent: {}, classModBoosts: { nodeBoosts: {} } });
+    render(<SkillTreeScreen embedded />);
+    const button = screen.getByRole('button', { name: /respec/i }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(mockRetrain).not.toHaveBeenCalled();
   });
 });
 

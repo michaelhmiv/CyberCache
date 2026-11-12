@@ -4210,6 +4210,11 @@ export class InMemoryWriteStore implements WriteStore {
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
+    // Zero-spend guard (audit HTR-07): a retrain with nothing spent
+    // used to 'succeed' at 0cr and write a ledger/stat record for a
+    // no-op. Refuse before anything records. (Point count is the
+    // predicate: zero points ⟺ zero weighted cost.)
+    if (skillSpendTotal(p.skill_spends as Json) === 0) throw writeError('Nothing to respec');
     const total = skillSpendTotal(p.skill_spends as Json);
     const cost = total * 100;
     if (p.credits < cost) throw writeError('Insufficient credits');
