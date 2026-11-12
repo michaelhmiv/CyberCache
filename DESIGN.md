@@ -2569,6 +2569,26 @@ measured, not yet judged by his eye).
   settle, the between-enemy advance, the Stop interrupt on the
   real diorama).
 
+### The shield remounts in combat poses (owner ruling, 2026-11-11)
+
+The far arm stays suppressed in the aim and recoil poses (the
+strict side view draws one arm — #498), but the shield no longer
+vanishes with it. The shield mounts to the TORSO in aim/recoil —
+the torso's dedicated `shieldTorsoMount`, low on the chest toward
+the gun side, held across the body — so an equipped shield is
+visible in every combat pose, which is most of every fight. In
+every pose where the far arm is drawn (idle, roam, hit, and the
+rest) the shield keeps its arm mount, byte-identical. The remount
+is resolved centrally in `gearMounts.ts` (`resolveGearMount`), so
+the raster compositor, the DOM actor, and the Pixi stages all hang
+the shield on the same point; a torso that does not declare the
+mount still swallows the shield in those poses (the swallow rule
+is untouched — gear never floats at a default). Every torso part
+declares the mount (the lint requires it). Pinned by
+`src/test/gearMounts.test.tsx` (torso anchor asserted for
+aim+recoil, arm anchor asserted for hit/idle/roam, in both the
+raster and DOM render paths).
+
 ### The streak claim moment
 
 The daily reward's ceremony belongs to the CLAIM, not the check-in

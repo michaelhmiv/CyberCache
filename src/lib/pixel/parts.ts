@@ -131,9 +131,12 @@ export const REQUIRED_ANCHORS: Record<PartSlot, string[]> = {
  *  default — the swallow rule is enforced here, at the data layer.
  *  The far arm carries the shield mount (§6: the shield emitter is
  *  an arm part, declared by armFar/armForeN — Standard Issue
- *  declares it on the support arm). */
+ *  declares it on the support arm). The torso ALSO carries a shield
+ *  mount (`shieldTorsoMount`): in the poses that suppress the far
+ *  arm (aim/recoil) the shield remounts there so it stays visible
+ *  (owner ruling, 2026-11-11; resolution lives in gearMounts.ts). */
 export const REQUIRED_MOUNTS: Partial<Record<PartSlot, string[]>> = {
-  torso: ['shoulderMount', 'chestMount', 'beltMount'],
+  torso: ['shoulderMount', 'chestMount', 'beltMount', 'shieldTorsoMount'],
   armFar: ['shieldMount'],
 };
 
@@ -191,8 +194,11 @@ export interface PartPoseTransform {
    *  placement, anchors and joints stay in the layout — geometry
    *  gates and actor extents never move), but no render path draws
    *  it in this pose, and gear mounted on it does not resolve (the
-   *  swallow rule follows the part). For parts a strict side view
-   *  never shows in a given stance — the far arm in combat poses. */
+   *  swallow rule follows the part) — with one ruled exception:
+   *  the shield remounts to the torso when its arm is suppressed
+   *  (gearMounts.ts, owner ruling 2026-11-11). For parts a strict
+   *  side view never shows in a given stance — the far arm in
+   *  combat poses. */
   hidden?: boolean;
 }
 
@@ -234,8 +240,10 @@ export const PART_POSES: Record<PartsPoseName, PartPose> = {
     // owner's zoom audit, so the part is suppressed outright: it
     // still resolves geometrically (placement + supportHand joint
     // stay in the layout), it simply never paints. The shield
-    // mounted on it follows the swallow rule and does not render
-    // in these poses either — it rides an arm that isn't there.
+    // mounted on it no longer vanishes with it (owner ruling,
+    // 2026-11-11): it remounts to the torso's shieldTorsoMount
+    // for exactly these poses (gearMounts.ts), so an equipped
+    // shield is visible through the whole fight.
     armFar: { hidden: true },
     head: { rotate: 3 },
   },
