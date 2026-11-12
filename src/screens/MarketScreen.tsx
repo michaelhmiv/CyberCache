@@ -1192,6 +1192,12 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
           {sortedMyListings.length === 0 && <div className="py-8 text-center text-xs text-text-muted">No active listings match.</div>}
           {sortedMyListings.map((listing, index) => {
             const preview = feePreview(listing.price, skillBonuses, listing.itemSnapshot?.sourceTag);
+            // The row's Cancel action deliberately carries NO
+            // transact guard (audit A-14): the server has no economy
+            // gate on market-cancel — cancelling your own listing is
+            // recovery, not transacting — so a player whose
+            // verification lapsed with a live listing can still pull
+            // it down. The UI lock set must equal the server gate set.
             return (
               <ListingRow
                 key={listing.id}
@@ -1203,8 +1209,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate }) => {
                 onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => setInspectItem(listing.itemSnapshot) : undefined}
                 onShowUsage={setUsageMaterialId}
                 action={(
-                  <button onClick={() => guardTransact('cancel a listing', () => void handleCancelListing(listing))} disabled={pendingCancelId === listing.id} className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-red-600 px-3 text-[11px] font-bold text-bg hover:bg-red-500 disabled:opacity-50">
-                    {pendingCancelId === listing.id ? 'Cancelling…' : (<>Cancel Listing{marketLocked && <Lock size={11} className="ml-1 inline" aria-hidden />}</>)}
+                  <button onClick={() => void handleCancelListing(listing)} disabled={pendingCancelId === listing.id} className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-red-600 px-3 text-[11px] font-bold text-bg hover:bg-red-500 disabled:opacity-50">
+                    {pendingCancelId === listing.id ? 'Cancelling…' : 'Cancel Listing'}
                   </button>
                 )}
               />
