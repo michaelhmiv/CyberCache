@@ -20,7 +20,11 @@ import {
   ROAM_HUNTER_PLACEMENT,
   approachOffsetXPct,
   deriveRoamScene,
+  enemyWalkAlpha,
+  resolveRoamWalkFrame,
   sampleEnemyWalkPose,
+  type RoamSceneModel,
+  type RoamWalkState,
 } from '@/lib/pixel/roamChoreography';
 
 describe('roam approach staging', () => {
@@ -98,6 +102,83 @@ describe('walk articulation — the rig strides through the approach', () => {
     expect(past.offsetXPct).toBe(0);
     expect(past.deltaX).toBe(0);
   });
+
+describe('walk frame resolution — presence is state, not a witnessed transition (invisible-enemy regression)', () => {
+  // The defect (2026-11-11 latency audit): the Pixi tick rested on
+  // the spawn-instant model (walkMs 0 → offset 24 → alpha 0), so
+  // the enemy was visible only inside the 850 ms walk-in window
+  // and snapped back to invisible on arrival, for every target.
+  // These tests run the tick's exact frame pipeline: resolve the
+  // walk frame, derive with its walkMs inside the window, rest on
+  // the settled derivation outside it, alpha via enemyWalkAlpha.
+  const base = {
+    backgroundId: 'zone-dustwaste-bg',
+    areaId: 'dustwaste_frontier',
+    targetMaxHp: 100,
+    currentTargetId: 'dustwaste_drone',
+    hunterSet: STANDARD_ISSUE,
+  } as const;
+  const KEY = 'dustwaste_drone|std';
+  function frame(prev: RoamWalkState | null, key: string, now: number): { state: RoamWalkState; model: RoamSceneModel } {
+    const f = resolveRoamWalkFrame(prev, key, now);
+    const model = f.walkMs !== undefined ? deriveRoamScene({ ...base, walkMs: f.walkMs }) : deriveRoamScene({ ...base });
+    return { state: f.walk, model };
+  }
+
+  it('an enemy already active at stage mount walks in and REACHES alpha 1 — and stays there', () => {
+    // Mount: no clock exists for the already-active target.
+    const t0 = 50_000;
+    const first = frame(null, KEY, t0);
+    expect(first.state).toEqual({ targetKey: KEY, startMs: t0 });
+    // Arrival and long after: settled, fully opaque, at the settle point.
+    for (const t of [t0 + MOVEMENT.WALK_IN_MS, t0 + 5_000, t0 + 120_000]) {
+      const settled = frame(first.state, KEY, t);
+      expect(settled.model.enemyWalk).toBeNull();
+      expect(settled.model.enemyPlacement.xPct).toBe(ROAM_ENEMY_PLACEMENT.xPct);
+      expect(enemyWalkAlpha(settled.model)).toBe(1);
+    }
+  });
+
+  it('inside the window the approach is live: offset shrinks and alpha rises toward 1', () => {
+    const t0 = 10_000;
+    const start = frame(null, KEY, t0);
+    const mid = frame(start.state, KEY, t0 + 425);
+    expect(mid.model.enemyWalk).not.toBeNull();
+    expect(mid.model.enemyWalk!.offsetXPct).toBeGreaterThan(0);
+    expect(mid.model.enemyWalk!.offsetXPct).toBeLessThan(ROAM_APPROACH.spawnOffsetXPct);
+    expect(enemyWalkAlpha(mid.model)).toBeGreaterThan(0);
+    expect(enemyWalkAlpha(mid.model)).toBeLessThan(1);
+  });
+
+  it('a target change restarts the walk for the new target, which then settles visible', () => {
+    const t0 = 20_000;
+    const a = frame(null, 'dustwaste_drone|std', t0);
+    const settledA = frame(a.state, 'dustwaste_drone|std', t0 + 10_000);
+    expect(enemyWalkAlpha(settledA.model)).toBe(1);
+    const b = frame(settledA.state, 'dustwaste_brute|std', t0 + 10_000);
+    expect(b.state).toEqual({ targetKey: 'dustwaste_brute|std', startMs: t0 + 10_000 });
+    const settledB = frame(b.state, 'dustwaste_brute|std', t0 + 10_000 + MOVEMENT.WALK_IN_MS + 1);
+    expect(enemyWalkAlpha(settledB.model)).toBe(1);
+  });
+
+  it('tab-away-and-back does NOT restart the walk and never returns the spawn frame', () => {
+    const t0 = 30_000;
+    const start = frame(null, KEY, t0);
+    // The ticker pauses while hidden; wall time jumps a minute.
+    const back = resolveRoamWalkFrame(start.state, KEY, t0 + 60_000);
+    expect(back.walk).toEqual({ targetKey: KEY, startMs: t0 });
+    expect(back.walkMs).toBeUndefined();
+    const settled = frame(start.state, KEY, t0 + 60_000);
+    expect(enemyWalkAlpha(settled.model)).toBe(1);
+  });
+
+  it('the settled derivation is the resting model: alpha 1 exactly, never the spawn alpha 0', () => {
+    const settled = deriveRoamScene({ ...base });
+    expect(enemyWalkAlpha(settled)).toBe(1);
+    const spawn = deriveRoamScene({ ...base, walkMs: 0 });
+    expect(enemyWalkAlpha(spawn)).toBe(0);
+  });
+});
 
   it('the model folds the delta into the rig pose only inside the window', () => {
     const base = {
