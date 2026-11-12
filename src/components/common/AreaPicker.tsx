@@ -159,7 +159,7 @@ const AreaCard: React.FC<{
           <div className="mt-2 text-[11px] leading-snug text-text-secondary">{area.gameplayIdentity}</div>
         </button>
         {onTapStart && (
-          <button type="button" onClick={onTapStart} className="bl-secondary shrink-0 px-2 py-1 text-[11px] font-black text-amber">
+          <button type="button" onClick={onTapStart} className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black text-amber">
             Start Roam
           </button>
         )}

@@ -818,7 +818,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {hasAnyFilter && (
-            <button onClick={clearFilters} className="rounded-full border border-red/30 bg-red/10 px-2 py-1 text-[11px] font-black text-red">
+            <button onClick={clearFilters} className="rounded-full border border-red/30 bg-red/10 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black text-red">
               Reset
             </button>
           )}
@@ -1050,13 +1050,13 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             <button onClick={selectAll} className="text-[11px] text-text-muted">All</button>
             <button onClick={deselectAll} className="text-[11px] text-text-muted">None</button>
             <div className="flex-1" />
-            <button onClick={bulkLock} aria-label="Lock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-black text-text-muted">
+            <button onClick={bulkLock} aria-label="Lock selected" className="rounded-lg border border-border bg-surface px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black text-text-muted">
               <Lock size={12} />
             </button>
-            <button onClick={bulkUnlock} aria-label="Unlock selected" className="rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-black text-text-muted">
+            <button onClick={bulkUnlock} aria-label="Unlock selected" className="rounded-lg border border-border bg-surface px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black text-text-muted">
               <Unlock size={12} />
             </button>
-            <button onClick={() => setShowSalvageSheet(true)} aria-label="Scrap by rarity" className="rounded-lg border border-red/40 bg-red/10 px-2 py-1 text-[11px] font-black text-red">
+            <button onClick={() => setShowSalvageSheet(true)} aria-label="Scrap by rarity" className="rounded-lg border border-red/40 bg-red/10 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black text-red">
               <Trash2 size={12} />
             </button>
           </motion.div>
