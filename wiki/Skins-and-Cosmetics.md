@@ -52,10 +52,11 @@ permanently available; there are no limited-time windows yet.
 
 The hunter is drawn in strict side view, so in the combat
 stances — aiming and riding out the recoil — the far arm is not
-drawn at all: only the gun arm shows. Your shield rides the far
-arm, so it sits out those two stances too and is back on the arm
-at rest. This holds on every set — standard-issue, Bulwark, and
-Dreadplate alike.
+drawn at all: only the gun arm shows. Your shield does not sit
+those stances out: it remounts to your torso, held across the
+body, for exactly as long as the far arm is away, and it is back
+on the arm at rest. This holds on every set — standard-issue,
+Bulwark, and Dreadplate alike.
 
 <!-- GENERATED from src/content/skins.ts, src/lib/pixel/skinParts.ts, src/lib/pixel/partsCompositor.ts, src/lib/pixel/standardIssue.ts — do not edit by hand -->
 <!-- wiki-gen:skins-pictured -->

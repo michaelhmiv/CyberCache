@@ -11,13 +11,16 @@ import { AuthHero } from '@/components/common/AuthHero';
  * session links to Google in place (progress kept) from this screen or
  * from any feature gate.
  *
- * Platform honesty (QC B3): Google sign-in exists only in the app —
- * the native flow has no web counterpart (nativeAuth refuses off-app).
- * In the app this screen's copy promises sign-in unlocks, and it does.
- * On the web the same promise sat above a button that can only fail,
- * so the web build says what it is: a guest preview, with sign-in —
- * and everything it unlocks — living in the app. The Google button
- * and its app-only refusal stay untouched on both platforms.
+ * Platform honesty (QC B3, completed by audit A-02): Google sign-in
+ * exists only in the app — the native flow has no web counterpart
+ * (nativeAuth refuses off-app). In the app this screen's copy
+ * promises sign-in unlocks, and it does. On the web the same promise
+ * sat above a button whose only outcome was an error banner plus a
+ * debug dump; SignInLockPrompt already solved this exact problem by
+ * rendering explanatory text and NO button on web, and this screen
+ * now mirrors it — the web build is a guest preview, sign-in lives
+ * in the app, and the dead CTA is gone. The native button is
+ * untouched.
  */
 export const AuthScreen: React.FC = () => {
   const auth = useAuth();
@@ -62,13 +65,14 @@ export const AuthScreen: React.FC = () => {
             </div>
           )}
           {diagnosticText && (
-            <details className="bl-card px-3 py-2 text-[10px] text-text-muted" open>
+            <details className="bl-card px-3 py-2 text-[10px] text-text-muted">
               <summary className="cursor-pointer font-black uppercase tracking-wide text-amber">Google debug packet</summary>
               <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-words font-mono leading-snug text-text-primary">
                 {diagnosticText}
               </pre>
             </details>
           )}
+          {isNative ? (
           <button
             onClick={() => auth.signInWithGoogle()}
             disabled={auth.actionLoading}
@@ -82,6 +86,12 @@ export const AuthScreen: React.FC = () => {
             </svg>
             Continue with Google
           </button>
+          ) : (
+            <div className="text-xs leading-relaxed text-text-muted" data-testid="auth-web-signin-note">
+              Sign-in happens in the CyberCache app — open the app to sign in with Google and keep
+              your hunter on any device. Here on the web, continue as a guest to look around.
+            </div>
+          )}
           <button
             onClick={() => auth.continueAsGuest()}
             disabled={auth.actionLoading}
