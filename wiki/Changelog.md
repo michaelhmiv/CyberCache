@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+- **The Garage agrees with itself when the tank is dry** — the vehicle card's "Effective yield now" used to keep showing the fueled bonus (×1.15) while the banner above it said you were roaming on foot at ×1.00. Both now read from the same tank state: empty tank, ×1.00 everywhere.
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
