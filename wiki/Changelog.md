@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — The audit fix wave
+
+- **First launch is quieter under the hood** — a fresh account's starter bundle (5,000 credits, 500 scrap, 3 cache keys and the Scrap Bike) is now requested exactly once per session, so the duplicate request that used to bounce off the server on a new player's first screen is gone. The bundle itself is unchanged.
+
 ## 2026-11-11 — The cache, painted whole; the big icons are paintings now; vehicles and set pieces, painted whole; a painted sign-in; goods, painted; gear, painted; your hunter is a painting now; the vistas are paintings now; your weapons are paintings now; the far arm sits out the fight; the reveal's light is a corona now
 
 
