@@ -4214,6 +4214,11 @@ export class InMemoryWriteStore implements WriteStore {
     // 3-point cost, keystones at 5 — the SQL twin charges
     // cc_skill_spend_cost × 100 (migration 0089).
     const total = skillSpendCost(p.skill_spends as Json, this.seed.skillNodes);
+    // Zero-spend guard (audit HTR-07): a retrain with nothing spent
+    // used to 'succeed' at 0cr and write a ledger/stat record for a
+    // no-op. Refuse before anything records. (Zero weighted cost ⟺
+    // zero points spent: every node costs at least 1.)
+    if (total === 0) throw writeError('Nothing to respec');
     const cost = total * 100;
     if (p.credits < cost) throw writeError('Insufficient credits');
     p.credits -= cost;

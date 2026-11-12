@@ -503,6 +503,17 @@ describe('skills + battle', () => {
     expect(prof.skill_spends).toEqual({});
   });
 
+  it('retrain refuses a zero-spend profile and records nothing (audit HTR-07)', async () => {
+    // B has no skill spends: the retrain must refuse, not 'succeed'
+    // at 0cr with a ledger/stat record for a no-op.
+    const res = await post(h, '/api/ops/retrain', h.tokenB, { nonce: nonce() });
+    expect(res.status).toBe(400);
+    expect(res.json.message).toBe('Nothing to respec');
+    const ledger = h.store.seed.ledger.filter((row) => row.user_id === B && row.action_type === 'cc_retrain');
+    expect(ledger).toHaveLength(0);
+    expect(h.store.seed.profiles.find((p) => p.id === B)?.credits).toBe(500);
+  });
+
   it('battle result draws odds; the fragment leg pays nothing (fragments abolished)', async () => {
     rngQueue = [0.9]; // sorted outcomes: defeat(50), victory(50) -> roll 91..100? floor(0.9*100)+1 = 91 -> victory
     const res = await post(h, '/api/ops/battle-result', h.tokenA, { nonce: nonce(), target_id: 'boss-1', stance: 'balanced' });

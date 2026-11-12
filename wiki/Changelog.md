@@ -33,6 +33,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The Wardrobe opens again for repaint owners** — if you owned a repaint-tier cosmetic, your cosmetics page failed to load at all (the server tried to read the repaint tier as a number). It now reads tiers the way the rest of the game does, and your parts list normally.
 - **The market docs now match the market** — MECHANICS.md claimed listing was free; it has not been since the listing deposit shipped. Listing now correctly reads as a 25-scrap deposit, refunded when your item sells and burned if you cancel, alongside the 5% sale fee.
 - **Level 100 is the top now** — XP used to keep minting levels (and skill points) past 100 forever, and your level plate promised a "Level 101" that was never meant to exist. Level 100 is the summit: XP still banks, the plate reads MAX LEVEL, and the skill-point budget stops at its designed 99.
+- **Respec asks first now** — respec used to fire on a single tap: one misclick could burn your whole build and its full cost with no undo. The button now arms a confirmation that names the exact cost before anything is spent, and it stays disabled when you have nothing spent to refund.
 
 
 
