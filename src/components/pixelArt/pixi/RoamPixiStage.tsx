@@ -10,6 +10,7 @@ import {
   isResumeProbeEnabled,
   logResumeProbeEvent,
 } from '@/lib/pixel/resumeProbe';
+import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
 import { CritFlash, DamageNumber } from '../PixelFx';
 import { DropRiseIcon } from '@/components/dashboard/LiveTurfDiorama';
 import { LootMoment } from '../LootMoment';
@@ -1146,6 +1147,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
     let app: Application | null = null;
     let resizeObserver: ResizeObserver | null = null;
     let probeCleanup: (() => void) | null = null;
+    let contextRecoveryCleanup: (() => void) | null = null;
     const probeEnabled = isResumeProbeEnabled();
     const runtime = (runtimeRef.current ??= createRoamRuntime());
     const init = async () => {
@@ -1264,6 +1266,15 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       app.canvas.style.imageRendering = 'pixelated';
       app.canvas.style.display = 'block';
       host.appendChild(app.canvas);
+      // X-01/A-07: a lost WebGL context must not freeze the stage —
+      // route to the DOM fallback (same as an init failure). Wired
+      // unconditionally; the resume probe's own handler is separate
+      // and probe-gated.
+      contextRecoveryCleanup = installWebglContextRecovery(app.canvas, {
+        onContextLost: () => {
+          if (!cancelled) setFailed(true);
+        },
+      });
 
       const world = new Container();
       app.stage.addChild(world);
@@ -1535,6 +1546,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
     });
     return () => {
       cancelled = true;
+      contextRecoveryCleanup?.();
       probeCleanup?.();
       resizeObserver?.disconnect();
       if (app) {
