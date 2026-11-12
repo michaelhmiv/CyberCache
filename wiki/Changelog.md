@@ -46,6 +46,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Skill-tree node art renders at its full size** — the authored 30×30 node art was being squeezed into 20px on the board, blurring the inner marks and your tree's sigil into a colored blob. It now renders at its native 30px, so each tree's sigil reads clearly.
 - **A worn cosmetic that can't be found now says so in the developer console** — if a skin part you're wearing fails to load, the game still shows the stock part (as before), but the miss is now recorded on the resolved look instead of vanishing silently, so the problem can actually be found and fixed.
 - **The Chamber's error message now has a Retry button** — if the Endless Chamber facts fail to load, you no longer have to leave the tab and come back; tap Retry and it loads again right there.
+- **Leaderboards and social screens are now officially open to guests in the app's gate table too** — they already worked for guests; this removes a leftover rule that said otherwise, so nothing can accidentally lock guests out of viewing them again.
 
 
 
