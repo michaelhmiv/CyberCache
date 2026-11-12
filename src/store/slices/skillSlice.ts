@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { SKILL_NODES } from '../../constants/skillTrees';
 import { computeSkillBonuses } from '@/lib/skills/skillBonuses';
 import type { ClassMod } from '../../types/items';
-import { SkillTreeType } from '../../types/game';
 
 export interface SkillState {
   spent: Record<string, number>;
@@ -21,13 +20,6 @@ export interface SkillState {
   removeClassMod: () => void;
 }
 
-/** Map tree name to SkillTreeType for treeBonus resolution. */
-const TREE_NAME_MAP: Record<string, SkillTreeType> = {
-  Gunslinger: SkillTreeType.Gunslinger,
-  Demolition: SkillTreeType.Demolition,
-  Scavenger: SkillTreeType.Scavenger,
-  Fixer: SkillTreeType.Fixer,
-};
 
 export const useSkillStore = create<SkillState>()((set, get) => ({
   spent: {},
@@ -64,18 +56,14 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
   },
 
   getTotalSpent: () => {
-    const { spent, classModBoosts } = get();
-    const manual = Object.values(spent).reduce((a, b) => a + b, 0);
-    // treeBonus adds 1 per node in the tree
-    let treeBonusPoints = 0;
-    if (classModBoosts.treeBonus) {
-      const treeType = TREE_NAME_MAP[classModBoosts.treeBonus];
-      if (treeType) {
-        treeBonusPoints = SKILL_NODES.filter((n) => n.tree === treeType).length;
-      }
-    }
-    const nodeBoostPoints = Object.values(classModBoosts.nodeBoosts).reduce((a, b) => a + b, 0);
-    return manual + treeBonusPoints + nodeBoostPoints;
+    // Spend accounting reads REAL spends only (audit HTR-02): this total
+    // feeds Spent / Available / Respec and the spend gate, and it must match
+    // the server's ledger (cc_skill_spend_total sums profiles.skill_spends).
+    // Class-mod boosts are effective points for bonuses — they live in
+    // computeSkillBonuses / effectiveSkillPoints and never enter here,
+    // or a worn mod would phantom-spend the player's budget and lock
+    // them out of spending real points.
+    return Object.values(get().spent).reduce((a, b) => a + b, 0);
   },
 
   applyClassMod: (classMod) => {
