@@ -7,6 +7,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 
 - **Linking Google now upgrades your guest account, as promised** — signing in with Google from a guest account used to leave the account flagged as a guest underneath: the market, services, extraction and leaderboards stayed locked and the game kept asking you to link. The link now promotes the account in place — same account, same hunter, same progress — and the locks lift the moment you sign in.
+- **Class mods no longer phantom-spend your skill points** — wearing a class mod with a tree bonus used to inflate the "points spent" count behind the scenes: the Hunter screen could announce "All points spent" with real points still in hand, quote a respec price higher than the server would charge, and even block you from spending points you actually had. Spent, available, and the respec quote now count only the points you really spent — the mod's boosts still strengthen your skills exactly as before.
 
 
 
