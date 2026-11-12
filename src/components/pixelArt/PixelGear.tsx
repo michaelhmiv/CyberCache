@@ -155,14 +155,32 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
   // space -> decode -> (class mods) the live deck in the measured
   // window -> an object URL the <img> paints. Cached per signature so
   // lists never re-fetch or re-decode the same item twice.
+  // The signature deliberately omits rarity (latency audit fix,
+  // 2026-11-12): the generated image depends only on form + element
+  // (+ the class-mod deck) — rarity drives only the CSS glow filter
+  // on the <img>. Keying rarity in made every rarity of the same
+  // form+colorway re-fetch, re-decode and re-encode the identical
+  // image (up to 5x duplicate work per painting in a big inventory).
   const paintedSignature = painted && paintedDeclared
-    ? `painted|${painted.kind}|${painted.form}|${painted.element ?? ''}|${painted.rarity}`
+    ? `painted|${painted.kind}|${painted.form}|${painted.element ?? ''}`
       + (painted.kind === 'classMod'
         ? `|${JSON.stringify((item as { nodeBoosts?: Record<string, number> } | undefined)?.nodeBoosts ?? {})}`
         : '')
     : undefined;
   const [paintedUrl, setPaintedUrl] = useState<string | undefined>(undefined);
   useEffect(() => {
+    // Viewport deferral applies to the painted path too (latency
+    // audit fix, 2026-11-12): before this gate the painted fetch +
+    // decode + encode ran on MOUNT for every row — the pending
+    // canvas carried no ref, so useDeferredArt saw no element and
+    // activated at once, and the effect never checked `active`.
+    // Off-screen painted rows now wait for the same activation the
+    // grammar path uses; the cache check below still runs first
+    // once active, so revisit rows paint instantly from cache.
+    if (defer && !active) {
+      setPaintedUrl(undefined);
+      return;
+    }
     if (!painted || !paintedSprite || !paintedSignature) {
       setPaintedUrl(undefined);
       return;
@@ -208,7 +226,7 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
       setPaintedUrl(url);
     })();
     return () => { cancelled = true; };
-  }, [painted, paintedSprite, paintedSignature, item]);
+  }, [painted, paintedSprite, paintedSignature, item, defer, active]);
 
   const paintScale = density === 'card' ? CARD_PAINT_SCALE : THUMB_PAINT_SCALE;
 
@@ -245,10 +263,20 @@ export const PixelGear: React.FC<PixelGearProps> = React.memo(({
     if (!paintedUrl) {
       // Mount at final geometry while the painting decodes — no
       // layout shift when the art lands (the deferred pattern).
+      // The canvas carries the deferred-art ref (so the painted
+      // path actually defers — see the effect gate above), and its
+      // backing store is capped at 2x the CSS display box instead
+      // of the painting's native sprite size (latency audit fix,
+      // 2026-11-12): a native-size placeholder ran 1.2-2.4M backing
+      // pixels (~7MB) per row for art displayed at 46 CSS px. The
+      // CSS box is unchanged, so layout is pixel-identical.
+      const backingW = fluid ? spriteW : Math.min(spriteW, Math.max(1, Math.round(size * 2)));
+      const backingH = Math.max(1, Math.round(backingW * (spriteH / spriteW)));
       return (
         <canvas
-          width={spriteW}
-          height={spriteH}
+          ref={setCanvasRef}
+          width={backingW}
+          height={backingH}
           className={className}
           style={{
             width: fluid ? '100%' : size,

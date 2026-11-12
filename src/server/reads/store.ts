@@ -149,6 +149,16 @@ export interface ProfileRowData {
    * in-memory rows unless a test provides it.
    */
   boss_victories_today?: Record<string, number>;
+  /**
+   * Computed by PgReadStore.getProfile (not a column): the player's
+   * effective vendor buyback rate — the exact composition
+   * cc_vendor_sell settles at (lever + Appraiser's Eye skill term +
+   * Street Economics research term, capped at 0.9). The Vendor
+   * screen quotes from this server-provided rate, never a client
+   * constant (audit G-F3). Absent on seeded in-memory rows unless a
+   * test provides it.
+   */
+  vendor_buyback_rate?: number;
   username_updated_at: string | null;
   username_change_count: number;
 }
@@ -2276,7 +2286,24 @@ export class PgReadStore implements ReadStore {
     for (const row of victoryRows as Row[]) {
       if (typeof row.boss_id === 'string') bossVictoriesToday[row.boss_id] = num(row.victories);
     }
-    return { ...profile, boss_victories_today: bossVictoriesToday };
+    // Effective vendor buyback rate (audit G-F3): composed with the
+    // same functions and formula cc_vendor_sell settles at (0038) —
+    // lever clamped at 0, Appraiser's Eye at +1%/effective point from
+    // the seller's own spends and equipped class mod, the research
+    // term, and the shared 0.9 ceiling — so the Vendor screen's quote
+    // is the server's rate, not a client constant. Display only: the
+    // sell op re-derives the rate inside its own transaction.
+    const { rows: rateRows } = await this.db.query(
+      `select least(0.9, greatest(0, public.cc_economy_config_number('vendorBuybackRate', 0.4))
+         + greatest(0, 0.01 * public.cc_skill_effective_points($2::jsonb, mod.payload, 'fix_vendor_1', 'Fixer', 5))
+         + public.cc_research_bonus_number($1, 'vendorBuybackBonus')) as rate
+        from (select (select payload from public.item_instances
+                       where owner_user_id = $1 and runtime_state = 'equipped'
+                         and payload ? 'treeBonus' limit 1) as payload) mod`,
+      [playerId, JSON.stringify(profile.skill_spends ?? {})],
+    );
+    const vendorBuybackRate = rateRows.length ? num((rateRows[0] as Row).rate) : undefined;
+    return { ...profile, boss_victories_today: bossVictoriesToday, vendor_buyback_rate: vendorBuybackRate };
   }
 
   async getCollections(playerId: string): Promise<CollectionsData | null> {
