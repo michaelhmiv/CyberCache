@@ -175,7 +175,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
   return (
     <div className="space-y-3" data-testid="extraction-panel">
       {onLeave && !active && (
-        <button type="button" onClick={onLeave} className="bl-secondary px-2 py-1 text-[10px] font-black" data-testid="extraction-close">
+        <button type="button" onClick={onLeave} className="bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px] font-black" data-testid="extraction-close">
           <span className="inline-flex items-center gap-1"><PxIcon name="chevL" size={13} /> Back to actions</span>
         </button>
       )}
@@ -224,7 +224,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
         <MobileCard>
           <div className="flex items-center gap-2 text-xs text-red" data-testid="extraction-error">
             <AlertTriangle size={14} /> {error}
-            <button type="button" onClick={() => void refresh()} className="ml-auto bl-secondary px-2 py-1 text-[10px] font-black">
+            <button type="button" onClick={() => void refresh()} className="ml-auto bl-secondary px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px] font-black">
               Retry
             </button>
           </div>
@@ -251,7 +251,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
           <button
             type="button"
             onClick={() => void refresh()}
-            className="bl-secondary shrink-0 px-2 py-1 text-[10px] font-black"
+            className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px] font-black"
             data-testid="extraction-refresh"
           >
             <RefreshCw size={11} className="mr-1 inline" /> Settle

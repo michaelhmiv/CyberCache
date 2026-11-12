@@ -84,7 +84,7 @@ function VerificationReminderBanner() {
       <button
         onClick={() => markVerificationReminderSeen()}
         disabled={actionLoading}
-        className="bl-secondary shrink-0 px-2 py-1 text-[10px] font-black disabled:opacity-50"
+        className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px] font-black disabled:opacity-50"
       >
         Dismiss
       </button>
