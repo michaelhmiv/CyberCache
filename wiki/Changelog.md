@@ -23,6 +23,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Long sessions no longer stall an hour in** — your sign-in token quietly expires after an hour, and the game's roaming connection didn't know how to renew it: claims started failing, "rewards are paused" appeared, and roaming silently stopped paying until you restarted the app. The roaming connection now renews the session and carries on, the same way the rest of the game already did.
 - **A failed load now offers a way back** — if the game couldn't reach the server while restoring your session, it used to open onto skeleton bars that never filled, with no way forward but killing the app. It now stops on a clear screen with a Retry button (and a sign-out if you need it).
 - **The web sign-in screen no longer offers a button that can only fail** — "Continue with Google" on the web build always ended in an error (sign-in lives in the app), and it dumped a developer debug packet on the screen for good measure. The web screen now says plainly that sign-in happens in the app, and guest entry stays front and center.
+- **Switching activities says what it cost** — starting a roam used to silently pause a running crafting bench, and picking a boss silently ended your roam. Now a notice names it: "Crafting paused — Roaming started" (your bench jobs resume when Crafting holds the slot again), "Roaming ended — Boss fight started", and so on for every switch.
 
 
 
