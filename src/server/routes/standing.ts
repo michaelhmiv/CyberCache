@@ -58,7 +58,6 @@ export async function standingViewFromStore(
 const NOT_FOUND_MARKERS = ['Profile not found', 'Item not found', 'Tribute item not found'];
 
 const REFUSAL_MARKERS = [
-  'Verified account required',
   'Locked item',
   'not available',
   'Unequip',
@@ -86,6 +85,14 @@ const REFUSAL_MARKERS = [
 
 function sendStoreError(res: Response, fallback: string, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err);
+  // Audit A-04: the verified-account refusal is 403 on every surface
+  // (the writes routes map it to 'forbidden'); it used to fall into
+  // the 409 refusal bucket here, where a guest could not distinguish
+  // "not allowed" from "wrong state".
+  if (message.includes('Verified account required')) {
+    res.status(403).json({ error: 'forbidden', detail: message });
+    return;
+  }
   if (NOT_FOUND_MARKERS.some((marker) => message.includes(marker))) {
     res.status(404).json({ error: fallback, detail: message });
     return;

@@ -750,7 +750,9 @@ describe('contracts routes', () => {
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({ instanceId: inst.id, nonce: 'guest-nonce-0001' }),
     });
-    expect(claim.status).toBe(409);
+    // Audit A-04: the verified-account refusal is 403 on every
+    // surface (it used to be 409 here, 403 on the writes surface).
+    expect(claim.status).toBe(403);
     expect(store.profiles.get(guestId)!.credits).toBe(0);
   });
 });
