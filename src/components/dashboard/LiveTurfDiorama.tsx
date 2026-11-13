@@ -1637,6 +1637,38 @@ const PixelSceneLayerDom: React.FC<{
 // failure — renders the DOM scene above, byte-identical to before
 // M2. Both renderers consume the same stores, the same tick events,
 // and the same movement.ts law; the M2 PR carries the A/B evidence.
+/**
+ * The Pixi takeover cover (stage-iteration B2, 2026-11-12): holds
+ * the transient DOM scene over the Pixi stage until the stage
+ * reports its first drawn frames (onSceneReady). Before this gate,
+ * the Suspense fallback unmounted the moment the Pixi chunk
+ * resolved and the canvas sat black for the entire scene build —
+ * texture loads included — on every cold roam mount. The cover is
+ * the same inert transient instance the Suspense fallback uses (no
+ * walk clock, no resume probe), just held until the swap can land
+ * on a live frame. A Pixi failure still routes through onPixiError
+ * and the switch renders the DOM scene permanently. The readiness
+ * state is mount-scoped: leaving roaming and returning re-covers.
+ */
+const PixiSceneWithCover: React.FC<{
+  pixiProps: RoamPixiStageProps;
+  domProps: React.ComponentProps<typeof PixelSceneLayerDom>;
+  /** Pixi-path DOM companions (the hunter HP plate): rendered only
+   *  once the cover drops — the cover's own scene carries the
+   *  identical plate in the identical spot until then, so the
+   *  plate never doubles during the swap. */
+  children?: React.ReactNode;
+}> = ({ pixiProps, domProps, children }) => {
+  const [pixiReady, setPixiReady] = useState(false);
+  return (
+    <>
+      <RoamPixiStageLazy {...pixiProps} onSceneReady={() => setPixiReady(true)} />
+      {!pixiReady && <PixelSceneLayerDom {...domProps} transientFallback />}
+      {pixiReady && children}
+    </>
+  );
+};
+
 const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>> = (props) => {
   const webgl = React.useMemo(() => detectWebGL(), []);
   const [pixiFailed, setPixiFailed] = useState(false);
@@ -1684,12 +1716,15 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
   };
   return (
     <React.Suspense fallback={<PixelSceneLayerDom {...props} transientFallback />}>
-      <RoamPixiStageLazy {...pixiProps} />
-      {/* DOM companions the Pixi scene does not carry: the hunter
-          HP plate (a sibling of the hunter wrapper in the DOM
-          scene, anchored to his placement) — rendered here so it
-          rides the Pixi path identically. */}
-      <RoamHunterHpPlate groundY={getPixelSprite(props.backgroundId)?.anchors.groundLine?.y ?? 0.86} />
+      <PixiSceneWithCover pixiProps={pixiProps} domProps={props}>
+        {/* DOM companions the Pixi scene does not carry: the hunter
+            HP plate (a sibling of the hunter wrapper in the DOM
+            scene, anchored to his placement) — rendered here so it
+            rides the Pixi path identically. It mounts with the
+            cover drop: the cover's own scene carries the identical
+            plate until the Pixi stage's first frames land. */}
+        <RoamHunterHpPlate groundY={getPixelSprite(props.backgroundId)?.anchors.groundLine?.y ?? 0.86} />
+      </PixiSceneWithCover>
     </React.Suspense>
   );
 };
