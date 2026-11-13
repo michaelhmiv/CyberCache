@@ -83,6 +83,20 @@ describe('wikiMarkdown inline', () => {
     expect(openPage).toHaveBeenCalledWith('The-Market');
   });
 
+  it('renders a page that links the same target twice — and returns (issue #551 fixture)', () => {
+    // One paragraph links [[Progression]] twice, and a list item
+    // links it a third time — the content shape PR #514 shipped when
+    // the manual's index test hung (issue #551). The probes
+    // (#560/#561/#562) exonerated this renderer — the hang was the
+    // index test's stale count pin — and this fixture pins the
+    // innocence: every occurrence renders as its own link, and the
+    // render returns.
+    const { container } = renderMd(
+      'The cap lives on [[Progression]], and the road back runs through [[Progression]] too.\n\n- At the cap, see [[Progression]]',
+    );
+    expect(container.querySelectorAll('a[data-wiki-link="Progression"]').length).toBe(3);
+  });
+
   it('renders a dead wikilink as a dotted span, never a link', () => {
     const { container } = renderMd('See [[No-Such-Page]] for details.');
     expect(container.querySelector('a')).toBeNull();

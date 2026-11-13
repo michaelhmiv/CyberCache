@@ -6,8 +6,9 @@
  * 2026-11-05 — the wiki is the manual now).
  */
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { HelpScreen } from '@/screens/HelpScreen';
+import { getWikiLinkCount, wikiCorpusReady } from '@/lib/wiki/wikiCorpus';
 
 describe('Field Manual (HelpScreen)', () => {
   it('renders the masthead and the sidebar-grouped index', async () => {
@@ -18,16 +19,43 @@ describe('Field Manual (HelpScreen)', () => {
     expect(row).toBeTruthy();
     expect(within(row as HTMLElement).getByText('PG-02')).toBeTruthy();
     // The background preload converges the Links LCD to a number.
-    // The pin is the corpus's total [[…]] occurrence count: base
-    // 313, +1 One Grammar (Skins [[Gear]] cross-reference), +2 Hero
-    // Pass H1 (Skins + Crafting [[Manufacturer Standing]] links) = 316,
-    // +3 AL-4 trace pass (Activity-Log Extraction, Repair Board, and
-    // Shield-Tech cross-references) = 319, +1 boss cadence C1 (Combat
-    // cross-references [[Bosses]] for the attack pattern; the
-    // Endless-Mode cadence note is link-free by design) = 320,
+    // The wait is keyed to the corpus itself, never to the number:
+    // this test used to findByText the pinned count, so any wiki
+    // edit that moved the census (PR #514 added a second
+    // [[Progression]] link to The-Board) made the awaited text
+    // unreachable, and the test died at its 5000ms timeout with no
+    // assertion output — indistinguishable from runner flake
+    // (issue #551; probes #560/#561/#562 isolate it: the manual and
+    // the corpus count were always correct). Wait for readiness,
+    // then pin the census as a plain assertion — drift now fails
+    // here, instantly, with both numbers in the diff. The pin is
+    // the corpus's total [[…]] occurrence count: base 313, +1 One
+    // Grammar (Skins [[Gear]] cross-reference), +2 Hero Pass H1
+    // (Skins + Crafting [[Manufacturer Standing]] links) = 316, +3
+    // AL-4 trace pass (Activity-Log Extraction, Repair Board, and
+    // Shield-Tech cross-references) = 319, +1 boss cadence C1
+    // (Combat cross-references [[Bosses]] for the attack pattern;
+    // the Endless-Mode cadence note is link-free by design) = 320,
     // +1 G-F5 (Getting-Started's hunter-name note cross-references
-    // [[Leaderboards-and-Streaks]]) = 321.
-    expect(await screen.findByText('321', {}, { timeout: 10000 })).toBeTruthy();
+    // [[Leaderboards-and-Streaks]]) = 321. Bump the pin in the same
+    // change as any wiki edit that moves the census.
+    await waitFor(() => expect(wikiCorpusReady()).toBe(true));
+    expect(getWikiLinkCount()).toBe(321);
+    await waitFor(() => expect(screen.getByText('321')).toBeTruthy());
+  });
+
+  it('converges the Links LCD to whatever count the corpus itself reports', async () => {
+    // Issue #551 regression, stated count-agnostically: the LCD
+    // follows the corpus module's own count, so a page linking the
+    // same target twice — or any other census-moving wiki edit —
+    // can never leave the manual waiting on a number that will
+    // never appear. This pair of assertions holds at any census;
+    // no literal exists here to go stale.
+    render(<HelpScreen />);
+    await waitFor(() => expect(wikiCorpusReady()).toBe(true));
+    const count = getWikiLinkCount();
+    expect(count).not.toBeNull();
+    await waitFor(() => expect(screen.getByText(String(count))).toBeTruthy());
   });
 
   it('carries no trace of the retired guided tour or hand-written sections', () => {

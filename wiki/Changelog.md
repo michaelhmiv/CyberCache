@@ -123,6 +123,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 ## 2026-11-10 — Your vehicle rides up front
 
 - **Your vehicle has a permanent seat on Home now** — its chip moved off the consumables belt (the belt is consumables only again) and onto the resource Strip, docked right beside the loot counter after the gear count: your vehicle is your eighth loadout slot, so it sits with the counter that counts the other seven. It reads the same as ever while you're fueled — name, fuel units, yield, condition when worn — and still flips to its remedy when you run dry or wear out. The change that matters: it no longer vanishes when you're on foot. It reads **On foot** instead, and every state — fueled, dry, worn, on foot — taps straight through to your Loadout with the Garage already open.
+- **The Field Manual's link counter can no longer be stalled by a duplicate link** — the check behind the manual's Links readout waited for one hand-counted link total, so a wiki page linking the same page a second time (an ordinary edit) changed the total, the check waited on a number that could never appear, and the manual looked frozen in testing. The manual itself always showed the true count; the check now waits for the manual's own corpus to finish loading and compares against the count the corpus reports, so a future duplicate link fails loudly with both numbers instead of silently timing out. Nothing about the manual's pages, links, or counter changed.
 
 ## 2026-11-10 — Enemies close the distance
 
