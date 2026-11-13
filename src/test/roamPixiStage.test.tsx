@@ -170,10 +170,10 @@ describe('M2 — the roam scene model (one derivation for both renderers)', () =
     expect(model.hunterPoseName).toBe('aim');
     expect(model.rig?.segments).toHaveLength(4);
     expect(model.rigPose).toEqual({});
-    expect(model.hunterPlacement).toMatchObject({ xPct: 22, heightPct: 57 });
-    // Settle mark 66% — the tightened approach staging
-    // (animation fix iteration; was 74%).
-    expect(model.enemyPlacement).toMatchObject({ xPct: 66, heightPct: 66 });
+    expect(model.hunterPlacement).toMatchObject({ xPct: 12, heightPct: 57 });
+    // Settle mark 78%, frame 58% — the stage-iteration restage
+    // (2026-11-12; was the tightened 66%/66%).
+    expect(model.enemyPlacement).toMatchObject({ xPct: 78, heightPct: 58 });
     expect(model.lootRise).toBeNull();
     expect(model.dropItem).toBeNull();
   });
@@ -233,6 +233,19 @@ describe('M2 — beat tracks are the DOM stage tables, sampled', () => {
     const mid = sampleRoamBeat(beat, 110);
     expect(mid.hunter.x).toBeLessThan(0);
     expect(mid.enemyHit.scale).toBeLessThan(1);
+    const done = sampleRoamBeat(beat, MOVEMENT.HIT_REACTION_MS + 50);
+    expect(done.hunter.x).toBe(0);
+    expect(done.enemyHit.scale).toBe(1);
+    expect(done.enemyHit.x).toBe(0);
+  });
+
+  it('crit: same windows as the shot, heavier keys — deeper dip, harder knock, settled by HIT_REACTION_MS (stage-iteration program)', () => {
+    const beat = { kind: 'crit' as const, value: 30 };
+    const shotMid = sampleRoamBeat({ kind: 'shot' as const, value: 10 }, 110);
+    const mid = sampleRoamBeat(beat, 110);
+    expect(mid.enemyHit.scale).toBeLessThan(shotMid.enemyHit.scale);
+    expect(mid.enemyHit.x).toBeGreaterThan(shotMid.enemyHit.x);
+    expect(mid.hunter.x).toBeLessThan(shotMid.hunter.x);
     const done = sampleRoamBeat(beat, MOVEMENT.HIT_REACTION_MS + 50);
     expect(done.hunter.x).toBe(0);
     expect(done.enemyHit.scale).toBe(1);

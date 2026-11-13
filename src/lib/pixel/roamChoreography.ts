@@ -6,7 +6,7 @@ import { ENEMY_POSES, enemyRig, type RigDef, type RigPose } from './rig';
 import { layoutPartSet, type PartSetLayout } from './partsCompositor';
 import { partsAnchorPoint, partsWeaponFractionsFor } from './partsStage';
 import { actorAnchorPoint } from './movement';
-import { getMonster } from '@/constants/monsters';
+import { getMonster, type MonsterArchetype } from '@/constants/monsters';
 import { areaVisuals, type AreaVisualIdentity } from '@/content/areaPalettes';
 import { elementDialect, shotCadence, type ElementDialect, type ShotCadence } from './elementFx';
 import { getPixelSprite, pixelEnemySpriteForArchetype, requirePixelSprite, type PixelSprite } from './manifest';
@@ -46,28 +46,80 @@ import type { GearItem, Weapon } from '@/types/items';
  * already decided; nothing here produces gameplay outcomes.
  */
 
-/** Roam placements — PixelSceneLayer's own constants. */
-export const ROAM_HUNTER_PLACEMENT = { xPct: 22, heightPct: 57 } as const;
-export const ROAM_ENEMY_PLACEMENT = { xPct: 66, heightPct: 66 } as const;
+/** Roam placements — PixelSceneLayer's own constants. The hunter
+ *  sits at 12% since capture-pass round 2 (2026-11-13): the
+ *  hunter's extended rifle tip measures 57.6% of stage width from
+ *  the 18% mark, which left every archetype short of the ≥12%
+ *  rest-air law; the −6 shift buys all of them +6 air at once. */
+export const ROAM_HUNTER_PLACEMENT = { xPct: 12, heightPct: 57 } as const;
+export const ROAM_ENEMY_PLACEMENT = { xPct: 78, heightPct: 58 } as const;
 
 /**
- * Roam approach staging (animation fix iteration, 2026-11-10 —
- * the brief's Q3 item). The settle point above is where the enemy
- * ENDS its walk-in: 66% of stage width, moved in from the shipped
- * 74% so the fight's framing tightens (the hunter stands at 22%).
- * The walk-in itself starts off-frame right and travels the rest:
- * at walk progress p the enemy's live x offset from its settle
- * point is the approach below, eased by the renderers with the
- * same easeOut the walk-in has always used — the 850ms window
- * (MOVEMENT.WALK_IN_MS) and every Sample B timing are untouched;
- * only the staging geometry changed.
+ * Per-archetype settle overrides (stage-iteration capture pass,
+ * 2026-11-13). Measured on the capture rig (darkness-scan band
+ * scans + grounding, cross-checked against sprite alpha math;
+ * track logs arch-runner / arch-sniper): the hunter's rifle tip
+ * is a stage constant at 57.6% from the old 18% hunter mark.
+ * At the shared 78/58 settle the fodder front measures 65.2%
+ * (air 7.6%) and the brute front 68.0% (air 10.4%) — both short
+ * of the ≥12% law — the runner's forward-leaning rig puts its
+ * head at ≈51%, and the sniper's own rifle muzzle reaches ≈67%
+ * (crossed rifles). Round 1 (runner {82, 50}, sniper {86})
+ * captured: sniper front 74.6–75.7% → air ≈17% PASS; runner
+ * front only 58.8–59.7% — its sprite is 47.4% of stage wide at
+ * h58 with 43.4% of that width right of its feet anchor, so no
+ * in-stage placement of the runner alone reaches the law.
+ * Round 2 therefore pairs the hunter shift above (tip → ≈51.6%)
+ * with a runner settle of {84, 44} (predicted front ≈64%, air
+ * ≈12.4%, right edge ≈99.6%). Every other archetype keeps the
+ * shared mark, the elite staging (rig 72 / flat 74) is
+ * untouched, and no timing changes anywhere.
+ */
+export const ROAM_ARCHETYPE_PLACEMENT_OVERRIDES: Partial<
+  Record<MonsterArchetype, { xPct?: number; heightPct?: number }>
+> = {
+  runner: { xPct: 84, heightPct: 44 },
+  sniper: { xPct: 86 },
+};
+
+/** The effective roam settle for an archetype: the shared mark
+ *  with any per-archetype override applied. One derivation — the
+ *  scene model, the DOM diorama and the target HP plate all read
+ *  it, so the renderers cannot drift apart on a re-stage. */
+export function roamEnemyPlacementFor(
+  archetype: MonsterArchetype | undefined,
+): { xPct: number; heightPct: number } {
+  const override = archetype ? ROAM_ARCHETYPE_PLACEMENT_OVERRIDES[archetype] : undefined;
+  return {
+    xPct: override?.xPct ?? ROAM_ENEMY_PLACEMENT.xPct,
+    heightPct: override?.heightPct ?? ROAM_ENEMY_PLACEMENT.heightPct,
+  };
+}
+
+/**
+ * Roam approach staging. The settle point above is where the enemy
+ * ENDS its walk-in. History: the fight originally settled at 74%;
+ * the 2026-11-10 animation fix iteration moved the settle in to
+ * 66% (hunter at 22%) so the framing tightened on both ends. The
+ * 2026-11-12 stage-iteration program supersedes that staging on
+ * the owner's directive: measured on captures, at 66% the hunter's
+ * extended weapon crossed INTO the enemy silhouette at rest and
+ * the figures read face-to-face. The settle now stands at 78% with
+ * the enemy frame at 58% height and the hunter at 18%, restoring
+ * clear air between the silhouettes at rest (the program's ≥12%
+ * rest-gap criterion, measured per archetype in its iteration
+ * logs). The walk-in itself still starts off-frame right and
+ * travels the rest: at walk progress p the enemy's live x offset
+ * from its settle point is the approach below, eased by the
+ * renderers with the same easeOut the walk-in has always used —
+ * the 850ms window (MOVEMENT.WALK_IN_MS) and every Sample B
+ * timing are untouched; only the staging geometry changed.
  *
  * Data, like every choreography tenant: spawnOffsetXPct is how far
  * right of the settle point the walk-in begins (stage-width %);
  * at p = 0 the enemy's feet anchor sits at xPct + spawnOffsetXPct
- * (66 + 24 = 90% — its body, ~41% of stage width at roam height,
- * reaches past the right edge: it enters FROM off-frame); at p = 1
- * the offset is 0, exactly the settle point.
+ * (78 + 24 = 102% — past the right edge: it enters FROM off-frame);
+ * at p = 1 the offset is 0, exactly the settle point.
  */
 export const ROAM_APPROACH = {
   spawnOffsetXPct: 24,
@@ -257,13 +309,16 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
     (flatSpriteId ?? pixelEnemySpriteForArchetype(targetArchetype)) ?? 'brute';
   const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
   const hunterPlacement: ActorPlacement = { ...ROAM_HUNTER_PLACEMENT, groundY };
+  // Elite staging keeps the shared mark exactly (its heights
+  // below); the plain path reads the per-archetype settle.
+  const enemyBase = isEliteEvent ? ROAM_ENEMY_PLACEMENT : roamEnemyPlacementFor(targetArchetype);
   const enemyPlacement: ActorPlacement = {
-    ...ROAM_ENEMY_PLACEMENT,
+    ...enemyBase,
     heightPct: flatSpriteId
       ? ROAM_ELITE_FLAT_HEIGHT_PCT
       : isEliteEvent
         ? ROAM_ELITE_RIG_HEIGHT_PCT
-        : ROAM_ENEMY_PLACEMENT.heightPct,
+        : enemyBase.heightPct,
     groundY,
   };
   const beatRigPose = isEliteEvent ? ENEMY_POSES.idle : ENEMY_POSES[poses.enemy];
@@ -402,8 +457,13 @@ const FRAMER_EASE = EASE.ease;
  *    [0,.45,.62,.8,1] (framer px values ARE stage px here: the DOM
  *    wrappers are full-stage boxes, so 1 framer px = 1 stage px at
  *    any stage size — the values are NOT rescaled).
- *  - shot/crit: hunter x [0,-4,0] over 220ms (DOM literal); enemy
+ *  - shot: hunter x [0,-4,0] over 220ms (DOM literal); enemy
  *    scale [1,0.93,1.03,1] + x [0,9,-3,0] over HIT_REACTION_MS.
+ *  - crit: the same windows with heavier keys (hunter x [0,-6,0];
+ *    enemy scale [1,0.88,1.05,1] + x [0,13,-4,0]) — equivalent
+ *    weight inside the reaction window, never a clock freeze
+ *    (DESIGN.md §10: the absorbed hit-stop is boss-scoped; roam
+ *    carries none, so the crit's weight is depth, not time).
  *  - kill: hunter y [0,-9,0] over 420ms (DOM literal); enemy
  *    opacity [1,1,0], scale [1,1.05,0.5], y [0,0,24] over 500ms
  *    (DOM literal) easeIn.
@@ -443,13 +503,23 @@ export function sampleRoamBeat(beat: CombatBeat | null, tMs: number, event?: Tic
       };
     }
     case 'shot':
-    case 'crit':
       return {
         hunter: { x: sampleTrack(tMs, { keys: [0, -4, 0], durationMs: 220, ease: FRAMER_EASE }), y: 0, scaleY: 1 },
         enemyLungeX: 0,
         enemyHit: {
           scale: sampleTrack(tMs, { keys: [1, 0.93, 1.03, 1], durationMs: MOVEMENT.HIT_REACTION_MS, ease: FRAMER_EASE }),
           x: sampleTrack(tMs, { keys: [0, 9, -3, 0], durationMs: MOVEMENT.HIT_REACTION_MS, ease: FRAMER_EASE }),
+          y: 0,
+          opacity: 1,
+        },
+      };
+    case 'crit':
+      return {
+        hunter: { x: sampleTrack(tMs, { keys: [0, -6, 0], durationMs: 220, ease: FRAMER_EASE }), y: 0, scaleY: 1 },
+        enemyLungeX: 0,
+        enemyHit: {
+          scale: sampleTrack(tMs, { keys: [1, 0.88, 1.05, 1], durationMs: MOVEMENT.HIT_REACTION_MS, ease: FRAMER_EASE }),
+          x: sampleTrack(tMs, { keys: [0, 13, -4, 0], durationMs: MOVEMENT.HIT_REACTION_MS, ease: FRAMER_EASE }),
           y: 0,
           opacity: 1,
         },

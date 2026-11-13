@@ -1,17 +1,26 @@
 /**
  * Roam approach staging — animation fix iteration, 2026-11-10
- * (the brief's Q3 item, criterion 1).
+ * (the brief's Q3 item, criterion 1); restaged by the stage-
+ * iteration program, 2026-11-12.
  *
- * The shipped staging: the enemy appeared 6% of stage width from
- * its settle mark and slid that short distance — the owner's
+ * The 2026-11-10 staging: the enemy appeared 6% of stage width
+ * from its settle mark and slid that short distance — the owner's
  * "shooting gallery" complaint (the enemy never closes distance).
- * The fix is staging data only: the settle mark tightens and the
- * walk-in spans the full approach from off-frame right, inside
- * the SAME 850ms window (MOVEMENT.WALK_IN_MS is untouched — the
- * timing law is not this slice's to move).
+ * That fix tightened the settle to 66% and spanned the walk-in
+ * the full approach from off-frame right, inside the SAME 850ms
+ * window (MOVEMENT.WALK_IN_MS is untouched — the timing law is
+ * not this slice's to move).
+ *
+ * The 2026-11-12 restage (owner directive, capture-measured):
+ * at 66% the hunter's extended weapon crossed into the enemy
+ * silhouette at rest and the fight read face-to-face. The settle
+ * moves back out to 78%, the enemy frame drops to 58% height and
+ * the hunter stands at 18% — clear air at rest is the governing
+ * criterion now; the approach span and window are unchanged.
  */
 import { describe, expect, it } from 'vitest';
 import { MOVEMENT } from '@/lib/pixel/movement';
+import { anchorPoint, getPixelSprite, PIXEL_ENEMY_SPRITES } from '@/lib/pixel/manifest';
 import { ENEMY_POSES } from '@/lib/pixel/rig';
 import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import {
@@ -19,6 +28,7 @@ import {
   ROAM_ENEMY_PLACEMENT,
   ROAM_HUNTER_PLACEMENT,
   approachOffsetXPct,
+  roamEnemyPlacementFor,
   deriveRoamScene,
   enemyWalkAlpha,
   resolveRoamWalkFrame,
@@ -28,11 +38,11 @@ import {
 } from '@/lib/pixel/roamChoreography';
 
 describe('roam approach staging', () => {
-  it('the settle mark tightened: 66% (from the shipped 74%), hunter at 22%', () => {
-    expect(ROAM_ENEMY_PLACEMENT.xPct).toBe(66);
-    expect(ROAM_HUNTER_PLACEMENT.xPct).toBe(22);
+  it('the settle mark restaged: 78% (from the tightened 66%), hunter at 12%', () => {
+    expect(ROAM_ENEMY_PLACEMENT.xPct).toBe(78);
+    expect(ROAM_HUNTER_PLACEMENT.xPct).toBe(12);
     // The framing gap between the two actors' marks.
-    expect(ROAM_ENEMY_PLACEMENT.xPct - ROAM_HUNTER_PLACEMENT.xPct).toBe(44);
+    expect(ROAM_ENEMY_PLACEMENT.xPct - ROAM_HUNTER_PLACEMENT.xPct).toBe(66);
   });
 
   it('the approach spans 24% of stage width — 4x the shipped 6% slide', () => {
@@ -51,15 +61,17 @@ describe('roam approach staging', () => {
     expect(approachOffsetXPct(1.5)).toBe(0);
   });
 
-  it('the spawn point is off-frame: feet at 90%, body past the right edge', () => {
+  it('the spawn point is off-frame: feet at 102%, body past the right edge', () => {
     const spawnFeetXPct = ROAM_ENEMY_PLACEMENT.xPct + approachOffsetXPct(0);
-    expect(spawnFeetXPct).toBe(90);
-    // Rig body width at roam height (frame 223x384, height 66% of
+    expect(spawnFeetXPct).toBe(102);
+    // Rig body width at roam height (frame 223x384, height 58% of
     // the 420x286 design stage) — the sprite's left edge at spawn:
     const bodyWidthPct = (ROAM_ENEMY_PLACEMENT.heightPct * (223 / 384)) / (420 / 286);
     const feetFrac = 0.5; // rig feet anchor ≈ frame center
     const leftEdgePct = spawnFeetXPct - feetFrac * bodyWidthPct;
-    expect(leftEdgePct).toBeLessThan(90);
+    // The body enters FROM the right edge (its left edge starts
+    // at/inside the edge, never mid-stage)…
+    expect(leftEdgePct).toBeLessThan(100);
     // …and the body's right edge clears the stage's right edge:
     expect(leftEdgePct + bodyWidthPct).toBeGreaterThan(100);
   });
@@ -134,7 +146,7 @@ describe('walk frame resolution — presence is state, not a witnessed transitio
     for (const t of [t0 + MOVEMENT.WALK_IN_MS, t0 + 5_000, t0 + 120_000]) {
       const settled = frame(first.state, KEY, t);
       expect(settled.model.enemyWalk).toBeNull();
-      expect(settled.model.enemyPlacement.xPct).toBe(ROAM_ENEMY_PLACEMENT.xPct);
+      expect(settled.model.enemyPlacement.xPct).toBe(roamEnemyPlacementFor('runner').xPct);
       expect(enemyWalkAlpha(settled.model)).toBe(1);
     }
   });
@@ -198,5 +210,40 @@ describe('walk frame resolution — presence is state, not a witnessed transitio
     const arrived = deriveRoamScene({ ...base, walkMs: MOVEMENT.WALK_IN_MS });
     expect(arrived.enemyWalk).toBeNull();
     expect(arrived.rigPose).toEqual(ENEMY_POSES.idle);
+  });
+});
+
+describe('rest staging geometry — every archetype keeps its air (stage-iteration program, 2026-11-12)', () => {
+  // Box-level tripwire for the program's spacing criterion. The
+  // silhouette truth is measured on captures (the program's
+  // iteration logs); the sprite BOX is derivable exactly from the
+  // manifest through the same math actorAnchorPoint runs, and a
+  // staging edit that pushes any archetype's box across these
+  // lines has already lost before a capture is taken. (At the
+  // pre-program staging — settle 66%, height 66% — the runner's
+  // box was 47.5% wide with its left edge at 39.1%: both lines
+  // crossed.)
+  const ASPECT = 420 / 286;
+  for (const archetype of ['fodder', 'runner', 'brute', 'sniper', 'elite'] as const) {
+    it(`${archetype}: box ≤45% of stage width, left edge ≥52% at the settle`, () => {
+      const sprite = getPixelSprite(PIXEL_ENEMY_SPRITES[archetype])!;
+      // The EFFECTIVE settle (per-archetype overrides included) —
+      // the guard covers the staging the stage actually renders.
+      const placement = roamEnemyPlacementFor(archetype);
+      const widthPct = (placement.heightPct * (sprite.width / sprite.height)) / ASPECT;
+      const feet = anchorPoint(sprite, 'feet', 100, 100);
+      const left = placement.xPct - (feet.x / 100) * widthPct;
+      expect(widthPct).toBeLessThanOrEqual(45);
+      expect(left).toBeGreaterThanOrEqual(52);
+    });
+  }
+
+  it('per-archetype overrides: only runner + sniper move off the shared mark', () => {
+    expect(roamEnemyPlacementFor('fodder')).toEqual({ xPct: 78, heightPct: 58 });
+    expect(roamEnemyPlacementFor('brute')).toEqual({ xPct: 78, heightPct: 58 });
+    expect(roamEnemyPlacementFor('elite')).toEqual({ xPct: 78, heightPct: 58 });
+    expect(roamEnemyPlacementFor(undefined)).toEqual({ xPct: 78, heightPct: 58 });
+    expect(roamEnemyPlacementFor('runner')).toEqual({ xPct: 84, heightPct: 44 });
+    expect(roamEnemyPlacementFor('sniper')).toEqual({ xPct: 86, heightPct: 58 });
   });
 });

@@ -27,7 +27,7 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
-import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
+import { ROAM_ELITE_FLAT_HEIGHT_PCT, ROAM_ELITE_RIG_HEIGHT_PCT, ROAM_ENEMY_PLACEMENT, ROAM_HUNTER_PLACEMENT, approachOffsetXPct, roamEnemyPlacementFor, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -292,12 +292,12 @@ export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, 
  * the ground line — where on device it read as part of the stats
  * row below the animation, the wrong layer entirely. It now rides
  * IN the stage as a translucent overlay on the enemy's column
- * (xPct 74, the shared enemy placement), its top edge lifted off
+ * (the shared enemy placement, ROAM_ENEMY_PLACEMENT), its top edge lifted off
  * the ground line by the hunter plate's own lift (HP_PLATE_LIFT),
  * so the two plates read as a matched pair at the same height on
  * their respective sides. The lift was chosen off the enemy's
  * geometry, not the hunter's anchor copied blindly: roaming
- * enemies stand 66% of the stage tall on the ground line, so a
+ * enemies stand 58% of the stage tall on the ground line, so a
  * plate whose top edge sits 18.5 points above that line lands on
  * the enemy's lower body — face and head stay completely clear,
  * honoring the original no-plate-across-a-face ruling. The BOSS
@@ -318,12 +318,16 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYP
   if (!active || !targetId || maxHp <= 0) return null;
 
   const ratio = Math.max(0, Math.min(1, currentHp / maxHp));
-  const targetName = MONSTERS.find((monster) => monster.id === targetId)?.name ?? 'Target';
+  const targetMonster = MONSTERS.find((monster) => monster.id === targetId);
+  const targetName = targetMonster?.name ?? 'Target';
+  // The plate rides the enemy's column — the same per-archetype
+  // settle the stage renders at (roamChoreography owns the mark).
+  const plateXPct = roamEnemyPlacementFor(targetMonster?.archetype).xPct;
 
   return (
     <div
       className="pointer-events-none absolute z-30 w-[176px] border-2 border-border bg-bg/80 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
-      style={{ ...signClip, left: '74%', top: `${(groundYPct - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
+      style={{ ...signClip, left: `${plateXPct}%`, top: `${(groundYPct - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
       data-testid="primary-diorama-target-hp"
     >
       <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-black uppercase leading-tight tracking-wide text-text-muted">
@@ -959,15 +963,35 @@ const PixelSceneLayerDom: React.FC<{
     (bossOnStage ? bossSpriteId : undefined) ?? pixelEnemySpriteForArchetype(targetArchetype) ?? 'brute';
   const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
   // At camp the hunter takes the authored fire seat (center-x 505
-  // of 960 in the camp set's seat record); everywhere else the
-  // standing roam/fight mark holds.
-  const hunterPlacement: ActorPlacement = { xPct: idleCamp ? 52.6 : 22, heightPct: 57, groundY };
-  // Roam settle = ROAM_ENEMY_PLACEMENT (the tightened approach
-  // staging — roamChoreography owns it); boss encounters keep
-  // their own wider mark and taller frame.
+  // of 960 in the camp set's seat record); at a boss the shipped
+  // 22% mark holds (boss staging is its own composition); roaming
+  // reads ROAM_HUNTER_PLACEMENT — roamChoreography owns the mark.
+  const hunterPlacement: ActorPlacement = {
+    xPct: idleCamp ? 52.6 : bossOnStage ? 22 : ROAM_HUNTER_PLACEMENT.xPct,
+    heightPct: ROAM_HUNTER_PLACEMENT.heightPct,
+    groundY,
+  };
+  // Roam settle = the per-archetype mark (roamChoreography owns
+  // it — the shared ROAM_ENEMY_PLACEMENT plus its archetype
+  // overrides); boss encounters keep their own wider mark and
+  // taller frame, and elite events keep the shared mark exactly,
+  // mirroring the scene model's derivation. Elite heights mirror
+  // the Pixi derivation's (rig 72 / bespoke flat 74) so the DOM
+  // anchors — mass, feet, loot point — sit on the same frame the
+  // actor renders at (the rig/flat actors restate those heights
+  // at their own call sites below).
+  const roamEnemy = roamEnemyPlacementFor(targetArchetype);
   const enemyPlacement: ActorPlacement = {
-    xPct: bossOnStage ? 74 : ROAM_ENEMY_PLACEMENT.xPct,
-    heightPct: bossOnStage && bossSpriteId ? 80 : 66,
+    xPct: bossOnStage ? 74 : isEliteEvent ? ROAM_ENEMY_PLACEMENT.xPct : roamEnemy.xPct,
+    heightPct: bossOnStage
+      ? bossSpriteId
+        ? 80
+        : 66
+      : isEliteEvent
+        ? visuals.eliteSpriteId
+          ? ROAM_ELITE_FLAT_HEIGHT_PCT
+          : ROAM_ELITE_RIG_HEIGHT_PCT
+        : roamEnemy.heightPct,
     groundY,
   };
   const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
@@ -1008,11 +1032,22 @@ const PixelSceneLayerDom: React.FC<{
         });
         break;
       case 'shot':
-      case 'crit':
         void hunterControls.start({ x: [0, -4, 0], transition: { duration: 0.22 } });
         void enemyHitControls.start({
           scale: [1, 0.93, 1.03, 1],
           x: [0, 9, -3, 0],
+          transition: { duration: MOVEMENT.HIT_REACTION_MS / 1000 },
+        });
+        break;
+      case 'crit':
+        // The crit's equivalent weight (stage-iteration program):
+        // the same windows as the shot, heavier keys — the exact
+        // values sampleRoamBeat samples on the Pixi path, so the
+        // two renderers carry one crit.
+        void hunterControls.start({ x: [0, -6, 0], transition: { duration: 0.22 } });
+        void enemyHitControls.start({
+          scale: [1, 0.88, 1.05, 1],
+          x: [0, 13, -4, 0],
           transition: { duration: MOVEMENT.HIT_REACTION_MS / 1000 },
         });
         break;
@@ -1707,7 +1742,7 @@ const RoamHunterHpPlate: React.FC<{ groundY: number }> = ({ groundY }) => {
     <div
       data-testid="diorama-hunter-hp"
       className="pointer-events-none absolute z-20 w-[104px] border-2 border-border bg-bg/85 px-1.5 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
-      style={{ ...signClip, left: '22%', top: `${(groundY - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
+      style={{ ...signClip, left: `${ROAM_HUNTER_PLACEMENT.xPct}%`, top: `${(groundY - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
     >
       <div className="mb-0.5 flex items-baseline justify-between gap-1 text-[11px] font-black leading-none">
         <span className="text-text-muted">HP</span>
