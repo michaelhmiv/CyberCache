@@ -9,6 +9,15 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 - **One last step back for the choir** — on the capture rig's measurements, the Static Choir still opened a touch too close to your rifle, so it now takes its place one step further right like the rest. Every boss's opening distance is now verified clear on the actual artwork, not just the shared mark.
 
+## 2026-11-13 — The market says when it's down; the Gear tab is already warm
+
+
+
+- **The market's outage error actually shows up now** — the Buy stop gained a proper error screen with a Retry button if listings fail to load, but under the hood a failed load was still being folded into an empty result, so a real outage went on presenting as "No listings found." A failed load now reaches that error screen on both the Buy stop and My Listings; a market that is genuinely empty still reads as empty.
+- **The Gear tab no longer makes you wait on first open** — the Gear screen used to build itself entirely on your first tap — its code, the loadout figure, the inventory and all — and if that tap came while a roam was warming up, the build queued behind the fight and the tab could sit on its loading card. The Gear tab now warms up quietly in the background once you are signed in, so the first open — mid-roam included — lands as fast as every switch after it. The screen itself is unchanged.
+
+
+
 ## 2026-11-12 — The audit fix wave
 
 
@@ -65,6 +74,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Roaming recovers between exchanges** — recoil and hit poses return to ready instead of holding until another event. Hidden stages rest while other tabs are open and resume in place.
 - **Numbers explain the right quantities** — boss DPS uses the fight model, roaming Dmg/tick uses the roaming loadout, source rows include Cache Rank and reconcile to their totals, and extra slots print as counts. Area rates are labeled Base, elapsed time counts real seconds, and open consumable countdowns stay current. Foreground syncs also enforce their normal tick limit against malformed requests.
 - **Your cache winnings now stay on screen** — when a cache reveal finished, the item, its stats, and its buttons vanished along with the animation, leaving the CACHE DECRYPTED header over an empty stage while the reward card waited a full screen further down, out of sight. The reveal stage now settles down to its header the moment the animation ends, and your item is right there beneath it: its picture, its complete stat deck, and its Equip / Lock / Salvage buttons, with Open Another and Collect beside them. The reveal itself — beam, rise, and timings — is untouched.
+- **Roaming fights now replay the same way every time** — every roll in a roaming fight was already dealt from the fight's own seeded dice, so the same tick always came out the same — except the combat damage itself: which enemy pressed you, whether it hit, and the swing on both its hits and yours were rolled loose and landed differently on every pass over the same fight. That looseness also made one of the game's own roaming checks fail at random. Those rolls now draw from per-tick streams seeded like every other roll in the fight. The odds are untouched: same enemies, same accuracy, same damage ranges — the rolls are simply the replayable ones now.
 
 
 
@@ -344,7 +354,67 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 237 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 291 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-13** — 1 merge
+
+- #576 — fix(market): listings fetch propagates failures — X-07 error state reachable (#568)
+
+**2026-11-12** — 53 merges
+
+- #500 — fix(auth): guest→Google link promotes the account in place (audit A-01)
+- #501 — fix(hunter): class-mod boosts no longer phantom-spend skill points (audit HTR-02)
+- #502 — fix(chef): localhost previews resolve same-origin, never the production Chef (audit H-01)
+- #503 — fix(hunter): majors/keystone charge their listed cost everywhere (audit HTR-01, migration 0089)
+- #504 — Fix the Pixi roam enemy vanishing after its walk-in
+- #505 — fix(session): chefClient transport refreshes once on 401 and retries (audit A-06)
+- #506 — fix(contracts): reroll carries the claim's verified-account gate (audit A-03)
+- #508 — fix(auth): linking a Google identity bound elsewhere refuses with a conflict (audit A-12)
+- #509 — Bulwark torso: paint out the cyan chest slash (the #495 fix, second plate)
+- #510 — fix(cosmetics): cc_cosmetics_view reads tier as the string union (audit G-F4)
+- #511 — fix(vendor): sell quotes use the server-composed buyback rate (audit G-F3)
+- #512 — Fix cache-decrypt hang: bounded transport + snapshot save off the reveal path
+- #513 — fix(hunter): Totals' boss DPS + Shield Break come from the boss sim (audit HTR-05)
+- #514 — fix(progression): level cap 100 in both XP implementations (audit HTR-06)
+- #515 — fix(skills): two-step respec confirmation + zero-spend refusal (audit HTR-07)
+- #516 — perf(hunter): render only the active Hunter stop (lazy sections)
+- #517 — fix(auth): logout revokes with a reason; only rotated-token reuse nukes (audit A-05 partial)
+- #518 — fix(routes): verified-account refusal is 403 on the gameplay surface too (audit A-04)
+- #519 — fix(auth): bootstrap failure is a terminal state with Retry (audit X-08)
+- #520 — fix(shell): keep tab screens alive + code-split screens (tab-switch latency)
+- #521 — fix(market): load failures are retryable error states, never an empty market (audit X-07)
+- #522 — fix(auth): sign-out and account switches clear the offline recap + local snapshot (audit A-08)
+- #523 — fix(auth): web AuthScreen mirrors the lock prompt — no dead Google CTA (audit A-02)
+- #524 — fix(home): occupation switches disclose the displacement (audit H-02)
+- #525 — Shield remounts to the torso in aim/recoil (far-arm suppression follow-up to #498)
+- #526 — fix(strip): remedy chip sizes to content; rundown shares follow the labels (audit H-04 + X-06)
+- #527 — Gear list render fix: windowing, thumb-density row art, fitted-base cache
+- #528 — fix(copy): trim paragraph-law violations; the scan now covers Home + Gear (audit X-05 + G-F7)
+- #529 — fix(layout): the 11px type floor — named labels fixed, repo-wide census gate (audit X-03)
+- #530 — fix(layout): the audited small buttons meet the 44px tap law (audit X-04)
+- #531 — fix(android): exclude the session store from backups and device transfers (audit A-09)
+- #532 — Boss telegraphs (C3): the special's wind-up warning on the fight stage
+- #533 — WebGL context loss routes to the DOM fallback instead of freezing the stage (X-01/A-07)
+- #534 — fix(hunter): Totals health labeled Effective HP; dead survival term removed (audit HTR-03 sub-fixes)
+- #535 — fix(workshop): pause copy keys to the boss phase — prep is not a fight (audit H-05)
+- #536 — fix(bootstrap): initial bundle fires once per session — in-flight join + settled guard (audit H-06)
+- #537 — fix(garage): one derived yield — the card obeys the empty tank (audit G-F6)
+- #538 — fix(market): stack per-unit label prints the exact price (audit M-2)
+- #539 — fix(hunter): skill node art renders at its native 30px (audit HTR-08)
+- #540 — fix(cosmetics): look resolution exposes missingParts (audit HTR-09)
+- #541 — fix(endless): Chamber failure strip gains a Retry (audit X-09)
+- #542 — fix(auth): gate table stops denying guests the view (audit A-11)
+- #543 — fix(web): boot fallback says 'You're offline' offline (audit A-10 partial)
+- #544 — fix(auth): in-memory store refuses owned-email identity create (audit A-13)
+- #545 — fix(market): Cancel Listing drops the transact guard (audit A-14)
+- #548 — docs(mechanics): M-3 — market listing carries the 25-scrap deposit
+- #553 — fix(stats): HTR-04 — Hunter crit display shows the fight number (primary + skill nodes)
+- #554 — fix(auth): hunter-name prompt defers — play first, ask when it matters (audit G-F5)
+- #555 — HTR-03: one canonical HP pool — Thick Skin into roaming, offline gate multiplier removed
+- #556 — Audit fixes: smoother Home motion, paused hidden stages, accurate displayed numbers
+- #559 — fix(cache): cache reveal's settled deck presents — stage yields its height when the moment ends
+- #563 — fix(manual): Links LCD test waits on the corpus, not a stale census pin (issue #551)
+- #565 — fix(chef): seed the roaming combat rolls — de-flake the Med Kit (Refined) contract check (#552)
 
 **2026-11-11** — 16 merges
 

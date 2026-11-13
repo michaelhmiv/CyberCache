@@ -553,6 +553,13 @@ function bossAttemptId(playerId: string, bossId: string, nonce: number): string 
  */
 export function processRoamingClaim(
   request: ClaimRequest,
+  // Test seam only: a caller-supplied combat-roll source replaces
+  // the tick-seeded ':damage'/':survival' streams for the whole
+  // claim. The production routes pass nothing and always get the
+  // seeded streams; the shield suites use a constant here to pin
+  // hit outcomes (the role Math.random stubs used to play, before
+  // the combat rolls were seeded — issue #552).
+  opts?: { combatRng?: () => number },
 ): ClaimResult {
   const { playerId, areaId, ticks: requestedTicks, tickCount, playerLevel, equippedGear } = request;
 
@@ -1865,7 +1872,13 @@ export function processRoamingClaim(
       if (kcTargetId) {
         const monster = roster.find((m) => m.id === kcTargetId);
         if (monster) {
-          let dmg = computePlayerDamageVsMonster({ effectiveDps: tickEffectiveDps }, monster);
+          // The outgoing variance roll draws on its own tick-seeded
+          // stream (':damage') — never the contract's Math.random
+          // default (issue #552: the same loose-default defect as
+          // the survival rolls below).
+          const damageRng =
+            opts?.combatRng ?? createTickRng(playerId, `${areaId}:damage`, tickNumber);
+          let dmg = computePlayerDamageVsMonster({ effectiveDps: tickEffectiveDps }, monster, damageRng);
           // Armor-Break Window (event): brutes take double damage.
           if (evBreakTicks > 0 && monster.archetype === 'brute') dmg *= 2;
           kcTargetHp -= dmg;
@@ -1930,7 +1943,17 @@ export function processRoamingClaim(
 
     // --- Survival simulation (monster → player damage) ---
     if (!survDead && roster.length > 0) {
-      const attacker = pickAreaMonster(area);
+      // The survival rolls draw on their own tick-seeded stream
+      // (':survival', the ':vehicle'/':event' pattern) — never the
+      // helpers' Math.random defaults. The attacker pick, the hit
+      // roll, and the damage variance must replay identically for a
+      // given tick, like every other roll in the claim; on the loose
+      // defaults the identical claim settled differently run to run
+      // (issue #552: the Med Kit (Refined) contract check flaked
+      // whenever the loose rolls happened to leave buffer undrained).
+      const survivalRng =
+        opts?.combatRng ?? createTickRng(playerId, `${areaId}:survival`, tickNumber);
+      const attacker = pickAreaMonster(area, survivalRng);
       if (attacker) {
         // Apply consumable mods: incoming DPS multiplier (Cryo), enemy pressure (Loot Beacon)
         const modifiedAttacker = {
@@ -1970,7 +1993,7 @@ export function processRoamingClaim(
           shieldCapacity,
           shieldNovaArmed,
         };
-        const hit = computeMonsterDamageVsHunter(modifiedAttacker, hunter);
+        const hit = computeMonsterDamageVsHunter(modifiedAttacker, hunter, survivalRng);
         if (!hit.missed) {
           // Feed event: monster damaged the hunter
           if (hit.hpDamage > 0 || hit.shieldAbsorbed > 0) {

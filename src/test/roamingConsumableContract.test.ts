@@ -223,6 +223,34 @@ describe('Chef engine — def-driven outcomes', () => {
     expect(result.consumedConsumables).toEqual({ MedKitRefined: 2 });
   });
 
+  it('settles the identical claim identically every time — survival rolls are tick-seeded, never loose', () => {
+    // Issue #552: the survival path (attacker pick, hit roll, damage
+    // variance) used to fall back to the helpers' Math.random
+    // defaults, so the fixture above settled differently run to run —
+    // about 1 in 75 identical claims left Med Kit buffer undrained
+    // (remainders 3, 34, 51, 62, 127, 150, 209… across recorded
+    // runs), flaking the check above at random merge gates.
+    // Twenty-five identical claims must now land on the identical
+    // survival state, slot state, and consumed set.
+    const makeClaim = (): Parameters<typeof processRoamingClaim>[0] => ({
+      playerId: A,
+      areaId: 'helixworks_labyrinth',
+      ticks: 20,
+      tickCount: 20,
+      playerLevel: 30,
+      equippedGear: [],
+      survival: { currentHp: 3000, shieldHp: 0, maxHp: 3000, mitigation: 0 },
+      consumableInventory: { MedKitRefined: 2 },
+    });
+    const first = processRoamingClaim(makeClaim());
+    for (let i = 0; i < 24; i++) {
+      const again = processRoamingClaim(makeClaim());
+      expect(again.survival).toEqual(first.survival);
+      expect(again.roamingConsumableState).toEqual(first.roamingConsumableState);
+      expect(again.consumedConsumables).toEqual(first.consumedConsumables);
+    }
+  });
+
   it('Data Skimmer’s extraLootRollChance produces extra loot on the claim’s loot roll', () => {
     const runSweep = (consumableInventory: Record<string, number>) => {
       let items = 0;
