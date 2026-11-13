@@ -1299,10 +1299,15 @@ const PixelSceneLayerDom: React.FC<{
       {/* The equipped vehicle, parked at the scene edge during fights
           (Q4 travel legs + encounter clusters): the actual instance —
           class profile, rolled affix overlays, condition wear — with
-          its fuel/condition read from the last claim's status. */}
+          its fuel/condition read from the last claim's status. Affix
+          overlays are contained inside the class painting's box
+          (h-full + object-contain, the rule PR #579 settled): the
+          square scanner painting resolved at box width alone
+          rendered ~2.4× the plate height and spilled down the
+          stage (stage-artifacts REPORT §2b). */}
       {mode === 'roaming' && vehicle && (
         <div className="absolute" style={{ left: '1%', bottom: `${(1 - groundY) * 100 + 1}%`, width: '21%', zIndex: 5 }} data-testid="pixel-vehicle">
-          <div className="relative">
+          <div className="relative overflow-hidden">
             <img
               src={getPixelSprite(`vehicle-${vehicle.vehicleClassId.replace(/_/g, '-')}`)?.url}
               alt=""
@@ -1311,16 +1316,16 @@ const PixelSceneLayerDom: React.FC<{
               style={{ imageRendering: 'pixelated' }}
             />
             {vehicle.affixes.some((a) => a.stat === 'vehicleCargoPct') && (
-              <img src={getPixelSprite('vehicle-affix-cargo-rack')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-cargo-rack')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.affixes.some((a) => a.stat === 'vehicleScannerPct') && (
-              <img src={getPixelSprite('vehicle-affix-scanner-array')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-scanner-array')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.affixes.some((a) => a.stat === 'vehicleFramePct') && (
-              <img src={getPixelSprite('vehicle-affix-reinforced-frame')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-reinforced-frame')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.conditionCurrent / Math.max(1, vehicle.conditionMax) < 0.35 && (
-              <img src={getPixelSprite('vehicle-condition-scuff')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-condition-scuff')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
           </div>
           {vehicleStatus && (
