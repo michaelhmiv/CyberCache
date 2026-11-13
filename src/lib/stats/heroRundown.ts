@@ -157,11 +157,13 @@ export interface HeroRundownInput {
    *  primary slot is empty even if other slots are filled (the
    *  compacted `weapons` list cannot say which slot its first
    *  entry came from, and the fight crit is the primary's). */
-  primary: Weapon | null;
+  primary?: Weapon | null;
   /** The build's skill-bonus record — the same record the boss
    *  sim receives (computeSkillBonuses over spends + class-mod
-   *  boosts); the crit cells read its critChance term. */
-  skillBonuses: Record<string, number>;
+   *  boosts); the crit cells read its critChance term. Optional:
+   *  partial constructors (audits, previews) default to the empty
+   *  record — no node crit priced in. */
+  skillBonuses?: Record<string, number>;
   survival: {
     currentHp: number;
     maxHp: number;
@@ -176,7 +178,7 @@ const metricOf = (summary: CharacterStatSummary, key: string): StatMetric | unde
   summary.all.find((m) => m.key === key);
 
 export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
-  const { summary, snapshot, weapons, primary, skillBonuses, survival, bossContext } = input;
+  const { summary, snapshot, weapons, primary, skillBonuses = {}, survival, bossContext } = input;
 
   // HP — the survival state the claim settles against (survival
   // store is the server-synced mirror). Max is the pool; current
@@ -267,16 +269,16 @@ export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
       tone: 'red',
       delta,
     };
-    // Damage per tick: the contract applies 3 seconds of DPS per
-    // tick (variance 0.85–1.15 and monster defense resolve per
-    // target; the expectation at variance 1.0 against an
-    // undefended target is DPS × tick). Same derivation, same delta.
+    // Roaming settles a different input from standard weapon DPS:
+    // wave/break pools and ordnance participate. Read the Chef's
+    // shared derivation from the snapshot, then apply the tick window.
+    const tickDps = bossContext ? undefined : snapshot.roamingDps;
     dmgTick = {
       key: 'dmgTick',
       label: 'Dmg/tick',
-      display: formatWhole(dpsMetric.value * STAGE_TICK_SECONDS),
+      display: formatWhole((tickDps?.value ?? dpsMetric.value) * STAGE_TICK_SECONDS),
       tone: 'red',
-      delta,
+      delta: tickDps ? stageStatDelta(tickDps.buckets.weapon, tickDps.value) ?? undefined : delta,
     };
   }
 

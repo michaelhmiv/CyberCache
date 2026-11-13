@@ -102,7 +102,9 @@ export const HeroRundown: React.FC<{
 
   const metricOf = (key: string): StatMetric | undefined => summary.all.find((m) => m.key === key);
   const focusMetricFor = (key: FocusKey): StatMetric | null =>
-    key === 'dps' || key === 'dmgTick'
+    key === 'dmgTick' && !bossContext
+      ? metricOf('roamingDps') ?? null
+      : key === 'dps' || key === 'dmgTick'
       ? metricOf('dps') ?? null
       : key === 'hp'
         ? metricOf('health') ?? null
@@ -115,7 +117,7 @@ export const HeroRundown: React.FC<{
               : metricOf('shieldBreak') ?? null;
   const focusMetric: StatMetric | null = focus ? focusMetricFor(focus) : null;
   const focusNote = focus === 'dmgTick'
-    ? `Damage per tick = DPS × the ${STAGE_TICK_SECONDS}s tick — the expectation at variance 1.0 against an undefended target; the contract's roll and the target's defense resolve per hit.`
+    ? `Damage per tick = ${bossContext ? 'boss' : 'standing roaming'} DPS × the ${STAGE_TICK_SECONDS}s tick. Target defense, variance and temporary effects resolve in combat.`
     : focus === 'critChance' || focus === 'critDamage'
       ? 'Crit % is the chance boss combat settles with — primary weapon plus skill nodes, the number the Gunslinger keystone\u2019s high-crit clause reads. Crit\u2019s damage is already folded into the DPS figure — skill and affix crit convert into it at 0.5 weight there — so this sheet never counts it twice.'
       : focus === 'hp'

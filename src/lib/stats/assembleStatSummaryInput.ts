@@ -22,7 +22,6 @@
  * so a class-mod swap shows the skill change it actually makes.
  * Pure: no store reads, no mutation, no I/O.
  */
-import type { PlayerProfile } from '@/types/player';
 import type { BossDef } from '@/types/boss';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { ActiveBuff } from '@/lib/buffs/activeBuffs';
@@ -47,7 +46,7 @@ export type StatSummarySlot =
   | 'ordnance';
 
 export interface StatSummaryAssemblyState {
-  player: PlayerProfile;
+  player: CharacterStatSummaryInput['player'];
   /**
    * Equipped weapons in slot order (primary, secondary, heavy).
    * May contain holes (undefined) for empty slots — the builders

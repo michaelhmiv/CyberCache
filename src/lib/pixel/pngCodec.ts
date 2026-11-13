@@ -5,7 +5,9 @@
  * native deps, so the golden suite runs identically in CI and locally.
  * NOT a general PNG implementation: interlaced and 16-bit files throw.
  */
-import { deflateSync, inflateSync } from 'node:zlib';
+// Only Node render/export tools call the synchronous codec. Deferring
+// property access keeps Vite's browser stub inert during module loading.
+import * as zlib from 'node:zlib';
 
 export interface RgbaImage {
   width: number;
@@ -59,7 +61,7 @@ export function decodePng(buf: Uint8Array): RgbaImage {
   const channels = colorType === 0 ? 1 : colorType === 2 ? 3 : colorType === 3 ? 1 : colorType === 4 ? 2 : colorType === 6 ? 4 : 0;
   if (!channels) throw new Error(`unsupported PNG color type ${colorType}`);
   const compressed = Buffer.concat(idat.map((chunk) => Buffer.from(chunk)));
-  const raw = inflateSync(compressed);
+  const raw = zlib.inflateSync(compressed);
   const stride = width * channels;
   const out = new Uint8Array(width * height * 4);
   const prev = new Uint8Array(stride);
@@ -162,7 +164,7 @@ export function encodePng(image: RgbaImage): Uint8Array {
     raw[y * (stride + 1)] = 0; // filter: none
     raw.set(data.subarray(y * stride, (y + 1) * stride), y * (stride + 1) + 1);
   }
-  const idat = deflateSync(Buffer.from(raw), { level: 6 });
+  const idat = zlib.deflateSync(Buffer.from(raw), { level: 6 });
   const parts = [
     new Uint8Array(PNG_SIGNATURE),
     chunk('IHDR', ihdr),
@@ -278,7 +280,7 @@ export function encodePalettePng(
     raw[o] = bestFilter;
     raw.set(bestRow, o + 1);
   }
-  const idat = deflateSync(Buffer.from(raw), { level: 6 });
+  const idat = zlib.deflateSync(Buffer.from(raw), { level: 6 });
   parts.push(chunk('IDAT', new Uint8Array(idat)), chunk('IEND', new Uint8Array(0)));
   const total = parts.reduce((sum, p) => sum + p.length, 0);
   const out = new Uint8Array(total);

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { usePresentationActive } from '@/hooks/usePresentationActive';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { motion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
@@ -739,6 +740,7 @@ interface BossPixiStageProps extends BossFightStageProps {
 }
 
 export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
+  const presentationActive = usePresentationActive();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const shakeWrapRef = useRef<HTMLDivElement | null>(null);
   const look = useOwnLookWithLoad();
@@ -750,6 +752,12 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
   // the scene becomes ready — gate the overlay on readiness so the
   // numbers land on the same beat as the canvas FX they punctuate.
   const [sceneReady, setSceneReady] = useState(false);
+  useEffect(() => {
+    const app = runtimeRef.current?.scene?.app;
+    if (!app) return;
+    if (presentationActive) app.start();
+    else app.stop();
+  }, [presentationActive, sceneReady]);
   const stageModel = useMemo(() => deriveStageModel(props), [props.bossId, props.backgroundId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the tick's env snapshot current (props feed + look + the

@@ -11,7 +11,6 @@ import {
   useMarketStore,
   usePlayerStore,
   useSalvageFeedStore,
-  useSkillStore,
   useSurvivalStore,
   useWorkshopStore,
 } from '@/store';
@@ -63,7 +62,6 @@ import { HomeModeRail, type HomeModeRailStop } from '@/components/action/HomeMod
 import { ConsumableBelt } from '@/components/dashboard/ConsumableBelt';
 import { HomeCraftBench } from '@/components/workshop/HomeCraftBench';
 
-const TICK_SECONDS = 3;
 const LOG_LIMIT = 10;
 const MAX_SWITCH_ROWS = 8;
 
@@ -165,8 +163,6 @@ export const ActionScreenContextual: React.FC<{
   const activity = useActivityStore();
   const workshop = useWorkshopStore();
   const market = useMarketStore();
-  const skillStore = useSkillStore();
-  const skillBonuses = skillStore.getBonuses();
   // The standby panel's Away cell: the effective offline cap
   // (Home consolidation — the retired stats band's AFK entry
   // rehoused in the Roam panel's facts grid).
@@ -241,12 +237,10 @@ export const ActionScreenContextual: React.FC<{
   // rest of the screen does not re-render every second — eliminating the
   // vertical reflow that the layout-thrash bug was caused by. The actual
   // reward tick is handled by the singleton ticker in idleTickerSlice.
-  // Fractional like scrap (migration 0010): the server accrues the raw
-  // rate and banks the fraction, so preview the raw rate, not a rounding.
-  const creditsPerTick = parseFloat(((selectedArea.idleCreditsPerMinute / 20) * (1 + (skillBonuses.offlineEarnings || 0))).toFixed(2));
-  // Fractional: scrap accrues unrounded on the server and banks across
-  // claims (migration 0009), so the honest preview is the raw rate.
-  const scrapPerTick = parseFloat(((selectedArea.idleScrapPerMinute / 20) * (1 + (skillBonuses.scrapYield || 0))).toFixed(2));
+  // Area BASE rates, before the Chef's gear/skill/vehicle/hot-area
+  // stack. Partially pricing skills here implied these were settled rates.
+  const creditsPerTick = selectedArea.idleCreditsPerMinute / 20;
+  const scrapPerTick = selectedArea.idleScrapPerMinute / 20;
   // Merge tick-feed events (from the canonical ticker) with lifecycle events
   // (action start/stop, cache open). The ticker is the single source of truth
   // for roaming rewards; the Action screen is a consumer, not an engine.
@@ -549,11 +543,11 @@ export const ActionScreenContextual: React.FC<{
               longest cell. The Away cell rides the same grammar. */}
           <div data-testid="home-standby-facts" className="relative mt-2 grid grid-cols-[minmax(0,0.72fr)_minmax(0,0.72fr)_minmax(0,0.84fr)_minmax(0,0.84fr)_minmax(0,1.5fr)] gap-1.5 text-[11px]">
             <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Credits</div>
+              <div className="text-text-muted">Base credits</div>
               <div className="font-black text-cyan">+{selectedArea.idleCreditsPerMinute}/min</div>
             </div>
             <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Scrap</div>
+              <div className="text-text-muted">Base scrap</div>
               <div className="font-black text-green">+{selectedArea.idleScrapPerMinute}/min</div>
             </div>
             <div className="flex min-w-0 flex-col items-center justify-center border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
@@ -613,24 +607,24 @@ export const ActionScreenContextual: React.FC<{
           </div>
           <div className="relative mt-2 grid grid-cols-4 gap-1.5 text-[9px]">
             <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Credits</div>
+              <div className="text-text-muted">Base credits</div>
               <div className="font-black text-cyan">+{creditsPerTick}/tick</div>
             </div>
             <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Scrap</div>
+              <div className="text-text-muted">Base scrap</div>
               <div className="font-black text-green">+{scrapPerTick}/tick</div>
             </div>
             <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Gear</div>
+              <div className="text-text-muted">Base gear</div>
               <div className="font-black text-amber">{Math.round(GEAR_DROP_CHANCE * 100)}%/tick</div>
             </div>
             <div className="border border-border bg-bg/70 p-1.5 text-center" style={smallClip}>
-              <div className="text-text-muted">Cache Key</div>
+              <div className="text-text-muted">Base key</div>
               <div className="font-black text-cyan">~1 per 7h</div>
             </div>
           </div>
           <div className="relative mt-2 pt-2 border-t border-border/40 text-[9px] text-text-muted">
-            {selectedArea.gameplayIdentity} · <ActionTickTimer key={`tick-${selectedArea.id}-${currentKind}`} tickSeconds={TICK_SECONDS} enabled={canTick} variant="active" className="text-amber" />
+            {selectedArea.gameplayIdentity} · <ActionTickTimer key={`tick-${selectedArea.id}-${currentKind}`} startedAt={activity.current.startedAt} enabled={canTick} variant="active" className="text-amber" />
           </div>
         </div>
       );
@@ -882,11 +876,11 @@ export const ActionScreenContextual: React.FC<{
           {/* Compact area stats strip — replaces the removed Roaming Intel card */}
           {isRoaming && (
             <div className="mb-3 grid grid-cols-3 gap-1.5 text-[9px]">
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Credits</span><div className="font-black text-cyan">+{creditsPerTick}/tick</div></div>
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Scrap</span><div className="font-black text-green">+{scrapPerTick}/tick</div></div>
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Gear</span><div className="font-black text-amber">{Math.round(GEAR_DROP_CHANCE * 100)}%/tick</div></div>
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Cache Key</span><div className="font-black text-cyan">~1 per 7h</div></div>
-              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Materials</span><div className="font-black text-green">{Math.round(MATERIAL_FIND_CHANCE * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Base credits</span><div className="font-black text-cyan">+{creditsPerTick}/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Base scrap</span><div className="font-black text-green">+{scrapPerTick}/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Base gear</span><div className="font-black text-amber">{Math.round(GEAR_DROP_CHANCE * 100)}%/tick</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Base key</span><div className="font-black text-cyan">~1 per 7h</div></div>
+              <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Base materials</span><div className="font-black text-green">{Math.round(MATERIAL_FIND_CHANCE * 100)}%/tick</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Enemy</span><div className="font-black text-text-primary">{selectedArea.enemyType.split(' ')[0]}</div></div>
             </div>
           )}

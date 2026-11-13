@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { usePresentationActive } from '@/hooks/usePresentationActive';
 import { motion } from 'framer-motion';
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -64,6 +65,8 @@ import {
   deriveRoamScene,
   enemyWalkAlpha,
   resolveRoamWalkFrame,
+  roamPosesAt,
+  withRoamWalkFrame,
   roamAnimatedNodeCount,
   sampleRoamBeat,
   type RoamSceneModel,
@@ -377,11 +380,9 @@ function installRoamResumeProbe(app: Application, runtime: RoamRuntime): () => v
 interface TickEnv {
   props: RoamPixiStageProps;
   model: RoamSceneModel;
-  /** Re-derive the model with a live walk clock (the env model
-   *  itself is the SETTLED model — no walkMs): the tick calls
-   *  this per frame while a walk-in runs so the rig pose carries
-   *  the stride articulation, and rests on the settled model. */
-  deriveModelAt: (walkMs: number) => RoamSceneModel;
+  /** Cache each actor pose once per event; compose only the moving
+   * rig bands during walk-in. No per-frame hunter-layout rebuild. */
+  deriveModelAt: (walkMs: number | undefined, beatMs: number) => RoamSceneModel;
   /** The hunter's part set + held-weapon fractions (Motion M2b:
    *  the travel stride composes layouts per frame from the same
    *  inputs deriveRoamScene consumes). */
@@ -557,7 +558,6 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const walkTargetKey = `${props.currentTargetId ?? 'none'}|${env.model.isEliteEvent ? 'elite' : 'std'}`;
   const walkFrame = resolveRoamWalkFrame(rt.walk, walkTargetKey, now);
   rt.walk = walkFrame.walk;
-  const model = walkFrame.walkMs !== undefined ? env.deriveModelAt(walkFrame.walkMs) : env.model;
   // F6: the enemy art follows the current target, not the mount's.
   syncEnemyArt(rt, env);
   const { w: W, h: H } = rt.size;
@@ -568,14 +568,14 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     if (fps.deltas.length > 900) fps.deltas.shift();
   }
   fps.lastMs = now;
-  const groundYPx = model.groundY * H;
+  const groundYPx = env.model.groundY * H;
   const px = (p: { xPct: number; yPct: number }) => ({ x: (p.xPct / 100) * W, y: (p.yPct / 100) * H });
 
   // ── Beat clock: a fresh event id starts its beat ──
   const eventId = props.event?.id;
   if (eventId && eventId !== 'idle-loop-ready' && rt.beat?.eventId !== eventId) {
     rt.beat = { eventId, startMs: now };
-    if (model.beat && (model.beat.kind === 'shot' || model.beat.kind === 'crit')) {
+    if (env.model.beat && (env.model.beat.kind === 'shot' || env.model.beat.kind === 'crit')) {
       scene.sparkSpecs = particleField(`sparks-${eventId}`, 6).map((s, i) => ({
         angle: (i / 6) * Math.PI * 1.5 - Math.PI * 0.9,
         dist: 16 + s.swayPx + 18,
@@ -583,6 +583,7 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     }
   }
   const beatMs = rt.beat ? now - rt.beat.startMs : Number.POSITIVE_INFINITY;
+  const model = env.deriveModelAt(walkFrame.walkMs, beatMs);
   const beatSample = sampleRoamBeat(model.beat, Math.min(beatMs, 60_000), props.event);
 
   // Gear mounts re-resolve against a layout (DOM: the gear
@@ -605,7 +606,7 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   };
 
   // ── Pose: a changed pose re-applies (position blend is M2's) ──
-  const poseKey = `${model.hunterPoseName}|${props.weapon?.id ?? ''}|${props.currentTargetId ?? ''}`;
+  const poseKey = `${model.hunterPoseName}|${props.weapon?.id ?? ''}|${props.currentTargetId ?? ''}|${eventId ?? ''}`;
   if (rt.poseKey !== poseKey) {
     rt.poseKey = poseKey;
     applyPartPose(scene.parts, model.hunterLayout, now, { poseName: model.hunterPoseName, blendPositions: true });
@@ -819,7 +820,7 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     scene.rigRoot.scale.set(rigW / rig.frameWidth, enemyH / rig.frameHeight);
     // A changed rig pose starts per-segment tweens on the SEGMENT
     // slot durations (PixelRigActor's framer tweens, easeOut).
-    const rigPoseKey = `${props.currentTargetId ?? ''}|${model.isEliteEvent}|${model.beat?.kind ?? ''}`;
+    const rigPoseKey = `${props.currentTargetId ?? ''}|${model.isEliteEvent}|${model.poseKey}|${eventId ?? ''}`;
     if (rt.rigPoseKey !== rigPoseKey) {
       rt.rigPoseKey = rigPoseKey;
       for (const seg of scene.rigSegs) {
@@ -1084,6 +1085,7 @@ async function warmPaletteUrl(spriteId: string, sourceUrl: string, paletteId: st
 }
 
 export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
+  const presentationActive = usePresentationActive();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const shakeWrapRef = useRef<HTMLDivElement | null>(null);
   const look = useOwnLookWithLoad();
@@ -1091,6 +1093,12 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
   const envRef = useRef<TickEnv | null>(null);
   const [failed, setFailed] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
+  useEffect(() => {
+    const app = runtimeRef.current?.scene?.app;
+    if (!app) return;
+    if (presentationActive) app.start();
+    else app.stop();
+  }, [presentationActive, sceneReady]);
 
   const model = useMemo(
     () =>
@@ -1120,11 +1128,15 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
   );
 
   useEffect(() => {
+    const poseModels = new Map([[model.poseKey, model]]);
     envRef.current = {
       props,
       model,
-      deriveModelAt: (walkMs: number) =>
-        deriveRoamScene({
+      deriveModelAt: (walkMs, beatMs) => {
+        const key = roamPosesAt(model.beat, !!props.weapon, beatMs).key;
+        let frame = poseModels.get(key);
+        if (!frame) {
+          frame = deriveRoamScene({
           backgroundId: props.backgroundId,
           areaId: props.areaId,
           weapon: props.weapon,
@@ -1132,8 +1144,12 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
           targetMaxHp: props.targetMaxHp,
           currentTargetId: props.currentTargetId,
           hunterSet: look.set,
-          walkMs,
-        }),
+            beatElapsedMs: beatMs,
+          });
+          poseModels.set(key, frame);
+        }
+        return withRoamWalkFrame(frame, walkMs);
+      },
       hunterSet: look.set,
       weaponFractions: props.weapon
         ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(props.weapon))

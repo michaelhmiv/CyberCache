@@ -1,23 +1,15 @@
 /**
- * useElapsedSeconds — local 1-second interval that increments an internal
- * counter starting at 0, ticking only while `enabled` is true.
- *
- * Lives in its own component state so a per-second increment does not force
- * any sibling / parent component to re-render.
- *
- * To reset, the parent should remount this hook (or the consuming component)
- * via React's `key` prop — e.g. `<ActionTickTimer key={`run-${runId}`} ... />`.
+ * Display elapsed wall time from the server's activity start, using the
+ * shared presentation clock. Mount time is the fallback for local previews.
+ * Hidden panes stop subscribing; resuming reads current time immediately.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useNow } from '@/hooks/useNow';
 
-export function useElapsedSeconds(enabled: boolean): number {
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    if (!enabled) return undefined;
-    const id = window.setInterval(() => setElapsed((value) => value + 1), 1000);
-    return () => window.clearInterval(id);
-  }, [enabled]);
-
-  return elapsed;
+export function useElapsedSeconds(enabled: boolean, startedAt?: string | null): number {
+  const [mountedAt] = useState(Date.now);
+  const now = useNow(enabled);
+  const parsedStart = startedAt ? Date.parse(startedAt) : mountedAt;
+  const start = Number.isFinite(parsedStart) ? parsedStart : mountedAt;
+  return Math.max(0, Math.floor((now - start) / 1000));
 }

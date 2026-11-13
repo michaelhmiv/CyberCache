@@ -4,6 +4,8 @@ import type { BossDef } from '@/types/boss';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { PlayerProfile } from '@/types/player';
 import { computeCanonicalMaxHp, computeHunterMaxHp } from '@/lib/combat/damageContract';
+import { computeEffectiveDpsFromGear } from '@/lib/combat/loadoutSurvival';
+import { computeSkillBonuses } from '@/lib/skills/skillBonuses';
 import { cacheRankBonuses } from '@/content/cacheRank';
 import { computeBossRelativeDps, computeStandardDps } from '@/lib/stats/dpsChain';
 import { STAT_SOURCE_BUCKETS, type StatSourceBucket } from '@/lib/stats/sourceBuckets';
@@ -31,6 +33,7 @@ export type CharacterMechanicsSnapshot = {
   mitigation: MechanicsScalar;
   effectiveHp: MechanicsScalar;
   standardWeaponDps: MechanicsScalar;
+  roamingDps: MechanicsScalar;
   bossRelativeDps: MechanicsScalar;
   simulatedBossDps: MechanicsScalar;
   shieldBreak: MechanicsScalar;
@@ -43,7 +46,7 @@ export type CharacterMechanicsSnapshot = {
 };
 
 export type BuildCharacterMechanicsSnapshotInput = {
-  player: PlayerProfile;
+  player: Pick<PlayerProfile, 'level' | 'cacheRankSpends'>;
   weapons: Array<Weapon | undefined>;
   shield?: Shield;
   classMod?: ClassMod;
@@ -119,6 +122,19 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
   const mitigation = Math.min(0.8, input.shield?.mitigation ?? 0);
   const effectiveHp = Math.round(maxHp / Math.max(0.2, 1 - mitigation));
   const standardWeaponDps = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon), 0);
+  const skills = computeSkillBonuses(input.spentSkills);
+  const roamingInput = {
+    weapons,
+    ordnance: input.ordnance ?? null,
+    relic: input.relic ?? null,
+    classMod: input.classMod ?? null,
+    skillStatusChance: skills.statusChance ?? 0,
+  };
+  const roamingBaseDps = computeEffectiveDpsFromGear({ ...roamingInput, skillDpsMult: 1 });
+  const roamingDps = computeEffectiveDpsFromGear({
+    ...roamingInput,
+    skillDpsMult: 1 + (skills.dps ?? 0) + cacheRankDamageBonus,
+  });
   const bossRelativeDps = input.boss
     ? computeBossRelativeDps(weapons, input.boss.weaknesses, input.boss.resistances)
     : standardWeaponDps;
@@ -190,6 +206,11 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
       standardWeaponDps,
       weapons.map((weapon) => contribution('weapon', weapon.name, 'standardDps', computeStandardDps(weapon))),
     ),
+    roamingDps: scalar(roamingDps, [
+      contribution('weapon', 'Roaming loadout', 'baseRoamingDps', roamingBaseDps),
+      contribution('skill', 'Skill tree', 'roamingSkillDps', roamingBaseDps * (skills.dps ?? 0)),
+      contribution('skill', 'Cache Rank', 'cacheRankDamageBonus', roamingBaseDps * cacheRankDamageBonus),
+    ]),
     bossRelativeDps: scalar(
       bossRelativeDps,
       weapons.map((weapon) => contribution('weapon', weapon.name, 'bossRelativeDps', input.boss ? computeBossRelativeDps([weapon], input.boss.weaknesses, input.boss.resistances) : computeStandardDps(weapon))),

@@ -69,9 +69,15 @@ export function createClaimHandler(
         res.status(400).json({ error: 'Missing required fields: areaId, ticks, tickCount' });
         return;
       }
+      if (!Number.isSafeInteger(body.ticks) || body.ticks < 1 || !Number.isSafeInteger(body.tickCount) || body.tickCount < 1) {
+        res.status(400).json({ error: 'ticks and tickCount must be positive safe integers' });
+        return;
+      }
 
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
-      const claim: ClaimRequest = { ...body, playerId };
+      // maxTicks is an internal offline-settlement option. Foreground
+      // callers always use the engine's normal 20-tick ceiling.
+      const claim: ClaimRequest = { ...body, playerId, maxTicks: undefined };
 
       let profile: Awaited<ReturnType<ChefGameplayStore['getRoamingProfile']>>;
       try {
