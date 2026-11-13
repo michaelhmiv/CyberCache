@@ -24,8 +24,10 @@ describe('Field Manual (HelpScreen)', () => {
     // +3 AL-4 trace pass (Activity-Log Extraction, Repair Board, and
     // Shield-Tech cross-references) = 319, +1 boss cadence C1 (Combat
     // cross-references [[Bosses]] for the attack pattern; the
-    // Endless-Mode cadence note is link-free by design) = 320.
-    expect(await screen.findByText('320', {}, { timeout: 10000 })).toBeTruthy();
+    // Endless-Mode cadence note is link-free by design) = 320,
+    // +1 G-F5 (Getting-Started's hunter-name note cross-references
+    // [[Leaderboards-and-Streaks]]) = 321.
+    expect(await screen.findByText('321', {}, { timeout: 10000 })).toBeTruthy();
   });
 
   it('carries no trace of the retired guided tour or hand-written sections', () => {

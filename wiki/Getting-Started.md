@@ -12,6 +12,8 @@ When you're ready, sign in with **Google** from the sign-in screen. There is no 
 
 Signing in **upgrades your guest account in place**: you keep the same account, the same hunter, and every credit, item, and streak day you earned as a guest. Nothing restarts and nothing is transferred — the account simply gains a Google identity, which also lets you pick the hunter up on another device. Everything account-shaped — including your [[Skins-and-Cosmetics|wardrobe]] of skin parts and the look you have equipped — belongs to the account and loads fresh for whoever is signed in.
 
+**Your hunter name can wait.** Signing in offers you the name other hunters will see, but nothing waits on it: claim it when you're ready, or tap **Not now** and play. The game asks again when you first reach the [[Leaderboards-and-Streaks|standings]] — the name matters there, because it's the name on the board.
+
 ## The starter bundle
 
 Every new hunter receives the **starter bundle** automatically, once, the first time your profile loads:

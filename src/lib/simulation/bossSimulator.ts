@@ -4,7 +4,7 @@ import { Element, Manufacturer, RiskSetting, WeaponType } from '../../types/game
 import { getElementMatchup } from '../../constants/elements';
 import { CONSUMABLES, type ConsumableDef, getConsumableRuntimeEffects } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
-import { computeWeaponDps } from '../stats/dpsChain';
+import { computeEffectiveCritChance, computeWeaponDps } from '../stats/dpsChain';
 import { computeCanonicalMaxHp } from '../combat/damageContract';
 import {
   SHIELD_BEHAVIOR_TUNING,
@@ -1262,7 +1262,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     [primary, secondary, heavy].some((weapon) => weapon && effectiveWeaknesses.includes(weapon.element))
       ? (skillBonuses.weaknessMatchDamage || 0)
       : 0;
-  const effectiveCritChance = (primary?.critChance || 0) + consumableCritBonus + (skillBonuses.critChance || 0);
+  const effectiveCritChance = computeEffectiveCritChance(primary, skillBonuses, consumableCritBonus);
   const highCritBonus = effectiveCritChance > 0.5 ? (skillBonuses.highCritBossDamage || 0) : 0;
   dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.cacheRankDamageBonus || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod + focusFireBonus + weaknessMatchBonus + highCritBonus) * classModDpsMult;
 
