@@ -157,7 +157,12 @@ export function roamPoseRecoveryTimes(beat: CombatBeat | null): number[] {
   return [];
 }
 
-export function roamPosesAt(beat: CombatBeat | null, armed: boolean, elapsedMs: number) {
+export function roamPosesAt(
+  beat: CombatBeat | null,
+  armed: boolean,
+  elapsedMs: number,
+  options?: { beatForCurrentTarget?: boolean },
+) {
   const ready: PartsPoseName = armed ? 'aim' : 'relaxed';
   let hunter: PartsPoseName = ready;
   let enemy: keyof typeof ENEMY_POSES = 'idle';
@@ -169,7 +174,17 @@ export function roamPosesAt(beat: CombatBeat | null, armed: boolean, elapsedMs: 
     enemy = 'lunge';
   } else if (beat?.kind === 'kill') {
     if (elapsedMs < MOVEMENT.HIT_REACTION_MS) hunter = 'celebrate';
-    enemy = 'death';
+    // The death pose belongs to the enemy the kill beat names. The
+    // Chef settles a kill and the next spawn in ONE claim, so a kill
+    // beat routinely stands next to the NEXT enemy — a target that
+    // did not die must never inherit the death state (post-kill
+    // invisibility defect, 2026-11-13). Renderers pass
+    // beatForCurrentTarget=false for that composition and the new
+    // enemy keeps its idle/walk poses; the hunter's celebrate on the
+    // same beat is unaffected. Omitted/true keeps the corpse law:
+    // the dead enemy is retained in the death pose until the target
+    // advances (roamPoseRecovery's pinned behavior).
+    if (options?.beatForCurrentTarget !== false) enemy = 'death';
   }
   return { hunter, enemy, key: `${hunter}|${enemy}` };
 }
@@ -190,6 +205,14 @@ export interface RoamSceneInput {
   walkMs?: number;
   /** Local presentation age; omitted means the event's first frame. */
   beatElapsedMs?: number;
+  /** Whether the standing beat names the CURRENT target. Renderers
+   *  derive this from their own clocks (the target that was current
+   *  when the beat's event arrived): a kill beat belongs to the enemy
+   *  it killed, and the roster advances inside the same claim that
+   *  delivers the kill event, so a kill beat paired with a freshly
+   *  spawned target names the PREVIOUS enemy. False keeps that beat's
+   *  death pose off the new enemy — its walk-in renders. */
+  beatForCurrentTarget?: boolean;
 }
 
 export interface RoamSceneModel {
@@ -244,7 +267,9 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
     input.event && (input.event.tone === 'event' || input.event.tone === 'event_major') && input.event.propId
       ? getPixelSprite(input.event.propId)
       : undefined;
-  const poses = roamPosesAt(beat, !!input.weapon, input.beatElapsedMs ?? 0);
+  const poses = roamPosesAt(beat, !!input.weapon, input.beatElapsedMs ?? 0, {
+    beatForCurrentTarget: input.beatForCurrentTarget,
+  });
   const hunterPoseName = poses.hunter;
   const hunterLayout = layoutPartSet(
     input.hunterSet,

@@ -8,6 +8,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 - **The market's outage error actually shows up now** — the Buy stop gained a proper error screen with a Retry button if listings fail to load, but under the hood a failed load was still being folded into an empty result, so a real outage went on presenting as "No listings found." A failed load now reaches that error screen on both the Buy stop and My Listings; a market that is genuinely empty still reads as empty.
 - **The Gear tab no longer makes you wait on first open** — the Gear screen used to build itself entirely on your first tap — its code, the loadout figure, the inventory and all — and if that tap came while a roam was warming up, the build queued behind the fight and the tab could sit on its loading card. The Gear tab now warms up quietly in the background once you are signed in, so the first open — mid-roam included — lands as fast as every switch after it. The screen itself is unchanged.
+- **The next enemy after a kill no longer starts invisible** — when your hunter dropped a roaming enemy, the next one up could stay hidden until the fight's next beat landed — up to a full tick later — missing its walk-in entirely and then popping in already standing there. The fall-and-fade of a kill now belongs to the enemy that actually died; the next enemy walks in on time and in plain sight. The fight itself is unchanged: same targets, same damage, same timings.
 
 
 
