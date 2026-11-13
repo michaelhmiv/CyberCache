@@ -29,7 +29,7 @@ import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEn
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, lootRiseTotalMs, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
 import { dropAssetColor, dropRiseBeamColor, parseDropType } from '@/lib/pixel/dropColors';
-import { StageRise } from '@/components/pixelArt/StageRise';
+import { StageRise, ROAM_DROP_LIFT_PX } from '@/components/pixelArt/StageRise';
 import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
@@ -185,25 +185,41 @@ const modeFromActivity = (kind?: ActivityKind, bossPhase?: BossPhase): DioramaMo
 export const DropRiseMasterIcon: React.FC<{ kind: DropRiseKind; base: string }> = ({ kind, base }) => {
   const retinted = kind === 'material' || kind === 'essence' || kind === 'fragment' || kind === 'scrap';
   const ref = React.useRef<HTMLCanvasElement>(null);
-  const [, setReady] = React.useState(0);
   React.useEffect(() => {
     if (!retinted) return;
-    const canvas = tintedDropRiseCanvas(DROP_RISE_MASTERS[kind], base);
-    if (!canvas) {
-      // Master not decoded yet — its onload invalidated the tint cache;
-      // re-render shortly to pick the tinted canvas up.
-      const t = window.setTimeout(() => setReady((n) => n + 1), 60);
-      return () => window.clearTimeout(t);
+    // Paint the tinted master as soon as it exists — and KEEP
+    // WAITING for it (fix round 1, 2026-11-13). The old code made
+    // exactly one attempt plus a 60 ms re-render that never
+    // re-ran this effect, so whenever the master had not decoded
+    // on the first attempt (a cold tint cache — the first drop of
+    // each kind per session, any slow decode) the canvas stayed
+    // blank for the rise's whole life: the drop showed a beam and
+    // no item. The poll re-attempts the draw itself until the
+    // tint lands or the component unmounts.
+    let cancelled = false;
+    let timer: number | undefined;
+    const draw = (): boolean => {
+      const canvas = tintedDropRiseCanvas(DROP_RISE_MASTERS[kind], base);
+      if (!canvas) return false;
+      const host = ref.current;
+      if (!host) return true;
+      const ctx = host.getContext('2d');
+      if (!ctx) return true;
+      host.width = canvas.width;
+      host.height = canvas.height;
+      ctx.clearRect(0, 0, host.width, host.height);
+      ctx.drawImage(canvas, 0, 0);
+      return true;
+    };
+    if (!draw()) {
+      timer = window.setInterval(() => {
+        if (cancelled || draw()) window.clearInterval(timer);
+      }, 100);
     }
-    const host = ref.current;
-    if (!host) return;
-    const ctx = host.getContext('2d');
-    if (!ctx) return;
-    host.width = canvas.width;
-    host.height = canvas.height;
-    ctx.clearRect(0, 0, host.width, host.height);
-    ctx.drawImage(canvas, 0, 0);
-    return undefined;
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearInterval(timer);
+    };
   }, [kind, base, retinted]);
   if (!retinted) {
     return (
@@ -248,26 +264,29 @@ export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, 
         : kind === 'credits'
           ? '#FFD700'
           : dropAssetColor(parseDropType(label));
-  const tag =
-    kind === 'material' || kind === 'essence'
-      ? parseDropType(label).slice(0, 4).toUpperCase()
-      : kind === 'fragment'
-        ? 'FRAG'
-        : null;
+  // The chip names what dropped, in full (fix round 1,
+  // 2026-11-13): the item kinds carry the event's own label —
+  // "+1 TechFragments", quantity and all — where the pre-fix chip
+  // showed a 4-letter truncation ("TECH") or "FRAG" and the cash
+  // kinds nothing. Cash rises stay icon-only: a payout is not an
+  // item, and its amount already prints in the feed.
+  const nameLine =
+    kind === 'material' || kind === 'essence' || kind === 'fragment' ? label : null;
   return (
     <div className="flex h-full flex-col items-center" style={{ paddingTop: 9 }}>
       <DropRiseMasterIcon kind={kind} base={base} />
-      {tag ? (
+      {nameLine ? (
         <span
           style={{
             color: base,
             fontSize: 11,
             fontWeight: 900,
             lineHeight: 1.4,
+            whiteSpace: 'nowrap',
             textShadow: '1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000',
           }}
         >
-          {tag}
+          {nameLine}
         </span>
       ) : null}
     </div>
@@ -1587,6 +1606,8 @@ const PixelSceneLayerDom: React.FC<{
             dataAttrs={{ 'loot-visual': lootRise }}
             xPct={enemyFeet.xPct}
             yPct={enemyFeet.yPct}
+            width={150}
+            liftPx={ROAM_DROP_LIFT_PX}
           >
             <DropRiseIcon
               tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
@@ -1607,7 +1628,7 @@ const PixelSceneLayerDom: React.FC<{
             durationMs={lootRiseTotalMs()}
             reduced={reduced}
           />
-          <StageRise xPct={enemyFeet.xPct} yPct={enemyFeet.yPct} width={54} height={58}>
+          <StageRise xPct={enemyFeet.xPct} yPct={enemyFeet.yPct} width={54} height={58} liftPx={ROAM_DROP_LIFT_PX}>
             <img
               data-testid="diorama-crate-rise"
               src={crate.url}

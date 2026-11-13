@@ -17,6 +17,21 @@
  * ground up and the track carries it up off that point. Durations
  * all come from MOVEMENT; the pixel offsets are this component's
  * presentation geometry.
+ *
+ * `liftPx` is the hold height — how far the track carries the
+ * chip's bottom off its origin. The default (38) suits the work
+ * points (bench / crusher / sift rig), whose seats are already
+ * elevated. The roam drop rises pass ROAM_DROP_LIFT_PX instead:
+ * their origin is the corpse's feet, which is also the enemy name
+ * plate's ground — the plate's top edge rides 18.5% of the stage
+ * height above that line (≈49–59 px across phone widths), so a
+ * chip holding at the default lift spends its readable window
+ * inside the plate's box (fix round 1, 2026-11-13: the owner's
+ * "I still don't see the actual item being dropped" — the chip
+ * was behind the plate, its icon canvas unpainted, its label a
+ * 4-letter tag straddling the plate's edge). At 74 px the whole
+ * chip — icon + full item name — holds clear above the plate at
+ * every phone width, still standing on the corpse beam.
  */
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -34,6 +49,10 @@ export interface StageRiseProps {
   yPct: number;
   width?: number;
   height?: number;
+  /** Hold height (px the chip's bottom rises off its origin).
+   *  Default 38 — the work-point travel. The roam drop rises pass
+   *  ROAM_DROP_LIFT_PX so the chip holds clear of the name plate. */
+  liftPx?: number;
   /** Presentation stagger inside a beat (extraction fan), ms. */
   delayMs?: number;
   testId?: string;
@@ -43,11 +62,19 @@ export interface StageRiseProps {
   children: React.ReactNode;
 }
 
+/** Hold height for the roam drop rises (material + crate), whose
+ *  origin — the fallen enemy's feet — is shared with the enemy
+ *  name plate. Clears the plate's top edge (≈18.5% of stage
+ *  height above the ground line) with margin at every phone
+ *  width; see the header note. */
+export const ROAM_DROP_LIFT_PX = 74;
+
 export const StageRise: React.FC<StageRiseProps> = ({
   xPct,
   yPct,
   width = 46,
   height = 58,
+  liftPx = 38,
   delayMs = 0,
   testId,
   dataTone,
@@ -71,7 +98,7 @@ export const StageRise: React.FC<StageRiseProps> = ({
     }}
     initial={{ y: 10, opacity: 0, scale: 0.6 }}
     animate={{
-      y: [10, -38, -35, -38, -44],
+      y: [10, -liftPx, -(liftPx - 3), -liftPx, -(liftPx + 6)],
       opacity: [0, 1, 1, 0],
       scale: [0.6, 1.12, 1, 1, 0.92],
     }}

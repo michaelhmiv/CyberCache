@@ -14,7 +14,7 @@ import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
 import { CritFlash, DamageNumber, LootBeam } from '../PixelFx';
 import { DropRiseIcon } from '@/components/dashboard/LiveTurfDiorama';
 import { dropRiseBeamColor } from '@/lib/pixel/dropColors';
-import { StageRise } from '../StageRise';
+import { StageRise, ROAM_DROP_LIFT_PX } from '../StageRise';
 import { LootMoment } from '../LootMoment';
 import { PARTS_FEET_X, PART_POSES, SKELETON, type PartSetDef } from '@/lib/pixel/parts';
 import { layoutPartSet, type PartSetLayout, type PartsWeaponFractions } from '@/lib/pixel/partsCompositor';
@@ -1633,6 +1633,8 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
               dataAttrs={{ 'loot-visual': lootRise }}
               xPct={model.enemyFeet.xPct}
               yPct={model.enemyFeet.yPct}
+              width={150}
+              liftPx={ROAM_DROP_LIFT_PX}
             >
               <DropRiseIcon tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise} label={lootRise === 'scrap' ? 'scrap' : props.event.label} />
             </StageRise>
@@ -1676,7 +1678,7 @@ const CrateRise: React.FC<{ feet: { xPct: number; yPct: number } }> = ({ feet })
         durationMs={lootRiseTotalMs()}
         reduced={false}
       />
-      <StageRise xPct={feet.xPct} yPct={feet.yPct} width={54} height={58}>
+      <StageRise xPct={feet.xPct} yPct={feet.yPct} width={54} height={58} liftPx={ROAM_DROP_LIFT_PX}>
         <img
           data-testid="diorama-crate-rise"
           src={crate.url}
