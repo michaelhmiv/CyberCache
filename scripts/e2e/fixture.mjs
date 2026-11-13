@@ -100,8 +100,12 @@ export async function seedAccountLevel(pool, accountId, targetLevel) {
         where table_schema = 'public' and table_name = 'profiles'`,
     )
   ).rows.map((r) => r.column_name);
-  const levelCol = cols.includes('level') ? 'level' : null;
-  const xpCol = cols.includes('total_xp') ? 'total_xp' : cols.includes('xp') ? 'xp' : null;
+  // The shipped profiles table names them player_level / player_xp
+  // (the seed's first candidate names never existed — calibration
+  // round 4's job log shows the resolver failing on the real column
+  // list, so the boss durability seed silently never ran).
+  const levelCol = cols.includes('player_level') ? 'player_level' : cols.includes('level') ? 'level' : null;
+  const xpCol = cols.includes('player_xp') ? 'player_xp' : cols.includes('total_xp') ? 'total_xp' : cols.includes('xp') ? 'xp' : null;
   if (!levelCol || !xpCol) {
     console.log(`[fixture] seed-xp: profiles columns not resolvable (have: ${cols.join(', ')})`);
     return null;

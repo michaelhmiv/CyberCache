@@ -426,31 +426,44 @@ async function openOneCache(page, c, label) {
   // settles. Record what sits at the centre, keep the screenshot,
   // and fall back to a force click so the reveal assertions still
   // get exercised; the probe note carries the finding either way.
+  // Multi-point cover probe (round 5): sample elementFromPoint
+  // across the button's width. Rounds 3–4 showed the CENTRE covered
+  // by non-interactive overlays on post-first opens; if any sampled
+  // point is clear, a raw mouse tap there is exactly what a
+  // player's thumb does. If every point is covered, the covering
+  // element's identity is the finding.
   const probe = await page
     .evaluate(() => {
       const b = [...document.querySelectorAll('button')].find((x) => /OPEN WITH KEY/i.test(x.textContent ?? ''));
-      if (!b) return 'button absent';
+      if (!b) return null;
       const r = b.getBoundingClientRect();
-      const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-      const covered = top && top !== b && !b.contains(top);
-      return (
-        `disabled=${b.disabled} rect=${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.x)},${Math.round(r.y)}` +
-        ` covered=${!!covered}` +
-        (covered
-          ? ` by ${top.tagName}.${(top.className ?? '').toString().slice(0, 50)} testid=${top.getAttribute?.('data-testid') ?? ''}`
-          : '')
-      );
+      const points = [0.11, 0.3, 0.5, 0.7, 0.89].map((fx) => {
+        const x = r.x + r.width * fx;
+        const y = r.y + r.height / 2;
+        const top = document.elementFromPoint(x, y);
+        const clear = !!top && (top === b || b.contains(top));
+        return {
+          fx,
+          x,
+          y,
+          clear,
+          by: clear
+            ? 'button'
+            : top
+              ? `${top.tagName}.${(top.className ?? '').toString().slice(0, 40)} testid=${top.getAttribute?.('data-testid') ?? ''} anc=${top.closest?.('[data-testid]')?.getAttribute('data-testid') ?? ''}`
+              : 'nothing',
+        };
+      });
+      return { disabled: b.disabled, rect: { x: r.x, y: r.y, width: r.width, height: r.height }, points };
     })
-    .catch(() => 'probe failed');
-  try {
-    // Tap off-centre, the way a player's thumb lands: the probe
-    // (round 3) showed the button's exact centre covered by a 1px
-    // progress-bar div and a layout container — Playwright's
-    // centre-point "receives events" check can never pass there,
-    // while the button itself is enabled and tappable elsewhere.
-    await btn.click({ timeout: 15000, position: { x: 36, y: 22 } });
-  } catch {
-    c.note(`${label}: OPEN WITH KEY off-centre click timed out — probe: ${probe}; retrying with force`);
+    .catch(() => null);
+  const clearPoint = probe?.points?.find((p) => p.clear);
+  if (probe && !probe.disabled && clearPoint) {
+    await page.mouse.click(clearPoint.x, clearPoint.y);
+  } else {
+    c.note(
+      `${label}: no clear tap point on OPEN WITH KEY — probe: ${JSON.stringify(probe)?.slice(0, 380)}; falling back to force click`,
+    );
     await shot(page, 'decrypt-blocked.png');
     await btn.click({ timeout: 15000, force: true });
   }
@@ -626,6 +639,24 @@ async function caseGearScale(browser) {
     await guestSignIn(page);
     const into = await measureSwitch(page, 'GEAR');
     c.check('GEAR marker within budget at scale', into.markerMs !== null && into.markerMs <= BUDGET.tabMarkerMs, `marker=${into.markerMs}ms`);
+    // Player-realistic visibility (round 5): the round-4 probe
+    // proved the mounted window starts BELOW the fold (first row at
+    // y=917 in a 915 viewport; a fresh observer with the app's own
+    // 600px rootMargin still reports isIntersecting=false there —
+    // the app's inner scroller clips it). Deferred art activating
+    // only for rows the player has scrolled to is the shipped
+    // design working; the assertion therefore first scrolls the
+    // first row into view, exactly as a player does, then measures.
+    const firstRowRect = await page.evaluate(() => {
+      const row = document.querySelector('[data-testid="gear-list-row"]');
+      if (!row) return null;
+      const before = row.getBoundingClientRect();
+      row.scrollIntoView({ block: 'center' });
+      const after = row.getBoundingClientRect();
+      return `before y=${Math.round(before.y)} after y=${Math.round(after.y)} viewport=${window.innerHeight}`;
+    });
+    c.note(`first row geometry: ${firstRowRect}`);
+    await sleep(700);
     const sample = () =>
       page.evaluate(() => ({
         rows: document.querySelectorAll('[data-testid="gear-list-row"]').length,
@@ -704,14 +735,17 @@ async function caseGearScale(browser) {
       c.note(`activation probe: ${probe}`);
     }
     await shot(page, 'gear-scale-top.png');
-    // Scroll to the bottom of the list and check the last screenful.
-    await page.evaluate(() => {
-      const sc = [...document.querySelectorAll('div')].find(
-        (d) => d.scrollHeight > d.clientHeight + 200 && getComputedStyle(d).overflowY !== 'visible',
-      );
-      if (sc) sc.scrollTop = sc.scrollHeight;
-    });
-    await sleep(1200);
+    // Scroll the last row into view (player-realistic, same as the
+    // top screenful) and check the last screenful.
+    const scrollLastRowIn = () =>
+      page.evaluate(() => {
+        const rows = document.querySelectorAll('[data-testid="gear-list-row"]');
+        rows[rows.length - 1]?.scrollIntoView({ block: 'center' });
+      });
+    await scrollLastRowIn();
+    await sleep(900);
+    await scrollLastRowIn();
+    await sleep(900);
     s = await sample();
     c.check('bottom screenful mounts windowed rows', s.rows > 0 && s.rows <= BUDGET.gearRowCap, `rows=${s.rows}`);
     const settle2 = Date.now() + BUDGET.gearArtSettleMs;
@@ -762,12 +796,28 @@ async function caseBossStage(browser) {
     } else {
       c.note('boss durability seed skipped (no fixture DB env)');
     }
+    // A starter Collect modal may sit over Home for a fresh guest;
+    // dismiss it the way a player does before touching the rail.
+    const collectBtn = page.getByRole('button', { name: /^Collect$/ }).first();
+    if (await collectBtn.isVisible().catch(() => false)) {
+      await collectBtn.click({ timeout: 8000 }).catch(() => {});
+      await sleep(800);
+    }
     // Enter boss mode from the Home mode rail. The rail stop's
     // accessible name is its aria-label ("Boss — choose a boss to
     // fight"), so a /^Boss$/ role match never resolves — target the
     // shipped testid instead (calibration round 2).
     await page.locator('[data-testid="mode-rail-boss"]').click({ timeout: 15000, force: true });
     await sleep(1500);
+    const census = await page.evaluate(() => {
+      const ids = [...document.querySelectorAll('[data-testid]')].map((e) => e.getAttribute('data-testid'));
+      return {
+        dialog: !!document.querySelector('[role="dialog"]'),
+        bossPanel: ids.includes('boss-encounter-panel'),
+        ids: [...new Set(ids)].filter((i) => /boss|picker|modal|dialog/i.test(i ?? '')).slice(0, 10),
+      };
+    });
+    c.note(`after rail tap: ${JSON.stringify(census)}`);
     // Boss mode may open a picker (BossSelectModal) or land on a prep
     // panel with a default boss. If a picker is up, choose the first
     // enabled boss cell — locked bosses render disabled, so the

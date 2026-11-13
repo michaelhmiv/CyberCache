@@ -420,6 +420,12 @@ public class PlaySessionTest {
         if (roamClicked && !roamStarted) {
             roamNote = "start tapped but the roaming state never verified";
         }
+        // Evidence of the post-tap state either way (round 4's tap
+        // landed but the verify needles never matched — the next
+        // calibration step needs to see what the stage actually
+        // calls itself while roaming).
+        dumpHierarchy("play-roam-after");
+        snap("play-roam-attempt");
         record("roamStarted", roamStarted, roamNote);
         if (roamStarted) {
             SystemClock.sleep(4000);
@@ -473,6 +479,12 @@ public class PlaySessionTest {
             }
             if (keyClicked) {
                 cacheOpened = true;
+                // Evidence of what the key tap actually produced
+                // (round 4: neither DECRYPTING nor a deck control
+                // ever appeared in the tree during the watch).
+                settle();
+                dumpHierarchy("play-cache-open-hierarchy");
+                snap("play-after-key");
                 boolean sawDecrypting = false;
                 boolean settledDeck = false;
                 long deadline = SystemClock.uptimeMillis() + 45_000;
@@ -481,7 +493,8 @@ public class PlaySessionTest {
                         sawDecrypting = true;
                     }
                     if (!bodyContains("DECRYPTING")
-                            && (bodyContains("Collect") || bodyContains("Equip") || bodyContains("Salvage"))) {
+                            && (bodyContains("Collect") || bodyContains("Equip") || bodyContains("Salvage")
+                            || bodyContains("Loot Secured"))) {
                         settledDeck = true;
                         break;
                     }
