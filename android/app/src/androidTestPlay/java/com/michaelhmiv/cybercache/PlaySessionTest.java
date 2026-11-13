@@ -53,7 +53,7 @@ import java.util.Map;
 @RunWith(AndroidJUnit4.class)
 public class PlaySessionTest {
 
-    private static final String TAG = 'PlaySession';
+    private static final String TAG = "PlaySession";
     private static final String PACKAGE = 'com.michaelhmiv.cybercache';
     private static final String OUT_DIR_NAME = 'play-session';
 
