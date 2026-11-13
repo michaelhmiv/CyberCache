@@ -638,11 +638,42 @@ public class PlaySessionTest {
         if (cacheEntry == null) {
             cacheNote = "no cache entry control found (top bar, by description)";
         } else {
-            tapObject(cacheEntry);
-            // VERIFY the cache screen arrived before hunting the key
-            // action — rounds 2–3 hunted blind on the wrong screen.
-            String arrived = waitVisible(20_000,
-                    "OPEN WITH KEY", "Open with key", "CRACK CACHE", "Spend keys for server-rolled gear");
+            // Tap-until-arrived (round 16): a single entry tap on
+            // a loaded SwiftShader WebView can fail to register —
+            // the dispatch run after round 15 watched loot accrue
+            // for the whole verify window with the cache screen
+            // never arriving, on the same code that banked full
+            // opens in rounds 11/12/14. Round 7 set this pattern
+            // for the key action; the entry tap gets the same
+            // persistence. Retries re-check arrival BEFORE
+            // re-tapping, so a screen that merely arrived late is
+            // never tapped over. The verify itself is unchanged:
+            // the screen must arrive with its key action.
+            final String[] cacheMarkers = {
+                    "OPEN WITH KEY", "Open with key", "CRACK CACHE", "Spend keys for server-rolled gear"};
+            String arrived = null;
+            for (int attempt = 1; attempt <= 3 && arrived == null; attempt++) {
+                if (attempt > 1) {
+                    arrived = waitVisible(3_000, cacheMarkers);
+                    if (arrived != null) {
+                        break;
+                    }
+                    UiObject2 retryEntry = vfTop("cache keys held");
+                    if (retryEntry == null) {
+                        retryEntry = vfTop("Cache");
+                    }
+                    if (retryEntry == null) {
+                        break;
+                    }
+                    tapObject(retryEntry);
+                } else {
+                    tapObject(cacheEntry);
+                }
+                // VERIFY the cache screen arrived before hunting
+                // the key action — rounds 2–3 hunted blind on the
+                // wrong screen.
+                arrived = waitVisible(attempt == 1 ? 12_000 : 8_000, cacheMarkers);
+            }
             // The count label can lag the screen's first paint
             // (round 9 read -1 at arrival, then 2 after the spend).
             int keysBefore = -1;
