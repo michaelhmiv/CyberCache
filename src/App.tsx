@@ -38,6 +38,7 @@ function TabPaneFallback({ label }: { label: string }) {
 }
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
+import { useUsernamePrompt } from './auth/useUsernamePrompt';
 import { isGuestAccount, isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
 
 import { useAuth } from './auth/AuthProvider';
@@ -151,6 +152,15 @@ function App() {
   // this seq-stamped intent and the stage opens the bench on
   // arrival — the inventoryTabIntent pattern, one tab over.
   const [homeCraftIntent, setHomeCraftIntent] = useState<{ seq: number } | null>(null);
+  // Hunter-name prompt (audit G-F5, owner ruling 2026-11-12):
+  // play first — the name setup is an invitation with a "Not now"
+  // door, never a wall over the tabs. The hook owns the cadence
+  // (boot invitation at most once a day after a deferral) and the
+  // contextual re-ask, requested below at the surfaces where a
+  // name actually matters: the Standings route and the Hunter
+  // tab, whose Standings stop and public profile are where a
+  // hunter appears under their name.
+  const usernamePrompt = useUsernamePrompt(account);
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -347,6 +357,15 @@ function App() {
       setSubScreen(null);
       return;
     }
+    if (screen === 'standings') {
+      // The moment a name matters (G-F5): the standings are where
+      // a hunter appears under their name, so entering them is
+      // the contextual prompt's trigger. Viewing stays open
+      // either way — the prompt is an invitation, not a gate.
+      setSubScreen('standings');
+      usernamePrompt.requestSurfacePrompt();
+      return;
+    }
     if (screen === 'help' || screen.startsWith('help:')) {
       // Field Manual (wiki-native, 2026-11-05): 'help' lands on the
       // index; 'help:<Page>' deep-links one wiki page. The manual
@@ -438,8 +457,12 @@ function App() {
       )}
       <VerificationReminderBanner />
 
-      {account && !account.hasUsername && !account.isAnonymous && (
-        <UsernameSetupModal force />
+      {usernamePrompt.prompt && (
+        <UsernameSetupModal
+          dismissLabel="Not now"
+          onComplete={usernamePrompt.completePrompt}
+          onClose={usernamePrompt.deferPrompt}
+        />
       )}
 
       {/* Keep-alive tab panes (2026-11-12): every visited tab stays
@@ -494,7 +517,7 @@ function App() {
 
       {subScreen ? renderSubScreen() : null}
 
-      <BottomNav activeTab={activeTab} onChange={(tab) => { activateTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); setHomeCraftIntent(null); }} />
+      <BottomNav activeTab={activeTab} onChange={(tab) => { activateTab(tab); setSubScreen(null); setProfileFocus(null); setInventoryTabIntent(null); setHomeCraftIntent(null); if (tab === 'hunter') usernamePrompt.requestSurfacePrompt(); }} />
       <DeathOverlay />
       <SalvageToastContainer />
       {/* The offline recap no longer mounts here: it lives in the
