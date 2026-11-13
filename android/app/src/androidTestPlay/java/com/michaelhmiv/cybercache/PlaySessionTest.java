@@ -19,6 +19,7 @@ import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -292,6 +293,57 @@ public class PlaySessionTest {
         }
     }
 
+    /**
+     * Economy snapshot from the top-bar description nodes:
+     * [credits, xpProgress]. The roaming state's title plate is
+     * canvas-rendered and never enters the accessibility tree
+     * (round-5 evidence: "Roaming Loot"/"Sweeping the area" absent
+     * while credits/XP demonstrably ticked), so a started roam is
+     * verified by what a player watches: the counters moving.
+     * Returns -1 for a counter that cannot be read.
+     */
+    private long[] economySnapshot() {
+        long credits = -1;
+        long xp = -1;
+        try {
+            List<UiObject2> nodes = new ArrayList<>();
+            List<UiObject2> byDesc = device.findObjects(By.descContains("Credits"));
+            if (byDesc != null) nodes.addAll(byDesc);
+            List<UiObject2> byText = device.findObjects(By.textContains("Credits"));
+            if (byText != null) nodes.addAll(byText);
+            for (UiObject2 o : nodes) {
+                String label = o.getContentDescription();
+                if (label == null) label = o.getText();
+                if (label == null) continue;
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("Credits[^0-9]*([0-9][0-9,]*)").matcher(label);
+                if (m.find()) {
+                    credits = Long.parseLong(m.group(1).replace(",", ""));
+                    break;
+                }
+            }
+            List<UiObject2> xpNodes = new ArrayList<>();
+            List<UiObject2> xpDesc = device.findObjects(By.descContains("XP to next level"));
+            if (xpDesc != null) xpNodes.addAll(xpDesc);
+            List<UiObject2> xpText = device.findObjects(By.textContains("XP to next level"));
+            if (xpText != null) xpNodes.addAll(xpText);
+            for (UiObject2 o : xpNodes) {
+                String label = o.getContentDescription();
+                if (label == null) label = o.getText();
+                if (label == null) continue;
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("([0-9][0-9,]*) of [0-9,]+ XP").matcher(label);
+                if (m.find()) {
+                    xp = Long.parseLong(m.group(1).replace(",", ""));
+                    break;
+                }
+            }
+        } catch (Exception ignored) {
+            // Best effort — the caller treats -1 as unreadable.
+        }
+        return new long[]{credits, xp};
+    }
+
     private void swipeUp() {
         device.swipe(displayWidth / 2, (int) (displayHeight * 0.75),
                 displayWidth / 2, (int) (displayHeight * 0.35), 24);
@@ -393,6 +445,7 @@ public class PlaySessionTest {
         // not a started roam (crawl semantics; rounds 1–2 tapped
         // blind and learned nothing from the miss).
         String roamNote = null;
+        long[] economyBefore = economySnapshot();
         // Arm the Roam rail stop first — the standby panel's start
         // control belongs to the armed stop (round 3 hunted for it
         // on an un-armed standby and found nothing, even scrolling).
@@ -415,10 +468,36 @@ public class PlaySessionTest {
                         + (roamStop != null ? "armed" : "NOT FOUND") + ", 4 scroll swipes)";
             }
         }
-        boolean roamStarted = roamClicked
-                && waitVisible(30_000, "Roaming Loot", "Sweeping the area") != null;
+        // Verify the roam by its economy: the stage's title plate is
+        // canvas-rendered (never in the tree), but a live roam ticks
+        // credits and XP upward within seconds — round 5's post-tap
+        // dump showed exactly that (+4cr, +6xp) while the text
+        // needles matched nothing.
+        boolean roamStarted = false;
+        if (roamClicked) {
+            long verifyDeadline = SystemClock.uptimeMillis() + 30_000;
+            while (SystemClock.uptimeMillis() < verifyDeadline) {
+                if (vf("Roaming Loot") != null || vf("Sweeping the area") != null) {
+                    roamStarted = true;
+                    break;
+                }
+                long[] now = economySnapshot();
+                if (economyBefore[0] >= 0 && now[0] > economyBefore[0]) {
+                    roamStarted = true;
+                    roamNote = "verified by credits tick " + economyBefore[0] + " -> " + now[0];
+                    break;
+                }
+                if (economyBefore[1] >= 0 && now[1] > economyBefore[1]) {
+                    roamStarted = true;
+                    roamNote = "verified by XP tick " + economyBefore[1] + " -> " + now[1];
+                    break;
+                }
+                SystemClock.sleep(1200);
+            }
+        }
         if (roamClicked && !roamStarted) {
-            roamNote = "start tapped but the roaming state never verified";
+            roamNote = "start tapped but no economy movement within 30s (before: credits="
+                    + economyBefore[0] + " xp=" + economyBefore[1] + ")";
         }
         // Evidence of the post-tap state either way (round 4's tap
         // landed but the verify needles never matched — the next
@@ -487,7 +566,9 @@ public class PlaySessionTest {
                 snap("play-after-key");
                 boolean sawDecrypting = false;
                 boolean settledDeck = false;
-                long deadline = SystemClock.uptimeMillis() + 45_000;
+                boolean midDumped = false;
+                long watchStart = SystemClock.uptimeMillis();
+                long deadline = watchStart + 45_000;
                 while (SystemClock.uptimeMillis() < deadline) {
                     if (bodyContains("DECRYPTING")) {
                         sawDecrypting = true;
@@ -498,7 +579,18 @@ public class PlaySessionTest {
                         settledDeck = true;
                         break;
                     }
+                    if (!midDumped && SystemClock.uptimeMillis() - watchStart > 12_000) {
+                        // What does the reveal actually look like in
+                        // the tree mid-flight? (Round 5's post-tap
+                        // dump still showed the plain cache screen
+                        // with a key already spent.)
+                        midDumped = true;
+                        dumpHierarchy("play-reveal-mid");
+                    }
                     SystemClock.sleep(800);
+                }
+                if (!settledDeck) {
+                    dumpHierarchy("play-reveal-end");
                 }
                 revealCompleted = sawDecrypting && settledDeck;
                 cacheNote = "sawDecrypting=" + sawDecrypting + " settledDeck=" + settledDeck;

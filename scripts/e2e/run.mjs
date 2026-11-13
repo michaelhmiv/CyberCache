@@ -373,11 +373,20 @@ async function observeReveal(page, c, label, t0) {
   return deckAt !== null;
 }
 
-// Leave the settled deck. "Collect" returns to the cache screen
-// ('collected'); "Open Another" immediately starts the next reveal
-// ('another-started') — the caller must not click OPEN WITH KEY for
-// that next open.
+// Leave the settled deck. "Open Another" immediately starts the
+// next reveal ('another-started') — the caller must not click OPEN
+// WITH KEY for that next open. "Collect" finishes the reveal and
+// lands on the cache screen's item stat deck ('collected'), which
+// OVERLAYS the OPEN WITH KEY button (round-5 probe: every tap point
+// covered by item-stat-deck descendants) — so for chained opens
+// Open Another is the player path, and Collect is taken only when
+// no next open is queued.
 async function settleDeck(page, c) {
+  const another = page.getByRole('button', { name: /Open Another/i }).first();
+  if (await another.isVisible().catch(() => false)) {
+    await another.click({ timeout: 8000 }).catch(() => {});
+    return 'another-started';
+  }
   const collect = page.getByRole('button', { name: /^Collect$/ }).first();
   if (await collect.isVisible().catch(() => false)) {
     await collect.click({ timeout: 8000 }).catch(() => {});
@@ -408,11 +417,6 @@ async function settleDeck(page, c) {
       c.note(`settleDeck: deck collected but cache screen not ready — ${blocker}`);
     }
     return back ? 'collected' : 'unknown';
-  }
-  const another = page.getByRole('button', { name: /Open Another/i }).first();
-  if (await another.isVisible().catch(() => false)) {
-    await another.click({ timeout: 8000 }).catch(() => {});
-    return 'another-started';
   }
   return 'unknown';
 }
@@ -657,12 +661,36 @@ async function caseGearScale(browser) {
     });
     c.note(`first row geometry: ${firstRowRect}`);
     await sleep(700);
+    // Pending is counted two ways (round 6): pendingAll across every
+    // mounted row, and pending among rows inside the list scroller's
+    // visible box. The windowing hook mounts an overscan window;
+    // overscan rows below the scroll box defer BY DESIGN (round-4/5
+    // probes: they report isIntersecting=false even under the app's
+    // 600px margin — the inner scroller clips them). The blueprint
+    // assertion is about art the player can SEE, so the checks key
+    // on the visible count; the all-mounted count stays in details.
     const sample = () =>
-      page.evaluate(() => ({
-        rows: document.querySelectorAll('[data-testid="gear-list-row"]').length,
-        pending: document.querySelectorAll('[data-testid="gear-list-row"] [data-deferred-art="pending"]').length,
-        header: document.body.innerText.match(/(\d[\d,]*)\s*\/\s*(\d[\d,]*)/)?.[0] ?? null,
-      }));
+      page.evaluate(() => {
+        const rowEls = document.querySelectorAll('[data-testid="gear-list-row"]');
+        let scroller = rowEls[0] ?? null;
+        while (scroller && !(scroller.scrollHeight > scroller.clientHeight + 4)) {
+          scroller = scroller.parentElement;
+        }
+        const sRect = scroller?.getBoundingClientRect();
+        const pend = [...document.querySelectorAll('[data-testid="gear-list-row"] [data-deferred-art="pending"]')];
+        const visiblePend = sRect
+          ? pend.filter((el) => {
+              const r = el.getBoundingClientRect();
+              return r.bottom > sRect.top + 1 && r.top < sRect.bottom - 1;
+            }).length
+          : pend.length;
+        return {
+          rows: rowEls.length,
+          pending: visiblePend,
+          pendingAll: pend.length,
+          header: document.body.innerText.match(/(\d[\d,]*)\s*\/\s*(\d[\d,]*)/)?.[0] ?? null,
+        };
+      });
     let s = await sample();
     c.check('mounted rows are windowed, not the whole inventory', s.rows > 0 && s.rows <= BUDGET.gearRowCap, `rows=${s.rows} header=${s.header}`);
     const settleDeadline = Date.now() + BUDGET.gearArtSettleMs;
@@ -672,7 +700,7 @@ async function caseGearScale(browser) {
       s = await sample();
       series.push(s.pending);
     }
-    c.check('visible-row art settles (no pending art on screen)', s.pending === 0, `pending=${s.pending} after settle window`);
+    c.check('visible-row art settles (no pending art on screen)', s.pending === 0, `visible pending=${s.pending} (mounted pending=${s.pendingAll}) after settle window`);
     if (s.pending > 0) {
       // Diagnostics for the calibration loop (notes, not assertions):
       // what are the stuck elements, and did anything error?
@@ -753,13 +781,20 @@ async function caseGearScale(browser) {
       await sleep(300);
       s = await sample();
     }
-    c.check('bottom screenful art settles', s.pending === 0, `pending=${s.pending}`);
+    c.check('bottom screenful art settles', s.pending === 0, `visible pending=${s.pending} (mounted pending=${s.pendingAll})`);
     await shot(page, 'gear-scale-bottom.png');
     // Leave and return: the art cache must make the revisit instant.
     await measureSwitch(page, 'HOME');
     await measureSwitch(page, 'GEAR');
+    // Bring the first row into view before sampling (same player
+    // framing as the entry measurement — otherwise the visible
+    // scope would be empty and the check vacuous).
+    await page.evaluate(() => {
+      document.querySelector('[data-testid="gear-list-row"]')?.scrollIntoView({ block: 'center' });
+    });
+    await sleep(400);
     const revisit = await sample();
-    c.check('revisit shows art immediately (cache hit, no re-trickle)', revisit.pending === 0, `pending=${revisit.pending} rows=${revisit.rows}`);
+    c.check('revisit shows art immediately (cache hit, no re-trickle)', revisit.pending === 0, `visible pending=${revisit.pending} (mounted pending=${revisit.pendingAll}) rows=${revisit.rows}`);
   } finally {
     await context.close().catch(() => {});
   }
@@ -819,17 +854,23 @@ async function caseBossStage(browser) {
     });
     c.note(`after rail tap: ${JSON.stringify(census)}`);
     // Boss mode may open a picker (BossSelectModal) or land on a prep
-    // panel with a default boss. If a picker is up, choose the first
-    // enabled boss cell — locked bosses render disabled, so the
-    // first enabled control in the dialog is the weakest unlocked
-    // boss by construction.
+    // panel with a default boss. The picker is NOT a role=dialog —
+    // the round-5 census shows its cells carry
+    // data-testid="bossselect-dps-<bossId>". dune_tyrant is the
+    // default-unlocked first boss (bossSlice initial state); pick
+    // it explicitly, falling back to any enabled picker cell.
     const panelReady = await page.evaluate(() => !!document.querySelector('[data-testid="boss-encounter-panel"]'));
     if (!panelReady) {
-      const cell = page
-        .locator('[role="dialog"] button:not([disabled]), [data-testid="boss-select-modal"] button:not([disabled])')
-        .filter({ hasNotText: /close|cancel/i })
-        .first();
-      await cell.click({ timeout: 10000 }).catch(() => {});
+      const cell = page.locator('[data-testid="bossselect-dps-dune_tyrant"]').first();
+      if ((await cell.count().catch(() => 0)) > 0) {
+        await cell.click({ timeout: 10000 }).catch(() => {});
+      } else {
+        await page
+          .locator('[data-testid^="bossselect-"]:not([disabled])')
+          .first()
+          .click({ timeout: 10000 })
+          .catch(() => {});
+      }
       await page
         .waitForFunction(() => !!document.querySelector('[data-testid="boss-encounter-panel"]'), null, { timeout: 15000 })
         .catch(() => {});
