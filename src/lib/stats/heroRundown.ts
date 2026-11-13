@@ -160,8 +160,10 @@ export interface HeroRundownInput {
   primary: Weapon | null;
   /** The build's skill-bonus record — the same record the boss
    *  sim receives (computeSkillBonuses over spends + class-mod
-   *  boosts); the crit cells read its critChance term. */
-  skillBonuses: Record<string, number>;
+   *  boosts); the crit cells read its critChance term. Optional:
+   *  partial constructors (audits, previews) default to the empty
+   *  record — no node crit priced in. */
+  skillBonuses?: Record<string, number>;
   survival: {
     currentHp: number;
     maxHp: number;
@@ -176,7 +178,7 @@ const metricOf = (summary: CharacterStatSummary, key: string): StatMetric | unde
   summary.all.find((m) => m.key === key);
 
 export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
-  const { summary, snapshot, weapons, primary, skillBonuses, survival, bossContext } = input;
+  const { summary, snapshot, weapons, primary, skillBonuses = {}, survival, bossContext } = input;
 
   // HP — the survival state the claim settles against (survival
   // store is the server-synced mirror). Max is the pool; current
