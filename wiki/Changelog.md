@@ -11,6 +11,8 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The starter supply drop lands in pieces** — a new hunter's first grant used to appear all at once and disappear in a cut. Its rows now arrive one at a time, it leaves with a fade, and its close button is a full-size tap target.
 - **Reduced motion is respected everywhere, not just in fights** — menu sheets, toasts, claim pulses, the spinning and glowing loops, the tab bar's sliding pill and the XP bar now all settle to their still state when your device asks for reduced motion. Nothing about any timing in a fight or a loot reveal changes.
 - **Small labels in the workshop bay scenes meet the readable size** — the progress labels in the crafting, repair, shield and extraction bay scenes sat under the game's 11-pixel floor; they are at the floor now.
+- **The streak celebration plays once, as designed** — closing the streak sheet any way you like now counts the claim as seen, the same as tapping through: the stamp ceremony greets a fresh claim exactly once, and reopening the sheet later shows the quiet, banked poster instead of performing again.
+- **Finished work rises from where it sat** — in the assembly bay and at the crusher, a completed job's rise now lifts off the exact spot the item rested on while it was being worked, instead of a point borrowed from the crafting bench.
 
 ## 2026-11-12 — The audit fix wave
 

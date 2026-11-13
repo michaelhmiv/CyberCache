@@ -27,6 +27,8 @@ import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingArea
 import { useInventoryStore, useSalvageFeedStore, useWorkshopStore } from '@/store';
 import type { WorkshopJobView, WorkshopServerView } from '@/store/slices/workshopSlice';
 import type { SalvageYield } from '@/lib/gear/salvageAward';
+import { getPixelSprite } from '@/lib/pixel/manifest';
+import { SET_SEATS, seatPointTopPct } from '@/lib/pixel/setSeats';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { ActivityKind } from '@/types/activity';
 import type { GearItem, Shield, Weapon } from '@/types/items';
@@ -231,6 +233,33 @@ describe('the rise — every kind rises as itself', () => {
     settle({ jobId: 'job-1', recipeId: 'svc', name: 'Shield Flip', unit: 0, completedAtMs: 5, shieldtechPointsApplied: 12 });
     expect(screen.getByTestId('bench-rise-render').getAttribute('data-plan-kind')).toBe('glow');
   });
+
+  it('the completion rise lifts off the seat the item sat on (rise origin = work point)', () => {
+    // Service lane: the seat is the lift deck (seat-derived work
+    // point). Record where the running job's seat sits, complete
+    // the job, and the rise must originate from that same top —
+    // not from the crafting lane's tuned fallback point.
+    const shield = {
+      id: 'shield-9', name: 'Deck Aegis', rarity: Rarity.Rare, level: 4,
+      hp: 120, rechargeRate: 8, rechargeDelay: 2, element: Element.Kinetic,
+    } as unknown as Shield;
+    act(() => {
+      useInventoryStore.setState({ items: [shield] });
+    });
+    const running = job({ kind: 'shieldtech', recipeId: 'svc_flip', shieldtechItemId: 'shield-9' });
+    setWorkshop(serverView({ jobs: [running] }));
+    renderDiorama('workshop_service');
+    const seatTop = screen.getByTestId('bench-seat').style.top;
+    expect(seatTop).toBeTruthy();
+
+    const done = job({ kind: 'shieldtech', recipeId: 'svc_flip', shieldtechItemId: 'shield-9', state: 'complete', unitsCompleted: 1 });
+    setWorkshop(serverView({
+      jobs: [done],
+      recentCompletions: [{ jobId: 'job-1', recipeId: 'svc_flip', name: 'Shield Flip', unit: 0, completedAtMs: 5, shieldtechPointsApplied: 12 } as never],
+    }));
+    const rise = screen.getByTestId('bench-completion-rise');
+    expect(rise.style.top).toBe(seatTop);
+  });
 });
 
 describe('the salvage beat — salvaging celebrates its settlements', () => {
@@ -261,6 +290,30 @@ describe('the salvage beat — salvaging celebrates its settlements', () => {
     expect(screen.getByTestId('salvage-rise-render').getAttribute('data-plan-kind')).toBe('material');
     // The hunter celebrates the settlement (the work cycle holds).
     expect(screen.queryByTestId('bench-fx')).toBeNull();
+  });
+
+  it('the salvage rise lifts off the crusher seat point (rise origin = work point)', () => {
+    renderDiorama('salvaging');
+    act(() => {
+      useSalvageFeedStore.getState().push(victim, scrapYield);
+    });
+    // History at mount earns no beat (see the sibling test) — a
+    // second, fresh settle fires the rise.
+    act(() => {
+      useSalvageFeedStore.getState().push({ ...victim, id: 'victim-2' }, scrapYield);
+    });
+    const rise = screen.getByTestId('salvage-completion-rise');
+    // Expected origin: the crusher's declared seat point (the
+    // seat-derived work point for the salvaging lane), computed
+    // from the same inputs the stage uses — NOT the crafting
+    // lane's (groundY − 0.17) fallback.
+    const area = getRoamingArea(DEFAULT_ROAMING_AREA_ID);
+    const groundY = getPixelSprite(area.backgroundId)?.anchors.groundLine?.y ?? 0.86;
+    const seat = SET_SEATS['set-refinery-crusher'].seat;
+    expect(seat).toBeTruthy();
+    const expectedTop = `${seatPointTopPct(seat!, 34, groundY)}%`;
+    expect(rise.style.top).toBe(expectedTop);
+    expect(rise.style.top).not.toBe(`${(groundY - 0.17) * 100}%`);
   });
 
   it('a failed batch earns no beat', () => {

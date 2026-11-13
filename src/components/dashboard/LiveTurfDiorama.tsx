@@ -1156,7 +1156,7 @@ const PixelSceneLayerDom: React.FC<{
           key={benchCompletionKey(activeBenchCompletion)}
           data-testid="bench-completion-rise"
           className="pointer-events-none absolute z-30 flex items-end justify-center"
-          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 46, height: 46, marginTop: -40 }}
+          style={{ left: '60%', top: `${workPointYPct}%`, width: 46, height: 46, marginTop: -40 }}
           initial={false}
           animate={{ x: '-50%', y: [6, -14, -26, -30], opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
           transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
@@ -1173,7 +1173,7 @@ const PixelSceneLayerDom: React.FC<{
           key={`salvage-rise-${salvageBeat.key}`}
           data-testid="salvage-completion-rise"
           className="pointer-events-none absolute z-30 flex items-end justify-center"
-          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 46, height: 46, marginTop: -40 }}
+          style={{ left: '60%', top: `${workPointYPct}%`, width: 46, height: 46, marginTop: -40 }}
           initial={false}
           animate={{ x: '-50%', y: [6, -14, -26, -30], opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
           transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}

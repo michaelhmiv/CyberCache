@@ -173,6 +173,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
   const streakSeenClaimKey = useLoginStreakStore((s) => s.seenClaimKey);
   const loadStreak = useLoginStreakStore((s) => s.load);
   const revalidateStreak = useLoginStreakStore((s) => s.revalidate);
+  const acknowledgeStreak = useLoginStreakStore((s) => s.acknowledge);
   const contractsResult = useContractsStore((s) => s.result);
   const loadContracts = useContractsStore((s) => s.load);
   const standingView = useStandingStore((s) => s.view);
@@ -835,14 +836,18 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           open={sheet === 'streak'}
           title="Login Streak"
           subtitle={streakSubtitle}
-          onClose={() => setSheet(null)}
+          onClose={() => {
+            acknowledgeStreak();
+            setSheet(null);
+          }}
         >
           <div className="p-3">
-            {/* The panel's "Back to the hunt" acknowledges the
-                grant (killing the pill's announcement) and closes
-                the sheet through here. Closing via the sheet's
-                own chrome leaves the announcement standing — the
-                news stays announced until it is acknowledged. */}
+            {/* Every close acknowledges (owner ruling,
+                2026-11-13): the panel's "Back to the hunt" and the
+                sheet's own chrome both mark the claim seen, so the
+                stamp ceremony plays exactly once per claim
+                (DESIGN.md §10 — it never replays). Reopening the
+                sheet shows the quiet banked state. */}
             <LoginStreakPanel onDone={() => setSheet(null)} />
           </div>
       </PickerSheet>
