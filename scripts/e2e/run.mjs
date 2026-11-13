@@ -1036,7 +1036,10 @@ async function caseBossStage(browser) {
     //     sits off-screen (the presentation is visibility-gated;
     //     a watching player keeps it on screen);
     //   * actor stats are best-of across the whole observe at a
-    //     throttled cadence, not first-sighting-only;
+    //     1 s cadence, not first-sighting-only (round 12's
+    //     timeline showed a complete fight presenting in ~2.4 s —
+    //     a 4 s cadence samples it exactly once, on the takeover
+    //     frame);
     //   * the finished oracle accepts the shipped outcome text
     //     shapes. Every check and threshold below is unchanged.
     const t0 = Date.now();
@@ -1081,7 +1084,7 @@ async function caseBossStage(browser) {
         );
         if (elapsed > 45000) timelineDone = true;
       }
-      if (s.stage && Date.now() - lastStatsAt > 4000) {
+      if (s.stage && Date.now() - lastStatsAt > 1000) {
         lastStatsAt = Date.now();
         try {
           const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
@@ -1089,7 +1092,12 @@ async function caseBossStage(browser) {
           if (!bestStats || stats.nonBgMass > bestStats.nonBgMass) bestStats = stats;
         } catch { /* stage remounting — the next sample retries */ }
       }
-      if (s.finishedAttr || s.banner) {
+      if (finished || s.finishedAttr || s.banner) {
+        // The panel outcome is a finished state too (the check
+        // below reads it as one) — stop polling a resolved fight
+        // instead of burning the rest of the budget on a
+        // stage-less page (rounds 10–12 sat out the full 150 s
+        // after fights that resolved in ~3 s).
         finished = true;
         break;
       }
