@@ -482,12 +482,25 @@ public class PlaySessionTest {
         // round 2 recorded guestEntered=false while the home
         // hierarchy (dumped seconds later) was fully loaded — the
         // sequential two-step check raced a slow production sign-in.
+        // Round 17: the single entry tap can also fail to register
+        // outright (round 16's run: offered, tapped, still on the
+        // auth screen 90 s later) — while the guest button remains
+        // on screen the tap plainly did not land, so re-tap on a
+        // slow cadence. Once sign-in starts the button leaves the
+        // tree and the loop is pure polling again. The 90 s
+        // arrival budget and the verdict are unchanged.
         boolean homeArrived = false;
         long homeDeadline = SystemClock.uptimeMillis() + 90_000;
+        long lastGuestTapAt = SystemClock.uptimeMillis();
         while (SystemClock.uptimeMillis() < homeDeadline) {
             if (vf("HUNTER") != null && vf("GEAR") != null) {
                 homeArrived = true;
                 break;
+            }
+            if (SystemClock.uptimeMillis() - lastGuestTapAt > 15_000
+                    && vf("Continue as Guest") != null) {
+                tapVisible("Continue as Guest");
+                lastGuestTapAt = SystemClock.uptimeMillis();
             }
             SystemClock.sleep(500);
         }
