@@ -92,6 +92,8 @@ export interface RoamingProfileRow {
   vehicle_fuel: number;
   /** Cache Rank spends (migration 0031) — routes resolve the claim's Cache Rank bonuses from this, never from a client body. */
   cache_rank_spends: Json;
+  /** Roaming consumable engine state (migration 0096) — the coverage windows the claim resumes; null until the first claim under 0096 stores one. Written only by saveRoamingConsumableState from Chef-produced state, never from a client body. */
+  roaming_consumable_state: Json | null;
 }
 
 /** profiles subset the boss handler reads. */
@@ -153,6 +155,8 @@ export interface SettlementProfileRow {
   vehicle_fuel: number;
   /** Cache Rank spends (migration 0031) — offline settlement resolves Cache Rank bonuses from this, never from a client body. */
   cache_rank_spends: Json;
+  /** Roaming consumable engine state (migration 0096) — settlement resumes the same stored windows a foreground claim would. */
+  roaming_consumable_state: Json | null;
 }
 
 /**
@@ -630,6 +634,13 @@ export interface ChefGameplayStore {
   applyChefRewards(playerId: string, rewards: ChefRewardsInput, tickCount: number, areaId: string): Promise<Json>;
   storeChefItems(playerId: string, items: unknown[]): Promise<Json>;
   consumeRoamingConsumables(playerId: string, consumed: Json, areaId: string, tickCount: number): Promise<Json>;
+  /**
+   * Persist the roaming consumable state a claim/settle produced
+   * (migration 0096, profiles.roaming_consumable_state) so the next
+   * engine run resumes the same coverage windows. Chef-produced
+   * state only — routes never store a client-supplied blob here.
+   */
+  saveRoamingConsumableState(playerId: string, state: Json): Promise<void>;
   /** The standing death record, or null when the hunter is alive. */
   getDeathRecord(playerId: string): Promise<DeathRecord | null>;
   /**
@@ -1131,7 +1142,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends from public.profiles where id = $1',
+      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -1144,6 +1155,10 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         cache_key_remainder: num(row.cache_key_remainder),
         vehicle_fuel: num(row.vehicle_fuel),
         cache_rank_spends: json(row.cache_rank_spends),
+        roaming_consumable_state:
+          row.roaming_consumable_state === null || row.roaming_consumable_state === undefined
+            ? null
+            : json(row.roaming_consumable_state),
       }),
     );
   }
@@ -1718,7 +1733,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends from public.profiles where id = $1',
+      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -1737,6 +1752,10 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         cache_key_remainder: num(row.cache_key_remainder),
         vehicle_fuel: num(row.vehicle_fuel),
         cache_rank_spends: json(row.cache_rank_spends),
+        roaming_consumable_state:
+          row.roaming_consumable_state === null || row.roaming_consumable_state === undefined
+            ? null
+            : json(row.roaming_consumable_state),
       }),
     );
   }
@@ -2070,6 +2089,17 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       areaId,
       tickCount,
     ]);
+  }
+
+  async saveRoamingConsumableState(playerId: string, state: Json): Promise<void> {
+    try {
+      await this.pool.query(
+        'update public.profiles set roaming_consumable_state = $2::jsonb where id = $1',
+        [playerId, JSON.stringify(state)],
+      );
+    } catch (err) {
+      return translatePgError(err);
+    }
   }
 
   getDeathRecord(playerId: string): Promise<DeathRecord | null> {
