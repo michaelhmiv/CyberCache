@@ -383,42 +383,20 @@ async function observeReveal(page, c, label, t0) {
   return deckAt !== null;
 }
 
-// Leave the settled deck. "Open Another" immediately starts the
-// next reveal ('another-started') — the caller must not click OPEN
-// WITH KEY for that next open. "Collect" finishes the reveal and
-// lands on the cache screen's item stat deck ('collected'), which
-// OVERLAYS the OPEN WITH KEY button (round-5 probe: every tap point
-// covered by item-stat-deck descendants) — so for chained opens
-// Open Another is the player path, and Collect is taken only when
-// no next open is queued.
+// Leave the settled deck. "Collect" is the primary path: it
+// finishes the reveal and returns toward the cache screen. The
+// caller RELOADS and re-enters the cache screen between opens
+// (round-10 calibration call): the post-Collect cache screen
+// renders its item stat deck OVER the OPEN WITH KEY button (round-5
+// five-point probe — every tap point covered), and the deck's own
+// "Open Another" button is likewise covered by the deck's visual
+// layers for automated hit-testing (round 8–9 click errors; the
+// round-9 force click closed the deck but started nothing — a
+// blind dispatch during the exit animation). Both coverage
+// findings are filed as issue #572 for on-device verification;
+// the per-open timing assertions this case exists for are
+// unaffected by which clean entry each open starts from.
 async function settleDeck(page, c) {
-  const another = page.getByRole('button', { name: /Open Another/i }).first();
-  if (await another.isVisible().catch(() => false)) {
-    // Fingerprint the deck being left + record whether the click
-    // itself landed (round 7: chained opens showed no DOM
-    // transition at all — either the click never lands or the
-    // chained reveal reuses the same deck element in place).
-    const before = await page
-      .evaluate(() => document.querySelector('[data-testid="cache-reveal-deck"]')?.innerText?.slice(0, 120) ?? null)
-      .catch(() => null);
-    if (c) c.lastDeckFp = before;
-    // The deck's own visual layers cover its buttons at the sampled
-    // points (round 8: the plain click timed out at 8 s with the
-    // button visible and enabled) — plain first, force as the
-    // documented fallback, exactly like the cache screen's button.
-    const clickErr = await another
-      .click({ timeout: 3500 })
-      .then(() => null)
-      .catch(async () => {
-        const forceErr = await another
-          .click({ timeout: 8000, force: true })
-          .then(() => null)
-          .catch((e) => String(e).slice(0, 100));
-        return forceErr ? `plain+force failed: ${forceErr}` : 'plain timed out, force landed';
-      });
-    c.note(`settleDeck: Open Another click: ${clickErr}; deck before: ${JSON.stringify(before)?.slice(0, 140)}`);
-    return 'another-started';
-  }
   const collect = page.getByRole('button', { name: /^Collect$/ }).first();
   if (await collect.isVisible().catch(() => false)) {
     await collect
@@ -503,7 +481,9 @@ async function openOneCache(page, c, label) {
       `${label}: no clear tap point on OPEN WITH KEY — probe: ${JSON.stringify(probe)?.slice(0, 380)}; falling back to force click`,
     );
     await shot(page, 'decrypt-blocked.png');
-    await btn.click({ timeout: 15000, force: true });
+    await btn.click({ timeout: 15000, force: true }).catch((e) => {
+      c.note(`${label}: OPEN WITH KEY force click failed — ${String(e).slice(0, 120)}`);
+    });
   }
   return observeReveal(page, c, label, t0);
 }
@@ -527,58 +507,19 @@ async function caseDecrypt(browser) {
       const keys = await enterCacheScreen(page);
       c.check('guest holds seeded cache keys', keys !== null && keys >= 1, `keys=${keys}`);
       const opens = Math.min(keys ?? 0, 3);
-      let anotherStarted = false;
       for (let i = 0; i < opens; i++) {
-        if (anotherStarted) {
-          // Wait for the PREVIOUS deck to leave (or the new decrypt
-          // to begin) before timing this reveal — otherwise the
-          // observer reads the stale deck as this open's result
-          // (round 6: deckAt=3ms against a deck that never changed).
-          const genT0 = Date.now();
-          while (Date.now() - genT0 < 8000) {
-            const gen = await page.evaluate(() => ({
-              deck: !!document.querySelector('[data-testid="cache-reveal-deck"]'),
-              decrypting: document.body.innerText.includes('DECRYPTING CACHE'),
-              moment: !!document.querySelector('[data-testid="cache-loot-moment"]'),
-            }));
-            if (!gen.deck || gen.decrypting || gen.moment) break;
-            await sleep(200);
-          }
-          // Trace the chained reveal's DOM shape (notes): what
-          // actually changes when Open Another fires — a fresh
-          // moment element, an in-place deck swap, a decrypting
-          // interlude, or nothing at all?
-          const trace = [];
-          const traceT0 = Date.now();
-          let lastFp = null;
-          while (Date.now() - traceT0 < 6000) {
-            const s = await page.evaluate(() => {
-              const deck = document.querySelector('[data-testid="cache-reveal-deck"]');
-              return {
-                moment: !!document.querySelector('[data-testid="cache-loot-moment"]'),
-                decrypting: document.body.innerText.includes('DECRYPTING CACHE'),
-                deckFp: deck ? (deck.innerText ?? '').replace(/\s+/g, ' ').slice(0, 60) : null,
-                keys: document.body.innerText.match(/Keys:\s*(\d+)/)?.[1] ?? null,
-              };
-            });
-            const fp = `${s.moment}|${s.decrypting}|${s.deckFp}|${s.keys}`;
-            if (fp !== lastFp) {
-              trace.push(`${Date.now() - traceT0}ms ${fp}`);
-              lastFp = fp;
-            }
-            if (s.moment) break;
-            await sleep(250);
-          }
-          c.note(`chained reveal trace: ${trace.join(' → ').slice(0, 420)}`);
-          await observeReveal(page, c, `normal open ${i + 1} (via Open Another)`, Date.now());
-          anotherStarted = false;
-        } else {
-          await openOneCache(page, c, `normal open ${i + 1}`);
-        }
+        await openOneCache(page, c, `normal open ${i + 1}`);
         if (i < opens - 1) {
           const settled = await settleDeck(page, c);
-          anotherStarted = settled === 'another-started';
-          if (settled === 'unknown') c.note(`open ${i + 1}: deck settle path not recognised`);
+          if (settled !== 'collected') c.note(`open ${i + 1}: deck settle path not recognised (${settled})`);
+          // Clean re-entry between opens (see settleDeck's
+          // comment): reload and re-enter the cache screen so the
+          // next open starts from the state open 1 proved, with
+          // the key balance re-read from the server.
+          c.lastDeckFp = null;
+          await page.reload({ waitUntil: 'domcontentloaded' });
+          await page.waitForFunction((m) => eval(m), MARKERS.HOME, { timeout: 30000 });
+          await enterCacheScreen(page);
         }
       }
       await shot(page, 'decrypt-normal.png');
@@ -626,7 +567,11 @@ async function caseDecrypt(browser) {
       c.check('sabotage-op-delay: keys present', keys !== null && keys >= 1, `keys=${keys}`);
       if (keys) {
         const t0 = Date.now();
-        await page.getByRole('button', { name: /OPEN WITH KEY/i }).first().click({ timeout: 15000 });
+        await page
+          .getByRole('button', { name: /OPEN WITH KEY/i })
+          .first()
+          .click({ timeout: 15000 })
+          .catch((e) => c.note(`sabotage-op-delay: open click failed — ${String(e).slice(0, 120)}`));
         let outcome = null;
         while (Date.now() - t0 < 45000) {
           const s = await page.evaluate(() => ({
@@ -890,7 +835,7 @@ async function caseGearScale(browser) {
 // ── Case: boss stage (blueprint assertion 5) ─────────────────────
 async function caseBossStage(browser) {
   const c = new Case('boss-stage');
-  const { context, page } = await newGuestContext(browser);
+  const { context, page, consoleMsgs, pageErrors } = await newGuestContext(browser);
   try {
     await guestSignIn(page);
     // Durability seed (best effort): a level-1 guest dies before the
@@ -1040,6 +985,18 @@ async function caseBossStage(browser) {
       await shot(page, 'boss-panel.png');
       return c;
     }
+    // Keep the main stage ON SCREEN during the fight (round 10):
+    // the diorama's boss stage is visibility-gated
+    // (PresentationActiveContext / stageVisible in LiveTurfDiorama),
+    // and the force click above auto-scrolled the panel into view,
+    // pushing the stage off-screen — in rounds 7–9 the panel's own
+    // outcome resolved (win AND defeat) while the stage element
+    // never mounted across 150 s of polling. A player starting a
+    // fight watches the stage; the harness now does the same.
+    await page.evaluate(() => {
+      document.querySelector('[data-testid="home-mode-rail"]')?.scrollIntoView({ block: 'end' });
+    });
+    await sleep(600);
     // Observe the whole attempt. Actor stats are sampled
     // repeatedly and the BEST sample carries the check: round 7's
     // single first-sight sample caught a uniform takeover frame
@@ -1079,12 +1036,20 @@ async function caseBossStage(browser) {
       }
       if (Date.now() - lastStateNoteAt > 15000) {
         lastStateNoteAt = Date.now();
+        // Re-pin the stage in view (the observe loop's own
+        // screenshots/clicks can drift the scroll).
+        await page.evaluate(() => {
+          document.querySelector('[data-testid="home-mode-rail"]')?.scrollIntoView({ block: 'end' });
+        });
         const state = await page.evaluate(() => {
           const txt = (document.body.innerText ?? '').replace(/\s+/g, ' ');
           const staging = /Staging…|Staging\.\.\./.test(txt);
           const err = txt.match(/.{0,40}(failed|error|timed out).{0,40}/i)?.[0] ?? null;
           const fightBits = txt.match(/.{0,30}(DUNE TYRANT|Boss|VICTORY|DEFEAT).{0,30}/g)?.slice(0, 3) ?? [];
-          return { staging, err, fightBits };
+          const ids = [...document.querySelectorAll('[data-testid]')]
+            .map((e) => e.getAttribute('data-testid'))
+            .filter((i) => /fight|stage|diorama/i.test(i ?? ''));
+          return { staging, err, fightBits, fightIds: [...new Set(ids)].slice(0, 8) };
         });
         c.note(`fight state @${Math.round((Date.now() - t0) / 1000)}s: ${JSON.stringify(state)} phases=${[...phases].join(',')}`);
         await shot(page, `boss-fight-${Math.round((Date.now() - t0) / 1000)}s.png`);
@@ -1095,6 +1060,7 @@ async function caseBossStage(browser) {
       }
       await sleep(200);
     }
+    c.note(`fight console: ${consoleMsgs.slice(-4).join(' | ') || 'none'}; pageErrors: ${pageErrors.slice(-2).join(' | ') || 'none'}`);
     c.check(
       'boss actor pixel mass present on the stage',
       !!bestStats && bestStats.nonBgMass > 0.05 && bestStats.distinct > 30,

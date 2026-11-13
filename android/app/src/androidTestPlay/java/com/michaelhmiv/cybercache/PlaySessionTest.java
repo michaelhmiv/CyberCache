@@ -496,6 +496,7 @@ public class PlaySessionTest {
         // blind and learned nothing from the miss).
         String roamNote = null;
         long[] economyBefore = economySnapshot();
+        int lootBeforeRoam = lootCount();
         // Arm the Roam rail stop first — the standby panel's start
         // control belongs to the armed stop (round 3 hunted for it
         // on an un-armed standby and found nothing, even scrolling).
@@ -550,6 +551,16 @@ public class PlaySessionTest {
                     if (economyBefore[1] >= 0 && now[1] > economyBefore[1]) {
                         roamStarted = true;
                         roamNote = "verified by XP tick " + economyBefore[1] + " -> " + now[1]
+                                + " (attempt " + attempt + ")";
+                        break;
+                    }
+                    // Loot accrual is the roam's other unambiguous
+                    // effect (round 9: the counters never visibly
+                    // moved while the guest quietly gained 11 items).
+                    int lootNow = lootCount();
+                    if (lootBeforeRoam >= 0 && lootNow > lootBeforeRoam) {
+                        roamStarted = true;
+                        roamNote = "verified by loot accrual " + lootBeforeRoam + " -> " + lootNow
                                 + " (attempt " + attempt + ")";
                         break;
                     }
@@ -610,7 +621,13 @@ public class PlaySessionTest {
             // action — rounds 2–3 hunted blind on the wrong screen.
             String arrived = waitVisible(20_000,
                     "OPEN WITH KEY", "Open with key", "CRACK CACHE", "Spend keys for server-rolled gear");
-            int keysBefore = keysHeld();
+            // The count label can lag the screen's first paint
+            // (round 9 read -1 at arrival, then 2 after the spend).
+            int keysBefore = -1;
+            for (int i = 0; i < 10 && keysBefore < 0; i++) {
+                keysBefore = keysHeld();
+                if (keysBefore < 0) SystemClock.sleep(500);
+            }
             dumpHierarchy("play-cache-hierarchy");
             boolean keyClicked = false;
             if (arrived == null) {
@@ -705,12 +722,18 @@ public class PlaySessionTest {
             // If the key spends and the loot does NOT arrive, that
             // is a real defect and this stays red.
             int keysAfter = keysHeld();
-            UiObject2 homeTab = visibleFind("HOME", (int) (displayHeight * 0.85), displayHeight);
-            if (homeTab != null) {
-                tapObject(homeTab);
-                waitVisible(15_000, "HUNTER");
+            // Read the post-open loot count off a main tab's top
+            // bar (round 9 tapped HOME but read before the bar
+            // re-rendered — and possibly on the wrong screen).
+            UiObject2 hunterTab = visibleFind("HUNTER", (int) (displayHeight * 0.85), displayHeight);
+            if (hunterTab != null) {
+                tapObject(hunterTab);
             }
-            int lootAfter = lootCount();
+            int lootAfter = -1;
+            for (int i = 0; i < 20 && lootAfter < 0; i++) {
+                lootAfter = lootCount();
+                if (lootAfter < 0) SystemClock.sleep(600);
+            }
             boolean banked = keysBefore >= 0 && keysAfter >= 0 && keysAfter < keysBefore
                     && lootBefore >= 0 && lootAfter > lootBefore;
             if (banked) {
