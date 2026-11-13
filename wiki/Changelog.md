@@ -349,7 +349,67 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 237 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 291 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-13** — 1 merge
+
+- #576 — fix(market): listings fetch propagates failures — X-07 error state reachable (#568)
+
+**2026-11-12** — 53 merges
+
+- #500 — fix(auth): guest→Google link promotes the account in place (audit A-01)
+- #501 — fix(hunter): class-mod boosts no longer phantom-spend skill points (audit HTR-02)
+- #502 — fix(chef): localhost previews resolve same-origin, never the production Chef (audit H-01)
+- #503 — fix(hunter): majors/keystone charge their listed cost everywhere (audit HTR-01, migration 0089)
+- #504 — Fix the Pixi roam enemy vanishing after its walk-in
+- #505 — fix(session): chefClient transport refreshes once on 401 and retries (audit A-06)
+- #506 — fix(contracts): reroll carries the claim's verified-account gate (audit A-03)
+- #508 — fix(auth): linking a Google identity bound elsewhere refuses with a conflict (audit A-12)
+- #509 — Bulwark torso: paint out the cyan chest slash (the #495 fix, second plate)
+- #510 — fix(cosmetics): cc_cosmetics_view reads tier as the string union (audit G-F4)
+- #511 — fix(vendor): sell quotes use the server-composed buyback rate (audit G-F3)
+- #512 — Fix cache-decrypt hang: bounded transport + snapshot save off the reveal path
+- #513 — fix(hunter): Totals' boss DPS + Shield Break come from the boss sim (audit HTR-05)
+- #514 — fix(progression): level cap 100 in both XP implementations (audit HTR-06)
+- #515 — fix(skills): two-step respec confirmation + zero-spend refusal (audit HTR-07)
+- #516 — perf(hunter): render only the active Hunter stop (lazy sections)
+- #517 — fix(auth): logout revokes with a reason; only rotated-token reuse nukes (audit A-05 partial)
+- #518 — fix(routes): verified-account refusal is 403 on the gameplay surface too (audit A-04)
+- #519 — fix(auth): bootstrap failure is a terminal state with Retry (audit X-08)
+- #520 — fix(shell): keep tab screens alive + code-split screens (tab-switch latency)
+- #521 — fix(market): load failures are retryable error states, never an empty market (audit X-07)
+- #522 — fix(auth): sign-out and account switches clear the offline recap + local snapshot (audit A-08)
+- #523 — fix(auth): web AuthScreen mirrors the lock prompt — no dead Google CTA (audit A-02)
+- #524 — fix(home): occupation switches disclose the displacement (audit H-02)
+- #525 — Shield remounts to the torso in aim/recoil (far-arm suppression follow-up to #498)
+- #526 — fix(strip): remedy chip sizes to content; rundown shares follow the labels (audit H-04 + X-06)
+- #527 — Gear list render fix: windowing, thumb-density row art, fitted-base cache
+- #528 — fix(copy): trim paragraph-law violations; the scan now covers Home + Gear (audit X-05 + G-F7)
+- #529 — fix(layout): the 11px type floor — named labels fixed, repo-wide census gate (audit X-03)
+- #530 — fix(layout): the audited small buttons meet the 44px tap law (audit X-04)
+- #531 — fix(android): exclude the session store from backups and device transfers (audit A-09)
+- #532 — Boss telegraphs (C3): the special's wind-up warning on the fight stage
+- #533 — WebGL context loss routes to the DOM fallback instead of freezing the stage (X-01/A-07)
+- #534 — fix(hunter): Totals health labeled Effective HP; dead survival term removed (audit HTR-03 sub-fixes)
+- #535 — fix(workshop): pause copy keys to the boss phase — prep is not a fight (audit H-05)
+- #536 — fix(bootstrap): initial bundle fires once per session — in-flight join + settled guard (audit H-06)
+- #537 — fix(garage): one derived yield — the card obeys the empty tank (audit G-F6)
+- #538 — fix(market): stack per-unit label prints the exact price (audit M-2)
+- #539 — fix(hunter): skill node art renders at its native 30px (audit HTR-08)
+- #540 — fix(cosmetics): look resolution exposes missingParts (audit HTR-09)
+- #541 — fix(endless): Chamber failure strip gains a Retry (audit X-09)
+- #542 — fix(auth): gate table stops denying guests the view (audit A-11)
+- #543 — fix(web): boot fallback says 'You're offline' offline (audit A-10 partial)
+- #544 — fix(auth): in-memory store refuses owned-email identity create (audit A-13)
+- #545 — fix(market): Cancel Listing drops the transact guard (audit A-14)
+- #548 — docs(mechanics): M-3 — market listing carries the 25-scrap deposit
+- #553 — fix(stats): HTR-04 — Hunter crit display shows the fight number (primary + skill nodes)
+- #554 — fix(auth): hunter-name prompt defers — play first, ask when it matters (audit G-F5)
+- #555 — HTR-03: one canonical HP pool — Thick Skin into roaming, offline gate multiplier removed
+- #556 — Audit fixes: smoother Home motion, paused hidden stages, accurate displayed numbers
+- #559 — fix(cache): cache reveal's settled deck presents — stage yields its height when the moment ends
+- #563 — fix(manual): Links LCD test waits on the corpus, not a stale census pin (issue #551)
+- #565 — fix(chef): seed the roaming combat rolls — de-flake the Med Kit (Refined) contract check (#552)
 
 **2026-11-11** — 16 merges
 
