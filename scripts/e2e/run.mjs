@@ -1035,17 +1035,30 @@ async function caseBossStage(browser) {
     //   * the stage is re-pinned into view whenever it exists but
     //     sits off-screen (the presentation is visibility-gated;
     //     a watching player keeps it on screen);
-    //   * actor stats are best-of across the whole observe at a
-    //     1 s cadence, not first-sighting-only (round 12's
-    //     timeline showed a complete fight presenting in ~2.4 s —
-    //     a 4 s cadence samples it exactly once, on the takeover
-    //     frame);
+    //   * actor stats are captured by DETACHED attempts fired
+    //     at first sighting and at phase >= 1, best-of after the
+    //     loop (awaiting a capture inside the poll loop starved
+    //     the phase/telegraph polls — round 13 produced two
+    //     timeline samples total; and a complete fight presents
+    //     in ~2.4 s, so a capture must start mid-fight, not on
+    //     the t=0 takeover frame);
     //   * the finished oracle accepts the shipped outcome text
     //     shapes. Every check and threshold below is unchanged.
     const t0 = Date.now();
     let stageSeen = false;
     let bestStats = null;
-    let lastStatsAt = 0;
+    let statsFired = 0;
+    const statsAttempts = [];
+    const detachedStats = (delayMs) =>
+      (async () => {
+        await sleep(delayMs);
+        try {
+          const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
+          return await elementRegionStats(page, stageEl, BOSS_REGION);
+        } catch {
+          return null;
+        }
+      })();
     let phases = new Set();
     let telegraphSeen = false;
     let finished = false;
@@ -1084,13 +1097,21 @@ async function caseBossStage(browser) {
         );
         if (elapsed > 45000) timelineDone = true;
       }
-      if (s.stage && Date.now() - lastStatsAt > 1000) {
-        lastStatsAt = Date.now();
-        try {
-          const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
-          const stats = await elementRegionStats(page, stageEl, BOSS_REGION);
-          if (!bestStats || stats.nonBgMass > bestStats.nonBgMass) bestStats = stats;
-        } catch { /* stage remounting — the next sample retries */ }
+      // Actor stats run DETACHED (round 14): a capture takes
+      // seconds under throttle, and awaiting one inside this
+      // loop starved the phase/telegraph polls (round 13's
+      // timeline had exactly two samples — the loop sat inside
+      // its first capture while the fight presented and ended).
+      // Two attempts: first sighting (+900 ms, so the capture
+      // lands mid-fight, not on the t=0 takeover frame) and
+      // first phase >= 1 (+400 ms). Best-of is collected after
+      // the loop; the checks below are unchanged.
+      if (s.stage && statsFired === 0) {
+        statsFired++;
+        statsAttempts.push(detachedStats(900));
+      } else if (s.stage && statsFired === 1 && s.phase !== null && s.phase !== '0') {
+        statsFired++;
+        statsAttempts.push(detachedStats(400));
       }
       if (finished || s.finishedAttr || s.banner) {
         // The panel outcome is a finished state too (the check
@@ -1102,6 +1123,10 @@ async function caseBossStage(browser) {
         break;
       }
       await sleep(200);
+    }
+    for (const attempt of statsAttempts) {
+      const stats = await Promise.race([attempt, sleep(20000).then(() => null)]).catch(() => null);
+      if (stats && (!bestStats || stats.nonBgMass > bestStats.nonBgMass)) bestStats = stats;
     }
     c.note(`fight timeline (samples: phase/T=telegraph/v=inView/F=finishedAttr/B=banner/O=outcome): ${timeline.join(' ')}`);
     await shot(page, 'boss-fight-end.png').catch(() => {});
