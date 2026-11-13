@@ -158,6 +158,8 @@ export const RoamHarnessPage: React.FC = () => {
     //   playerHit — tone 'damage' (the enemy answers).
     //   kill — tone 'kill' + the target's HP lands at 0.
     //   drop — tone 'material' (a rarity beam, no gear card).
+    //   crate — tone 'cache' (the crate rise; no roaming producer
+    //     emits it in the real game — staged here only, R2).
     w.__seedBeat = (kind: string, value = 10) => {
       if (kind === 'shot') seedBeatEvent({ tone: 'loot', label: `-${value}`, value });
       else if (kind === 'crit') seedBeatEvent({ tone: 'loot', label: `-${value}`, value });
@@ -166,6 +168,52 @@ export const RoamHarnessPage: React.FC = () => {
         seedBeatEvent({ tone: 'kill', label: 'kill', value });
         useKillCycleStore.setState({ currentTargetHp: 0 });
       } else if (kind === 'drop') seedBeatEvent({ tone: 'material', label: '+1 TechFragments', value: 1 });
+      else if (kind === 'crate') seedBeatEvent({ tone: 'cache', label: 'Cache', value: 1 });
+    };
+    // Gear drop seam (Stage Iteration R2): a shipped-shape loot
+    // event WITH a gear payload, so the roam stage's LootMoment
+    // (light mode) plays in its real stage context. Rarity is a
+    // Rarity enum name ('Common' default).
+    w.__seedGearDrop = (rarity = 'Common') => {
+      const gear = {
+        id: `harness-gear-${replayBeatSeq + 1}`,
+        name: 'Volt Carbine',
+        level: 7,
+        rarity: Rarity[rarity as keyof typeof Rarity] ?? Rarity.Common,
+        weaponType: WeaponType.SMG,
+        manufacturer: Manufacturer.Prismatek,
+        element: Element.Shock,
+        rollQuality: 62,
+        baseDamage: 2847,
+        attackSpeed: 6.2,
+        critChance: 0.15,
+        critDamage: 150,
+        statusChance: 20,
+        statusDamage: 45,
+        bossDamageMod: 0,
+        waveDamageMod: 0,
+        shieldDamageMod: 0,
+        armorDamageMod: 0,
+        offlineEarningsMod: 0,
+        rareDropChanceMod: 0,
+        scrapYieldMod: 0,
+        parts: [
+          { slot: 'Barrel', modifier: { baseDamage: 1.05 } },
+          { slot: 'Grip', modifier: {} },
+          { slot: 'Core', modifier: {} },
+          { slot: 'Magazine', modifier: {} },
+          { slot: 'Sight', modifier: {} },
+          { slot: 'Chamber', modifier: {} },
+        ],
+        affixes: [],
+        isLocked: false,
+        pixelSeed: 7,
+        combatPower: 100,
+        bossPower: 90,
+        farmPower: 80,
+        economyScore: 10,
+      } as unknown as Weapon;
+      seedBeatEvent({ tone: 'loot', label: 'Volt Carbine', value: 1, gear });
     };
   }, [scene]);
 

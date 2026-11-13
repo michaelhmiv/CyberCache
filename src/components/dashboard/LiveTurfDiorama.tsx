@@ -19,6 +19,7 @@ import {
   DustRing,
   GhostHpBar,
   ImpactSparks,
+  LootBeam,
   MuzzleFlash,
   ShellCasing,
   TelegraphGlow,
@@ -26,7 +27,9 @@ import {
 } from '@/components/pixelArt/PixelFx';
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
-import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
+import { MOVEMENT, actorAnchorPoint, classifyTickBeat, lootRiseTotalMs, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
+import { dropAssetColor, dropRiseBeamColor, parseDropType } from '@/lib/pixel/dropColors';
+import { StageRise } from '@/components/pixelArt/StageRise';
 import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
@@ -91,7 +94,8 @@ import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, u
 import { MONSTERS, getMonster } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { Rarity } from '@/types/game';
-import { MATERIAL_VISUALS, ESSENCE_VISUALS, RESOURCE_VISUALS } from '@/constants/visualAssets';
+/* MATERIAL_VISUALS / ESSENCE_VISUALS / RESOURCE_VISUALS moved with
+ * dropAssetColor into '@/lib/pixel/dropColors'. */
 
 import type { BossDef } from '@/types/boss';
 import type { RoamingAreaDef } from '@/constants/roamingAreas';
@@ -162,23 +166,9 @@ const modeFromActivity = (kind?: ActivityKind, bossPhase?: BossPhase): DioramaMo
 
 // ── Drop visual helpers ──────────────────────────────────────────────────────────
 
-/** Parse material type from event label (e.g. "+1 TechFragments" → "TechFragments") */
-const parseDropType = (label: string): string => {
-  const match = label.match(/^\+?\d+\s+(.+)$/);
-  return match ? match[1] : label;
-};
-
-/** Resolve visual asset color for a material or essence drop */
-const dropAssetColor = (typeName: string): string => {
-  const mat = (MATERIAL_VISUALS as Record<string, { color: string }>)[typeName];
-  if (mat) return mat.color;
-  const ess = (ESSENCE_VISUALS as Record<string, { color: string }>)[typeName];
-  if (ess) return ess.color;
-  // Resource colors
-  const res = (RESOURCE_VISUALS as Record<string, { color: string }>)[typeName];
-  if (res) return res.color;
-  return '#A5A7B5'; // fallback gray
-};
+/* Drop color identity (parseDropType / dropAssetColor / dropRiseBeamColor)
+ * lives in '@/lib/pixel/dropColors' — shared with the Pixi stage so the
+ * DOM and Pixi rises always speak the same colors. */
 
 
 /**
@@ -219,9 +209,9 @@ export const DropRiseMasterIcon: React.FC<{ kind: DropRiseKind; base: string }> 
     return (
       <img
         src={DROP_RISE_MASTERS[kind]}
-        width={30}
-        height={30}
-        style={{ width: 30, height: 30 }}
+        width={34}
+        height={34}
+        style={{ width: 34, height: 34 }}
         alt=""
         aria-hidden="true"
         draggable={false}
@@ -233,7 +223,7 @@ export const DropRiseMasterIcon: React.FC<{ kind: DropRiseKind; base: string }> 
       ref={ref}
       width={60}
       height={60}
-      style={{ width: 30, height: 30 }}
+      style={{ width: 34, height: 34 }}
       aria-hidden="true"
       data-drop-rise-master={kind}
     />
@@ -271,7 +261,7 @@ export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, 
         <span
           style={{
             color: base,
-            fontSize: 8,
+            fontSize: 11,
             fontWeight: 900,
             lineHeight: 1.4,
             textShadow: '1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000',
@@ -821,7 +811,7 @@ const PixelSceneLayerDom: React.FC<{
   }, [recentCompletions, workshopJobs, benchSpec, mode, benchServiceLane, reduced]);
   useEffect(() => {
     if (!benchCompletion) return;
-    const timer = setTimeout(() => setBenchCompletion(null), MOVEMENT.LOOT_RISE_MS);
+    const timer = setTimeout(() => setBenchCompletion(null), lootRiseTotalMs());
     return () => clearTimeout(timer);
   }, [benchCompletion]);
   const activeBenchCompletion = mode === 'salvaging' ? null : benchCompletion;
@@ -875,7 +865,7 @@ const PixelSceneLayerDom: React.FC<{
   }, [salvageEvents, mode, reduced]);
   useEffect(() => {
     if (!salvageBeat) return;
-    const timer = setTimeout(() => setSalvageBeat(null), MOVEMENT.LOOT_RISE_MS);
+    const timer = setTimeout(() => setSalvageBeat(null), lootRiseTotalMs());
     return () => clearTimeout(timer);
   }, [salvageBeat]);
 
@@ -975,7 +965,8 @@ const PixelSceneLayerDom: React.FC<{
   const hunterMass = partsAnchorPoint(hunterLayout.joints.mass, hunterPlacement);
   const enemyMass = actorAnchorPoint(enemySprite, 'centerMass', enemyPlacement);
   const enemyFeet = actorAnchorPoint(enemySprite, 'feet', enemyPlacement);
-  const enemyLoot = actorAnchorPoint(enemySprite, 'lootPoint', enemyPlacement);
+  /* (the enemy's above-the-head lootPoint anchor is no longer read here —
+   * Stage Iteration R2: every drop presentation anchors at enemyFeet.) */
 
   const combatBeat = beat && showEnemy ? beat : null;
   const shakeKey =
@@ -1152,34 +1143,32 @@ const PixelSceneLayerDom: React.FC<{
           bench on the law's loot-rise duration while the hunter
           celebrates; the panel below carries the record. */}
       {benchSpec && activeBenchCompletion && (
-        <motion.div
+        <StageRise
           key={benchCompletionKey(activeBenchCompletion)}
-          data-testid="bench-completion-rise"
-          className="pointer-events-none absolute z-30 flex items-end justify-center"
-          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 46, height: 46, marginTop: -40 }}
-          initial={false}
-          animate={{ x: '-50%', y: [6, -14, -26, -30], opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
-          transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
+          testId="bench-completion-rise"
+          xPct={60}
+          yPct={workPointYPct}
+          width={46}
+          height={46}
         >
           <BenchRiseIcon entry={activeBenchCompletion} />
-        </motion.div>
+        </StageRise>
       )}
       {/* Salvage completion rise (M4b): the recycle's yield lifts
           off the crusher on the same rise the craft lanes use,
           while the hunter celebrates — salvaging's beat was
           forced null before this slice. */}
       {benchSpec && salvageBeat && (
-        <motion.div
+        <StageRise
           key={`salvage-rise-${salvageBeat.key}`}
-          data-testid="salvage-completion-rise"
-          className="pointer-events-none absolute z-30 flex items-end justify-center"
-          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 46, height: 46, marginTop: -40 }}
-          initial={false}
-          animate={{ x: '-50%', y: [6, -14, -26, -30], opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
-          transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
+          testId="salvage-completion-rise"
+          xPct={60}
+          yPct={workPointYPct}
+          width={46}
+          height={46}
         >
           <BenchItemRender plan={salvageBeat.plan} testId="salvage-rise-render" />
-        </motion.div>
+        </StageRise>
       )}
       {/* Extraction pass rises (M4a): the settled pass's finds lift
           off the sift rig — one PixelMaterial rise per material /
@@ -1194,37 +1183,35 @@ const PixelSceneLayerDom: React.FC<{
           data-pass-key={extractionBeat.key}
           className="pointer-events-none absolute inset-0 z-30"
         >
+          {/* The rig's light for the beat (Stage Iteration R2):
+              the BenchFx cycle is silenced while celebrating, so
+              the pass's beam stands at the work point for the
+              rises' whole readable window. */}
+          <LootBeam
+            xPct={58}
+            groundYPct={(groundY - 0.17) * 100}
+            color={dropAssetColor(extractionBeat.rises[0].id)}
+            widthPx={14}
+            flareScale={2.2}
+            radiant={false}
+            durationMs={extractionBeatDurationMs(extractionBeat.rises.length)}
+            reduced={reduced}
+          />
           {extractionBeat.rises.map((rise, i) => (
-            <motion.div
+            <StageRise
               key={`${rise.kind}-${rise.id}`}
-              data-testid="extraction-pass-rise"
-              data-rise-id={rise.id}
-              data-rise-kind={rise.kind}
-              data-rise-qty={rise.qty}
-              className="pointer-events-none absolute"
-              style={{
-                left: `${58 + (i - (extractionBeat.rises.length - 1) / 2) * 7}%`,
-                top: `${(groundY - 0.17) * 100}%`,
-                width: 46,
-                height: 58,
-                marginLeft: -23,
-                marginTop: -40,
-              }}
-              initial={{ y: 6, opacity: 0, scale: 0.6 }}
-              animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
-              transition={{
-                duration: MOVEMENT.LOOT_RISE_MS / 1000,
-                delay: (i * EXTRACTION_RISE_STAGGER_MS) / 1000,
-                times: [0, 0.2, 0.7, 1],
-                ease: 'easeOut',
-              }}
+              testId="extraction-pass-rise"
+              dataAttrs={{ 'rise-id': rise.id, 'rise-kind': rise.kind, 'rise-qty': rise.qty }}
+              xPct={58 + (i - (extractionBeat.rises.length - 1) / 2) * 7}
+              yPct={(groundY - 0.17) * 100}
+              delayMs={i * EXTRACTION_RISE_STAGGER_MS}
             >
               <div className="flex h-full flex-col items-center" style={{ paddingTop: 9 }}>
                 <PixelMaterial id={rise.id} size={30} />
                 <span
                   style={{
                     color: dropAssetColor(rise.id),
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: 900,
                     lineHeight: 1.4,
                     textShadow: '1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000',
@@ -1233,7 +1220,7 @@ const PixelSceneLayerDom: React.FC<{
                   ×{rise.qty}
                 </span>
               </div>
-            </motion.div>
+            </StageRise>
           ))}
         </div>
       )}
@@ -1569,48 +1556,71 @@ const PixelSceneLayerDom: React.FC<{
         </div>
       )}
 
-      {/* Loot rises (visual honesty): the rise at the enemy's loot point
-          pictures the grant the tick actually carried — key shard for a
-          cache fragment, the material/essence icon for a find, a scrap
-          rise for a kill payout. Icons are the drop rise grids
-          (DropRiseIcon). The cache crate below
+      {/* Loot rises (visual honesty): the rise at the fallen enemy's
+          feet (Stage Iteration R2 — the manifest loot point floated
+          the drop above the corpse's head, where it read as set
+          dressing) pictures the grant the tick actually carried —
+          key shard for a cache fragment, the material/essence icon
+          for a find, a scrap rise for a kill payout — under a beam
+          in the drop's own color at the corpse. Icons are the drop
+          rise grids (DropRiseIcon). The cache crate below
           rises ONLY on a real cache grant (tone 'cache'); roaming ticks
           never carry one, so the crate no longer appears while roaming.
           Gear drops keep their LootMoment further down. */}
       {lootRise && lootRise !== 'crate' && event && (
-        <motion.div
-          key={`loot-rise-${event.id}`}
-          data-testid="diorama-loot-rise"
-          data-loot-visual={lootRise}
-          className="pointer-events-none absolute z-20"
-          style={{ left: `${enemyLoot.xPct}%`, top: `${enemyLoot.yPct}%`, width: 46, height: 58, marginLeft: -23, marginTop: -40 }}
-          initial={{ y: 6, opacity: 0, scale: 0.6 }}
-          animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
-          transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
-        >
-          <DropRiseIcon
-            tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
-            label={lootRise === 'scrap' ? 'scrap' : event.label}
+        <React.Fragment key={`loot-rise-${event.id}`}>
+          {/* The drop's own light at the corpse (Stage Iteration
+              R2): the beam stands at the fallen enemy's feet for
+              the rise's whole readable window. */}
+          <LootBeam
+            xPct={enemyFeet.xPct}
+            groundYPct={enemyFeet.yPct}
+            color={dropRiseBeamColor(lootRise, event.label)}
+            widthPx={14}
+            flareScale={2.2}
+            radiant={false}
+            durationMs={lootRiseTotalMs()}
+            reduced={reduced}
           />
-        </motion.div>
+          <StageRise
+            testId="diorama-loot-rise"
+            dataAttrs={{ 'loot-visual': lootRise }}
+            xPct={enemyFeet.xPct}
+            yPct={enemyFeet.yPct}
+          >
+            <DropRiseIcon
+              tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
+              label={lootRise === 'scrap' ? 'scrap' : event.label}
+            />
+          </StageRise>
+        </React.Fragment>
       )}
       {lootRise === 'crate' && crate && (
-        <motion.img
-          key={`loot-${event?.id}`}
-          data-testid="diorama-crate-rise"
-          src={crate.url}
-          alt=""
-          draggable={false}
-          className="pointer-events-none absolute z-20"
-          style={{ left: '64%', bottom: '12%', width: 54, imageRendering: 'pixelated' }}
-          initial={{ y: 6, opacity: 0, scale: 0.6 }}
-          animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
-          transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
-        />
+        <React.Fragment key={`loot-${event?.id}`}>
+          <LootBeam
+            xPct={enemyFeet.xPct}
+            groundYPct={enemyFeet.yPct}
+            color="#FFD700"
+            widthPx={14}
+            flareScale={2.2}
+            radiant={false}
+            durationMs={lootRiseTotalMs()}
+            reduced={reduced}
+          />
+          <StageRise xPct={enemyFeet.xPct} yPct={enemyFeet.yPct} width={54} height={58}>
+            <img
+              data-testid="diorama-crate-rise"
+              src={crate.url}
+              alt=""
+              draggable={false}
+              style={{ width: 54, imageRendering: 'pixelated' }}
+            />
+          </StageRise>
+        </React.Fragment>
       )}
 
       {/* P3 loot moment for real gear drops: rarity beam + drop card at
-          the enemy's manifest loot point (light for ordinary drops, the
+          the fallen enemy's feet (light for ordinary drops, the
           full legendary treatment when a legendary lands). The drop was
           already awarded by the Chef claim — this only celebrates it. */}
       {dropItem && event && (
@@ -1619,7 +1629,7 @@ const PixelSceneLayerDom: React.FC<{
           items={[dropItem]}
           surface="feed"
           reduced={reduced}
-          anchorXPct={enemyLoot.xPct}
+          anchorXPct={enemyFeet.xPct}
           groundYPct={enemyFeet.yPct}
           testId="diorama-loot-moment"
         />

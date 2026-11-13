@@ -598,10 +598,27 @@ export const LootMoment: React.FC<LootMomentProps> = ({
     onDone?.();
   }, [state.status, onDone]);
 
-  if (!plan || !mode || !currentStep || state.status === 'done') return null;
+  // Light-mode settled linger (Stage Iteration R2): the ladder's
+  // durations are owner law and are NOT retimed — a Common roaming
+  // drop's step is 900 ms, which on device read as "drops aren't
+  // showing up". So when a light moment finishes, it rests in its
+  // settled state (beam steady, every card in place) until the drop
+  // has been on stage LOOT_LIGHT_LINGER_MS in total, and only then
+  // unmounts. Full moments (boss / cache) end exactly as before.
+  const lightLingerMs = mode === 'light' && plan ? Math.max(0, MOVEMENT.LOOT_LIGHT_LINGER_MS - plan.totalMs) : 0;
+  const [lingerElapsed, setLingerElapsed] = useState(false);
+  useEffect(() => {
+    if (state.status !== 'done' || mode !== 'light' || lightLingerMs <= 0) return undefined;
+    const timer = setTimeout(() => setLingerElapsed(true), lightLingerMs);
+    return () => clearTimeout(timer);
+  }, [state.status, mode, lightLingerMs]);
+  const lingering = mode === 'light' && state.status === 'done' && !lingerElapsed;
+  const settledLike = state.status === 'settled' || lingering;
 
-  const visibleCards = state.status === 'settled' ? plan.steps : plan.steps.slice(0, state.stepIndex + 1);
-  const miniSteps = state.status === 'settled' ? plan.steps.filter((step) => step !== plan.finale) : plan.steps.slice(0, state.stepIndex);
+  if (!plan || !mode || !currentStep || (state.status === 'done' && !lingering)) return null;
+
+  const visibleCards = settledLike ? plan.steps : plan.steps.slice(0, state.stepIndex + 1);
+  const miniSteps = settledLike ? plan.steps.filter((step) => step !== plan.finale) : plan.steps.slice(0, state.stepIndex);
   const beamStep = currentStep;
   const riseBudgetMs = Math.max(300, Math.min(MOVEMENT.LOOT_RISE_MS, currentStep.celebration.durationMs - 300));
 
@@ -635,11 +652,11 @@ export const LootMoment: React.FC<LootMomentProps> = ({
       {/* The current step's rarity light at the loot point — stepped
           beam, radiating fan, glow field, ground flare (PixelFx). */}
       <LootBeam
-        key={`beam-${beamStep.card.itemId}-${state.status}`}
+        key={`beam-${beamStep.card.itemId}-${mode === 'light' ? 'live' : state.status}`}
         xPct={anchorXPct}
         groundYPct={groundYPct}
         color={beamStep.celebration.color}
-        widthPx={full ? beamStep.celebration.beamWidthPx : Math.round(beamStep.celebration.beamWidthPx * 0.7)}
+        widthPx={beamStep.celebration.beamWidthPx}
         flareScale={beamStep.celebration.flareScale}
         reduced={reduced}
         durationMs={beamStep.celebration.durationMs}
@@ -702,7 +719,7 @@ export const LootMoment: React.FC<LootMomentProps> = ({
         <>
           {/* In-scene risen item + card stack (feed-full and light). */}
           {legendaryShowing && (
-            <RisenItemScene step={currentStep} xPct={anchorXPct} groundYPct={groundYPct} reduced={reduced} staticIn={state.status === 'settled'} />
+            <RisenItemScene step={currentStep} xPct={anchorXPct} groundYPct={groundYPct} reduced={reduced} staticIn={settledLike} />
           )}
           <div className={`absolute z-40 flex flex-col items-end gap-1.5 ${full ? 'right-3 top-3' : 'right-2 top-2'}`} data-testid="loot-card-stack">
             {visibleCards.map((step, index) => (
@@ -711,7 +728,7 @@ export const LootMoment: React.FC<LootMomentProps> = ({
                 card={step.card}
                 hero={full && (state.status === 'settled' ? step === plan.finale : index === state.stepIndex)}
                 reduced={reduced}
-                staticIn={state.status === 'settled'}
+                staticIn={settledLike}
               />
             ))}
           </div>

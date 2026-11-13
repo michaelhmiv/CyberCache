@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — Stage iteration: drops & moments
+
+- **Drops land where the enemy fell — and stay long enough to read** — a roaming find used to appear as a small icon floating above the dead enemy's head and vanish in about a second and a half, so most drops were never really seen. Finds now rise off the fallen enemy's feet under a light beam in the drop's own color, the icon is bigger, its label meets the game's type floor, and the whole rise — gear drops' beam and card included — rests in view for roughly a full tick (about three seconds) before it fades. A real cache grant's crate rises from the same spot instead of a fixed corner of the stage. Nothing about what drops, how often, or what it's worth has changed — the same grants, finally visible.
+- **Finished work rises off the seat it was made on** — a completed craft, a settled recycle, and an extraction pass's finds used to flash for under a second. They now rise on the same readable schedule as roaming drops: the finished unit off the bench seat it sat in, the yield out of the crusher's mouth, and a pass's finds off the sift rig under the rig's own light, each pictured at the count it settled.
+
 ## 2026-11-12 — The audit fix wave
 
 

@@ -275,6 +275,28 @@ describe('LootMoment — light mode (feed surface)', () => {
     expect(screen.queryByTestId('loot-dim')).toBeNull();
     expect(screen.queryByTestId('fx-god-rays')).toBeNull();
   });
+
+  it('rests settled after the ladder until the drop has been on stage LOOT_LIGHT_LINGER_MS (R2)', () => {
+    vi.useFakeTimers();
+    const common = makeWeapon({ id: 'w-common', name: 'Rusty Pistol', rarity: Rarity.Common });
+    render(<LootMoment items={[common]} surface="feed" testId="lm" />);
+    expect(screen.getByTestId('lm')).toBeTruthy();
+    // The Common step ends at its law duration (the ladder is NOT
+    // retimed)…
+    act(() => {
+      vi.advanceTimersByTime(MOVEMENT.LOOT_COMMON_MS + 10);
+    });
+    // …but the moment stays on stage in its settled state — beam
+    // steady, card in place — instead of vanishing at 900 ms.
+    expect(screen.getByTestId('lm')).toBeTruthy();
+    expect(screen.getByTestId('fx-loot-beam')).toBeTruthy();
+    expect(screen.getByTestId('loot-card-stack').textContent).toContain('Rusty Pistol');
+    // It unmounts once the total on-stage time passes the linger floor.
+    act(() => {
+      vi.advanceTimersByTime(MOVEMENT.LOOT_LIGHT_LINGER_MS);
+    });
+    expect(screen.queryByTestId('lm')).toBeNull();
+  });
 });
 
 describe('LootMoment — reduced motion', () => {

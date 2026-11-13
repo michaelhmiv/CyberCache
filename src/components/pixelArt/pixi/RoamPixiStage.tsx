@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePresentationActive } from '@/hooks/usePresentationActive';
-import { motion } from 'framer-motion';
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
@@ -12,8 +11,10 @@ import {
   logResumeProbeEvent,
 } from '@/lib/pixel/resumeProbe';
 import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
-import { CritFlash, DamageNumber } from '../PixelFx';
+import { CritFlash, DamageNumber, LootBeam } from '../PixelFx';
 import { DropRiseIcon } from '@/components/dashboard/LiveTurfDiorama';
+import { dropRiseBeamColor } from '@/lib/pixel/dropColors';
+import { StageRise } from '../StageRise';
 import { LootMoment } from '../LootMoment';
 import { PARTS_FEET_X, PART_POSES, SKELETON, type PartSetDef } from '@/lib/pixel/parts';
 import { layoutPartSet, type PartSetLayout, type PartsWeaponFractions } from '@/lib/pixel/partsCompositor';
@@ -56,6 +57,7 @@ import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
 import { paletteSpriteUrl, type PaletteSpec } from '@/lib/pixel/paletteSwap';
 import {
   MOVEMENT,
+  lootRiseTotalMs,
   particleField,
   shakeKeyframes,
   type ParticleSpec,
@@ -1612,28 +1614,32 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
             over the DOM stage. Gated on scene readiness so a rise
             never plays over the fallback-blank canvas. */}
         {lootRise && lootRise !== 'crate' && props.event && (
-          <motion.div
-            key={`loot-rise-${props.event.id}`}
-            data-testid="diorama-loot-rise"
-            data-loot-visual={lootRise}
-            className="pointer-events-none absolute z-20"
-            style={{
-              left: `${model.enemyLoot.xPct}%`,
-              top: `${model.enemyLoot.yPct}%`,
-              width: 46,
-              height: 58,
-              marginLeft: -23,
-              marginTop: -40,
-            }}
-            initial={{ y: 6, opacity: 0, scale: 0.6 }}
-            animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
-            transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
-          >
-            <DropRiseIcon tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise} label={lootRise === 'scrap' ? 'scrap' : props.event.label} />
-          </motion.div>
+          <React.Fragment key={`loot-rise-${props.event.id}`}>
+            {/* The drop's own light at the corpse (Stage Iteration
+                R2): beam at the fallen enemy's feet, chip rising off
+                the same point — the DOM stage's staging, identical. */}
+            <LootBeam
+              xPct={model.enemyFeet.xPct}
+              groundYPct={model.enemyFeet.yPct}
+              color={dropRiseBeamColor(lootRise, props.event.label)}
+              widthPx={14}
+              flareScale={2.2}
+              radiant={false}
+              durationMs={lootRiseTotalMs()}
+              reduced={false}
+            />
+            <StageRise
+              testId="diorama-loot-rise"
+              dataAttrs={{ 'loot-visual': lootRise }}
+              xPct={model.enemyFeet.xPct}
+              yPct={model.enemyFeet.yPct}
+            >
+              <DropRiseIcon tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise} label={lootRise === 'scrap' ? 'scrap' : props.event.label} />
+            </StageRise>
+          </React.Fragment>
         )}
         {lootRise === 'crate' && props.event && (
-          <CrateRise key={`loot-${props.event.id}`} lootPoint={model.enemyLoot} />
+          <CrateRise key={`loot-${props.event.id}`} feet={model.enemyFeet} />
         )}
         {dropItem && props.event && (
           <LootMoment
@@ -1641,7 +1647,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
             items={[dropItem]}
             surface="feed"
             reduced={false}
-            anchorXPct={model.enemyLoot.xPct}
+            anchorXPct={model.enemyFeet.xPct}
             groundYPct={model.enemyFeet.yPct}
             testId="diorama-loot-moment"
           />
@@ -1652,21 +1658,34 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
 };
 
 
-const CrateRise: React.FC<{ lootPoint: { xPct: number; yPct: number } }> = () => {
+/** The cache crate's rise (Stage Iteration R2): anchored at the
+ *  fallen enemy's feet with the gold beam — the pre-R2 component
+ *  accepted the anchor prop and ignored it, hardcoding 64%/12%. */
+const CrateRise: React.FC<{ feet: { xPct: number; yPct: number } }> = ({ feet }) => {
   const crate = getPixelSprite('crate');
   if (!crate) return null;
   return (
-    <motion.img
-      data-testid="diorama-crate-rise"
-      src={crate.url}
-      alt=""
-      draggable={false}
-      className="pointer-events-none absolute z-20"
-      style={{ left: '64%', bottom: '12%', width: 54, imageRendering: 'pixelated' }}
-      initial={{ y: 6, opacity: 0, scale: 0.6 }}
-      animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
-      transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
-    />
+    <>
+      <LootBeam
+        xPct={feet.xPct}
+        groundYPct={feet.yPct}
+        color="#FFD700"
+        widthPx={14}
+        flareScale={2.2}
+        radiant={false}
+        durationMs={lootRiseTotalMs()}
+        reduced={false}
+      />
+      <StageRise xPct={feet.xPct} yPct={feet.yPct} width={54} height={58}>
+        <img
+          data-testid="diorama-crate-rise"
+          src={crate.url}
+          alt=""
+          draggable={false}
+          style={{ width: 54, imageRendering: 'pixelated' }}
+        />
+      </StageRise>
+    </>
   );
 };
 
