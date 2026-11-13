@@ -41,7 +41,7 @@ import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { elementRegionStats, imageLumaGrid, gridDistance } from '../e2e/pixels.mjs';
+import { elementRegionStats, imageLumaGrid, gridDistance, captureClipPng } from '../e2e/pixels.mjs';
 
 let chromium;
 for (const candidate of [process.env.PLAYWRIGHT_CORE, 'playwright-core']) {
@@ -153,10 +153,11 @@ async function main() {
     if (stageUp) {
       const stage = page.locator('[data-testid="pixel-diorama-stage"], [data-testid="roam-pixi-stage"]').first();
       await sleep(3000);
-      const grid1 = await imageLumaGrid(page, await stage.screenshot());
+      const stageBox = await stage.boundingBox();
+      const grid1 = await imageLumaGrid(page, await captureClipPng(page, stageBox));
       const stats = await elementRegionStats(page, stage, ENEMY_REGION);
       await sleep(6000);
-      const grid2 = await imageLumaGrid(page, await stage.screenshot());
+      const grid2 = await imageLumaGrid(page, await captureClipPng(page, stageBox));
       const dist = gridDistance(grid1, grid2);
       check('stage pixels change across the fight', dist !== null && dist > 1.5, `distance=${dist?.toFixed(2)}`);
       check(

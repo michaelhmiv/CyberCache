@@ -235,6 +235,22 @@ public class PlaySessionTest {
         SystemClock.sleep(700);
     }
 
+    private void swipeToTop() {
+        device.swipe(displayWidth / 2, (int) (displayHeight * 0.30),
+                displayWidth / 2, (int) (displayHeight * 0.75), 22);
+        SystemClock.sleep(500);
+    }
+
+    /** Bounded scroll to the top; stops when the top bar is back. */
+    private void scrollToTop() {
+        for (int i = 0; i < 5; i++) {
+            if (vfTop("cache keys held") != null || vf("Hunter modes") != null) {
+                return;
+            }
+            swipeToTop();
+        }
+    }
+
     /**
      * Scroll-search: scan, swipe down, scan … up to maxSwipes.
      * Returns the number of swipes used (0 = already visible), or -1.
@@ -377,6 +393,15 @@ public class PlaySessionTest {
         // not a started roam (crawl semantics; rounds 1–2 tapped
         // blind and learned nothing from the miss).
         String roamNote = null;
+        // Arm the Roam rail stop first — the standby panel's start
+        // control belongs to the armed stop (round 3 hunted for it
+        // on an un-armed standby and found nothing, even scrolling).
+        UiObject2 roamStop = vf("start roaming and choose the area");
+        if (roamStop != null) {
+            tapObject(roamStop);
+            settle();
+        }
+        dumpHierarchy("play-roam-hierarchy");
         boolean roamClicked = tapVisible("Start Roam") || tapVisible("START ROAM");
         if (!roamClicked) {
             int swipes = scrollSearch(4, "Start Roam", "START ROAM");
@@ -385,6 +410,9 @@ public class PlaySessionTest {
                 if (swipes > 0) {
                     roamNote = "start control found after " + swipes + " scroll swipes";
                 }
+            } else {
+                roamNote = "start control not found (rail stop "
+                        + (roamStop != null ? "armed" : "NOT FOUND") + ", 4 scroll swipes)";
             }
         }
         boolean roamStarted = roamClicked
@@ -406,26 +434,42 @@ public class PlaySessionTest {
         boolean cacheOpened = false;
         boolean revealCompleted = false;
         String cacheNote = null;
+        // Reset to the top of the screen first — the roam leg may
+        // have left the scroll anywhere, and the top bar (with the
+        // cache control) only exists in the tree at the top.
+        scrollToTop();
         // The cache entry is the top-bar control whose description
         // reads "Cache — N cache keys held. Opens the cache chest."
-        // (round-2 hierarchy evidence) — search the top band first.
-        UiObject2 cacheEntry = vfTop("Cache");
+        // (round-2 hierarchy evidence). The unique "cache keys held"
+        // needle cannot collide with the app title or page content.
+        UiObject2 cacheEntry = vfTop("cache keys held");
         if (cacheEntry == null) {
-            cacheEntry = findVisible("Cache", true, 10_000);
+            cacheEntry = vfTop("Cache");
         }
         if (cacheEntry == null) {
-            cacheNote = "no cache entry control found by text or description";
+            cacheNote = "no cache entry control found (top bar, by description)";
         } else {
             tapObject(cacheEntry);
-            settle();
+            // VERIFY the cache screen arrived before hunting the key
+            // action — rounds 2–3 hunted blind on the wrong screen.
+            String arrived = waitVisible(20_000,
+                    "OPEN WITH KEY", "Open with key", "CRACK CACHE", "Spend keys for server-rolled gear");
             dumpHierarchy("play-cache-hierarchy");
-            boolean keyClicked = tapVisible("OPEN WITH KEY");
-            if (!keyClicked) {
-                int swipes = scrollSearch(3, "OPEN WITH KEY", "Open with key");
-                if (swipes >= 0) {
-                    keyClicked = tapVisible("OPEN WITH KEY") || tapVisible("Open with key");
+            boolean keyClicked = false;
+            if (arrived == null) {
+                cacheNote = "cache entry tapped but the cache screen never verified";
+            } else {
+                keyClicked = tapVisible("OPEN WITH KEY") || tapVisible("Open with key");
+                if (!keyClicked) {
+                    int swipes = scrollSearch(3, "OPEN WITH KEY", "Open with key");
+                    if (swipes >= 0) {
+                        keyClicked = tapVisible("OPEN WITH KEY") || tapVisible("Open with key");
+                    }
+                    dumpHierarchy("play-cache-hierarchy-scrolled");
                 }
-                dumpHierarchy("play-cache-hierarchy-scrolled");
+                if (!keyClicked) {
+                    cacheNote = "cache screen verified (" + arrived + ") but OPEN WITH KEY not found";
+                }
             }
             if (keyClicked) {
                 cacheOpened = true;
@@ -446,9 +490,9 @@ public class PlaySessionTest {
                 revealCompleted = sawDecrypting && settledDeck;
                 cacheNote = "sawDecrypting=" + sawDecrypting + " settledDeck=" + settledDeck;
                 snap("play-reveal");
-            } else {
-                cacheNote = "OPEN WITH KEY control not found (guest keys from the initial bundle expected)";
             }
+            // (No else: every keyClicked=false path above already
+            // recorded its specific reason in cacheNote.)
         }
         record("cacheOpened", cacheOpened, cacheNote);
         record("revealCompleted", revealCompleted, cacheNote);

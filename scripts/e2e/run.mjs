@@ -31,7 +31,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { elementRegionStats, imageLumaGrid, gridDistance } from './pixels.mjs';
+import { elementRegionStats, imageLumaGrid, gridDistance, captureClipPng } from './pixels.mjs';
 
 let chromium;
 for (const candidate of [process.env.PLAYWRIGHT_CORE, 'playwright-core']) {
@@ -221,7 +221,17 @@ async function measureSwitch(page, toTab) {
 
 async function shot(page, name) {
   const file = path.join(OUT, name);
-  await page.screenshot({ path: file }).catch(() => {});
+  try {
+    await page.screenshot({ path: file, timeout: 20000 });
+  } catch {
+    // Evidence capture must not depend on Playwright's font wait —
+    // fall back to a raw CDP surface capture written directly.
+    try {
+      const box = await page.evaluate(() => ({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }));
+      const png = await captureClipPng(page, box);
+      fs.writeFileSync(file, png);
+    } catch { /* evidence is best-effort; assertions carry the verdict */ }
+  }
   return file;
 }
 
@@ -433,9 +443,14 @@ async function openOneCache(page, c, label) {
     })
     .catch(() => 'probe failed');
   try {
-    await btn.click({ timeout: 15000 });
+    // Tap off-centre, the way a player's thumb lands: the probe
+    // (round 3) showed the button's exact centre covered by a 1px
+    // progress-bar div and a layout container — Playwright's
+    // centre-point "receives events" check can never pass there,
+    // while the button itself is enabled and tappable elsewhere.
+    await btn.click({ timeout: 15000, position: { x: 36, y: 22 } });
   } catch {
-    c.note(`${label}: OPEN WITH KEY plain click timed out — probe: ${probe}; retrying with force`);
+    c.note(`${label}: OPEN WITH KEY off-centre click timed out — probe: ${probe}; retrying with force`);
     await shot(page, 'decrypt-blocked.png');
     await btn.click({ timeout: 15000, force: true });
   }
@@ -651,6 +666,42 @@ async function caseGearScale(browser) {
       const afterKick = await sample();
       await page.mouse.wheel(0, -600);
       c.note(`after scroll kick: pending=${afterKick.pending} rows=${afterKick.rows}`);
+      // Round-4 root-cause probe: attach a FRESH observer (same
+      // options the app uses) to a stuck canvas and watch it, and
+      // time a requestAnimationFrame tick. This separates "IO never
+      // fires in this environment" from "the app's activation queue
+      // or the component's render never lands".
+      const probe = await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const el = document.querySelector('[data-testid="gear-list-row"] [data-deferred-art="pending"]');
+            if (!el) return resolve('no pending element to probe');
+            const r = el.getBoundingClientRect();
+            let ioFired = 'not fired within 1500ms';
+            const io = new IntersectionObserver(
+              (entries) => {
+                ioFired = entries
+                  .map((e) => `isIntersecting=${e.isIntersecting} ratio=${e.intersectionRatio.toFixed(2)}`)
+                  .join('; ');
+              },
+              { rootMargin: '600px 0px 600px 0px' },
+            );
+            io.observe(el);
+            const rafT0 = performance.now();
+            requestAnimationFrame(() => {
+              const rafMs = Math.round(performance.now() - rafT0);
+              setTimeout(() => {
+                io.disconnect();
+                resolve(
+                  `rect=${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}` +
+                    ` viewport=${window.innerWidth}x${window.innerHeight} visibility=${document.visibilityState}` +
+                    ` rafTick=${rafMs}ms io: ${ioFired}`,
+                );
+              }, 1500);
+            });
+          }),
+      );
+      c.note(`activation probe: ${probe}`);
     }
     await shot(page, 'gear-scale-top.png');
     // Scroll to the bottom of the list and check the last screenful.
@@ -750,8 +801,30 @@ async function caseBossStage(browser) {
     });
     c.note(`boss start control: ${JSON.stringify(fightState)}`);
     c.check('boss start control present', fightState.found, JSON.stringify(fightState));
+    if (!fightState.found) {
+      // Record what the panel actually offers before conceding —
+      // its state (locked boss? prep step pending?) is the finding.
+      const panelDump = await page.evaluate(() => {
+        const panel = document.querySelector('[data-testid="boss-encounter-panel"]');
+        if (!panel) return 'panel absent';
+        const btns = [...panel.querySelectorAll('button')].map(
+          (b) => `${(b.textContent ?? '').trim().slice(0, 40)}${b.disabled ? ' [disabled]' : ''}`,
+        );
+        return `buttons: ${btns.join(' | ')} || text: ${(panel.innerText ?? '').replace(/\s+/g, ' ').slice(0, 240)}`;
+      });
+      c.note(`boss panel dump: ${panelDump}`);
+      await shot(page, 'boss-panel.png');
+      c.check('boss fight started', false, 'no Start Boss Encounter control in the prep panel — see panel dump note');
+      return c;
+    }
     const fightBtn = page.locator('[data-testid="boss-encounter-panel"] button').filter({ hasText: /Start Boss Encounter/i }).last();
-    await fightBtn.click({ timeout: 15000, force: true });
+    try {
+      await fightBtn.click({ timeout: 15000, force: true });
+    } catch (e) {
+      c.check('boss fight started', false, `start click failed: ${String(e).slice(0, 160)}`);
+      await shot(page, 'boss-panel.png');
+      return c;
+    }
     // Observe the whole attempt.
     const t0 = Date.now();
     let stageSeen = false;

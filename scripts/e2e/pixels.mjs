@@ -88,17 +88,38 @@ export async function decodeRegionStats(page, pngBuffer, region) {
   );
 }
 
+/**
+ * Capture a clip of the page via CDP, bypassing Playwright's
+ * screenshot pipeline: both of its waits are wrong for a live game
+ * stage — element captures wait for a "stable" (un-animating)
+ * element (round 2: 19.6 s timeout), and page captures wait for
+ * webfonts to settle (round 3: 30 s timeout). A CDP
+ * Page.captureScreenshot takes the surface as it is.
+ */
+export async function captureClipPng(page, box) {
+  try {
+    const session = await page.context().newCDPSession(page);
+    try {
+      const { data } = await session.send('Page.captureScreenshot', {
+        format: 'png',
+        fromSurface: true,
+        captureBeyondViewport: false,
+        clip: { x: box.x, y: box.y, width: box.width, height: box.height, scale: 1 },
+      });
+      return Buffer.from(data, 'base64');
+    } finally {
+      await session.detach().catch(() => {});
+    }
+  } catch {
+    return page.screenshot({ clip: box });
+  }
+}
+
 /** Screenshot an element and compute stats for a fractional region of it. */
 export async function elementRegionStats(page, locator, region) {
-  // Clip a page screenshot to the element's box rather than taking an
-  // element screenshot: Playwright's element capture waits for the
-  // element to be "stable" (un-animating), and a live game stage
-  // never is — calibration round 2's enemy-presence case died on
-  // exactly that wait (19.6 s stability timeout). A clipped page
-  // capture takes the pixels as they are.
   const box = await locator.boundingBox();
   if (!box) throw new Error('elementRegionStats: element has no bounding box (detached?)');
-  const png = await page.screenshot({ clip: box });
+  const png = await captureClipPng(page, box);
   return decodeRegionStats(page, png, region);
 }
 
