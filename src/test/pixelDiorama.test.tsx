@@ -103,10 +103,13 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
     // stage by the hunter plate's own lift — ground line 0.86 for
     // every zone background, minus the shared 18.5-point lift puts
     // its top edge at 67.5%, over the enemy's lower body on the
-    // enemy's column (74%) — NOT the ground-line perch that read
-    // as part of the stats row, and never across the face.
+    // enemy's column (78% — ROAM_ENEMY_PLACEMENT.xPct, which the
+    // plate reads directly since the 2026-11-12 stage-iteration
+    // restage; it was a frozen 74% literal before) — NOT the
+    // ground-line perch that read as part of the stats row, and
+    // never across the face.
     expect(parseFloat(plate.style.top)).toBeCloseTo(67.5, 5);
-    expect(plate.style.left).toBe('74%');
+    expect(plate.style.left).toBe('78%');
     // The pair law: its top edge is EXACTLY the hunter plate's.
     const hunterPlate = screen.getByTestId('diorama-hunter-hp');
     expect(plate.style.top).toBe(hunterPlate.style.top);
@@ -138,9 +141,11 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
     );
     const plate = screen.getByTestId('diorama-hunter-hp');
     expect(plate.textContent).toContain('66/100');
-    // Anchored to the hunter's placement (xPct 22), raised off the
-    // ground line to lower-body height (groundY − 18.5 points).
-    expect(plate.style.left).toBe('22%');
+    // Anchored to the hunter's placement (ROAM_HUNTER_PLACEMENT
+    // xPct 18 since the 2026-11-12 stage-iteration restage; the
+    // plate reads the constant), raised off the ground line to
+    // lower-body height (groundY − 18.5 points).
+    expect(plate.style.left).toBe('18%');
     expect(parseFloat(plate.style.top)).toBeCloseTo(67.5, 5);
     unmount();
     // Non-combat modes keep the art unobstructed.
