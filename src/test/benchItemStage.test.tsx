@@ -27,7 +27,7 @@ import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingArea
 import { useInventoryStore, useSalvageFeedStore, useWorkshopStore } from '@/store';
 import type { WorkshopJobView, WorkshopServerView } from '@/store/slices/workshopSlice';
 import type { SalvageYield } from '@/lib/gear/salvageAward';
-import { getPixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite, pixelBackgroundForArea } from '@/lib/pixel/manifest';
 import { SET_SEATS, seatPointTopPct } from '@/lib/pixel/setSeats';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { ActivityKind } from '@/types/activity';
@@ -308,7 +308,7 @@ describe('the salvage beat — salvaging celebrates its settlements', () => {
     // from the same inputs the stage uses — NOT the crafting
     // lane's (groundY − 0.17) fallback.
     const area = getRoamingArea(DEFAULT_ROAMING_AREA_ID);
-    const groundY = getPixelSprite(area.backgroundId)?.anchors.groundLine?.y ?? 0.86;
+    const groundY = getPixelSprite(pixelBackgroundForArea(area.id) ?? 'zone-dustwaste-bg')?.anchors.groundLine?.y ?? 0.86;
     const seat = SET_SEATS['set-refinery-crusher'].seat;
     expect(seat).toBeTruthy();
     const expectedTop = `${seatPointTopPct(seat!, 34, groundY)}%`;
