@@ -1122,7 +1122,13 @@ async function caseBossStage(browser) {
       await sleep(200);
     }
     for (const attempt of statsAttempts) {
-      const stats = await Promise.race([attempt, sleep(20000).then(() => null)]).catch(() => null);
+      // A 6 s race ceiling, not 20 s (round 19): a capture that
+      // has not settled in 6 s is racing a stage that already
+      // left — round 18's finished elapsed read 25.8 s for a
+      // 5.2 s fight because one hung capture burned the whole
+      // ceiling. Every winning sample in rounds 13–18 settled
+      // inside ~5 s of firing.
+      const stats = await Promise.race([attempt, sleep(6000).then(() => null)]).catch(() => null);
       if (stats && (!bestStats || stats.nonBgMass > bestStats.nonBgMass)) bestStats = stats;
     }
     c.note(`fight timeline (samples: phase/T=telegraph/v=inView/F=finishedAttr/B=banner/O=outcome): ${timeline.join(' ')}`);
@@ -1151,21 +1157,41 @@ async function caseBossStage(browser) {
     // second observe immediately).
     let result = await observeAttempt();
     if (!result.telegraphSeen) {
+      // Post-fight the panel sits on its outcome view: "Fight
+      // Again" (BossEncounterPanel) returns it to prep, and
+      // only there does the Start control exist — round 18
+      // looked for Start on the outcome view, found nothing,
+      // and never fought again. Walk both steps, and observe
+      // the second attempt only if a stage actually re-mounts
+      // (a dud start would otherwise poll an outcome-less prep
+      // panel for the full budget).
+      const fightAgainBtn = page.locator('[data-testid="boss-encounter-panel"] button').filter({ hasText: /Fight Again/i }).last();
+      if ((await fightAgainBtn.count().catch(() => 0)) > 0) {
+        await fightAgainBtn.click({ timeout: 15000, force: true }).catch(() => {});
+        await sleep(600);
+      }
       const againBtn = page.locator('[data-testid="boss-encounter-panel"] button').filter({ hasText: /Start Boss Encounter/i }).last();
       if ((await againBtn.count().catch(() => 0)) > 0) {
         await againBtn.click({ timeout: 15000, force: true }).catch(() => {});
-        const second = await observeAttempt();
-        result = {
-          stageSeen: result.stageSeen || second.stageSeen,
-          bestStats:
-            second.bestStats && (!result.bestStats || second.bestStats.nonBgMass > result.bestStats.nonBgMass)
-              ? second.bestStats
-              : result.bestStats,
-          phases: second.phases.size > result.phases.size ? second.phases : result.phases,
-          telegraphSeen: result.telegraphSeen || second.telegraphSeen,
-          finished: result.finished || second.finished,
-          elapsedMs: result.elapsedMs + second.elapsedMs,
-        };
+        let restaged = false;
+        for (let i = 0; i < 20 && !restaged; i++) {
+          restaged = await page.evaluate(() => !!document.querySelector('[data-testid="boss-fight-stage"]')).catch(() => false);
+          if (!restaged) await sleep(500);
+        }
+        if (restaged) {
+          const second = await observeAttempt();
+          result = {
+            stageSeen: result.stageSeen || second.stageSeen,
+            bestStats:
+              second.bestStats && (!result.bestStats || second.bestStats.nonBgMass > result.bestStats.nonBgMass)
+                ? second.bestStats
+                : result.bestStats,
+            phases: second.phases.size > result.phases.size ? second.phases : result.phases,
+            telegraphSeen: result.telegraphSeen || second.telegraphSeen,
+            finished: result.finished || second.finished,
+            elapsedMs: result.elapsedMs + second.elapsedMs,
+          };
+        }
       }
     }
     c.check(
