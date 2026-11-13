@@ -142,10 +142,10 @@ describe('LiveTurfDiorama — stage overlay layout (owner ruling 2026-11-02)', (
     const plate = screen.getByTestId('diorama-hunter-hp');
     expect(plate.textContent).toContain('66/100');
     // Anchored to the hunter's placement (ROAM_HUNTER_PLACEMENT
-    // xPct 18 since the 2026-11-12 stage-iteration restage; the
-    // plate reads the constant), raised off the ground line to
-    // lower-body height (groundY − 18.5 points).
-    expect(plate.style.left).toBe('18%');
+    // xPct 12 since the 2026-11-13 capture-pass round-2 restage;
+    // the plate reads the constant), raised off the ground line
+    // to lower-body height (groundY − 18.5 points).
+    expect(plate.style.left).toBe('12%');
     expect(parseFloat(plate.style.top)).toBeCloseTo(67.5, 5);
     unmount();
     // Non-combat modes keep the art unobstructed.

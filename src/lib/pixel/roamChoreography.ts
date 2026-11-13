@@ -6,7 +6,7 @@ import { ENEMY_POSES, enemyRig, type RigDef, type RigPose } from './rig';
 import { layoutPartSet, type PartSetLayout } from './partsCompositor';
 import { partsAnchorPoint, partsWeaponFractionsFor } from './partsStage';
 import { actorAnchorPoint } from './movement';
-import { getMonster } from '@/constants/monsters';
+import { getMonster, type MonsterArchetype } from '@/constants/monsters';
 import { areaVisuals, type AreaVisualIdentity } from '@/content/areaPalettes';
 import { elementDialect, shotCadence, type ElementDialect, type ShotCadence } from './elementFx';
 import { getPixelSprite, pixelEnemySpriteForArchetype, requirePixelSprite, type PixelSprite } from './manifest';
@@ -46,9 +46,55 @@ import type { GearItem, Weapon } from '@/types/items';
  * already decided; nothing here produces gameplay outcomes.
  */
 
-/** Roam placements — PixelSceneLayer's own constants. */
-export const ROAM_HUNTER_PLACEMENT = { xPct: 18, heightPct: 57 } as const;
+/** Roam placements — PixelSceneLayer's own constants. The hunter
+ *  sits at 12% since capture-pass round 2 (2026-11-13): the
+ *  hunter's extended rifle tip measures 57.6% of stage width from
+ *  the 18% mark, which left every archetype short of the ≥12%
+ *  rest-air law; the −6 shift buys all of them +6 air at once. */
+export const ROAM_HUNTER_PLACEMENT = { xPct: 12, heightPct: 57 } as const;
 export const ROAM_ENEMY_PLACEMENT = { xPct: 78, heightPct: 58 } as const;
+
+/**
+ * Per-archetype settle overrides (stage-iteration capture pass,
+ * 2026-11-13). Measured on the capture rig (darkness-scan band
+ * scans + grounding, cross-checked against sprite alpha math;
+ * track logs arch-runner / arch-sniper): the hunter's rifle tip
+ * is a stage constant at 57.6% from the old 18% hunter mark.
+ * At the shared 78/58 settle the fodder front measures 65.2%
+ * (air 7.6%) and the brute front 68.0% (air 10.4%) — both short
+ * of the ≥12% law — the runner's forward-leaning rig puts its
+ * head at ≈51%, and the sniper's own rifle muzzle reaches ≈67%
+ * (crossed rifles). Round 1 (runner {82, 50}, sniper {86})
+ * captured: sniper front 74.6–75.7% → air ≈17% PASS; runner
+ * front only 58.8–59.7% — its sprite is 47.4% of stage wide at
+ * h58 with 43.4% of that width right of its feet anchor, so no
+ * in-stage placement of the runner alone reaches the law.
+ * Round 2 therefore pairs the hunter shift above (tip → ≈51.6%)
+ * with a runner settle of {84, 44} (predicted front ≈64%, air
+ * ≈12.4%, right edge ≈99.6%). Every other archetype keeps the
+ * shared mark, the elite staging (rig 72 / flat 74) is
+ * untouched, and no timing changes anywhere.
+ */
+export const ROAM_ARCHETYPE_PLACEMENT_OVERRIDES: Partial<
+  Record<MonsterArchetype, { xPct?: number; heightPct?: number }>
+> = {
+  runner: { xPct: 84, heightPct: 44 },
+  sniper: { xPct: 86 },
+};
+
+/** The effective roam settle for an archetype: the shared mark
+ *  with any per-archetype override applied. One derivation — the
+ *  scene model, the DOM diorama and the target HP plate all read
+ *  it, so the renderers cannot drift apart on a re-stage. */
+export function roamEnemyPlacementFor(
+  archetype: MonsterArchetype | undefined,
+): { xPct: number; heightPct: number } {
+  const override = archetype ? ROAM_ARCHETYPE_PLACEMENT_OVERRIDES[archetype] : undefined;
+  return {
+    xPct: override?.xPct ?? ROAM_ENEMY_PLACEMENT.xPct,
+    heightPct: override?.heightPct ?? ROAM_ENEMY_PLACEMENT.heightPct,
+  };
+}
 
 /**
  * Roam approach staging. The settle point above is where the enemy
@@ -263,13 +309,16 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
     (flatSpriteId ?? pixelEnemySpriteForArchetype(targetArchetype)) ?? 'brute';
   const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
   const hunterPlacement: ActorPlacement = { ...ROAM_HUNTER_PLACEMENT, groundY };
+  // Elite staging keeps the shared mark exactly (its heights
+  // below); the plain path reads the per-archetype settle.
+  const enemyBase = isEliteEvent ? ROAM_ENEMY_PLACEMENT : roamEnemyPlacementFor(targetArchetype);
   const enemyPlacement: ActorPlacement = {
-    ...ROAM_ENEMY_PLACEMENT,
+    ...enemyBase,
     heightPct: flatSpriteId
       ? ROAM_ELITE_FLAT_HEIGHT_PCT
       : isEliteEvent
         ? ROAM_ELITE_RIG_HEIGHT_PCT
-        : ROAM_ENEMY_PLACEMENT.heightPct,
+        : enemyBase.heightPct,
     groundY,
   };
   const beatRigPose = isEliteEvent ? ENEMY_POSES.idle : ENEMY_POSES[poses.enemy];

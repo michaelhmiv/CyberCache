@@ -170,7 +170,7 @@ describe('M2 — the roam scene model (one derivation for both renderers)', () =
     expect(model.hunterPoseName).toBe('aim');
     expect(model.rig?.segments).toHaveLength(4);
     expect(model.rigPose).toEqual({});
-    expect(model.hunterPlacement).toMatchObject({ xPct: 18, heightPct: 57 });
+    expect(model.hunterPlacement).toMatchObject({ xPct: 12, heightPct: 57 });
     // Settle mark 78%, frame 58% — the stage-iteration restage
     // (2026-11-12; was the tightened 66%/66%).
     expect(model.enemyPlacement).toMatchObject({ xPct: 78, heightPct: 58 });

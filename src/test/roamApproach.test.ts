@@ -28,6 +28,7 @@ import {
   ROAM_ENEMY_PLACEMENT,
   ROAM_HUNTER_PLACEMENT,
   approachOffsetXPct,
+  roamEnemyPlacementFor,
   deriveRoamScene,
   enemyWalkAlpha,
   resolveRoamWalkFrame,
@@ -37,11 +38,11 @@ import {
 } from '@/lib/pixel/roamChoreography';
 
 describe('roam approach staging', () => {
-  it('the settle mark restaged: 78% (from the tightened 66%), hunter at 18%', () => {
+  it('the settle mark restaged: 78% (from the tightened 66%), hunter at 12%', () => {
     expect(ROAM_ENEMY_PLACEMENT.xPct).toBe(78);
-    expect(ROAM_HUNTER_PLACEMENT.xPct).toBe(18);
+    expect(ROAM_HUNTER_PLACEMENT.xPct).toBe(12);
     // The framing gap between the two actors' marks.
-    expect(ROAM_ENEMY_PLACEMENT.xPct - ROAM_HUNTER_PLACEMENT.xPct).toBe(60);
+    expect(ROAM_ENEMY_PLACEMENT.xPct - ROAM_HUNTER_PLACEMENT.xPct).toBe(66);
   });
 
   it('the approach spans 24% of stage width — 4x the shipped 6% slide', () => {
@@ -145,7 +146,7 @@ describe('walk frame resolution — presence is state, not a witnessed transitio
     for (const t of [t0 + MOVEMENT.WALK_IN_MS, t0 + 5_000, t0 + 120_000]) {
       const settled = frame(first.state, KEY, t);
       expect(settled.model.enemyWalk).toBeNull();
-      expect(settled.model.enemyPlacement.xPct).toBe(ROAM_ENEMY_PLACEMENT.xPct);
+      expect(settled.model.enemyPlacement.xPct).toBe(roamEnemyPlacementFor('runner').xPct);
       expect(enemyWalkAlpha(settled.model)).toBe(1);
     }
   });
@@ -226,11 +227,23 @@ describe('rest staging geometry — every archetype keeps its air (stage-iterati
   for (const archetype of ['fodder', 'runner', 'brute', 'sniper', 'elite'] as const) {
     it(`${archetype}: box ≤45% of stage width, left edge ≥52% at the settle`, () => {
       const sprite = getPixelSprite(PIXEL_ENEMY_SPRITES[archetype])!;
-      const widthPct = (ROAM_ENEMY_PLACEMENT.heightPct * (sprite.width / sprite.height)) / ASPECT;
+      // The EFFECTIVE settle (per-archetype overrides included) —
+      // the guard covers the staging the stage actually renders.
+      const placement = roamEnemyPlacementFor(archetype);
+      const widthPct = (placement.heightPct * (sprite.width / sprite.height)) / ASPECT;
       const feet = anchorPoint(sprite, 'feet', 100, 100);
-      const left = ROAM_ENEMY_PLACEMENT.xPct - (feet.x / 100) * widthPct;
+      const left = placement.xPct - (feet.x / 100) * widthPct;
       expect(widthPct).toBeLessThanOrEqual(45);
       expect(left).toBeGreaterThanOrEqual(52);
     });
   }
+
+  it('per-archetype overrides: only runner + sniper move off the shared mark', () => {
+    expect(roamEnemyPlacementFor('fodder')).toEqual({ xPct: 78, heightPct: 58 });
+    expect(roamEnemyPlacementFor('brute')).toEqual({ xPct: 78, heightPct: 58 });
+    expect(roamEnemyPlacementFor('elite')).toEqual({ xPct: 78, heightPct: 58 });
+    expect(roamEnemyPlacementFor(undefined)).toEqual({ xPct: 78, heightPct: 58 });
+    expect(roamEnemyPlacementFor('runner')).toEqual({ xPct: 84, heightPct: 44 });
+    expect(roamEnemyPlacementFor('sniper')).toEqual({ xPct: 86, heightPct: 58 });
+  });
 });

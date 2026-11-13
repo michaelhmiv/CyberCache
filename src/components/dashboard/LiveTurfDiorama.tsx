@@ -27,7 +27,7 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
-import { ROAM_ELITE_FLAT_HEIGHT_PCT, ROAM_ELITE_RIG_HEIGHT_PCT, ROAM_ENEMY_PLACEMENT, ROAM_HUNTER_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
+import { ROAM_ELITE_FLAT_HEIGHT_PCT, ROAM_ELITE_RIG_HEIGHT_PCT, ROAM_ENEMY_PLACEMENT, ROAM_HUNTER_PLACEMENT, approachOffsetXPct, roamEnemyPlacementFor, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -318,12 +318,16 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYP
   if (!active || !targetId || maxHp <= 0) return null;
 
   const ratio = Math.max(0, Math.min(1, currentHp / maxHp));
-  const targetName = MONSTERS.find((monster) => monster.id === targetId)?.name ?? 'Target';
+  const targetMonster = MONSTERS.find((monster) => monster.id === targetId);
+  const targetName = targetMonster?.name ?? 'Target';
+  // The plate rides the enemy's column — the same per-archetype
+  // settle the stage renders at (roamChoreography owns the mark).
+  const plateXPct = roamEnemyPlacementFor(targetMonster?.archetype).xPct;
 
   return (
     <div
       className="pointer-events-none absolute z-30 w-[176px] border-2 border-border bg-bg/80 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
-      style={{ ...signClip, left: `${ROAM_ENEMY_PLACEMENT.xPct}%`, top: `${(groundYPct - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
+      style={{ ...signClip, left: `${plateXPct}%`, top: `${(groundYPct - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
       data-testid="primary-diorama-target-hp"
     >
       <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-black uppercase leading-tight tracking-wide text-text-muted">
@@ -967,15 +971,18 @@ const PixelSceneLayerDom: React.FC<{
     heightPct: ROAM_HUNTER_PLACEMENT.heightPct,
     groundY,
   };
-  // Roam settle = ROAM_ENEMY_PLACEMENT (the approach staging —
-  // roamChoreography owns it); boss encounters keep their own
-  // wider mark and taller frame. Elite events mirror the Pixi
-  // derivation's heights (rig 72 / bespoke flat 74) so the DOM
+  // Roam settle = the per-archetype mark (roamChoreography owns
+  // it — the shared ROAM_ENEMY_PLACEMENT plus its archetype
+  // overrides); boss encounters keep their own wider mark and
+  // taller frame, and elite events keep the shared mark exactly,
+  // mirroring the scene model's derivation. Elite heights mirror
+  // the Pixi derivation's (rig 72 / bespoke flat 74) so the DOM
   // anchors — mass, feet, loot point — sit on the same frame the
   // actor renders at (the rig/flat actors restate those heights
   // at their own call sites below).
+  const roamEnemy = roamEnemyPlacementFor(targetArchetype);
   const enemyPlacement: ActorPlacement = {
-    xPct: bossOnStage ? 74 : ROAM_ENEMY_PLACEMENT.xPct,
+    xPct: bossOnStage ? 74 : isEliteEvent ? ROAM_ENEMY_PLACEMENT.xPct : roamEnemy.xPct,
     heightPct: bossOnStage
       ? bossSpriteId
         ? 80
@@ -984,7 +991,7 @@ const PixelSceneLayerDom: React.FC<{
         ? visuals.eliteSpriteId
           ? ROAM_ELITE_FLAT_HEIGHT_PCT
           : ROAM_ELITE_RIG_HEIGHT_PCT
-        : ROAM_ENEMY_PLACEMENT.heightPct,
+        : roamEnemy.heightPct,
     groundY,
   };
   const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);

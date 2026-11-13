@@ -2,9 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
-## 2026-11-12 — Stage iteration: roam combat
+## 2026-11-13 — Stage iteration: roam combat
 
 - **Fights have room to breathe now** — roaming enemies used to crowd right up against your hunter, close enough that a long rifle's barrel disappeared into them at rest. Enemies now settle at a proper fighting distance in a slightly smaller frame, so the whole fight reads at a glance: your hunter on the left, the enemy across a clear gap of open ground, and critical hits land with a heavier kick and knock so the big hits feel big. Same enemies, same damage, same timings — only the staging moved.
+
+- **The last crowders got their distance too** — after the first restage, the jetpack raider and the cloaked sniper still leaned into your hunter's rifle at rest, and even the common scavenger stood a step too close. The raider now settles smaller and further right, the sniper stands off at its own mark, and your hunter holds a step further left, so every roaming enemy keeps a clear gap of open ground between you at rest. Same enemies, same damage, same timings — only the staging moved.
 
 ## 2026-11-12 — The audit fix wave
 
