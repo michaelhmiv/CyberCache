@@ -78,6 +78,7 @@ ALLOWED_TIMERS=(
   "$SRC/components/action/SwapUndoToast.tsx:toast auto-dismiss timer (display-only)"
   "$SRC/components/activity/SettlementDebugOverlay.tsx:debug overlay display clock"
   "$SRC/components/stats/ActiveBuffPills.tsx:buff countdown display clock (display-only)"
+  "$SRC/components/dashboard/HotFlameMark.tsx:hot-area flame flicker cadence (350ms display-only animation; no gameplay timing)"
   "$SRC/components/activity/useLeaveSignals.ts:best-effort leave signal throttle reset"
   "$SRC/components/activity/useActionHeartbeat.ts:live-action sync poll (3s tick-aligned owner cadence; fetches server-authoritative action state, computes and mutates nothing locally)"
   "$SRC/components/fight/BossPrepModal.tsx:fight animation delay (display-only)"
