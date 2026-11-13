@@ -26,8 +26,9 @@ describe('Field Manual (HelpScreen)', () => {
     // cross-references [[Bosses]] for the attack pattern; the
     // Endless-Mode cadence note is link-free by design) = 320,
     // +1 G-F5 (Getting-Started's hunter-name note cross-references
-    // [[Leaderboards-and-Streaks]]) = 321.
-    expect(await screen.findByText('321', {}, { timeout: 10000 })).toBeTruthy();
+    // [[Leaderboards-and-Streaks]]) = 321, +1 probe 551-A (The-Board
+    // MAX LEVEL sentence links [[Progression]]) = 322.
+    expect(await screen.findByText('322', {}, { timeout: 10000 })).toBeTruthy();
   });
 
   it('carries no trace of the retired guided tour or hand-written sections', () => {
