@@ -6,6 +6,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
 import { CritFlash, DamageNumber, SpecialTelegraphFx } from '../PixelFx';
 import { specialTelegraphForBossPhase, type BossSpecialTelegraph } from '@/lib/pixel/bossTelegraph';
+import { bossStagePlacement } from '@/lib/pixel/bossStageScale';
 import { PART_POSES, PARTS_FEET_X, PRIMARY_ANCHOR, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
 import {
   PART_PAINT_ORDER,
@@ -184,7 +185,7 @@ function deriveStageModel(props: BossFightStageProps): StageModel {
     effectiveBackgroundId,
     groundY,
     hunterPlacement: { ...HUNTER_PLACEMENT, groundY },
-    bossPlacement: { ...BOSS_PLACEMENT, groundY },
+    bossPlacement: { ...BOSS_PLACEMENT, ...bossStagePlacement(props.bossId), groundY },
     bossSprite: getPixelSprite(pixelBossSpriteForBoss(props.bossId) ?? 'brute') ?? requirePixelSprite('brute'),
   };
 }

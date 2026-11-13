@@ -21,6 +21,7 @@ import {
   Tracer,
 } from './PixelFx';
 import { specialTelegraphForBossPhase } from '@/lib/pixel/bossTelegraph';
+import { bossStagePlacement } from '@/lib/pixel/bossStageScale';
 import { getPixelSprite, pixelBossSpriteForBoss, requirePixelSprite } from '@/lib/pixel/manifest';
 import { bossArena, endlessBandTint } from '@/content/areaPalettes';
 import {
@@ -97,7 +98,7 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
   const bandTint = depthBadge ? endlessBandTint(depthBadge.band) : null;
   const groundY = background?.anchors.groundLine?.y ?? HUNTER_PLACEMENT.groundY;
   const hunterPlacement = { ...HUNTER_PLACEMENT, groundY };
-  const bossPlacement = { ...BOSS_PLACEMENT, groundY };
+  const bossPlacement = { ...BOSS_PLACEMENT, ...bossStagePlacement(bossId), groundY };
 
   const victory = timeline.outcome?.result.victory === true;
   const finished = timeline.finishedAt != null;
