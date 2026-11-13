@@ -5,7 +5,7 @@
  */
 import React, { useEffect } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useSalvageFeedStore } from '@/store/slices/salvageFeedSlice';
 import { getVisualAsset } from '@/constants/visualAssets';
@@ -22,6 +22,7 @@ const RARITY_COLORS: Record<string, string> = {
 };
 
 const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
+  const reduceMotion = useReducedMotion();
   const dismiss = useSalvageFeedStore((s) => s.dismiss);
   const accent = RARITY_COLORS[event.item.rarity] ?? '#A5A7B5';
   const { scrapValue, scrapAlloy, ballisticParts, reactiveComponents, techFragments, voidDust, essences, legendaryCores } = event.yield;
@@ -49,10 +50,10 @@ const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: -20, scale: 0.94 }}
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -20, scale: 0.94 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.94 }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0, y: reduceMotion ? 0 : -20, scale: reduceMotion ? 1 : 0.94 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2 }}
       className="pointer-events-auto w-full border-2 border-border bg-surface/95 shadow-[0_10px_28px_rgba(0,0,0,0.75)]"
       style={{ ...signClip, borderColor: `${accent}60` }}
     >
@@ -102,6 +103,7 @@ const SalvageToastItem: React.FC<{ event: SalvageFeedEvent }> = ({ event }) => {
  * batch of 1,500 items produces exactly this one card.
  */
 const SalvageBatchToastItem: React.FC<{ event: SalvageBatchFeedEvent }> = ({ event }) => {
+  const reduceMotion = useReducedMotion();
   const dismiss = useSalvageFeedStore((s) => s.dismiss);
   const { summary } = event;
 
@@ -118,10 +120,10 @@ const SalvageBatchToastItem: React.FC<{ event: SalvageBatchFeedEvent }> = ({ eve
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: -20, scale: 0.94 }}
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -20, scale: 0.94 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.94 }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0, y: reduceMotion ? 0 : -20, scale: reduceMotion ? 1 : 0.94 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2 }}
       className="pointer-events-auto w-full border-2 border-amber/50 bg-surface/95 shadow-[0_10px_28px_rgba(0,0,0,0.75)]"
       style={signClip}
       data-testid="salvage-batch-summary"
@@ -177,6 +179,7 @@ const SalvageBatchToastItem: React.FC<{ event: SalvageBatchFeedEvent }> = ({ eve
  * items back in the inventory.
  */
 const SalvageBatchFailedToastItem: React.FC<{ event: SalvageBatchFailedFeedEvent }> = ({ event }) => {
+  const reduceMotion = useReducedMotion();
   const dismiss = useSalvageFeedStore((s) => s.dismiss);
 
   useEffect(() => {
@@ -187,10 +190,10 @@ const SalvageBatchFailedToastItem: React.FC<{ event: SalvageBatchFailedFeedEvent
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: -20, scale: 0.94 }}
+      initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -20, scale: 0.94 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -20, scale: 0.94 }}
-      transition={{ duration: 0.2 }}
+      exit={{ opacity: 0, y: reduceMotion ? 0 : -20, scale: reduceMotion ? 1 : 0.94 }}
+      transition={{ duration: reduceMotion ? 0 : 0.2 }}
       className="pointer-events-auto w-full border-2 border-red/50 bg-surface/95 shadow-[0_10px_28px_rgba(0,0,0,0.75)]"
       style={signClip}
       data-testid="salvage-batch-failed"

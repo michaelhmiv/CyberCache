@@ -152,6 +152,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { compactResourceValue } from '@/lib/ui/formatValue';
+import { xpBarTransition } from '@/lib/animation/uiMotion';
 import {
   createStripPulseTracker,
   GAIN_GREEN,
@@ -610,7 +611,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
               className="h-full bg-amber"
               initial={false}
               animate={{ width: `${xpProgress}%` }}
-              transition={{ type: 'spring', damping: 20 }}
+              transition={xpBarTransition(reduceMotion)}
             />
           </div>
           <span
@@ -629,7 +630,7 @@ export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpen
             className="h-full bg-amber"
             initial={false}
             animate={{ width: `${xpProgress}%` }}
-            transition={{ type: 'spring', damping: 20 }}
+            transition={xpBarTransition(reduceMotion)}
           />
         </div>
       )}

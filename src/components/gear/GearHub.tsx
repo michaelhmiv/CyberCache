@@ -1044,6 +1044,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
             className="flex items-center gap-2 rounded-xl border border-amber/40 bg-amber/10 p-2"
           >
             <span className="text-[11px] font-black text-amber">{selectedIds.size} selected</span>

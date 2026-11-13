@@ -13,10 +13,11 @@
  */
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { useInitialBundleRevealStore } from '@/store/slices/initialBundleRevealSlice';
+import { listEntranceProps } from '@/lib/animation/uiMotion';
 
 function formatNumber(n: number): string {
   return n.toLocaleString('en-US');
@@ -27,42 +28,108 @@ function GrantRow({
   label,
   value,
   accent = 'text-amber',
+  index = 0,
+  reduceMotion = false,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   accent?: string;
+  index?: number;
+  reduceMotion?: boolean | null;
 }) {
   return (
-    <div className="flex items-center gap-3 py-1.5">
+    <motion.div {...listEntranceProps(index, reduceMotion)} className="flex items-center gap-3 py-1.5">
       <span className="flex shrink-0 items-center">{icon}</span>
       <span className="flex-1 text-xs text-zinc-400">{label}</span>
       <span className={`text-sm font-bold tabular-nums ${accent}`}>{value}</span>
-    </div>
+    </motion.div>
   );
 }
 
 export function StarterBundleReveal() {
   const grant = useInitialBundleRevealStore((state) => state.grant);
   const dismiss = useInitialBundleRevealStore((state) => state.dismiss);
+  const reduceMotion = useReducedMotion();
 
-  if (!grant) return null;
+  // Rows in grant order, indexed for the entrance stagger.
+  const rows: React.ReactNode[] = [];
+  if (grant) {
+    if (grant.credits > 0) {
+      rows.push(
+        <GrantRow
+          key="credits"
+          index={rows.length}
+          reduceMotion={reduceMotion}
+          icon={<PixelWalletIcon id="credits" size={17} />}
+          label="Credits"
+          value={`+${formatNumber(grant.credits)}`}
+        />,
+      );
+    }
+    if (grant.scrap > 0) {
+      rows.push(
+        <GrantRow
+          key="scrap"
+          index={rows.length}
+          reduceMotion={reduceMotion}
+          icon={<PixelWalletIcon id="scrap" size={17} />}
+          label="Scrap"
+          value={`+${formatNumber(grant.scrap)}`}
+          accent="text-zinc-300"
+        />,
+      );
+    }
+    if (grant.cacheKeys > 0) {
+      rows.push(
+        <GrantRow
+          key="cacheKeys"
+          index={rows.length}
+          reduceMotion={reduceMotion}
+          icon={<PixelWalletIcon id="cacheKey" size={17} />}
+          label="Cache Keys"
+          value={`+${formatNumber(grant.cacheKeys)}`}
+          accent="text-cyan-400"
+        />,
+      );
+    }
+    if (grant.vehicleName) {
+      rows.push(
+        <GrantRow
+          key="vehicle"
+          index={rows.length}
+          reduceMotion={reduceMotion}
+          icon={<PixelWalletIcon id="loot" size={17} />}
+          label="Vehicle — equipped"
+          value={grant.vehicleName}
+          accent="text-green-400"
+        />,
+      );
+    }
+  }
 
   return (
     <AnimatePresence>
+      {grant && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.18 }}
         className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
         onClick={(e) => {
           if (e.target === e.currentTarget) dismiss();
         }}
       >
         <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.96 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 40, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ type: 'spring', damping: 24, stiffness: 200 }}
+          exit={{ opacity: 0, y: 12 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { type: 'spring', damping: 24, stiffness: 200 }
+          }
           className="bl-card w-full max-w-sm overflow-hidden"
           role="dialog"
           aria-label="Starter supply drop"
@@ -78,44 +145,16 @@ export function StarterBundleReveal() {
                   Every hunter starts with a stake. Here&apos;s yours:
                 </p>
               </div>
-              <button onClick={dismiss} className="bl-secondary rounded p-1.5" aria-label="Dismiss">
+              <button
+                onClick={dismiss}
+                className="bl-secondary -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded"
+                aria-label="Dismiss"
+              >
                 <X className="h-4 w-4" size={16} />
               </button>
             </div>
           </div>
-          <div className="space-y-1 px-5 py-3">
-            {grant.credits > 0 && (
-              <GrantRow
-                icon={<PixelWalletIcon id="credits" size={17} />}
-                label="Credits"
-                value={`+${formatNumber(grant.credits)}`}
-              />
-            )}
-            {grant.scrap > 0 && (
-              <GrantRow
-                icon={<PixelWalletIcon id="scrap" size={17} />}
-                label="Scrap"
-                value={`+${formatNumber(grant.scrap)}`}
-                accent="text-zinc-300"
-              />
-            )}
-            {grant.cacheKeys > 0 && (
-              <GrantRow
-                icon={<PixelWalletIcon id="cacheKey" size={17} />}
-                label="Cache Keys"
-                value={`+${formatNumber(grant.cacheKeys)}`}
-                accent="text-cyan-400"
-              />
-            )}
-            {grant.vehicleName && (
-              <GrantRow
-                icon={<PixelWalletIcon id="loot" size={17} />}
-                label="Vehicle — equipped"
-                value={grant.vehicleName}
-                accent="text-green-400"
-              />
-            )}
-          </div>
+          <div className="space-y-1 px-5 py-3">{rows}</div>
           <div className="px-5 pb-5 pt-2">
             <button onClick={dismiss} className="bl-primary min-h-11 w-full py-2 text-sm font-black">
               Collect
@@ -123,6 +162,7 @@ export function StarterBundleReveal() {
           </div>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 }

@@ -102,7 +102,10 @@ describe('QC A9 — gain toasts get their own lane above the bottom nav', () => 
   });
 
   it('toast entry slide stays inside the lane (6px < 14px gap)', () => {
-    expect(deck).toContain('initial={{ opacity: 0, y: 6, scale: 0.9, rotate: -1 }}');
+    // The entry is reduced-motion gated (opacity-only under RM); the
+    // animated branch carries the same 6px slide the lane geometry
+    // was pinned against — the pin follows the branch, intent intact.
+    expect(deck).toContain('{ opacity: 0, y: 6, scale: 0.9, rotate: -1 }');
     expect(deck).not.toContain('y: 14, scale: 0.9');
   });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { ClaimPulse } from '@/components/common/ClaimPulse';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   useStandingStore,
   weeklyClaimables,
@@ -31,15 +31,20 @@ const WEEKLY_ACCENT = '#3FD6E8';
 const ClaimRow: React.FC<{ claimable: WeeklyClaimable; guest: boolean }> = ({ claimable, guest }) => {
   const busyKey = useStandingStore((s) => s.busyKey);
   const claim = useStandingStore((s) => s.claim);
+  const reduceMotion = useReducedMotion();
   const key = `${claimable.kind}:${claimable.manufacturer}`;
   const busy = busyKey === key;
   const anyBusy = busyKey !== null;
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', damping: 24, stiffness: 260 }}
+      exit={{ opacity: 0, transition: { duration: reduceMotion ? 0 : 0.15 } }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { type: 'spring', damping: 24, stiffness: 260 }
+      }
       className="flex items-center justify-between gap-2 border border-border bg-bg/70 px-2 py-2"
       data-testid={`weekly-claimable-${key}`}
     >
@@ -93,13 +98,15 @@ export const WeeklyClaimablesList: React.FC = () => {
           Nothing weekly is waiting right now — claimed crates and orders reset each week at the Rep Desk.
         </div>
       )}
-      {claimables.map((claimable) => (
-        <ClaimRow
-          key={`${claimable.kind}:${claimable.manufacturer}`}
-          claimable={claimable}
-          guest={guest}
-        />
-      ))}
+      <AnimatePresence initial={false}>
+        {claimables.map((claimable) => (
+          <ClaimRow
+            key={`${claimable.kind}:${claimable.manufacturer}`}
+            claimable={claimable}
+            guest={guest}
+          />
+        ))}
+      </AnimatePresence>
       {guest && claimables.length > 0 && (
         <div className="text-[11px] leading-snug text-text-muted">
           Guests can see the weekly offers — claiming one needs Google sign-in, and your guest progress carries over.

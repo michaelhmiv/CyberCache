@@ -21,9 +21,10 @@
  * must never be descendants of panel chrome.
  */
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { SheetPortal } from './SheetPortal';
+import { sheetMotionProps } from '@/lib/animation/uiMotion';
 
 interface PickerSheetProps {
   title: string;
@@ -35,6 +36,15 @@ interface PickerSheetProps {
   /** Scrollable body content (the item list). */
   children: React.ReactNode;
   onClose: () => void;
+  /**
+   * Presence control (Stage Iteration C1): when a caller keeps the
+   * sheet mounted and drives visibility through this prop, the
+   * exit animation plays on close. Callers that conditionally
+   * mount the sheet instead keep working unchanged — their sheet
+   * unmounts with them, so no exit can play — but every caller
+   * gets the shared sheet motion and reduced-motion collapse.
+   */
+  open?: boolean;
   /**
    * Overlay stacking class (QB-4): defaults to z-50. A sheet opened
    * from inside another sheet (e.g. the gear inspect sheet at
@@ -51,23 +61,24 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
   header,
   children,
   onClose,
+  open,
   overlayZClass = 'z-50',
 }) => {
+  const reduceMotion = useReducedMotion();
+  const sheet = sheetMotionProps(reduceMotion);
+  const isOpen = open ?? true;
   return (
     <SheetPortal>
     <AnimatePresence>
+      {isOpen && (
       <motion.div
         data-testid="picker-sheet-overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        {...sheet.backdrop}
         className={`fixed inset-0 ${overlayZClass} flex items-end bg-black/75`}
         onClick={onClose}
       >
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
+          {...sheet.panel}
           className="max-h-[92vh] w-full flex flex-col border-t-2 border-border bg-bg"
           onClick={(event) => event.stopPropagation()}
         >
@@ -107,6 +118,7 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
           </div>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
     </SheetPortal>
   );

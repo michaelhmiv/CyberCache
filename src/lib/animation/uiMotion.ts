@@ -53,3 +53,81 @@ export function panelEntranceProps(reduceMotion: boolean | null) {
     transition: { type: 'spring' as const, damping: 24, stiffness: 260 },
   };
 }
+
+/**
+ * Celebration-card entrance — the de-facto tier the loot-adjacent
+ * cards already share (OfflineRecap's three variants and the
+ * Starter Bundle Reveal both ride spring 200/24 from y:16-40).
+ * Named here so the tier has one home and one reduced-motion
+ * collapse (render at rest) instead of per-file copies that drift
+ * on the RM gate.
+ */
+export function celebrationEntranceProps(reduceMotion: boolean | null) {
+  if (reduceMotion) {
+    return {
+      initial: false as const,
+      animate: { opacity: 1, y: 0 },
+      transition: { duration: 0 },
+    };
+  }
+  return {
+    initial: { opacity: 0, y: 16 },
+    animate: { opacity: 1, y: 0 },
+    transition: { type: 'spring' as const, damping: 24, stiffness: 200 },
+  };
+}
+
+/**
+ * XP / progress bar chase — the width spring the ResourceBar and
+ * the level sheet each hand-copied as `{ spring, damping: 20 }`
+ * (framer's unnamed default stiffness 100). One shared spec:
+ * the stiffness is now named, the value is unchanged, and
+ * reduced motion snaps the bar to its value.
+ */
+export function xpBarTransition(reduceMotion: boolean | null) {
+  if (reduceMotion) return { duration: 0 } as const;
+  return { type: 'spring' as const, stiffness: 100, damping: 20 };
+}
+
+/**
+ * Bottom-sheet motion — the shipped sheet family's values (spring
+ * 320/28, named in seven sheets) as one shared pair so every sheet
+ * enters, exits, and collapses the same way. The backdrop rides
+ * the Enter tier (0.18s easeOut fade); the panel rides the spring.
+ *
+ * Reduced motion: the panel renders at rest and both layers
+ * degrade to a plain fade — the CollectionsPanel SpecSheet
+ * pattern, promoted to the shared helper.
+ */
+export function sheetMotionProps(reduceMotion: boolean | null) {
+  if (reduceMotion) {
+    return {
+      backdrop: {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0 },
+      },
+      panel: {
+        initial: false as const,
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0 },
+        transition: { duration: 0 },
+      },
+    };
+  }
+  return {
+    backdrop: {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      exit: { opacity: 0 },
+      transition: { duration: 0.18, ease: 'easeOut' as const },
+    },
+    panel: {
+      initial: { y: '100%' },
+      animate: { y: 0 },
+      exit: { y: '100%' },
+      transition: { type: 'spring' as const, damping: 28, stiffness: 320 },
+    },
+  };
+}

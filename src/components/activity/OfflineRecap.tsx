@@ -40,7 +40,8 @@ import { MaterialBadge } from '@/components/common/MaterialBadge';
 import { getVisualAsset } from '@/constants/visualAssets';
 import { getCraftRecipe } from '@/content/crafting';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
-import { RARITY_RANK, lootCelebrationForRarity } from '@/lib/pixel/lootMoment';
+import { RARITY_RANK, lootCelebrationForRarity, lootRiseBudgetMs } from '@/lib/pixel/lootMoment';
+import { celebrationEntranceProps } from '@/lib/animation/uiMotion';
 import type { GearItem } from '@/types/items';
 import { PushPrimerRow } from './PushPrimer';
 
@@ -98,9 +99,13 @@ function TotalsRow({ cells }: { cells: Array<{ label: string; value: string }> }
 /**
  * The absence's best drop as a POSTER CARD (§10): the highest-
  * rarity item the settlement carried, presented in the loot
- * language — its entrance runs on the loot ladder's own hold
- * time for that rarity (lootCelebrationForRarity → MOVEMENT
- * constants; the ladder itself is untouched). Reduced motion
+ * language — its entrance runs on the loot ladder's own timings
+ * for that rarity (lootCelebrationForRarity → MOVEMENT constants;
+ * the ladder itself is untouched). The ladder's durationMs is a
+ * HOLD inside a composite, so the poster RISES on the ladder's
+ * rise budget (lootRiseBudgetMs — the risen item's own curve)
+ * and then holds settled for the remainder of the beat, instead
+ * of stretching the full hold into one slow ease. Reduced motion
  * collapses the rise to an instant settle.
  */
 function BestDropPoster({ items }: { items: GearItem[] }) {
@@ -110,13 +115,19 @@ function BestDropPoster({ items }: { items: GearItem[] }) {
   const celebration = lootCelebrationForRarity(best.rarity);
   const color = celebration.color;
   const dps = 'damagePerSecond' in best ? best.damagePerSecond : null;
+  const riseFrac = lootRiseBudgetMs(celebration.durationMs) / celebration.durationMs;
   return (
     <motion.div
       data-testid="return-best-drop"
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 28, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      animate={
+        reduceMotion
+          ? { opacity: 1, y: 0, scale: 1 }
+          : { opacity: [0, 1, 1], y: [28, 0, 0], scale: [0.96, 1, 1] }
+      }
       transition={{
         duration: reduceMotion ? 0 : celebration.durationMs / 1000,
+        times: [0, riseFrac, 1],
         ease: 'easeOut',
       }}
       className="mx-5 mt-3 border-2 bg-black/40"
@@ -170,6 +181,8 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
   const { lastSettlement, dismiss } = useOfflineRecapStore();
   const [claiming, setClaiming] = useState(false);
   const [claimFailed, setClaimFailed] = useState(false);
+  const reduceMotion = useReducedMotion();
+  const cardEntrance = celebrationEntranceProps(reduceMotion);
 
   if (!lastSettlement) return null;
 
@@ -203,9 +216,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
     const c = lastSettlement.crafting;
     return (
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', damping: 24, stiffness: 200 }}
+        {...cardEntrance}
         className="bl-card w-full overflow-hidden"
       >
         <div className="px-5 pt-5 pb-3 border-b border-amber/10">
@@ -297,9 +308,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
     ].sort((a, b) => b.qty - a.qty);
     return (
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', damping: 24, stiffness: 200 }}
+        {...cardEntrance}
         className="bl-card w-full overflow-hidden"
       >
         <div className="px-5 pt-5 pb-3 border-b border-amber/10">
@@ -399,9 +408,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', damping: 24, stiffness: 200 }}
+      {...cardEntrance}
       className="bl-card w-full overflow-hidden"
     >
       {/* Header */}
