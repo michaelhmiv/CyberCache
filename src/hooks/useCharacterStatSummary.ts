@@ -11,9 +11,11 @@
  * Sources" door (no boss context — the hunter's standing build).
  */
 import { useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import {
   useActiveBuffsStore,
   useLoadoutStore,
+  useInventoryStore,
   usePlayerStore,
   useSkillStore,
   useSurvivalStore,
@@ -26,6 +28,7 @@ import { computeSkillBonuses } from '@/lib/skills/skillBonuses';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import type { BossDef } from '@/types/boss';
 import type { Weapon } from '@/types/items';
+import { isWeaponItem, isShieldItem, isClassModItem, isRelicItem, isOrdnanceItem } from '@/lib/loadout/loadoutReadModel';
 
 export interface CharacterStatInputs {
   summary: CharacterStatSummary;
@@ -53,28 +56,34 @@ export interface CharacterStatInputs {
  * drift from the live summary by sourcing its inputs differently.
  */
 export function useStatSummaryAssemblyState(boss?: BossDef | null): StatSummaryAssemblyState {
-  const player = usePlayerStore();
-  const loadout = useLoadoutStore();
-  const skills = useSkillStore();
-  const survival = useSurvivalStore();
-  const activeBuffsStore = useActiveBuffsStore();
+  const player = usePlayerStore(useShallow((s) => ({ level: s.level, cacheRankSpends: s.cacheRankSpends })));
+  const consumableInventory = usePlayerStore((s) => s.consumables);
+  const slots = useLoadoutStore(useShallow((s) => [
+    s.slots.primary, s.slots.secondary, s.slots.heavy,
+    s.slots.shield, s.slots.classMod, s.slots.relic, s.slots.ordnance,
+  ]));
+  const equipped = useInventoryStore(useShallow((s) => slots.map((id) => s.items.find((item) => item.id === id))));
+  const skills = useSkillStore(useShallow((s) => ({ spent: s.spent, classModBoosts: s.classModBoosts })));
+  const medKitBuffer = useSurvivalStore((s) => s.medKitBuffer);
   const now = useNow();
+  // Keep this array stable until an effect actually changes or expires.
+  const activeBuffs = useActiveBuffsStore(useShallow((s) => s.buffs.filter((buff) => buff.expiresAt > now)));
 
   return useMemo(() => ({
     player,
-    weapons: [loadout.getWeapon('primary'), loadout.getWeapon('secondary'), loadout.getWeapon('heavy')],
-    shield: loadout.getShield(),
-    classMod: loadout.getClassMod(),
-    relic: loadout.getRelic(),
-    ordnance: loadout.getOrdnance(),
+    weapons: equipped.slice(0, 3).map((item) => isWeaponItem(item) ? item : undefined),
+    shield: isShieldItem(equipped[3]) ? equipped[3] : undefined,
+    classMod: isClassModItem(equipped[4]) ? equipped[4] : undefined,
+    relic: isRelicItem(equipped[5]) ? equipped[5] : undefined,
+    ordnance: isOrdnanceItem(equipped[6]) ? equipped[6] : undefined,
     spent: skills.spent,
     classModBoosts: skills.classModBoosts,
     boss: boss ?? undefined,
-    activeBuffs: activeBuffsStore.buffs.filter((buff) => buff.expiresAt > now),
-    consumableMods: buildConsumableInventoryMods(player.consumables),
-    consumableInventory: player.consumables,
-    medKitBuffer: survival.medKitBuffer,
-  }), [player, loadout, skills, survival, activeBuffsStore.buffs, now, boss]);
+    activeBuffs,
+    consumableMods: buildConsumableInventoryMods(consumableInventory),
+    consumableInventory,
+    medKitBuffer,
+  }), [player, equipped, skills, medKitBuffer, activeBuffs, consumableInventory, boss]);
 }
 
 export function useCharacterStatSummary(boss?: BossDef | null): CharacterStatInputs {
@@ -88,9 +97,10 @@ export function useCharacterStatSummary(boss?: BossDef | null): CharacterStatInp
     // through effectiveSkillPoints with the equipped class mod's
     // boosts, so the summary prices the build the Chef pays.
     const summaryInput = assembleStatSummaryInput(state);
+    const snapshot = buildCharacterMechanicsSnapshot(summaryInput);
     return {
-      summary: buildCharacterStatSummary(summaryInput),
-      snapshot: buildCharacterMechanicsSnapshot(summaryInput),
+      summary: buildCharacterStatSummary(summaryInput, snapshot),
+      snapshot,
       weapons,
       primary: state.weapons[0] ?? null,
       skillBonuses: computeSkillBonuses(state.spent, state.classModBoosts),

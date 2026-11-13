@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { usePresentationActive } from '@/hooks/usePresentationActive';
 import { motion } from 'framer-motion';
 import { requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT } from '@/lib/pixel/movement';
@@ -240,6 +241,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
   // 'celebrate', a mode switch) clears it at once and the SEGMENT
   // transitions take over again.
   const wcSpec = workCycle?.spec;
+  const presentationActive = usePresentationActive();
   const wcActive = workCycle?.active ?? false;
   const [cyclePose, setCyclePose] = useState<PartPose | null>(null);
   const cycleRunRef = useRef<{ start: number | null; stopAt: number | null; ampAtStop: number }>({
@@ -248,6 +250,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     ampAtStop: 0,
   });
   useEffect(() => {
+    if (!presentationActive) return;
     if (!wcSpec || reduced || pose !== 'work') {
       cycleRunRef.current = { start: null, stopAt: null, ampAtStop: 0 };
       // Clear on the next frame, not synchronously (the render
@@ -294,7 +297,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [wcSpec, wcActive, reduced, pose]);
+  }, [wcSpec, wcActive, reduced, pose, presentationActive]);
 
   // A sampled cycle pose drives the figure ONLY while the cycle's
   // conditions hold right now (spec present, work pose, motion
@@ -320,6 +323,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     ampAtStop: 0,
   });
   useEffect(() => {
+    if (!presentationActive) return;
     if (!strideSpec || wcSpec || reduced) {
       strideRunRef.current = { start: null, stopAt: null, ampAtStop: 0 };
       const id = requestAnimationFrame(() => setStridePose(null));
@@ -370,7 +374,7 @@ export const PixelPartsActor: React.FC<PixelPartsActorProps> = ({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [strideSpec, strideActive, wcSpec, reduced, pose]);
+  }, [strideSpec, strideActive, wcSpec, reduced, pose, presentationActive]);
 
   const strideDrives = !!stridePose && !reduced && !wcSpec;
   const layout = useMemo(

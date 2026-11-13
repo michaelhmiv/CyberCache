@@ -145,6 +145,35 @@ export function sampleEnemyWalkPose(
 export const ROAM_ELITE_RIG_HEIGHT_PCT = 72;
 export const ROAM_ELITE_FLAT_HEIGHT_PCT = 74;
 
+const PLAYER_HIT_POSE_MS = MOVEMENT.TELEGRAPH_MS + MOVEMENT.LUNGE_MS + 140;
+
+/** Actor recovery uses the existing motion law; reward/FX clocks are unchanged. */
+export function roamPoseRecoveryTimes(beat: CombatBeat | null): number[] {
+  if (beat?.kind === 'shot' || beat?.kind === 'crit') {
+    return [MOVEMENT.SEGMENT.RECOIL_RECOVER_MS, MOVEMENT.HIT_REACTION_MS];
+  }
+  if (beat?.kind === 'playerHit') return [PLAYER_HIT_POSE_MS];
+  if (beat?.kind === 'kill') return [MOVEMENT.HIT_REACTION_MS];
+  return [];
+}
+
+export function roamPosesAt(beat: CombatBeat | null, armed: boolean, elapsedMs: number) {
+  const ready: PartsPoseName = armed ? 'aim' : 'relaxed';
+  let hunter: PartsPoseName = ready;
+  let enemy: keyof typeof ENEMY_POSES = 'idle';
+  if (beat?.kind === 'shot' || beat?.kind === 'crit') {
+    if (elapsedMs < MOVEMENT.SEGMENT.RECOIL_RECOVER_MS) hunter = 'recoil';
+    if (elapsedMs < MOVEMENT.HIT_REACTION_MS) enemy = 'hit';
+  } else if (beat?.kind === 'playerHit' && elapsedMs < PLAYER_HIT_POSE_MS) {
+    hunter = 'hit';
+    enemy = 'lunge';
+  } else if (beat?.kind === 'kill') {
+    if (elapsedMs < MOVEMENT.HIT_REACTION_MS) hunter = 'celebrate';
+    enemy = 'death';
+  }
+  return { hunter, enemy, key: `${hunter}|${enemy}` };
+}
+
 export interface RoamSceneInput {
   backgroundId: string;
   areaId: string;
@@ -159,6 +188,8 @@ export interface RoamSceneInput {
    *  the DOM diorama's rAF driver) — the model folds the stride
    *  articulation into the rig pose for exactly this span. */
   walkMs?: number;
+  /** Local presentation age; omitted means the event's first frame. */
+  beatElapsedMs?: number;
 }
 
 export interface RoamSceneModel {
@@ -170,6 +201,7 @@ export interface RoamSceneModel {
   dialect: ElementDialect;
   cadence: ShotCadence;
   hunterPoseName: PartsPoseName;
+  poseKey: string;
   hunterLayout: PartSetLayout;
   hunterPlacement: ActorPlacement;
   enemyPlacement: ActorPlacement;
@@ -212,16 +244,8 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
     input.event && (input.event.tone === 'event' || input.event.tone === 'event_major') && input.event.propId
       ? getPixelSprite(input.event.propId)
       : undefined;
-  const hunterPoseName: PartsPoseName =
-    beat?.kind === 'shot' || beat?.kind === 'crit'
-      ? 'recoil'
-      : beat?.kind === 'playerHit'
-        ? 'hit'
-        : beat?.kind === 'kill'
-          ? 'celebrate'
-          : input.weapon
-            ? 'aim'
-            : 'relaxed';
+  const poses = roamPosesAt(beat, !!input.weapon, input.beatElapsedMs ?? 0);
+  const hunterPoseName = poses.hunter;
   const hunterLayout = layoutPartSet(
     input.hunterSet,
     PART_POSES[hunterPoseName],
@@ -242,42 +266,14 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
         : ROAM_ENEMY_PLACEMENT.heightPct,
     groundY,
   };
-  const beatRigPose = isEliteEvent
-    ? ENEMY_POSES.idle
-    : beat?.kind === 'playerHit'
-      ? ENEMY_POSES.lunge
-      : beat?.kind === 'shot' || beat?.kind === 'crit'
-        ? ENEMY_POSES.hit
-        : beat?.kind === 'kill'
-          ? ENEMY_POSES.death
-          : ENEMY_POSES.idle;
+  const beatRigPose = isEliteEvent ? ENEMY_POSES.idle : ENEMY_POSES[poses.enemy];
   // Walk-articulation blend (sampleEnemyWalkPose): while the
   // walk-in runs, the stride delta composes ONTO the beat pose
   // (rotations/offsets sum, the pose system's own semantics) —
   // a beat landing mid-walk plays its pose THROUGH the gait
   // instead of freezing it. Elite events keep the plain pose
   // (their entrance is the drop/flat path's own).
-  const walk = !isEliteEvent && !flatSpriteId && input.walkMs !== undefined && input.walkMs < MOVEMENT.WALK_IN_MS
-    ? sampleEnemyWalkPose(input.walkMs)
-    : null;
-  const rigPose: RigPose = walk
-    ? Object.fromEntries(
-        [...new Set([...Object.keys(beatRigPose), ...Object.keys(walk.poseDelta)])].map((segId) => {
-          const b = beatRigPose[segId] ?? {};
-          const d = walk.poseDelta[segId] ?? {};
-          return [
-            segId,
-            {
-              rotate: (b.rotate ?? 0) + (d.rotate ?? 0),
-              x: (b.x ?? 0) + (d.x ?? 0) + (segId === 'base' ? walk.deltaX : 0),
-              y: (b.y ?? 0) + (d.y ?? 0),
-              ...(b.opacity !== undefined ? { opacity: b.opacity } : {}),
-            },
-          ];
-        }),
-      )
-    : beatRigPose;
-  return {
+  return withRoamWalkFrame({
     groundY,
     beat,
     isEliteEvent,
@@ -286,12 +282,13 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
     dialect: elementDialect(input.weapon?.element),
     cadence: shotCadence(input.weapon?.weaponType, input.weapon?.attackSpeed),
     hunterPoseName,
+    poseKey: poses.key,
     hunterLayout,
     hunterPlacement,
     enemyPlacement,
     rig: flatSpriteId ? undefined : enemyRig(isEliteEvent ? 'elite' : (targetArchetype ?? 'brute')),
-    rigPose,
-    enemyWalk: walk ? { offsetXPct: walk.offsetXPct, deltaX: walk.deltaX } : null,
+    rigPose: beatRigPose,
+    enemyWalk: null,
     flatSpriteId,
     enemySprite,
     enemySpriteId,
@@ -311,7 +308,26 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
             durationMs: beat.kind === 'crit' ? MOVEMENT.CRIT_SHAKE_MS : MOVEMENT.SHAKE_MS + 140,
           }
         : undefined,
-  };
+  }, input.walkMs);
+}
+
+/** Compose only the moving rig bands; reuse the cached hunter layout and FX geometry. */
+export function withRoamWalkFrame(model: RoamSceneModel, walkMs?: number): RoamSceneModel {
+  if (model.isEliteEvent || model.flatSpriteId || walkMs === undefined || walkMs >= MOVEMENT.WALK_IN_MS) return model;
+  const walk = sampleEnemyWalkPose(walkMs);
+  const rigPose = Object.fromEntries(
+    [...new Set([...Object.keys(model.rigPose), ...Object.keys(walk.poseDelta)])].map((segId) => {
+      const b = model.rigPose[segId] ?? {};
+      const d = walk.poseDelta[segId] ?? {};
+      return [segId, {
+        rotate: (b.rotate ?? 0) + (d.rotate ?? 0),
+        x: (b.x ?? 0) + (d.x ?? 0) + (segId === 'base' ? walk.deltaX : 0),
+        y: (b.y ?? 0) + (d.y ?? 0),
+        ...(b.opacity !== undefined ? { opacity: b.opacity } : {}),
+      }];
+    }),
+  );
+  return { ...model, rigPose, enemyWalk: { offsetXPct: walk.offsetXPct, deltaX: walk.deltaX } };
 }
 
 /** One target's walk-in clock: which target key the clock belongs
@@ -412,7 +428,7 @@ export function sampleRoamBeat(beat: CombatBeat | null, tMs: number, event?: Tic
         ease: FRAMER_EASE,
       };
       const lungeSpec = {
-        durationMs: MOVEMENT.TELEGRAPH_MS + MOVEMENT.LUNGE_MS + 140,
+        durationMs: PLAYER_HIT_POSE_MS,
         times: [0, 0.45, 0.62, 0.8, 1],
         ease: FRAMER_EASE,
       };

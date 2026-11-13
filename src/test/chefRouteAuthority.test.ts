@@ -21,7 +21,7 @@ describe('Chef route authority boundaries', () => {
     expect(claimRouteSource).toContain('getAuthenticatedChefPlayer');
     expect(authSource).toContain('verifyAccessToken(config.jwtSecret, token)');
     expect(authSource).toContain('verified.claims.sub');
-    expect(roamingHandlerSource).toContain('const claim: ClaimRequest = { ...body, playerId }');
+    expect(roamingHandlerSource).toContain('const claim: ClaimRequest = { ...body, playerId, maxTicks: undefined }');
     expect(claimRouteSource).toContain('const request: BossAttemptRequest = {');
     expect(claimRouteSource).toContain('playerLevel: serverLevel');
     expect(claimRouteSource).toContain('playerCredits: serverCredits');

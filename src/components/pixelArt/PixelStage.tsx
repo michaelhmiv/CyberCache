@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { usePresentationActive } from '@/hooks/usePresentationActive';
 import { motion, useAnimationControls } from 'framer-motion';
 import { anchorPoint, getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
 import { MOVEMENT, shakeKeyframes } from '@/lib/pixel/movement';
@@ -84,6 +85,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
   hot = false,
   vistaScene = null,
 }) => {
+  const presentationActive = usePresentationActive();
   const background = requirePixelSprite(backgroundId);
   const ground = groundY ?? background.anchors.groundLine?.y ?? 0.86;
   const visuals = areaId ? areaVisuals(areaId) : undefined;
@@ -152,7 +154,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
     };
     vistaPaintRef.current = paint;
     paint();
-    if (reduced) return;
+    if (reduced || !presentationActive) return;
     let raf = 0;
     let last = performance.now();
     const step = (now: number) => {
@@ -170,7 +172,7 @@ export const PixelStage: React.FC<PixelStageProps> = ({
     // vistaScene identity is captured through its id; the spec
     // objects are module constants.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vistaSceneId, reduced]);
+  }, [vistaSceneId, reduced, presentationActive]);
   // Repaint on stage resize (canvas backing store follows the box).
   useEffect(() => {
     if (!vistaSceneId) return;

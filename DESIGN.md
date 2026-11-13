@@ -2027,6 +2027,13 @@ M4b finishes the bench:
 
 ### The roam stage on Pixi — Motion Reboot M2 (2026-11-07)
 
+Presentation continuity (2026-11-12): hidden panes, an offscreen Home
+stage, and a backgrounded document suspend stage drivers without destroying
+the scene. Roam recoil returns through `SEGMENT.RECOIL_RECOVER_MS`, enemy
+hit poses through `HIT_REACTION_MS`, and the lunge through its existing
+window. Repeated events re-arm the pose; corpses remain down. This changes
+no art, layout, loot timing, boss timing, or gameplay clock.
+
 The pilot's ruling was "Pixi where motion is dense" — M2 brings
 the Home ROAM scene to the pilot standard, on the pilot's own
 machinery:
