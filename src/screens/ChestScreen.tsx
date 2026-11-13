@@ -452,10 +452,21 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 when it completes, the stat deck + actions render
                 BELOW it on this same page instead of the overlay
                 swapping to a separate card phase (the old swap read
-                as a second pop-up arriving too fast). The page
-                scrolls to fit both; the stage keeps its natural
-                full-viewport height at the top. */}
-            <div data-testid="cache-reveal-stage" className="relative h-dvh w-full">
+                as a second pop-up arriving too fast).
+                SETTLED PRESENTATION (owner device report, 2026-11-12):
+                at 'done' the moment unmounts by its own contract, so
+                a stage that kept its full-viewport height stranded
+                the deck exactly one screen below the fold — the
+                player was left staring at the header over an empty
+                stage while the item, its stats, and its actions sat
+                off-screen with no scroll cue. Once the moment is
+                done, the stage therefore yields its height and
+                settles to the header band, so the deck presents in
+                the first viewport directly under CACHE DECRYPTED. */}
+            <div
+              data-testid="cache-reveal-stage"
+              className={`relative w-full ${reducedMotion ? '' : 'transition-[height] duration-500 ease-out'} ${momentDone ? 'h-[120px]' : 'h-dvh'}`}
+            >
               {/* P3 loot moment over the pixel zone backdrop — the
                   cache's actual drop, celebrated before the cards. */}
               {zoneBg && (
