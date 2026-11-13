@@ -992,34 +992,26 @@ async function caseBossStage(browser) {
       await shot(page, 'boss-panel.png');
       return c;
     }
-    // Keep the main stage ON SCREEN during the fight (round 10):
-    // the diorama's boss stage is visibility-gated
-    // (PresentationActiveContext / stageVisible in LiveTurfDiorama),
-    // and the force click above auto-scrolled the panel into view,
-    // pushing the stage off-screen — in rounds 7–9 the panel's own
-    // outcome resolved (win AND defeat) while the stage element
-    // never mounted across 150 s of polling. A player starting a
-    // fight watches the stage; the harness now does the same.
-    // Pin the STAGE in view, not the rail (round 12): the rail
-    // scroll left the stage's on-screen geometry unknown, and the
-    // presentation is visibility-gated — an off-screen stage sits
-    // at phase 0 while the panel resolves the attempt without it.
-    for (let i = 0; i < 20; i++) {
-      const pinned = await page
-        .evaluate(() => {
-          const stage = document.querySelector('[data-testid="boss-fight-stage"]');
-          if (stage) {
-            stage.scrollIntoView({ block: 'center' });
-            return true;
-          }
-          document.querySelector('[data-testid="home-mode-rail"]')?.scrollIntoView({ block: 'end' });
-          return false;
-        })
-        .catch(() => false);
-      if (pinned) break;
-      await sleep(500);
-    }
-    await sleep(600);
+    // Keep the main stage ON SCREEN during the fight — but pin
+    // it from INSIDE the observe loop (round 15). The pin loop
+    // that used to sit here (rounds 10–12: scroll the stage into
+    // view, up to 10 s of polling + a 600 ms settle) ran while
+    // the presentation clock was already ticking from the click
+    // above, and whenever the stage mounted promptly, phase 0's
+    // 1,150 ms elapsed inside that blind window: rounds 13–14
+    // recorded phase sets of {1} and the phases/telegraph
+    // checks were unsatisfiable no matter how dense the later
+    // sampling got. (Rounds 7–9's failure was the mirror image:
+    // nobody pinned the stage at all, and it sat off-screen —
+    // the force click auto-scrolls the panel into view — while
+    // the panel resolved the attempt.) The observe loop below
+    // starts at the click, records the phase from every sample
+    // (in view or not), and re-pins the stage on the first
+    // sample that finds it off-screen; the presentation is
+    // visibility-gated (PresentationActiveContext /
+    // stageVisible in LiveTurfDiorama), so the phase clock
+    // pauses while off-screen and almost nothing is lost
+    // before the first re-pin lands.
     // Observe the whole attempt. Round 12 replaces the previous
     // loop's sampling shape outright: its verdicts contradicted its
     // own censuses for three rounds — the stage read as "seen" yet
