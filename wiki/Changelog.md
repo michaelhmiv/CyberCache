@@ -2,7 +2,7 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
-## 2026-11-12 — Stage iteration: the other half of the motion
+## 2026-11-13 — Stage iteration: the other half of the motion
 
 - **Claiming your daily streak is a moment now** — tapping Claim stamps the day onto the poster plate, the reward rows stamp themselves Banked one at a time, and the cache-key day flares once before the sheet settles. Opening the sheet no longer spends the celebration early: the reward simply waits, face-up, until you claim it.
 - **Sheets close as gracefully as they open** — the pop-up sheets (level details, Return, streak, contracts, weekly offers, the consumable ledger, the loadout picker and their kin) used to vanish in a hard cut when dismissed. They now slide away the way they arrived, on one shared motion every sheet in the game follows.
