@@ -1000,88 +1000,103 @@ async function caseBossStage(browser) {
     // outcome resolved (win AND defeat) while the stage element
     // never mounted across 150 s of polling. A player starting a
     // fight watches the stage; the harness now does the same.
-    await page.evaluate(() => {
-      document.querySelector('[data-testid="home-mode-rail"]')?.scrollIntoView({ block: 'end' });
-    });
+    // Pin the STAGE in view, not the rail (round 12): the rail
+    // scroll left the stage's on-screen geometry unknown, and the
+    // presentation is visibility-gated — an off-screen stage sits
+    // at phase 0 while the panel resolves the attempt without it.
+    for (let i = 0; i < 20; i++) {
+      const pinned = await page
+        .evaluate(() => {
+          const stage = document.querySelector('[data-testid="boss-fight-stage"]');
+          if (stage) {
+            stage.scrollIntoView({ block: 'center' });
+            return true;
+          }
+          document.querySelector('[data-testid="home-mode-rail"]')?.scrollIntoView({ block: 'end' });
+          return false;
+        })
+        .catch(() => false);
+      if (pinned) break;
+      await sleep(500);
+    }
     await sleep(600);
-    // Observe the whole attempt. Actor stats are sampled
-    // repeatedly and the BEST sample carries the check: round 7's
-    // single first-sight sample caught a uniform takeover frame
-    // (nonBgMass=0.000, distinct=1) and the fight's phase attribute
-    // never moved — so this loop also records the visible state
-    // every ~15 s (staging? error? fight UI text?) to separate a
-    // stuck server staging from a stuck renderer.
+    // Observe the whole attempt. Round 12 replaces the previous
+    // loop's sampling shape outright: its verdicts contradicted its
+    // own censuses for three rounds — the stage read as "seen" yet
+    // phases stayed {0}; the panel's outcome text was present from
+    // ~9 s yet the finished oracle never fired (it demanded an
+    // em dash the shipped text does not contain: the panel renders
+    // "DEFEATED" and "Failed during the … phase" as separate
+    // runs); and the first-sighting stats capture landed the
+    // uniform takeover frame and never sampled again. So now:
+    //   * a 0.5 s TIMELINE for the first 45 s — stage presence,
+    //     phase, special layer, stage-in-viewport, data-finished,
+    //     banner, outcome text — printed whole at the end;
+    //   * the stage is re-pinned into view whenever it exists but
+    //     sits off-screen (the presentation is visibility-gated;
+    //     a watching player keeps it on screen);
+    //   * actor stats are best-of across the whole observe at a
+    //     throttled cadence, not first-sighting-only;
+    //   * the finished oracle accepts the shipped outcome text
+    //     shapes. Every check and threshold below is unchanged.
     const t0 = Date.now();
     let stageSeen = false;
     let bestStats = null;
-    let lastStateNoteAt = 0;
+    let lastStatsAt = 0;
     let phases = new Set();
     let telegraphSeen = false;
     let finished = false;
+    const timeline = [];
+    let timelineDone = false;
     while (Date.now() - t0 < BUDGET.bossFinishMs) {
       const s = await page.evaluate(() => {
         const stage = document.querySelector('[data-testid="boss-fight-stage"]');
         const txt = document.body.innerText ?? '';
+        const rect = stage?.getBoundingClientRect();
         return {
           stage: !!stage,
           phase: stage?.getAttribute('data-phase') ?? null,
-          finished: stage?.getAttribute('data-finished') === 'true',
+          finishedAttr: stage?.getAttribute('data-finished') === 'true',
           telegraph: !!document.querySelector('[data-testid="boss-special-layer"]'),
           banner: !!document.querySelector('[data-testid="boss-fight-banner"]'),
-          // The panel's own outcome text is the finished state a
-          // player reads (rounds 8–10: "BOSS DEFEATED +750cr" /
-          // "DEFEATED — Failed during the Mirror Shield phase");
-          // the stage's data-finished/banner testids never appeared
-          // in this flow.
-          outcome: /BOSS DEFEATED|DEFEATED\s+—\s+Failed during|VICTORY/.test(txt),
+          inView: !!rect && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight,
+          outcome: /BOSS DEFEATED|VICTORY|DEFEATED[\s\S]{0,32}Failed during/.test(txt),
         };
       });
       if (s.stage) stageSeen = true;
       if (s.phase !== null && s.phase !== '') phases.add(s.phase);
       if (s.telegraph) telegraphSeen = true;
-      if (s.outcome) finished = true;
-      if (s.stage && !bestStats) {
-        // Capture on FIRST sighting, immediately: the presentation
-        // window for a fast fight is seconds, and round 10's
-        // throttled in-loop captures kept missing it (the census
-        // saw the stage; the stats sampler never landed a box).
-        for (let attempt = 0; attempt < 3 && !bestStats; attempt++) {
-          try {
-            const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
-            bestStats = await elementRegionStats(page, stageEl, BOSS_REGION);
-          } catch {
-            await sleep(300);
-          }
-        }
-        if (bestStats) await shot(page, 'boss-stage.png');
+      if (s.outcome || s.finishedAttr) finished = true;
+      if (s.stage && !s.inView) {
+        await page
+          .evaluate(() => {
+            document.querySelector('[data-testid="boss-fight-stage"]')?.scrollIntoView({ block: 'center' });
+          })
+          .catch(() => {});
       }
-      if (Date.now() - lastStateNoteAt > 15000) {
-        lastStateNoteAt = Date.now();
-        // Re-pin the stage in view (the observe loop's own
-        // screenshots/clicks can drift the scroll).
-        await page.evaluate(() => {
-          document.querySelector('[data-testid="home-mode-rail"]')?.scrollIntoView({ block: 'end' });
-        });
-        const state = await page.evaluate(() => {
-          const txt = (document.body.innerText ?? '').replace(/\s+/g, ' ');
-          const staging = /Staging…|Staging\.\.\./.test(txt);
-          const err = txt.match(/.{0,40}(failed|error|timed out).{0,40}/i)?.[0] ?? null;
-          const fightBits = txt.match(/.{0,30}(DUNE TYRANT|Boss|VICTORY|DEFEAT).{0,30}/g)?.slice(0, 3) ?? [];
-          const ids = [...document.querySelectorAll('[data-testid]')]
-            .map((e) => e.getAttribute('data-testid'))
-            .filter((i) => /fight|stage|diorama/i.test(i ?? ''));
-          return { staging, err, fightBits, fightIds: [...new Set(ids)].slice(0, 8) };
-        });
-        if (state.fightIds?.includes('boss-fight-stage')) stageSeen = true;
-        c.note(`fight state @${Math.round((Date.now() - t0) / 1000)}s: ${JSON.stringify(state)} phases=${[...phases].join(',')}`);
-        await shot(page, `boss-fight-${Math.round((Date.now() - t0) / 1000)}s.png`);
+      const elapsed = Date.now() - t0;
+      if (!timelineDone) {
+        timeline.push(
+          `${Math.round(elapsed / 100) / 10}s:${s.stage ? `p${s.phase ?? '?'}` : '----'}${s.telegraph ? 'T' : ''}${s.inView ? 'v' : 'h'}${s.finishedAttr ? 'F' : ''}${s.banner ? 'B' : ''}${s.outcome ? 'O' : ''}`,
+        );
+        if (elapsed > 45000) timelineDone = true;
       }
-      if (s.finished || s.banner) {
+      if (s.stage && Date.now() - lastStatsAt > 4000) {
+        lastStatsAt = Date.now();
+        try {
+          const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
+          const stats = await elementRegionStats(page, stageEl, BOSS_REGION);
+          if (!bestStats || stats.nonBgMass > bestStats.nonBgMass) bestStats = stats;
+        } catch { /* stage remounting — the next sample retries */ }
+      }
+      if (s.finishedAttr || s.banner) {
         finished = true;
         break;
       }
       await sleep(200);
     }
+    c.note(`fight timeline (samples: phase/T=telegraph/v=inView/F=finishedAttr/B=banner/O=outcome): ${timeline.join(' ')}`);
+    await shot(page, 'boss-fight-end.png').catch(() => {});
     c.note(`fight console: ${consoleMsgs.slice(-4).join(' | ') || 'none'}; pageErrors: ${pageErrors.slice(-2).join(' | ') || 'none'}`);
     c.check(
       'boss actor pixel mass present on the stage',

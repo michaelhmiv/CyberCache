@@ -275,11 +275,24 @@ public class PlaySessionTest {
 
     private void snap(String name) {
         File png = new File(outDir, name + ".png");
-        try {
-            device.takeScreenshot(png);
-        } catch (Exception e) {
-            Log.e(TAG, "takeScreenshot failed for " + name, e);
+        // UiDevice.takeScreenshot returns false (no throw) when the
+        // surface cannot be captured at that instant, and on the
+        // SwiftShader emulator that is intermittent — round 11 lost
+        // one of the three roam captures silently (2/3 pulled).
+        // Retry a few times; if the capture never lands, leave a
+        // note in the pulled result so the gap is diagnosable from
+        // the artifact instead of a bare count.
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                if (device.takeScreenshot(png) && png.exists() && png.length() > 0) {
+                    return;
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "takeScreenshot failed for " + name + " (attempt " + attempt + ")", e);
+            }
+            SystemClock.sleep(600);
         }
+        notes.put("screenshot:" + name, "takeScreenshot never landed after 3 attempts");
     }
 
     /** Accessibility-tree dump — calibration evidence for WHY a
