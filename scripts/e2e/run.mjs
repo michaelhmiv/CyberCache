@@ -1036,6 +1036,11 @@ async function caseBossStage(browser) {
     //     the t=0 takeover frame);
     //   * the finished oracle accepts the shipped outcome text
     //     shapes. Every check and threshold below is unchanged.
+    // One attempt's observation (round 18): the observe loop
+    // below, packaged unchanged so the case can run it for a
+    // second attempt when the first fight never reaches the
+    // boss's cadence special (see the attempts note below).
+    const observeAttempt = async () => {
     const t0 = Date.now();
     let stageSeen = false;
     let bestStats = null;
@@ -1123,19 +1128,59 @@ async function caseBossStage(browser) {
     c.note(`fight timeline (samples: phase/T=telegraph/v=inView/F=finishedAttr/B=banner/O=outcome): ${timeline.join(' ')}`);
     await shot(page, 'boss-fight-end.png').catch(() => {});
     c.note(`fight console: ${consoleMsgs.slice(-4).join(' | ') || 'none'}; pageErrors: ${pageErrors.slice(-2).join(' | ') || 'none'}`);
+    return { stageSeen, bestStats, phases, telegraphSeen, finished, elapsedMs: Date.now() - t0 };
+    };
+    // Attempts (round 18): the telegraph check can only pass
+    // when a fight REACHES the phase the boss's cadence assigns
+    // its special to — bossTelegraph.ts maps the sim's 30 s
+    // window onto the resolved fight's phases in equal slices
+    // (Mirage Duster: special at 15 s sim-time → phase 1 of a
+    // 2–3-phase fight, phase 2+ of a longer one), and where the
+    // hunter dies is fight-content RNG. Rounds 12/15 reached
+    // the special; round 16's fight ended a phase earlier
+    // through no presentation fault (mass 0.684, phases {0,1},
+    // finished — only the telegraph unobserved). So when the
+    // first attempt finishes without a telegraph sighting and
+    // the panel offers a start control again, the case fights
+    // a second attempt and merges: existence properties
+    // (mounted, mass, telegraph, finished) are satisfied by
+    // either attempt, while the phases check reads the better
+    // single attempt's set — phases from two fights never
+    // combine. A second click that starts nothing degrades to
+    // the first attempt's verdicts (the stale outcome ends the
+    // second observe immediately).
+    let result = await observeAttempt();
+    if (!result.telegraphSeen) {
+      const againBtn = page.locator('[data-testid="boss-encounter-panel"] button').filter({ hasText: /Start Boss Encounter/i }).last();
+      if ((await againBtn.count().catch(() => 0)) > 0) {
+        await againBtn.click({ timeout: 15000, force: true }).catch(() => {});
+        const second = await observeAttempt();
+        result = {
+          stageSeen: result.stageSeen || second.stageSeen,
+          bestStats:
+            second.bestStats && (!result.bestStats || second.bestStats.nonBgMass > result.bestStats.nonBgMass)
+              ? second.bestStats
+              : result.bestStats,
+          phases: second.phases.size > result.phases.size ? second.phases : result.phases,
+          telegraphSeen: result.telegraphSeen || second.telegraphSeen,
+          finished: result.finished || second.finished,
+          elapsedMs: result.elapsedMs + second.elapsedMs,
+        };
+      }
+    }
     c.check(
       'boss actor pixel mass present on the stage',
-      !!bestStats && bestStats.nonBgMass > 0.05 && bestStats.distinct > 30,
-      bestStats ? `best nonBgMass=${bestStats.nonBgMass.toFixed(3)} distinct=${bestStats.distinct}` : 'no stats sample captured',
+      !!result.bestStats && result.bestStats.nonBgMass > 0.05 && result.bestStats.distinct > 30,
+      result.bestStats ? `best nonBgMass=${result.bestStats.nonBgMass.toFixed(3)} distinct=${result.bestStats.distinct}` : 'no stats sample captured',
     );
-    c.check('boss stage mounted for the attempt', stageSeen);
-    c.check('fight phases advance', phases.size >= 2, `phases seen=${[...phases].join(',')}`);
+    c.check('boss stage mounted for the attempt', result.stageSeen);
+    c.check('fight phases advance', result.phases.size >= 2, `phases seen=${[...result.phases].join(',')}`);
     c.check(
       'cadence special telegraph rendered during the fight (C3)',
-      telegraphSeen,
-      `phases=${phases.size} — a fight too short to reach the special cannot satisfy this; see seed note`,
+      result.telegraphSeen,
+      `phases=${result.phases.size} — a fight too short to reach the special cannot satisfy this; see seed note`,
     );
-    c.check('fight reaches a finished state', finished, `elapsed=${Date.now() - t0}ms`);
+    c.check('fight reaches a finished state', result.finished, `elapsed=${result.elapsedMs}ms`);
   } finally {
     await context.close().catch(() => {});
   }
