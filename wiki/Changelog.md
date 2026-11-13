@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — Stage iteration: the painted interiors
+
+- **The repair bay, the vendor stall, and the calibration rig have insides now** — those three work-cycle set pieces shipped with their interiors blank white, so repairs, market listings, and shield calibrations all played in front of a white hole. The lift’s bay is a workshop wall with its tool board and cabinet, the stall’s window is its shaded back shelf, and the rig’s ring holds an instrument field — painted in the same hand and the same palette-256 form as the rest of the set. Nothing about the cycles, the seats, or the timings changed.
+
 ## 2026-11-12 — The audit fix wave
 
 
