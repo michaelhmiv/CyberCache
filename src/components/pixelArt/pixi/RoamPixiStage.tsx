@@ -146,6 +146,12 @@ export interface RoamPixiStageProps {
   mountedGear: MountedGearItem[];
   /** Init/texture failure seam: the wrapper swaps to the DOM scene. */
   onPixiError?: () => void;
+  /** First-frames seam (stage-iteration B2, 2026-11-12): fired once
+   *  per mount after the ticker has ticked twice — the scene graph
+   *  exists AND the renderer has presented a frame. PixelSceneLayer
+   *  holds its DOM cover until this fires, so the renderer swap
+   *  lands on a live canvas instead of a black one. */
+  onSceneReady?: () => void;
 }
 
 // ── Roam-specific procedural textures ───────────────────────────────
@@ -1527,6 +1533,14 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       runtime.scene = scene;
       runtime.poseKey = '';
       setSceneReady(true);
+      // Readiness report for the wrapper's swap gate: sceneReady
+      // above means the scene graph exists; onSceneReady means a
+      // frame was DRAWN. Fire after the second tick — the first
+      // tick builds the frame, the second proves the renderer
+      // presented it — once per mount. If the app is stopped
+      // (hidden stage, #556 rest) the ticks, and therefore this
+      // report, wait for visibility: the correct cover lifetime.
+      let ticksUntilReadyReport = 2;
       app.ticker.add(() => {
         const now = performance.now();
         if (probeEnabled) {
@@ -1535,6 +1549,10 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         }
         const tickEnv = envRef.current;
         if (tickEnv) tickStage(runtime, tickEnv, now);
+        if (ticksUntilReadyReport > 0) {
+          ticksUntilReadyReport -= 1;
+          if (ticksUntilReadyReport === 0) initialProps.onSceneReady?.();
+        }
       });
       if (probeEnabled && app) {
         try {

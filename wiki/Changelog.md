@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — Stage iteration program
+
+- **The roaming stage no longer flashes black when it opens** — the Home stage's animated scene used to hand over from its fallback picture the instant it loaded, then sit black while it built the scene and loaded its art: a black stage with only the name plates standing over it, on every cold open. The fallback picture now stays up until the animated scene has actually drawn its first frames, and only then does the stage step aside. Nothing about the fight, the art, or the timings changed — the black gap between the two is simply gone.
+
 ## 2026-11-12 — The audit fix wave
 
 

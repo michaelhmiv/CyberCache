@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { detectWebGL, resetWebGLCacheForTests } from '@/components/pixelArt/pixi/detectWebGL';
 import { MOVEMENT } from '@/lib/pixel/movement';
@@ -108,6 +108,29 @@ describe('M2 — roam renderer selection (the BossFightStage switch pattern)', (
     expect(Array.isArray(passed.mountedGear)).toBe(true);
     // The hunter HP plate rides the Pixi path as a DOM sibling.
     expect(screen.getByTestId('diorama-hunter-hp')).toBeTruthy();
+  });
+
+  it('the DOM scene covers the Pixi stage until it reports its first frames (the black-swap gate)', async () => {
+    webglAvailable.value = true;
+    render(
+      <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} playerLevel={5} equippedCount={1} activityKind="roaming_loot" />,
+    );
+    expect(await screen.findByTestId('roam-pixi-stage')).toBeTruthy();
+    // The Pixi stage has mounted but has not reported drawn frames:
+    // the DOM cover still carries the scene — hunter rendered, and
+    // exactly one HP plate (the cover's) — so the player never
+    // sees the black canvas of a building Pixi scene.
+    expect(screen.getByTestId('pixel-hunter')).toBeTruthy();
+    expect(screen.getAllByTestId('diorama-hunter-hp')).toHaveLength(1);
+    const passed = roamPixiMounts.mock.calls[roamPixiMounts.mock.calls.length - 1][0] as Record<string, unknown>;
+    expect(typeof passed.onSceneReady).toBe('function');
+    act(() => {
+      (passed.onSceneReady as () => void)();
+    });
+    // Cover dropped; the Pixi stage and its own plate remain.
+    expect(screen.queryByTestId('pixel-hunter')).toBeNull();
+    expect(screen.getByTestId('roam-pixi-stage')).toBeTruthy();
+    expect(screen.getAllByTestId('diorama-hunter-hp')).toHaveLength(1);
   });
 
   it('with WebGL available, a non-roaming mode still renders DOM (Pixi is roam-only)', async () => {
