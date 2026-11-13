@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   useActivityStore,
   useBossStore,
@@ -27,6 +27,8 @@ import {
   type ActionFeedEntry,
 } from '@/components/action/ActionWorkspace';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
+import { HotFlameMark } from '@/components/dashboard/HotFlameMark';
+import { isHotArea } from '@/content/hotArea';
 import { HeroRundown } from '@/components/dashboard/HeroRundown';
 import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
@@ -200,6 +202,9 @@ export const ActionScreenContextual: React.FC<{
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
+  // The hot-area flame mark beside the Active Area name stills under
+  // reduced motion (the mark reads the same preference the stage does).
+  const reducedMotion = !!useReducedMotion();
   // Craft jobs are server state (0024): refresh the workshop mirror
   // when this screen mounts and whenever the action slot changes, so
   // the Craft workspace shows settled progress / paused reasons.
@@ -593,7 +598,10 @@ export const ActionScreenContextual: React.FC<{
               <div className="flex items-center gap-2 mt-0.5">
                 <PxIcon name="signal" size={17} className="shrink-0 text-amber" />
                 <div>
-                  <div className="text-sm font-black text-text-primary">{selectedArea.name}</div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-sm font-black text-text-primary">{selectedArea.name}</div>
+                    {isHotArea(selectedArea.id, new Date()) ? <HotFlameMark reduced={reducedMotion} /> : null}
+                  </div>
                   <div className="text-[10px] text-text-muted">{selectedArea.enemyType} · Lv.{selectedArea.unlockLevel} · {selectedArea.dangerRating}</div>
                 </div>
               </div>
