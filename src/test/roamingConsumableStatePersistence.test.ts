@@ -35,9 +35,9 @@ afterEach(async () => {
 
 async function makeClaimServer(store: InMemoryChefGameplayStore) {
   const app = express();
-  app.use(express.json({ limit: '64kb' }));
+  app.use(express.json());
   mountChefHealthRoute(app);
-  mountGameplayRoutes(app, { store, authSecret: SECRET });
+  mountGameplayRoutes(app, store, { jwtSecret: SECRET });
   const server = app.listen(0);
   servers.push(server);
   await new Promise<void>((resolve) => server.once('listening', resolve));
@@ -45,7 +45,7 @@ async function makeClaimServer(store: InMemoryChefGameplayStore) {
 }
 
 function tokenFor(playerId: string): string {
-  return issueAccessToken({ sub: playerId, email: 'a@test.dev' }, SECRET, 600);
+  return issueAccessToken(SECRET, playerId, false);
 }
 
 function claimBody(tickCount: number, roamingConsumableState?: unknown) {
