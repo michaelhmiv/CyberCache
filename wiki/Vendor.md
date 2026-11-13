@@ -15,6 +15,12 @@ own stop on the same rail. Every item on the counter is one compact row: its ico
 its family and what it does, how many you already own, and the Buy
 button with its price.
 
+Tapping Buy opens a quantity sheet for that item: quick picks of
+1 / 20 / 50 / 100 / 1,000 / MAX, a slider, and the total with your
+credits after the purchase shown before you confirm. Stock is
+unlimited, so MAX is simply as many as your credits cover; picks
+past what you can afford stay visible but disabled.
+
 ## The staples — always in stock
 
 Nine consumables are stocked every day, in unlimited quantity:
