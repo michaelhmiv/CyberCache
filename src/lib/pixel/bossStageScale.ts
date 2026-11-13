@@ -31,19 +31,27 @@ export interface BossStagePlacement {
 const DEFAULT_BOSS_PLACEMENT: BossStagePlacement = { xPct: 76, heightPct: 80 };
 
 export const BOSS_STAGE_PLACEMENTS: Record<string, BossStagePlacement> = {
-  // Wide paintings — normalized down to the width/edge bounds.
-  dune_tyrant: { xPct: 76, heightPct: 40 },
-  siltstalker: { xPct: 76, heightPct: 42 },
-  heap_guard: { xPct: 76, heightPct: 47 },
-  ashgut: { xPct: 76, heightPct: 50 },
+  // Wide paintings — normalized down to the width/edge bounds, then
+  // shifted right per capture arbitration (stage-iteration rounds
+  // 4–6, 2026-11-13): measured rest gaps at xPct 76 were 8.3–9.7%
+  // against the ≥12% law (rifle tip arbitrated at 45.5% of stage
+  // width), so the wide-painting bosses anchor further right.
+  // Projected post-shift gaps 12.3–13.4%; capture verification is
+  // logged per boss in the track files.
+  dune_tyrant: { xPct: 80, heightPct: 40 },
+  siltstalker: { xPct: 79, heightPct: 40 },
+  heap_guard: { xPct: 80, heightPct: 47 },
+  ashgut: { xPct: 80, heightPct: 50 },
   scrap_bishop: { xPct: 76, heightPct: 50 },
-  rust_prophet: { xPct: 76, heightPct: 74 },
+  rust_prophet: { xPct: 80, heightPct: 74 },
   // The widest painting on the ladder (849×512): also pulled left —
   // at xPct 76 its right edge lands at 130.7% of stage width no
   // matter the height; xPct 62 keeps the full canvas on stage.
   spinneret_widow: { xPct: 62, heightPct: 35 },
-  // Narrow paintings — legacy size already satisfies the bounds.
-  mirage_duster: { xPct: 76, heightPct: 80 },
+  // Narrow paintings — legacy size already satisfies the bounds;
+  // mirage_duster is shifted right on the same capture arbitration
+  // (measured rest gap 9.6% at xPct 76 → projected ≈12.6% at 79).
+  mirage_duster: { xPct: 79, heightPct: 80 },
   mnemosyne_mirror: { xPct: 76, heightPct: 80 },
   static_choir: { xPct: 76, heightPct: 80 },
   verdant_maw: { xPct: 76, heightPct: 80 },
