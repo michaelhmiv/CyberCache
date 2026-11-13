@@ -31,7 +31,7 @@ const V2_SHEET = [
 const ADDITIONS = [
   'barEmpty', 'barFill', 'boot', 'bullseye', 'calendar', 'chart', 'chevL', 'chevU',
   'chip', 'clock', 'crown', 'diamond', 'diamondFill', 'diamondIn', 'dot',
-  'flag', 'halfDisc', 'hatch', 'hatchH', 'help', 'hex', 'info', 'pause', 'pawn', 'pencil',
+  'flag', 'flameFlick', 'halfDisc', 'hatch', 'hatchH', 'help', 'hex', 'info', 'pause', 'pawn', 'pencil',
   'plus', 'power', 'recycle', 'ring', 'ringDot', 'rings', 'search', 'star5',
   'stop', 'swap', 'swirl', 'target', 'triR', 'truck', 'warn', 'waves', 'x',
 ] as const;
