@@ -1,0 +1,118 @@
+name: Emulator Play
+
+# Lane 2 of the CI overhaul (audit blueprint, REPORT.md §6.3): the
+# emulator that PLAYS. android-ci's emulator job proves the native
+# shell boots and its instrumented tests pass; it never plays the
+# game in the WebView. This lane launches the real APK, enters as a
+# guest, starts a roam, opens a cache, and asserts the outcomes from
+# the pulled screenshots + the session's own result record
+# (PlaySessionTest -> play-result.json -> scripts/play-session-pixels.py).
+#
+# It is the real-WebView, real-GPU counterpart to Lane 1
+# (e2e-browser.yml, SwiftShader): Lane 1 is the fast deterministic
+# merge gate; this lane is required on stage/screen PRs (paths
+# filter below) and runs nightly on master.
+#
+# screen-inventory.yml is deliberately NOT repurposed for this: its
+# header records an owner directive (2026-11-01) that it stays a
+# manual design artifact. This lane borrows its proven mechanics
+# (separate test source set, am instrument + pull, restart+retry)
+# without touching its trigger policy.
+#
+# Public repo: Actions minutes are not a constraint (owner note,
+# 2026-10-29).
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Nightly on master (UTC) — the long-tail WebView regression net.
+    - cron: "17 7 * * *"
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/components/pixelArt/**"
+      - "src/components/fight/**"
+      - "src/components/dashboard/**"
+      - "src/screens/**"
+      - "android/**"
+      - "scripts/play-session.sh"
+      - "scripts/play-session-pixels.py"
+      - ".github/workflows/emulator-play.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  emulator-play:
+    runs-on: ubuntu-latest
+    # A healthy run: build ~6 min + emulator boot + one session
+    # (~2-4 min of play) + one possible restart/retry. 40 leaves
+    # headroom without letting a wedge eat the default 360.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Accept Android SDK licenses and install platform 36
+        run: |
+          SDKMANAGER="${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # Fail fast before any emulator boots, same as screen-inventory.
+      # -PincludePlaySession is what adds PlaySessionTest to the
+      # androidTest source set (see android/app/build.gradle).
+      - name: Compile app + play-session tests (fail fast)
+        working-directory: android
+        run: ./gradlew assembleDebug assembleDebugAndroidTest -PincludePlaySession --stacktrace
+
+      - name: Play session on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          working-directory: android
+          script: bash ../scripts/play-session.sh
+
+      - name: Pixel + result verdicts
+        run: |
+          pip install --quiet pillow
+          python3 scripts/play-session-pixels.py play-out/play-session
+
+      - name: Upload play evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-play-evidence
+          path: play-out/
+          if-no-files-found: warn
+          retention-days: 14
