@@ -346,18 +346,28 @@ async function observeReveal(page, c, label, t0) {
   let momentAt = null;
   let deckAt = null;
   let rarity = null;
+  // For chained opens the caller passes the fingerprint of the
+  // deck being left (c.lastDeckFp via settleDeck): a deck element
+  // still showing THAT content is the previous reveal, not this
+  // one — it only counts when its content changes (or a fresh
+  // moment has played).
+  const staleFp = c?.lastDeckFp ? String(c.lastDeckFp).replace(/\s+/g, ' ').slice(0, 60) : null;
   while (Date.now() - t0 < 20000) {
-    const s = await page.evaluate(() => ({
-      moment: !!document.querySelector('[data-testid="cache-loot-moment"]'),
-      deck: !!document.querySelector('[data-testid="cache-reveal-deck"]'),
-      rarity:
-        document.querySelector('[data-testid="cache-loot-moment"]')?.querySelector('[data-rarity]')?.getAttribute('data-rarity') ??
-        null,
-      decrypting: document.body.innerText.includes('DECRYPTING CACHE'),
-    }));
+    const s = await page.evaluate(() => {
+      const deck = document.querySelector('[data-testid="cache-reveal-deck"]');
+      return {
+        moment: !!document.querySelector('[data-testid="cache-loot-moment"]'),
+        deck: !!deck,
+        deckFp: deck ? (deck.innerText ?? '').replace(/\s+/g, ' ').slice(0, 60) : null,
+        rarity:
+          document.querySelector('[data-testid="cache-loot-moment"]')?.querySelector('[data-rarity]')?.getAttribute('data-rarity') ??
+          null,
+        decrypting: document.body.innerText.includes('DECRYPTING CACHE'),
+      };
+    });
     if (s.moment && momentAt === null) momentAt = Date.now() - t0;
     if (s.rarity) rarity = s.rarity;
-    if (s.deck) {
+    if (s.deck && (!staleFp || s.deckFp !== staleFp || momentAt !== null)) {
       deckAt = Date.now() - t0;
       break;
     }
@@ -391,16 +401,29 @@ async function settleDeck(page, c) {
     const before = await page
       .evaluate(() => document.querySelector('[data-testid="cache-reveal-deck"]')?.innerText?.slice(0, 120) ?? null)
       .catch(() => null);
+    if (c) c.lastDeckFp = before;
+    // The deck's own visual layers cover its buttons at the sampled
+    // points (round 8: the plain click timed out at 8 s with the
+    // button visible and enabled) — plain first, force as the
+    // documented fallback, exactly like the cache screen's button.
     const clickErr = await another
-      .click({ timeout: 8000 })
+      .click({ timeout: 3500 })
       .then(() => null)
-      .catch((e) => String(e).slice(0, 120));
-    c.note(`settleDeck: Open Another click err=${clickErr}; deck before: ${JSON.stringify(before)}`);
+      .catch(async () => {
+        const forceErr = await another
+          .click({ timeout: 8000, force: true })
+          .then(() => null)
+          .catch((e) => String(e).slice(0, 100));
+        return forceErr ? `plain+force failed: ${forceErr}` : 'plain timed out, force landed';
+      });
+    c.note(`settleDeck: Open Another click: ${clickErr}; deck before: ${JSON.stringify(before)?.slice(0, 140)}`);
     return 'another-started';
   }
   const collect = page.getByRole('button', { name: /^Collect$/ }).first();
   if (await collect.isVisible().catch(() => false)) {
-    await collect.click({ timeout: 8000 }).catch(() => {});
+    await collect
+      .click({ timeout: 3500 })
+      .catch(() => collect.click({ timeout: 8000, force: true }).catch(() => {}));
     // Wait for the deck to actually leave before touching the cache
     // screen again — clicking OPEN WITH KEY through the deck's exit
     // overlay is what timed the first calibration run out.
@@ -877,13 +900,19 @@ async function caseBossStage(browser) {
     // precondition (phase reach) instead of hiding behind the seed.
     if (process.env.E2E_DATABASE_URL || process.env.DATABASE_URL) {
       try {
-        const { withPool, seedAccountLevel } = await import('./fixture.mjs');
+        const { withPool, seedAccountLevel, seedBossUnlocks } = await import('./fixture.mjs');
+        const REGION_1_BOSS_IDS = [
+          'dune_tyrant', 'siltstalker', 'heap_guard', 'ashgut', 'mirage_duster',
+          'rust_prophet', 'scrap_bishop', 'spinneret_widow', 'mnemosyne_mirror',
+        ];
         const level = await withPool(async (pool) => {
           const newest = await pool.query('select id from public.profiles order by created_at desc limit 1');
           if (!newest.rows[0]) return null;
-          return seedAccountLevel(pool, newest.rows[0].id, 40);
+          const lvl = await seedAccountLevel(pool, newest.rows[0].id, 40);
+          await seedBossUnlocks(pool, newest.rows[0].id, REGION_1_BOSS_IDS).catch(() => {});
+          return lvl;
         });
-        c.note(`boss durability seed: level=${level}`);
+        c.note(`boss durability seed: level=${level}, region-1 unlocks seeded`);
         // The client caches the profile at boot; reload so the seeded
         // level is what the attempt sim sees.
         await page.reload({ waitUntil: 'domcontentloaded' });
@@ -924,19 +953,51 @@ async function caseBossStage(browser) {
     // it explicitly, falling back to any enabled picker cell.
     const panelReady = await page.evaluate(() => !!document.querySelector('[data-testid="boss-encounter-panel"]'));
     if (!panelReady) {
-      const cell = page.locator('[data-testid="bossselect-dps-dune_tyrant"]').first();
-      if ((await cell.count().catch(() => 0)) > 0) {
-        await cell.click({ timeout: 10000 }).catch(() => {});
-      } else {
-        await page
-          .locator('[data-testid^="bossselect-"]:not([disabled])')
-          .first()
-          .click({ timeout: 10000 })
-          .catch(() => {});
+      // Durability scan (round 9): the round-8 state notes proved
+      // the seeded hunter KILLS the 800 HP first boss before its
+      // presentation advances ("BOSS DEFEATED +750cr" by the 15 s
+      // note, stage never persisting across polls). The telegraph
+      // assertion needs a fight that lasts to the cadence special,
+      // so: walk the picker, read each panel's HP and start-button
+      // state, and pick the tankiest boss the guest can actually
+      // start. Region unlocks are seeded (above) precisely so this
+      // choice exists.
+      const cellIds = await page.evaluate(() =>
+        [...document.querySelectorAll('[data-testid^="bossselect-dps-"]')].map((e) => e.getAttribute('data-testid')),
+      );
+      let best = null;
+      for (const id of cellIds.slice(0, 10)) {
+        await page.locator(`[data-testid="${id}"]`).first().click({ timeout: 8000 }).catch(() => {});
+        const ready = await page
+          .waitForFunction(() => !!document.querySelector('[data-testid="boss-encounter-panel"]'), null, { timeout: 6000 })
+          .then(() => true)
+          .catch(() => false);
+        if (!ready) continue;
+        const probe = await page.evaluate(() => {
+          const panel = document.querySelector('[data-testid="boss-encounter-panel"]');
+          const hp = (panel?.innerText ?? '').match(/HP\s+([\d,]+)/);
+          const btn = panel
+            ? [...panel.querySelectorAll('button')].find((b) => /Start Boss Encounter/i.test(b.textContent ?? ''))
+            : null;
+          return { hp: hp ? Number(hp[1].replace(/,/g, '')) : null, startDisabled: btn ? btn.disabled : null };
+        });
+        c.note(`boss candidate ${id}: HP=${probe.hp} startDisabled=${probe.startDisabled}`);
+        if (probe.hp !== null && probe.startDisabled === false && (!best || probe.hp > best.hp)) {
+          best = { id, hp: probe.hp };
+        }
+        const change = page.getByRole('button', { name: /Change Boss/i }).first();
+        if (await change.isVisible().catch(() => false)) {
+          await change.click({ timeout: 6000 }).catch(() => {});
+          await sleep(700);
+        }
       }
-      await page
-        .waitForFunction(() => !!document.querySelector('[data-testid="boss-encounter-panel"]'), null, { timeout: 15000 })
-        .catch(() => {});
+      if (best) {
+        await page.locator(`[data-testid="${best.id}"]`).first().click({ timeout: 8000 }).catch(() => {});
+        await page
+          .waitForFunction(() => !!document.querySelector('[data-testid="boss-encounter-panel"]'), null, { timeout: 15000 })
+          .catch(() => {});
+        c.note(`boss selected for durability: ${best.id} HP=${best.hp}`);
+      }
     }
     c.check('boss prep panel reached', await page.evaluate(() => !!document.querySelector('[data-testid="boss-encounter-panel"]')));
     // The panel's start control reads "Start Boss Encounter — …"

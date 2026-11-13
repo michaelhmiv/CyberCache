@@ -87,6 +87,24 @@ export async function applyMigrations(pool) {
 }
 
 /**
+ * Unlock bosses on an account by merging ids into the profile's
+ * boss_state (the same record the client's verified-state sync
+ * reads). The boss case needs a DURABLE opponent: the default
+ * first boss (800 HP) dies to the seeded hunter before its cadence
+ * special can present, so the case unlocks the region and picks
+ * the tankiest affordable boss from the picker itself.
+ */
+export async function seedBossUnlocks(pool, accountId, bossIds) {
+  await pool.query(
+    `update public.profiles
+        set boss_state = coalesce(boss_state, '{}'::jsonb) || jsonb_build_object('unlockedBossIds', $1::jsonb)
+      where id = $2`,
+    [JSON.stringify(bossIds), accountId],
+  );
+  return bossIds.length;
+}
+
+/**
  * Lift an account to `targetLevel` using the game's own XP curve
  * function (cc_apply_xp, migration 0004). Returns the level actually
  * reached, or null when the account/columns cannot be resolved — the

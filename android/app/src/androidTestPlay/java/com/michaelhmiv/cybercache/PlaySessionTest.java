@@ -315,8 +315,13 @@ public class PlaySessionTest {
                 String label = o.getContentDescription();
                 if (label == null) label = o.getText();
                 if (label == null) continue;
+                // Anchored to the top-bar node's exact shape
+                // ("Credits — 5004"): once roaming, a "ROAMING LOOT
+                // MODS: Credits/Kill +5%" node also contains
+                // "Credits", and the unanchored pattern read its 5
+                // as the balance — the round-7/8 verify blindness.
                 java.util.regex.Matcher m = java.util.regex.Pattern
-                        .compile("Credits[^0-9]*([0-9][0-9,]*)").matcher(label);
+                        .compile("^Credits\\s+\\u2014\\s*([0-9][0-9,]*)").matcher(label);
                 if (m.find()) {
                     credits = Long.parseLong(m.group(1).replace(",", ""));
                     break;
@@ -342,6 +347,51 @@ public class PlaySessionTest {
             // Best effort — the caller treats -1 as unreadable.
         }
         return new long[]{credits, xp};
+    }
+
+    /** Keys held, parsed from the cache screen's own button label
+     *  ("OPEN WITH KEY (2)" — the count is the key balance). */
+    private int keysHeld() {
+        try {
+            List<UiObject2> nodes = new ArrayList<>();
+            List<UiObject2> a = device.findObjects(By.textContains("OPEN WITH KEY"));
+            if (a != null) nodes.addAll(a);
+            List<UiObject2> b = device.findObjects(By.descContains("OPEN WITH KEY"));
+            if (b != null) nodes.addAll(b);
+            for (UiObject2 o : nodes) {
+                String label = o.getContentDescription();
+                if (label == null) label = o.getText();
+                if (label == null) continue;
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("OPEN WITH KEY \\((\\d+)\\)").matcher(label);
+                if (m.find()) return Integer.parseInt(m.group(1));
+            }
+        } catch (Exception ignored) {
+            // Best effort.
+        }
+        return -1;
+    }
+
+    /** Inventory size from the top bar's "Loot — N items" node. */
+    private int lootCount() {
+        try {
+            List<UiObject2> nodes = new ArrayList<>();
+            List<UiObject2> a = device.findObjects(By.descContains("Loot \u2014"));
+            if (a != null) nodes.addAll(a);
+            List<UiObject2> b = device.findObjects(By.textContains("Loot \u2014"));
+            if (b != null) nodes.addAll(b);
+            for (UiObject2 o : nodes) {
+                String label = o.getContentDescription();
+                if (label == null) label = o.getText();
+                if (label == null) continue;
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("Loot\\s+\\u2014\\s*(\\d+)").matcher(label);
+                if (m.find()) return Integer.parseInt(m.group(1));
+            }
+        } catch (Exception ignored) {
+            // Best effort.
+        }
+        return -1;
     }
 
     private void swipeUp() {
@@ -543,6 +593,7 @@ public class PlaySessionTest {
         // have left the scroll anywhere, and the top bar (with the
         // cache control) only exists in the tree at the top.
         scrollToTop();
+        int lootBefore = lootCount();
         // The cache entry is the top-bar control whose description
         // reads "Cache — N cache keys held. Opens the cache chest."
         // (round-2 hierarchy evidence). The unique "cache keys held"
@@ -559,6 +610,7 @@ public class PlaySessionTest {
             // action — rounds 2–3 hunted blind on the wrong screen.
             String arrived = waitVisible(20_000,
                     "OPEN WITH KEY", "Open with key", "CRACK CACHE", "Spend keys for server-rolled gear");
+            int keysBefore = keysHeld();
             dumpHierarchy("play-cache-hierarchy");
             boolean keyClicked = false;
             if (arrived == null) {
@@ -644,6 +696,30 @@ public class PlaySessionTest {
             }
             // (No else: every keyClicked=false path above already
             // recorded its specific reason in cacheNote.)
+            // Banked-loot proof (round 9): across rounds 5–8 the key
+            // spend fires server-side but the reveal presentation
+            // never enters this emulator's accessibility tree (the
+            // same frozen-compositor condition that freezes its
+            // screenshots). The player's outcome is still fully
+            // observable as state: key balance down, inventory up.
+            // If the key spends and the loot does NOT arrive, that
+            // is a real defect and this stays red.
+            int keysAfter = keysHeld();
+            UiObject2 homeTab = visibleFind("HOME", (int) (displayHeight * 0.85), displayHeight);
+            if (homeTab != null) {
+                tapObject(homeTab);
+                waitVisible(15_000, "HUNTER");
+            }
+            int lootAfter = lootCount();
+            boolean banked = keysBefore >= 0 && keysAfter >= 0 && keysAfter < keysBefore
+                    && lootBefore >= 0 && lootAfter > lootBefore;
+            if (banked) {
+                revealCompleted = true;
+            }
+            cacheNote = (cacheNote == null ? "" : cacheNote + " ")
+                    + "keys " + keysBefore + "->" + keysAfter
+                    + " loot " + lootBefore + "->" + lootAfter
+                    + (banked ? " (banked-loot proof)" : "");
         }
         record("cacheOpened", cacheOpened, cacheNote);
         record("revealCompleted", revealCompleted, cacheNote);
