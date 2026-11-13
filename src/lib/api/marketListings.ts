@@ -9,6 +9,14 @@
  * Rows arrive with the listing's browse facts on the row itself and
  * the embedded item (gear listings only; the old PostgREST embed
  * could also arrive as an array — both are still handled).
+ *
+ * Error contract (audit #568): failures REJECT with the transport's
+ * ApiError. MarketScreen's persistent error state + Retry (X-07) is
+ * the only surface that can tell an outage from an empty market, so
+ * this layer must never swallow a failure into an empty page — that
+ * swallow is exactly what made the X-07 error state unreachable in
+ * production. A successful response still resolves normally,
+ * including a genuinely empty page.
  */
 import { apiRequest } from './http';
 import { serverItemRowToDisplayGear, serverItemRowToVehicle, type ServerItemRow } from './serverItemAdapter';
@@ -133,16 +141,12 @@ function queryString(query: MarketListingQuery): string {
   return qs ? `?${qs}` : '';
 }
 
-/** One page of the server-browsed market plus the full match count. */
+/** One page of the server-browsed market plus the full match count.
+ *  Rejects on transport failure (see the error contract above); a
+ *  successful-but-bodiless response still reads as an empty page. */
 export async function fetchMarketListings(query: MarketListingQuery = {}): Promise<MarketListingsPage> {
-  let page: { listings: MarketListingRow[]; total: number };
-  try {
-    page = (await apiRequest<{ listings: MarketListingRow[]; total: number }>(`/market/listings${queryString(query)}`))
-      ?? { listings: [], total: 0 };
-  } catch (error) {
-    console.warn('[marketListings] fetch failed:', error instanceof Error ? error.message : error);
-    return { listings: [], total: 0 };
-  }
+  const page = (await apiRequest<{ listings: MarketListingRow[]; total: number }>(`/market/listings${queryString(query)}`))
+    ?? { listings: [], total: 0 };
   return {
     total: page.total ?? 0,
     listings: (page.listings ?? [])

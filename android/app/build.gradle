@@ -52,6 +52,17 @@ android {
             if (project.hasProperty('includeScreenInventory')) {
                 java.srcDirs += 'src/androidTestInventory/java'
             }
+            // The Lane 2 play session (PlaySessionTest) gets the
+            // same treatment for the same reason: it lives in its
+            // own source dir and only joins androidTest when
+            // -PincludePlaySession is passed (the emulator-play
+            // workflow passes it). It plays a real session
+            // against the live server for minutes, so the per-PR
+            // connectedDebugAndroidTest job must never pick it
+            // up. See .github/workflows/emulator-play.yml.
+            if (project.hasProperty('includePlaySession')) {
+                java.srcDirs += 'src/androidTestPlay/java'
+            }
         }
     }
 }

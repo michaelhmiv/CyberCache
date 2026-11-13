@@ -53,6 +53,7 @@ import { resolveGearMount, GEAR_PAINT_ORDER, type MountedGearItem } from '@/lib/
 import { armedActorExtents, fitArmedActorHeight, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
 import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
+import { containFit, vehiclePlateKeyFor, vehiclePlateSpriteIds, type VehiclePlateArtInput } from '@/lib/pixel/vehiclePlate';
 import { paletteSpriteUrl, type PaletteSpec } from '@/lib/pixel/paletteSwap';
 import {
   MOVEMENT,
@@ -217,6 +218,15 @@ interface Scene {
   signatureSprite?: Sprite;
   eventPropSprite?: Sprite;
   vehicleSprites: Sprite[];
+  /** The parked-vehicle plate's own container on the world: the
+   *  §2a re-sync replaces its children, so the plate's paint order
+   *  (behind the hunter, over the vista) never moves across a
+   *  rebuild. */
+  vehiclePlate: Container;
+  /** Vehicle presentation identity the plate art was built for:
+   *  the tick rebuilds the plate whenever the loadout's vehicle
+   *  slot no longer matches this key (REPORT §2a). */
+  vehiclePlateKey: string;
   muzzle: Sprite;
   tracers: Sprite[];
   casing: Sprite;
@@ -253,10 +263,13 @@ interface RoamRuntime {
   /** F6: the enemy art key whose swap build is in flight (the
    *  generation guard — a superseded build is discarded). */
   pendingRigKey: string | null;
+  /** The vehicle plate key whose rebuild is in flight (the same
+   *  generation guard, for the §2a vehicle re-sync). */
+  pendingVehicleKey: string | null;
   rigPoseKey: string;
   rigCurrent: Record<string, RigPoseVals>;
   rigTweens: Record<string, { from: RigPoseVals; to: RigPoseVals; startMs: number; durationMs: number }>;
-  beat: { eventId: string; startMs: number } | null;
+  beat: { eventId: string; startMs: number; targetKey: string | null } | null;
   walk: { targetKey: string; startMs: number } | null;
   /** The walk-in's eased approach offset, stage-width % (DEV probe
    *  surface: the anim-replay loop grades the approach from the
@@ -287,6 +300,7 @@ function createRoamRuntime(): RoamRuntime {
     vistaClock: { wallMs: 0 },
     poseKey: '',
     pendingRigKey: null,
+    pendingVehicleKey: null,
     rigPoseKey: '',
     rigCurrent: {},
     rigTweens: {},
@@ -382,7 +396,7 @@ interface TickEnv {
   model: RoamSceneModel;
   /** Cache each actor pose once per event; compose only the moving
    * rig bands during walk-in. No per-frame hunter-layout rebuild. */
-  deriveModelAt: (walkMs: number | undefined, beatMs: number) => RoamSceneModel;
+  deriveModelAt: (walkMs: number | undefined, beatMs: number, beatForCurrentTarget?: boolean) => RoamSceneModel;
   /** The hunter's part set + held-weapon fractions (Motion M2b:
    *  the travel stride composes layouts per frame from the same
    *  inputs deriveRoamScene consumes). */
@@ -477,6 +491,114 @@ function disposeEnemyNodes(nodes: EnemyRigNodes): void {
   nodes.flatSprite?.destroy();
 }
 
+/** Remove + destroy the plate sprites being replaced. Textures
+ *  are NOT destroyed: they belong to the shared Assets cache the
+ *  next build loads from — the same rule disposeEnemyNodes
+ *  follows, so the scene's node count stays flat across swaps. */
+function disposeVehicleSprites(sprites: Sprite[]): void {
+  for (const s of sprites) {
+    s.removeFromParent();
+    s.destroy();
+  }
+}
+
+/** Build the parked-vehicle plate's sprites for a stage of w×h —
+ *  the scene init's vehicle build, factored out so the §2a
+ *  re-sync rebuilds through the exact same code (one build path,
+ *  no fork). Placement law is untouched: the class painting fills
+ *  the plate box at the left edge on the ground line, 21% of
+ *  stage width. Each affix overlay is CONTAINED inside that box —
+ *  the whole painting, undistorted, centered (containFit; the
+ *  rule PR #579 settled for the Gear/Market surfaces). The sizing
+ *  this replaces forced every overlay to the box's width AND
+ *  height, squashing the square scanner painting into the
+ *  ~2.4:1 plate (REPORT §2b). */
+async function buildVehiclePlateSprites(
+  vehicle: VehiclePlateArtInput | null | undefined,
+  w: number,
+  h: number,
+  groundY: number,
+): Promise<Sprite[]> {
+  const ids = vehiclePlateSpriteIds(vehicle);
+  if (!ids) return [];
+  const baseDef = getPixelSprite(ids.baseId);
+  if (!baseDef) return [];
+  const overlayDefs = ids.overlayIds
+    .map((id) => getPixelSprite(id))
+    .filter((d): d is PixelSprite => !!d);
+  const textures = await Promise.all([baseDef, ...overlayDefs].map((d) => loadTexture(d.url)));
+  const baseTex = textures[0];
+  if (!baseTex) return [];
+  const vw = 0.21 * w;
+  const vh = vw * (baseDef.height / baseDef.width);
+  const vx = 0.01 * w;
+  const vy = h - (1 - groundY) * h - 0.01 * h - vh;
+  const sprites: Sprite[] = [];
+  const base = new Sprite(baseTex);
+  base.width = vw;
+  base.height = vh;
+  base.position.set(vx, vy);
+  sprites.push(base);
+  overlayDefs.forEach((def, i) => {
+    const tex = textures[i + 1];
+    if (!tex) return;
+    const fit = containFit(def.width, def.height, vw, vh);
+    const sp = new Sprite(tex);
+    sp.width = fit.width;
+    sp.height = fit.height;
+    sp.position.set(vx + fit.offsetX, vy + fit.offsetY);
+    sprites.push(sp);
+  });
+  return sprites;
+}
+
+/** Keep the parked-vehicle plate married to the loadout's
+ *  CURRENT vehicle (stage-artifacts REPORT §2a, 2026-11-13). The
+ *  scene build reads the vehicle once at mount; the loadout does
+ *  not stay there — with tab keep-alive the Home stage stays
+ *  mounted while the player equips or swaps in the Gear tab, and
+ *  the canvas kept showing the mount's vehicle (or none) while
+ *  the chip and status bars beside it read the live store. The
+ *  DOM plate never had the defect: it renders from live state.
+ *  Here the tick compares the live slot's art key against the
+ *  built key and rebuilds through the shared builder when they
+ *  part — syncEnemyArt's pattern, generation guard included, so
+ *  an equip superseded mid-load (A→B→A) discards its build
+ *  instead of landing stale art. */
+function syncVehicleArt(rt: RoamRuntime, env: TickEnv): void {
+  const scene = rt.scene;
+  if (!scene) return;
+  const vehicle = useLoadoutStore.getState().getVehicle();
+  const key = vehiclePlateKeyFor(vehicle);
+  if (scene.vehiclePlateKey === key) {
+    rt.pendingVehicleKey = null;
+    return;
+  }
+  if (rt.pendingVehicleKey === key) return; // this rebuild is already loading
+  rt.pendingVehicleKey = key;
+  const { w, h } = rt.size;
+  void buildVehiclePlateSprites(vehicle, w, h, env.model.groundY)
+    .then((sprites) => {
+      if (rt.scene !== scene || rt.pendingVehicleKey !== key) {
+        // Superseded (or the stage unmounted) while loading:
+        // discard the build rather than landing stale art.
+        disposeVehicleSprites(sprites);
+        return;
+      }
+      rt.pendingVehicleKey = null;
+      const old = scene.vehicleSprites;
+      for (const s of sprites) scene.vehiclePlate.addChild(s);
+      scene.vehicleSprites = sprites;
+      scene.vehiclePlateKey = key;
+      disposeVehicleSprites(old);
+    })
+    .catch(() => {
+      // A texture failure mid-swap keeps the current plate rather
+      // than blanking it; the next slot change retries.
+      if (rt.pendingVehicleKey === key) rt.pendingVehicleKey = null;
+    });
+}
+
 /** F6 (2026-11-08): keep the stage's enemy art married to the
  *  CURRENT target. The scene build happens once at mount; the
  *  target does not — the rig was built for the mount's first
@@ -555,11 +677,18 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   // life — the DOM stage's hold-at-end semantics. (The defect
   // this replaces: the resting model was the spawn instant's,
   // walkMs 0, so arrival snapped the enemy back to alpha 0.)
+  // The target standing BEFORE this frame's walk state advances —
+  // the target a beat starting this frame names (post-kill guard:
+  // the roster may already have advanced past the enemy a kill beat
+  // belongs to, inside the same claim that delivered the event).
+  const prevWalkTargetKey = rt.walk?.targetKey ?? null;
   const walkTargetKey = `${props.currentTargetId ?? 'none'}|${env.model.isEliteEvent ? 'elite' : 'std'}`;
   const walkFrame = resolveRoamWalkFrame(rt.walk, walkTargetKey, now);
   rt.walk = walkFrame.walk;
   // F6: the enemy art follows the current target, not the mount's.
   syncEnemyArt(rt, env);
+  // §2a: the vehicle plate follows the loadout slot, not the mount's.
+  syncVehicleArt(rt, env);
   const { w: W, h: H } = rt.size;
   const fps = rt.fps;
   const frameDtMs = fps.lastMs > 0 ? Math.min(100, now - fps.lastMs) : 0;
@@ -574,7 +703,7 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   // ── Beat clock: a fresh event id starts its beat ──
   const eventId = props.event?.id;
   if (eventId && eventId !== 'idle-loop-ready' && rt.beat?.eventId !== eventId) {
-    rt.beat = { eventId, startMs: now };
+    rt.beat = { eventId, startMs: now, targetKey: prevWalkTargetKey };
     if (env.model.beat && (env.model.beat.kind === 'shot' || env.model.beat.kind === 'crit')) {
       scene.sparkSpecs = particleField(`sparks-${eventId}`, 6).map((s, i) => ({
         angle: (i / 6) * Math.PI * 1.5 - Math.PI * 0.9,
@@ -583,8 +712,18 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     }
   }
   const beatMs = rt.beat ? now - rt.beat.startMs : Number.POSITIVE_INFINITY;
-  const model = env.deriveModelAt(walkFrame.walkMs, beatMs);
+  // Post-kill guard: the standing beat names the target that was
+  // current when its event arrived. When the roster has advanced
+  // past that target, the beat's enemy channels (the death pose, the
+  // kill dissolve) must not land on the enemy now standing — a target
+  // that did not die never inherits the death state.
+  const beatForCurrentTarget = !rt.beat || rt.beat.targetKey === walkTargetKey;
+  const model = env.deriveModelAt(walkFrame.walkMs, beatMs, beatForCurrentTarget);
   const beatSample = sampleRoamBeat(model.beat, Math.min(beatMs, 60_000), props.event);
+  const enemyHitSample =
+    model.beat?.kind === 'kill' && !beatForCurrentTarget
+      ? { scale: 1, x: 0, y: 0, opacity: 1 }
+      : beatSample.enemyHit;
 
   // Gear mounts re-resolve against a layout (DOM: the gear
   // layers re-derive and tween rotation on SEGMENT timing;
@@ -806,9 +945,9 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const walkOffsetXPct = model.enemyWalk?.offsetXPct ?? 0;
   rt.walkOffsetXPct = walkOffsetXPct;
   scene.enemyLunge.position.set((model.enemyPlacement.xPct / 100) * W + beatSample.enemyLungeX, groundYPx);
-  scene.enemyHit.scale.set(beatSample.enemyHit.scale, beatSample.enemyHit.scale);
-  scene.enemyHit.position.set(beatSample.enemyHit.x, beatSample.enemyHit.y);
-  scene.enemyHit.alpha = beatSample.enemyHit.opacity;
+  scene.enemyHit.scale.set(enemyHitSample.scale, enemyHitSample.scale);
+  scene.enemyHit.position.set(enemyHitSample.x, enemyHitSample.y);
+  scene.enemyHit.alpha = enemyHitSample.opacity;
   scene.enemyWalk.position.set((walkOffsetXPct / 100) * W, 0);
   scene.enemyWalk.alpha = enemyWalkAlpha(model);
   const enemyH = (model.enemyPlacement.heightPct / 100) * H;
@@ -1132,8 +1271,8 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
     envRef.current = {
       props,
       model,
-      deriveModelAt: (walkMs, beatMs) => {
-        const key = roamPosesAt(model.beat, !!props.weapon, beatMs).key;
+      deriveModelAt: (walkMs, beatMs, beatForCurrentTarget) => {
+        const key = roamPosesAt(model.beat, !!props.weapon, beatMs, { beatForCurrentTarget }).key;
         let frame = poseModels.get(key);
         if (!frame) {
           frame = deriveRoamScene({
@@ -1145,6 +1284,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
           currentTargetId: props.currentTargetId,
           hunterSet: look.set,
             beatElapsedMs: beatMs,
+            beatForCurrentTarget,
           });
           poseModels.set(key, frame);
         }
@@ -1194,16 +1334,10 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
             .map((id) => getPixelSprite(id))
             .filter((d): d is PixelSprite => !!d);
       const pennantDef = initialProps.hot ? getPixelSprite('prop-hot-pennant') : undefined;
+      // The parked-vehicle plate: read once here for the init
+      // build; the tick's syncVehicleArt keeps the plate married
+      // to the loadout slot from then on (REPORT §2a).
       const vehicle = useLoadoutStore.getState().getVehicle();
-      const vehicleDef = vehicle ? getPixelSprite(`vehicle-${vehicle.vehicleClassId.replace(/_/g, '-')}`) : undefined;
-      const vehicleAffixDefs = vehicle
-        ? [
-            vehicle.affixes.some((a) => a.stat === 'vehicleCargoPct') ? getPixelSprite('vehicle-affix-cargo-rack') : undefined,
-            vehicle.affixes.some((a) => a.stat === 'vehicleScannerPct') ? getPixelSprite('vehicle-affix-scanner-array') : undefined,
-            vehicle.affixes.some((a) => a.stat === 'vehicleFramePct') ? getPixelSprite('vehicle-affix-reinforced-frame') : undefined,
-            vehicle.conditionCurrent / Math.max(1, vehicle.conditionMax) < 0.35 ? getPixelSprite('vehicle-condition-scuff') : undefined,
-          ].filter((d): d is PixelSprite => !!d)
-        : [];
       const eventPropDef = initialModel.eventPropId ? getPixelSprite(initialModel.eventPropId) : undefined;
       const statusDef = getPixelSprite(initialModel.dialect.statusSpriteId);
 
@@ -1267,8 +1401,6 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         pennantDef ? loadTexture(pennantDef.url) : Promise.resolve(null),
       ]);
       const apropTex = await Promise.all(apropDefs.map((d) => loadTexture(d.url)));
-      const vehicleTex = vehicleDef ? await loadTexture(vehicleDef.url) : null;
-      const vehicleAffixTex = await Promise.all(vehicleAffixDefs.map((d) => loadTexture(d.url)));
       if (cancelled) return;
 
       app = new Application();
@@ -1342,25 +1474,24 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         pen.position.set(w - 8 - 40, 8);
         world.addChild(pen);
       }
-      // Vehicle plates (static; status bars stay DOM).
+      // Vehicle plate (parked at the scene edge; status bars stay
+      // DOM). Its own container on the world, added at the plate's
+      // build position: the §2a re-sync swaps the container's
+      // children, so the plate's paint order never moves across a
+      // rebuild. Built through the shared builder the re-sync
+      // also uses — one build path, no fork.
+      const vehiclePlate = new Container();
+      world.addChild(vehiclePlate);
       const vehicleSprites: Sprite[] = [];
-      if (vehicleTex && vehicleDef) {
-        const vw = 0.21 * w;
-        const vh = vw * (vehicleDef.height / vehicleDef.width);
-        const vy = h - (1 - initialModel.groundY) * h - 0.01 * h - vh;
-        const vsp = new Sprite(vehicleTex);
-        vsp.width = vw;
-        vsp.height = vh;
-        vsp.position.set(0.01 * w, vy);
-        world.addChild(vsp);
-        vehicleSprites.push(vsp);
-        for (const atex of vehicleAffixTex) {
-          const asp = new Sprite(atex);
-          asp.width = vw;
-          asp.height = vh;
-          asp.position.set(0.01 * w, vy);
-          world.addChild(asp);
-          vehicleSprites.push(asp);
+      {
+        const built = await buildVehiclePlateSprites(vehicle, w, h, initialModel.groundY);
+        if (cancelled) {
+          disposeVehicleSprites(built);
+        } else {
+          for (const s of built) {
+            vehiclePlate.addChild(s);
+            vehicleSprites.push(s);
+          }
         }
       }
       // Event prop (mid-stage, PixelActor placement x52 h23).
@@ -1505,6 +1636,8 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         signatureSprite,
         eventPropSprite,
         vehicleSprites,
+        vehiclePlate,
+        vehiclePlateKey: vehiclePlateKeyFor(vehicle),
         muzzle,
         tracers,
         casing,

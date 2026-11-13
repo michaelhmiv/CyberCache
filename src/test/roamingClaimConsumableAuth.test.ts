@@ -18,7 +18,10 @@ describe('Roaming claim server authority regression', () => {
     // profile state) — the consumables column stays in the same read.
     // F3: the same read also pulls cache_key_remainder (0082) — the
     // banked key fraction the claim's accrual seeds from.
-    expect(store).toContain('select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends from public.profiles');
+    // 0096: the same read also pulls roaming_consumable_state — the
+    // stored coverage-window state the claim resumes (and re-saves)
+    // instead of trusting the request body's copy.
+    expect(store).toContain('select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state from public.profiles');
     expect(handler).toContain('store.getRoamingProfile(playerId)');
     expect(handler).toContain('consumableInventory');
     expect(handler).toContain('claimWithConsumables');

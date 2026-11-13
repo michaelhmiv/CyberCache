@@ -34,6 +34,7 @@ import { HOT_AREA_MATERIAL_BONUS, isHotArea } from '../../content/hotArea';
 import { resolveExtractionLevers } from '../../content/extraction';
 import { cacheRankBonuses } from '../../content/cacheRank';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
+import { resolveRoamingConsumableState } from './roamingConsumableState';
 import { eliteDiscovery } from '../../content/collections';
 import { IMMEDIATE_DEATH_TICKS, assessAreaDanger } from '../../lib/combat/areaDanger';
 import { computeCanonicalMaxHp } from '../../lib/combat/damageContract';
@@ -517,6 +518,15 @@ export function createSettleOfflineHandler(
           settlementBatches,
           (profile.consumables ?? {}) as Record<string, number>,
         ),
+        // Roaming consumable state (0096): resume the profile's
+        // stored coverage windows — settlement simulates the same
+        // ticks a foreground claim would (engine parity), so it
+        // must charge the same window boundaries.
+        roamingConsumableState: resolveRoamingConsumableState(
+          profile.roaming_consumable_state,
+          undefined,
+          profile.last_claimed_tick || 0,
+        ),
         // Server-authoritative scrap bank (migration 0009).
         scrapRemainder: profile.scrap_remainder,
         creditsRemainder: profile.credits_remainder,
@@ -595,6 +605,24 @@ export function createSettleOfflineHandler(
       const atomicElapsedMs = Number(settlement.elapsed_ms ?? elapsedMs);
       const atomicCapMs = Number(settlement.capped_ms ?? capMs);
       const capReached = Boolean(settlement.cap_reached ?? rawElapsedMs > capMs);
+
+      // Roaming consumable state (0096): the settlement ran the
+      // engine from the profile's stored state; persist the state
+      // it returned so the next claim/settle resumes the same
+      // windows. Same treatment as the vehicle outcome below — the
+      // settlement itself is already applied atomically, so a
+      // failure is logged, never retried (the nonce forbids a
+      // second settlement); the claim route's staleness guard
+      // discards a state the watermark has passed rather than
+      // re-charging its windows.
+      if (result.roamingConsumableState) {
+        try {
+          await store.saveRoamingConsumableState(playerId, result.roamingConsumableState as unknown as Json);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] settlement consumable state save failed:', message);
+        }
+      }
 
       // Persist the vehicle outcome (Phase 2b): same treatment as
       // the store-items step below — the settlement itself is
