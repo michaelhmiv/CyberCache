@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { sheetMotionProps } from '@/lib/animation/uiMotion';
 import { X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { Sparkline } from '@/components/progression/Sparkline';
@@ -64,22 +65,18 @@ export const StatDetailPanel: React.FC<StatDetailPanelProps> = ({
   const delta = current - start;
   const trend = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
+  const sheet = sheetMotionProps(useReducedMotion());
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
           className="fixed inset-0 z-[70] flex items-end justify-center bg-black/85"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...sheet.backdrop}
           onClick={onClose}
         >
           <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            {...sheet.panel}
             className="max-h-[92vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.75)]"
             style={panelClip}
             onClick={(event) => event.stopPropagation()}

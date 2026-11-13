@@ -103,7 +103,7 @@ const ServiceJobRow: React.FC<{
         <span className="flex items-center gap-1"><Clock size={10} /> {formatDuration(job.unitDurationMs)}/unit</span>
       </div>
       <div className="h-2 bg-black/60 overflow-hidden">
-        <div className={`h-full transition-all ${isTargeted ? 'bg-green' : 'bg-amber'}`} style={{ width: `${progressPct}%` }} />
+        <div className={`h-full transition-[width] duration-500 ${isTargeted ? 'bg-green' : 'bg-amber'}`} style={{ width: `${progressPct}%` }} />
       </div>
       <div className="flex gap-2">
         {!isTargeted && (

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { sheetMotionProps } from '@/lib/animation/uiMotion';
 import { ChevronDown } from 'lucide-react';
 import { SheetPortal } from '@/components/common/SheetPortal';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
@@ -99,6 +100,7 @@ export const ActionFeed: React.FC<{
    */
   onOpenFullLog?: () => void;
 }> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet — start a roam and the stream fills in here.', onGearEquip, onGearSalvage, gearActionBusy = false, gearActionError = null, onOpenFullLog }) => {
+  const reduceMotion = useReducedMotion();
   const [selectedGear, setSelectedGear] = useState<GearItem | null>(null);
 
   const rarityBorder = (item?: GearItem): string => {
@@ -143,9 +145,9 @@ export const ActionFeed: React.FC<{
           const isWeapon = (g: GearItem): g is Weapon => 'weaponType' in g;
           const Inner = (
             <motion.div
-              initial={{ opacity: 0, y: 8, scale: 0.97 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 25 }}
               className={`flex items-start gap-2 border p-2 text-left bg-bg/75 ${borderClass} ${glowClass}`}
               style={chipClip}
             >
@@ -232,11 +234,14 @@ export const ContextualPickerSheet: React.FC<{
   onClose: () => void;
   children: React.ReactNode;
 }> = ({ open, title, detail, onClose, children }) => {
-  if (!open) return null;
+  const reduceMotion = useReducedMotion();
+  const sheet = sheetMotionProps(reduceMotion);
   return (
     <SheetPortal>
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-black/70" onClick={onClose}>
-      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="max-h-[82vh] w-full overflow-y-auto rounded-t-2xl border-t-2 border-border bg-bg p-4" onClick={(event) => event.stopPropagation()}>
+    <AnimatePresence>
+    {open && (
+    <motion.div {...sheet.backdrop} className="fixed inset-0 z-50 flex items-end bg-black/70" onClick={onClose}>
+      <motion.div {...sheet.panel} className="max-h-[82vh] w-full overflow-y-auto rounded-t-2xl border-t-2 border-border bg-bg p-4" onClick={(event) => event.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <div className="bl-title text-2xl text-text-primary">{title}</div>
@@ -247,6 +252,8 @@ export const ContextualPickerSheet: React.FC<{
         <div className="space-y-2">{children}</div>
       </motion.div>
     </motion.div>
+    )}
+    </AnimatePresence>
     </SheetPortal>
   );
 };

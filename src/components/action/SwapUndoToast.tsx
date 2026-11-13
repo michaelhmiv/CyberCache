@@ -15,7 +15,7 @@
  */
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Undo2 } from 'lucide-react';
 
 interface SwapUndoToastProps {
@@ -36,6 +36,7 @@ export const SwapUndoToast: React.FC<SwapUndoToastProps> = ({
   onDismiss,
   durationMs = 4000,
 }) => {
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
     if (!visible) return;
     const timer = window.setTimeout(onDismiss, durationMs);
@@ -47,9 +48,10 @@ export const SwapUndoToast: React.FC<SwapUndoToastProps> = ({
       {visible && (
         <motion.div
           data-testid="swap-undo-toast"
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
+          exit={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
+          transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
           className="pointer-events-auto fixed bottom-4 left-4 right-4 z-[60] border-2 border-amber/60 bg-surface/95 p-3 shadow-lg"
           style={{ clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' }}
         >

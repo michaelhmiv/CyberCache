@@ -2,6 +2,16 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-12 — Stage iteration: the other half of the motion
+
+- **Claiming your daily streak is a moment now** — tapping Claim stamps the day onto the poster plate, the reward rows stamp themselves Banked one at a time, and the cache-key day flares once before the sheet settles. Opening the sheet no longer spends the celebration early: the reward simply waits, face-up, until you claim it.
+- **Sheets close as gracefully as they open** — the pop-up sheets (level details, Return, streak, contracts, weekly offers, the consumable ledger, the loadout picker and their kin) used to vanish in a hard cut when dismissed. They now slide away the way they arrived, on one shared motion every sheet in the game follows.
+- **The Return Sheet's best drop rises like loot** — the poster card for your best offline drop used to creep upward for the whole celebration, slower the rarer it was. It now rises the way a dropped item rises and then holds, settled, for the rest of its moment — a legendary reads as a ceremony, not a slow fade.
+- **The death screen tells you more and leaves more kindly** — when the free recovery timer runs out the button now pulses so you see it the moment it is ready, the pay option shows your balance (and exactly how short you are when you can't afford it), a tap that can't go through says why instead of doing nothing, and recovering no longer snaps the screen away. Reduced-motion players get the same screen without the spring.
+- **The starter supply drop lands in pieces** — a new hunter's first grant used to appear all at once and disappear in a cut. Its rows now arrive one at a time, it leaves with a fade, and its close button is a full-size tap target.
+- **Reduced motion is respected everywhere, not just in fights** — menu sheets, toasts, claim pulses, the spinning and glowing loops, the tab bar's sliding pill and the XP bar now all settle to their still state when your device asks for reduced motion. Nothing about any timing in a fight or a loot reveal changes.
+- **Small labels in the workshop bay scenes meet the readable size** — the progress labels in the crafting, repair, shield and extraction bay scenes sat under the game's 11-pixel floor; they are at the floor now.
+
 ## 2026-11-12 — The audit fix wave
 
 

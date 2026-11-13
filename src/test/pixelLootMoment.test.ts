@@ -8,6 +8,7 @@ import {
   initialLootMomentState,
   lootCardData,
   lootCelebrationForRarity,
+  lootRiseBudgetMs,
   lootDeckData,
   lootDeckSchedule,
   lootMomentMode,
@@ -129,6 +130,24 @@ describe('lootCelebrationForRarity — rarity → celebration tier mapping', () 
     expect(lootCelebrationForRarity(Rarity.Rare).color).toBe('#5AA7FF');
     expect(lootCelebrationForRarity(Rarity.Epic).color).toBe('#FF9DF5');
     expect(lootCelebrationForRarity(Rarity.Legendary).color).toBe('#FFEA3A');
+  });
+});
+
+describe('lootRiseBudgetMs — the rise inside one celebration beat', () => {
+  it('tracks the ladder: duration minus the 300ms deck reserve', () => {
+    expect(lootRiseBudgetMs(MOVEMENT.LOOT_COMMON_MS)).toBe(600);
+    expect(lootRiseBudgetMs(MOVEMENT.LOOT_UNCOMMON_MS)).toBe(700);
+    expect(lootRiseBudgetMs(MOVEMENT.LOOT_RARE_MS)).toBe(800);
+  });
+
+  it('caps at LOOT_RISE_MS — Epic and Legendary rise no longer than the law rise', () => {
+    expect(lootRiseBudgetMs(MOVEMENT.LOOT_EPIC_MS)).toBe(MOVEMENT.LOOT_RISE_MS);
+    expect(lootRiseBudgetMs(MOVEMENT.LOOT_LEGENDARY_MS)).toBe(MOVEMENT.LOOT_RISE_MS);
+  });
+
+  it('floors at 300ms so a short beat still reads as a rise', () => {
+    expect(lootRiseBudgetMs(300)).toBe(300);
+    expect(lootRiseBudgetMs(0)).toBe(300);
   });
 });
 

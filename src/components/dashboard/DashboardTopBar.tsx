@@ -94,6 +94,7 @@ import { WeeklyClaimablesList } from './WeeklyClaimables';
 import { useMarketStore, usePlayerStore, useSkillStore } from '@/store';
 import { hasPayableOfflineHold } from '@/store/slices/playerSlice';
 import { claimOfflineEarnings } from '@/lib/activity/activitySettlement';
+import { xpBarTransition } from '@/lib/animation/uiMotion';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import {
   loginStreakAnnouncement,
@@ -115,33 +116,6 @@ const CONTRACTS_ACCENT = '#E8B33D';
 const WEEKLY_ACCENT = '#3FD6E8';
 
 type TopSheet = 'level' | 'return' | 'streak' | 'contracts' | 'weekly' | null;
-
-/** Pulsing glow underlay for an icon whose pop-up holds something
- *  actionable. Decorative only — the badge text and aria-label
- *  carry the signal for anyone who cannot see motion. */
-function PulseGlow({ color, testId }: { color: string; testId: string }) {
-  const reduceMotion = useReducedMotion();
-  if (reduceMotion) {
-    return (
-      <span
-        data-testid={testId}
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{ boxShadow: `inset 0 0 0 2px ${color}, 0 0 10px ${color}66` }}
-      />
-    );
-  }
-  return (
-    <motion.span
-      data-testid={testId}
-      aria-hidden
-      className="pointer-events-none absolute inset-0"
-      style={{ boxShadow: `inset 0 0 0 2px ${color}, 0 0 12px ${color}88` }}
-      animate={{ opacity: [1, 0.3, 1] }}
-      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-    />
-  );
-}
 
 function CornerBadge({ text, icon, color }: { text?: string; icon?: PxIconName; color: string }) {
   // Fully INSIDE its host's top-right corner (QC papercut): the
@@ -187,6 +161,7 @@ interface DashboardTopBarProps {
 }
 
 export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) => {
+  const reduceMotion = useReducedMotion();
   const level = usePlayerStore((s) => s.level);
   const xp = usePlayerStore((s) => s.xp);
   const cacheKeys = usePlayerStore((s) => s.cacheKeys);
@@ -569,7 +544,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
           <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
-            {holdPending && <PulseGlow color="#F2C063" testId="offline-pending-pulse" />}
+            {holdPending && <ClaimPulse color="#F2C063" testId="offline-pending-pulse" />}
             <PxIcon name="clock" size={20} className="text-[#F2C063]" />
             {holdPending && (
               <span
@@ -599,9 +574,9 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
         >
           <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
             {streakClaimable ? (
-              <PulseGlow color="#FF8A00" testId="streak-claim-pulse" />
+              <ClaimPulse color="#FF8A00" testId="streak-claim-pulse" />
             ) : streakAnnouncement && !streakJustClaimed ? (
-              <PulseGlow color={STREAK_ACCENT} testId="streak-announce-pulse" />
+              <ClaimPulse color={STREAK_ACCENT} testId="streak-announce-pulse" />
             ) : null}
             <PxIcon name="calendar" size={20} className="text-[#FF8A3D]" />
             {streakDay !== null && (
@@ -630,7 +605,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
         >
           <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
-            {contractsPulsing && <PulseGlow color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
+            {contractsPulsing && <ClaimPulse color={CONTRACTS_ACCENT} testId="contracts-claim-pulse" />}
             <PxIcon name="orders" size={20} className="text-[#5EE8A0]" />
           </span>
           {contractsPulsing && <CornerBadge text={String(claimable)} color={CONTRACTS_ACCENT} />}
@@ -649,7 +624,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
             className="relative flex h-11 min-h-[44px] min-w-[44px] items-center justify-center"
           >
             <span data-chip className="bl-panel relative flex h-[28px] min-w-[48px] items-center justify-center gap-1 overflow-hidden px-1.5">
-              <PulseGlow color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
+              <ClaimPulse color={WEEKLY_ACCENT} testId="weekly-claim-pulse" />
               <PxIcon name="crate" size={20} className="text-[#7DD0F0]" />
             </span>
             <CornerBadge text={String(weeklyCount)} color={WEEKLY_ACCENT} />
@@ -752,8 +727,8 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
         </button>
       )}
 
-      {sheet === 'level' && (
-        <PickerSheet
+      <PickerSheet
+          open={sheet === 'level'}
           title={`Level ${level}`}
           subtitle={level >= MAX_PLAYER_LEVEL
             ? `${xp} XP · MAX LEVEL`
@@ -775,7 +750,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
                   className="h-full bg-amber"
                   initial={false}
                   animate={{ width: `${xpProgress}%` }}
-                  transition={{ type: 'spring', damping: 20 }}
+                  transition={xpBarTransition(reduceMotion)}
                 />
               </div>
               <dl className="mt-3 space-y-1.5 text-xs">
@@ -812,11 +787,9 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
               </button>
             )}
           </div>
-        </PickerSheet>
-      )}
+      </PickerSheet>
 
-      {sheet === 'return' && (
-        <PickerSheet title="Return" onClose={() => setSheet(null)}>
+      <PickerSheet open={sheet === 'return'} title="Return" onClose={() => setSheet(null)}>
           <div className="space-y-3 p-3">
             {/* The Return Sheet body (§10): totals row, best drop
                 as a poster card on the loot ladder's timings, one
@@ -845,11 +818,10 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
               <PxIcon name="chevR" size={14} />
             </button>
           </div>
-        </PickerSheet>
-      )}
+      </PickerSheet>
 
-      {sheet === 'weekly' && (
-        <PickerSheet
+      <PickerSheet
+          open={sheet === 'weekly'}
           title="Weekly Claimables"
           subtitle="Rep Desk weekly offers — the desk itself is at Market, Rep Desk"
           onClose={() => setSheet(null)}
@@ -857,11 +829,10 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           <div className="p-3">
             <WeeklyClaimablesList />
           </div>
-        </PickerSheet>
-      )}
+      </PickerSheet>
 
-      {sheet === 'streak' && (
-        <PickerSheet
+      <PickerSheet
+          open={sheet === 'streak'}
           title="Login Streak"
           subtitle={streakSubtitle}
           onClose={() => setSheet(null)}
@@ -874,11 +845,10 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
                 news stays announced until it is acknowledged. */}
             <LoginStreakPanel onDone={() => setSheet(null)} />
           </div>
-        </PickerSheet>
-      )}
+      </PickerSheet>
 
-      {sheet === 'contracts' && (
-        <PickerSheet
+      <PickerSheet
+          open={sheet === 'contracts'}
           title="Contracts"
           subtitle="Daily & weekly work orders"
           onClose={() => setSheet(null)}
@@ -886,8 +856,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           <div className="p-3">
             <ContractsPanel />
           </div>
-        </PickerSheet>
-      )}
+      </PickerSheet>
     </>
   );
 };
