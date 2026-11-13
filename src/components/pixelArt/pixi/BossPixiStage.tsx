@@ -6,6 +6,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
 import { CritFlash, DamageNumber, SpecialTelegraphFx } from '../PixelFx';
 import { specialTelegraphForBossPhase, type BossSpecialTelegraph } from '@/lib/pixel/bossTelegraph';
+import { bossStagePlacement } from '@/lib/pixel/bossStageScale';
 import { PART_POSES, PARTS_FEET_X, PRIMARY_ANCHOR, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
 import {
   PART_PAINT_ORDER,
@@ -184,7 +185,7 @@ function deriveStageModel(props: BossFightStageProps): StageModel {
     effectiveBackgroundId,
     groundY,
     hunterPlacement: { ...HUNTER_PLACEMENT, groundY },
-    bossPlacement: { ...BOSS_PLACEMENT, groundY },
+    bossPlacement: { ...BOSS_PLACEMENT, ...bossStagePlacement(props.bossId), groundY },
     bossSprite: getPixelSprite(pixelBossSpriteForBoss(props.bossId) ?? 'brute') ?? requirePixelSprite('brute'),
   };
 }
@@ -284,11 +285,11 @@ interface StageRuntime {
   finish: {
     startMs: number;
     bossFrom: { scale: number; x: number; y: number; rotate: number; opacity: number };
-    hunterFrom: { x: number; y: number; rotate: number; opacity: number; scaleY: number };
+    hunterFrom: { x: number; y: number; rotate: number; opacity: number; scale: number; scaleY: number };
   } | null;
   current: {
     boss: { scale: number; x: number; y: number; rotate: number; opacity: number };
-    hunter: { x: number; y: number; rotate: number; opacity: number; scaleY: number };
+    hunter: { x: number; y: number; rotate: number; opacity: number; scale: number; scaleY: number };
   };
   shake: { key: string; startMs: number; intensity: number; durationMs: number } | null;
   landed: { landed: boolean; atMs: number };
@@ -303,7 +304,7 @@ function createStageRuntime(): StageRuntime {
     finish: null,
     current: {
       boss: { scale: 1, x: 0, y: 0, rotate: 0, opacity: 1 },
-      hunter: { x: 0, y: 0, rotate: 0, opacity: 1, scaleY: 1 },
+      hunter: { x: 0, y: 0, rotate: 0, opacity: 1, scale: 1, scaleY: 1 },
     },
     shake: null,
     landed: { landed: false, atMs: 0 },
@@ -411,7 +412,7 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
   }
 
   // ── Hunter wrapper tracks ──
-  const hunter = { x: 0, y: 0, rotate: 0, opacity: 1, scaleY: 1 };
+  const hunter = { x: 0, y: 0, rotate: 0, opacity: 1, scale: 1, scaleY: 1 };
   if (!finished) {
     if (beat('playerHit')) {
       const spec = { durationMs: MOVEMENT.DODGE_MS, delayMs: MOVEMENT.BEAT_LUNGE_AT_MS };
@@ -481,10 +482,15 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
       boss.x = f.bossFrom.x * (1 - p);
     } else if (timeline.outcome) {
       const p = EASE.easeIn(Math.max(0, Math.min(1, ft / 550)));
+      // Same fall as the DOM stage: -68° about the feet would throw the
+      // head past the left edge, so the fall shrinks toward the feet
+      // (scale 0.7) and drifts +18px right to settle inside the frame
+      // (stage-iteration B1 capture arbitration, 2026-11-13).
       hunter.rotate = f.hunterFrom.rotate + (-68 - f.hunterFrom.rotate) * p;
       hunter.y = f.hunterFrom.y + (30 - f.hunterFrom.y) * p;
       hunter.opacity = f.hunterFrom.opacity + (0.7 - f.hunterFrom.opacity) * p;
-      hunter.x = f.hunterFrom.x * (1 - p);
+      hunter.scale = f.hunterFrom.scale + (0.7 - f.hunterFrom.scale) * p;
+      hunter.x = f.hunterFrom.x + (18 - f.hunterFrom.x) * p;
     }
   }
   rt.current = { boss: { ...boss }, hunter: { ...hunter } };
@@ -492,7 +498,7 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
   // ── Apply hunter ──
   scene.hunterRoot.position.set((stage.hunterPlacement.xPct / 100) * W + hunter.x, groundYPx + hunter.y);
   scene.hunterRoot.rotation = hunter.rotate * DEG;
-  scene.hunterRoot.scale.set(1, hunter.scaleY);
+  scene.hunterRoot.scale.set(hunter.scale, hunter.scale * hunter.scaleY);
   scene.hunterRoot.alpha = hunter.opacity;
   const nominalFrameH = (stage.hunterPlacement.heightPct / 100) * H;
   let frameH = nominalFrameH;

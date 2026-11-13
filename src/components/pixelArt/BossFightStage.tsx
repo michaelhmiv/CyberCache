@@ -21,6 +21,7 @@ import {
   Tracer,
 } from './PixelFx';
 import { specialTelegraphForBossPhase } from '@/lib/pixel/bossTelegraph';
+import { bossStagePlacement } from '@/lib/pixel/bossStageScale';
 import { getPixelSprite, pixelBossSpriteForBoss, requirePixelSprite } from '@/lib/pixel/manifest';
 import { bossArena, endlessBandTint } from '@/content/areaPalettes';
 import {
@@ -97,7 +98,7 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
   const bandTint = depthBadge ? endlessBandTint(depthBadge.band) : null;
   const groundY = background?.anchors.groundLine?.y ?? HUNTER_PLACEMENT.groundY;
   const hunterPlacement = { ...HUNTER_PLACEMENT, groundY };
-  const bossPlacement = { ...BOSS_PLACEMENT, groundY };
+  const bossPlacement = { ...BOSS_PLACEMENT, ...bossStagePlacement(bossId), groundY };
 
   const victory = timeline.outcome?.result.victory === true;
   const finished = timeline.finishedAt != null;
@@ -198,7 +199,13 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
       if (victory) {
         void bossHitControls.start({ scale: 0.45, y: 26, rotate: -10, opacity: 0.85, x: 0, transition: { duration: 0.3 } });
       } else if (timeline.outcome) {
-        void hunterControls.start({ rotate: -68, y: 30, opacity: 0.7, x: 0, transition: { duration: 0.55, ease: 'easeIn' } });
+        // The fall pivots at the hunter's feet (the wrapper's transform
+        // origin): at -68° the head's arc would land ~13% of stage width
+        // past the left edge, so the fall also shrinks toward the feet
+        // (scale 0.7, the boss death-shrink's smaller sibling) and drifts
+        // +18px right — the settled figure stays inside the stage frame
+        // (stage-iteration B1 capture arbitration, 2026-11-13).
+        void hunterControls.start({ rotate: -68, y: 30, opacity: 0.7, x: 18, scale: 0.7, transition: { duration: 0.55, ease: 'easeIn' } });
       }
       return;
     }
@@ -219,7 +226,7 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
     } else if (shotBeat) {
       void hunterControls.start({ x: [0, -4, 0], transition: { duration: 0.22 } });
     } else {
-      void hunterControls.start({ x: 0, rotate: 0, opacity: 1, scaleY: 1, y: 0, transition: { duration: 0.2 } });
+      void hunterControls.start({ x: 0, rotate: 0, opacity: 1, scale: 1, scaleY: 1, y: 0, transition: { duration: 0.2 } });
     }
     // Boss lunge.
     if (beat('lunge')) {
@@ -331,7 +338,7 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
           className="absolute inset-0"
           style={{
             transformOrigin: `${hunterPlacement.xPct}% ${groundY * 100}%`,
-            ...(reduced && hunterDown ? { transform: 'rotate(-68deg) translateY(30px)', opacity: 0.7 } : {}),
+            ...(reduced && hunterDown ? { transform: 'translateX(18px) translateY(30px) rotate(-68deg) scale(0.7)', opacity: 0.7 } : {}),
           }}
           initial={false}
           animate={reduced ? undefined : hunterControls}
