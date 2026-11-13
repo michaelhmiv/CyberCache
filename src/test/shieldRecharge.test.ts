@@ -14,10 +14,12 @@
  *   - Shield Cell restores / Absorb procs / coolant restores are
  *     unchanged and stack beneath it.
  *
- * Determinism: the Chef resolves monster hits through
- * `computeMonsterDamageVsHunter` and `pickAreaMonster`, both of
- * which default to Math.random. Stubbing Math.random to a constant
- * pins every hit outcome in Dustwaste Frontier (weights 6/5/3/0.5):
+ * Determinism: the Chef resolves monster hits on its tick-seeded
+ * ':survival' stream (issue #552 — the damage helpers' Math.random
+ * defaults are never used on the claim path anymore). These tests
+ * pin hit outcomes through the engine's combatRng seam instead:
+ * a constant roll source pins every hit outcome in Dustwaste
+ * Frontier (weights 6/5/3/0.5):
  *   - 0.999 → the elite (accuracy 0.9) attacks and always misses;
  *   - 0.5   → the drone (attack 5, accuracy 0.9) always hits at
  *     variance exactly 1.0.
@@ -28,7 +30,7 @@
  * per-hit number could drift with area data; the recharge amounts
  * themselves are pinned exactly — they are this slice's numbers.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { processRoamingClaim, type ClaimRequest } from '../server/chef';
 import {
   modelShieldRechargeForBoss,
@@ -77,10 +79,6 @@ function claimRequest(args: {
       : {}),
   } as ClaimRequest;
 }
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
 
 // ---------------------------------------------------------------------------
 // The rule itself (shieldBehaviors.ts — the one owner)
@@ -160,19 +158,20 @@ describe('shieldRechargeAmount — the suppression rule', () => {
 
 describe('processRoamingClaim — passive recharge', () => {
   it('(a) damage-free ticks recharge rate × 3 per tick, up to cap', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.999); // every attack misses
-    const two = processRoamingClaim(claimRequest({ shieldHp: 100, ticks: 2 }));
+    const miss = { combatRng: () => 0.999 }; // every attack misses
+    const two = processRoamingClaim(claimRequest({ shieldHp: 100, ticks: 2 }), miss);
     expect(two.survival.shieldHp).toBe(250); // 100 + 2 × (25 × 3)
-    const four = processRoamingClaim(claimRequest({ shieldHp: 100, ticks: 4 }));
+    const four = processRoamingClaim(claimRequest({ shieldHp: 100, ticks: 4 }), miss);
     expect(four.survival.shieldHp).toBe(300); // capped at capacity, never 400
     expect(four.survival.currentHp).toBe(1300);
   });
 
   it('(b) ticks where damage lands restore nothing — identical to a zero-rate shield', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5); // the drone always hits
-    const live = processRoamingClaim(claimRequest({ shieldHp: 100, ticks: 4 }));
+    const hit = { combatRng: () => 0.5 }; // the drone always hits
+    const live = processRoamingClaim(claimRequest({ shieldHp: 100, ticks: 4 }), hit);
     const zeroRate = processRoamingClaim(
       claimRequest({ shieldHp: 100, ticks: 4, rechargeRate: 0 }),
+      hit,
     );
     // Damage really landed (the shield paid for every hit)…
     expect(zeroRate.survival.shieldHp).toBeLessThan(100);
@@ -184,27 +183,30 @@ describe('processRoamingClaim — passive recharge', () => {
   });
 
   it('the Borderlands rhythm end-to-end: dented under fire, refilled in the quiet', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5); // hits land
-    const dented = processRoamingClaim(claimRequest({ shieldHp: 300, ticks: 4 }));
-    expect(dented.survival.shieldHp).toBeLessThan(300);
-    vi.spyOn(Math, 'random').mockReturnValue(0.999); // quiet ticks
-    const refilled = processRoamingClaim({
-      ...claimRequest({ shieldHp: dented.survival.shieldHp, ticks: 40 }),
-      tickCount: 2000,
+    const dented = processRoamingClaim(claimRequest({ shieldHp: 300, ticks: 4 }), {
+      combatRng: () => 0.5, // hits land
     });
+    expect(dented.survival.shieldHp).toBeLessThan(300);
+    const refilled = processRoamingClaim(
+      {
+        ...claimRequest({ shieldHp: dented.survival.shieldHp, ticks: 40 }),
+        tickCount: 2000,
+      },
+      { combatRng: () => 0.999 }, // quiet ticks
+    );
     expect(refilled.survival.shieldHp).toBe(300); // back to full, capped
   });
 
   it('(d) Shield Cell behavior is unchanged: window burnout consumes it, the replacement restores', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     // The cell's pre-existing claim-engine semantics (consumables.ts def,
     // untouched by this slice): a 180s resistance window (60 ticks at
     // 15% damage reduction); when the window burns out the cell is
     // consumed and the replacement's flat +120 restore lands. Run 62
     // ticks with 2 cells stocked so the burnout lands mid-run (the
     // claim's maxTicks is raised past the 20-tick foreground clamp so
-    // the window can actually elapse). Per-tick hit/miss rolls are
-    // seeded by tick number, so no cross-run equality is asserted —
+    // the window can actually elapse). Survival rolls are pinned to
+    // the same constant for both runs (the combatRng seam), so no
+    // cross-run equality is asserted —
     // suppression on damage ticks is test (b)'s job; this test pins
     // that the cell's own machinery is exactly as shipped.
     const run = (cells: number) =>
@@ -216,6 +218,7 @@ describe('processRoamingClaim — passive recharge', () => {
           rechargeRate: 25,
           consumableInventory: cells > 0 ? { ShieldCell: cells } : {},
         }),
+        { combatRng: () => 0.5 },
       );
     const stocked = run(2);
     const noCell = run(0);
@@ -228,10 +231,9 @@ describe('processRoamingClaim — passive recharge', () => {
   });
 
   it('claims without survival input (the offline settlement shape) never recharge', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.999);
     const request = claimRequest({ shieldHp: 100, ticks: 4 });
     delete (request as { survival?: unknown }).survival;
-    const result = processRoamingClaim(request);
+    const result = processRoamingClaim(request, { combatRng: () => 0.999 });
     expect(result.survival.shieldHp).toBe(0); // unmodeled: untouched, as shipped
   });
 });
