@@ -392,10 +392,9 @@ const feed = (result: ReturnType<typeof processRoamingClaim>): FeedEvent[] =>
 
 describe('Chef roaming claims with behavior shields', () => {
   it('nova: a break produces exactly one burst into the current kill-cycle target', () => {
-    // Math.random = 0.05 → attacker is always the Wraith Scavenger
+    // combatRng = 0.05 → attacker is always the Wraith Scavenger
     // (attack 4, raw hit = floor(4 × 0.865) = 3). Shield 10 breaks on
     // tick 4; nova = 150% of capacity 10 = 15.
-    vi.spyOn(Math, 'random').mockReturnValue(0.05);
     const result = processRoamingClaim(
       claimRequest({
         equippedGear: [makeShield({ behavior: 'nova', hp: 10 })],
@@ -409,6 +408,7 @@ describe('Chef roaming claims with behavior shields', () => {
           lastKilledMonsterId: null,
         },
       }),
+      { combatRng: () => 0.05 },
     );
     const novas = feed(result).filter((e) => e.label.startsWith('Nova burst'));
     expect(novas).toHaveLength(1);
@@ -424,7 +424,6 @@ describe('Chef roaming claims with behavior shields', () => {
   });
 
   it('nova kill: burst kill advances the cycle and counts the kill', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.05);
     const result = processRoamingClaim(
       claimRequest({
         equippedGear: [makeShield({ behavior: 'nova', hp: 10 })],
@@ -438,6 +437,7 @@ describe('Chef roaming claims with behavior shields', () => {
           lastKilledMonsterId: null,
         },
       }),
+      { combatRng: () => 0.05 },
     );
     expect(result.killCycle.monstersKilledCount).toBe(1);
     expect(result.killCycle.totalKills).toBe(1);
@@ -449,7 +449,6 @@ describe('Chef roaming claims with behavior shields', () => {
   });
 
   it('nova does not fire while unarmed below the re-arm threshold', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.05);
     const result = processRoamingClaim(
       claimRequest({
         equippedGear: [makeShield({ behavior: 'nova', hp: 100 })],
@@ -464,6 +463,7 @@ describe('Chef roaming claims with behavior shields', () => {
           lastKilledMonsterId: null,
         },
       }),
+      { combatRng: () => 0.05 },
     );
     expect(feed(result).filter((e) => e.label.startsWith('Nova burst'))).toHaveLength(0);
     expect(result.killCycle.currentTargetHp).toBe(1000);
@@ -471,7 +471,6 @@ describe('Chef roaming claims with behavior shields', () => {
   });
 
   it('nova re-arms once the shield stands above the threshold, then fires on the break', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.05);
     const result = processRoamingClaim(
       claimRequest({
         equippedGear: [makeShield({ behavior: 'nova', hp: 100 })],
@@ -488,6 +487,7 @@ describe('Chef roaming claims with behavior shields', () => {
           lastKilledMonsterId: null,
         },
       }),
+      { combatRng: () => 0.05 },
     );
     const novas = feed(result).filter((e) => e.label.startsWith('Nova burst'));
     expect(novas).toHaveLength(1);
@@ -497,13 +497,13 @@ describe('Chef roaming claims with behavior shields', () => {
   });
 
   it('absorb: every hit negated while the shield is up, shield restored to capacity', () => {
-    // Math.random = 0.05 → every absorb roll (0.05 < 0.15) procs.
-    vi.spyOn(Math, 'random').mockReturnValue(0.05);
+    // combatRng = 0.05 → every absorb roll (0.05 < 0.15) procs.
     const result = processRoamingClaim(
       claimRequest({
         equippedGear: [makeShield({ behavior: 'absorb', hp: 200 })],
         survival: { currentHp: 100000, maxHp: 100000, shieldHp: 150 },
       }),
+      { combatRng: () => 0.05 },
     );
     expect(result.survival.currentHp).toBe(100000);
     expect(result.survival.shieldHp).toBe(200); // 150 + 10/tick, capped
@@ -511,12 +511,12 @@ describe('Chef roaming claims with behavior shields', () => {
   });
 
   it('legacy shield in a claim: pre-behavior math, no behavior events', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.05);
     const result = processRoamingClaim(
       claimRequest({
         equippedGear: [makeLegacyShield({ hp: 200 })],
         survival: { currentHp: 100000, maxHp: 100000, shieldHp: 150 },
       }),
+      { combatRng: () => 0.05 },
     );
     // Same attacker stream as the absorb test: 20 hits × 3 damage.
     expect(result.survival.shieldHp).toBe(90);
@@ -530,8 +530,7 @@ describe('Chef roaming claims with behavior shields', () => {
   });
 
   it('amp: outgoing kill-cycle damage is multiplied only at full shield', () => {
-    // Math.random = 0.5 → variance exactly 1.0; attacker is the drone.
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    // combatRng = 0.5 → variance exactly 1.0; attacker is the drone.
     const weapon = makeWeapon();
     const dps = computeEffectiveDpsFromGear({
       weapons: [weapon],
@@ -562,6 +561,7 @@ describe('Chef roaming claims with behavior shields', () => {
         survival: { currentHp: 100000, maxHp: 100000, shieldHp: 500 },
         killCycle: { ...target },
       }),
+      { combatRng: () => 0.5 },
     );
     expect(atFull.killCycle.currentTargetHp).toBe(100000 - amped);
 
@@ -572,6 +572,7 @@ describe('Chef roaming claims with behavior shields', () => {
         survival: { currentHp: 100000, maxHp: 100000, shieldHp: 499 },
         killCycle: { ...target },
       }),
+      { combatRng: () => 0.5 },
     );
     expect(belowFull.killCycle.currentTargetHp).toBe(100000 - unamped);
   });
