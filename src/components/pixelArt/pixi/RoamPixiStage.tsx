@@ -256,7 +256,7 @@ interface RoamRuntime {
   rigPoseKey: string;
   rigCurrent: Record<string, RigPoseVals>;
   rigTweens: Record<string, { from: RigPoseVals; to: RigPoseVals; startMs: number; durationMs: number }>;
-  beat: { eventId: string; startMs: number } | null;
+  beat: { eventId: string; startMs: number; targetKey: string | null } | null;
   walk: { targetKey: string; startMs: number } | null;
   /** The walk-in's eased approach offset, stage-width % (DEV probe
    *  surface: the anim-replay loop grades the approach from the
@@ -382,7 +382,7 @@ interface TickEnv {
   model: RoamSceneModel;
   /** Cache each actor pose once per event; compose only the moving
    * rig bands during walk-in. No per-frame hunter-layout rebuild. */
-  deriveModelAt: (walkMs: number | undefined, beatMs: number) => RoamSceneModel;
+  deriveModelAt: (walkMs: number | undefined, beatMs: number, beatForCurrentTarget?: boolean) => RoamSceneModel;
   /** The hunter's part set + held-weapon fractions (Motion M2b:
    *  the travel stride composes layouts per frame from the same
    *  inputs deriveRoamScene consumes). */
@@ -555,6 +555,11 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   // life — the DOM stage's hold-at-end semantics. (The defect
   // this replaces: the resting model was the spawn instant's,
   // walkMs 0, so arrival snapped the enemy back to alpha 0.)
+  // The target standing BEFORE this frame's walk state advances —
+  // the target a beat starting this frame names (post-kill guard:
+  // the roster may already have advanced past the enemy a kill beat
+  // belongs to, inside the same claim that delivered the event).
+  const prevWalkTargetKey = rt.walk?.targetKey ?? null;
   const walkTargetKey = `${props.currentTargetId ?? 'none'}|${env.model.isEliteEvent ? 'elite' : 'std'}`;
   const walkFrame = resolveRoamWalkFrame(rt.walk, walkTargetKey, now);
   rt.walk = walkFrame.walk;
@@ -574,7 +579,7 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   // ── Beat clock: a fresh event id starts its beat ──
   const eventId = props.event?.id;
   if (eventId && eventId !== 'idle-loop-ready' && rt.beat?.eventId !== eventId) {
-    rt.beat = { eventId, startMs: now };
+    rt.beat = { eventId, startMs: now, targetKey: prevWalkTargetKey };
     if (env.model.beat && (env.model.beat.kind === 'shot' || env.model.beat.kind === 'crit')) {
       scene.sparkSpecs = particleField(`sparks-${eventId}`, 6).map((s, i) => ({
         angle: (i / 6) * Math.PI * 1.5 - Math.PI * 0.9,
@@ -583,8 +588,18 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     }
   }
   const beatMs = rt.beat ? now - rt.beat.startMs : Number.POSITIVE_INFINITY;
-  const model = env.deriveModelAt(walkFrame.walkMs, beatMs);
+  // Post-kill guard: the standing beat names the target that was
+  // current when its event arrived. When the roster has advanced
+  // past that target, the beat's enemy channels (the death pose, the
+  // kill dissolve) must not land on the enemy now standing — a target
+  // that did not die never inherits the death state.
+  const beatForCurrentTarget = !rt.beat || rt.beat.targetKey === walkTargetKey;
+  const model = env.deriveModelAt(walkFrame.walkMs, beatMs, beatForCurrentTarget);
   const beatSample = sampleRoamBeat(model.beat, Math.min(beatMs, 60_000), props.event);
+  const enemyHitSample =
+    model.beat?.kind === 'kill' && !beatForCurrentTarget
+      ? { scale: 1, x: 0, y: 0, opacity: 1 }
+      : beatSample.enemyHit;
 
   // Gear mounts re-resolve against a layout (DOM: the gear
   // layers re-derive and tween rotation on SEGMENT timing;
@@ -806,9 +821,9 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const walkOffsetXPct = model.enemyWalk?.offsetXPct ?? 0;
   rt.walkOffsetXPct = walkOffsetXPct;
   scene.enemyLunge.position.set((model.enemyPlacement.xPct / 100) * W + beatSample.enemyLungeX, groundYPx);
-  scene.enemyHit.scale.set(beatSample.enemyHit.scale, beatSample.enemyHit.scale);
-  scene.enemyHit.position.set(beatSample.enemyHit.x, beatSample.enemyHit.y);
-  scene.enemyHit.alpha = beatSample.enemyHit.opacity;
+  scene.enemyHit.scale.set(enemyHitSample.scale, enemyHitSample.scale);
+  scene.enemyHit.position.set(enemyHitSample.x, enemyHitSample.y);
+  scene.enemyHit.alpha = enemyHitSample.opacity;
   scene.enemyWalk.position.set((walkOffsetXPct / 100) * W, 0);
   scene.enemyWalk.alpha = enemyWalkAlpha(model);
   const enemyH = (model.enemyPlacement.heightPct / 100) * H;
@@ -1132,8 +1147,8 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
     envRef.current = {
       props,
       model,
-      deriveModelAt: (walkMs, beatMs) => {
-        const key = roamPosesAt(model.beat, !!props.weapon, beatMs).key;
+      deriveModelAt: (walkMs, beatMs, beatForCurrentTarget) => {
+        const key = roamPosesAt(model.beat, !!props.weapon, beatMs, { beatForCurrentTarget }).key;
         let frame = poseModels.get(key);
         if (!frame) {
           frame = deriveRoamScene({
@@ -1145,6 +1160,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
           currentTargetId: props.currentTargetId,
           hunterSet: look.set,
             beatElapsedMs: beatMs,
+            beatForCurrentTarget,
           });
           poseModels.set(key, frame);
         }

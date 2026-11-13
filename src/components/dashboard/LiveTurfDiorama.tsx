@@ -665,7 +665,29 @@ const PixelSceneLayerDom: React.FC<{
       .map((elapsedMs) => setTimeout(() => setPoseAge({ eventId: poseEventId, elapsedMs }), elapsedMs));
     return () => timers.forEach(clearTimeout);
   }, [poseEventId, poseBeatKind]);
-  const actorPoses = roamPosesAt(beat, !!weapon, poseAge.eventId === poseEventId ? poseAge.elapsedMs : 0);
+  // Post-kill advance guard: a beat names the target that was current
+  // when its event arrived. The Chef settles a kill and the next spawn
+  // in ONE claim, so a kill beat routinely stands next to the NEXT
+  // enemy — the death pose and the dissolve belong to the enemy that
+  // died, never to the one now standing. When the event changes, the
+  // pre-beat target is snapshotted (a ref the beat effects below read
+  // — they run after this effect in the same commit — plus a state
+  // mirror for this render); the previous-target ref advances after
+  // it (declaration order is the mechanism).
+  const prevTargetIdRef = useRef<string | null>(null);
+  const beatTargetIdRef = useRef<string | null>(null);
+  const [beatTargetId, setBeatTargetId] = useState<string | null>(null);
+  useEffect(() => {
+    beatTargetIdRef.current = prevTargetIdRef.current;
+    setBeatTargetId(prevTargetIdRef.current);
+  }, [poseEventId]);
+  useEffect(() => {
+    prevTargetIdRef.current = currentTargetId ?? null;
+  });
+  const beatForCurrentTarget = beatTargetId === (currentTargetId ?? null);
+  const actorPoses = roamPosesAt(beat, !!weapon, poseAge.eventId === poseEventId ? poseAge.elapsedMs : 0, {
+    beatForCurrentTarget,
+  });
   const eventProp = event && (event.tone === 'event' || event.tone === 'event_major') && event.propId
     ? getPixelSprite(event.propId)
     : undefined;
@@ -1018,12 +1040,18 @@ const PixelSceneLayerDom: React.FC<{
         break;
       case 'kill':
         void hunterControls.start({ y: [0, -9, 0], transition: { duration: 0.42 } });
-        void enemyHitControls.start({
-          opacity: [1, 1, 0],
-          scale: [1, 1.05, 0.5],
-          y: [0, 0, 24],
-          transition: { duration: 0.5, ease: 'easeIn' },
-        });
+        if (beatTargetIdRef.current === (currentTargetId ?? null)) {
+          void enemyHitControls.start({
+            opacity: [1, 1, 0],
+            scale: [1, 1.05, 0.5],
+            y: [0, 0, 24],
+            transition: { duration: 0.5, ease: 'easeIn' },
+          });
+        } else {
+          // The kill names a previous enemy; the one standing now did
+          // not die — no dissolve on it (it walks in at rest).
+          void enemyHitControls.start({ opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.2 } });
+        }
         break;
       case 'loot':
         // A legendary drop is the celebration beat (P3): the hunter hops
@@ -1044,6 +1072,18 @@ const PixelSceneLayerDom: React.FC<{
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beatEventId, beatKind, reduced]);
+
+  // Post-kill advance: when the target changes under a standing kill
+  // beat that names the PREVIOUS enemy, release any held dissolve so
+  // the new enemy stays visible (the beat effect above does not
+  // re-run on a target change alone).
+  useEffect(() => {
+    if (reduced) return;
+    if (beatKind === 'kill' && beatTargetIdRef.current !== (currentTargetId ?? null)) {
+      void enemyHitControls.start({ opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.2 } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTargetId]);
 
   return (
     <PixelStage
