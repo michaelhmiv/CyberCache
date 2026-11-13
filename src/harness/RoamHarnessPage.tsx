@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
-import { useKillCycleStore, useTickFeedStore } from '@/store';
+import { useKillCycleStore, useLoadoutStore, useTickFeedStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
-import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
+import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
+import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { TickEvent } from '@/store/slices/tickSlice';
 import type { Weapon } from '@/types/items';
 
@@ -30,6 +31,10 @@ import type { Weapon } from '@/types/items';
  *                        (activity cleared mid-stride: the Stop
  *                        interrupt) and __resumeRoam.
  *   ?width=<px>          stage width (default 390, phone width).
+ *   ?vehicle=bike|buggy  an equipped Scanner vehicle seeded before
+ *                        mount (stage-plate captures); the capture
+ *                        script can then swap it live via
+ *                        __setVehicle('bike'|'buggy'|'none').
  *
  * The event is seeded into the tick feed BEFORE the diorama mounts
  * and never advances, so both renderers stage the same beat from
@@ -75,6 +80,35 @@ const LOOT_EVENT: TickEvent = {
   value: 1,
 } as TickEvent;
 
+// Stage-plate vehicles (2026-11-13, REPORT §2a/§2b captures): two
+// Scanner carriers — the square scanner painting is the overlay
+// that spilled (DOM) and squashed (Pixi). Seeded into the vehicle
+// store + loadout slot via ?vehicle=bike|buggy BEFORE the diorama
+// mounts, so both renderers build their plates from the same
+// equipped vehicle; __setVehicle then swaps the slot live against
+// the mounted stage (the §2a re-sync scenario).
+const harnessVehicle = (overrides: Partial<VehicleDisplay>): VehicleDisplay =>
+  ({
+    id: 'harness-vehicle', name: 'Vehicle', vehicleClassId: 'scrap_bike', level: 1,
+    rarity: Rarity.Common, affixes: [], sourceTag: DropSource.WorldDrop,
+    isLocked: false, pixelSeed: 1, conditionCurrent: 100, conditionMax: 100,
+    runtimeState: 'available',
+    ...overrides,
+  }) as VehicleDisplay;
+const HARNESS_BIKE = harnessVehicle({
+  id: 'harness-vehicle-bike', name: 'Scrap Bike', vehicleClassId: 'scrap_bike', rarity: Rarity.Rare,
+  affixes: [
+    { stat: 'vehicleScannerPct', value: 0.09, displayText: '+9% Scanner (find)' },
+    { stat: 'vehicleFuelEfficiencyPct', value: 0.09, displayText: '+9% Fuel Efficiency' },
+  ] as VehicleDisplay['affixes'],
+});
+const HARNESS_BUGGY = harnessVehicle({
+  id: 'harness-vehicle-buggy', name: 'Dune Buggy', vehicleClassId: 'dune_buggy', rarity: Rarity.Uncommon,
+  affixes: [
+    { stat: 'vehicleScannerPct', value: 0.11, displayText: '+11% Scanner (find)' },
+  ] as VehicleDisplay['affixes'],
+});
+
 // Anim-replay seams (Track A, 2026-11-10): the beat classifier
 // (classifyTickBeat) reads tone/label/value, so a beat of any kind
 // is one seeded feed event. The replay driver needs unique ids per
@@ -100,6 +134,17 @@ export const RoamHarnessPage: React.FC = () => {
   const scene = params.get('scene') ?? 'idle';
   const width = Number(params.get('width') ?? 390) || 390;
   const [stopped, setStopped] = useState(false);
+
+  // ?vehicle=bike|buggy: seed the equipped vehicle during the
+  // harness's first render — before the diorama mounts — so the
+  // Pixi init's one mount-time read and the DOM plate both see it.
+  useState(() => {
+    const which = params.get('vehicle');
+    if (which === 'bike' || which === 'buggy') {
+      useVehicleStore.setState({ vehicles: [HARNESS_BIKE, HARNESS_BUGGY] });
+      useLoadoutStore.getState().setSlot('vehicle', which === 'bike' ? HARNESS_BIKE.id : HARNESS_BUGGY.id);
+    }
+  });
 
   useEffect(() => {
     const w = window as unknown as Record<string, unknown>;
@@ -148,6 +193,12 @@ export const RoamHarnessPage: React.FC = () => {
     // .enemyRig).
     w.__setTarget = (id: string, hp = 80, max = 100) => {
       useKillCycleStore.setState({ currentTargetId: id, currentTargetHp: hp, currentTargetHpMax: max });
+    };
+    // §2a scripting: swap the loadout's vehicle slot against the
+    // MOUNTED stage (bike ↔ buggy ↔ none) and watch whether the
+    // plate follows — the Pixi plate was a mount-time snapshot.
+    w.__setVehicle = (which: string) => {
+      useLoadoutStore.getState().setSlot('vehicle', which === 'buggy' ? HARNESS_BUGGY.id : which === 'bike' ? HARNESS_BIKE.id : null);
     };
     w.__stopRoam = () => setStopped(true);
     w.__resumeRoam = () => setStopped(false);
