@@ -54,7 +54,7 @@ export const BOSS_STAGE_PLACEMENTS: Record<string, BossStagePlacement> = {
   mirage_duster: { xPct: 79, heightPct: 80 },
   mnemosyne_mirror: { xPct: 76, heightPct: 80 },
   static_choir: { xPct: 76, heightPct: 80 },
-  verdant_maw: { xPct: 76, heightPct: 80 },
+  verdant_maw: { xPct: 78, heightPct: 80 },
   sister_null: { xPct: 76, heightPct: 80 },
   vaultkeeper_omega: { xPct: 76, heightPct: 80 },
 };

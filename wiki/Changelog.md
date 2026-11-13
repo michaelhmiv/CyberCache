@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-13 — Stage iteration: bosses take their places
+
+- **Every boss now stands at its own distance, sized to its painting** — all thirteen bosses used to crowd onto the same mark at the same size, so the wide ones spilled past the stage's edge and every fight opened with the boss practically on top of your rifle. Each boss now takes the place its own artwork calls for: clear air between you and the boss at the opening bell, the whole silhouette inside the stage, and the big ones reading big without breaking the frame. The fights themselves are untouched — same bosses, same damage, same timings.
+- **A lost fight keeps you in the picture** — when a boss put you down, the fall used to throw you halfway out of the stage, head and rifle past the edge. You now go down inside the frame, sprawled where the fight left you.
+
 ## 2026-11-12 — The audit fix wave
 
 
