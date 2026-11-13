@@ -2,16 +2,24 @@
 """Runner-side pixel verdicts for Lane 2 (emulator that plays).
 
 Reads the PlaySessionTest output dir (play-result.json + the pulled
-screenshots) and asserts the two things UiAutomator cannot see from
-the view hierarchy — the same "rendered pixels or it didn't happen"
-rule as Lane 1 (scripts/e2e/pixels.mjs):
+screenshots) and asserts what UiAutomator cannot see from the view
+hierarchy — the same "rendered pixels or it didn't happen" rule as
+Lane 1 (scripts/e2e/pixels.mjs):
 
-  1. STAGE IS ALIVE: the stage band's pixels CHANGE between the
-     first and last roam captures (a frozen stage — the X-01/A-07
-     context-loss shape — produces near-identical frames).
-  2. ENEMY IS THERE: in the last roam capture, the enemy region of
-     the stage carries actor mass (non-background pixel share above
-     threshold), not bare vista.
+  * ENEMY IS THERE: in the last roam capture, the enemy region of
+    the stage carries actor mass (non-background pixel share above
+    threshold), not bare vista.
+
+Stage LIVENESS is deliberately NOT judged from screenshots in this
+lane. Calibration round 6 proved UiDevice.takeScreenshot returns a
+frame-frozen surface for the hardware-accelerated WebView under the
+emulator's SwiftShader GL: three captures 16 s apart were identical
+to 0.07 mean luma — including the DOM top bar, whose credit counter
+provably advanced in the same window. Liveness is therefore judged
+from the session's own state proof (play-result.json: roamStarted
+is recorded only when the economy counters tick, and the loot count
+in the post-roam tree advanced). The frozen-frame finding is itself
+recorded below as information, not a verdict.
 
 Also folds in play-result.json: every recorded assertion must be
 true. Exit code 0 = the session played and the stage lived; 1 with
@@ -33,7 +41,6 @@ STAGE = (0.00, 0.06, 1.00, 0.36)
 # Enemy region within the STAGE band (right side, ground line up).
 ENEMY = (0.52, 0.15, 0.44, 0.70)
 
-CHANGE_MIN = 2.0  # mean abs luma distance, 48x48 grid — a live stage clears this easily
 NONBG_MIN = 0.05  # enemy-region non-background mass floor (mirrors Lane 1)
 
 
@@ -93,10 +100,13 @@ def main() -> int:
     if len(present) == 3:
         first = Image.open(shots[0])
         last = Image.open(shots[2])
+        # Informational only (see module docstring): the SwiftShader
+        # WebView surface is frame-frozen to takeScreenshot, so this
+        # distance is expected near zero on a healthy session.
         d = grid_distance(
             luma_grid(crop_frac(first, STAGE)), luma_grid(crop_frac(last, STAGE))
         )
-        check("stage pixels change across the roam (stage is alive)", d > CHANGE_MIN, f"distance={d:.2f} (min {CHANGE_MIN})")
+        print(f"[INFO] roam capture frame distance (SwiftShader surface, not a verdict): {d:.2f}")
         mass, distinct = nonbg_mass(crop_frac(crop_frac(last, STAGE), ENEMY))
         check("enemy pixel mass present in the enemy region", mass > NONBG_MIN and distinct > 30, f"nonBgMass={mass:.3f} distinct={distinct}")
 

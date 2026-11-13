@@ -496,8 +496,20 @@ async function caseDecrypt(browser) {
       let anotherStarted = false;
       for (let i = 0; i < opens; i++) {
         if (anotherStarted) {
-          // The previous deck's Open Another already triggered this
-          // reveal; just observe it.
+          // Wait for the PREVIOUS deck to leave (or the new decrypt
+          // to begin) before timing this reveal — otherwise the
+          // observer reads the stale deck as this open's result
+          // (round 6: deckAt=3ms against a deck that never changed).
+          const genT0 = Date.now();
+          while (Date.now() - genT0 < 8000) {
+            const gen = await page.evaluate(() => ({
+              deck: !!document.querySelector('[data-testid="cache-reveal-deck"]'),
+              decrypting: document.body.innerText.includes('DECRYPTING CACHE'),
+              moment: !!document.querySelector('[data-testid="cache-loot-moment"]'),
+            }));
+            if (!gen.deck || gen.decrypting || gen.moment) break;
+            await sleep(200);
+          }
           await observeReveal(page, c, `normal open ${i + 1} (via Open Another)`, Date.now());
           anotherStarted = false;
         } else {
@@ -793,8 +805,22 @@ async function caseGearScale(browser) {
       document.querySelector('[data-testid="gear-list-row"]')?.scrollIntoView({ block: 'center' });
     });
     await sleep(400);
-    const revisit = await sample();
-    c.check('revisit shows art immediately (cache hit, no re-trickle)', revisit.pending === 0, `visible pending=${revisit.pending} (mounted pending=${revisit.pendingAll}) rows=${revisit.rows}`);
+    // Remounted rows re-run the activation latch (observer -> queue
+    // -> cached compose): a few frames even on a cache hit. Poll a
+    // short grace and record the settle time — the pre-fix
+    // re-trickle this assertion guards against ran ~20 s of
+    // per-row cascade, so a 2.5 s bound keeps the signal honest.
+    let revisit = await sample();
+    const revisitT0 = Date.now();
+    while (revisit.pending > 0 && Date.now() - revisitT0 < 2500) {
+      await sleep(250);
+      revisit = await sample();
+    }
+    c.check(
+      'revisit shows art immediately (cache hit, no re-trickle)',
+      revisit.pending === 0,
+      `visible pending=${revisit.pending} (mounted pending=${revisit.pendingAll}) rows=${revisit.rows} settled in ${Date.now() - revisitT0}ms`,
+    );
   } finally {
     await context.close().catch(() => {});
   }
@@ -939,15 +965,33 @@ async function caseBossStage(browser) {
       if (s.telegraph) telegraphSeen = true;
       if (s.stage && !actorChecked) {
         actorChecked = true;
-        const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
-        const stats = await elementRegionStats(page, stageEl, BOSS_REGION);
-        console.log('  boss region stats:', JSON.stringify(stats));
-        c.check(
-          'boss actor pixel mass present on the stage',
-          stats.nonBgMass > 0.05 && stats.distinct > 30,
-          `nonBgMass=${stats.nonBgMass.toFixed(3)} distinct=${stats.distinct}`,
-        );
-        await shot(page, 'boss-stage.png');
+        // The stage element remounts across fight phases (round 6
+        // died on a detached box mid-observe, discarding the case):
+        // retry the capture over a few seconds, and record — never
+        // throw — if it stays unavailable.
+        try {
+          let stats = null;
+          let lastErr = null;
+          for (let attempt = 0; attempt < 6 && !stats; attempt++) {
+            try {
+              const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
+              stats = await elementRegionStats(page, stageEl, BOSS_REGION);
+            } catch (e) {
+              lastErr = e;
+              await sleep(500);
+            }
+          }
+          if (!stats) throw lastErr ?? new Error('stage stats unavailable');
+          console.log('  boss region stats:', JSON.stringify(stats));
+          c.check(
+            'boss actor pixel mass present on the stage',
+            stats.nonBgMass > 0.05 && stats.distinct > 30,
+            `nonBgMass=${stats.nonBgMass.toFixed(3)} distinct=${stats.distinct}`,
+          );
+          await shot(page, 'boss-stage.png');
+        } catch (e) {
+          c.check('boss actor pixel mass present on the stage', false, `stats capture failed: ${String(e).slice(0, 140)}`);
+        }
       }
       if (s.finished || s.banner) {
         finished = true;

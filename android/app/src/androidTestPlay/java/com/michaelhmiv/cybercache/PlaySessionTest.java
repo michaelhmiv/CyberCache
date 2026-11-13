@@ -519,6 +519,14 @@ public class PlaySessionTest {
         boolean cacheOpened = false;
         boolean revealCompleted = false;
         String cacheNote = null;
+        // Stop the roam first: the cache chest does not open over a
+        // live roam (round 6: the entry tap landed on the roaming
+        // Home and nothing navigated; the tree showed the stage's
+        // Stop control). Standby returning is the verify.
+        if (tapVisible("Stop")) {
+            waitVisible(15_000, "Standing by", "Start Roam", "START ROAM");
+            settle();
+        }
         // Reset to the top of the screen first — the roam leg may
         // have left the scroll anywhere, and the top bar (with the
         // cache control) only exists in the tree at the top.
