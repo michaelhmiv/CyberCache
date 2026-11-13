@@ -157,7 +157,7 @@ export interface HeroRundownInput {
    *  primary slot is empty even if other slots are filled (the
    *  compacted `weapons` list cannot say which slot its first
    *  entry came from, and the fight crit is the primary's). */
-  primary: Weapon | null;
+  primary?: Weapon | null;
   /** The build's skill-bonus record — the same record the boss
    *  sim receives (computeSkillBonuses over spends + class-mod
    *  boosts); the crit cells read its critChance term. Optional:
