@@ -24,6 +24,7 @@ import { useNow } from '@/hooks/useNow';
 import { buildCharacterStatSummary, type CharacterStatSummary } from '@/lib/stats/characterStats';
 import { assembleStatSummaryInput, type StatSummaryAssemblyState } from '@/lib/stats/assembleStatSummaryInput';
 import { buildCharacterMechanicsSnapshot, type CharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
+import { computeSkillBonuses } from '@/lib/skills/skillBonuses';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import type { BossDef } from '@/types/boss';
 import type { Weapon } from '@/types/items';
@@ -34,6 +35,17 @@ export interface CharacterStatInputs {
   snapshot: CharacterMechanicsSnapshot;
   /** Equipped weapons in slot order (primary first). */
   weapons: Weapon[];
+  /** The equipped primary weapon, slot-true: null when the
+   *  primary slot is empty even if other slots are filled (the
+   *  compacted `weapons` list cannot say which slot its first
+   *  entry came from). */
+  primary: Weapon | null;
+  /** The build's skill-bonus record — computeSkillBonuses over
+   *  spends + class-mod boosts, the same record this assembly
+   *  hands the boss sim. Display surfaces that price
+   *  skill-driven numbers (the fight crit, audit HTR-04) read
+   *  it from here so they can never drift from the sim's input. */
+  skillBonuses: Record<string, number>;
 }
 
 /**
@@ -90,6 +102,8 @@ export function useCharacterStatSummary(boss?: BossDef | null): CharacterStatInp
       summary: buildCharacterStatSummary(summaryInput, snapshot),
       snapshot,
       weapons,
+      primary: state.weapons[0] ?? null,
+      skillBonuses: computeSkillBonuses(state.spent, state.classModBoosts),
     };
   }, [state]);
 }

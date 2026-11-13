@@ -14,9 +14,10 @@
  * summaries the engines consume — buildCharacterStatSummary /
  * buildCharacterMechanicsSnapshot — plus the survival store's
  * server-synced HP mirror. Nothing is re-derived from a parallel
- * formula; the DPS delta derivation, the pooled crit weighting,
- * and the per-tick damage expectation are the exact derivations
- * the retired band shipped with (they moved here verbatim).
+ * formula; the DPS delta derivation and the per-tick damage
+ * expectation are the exact derivations the retired band shipped
+ * with (they moved here verbatim), and the crit cells print the
+ * boss engine's own composition (see fightCrit).
  *
  * Percentage law (owner, 2026-11-03): a stat whose model carries
  * a true base→effective pair (DPS off the weapon pool, HP off
@@ -29,7 +30,7 @@
 import type { Weapon } from '@/types/items';
 import type { CharacterStatSummary, StatMetric, StatTone } from '@/lib/stats/characterStats';
 import type { CharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
-import { computeStandardDps } from '@/lib/stats/dpsChain';
+import { computeEffectiveCritChance } from '@/lib/stats/dpsChain';
 import { formatPct, formatWhole } from '@/lib/stats/formatStat';
 
 /** The game tick, seconds — the same constant the damage contract
@@ -54,22 +55,44 @@ export function stageStatDelta(base: number, effective: number): { display: stri
   return { display: `${change > 0 ? '+' : '-'}${magnitude}%`, tone: change > 0 ? 'green' : 'red' };
 }
 
-/** DPS-weighted pooled crit across the equipped set — the chain
- *  (dpsChain step 1) folds (1 + critChance × critDamage) per weapon,
- *  so the pooled pair is weighted by each weapon's standard DPS,
- *  the same weighting the pooled damage uses. */
-export function pooledCrit(weapons: Weapon[]): { chance: number; damage: number } | null {
-  let total = 0;
-  let chance = 0;
-  let damage = 0;
-  for (const weapon of weapons) {
-    const dps = computeStandardDps(weapon);
-    total += dps;
-    chance += dps * (weapon.critChance ?? 0);
-    damage += dps * (weapon.critDamage ?? 0);
-  }
-  if (total <= 0) return null;
-  return { chance: chance / total, damage: damage / total };
+export interface FightCrit {
+  /** The chance boss combat settles with, before consumables. */
+  chance: number;
+  /** The primary weapon's own crit multiplier term (critDamage);
+   *  null when no primary is equipped — no weapon, no multiplier. */
+  damage: number | null;
+  /** The skill-node term inside the chance (0 when no crit nodes). */
+  skillChance: number;
+}
+
+/**
+ * The fight crit — the crit the boss engine settles with, priced
+ * for display (audit HTR-04; owner ruling 2026-11-12: Hunter
+ * shows the fight number, reversing the weapon-only pooled
+ * display this module used to print). Chance is the shared
+ * composition (computeEffectiveCritChance, the same function
+ * simulateBoss reads for the Gunslinger keystone's high-crit
+ * clause): the PRIMARY weapon's crit plus skill-node crit, with
+ * the consumable term at zero — a standing display never prices
+ * transient buffs. The multiplier is the primary's own
+ * critDamage: the chain settles each weapon's crits at that
+ * weapon's own multiplier, and skill crit-damage nodes never
+ * raise any weapon's multiplier in combat (they convert into
+ * the DPS aggregate at 0.5 weight — skillBonuses.dps), so they
+ * correctly never move Crit ×.
+ *
+ * Null when there is nothing to print: no primary equipped and
+ * no skill crit — an empty-handed hunter's crit cells stay
+ * empty.
+ */
+export function fightCrit(primary: Weapon | null | undefined, skillBonuses: Record<string, number>): FightCrit | null {
+  const skillChance = skillBonuses.critChance || 0;
+  if (!primary && skillChance <= 0) return null;
+  return {
+    chance: computeEffectiveCritChance(primary, skillBonuses),
+    damage: primary ? (primary.critDamage ?? 0) : null,
+    skillChance,
+  };
 }
 
 export interface HeroStatCell {
@@ -130,6 +153,15 @@ export interface HeroRundownInput {
   snapshot: CharacterMechanicsSnapshot;
   /** Equipped weapons in slot order (primary first); empty = unarmed. */
   weapons: Weapon[];
+  /** The equipped primary weapon, slot-true: null when the
+   *  primary slot is empty even if other slots are filled (the
+   *  compacted `weapons` list cannot say which slot its first
+   *  entry came from, and the fight crit is the primary's). */
+  primary: Weapon | null;
+  /** The build's skill-bonus record — the same record the boss
+   *  sim receives (computeSkillBonuses over spends + class-mod
+   *  boosts); the crit cells read its critChance term. */
+  skillBonuses: Record<string, number>;
   survival: {
     currentHp: number;
     maxHp: number;
@@ -144,7 +176,7 @@ const metricOf = (summary: CharacterStatSummary, key: string): StatMetric | unde
   summary.all.find((m) => m.key === key);
 
 export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
-  const { summary, snapshot, weapons, survival, bossContext } = input;
+  const { summary, snapshot, weapons, primary, skillBonuses, survival, bossContext } = input;
 
   // HP — the survival state the claim settles against (survival
   // store is the server-synced mirror). Max is the pool; current
@@ -250,29 +282,37 @@ export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
 
   // Crit splits into its two steerable components — chance and
   // multiplier get their own cells in the two-row rundown. Both
-  // print PLAIN, deliberately: no base→effective derivation for
-  // crit exists in the math. The chain consumes each weapon's
-  // own crit fields; skill/affix crit never rewrites them — it
-  // converts into the DPS aggregate at 0.5 weight
-  // (skillBonuses.dps), where the DPS delta already tells that
-  // story. Inventing an "effective crit" here would be a
-  // parallel number no engine settles.
+  // print PLAIN, deliberately: crit carries no base→effective
+  // pair to percentage against (the percentage law), so no
+  // delta is invented for either cell.
+  //
+  // The VALUES are the boss engine's own (audit HTR-04; owner
+  // ruling 2026-11-12 — this reverses the earlier display
+  // premise, which held that no engine settles an effective
+  // crit and printed a weapon-only pool instead; the boss sim
+  // settles one every fight). Crit % is the chance boss combat
+  // settles with — primary weapon crit plus skill-node crit,
+  // the number the Gunslinger keystone's high-crit clause
+  // reads — and Crit × is the primary's own multiplier, the
+  // one the chain applies to the crits that chance produces.
   let critChance: HeroStatCell | null = null;
   let critDamage: HeroStatCell | null = null;
-  const critPool = pooledCrit(weapons);
-  if (critPool) {
+  const crit = fightCrit(primary, skillBonuses);
+  if (crit) {
     critChance = {
       key: 'critChance',
       label: 'Crit %',
-      display: `${Math.round(critPool.chance * 100)}%`,
+      display: `${Math.round(crit.chance * 100)}%`,
       tone: 'amber',
     };
-    critDamage = {
-      key: 'critDamage',
-      label: 'Crit ×',
-      display: `×${(1 + critPool.damage).toFixed(1)}`,
-      tone: 'amber',
-    };
+    if (crit.damage !== null) {
+      critDamage = {
+        key: 'critDamage',
+        label: 'Crit ×',
+        display: `×${(1 + crit.damage).toFixed(1)}`,
+        tone: 'amber',
+      };
+    }
   }
 
   return { unarmed: false, dps, dmgTick, critChance, critDamage, hp, shield, mitigation: mitigationCell, shieldBreak };
@@ -281,29 +321,48 @@ export function buildHeroRundown(input: HeroRundownInput): HeroRundownModel {
 /**
  * The Crit sheet's metric — crit has no summary metric (see the
  * plain-print note in buildHeroRundown), so the breakdown sheet
- * synthesizes one from the same pooled derivation: one
- * contribution row per equipped weapon, weighted exactly as the
- * hero cell pools them. Display-only; the sheet renders it
+ * synthesizes one from the fight crit: the primary weapon's row
+ * and, when skill nodes grant crit, the skill row — the two
+ * terms the boss engine adds together (audit HTR-04). The other
+ * equipped weapons are NOT contributors: combat never pools
+ * their crit into the number the keystone reads, so the sheet
+ * does not list them. Display-only; the sheet renders it
  * through the standard MetricCard.
  */
-export function buildCritMetric(weapons: Weapon[]): StatMetric | null {
-  const pool = pooledCrit(weapons);
-  if (!pool) return null;
+export function buildCritMetric(primary: Weapon | null | undefined, skillBonuses: Record<string, number>): StatMetric | null {
+  const crit = fightCrit(primary, skillBonuses);
+  if (!crit) return null;
+  const contributions: StatMetric['contributions'] = [];
+  if (primary) {
+    contributions.push({
+      source: primary.name,
+      detail: 'Crit chance · crit damage',
+      value: primary.critChance ?? 0,
+      display: `${Math.round((primary.critChance ?? 0) * 100)}% · ×${(1 + (primary.critDamage ?? 0)).toFixed(1)}`,
+      tone: 'amber' as StatTone,
+      bucket: 'weapon' as const,
+    });
+  }
+  if (crit.skillChance > 0) {
+    contributions.push({
+      source: 'Skill trees',
+      detail: 'Crit chance from skill nodes',
+      value: crit.skillChance,
+      display: `+${Math.round(crit.skillChance * 100)}%`,
+      tone: 'purple' as StatTone,
+      bucket: 'skill' as const,
+    });
+  }
   return {
     key: 'crit',
     label: 'Crit',
-    value: pool.chance,
-    display: `${Math.round(pool.chance * 100)}% · ×${(1 + pool.damage).toFixed(1)}`,
-    detail: 'Pooled across the equipped set, weighted by each weapon\u2019s standard DPS — the weighting the damage chain uses.',
+    value: crit.chance,
+    display: crit.damage !== null
+      ? `${Math.round(crit.chance * 100)}% · ×${(1 + crit.damage).toFixed(1)}`
+      : `${Math.round(crit.chance * 100)}%`,
+    detail: 'The crit chance boss combat settles with: your primary weapon\u2019s crit plus the crit your skill nodes grant — the number the Gunslinger keystone\u2019s high-crit clause reads. A consumable\u2019s crit bonus joins for its fight only and never prints here.',
     tone: 'amber',
-    contributions: weapons.map((weapon) => ({
-      source: weapon.name,
-      detail: 'Crit chance · crit damage',
-      value: weapon.critChance ?? 0,
-      display: `${Math.round((weapon.critChance ?? 0) * 100)}% · ×${(1 + (weapon.critDamage ?? 0)).toFixed(1)}`,
-      tone: 'amber' as StatTone,
-      bucket: 'weapon' as const,
-    })),
+    contributions,
   };
 }
 

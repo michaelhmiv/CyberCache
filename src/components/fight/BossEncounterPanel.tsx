@@ -12,6 +12,7 @@ import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
 import { buildInitialTimeline, runFightAnimation, type FightOutcome, type FightTimeline } from '../../lib/animation/fightTimeline';
 import { getActionSkillState, verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
 import { ACTION_SKILL_DEFS, type ActionSkillStateView } from '@/content/actionSkills';
+import { cacheRankBonuses } from '@/content/cacheRank';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import type { SkillTreeType } from '@/types/game';
 import { ActionSkillCard } from './ActionSkillCard';
@@ -447,7 +448,7 @@ export const BossEncounterPanel: React.FC<{
       loot: [],
       extraLoot: outcome.extraLoot,
     };
-    const initialTimeline = buildInitialTimeline(fightOutcome, boss.health, player.level, shield?.hp ?? 0);
+    const initialTimeline = buildInitialTimeline(fightOutcome, boss.health, player.level, shield?.hp ?? 0, cacheRankBonuses(player.cacheRankSpends).maxHp);
     // One-Stage Law (owner ruling 2026-11-06): the animated fight
     // plays on the MAIN STAGE, not in this card. Every timeline
     // snapshot is published to the boss store — the diorama renders

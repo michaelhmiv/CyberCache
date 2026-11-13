@@ -82,17 +82,20 @@ describe('getBonuses — composite formulas', () => {
 // Gap C — Survival bonus flows into roaming max HP
 // ---------------------------------------------------------------------------
 
-describe('loadoutSurvivalStats — skill survival on max HP', () => {
-  it('boost max HP by survival multiplier', () => {
+describe('loadoutSurvivalStats — the canonical pool (HTR-03)', () => {
+  it('skill survival composite does NOT change max HP (owner ruling 2026-11-12)', () => {
     usePlayerStore.setState({ level: 10 });
     const base = loadoutSurvivalStats();
     expect(base.maxHp).toBeGreaterThan(0);
 
-    // Add staggerChance skill → survival > 0
+    // Add staggerChance skill → survival composite > 0. Before the
+    // HTR-03 ruling this multiplied max HP by (1 + composite) — a
+    // hidden second pool that disagreed with the survival store.
+    // The pool is now computeCanonicalMaxHp only: stagger changes
+    // dodge (below), never HP.
     useSkillStore.setState({ spent: { demo_stag_1: 3 } });
-    const boosted = loadoutSurvivalStats();
-    // maxHp should be baseMaxHp * 1.03 (survival = 0.03)
-    expect(boosted.maxHp).toBe(Math.round(base.maxHp * 1.03));
+    const after = loadoutSurvivalStats();
+    expect(after.maxHp).toBe(base.maxHp);
   });
 
   it('dodgeChance comes from staggerChance skill (capped 40%)', () => {

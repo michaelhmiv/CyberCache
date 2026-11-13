@@ -203,9 +203,14 @@ export function buildCharacterStatSummary(
   // `1 + skillTotal(spentSkills, 'survival')` — a dead term. No skill
   // node emits an effect key named 'survival', so that multiplier was
   // permanently 1. The composite named 'survival' in skillBonuses.ts
-  // is a different mechanism; which HP pool is canonical across
-  // roaming / offline / sim is HTR-03's open ruling — it is not
-  // settled by smuggling a multiplier into this display summary.)
+  // is a different mechanism.
+  // SETTLED 2026-11-12 (owner ruling HTR-03): the canonical pool is
+  // computeCanonicalMaxHp — the snapshot value this summary reads
+  // (mechanics.maxHp) IS that pool, and roaming / offline gate /
+  // boss sim / fight bar now read the same definition. The raw pool
+  // below stays labeled "HP"; the mitigation-folded figure is
+  // "Effective HP" — two numbers, two names, never one blended
+  // figure.)
   const scaledBaseHealth = Math.round(baseHealth);
   const totalHealth = Math.round(mechanics.maxHp.value) + survivalContribBuffer;
   const totalMitigation = shield?.mitigation ?? 0;

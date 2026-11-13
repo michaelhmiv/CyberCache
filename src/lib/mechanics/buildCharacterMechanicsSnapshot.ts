@@ -3,7 +3,7 @@ import { WeaponType } from '@/types/game';
 import type { BossDef } from '@/types/boss';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '@/types/items';
 import type { PlayerProfile } from '@/types/player';
-import { computeHunterMaxHp } from '@/lib/combat/damageContract';
+import { computeCanonicalMaxHp, computeHunterMaxHp } from '@/lib/combat/damageContract';
 import { computeEffectiveDpsFromGear } from '@/lib/combat/loadoutSurvival';
 import { computeSkillBonuses } from '@/lib/skills/skillBonuses';
 import { cacheRankBonuses } from '@/content/cacheRank';
@@ -107,14 +107,18 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
   const baseHp = computeHunterMaxHp(input.player.level, 0);
   // Cache Rank (0031): resolved from the player's synced spend
   // record. Thick Skin scales the BASE hunter HP only — shield HP
-  // is gear and never scales (the boss sim applies the identical
-  // split via its merged cacheRankMaxHpBonus key). Heavy Hand joins
-  // the simulated boss DPS below via cacheRankDamageBonus.
+  // is gear and never scales. The pool itself is the ONE canonical
+  // definition (computeCanonicalMaxHp, owner ruling HTR-03
+  // 2026-11-12): this snapshot, the boss sim (via its merged
+  // cacheRankMaxHpBonus key), the roaming survival store, the
+  // offline danger gate and the fight HP bar all read the same
+  // number. Heavy Hand joins the simulated boss DPS below via
+  // cacheRankDamageBonus.
   const cacheRank = cacheRankBonuses(input.player.cacheRankSpends);
   const cacheRankMaxHpBonus = cacheRank.maxHp;
   const cacheRankDamageBonus = cacheRank.damage;
   const scaledBaseHp = Math.round(baseHp * (1 + cacheRankMaxHpBonus));
-  const maxHp = scaledBaseHp + shieldHp;
+  const maxHp = computeCanonicalMaxHp(input.player.level, shieldHp, cacheRankMaxHpBonus);
   const mitigation = Math.min(0.8, input.shield?.mitigation ?? 0);
   const effectiveHp = Math.round(maxHp / Math.max(0.2, 1 - mitigation));
   const standardWeaponDps = weapons.reduce((sum, weapon) => sum + computeStandardDps(weapon), 0);

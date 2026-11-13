@@ -62,6 +62,39 @@ export function hasUsernameSet(account: AccountState | null): boolean {
   return Boolean(account?.hasUsername);
 }
 
+/**
+ * The population the hunter-name prompt addresses (audit G-F5):
+ * signed-in, non-anonymous accounts that have not claimed a name.
+ * Guests are excluded — they receive an auto-generated handle and
+ * are never asked.
+ */
+export function needsUsernamePrompt(account: AccountState | null): boolean {
+  return Boolean(account && !account.hasUsername && !account.isAnonymous);
+}
+
+/**
+ * Whether the boot-time name invitation may show (audit G-F5,
+ * owner ruling 2026-11-12: play first — prompt for a name only
+ * when it matters). Viewing is never username-gated (A-11);
+ * appearing under a name is enforced per-op on the server, so
+ * this prompt is an invitation, never a wall. Its cadence mirrors
+ * the verification reminder: after a deferral it stays quiet for
+ * 24 hours. The contextual re-ask at the Standings / Hunter
+ * surfaces is governed separately (once per session) by
+ * useUsernamePrompt.
+ */
+export function shouldShowUsernamePrompt(
+  account: AccountState | null,
+  lastDeferredAt: number | null,
+  now = Date.now(),
+): boolean {
+  if (!needsUsernamePrompt(account)) return false;
+  if (lastDeferredAt == null) return true;
+
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  return now - lastDeferredAt >= oneDayMs;
+}
+
 export function canUseFeature(account: AccountState | null, feature: GatedFeature): GateDecision {
   if (feature === 'solo_play') return { allowed: true };
 

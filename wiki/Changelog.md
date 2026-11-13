@@ -4,9 +4,6 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-12 — The audit fix wave
 
-- **Roaming recovers between exchanges** — recoil and hit poses return to ready instead of holding until another event. Hidden stages rest while other tabs are open and resume in place.
-- **Numbers explain the right quantities** — boss DPS uses the fight model, roaming Dmg/tick uses the roaming loadout, source rows include Cache Rank and reconcile to their totals, and extra slots print as counts. Area rates are labeled Base, elapsed time counts real seconds, and open consumable countdowns stay current. Foreground syncs also enforce their normal tick limit against malformed requests.
-
 
 
 - **Linking Google now upgrades your guest account, as promised** — signing in with Google from a guest account used to leave the account flagged as a guest underneath: the market, services, extraction and leaderboards stayed locked and the game kept asking you to link. The link now promotes the account in place — same account, same hunter, same progress — and the locks lift the moment you sign in.
@@ -55,6 +52,11 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **You can always cancel your own market listing now** — the Cancel button no longer demands a verified account, matching the server: pulling down your own listing is recovery, not trading, so a lapsed verification can't trap a live listing anymore.
 - **Boss specials announce themselves** — when a boss starts winding up its big cadence attack, the fight stage now calls it out by name (Sand Slam, Eruption, Event Horizon, and the rest of the thirteen) with a red danger ring and a charging glow, for exactly the window before the hit lands. Regular attacks keep their existing small glow, so a special reads instantly differently from a jab. What is coming is always shown — the odds, as ever, are yours to judge.
 - **A graphics hiccup can't freeze the fight anymore** — if your device loses the game's graphics context mid-fight (a GPU reset, a driver stutter), the stage used to freeze on its last picture forever, with the fight still running behind it. Now the stage hands off to the backup renderer instead — the same fight, fully playable — instead of leaving you staring at a still frame.
+- **Crit % now shows the crit your fights actually use** — the rundown and the Crit breakdown used to pool the crit of every weapon you carried, so the number on your hunter never counted your skill nodes: points in Steady Hand and Weakspot Training were raising your real crit in boss fights (and could switch on the Gunslinger keystone's high-crit bonus) while the displayed number never moved. Crit % now reads the fight's own number — your primary weapon's crit plus the crit your skill nodes grant — and Crit × is your primary weapon's own multiplier, the one its crits land with.
+- **Your hunter name can wait** — signing in used to stop the game cold and demand a hunter name before a single tab would open. The ask is now an invitation with a **Not now** door: claim a name when you're ready, or skip it and play. The game asks again when you first reach the Standings — the one place the name is actually on show.
+- **One HP pool, everywhere** — your hunter's HP used to be three different numbers depending on where the game looked: Cache Rank Thick Skin counted in your Hunter totals and boss fights but not while roaming, while the offline earnings check quietly inflated HP with a hidden bonus no perk describes. There is now exactly one HP pool — the one your totals show, Thick Skin included — and roaming, boss fights, the fight's HP bar, and the offline check all use it.
+- **Roaming recovers between exchanges** — recoil and hit poses return to ready instead of holding until another event. Hidden stages rest while other tabs are open and resume in place.
+- **Numbers explain the right quantities** — boss DPS uses the fight model, roaming Dmg/tick uses the roaming loadout, source rows include Cache Rank and reconcile to their totals, and extra slots print as counts. Area rates are labeled Base, elapsed time counts real seconds, and open consumable countdowns stay current. Foreground syncs also enforce their normal tick limit against malformed requests.
 
 
 

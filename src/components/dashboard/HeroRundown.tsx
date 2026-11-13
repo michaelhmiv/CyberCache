@@ -74,7 +74,7 @@ export const HeroRundown: React.FC<{
   const playerLevel = usePlayerStore((s) => s.level);
   const shieldHp = useLoadoutStore((s) => s.getShield()?.hp ?? 0);
   const bossContext = kind === 'boss_fight';
-  const { summary, snapshot, weapons } = useCharacterStatSummary(bossContext ? boss : null);
+  const { summary, snapshot, weapons, primary, skillBonuses } = useCharacterStatSummary(bossContext ? boss : null);
   const [focus, setFocus] = useState<FocusKey | null>(null);
 
   // The survival store's max-HP sync rode the Hunter Totals panel
@@ -87,6 +87,8 @@ export const HeroRundown: React.FC<{
       summary,
       snapshot,
       weapons,
+      primary,
+      skillBonuses,
       survival: {
         currentHp: survival.currentHp,
         maxHp: survival.maxHp,
@@ -95,7 +97,7 @@ export const HeroRundown: React.FC<{
       },
       bossContext,
     }),
-    [summary, snapshot, weapons, survival, bossContext],
+    [summary, snapshot, weapons, primary, skillBonuses, survival, bossContext],
   );
 
   const metricOf = (key: string): StatMetric | undefined => summary.all.find((m) => m.key === key);
@@ -107,7 +109,7 @@ export const HeroRundown: React.FC<{
       : key === 'hp'
         ? metricOf('health') ?? null
         : key === 'critChance' || key === 'critDamage'
-          ? buildCritMetric(weapons)
+          ? buildCritMetric(primary, skillBonuses)
           : key === 'shield'
             ? buildShieldMetric(snapshot)
             : key === 'mitigation'
@@ -117,7 +119,7 @@ export const HeroRundown: React.FC<{
   const focusNote = focus === 'dmgTick'
     ? `Damage per tick = ${bossContext ? 'boss' : 'standing roaming'} DPS × the ${STAGE_TICK_SECONDS}s tick. Target defense, variance and temporary effects resolve in combat.`
     : focus === 'critChance' || focus === 'critDamage'
-      ? 'Crit\u2019s damage is already folded into the DPS figure — skill and affix crit convert into it at 0.5 weight there — so this sheet never counts it twice.'
+      ? 'Crit % is the chance boss combat settles with — primary weapon plus skill nodes, the number the Gunslinger keystone\u2019s high-crit clause reads. Crit\u2019s damage is already folded into the DPS figure — skill and affix crit convert into it at 0.5 weight there — so this sheet never counts it twice.'
       : focus === 'hp'
         ? `You are at ${model.hp.current.toLocaleString()} of ${model.hp.max.toLocaleString()}. The card above is what the max is made of: chassis and level, shield capacity, mitigation, and any medkit buffer. The percentage beside HP is this pool against its chassis base — the same figure this sheet prints.`
         : focus === 'shield'

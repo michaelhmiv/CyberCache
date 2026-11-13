@@ -21,7 +21,7 @@
  *   - The profile, which reads the `deathLog` for the "Killed by" stat.
  */
 import { create } from 'zustand';
-import { computeHunterMaxHp } from '@/lib/combat/damageContract';
+import { computeCanonicalMaxHp } from '@/lib/combat/damageContract';
 import { RESURRECTION_FREE_TIMER_MS } from '@/lib/combat/resurrectionCost';
 
 export interface DeathLogEntry {
@@ -91,7 +91,7 @@ export interface SurvivalState {
   autoEatThreshold: number;
 
   // Actions
-  recomputeMaxHp: (playerLevel: number, shieldHp: number) => void;
+  recomputeMaxHp: (playerLevel: number, shieldHp: number, cacheRankMaxHpBonus?: number) => void;
   applyDamage: (hpDamage: number) => void;
   heal: (amount: number) => void;
   refillShield: (amount: number) => void;
@@ -149,9 +149,14 @@ export const useSurvivalStore = create<SurvivalState>()((set, get) => ({
   resurrectionReadyAt: null,
   autoEatThreshold: 0.7,
 
-  recomputeMaxHp: (playerLevel, shieldHp) =>
+  recomputeMaxHp: (playerLevel, shieldHp, cacheRankMaxHpBonus = 0) =>
     set((state) => {
-      const newMax = computeHunterMaxHp(playerLevel, shieldHp);
+      // The live roaming pool is the ONE canonical pool (owner
+      // ruling, audit HTR-03, 2026-11-12): chassis scaled by Cache
+      // Rank Thick Skin, shield HP unscaled on top. This value is
+      // the Home HP cell AND the maxHp sent to the Chef claim — it
+      // must never drift from computeCanonicalMaxHp again.
+      const newMax = computeCanonicalMaxHp(playerLevel, shieldHp, cacheRankMaxHpBonus);
       // Scale current HP proportionally so a max-HP increase doesn't free-heal.
       const ratio = state.maxHp > 0 ? state.currentHp / state.maxHp : 1;
       return {

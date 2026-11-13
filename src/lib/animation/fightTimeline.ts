@@ -1,15 +1,21 @@
 import type { PhaseAnalysis } from '../../types/boss';
 import type { BossSimulationInput } from '../simulation/bossSimulator';
 import type { Weapon } from '../../types/items';
-import { computeHunterMaxHp } from '../combat/damageContract';
+import { computeCanonicalMaxHp } from '../combat/damageContract';
 import { MOVEMENT, FIGHT_TOTAL_BUDGET_MS } from '../pixel/movement';
 
-// Mirror the formula in src/lib/simulation/bossSimulator.ts:364-365.
-// Kept client-side so the fight card can render the bar without re-running
-// the sim. If the sim formula changes, this MUST change in lockstep — the
-// bossFightAnimation.test.ts parity test guards this.
-export const computePlayerMaxHp = (playerLevel: number, shieldHp: number): number =>
-  computeHunterMaxHp(playerLevel, shieldHp);
+// The fight bar's denominator is the ONE canonical HP pool
+// (computeCanonicalMaxHp — owner ruling, audit HTR-03, 2026-11-12):
+// the same pool the boss sim settles (its playerHP + shield) and the
+// snapshot prints. Kept client-side so the fight card can render the
+// bar without re-running the sim. If the canonical formula changes,
+// this MUST change in lockstep — the bossFightAnimation.test.ts
+// parity test guards this.
+export const computePlayerMaxHp = (
+  playerLevel: number,
+  shieldHp: number,
+  cacheRankMaxHpBonus = 0,
+): number => computeCanonicalMaxHp(playerLevel, shieldHp, cacheRankMaxHpBonus);
 
 // Animation tuning — Sample B pacing (pixel movement system, P2): phases
 // breathe at ~1.15 s so each phase can stage its exchange (shot → hit
@@ -77,9 +83,10 @@ export const buildInitialTimeline = (
   outcome: FightOutcome,
   bossHealth: number,
   playerLevel: number,
-  shieldHp: number
+  shieldHp: number,
+  cacheRankMaxHpBonus = 0
 ): FightTimeline => {
-  const playerHpMax = computePlayerMaxHp(playerLevel, shieldHp);
+  const playerHpMax = computePlayerMaxHp(playerLevel, shieldHp, cacheRankMaxHpBonus);
   return {
     outcome,
     startedAt: typeof performance !== 'undefined' ? performance.now() : Date.now(),

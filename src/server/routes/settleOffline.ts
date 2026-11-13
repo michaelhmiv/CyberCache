@@ -36,7 +36,7 @@ import { cacheRankBonuses } from '../../content/cacheRank';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { eliteDiscovery } from '../../content/collections';
 import { IMMEDIATE_DEATH_TICKS, assessAreaDanger } from '../../lib/combat/areaDanger';
-import { computeHunterMaxHp } from '../../lib/combat/damageContract';
+import { computeCanonicalMaxHp } from '../../lib/combat/damageContract';
 import { computeEffectiveDpsFromGear } from '../../lib/combat/loadoutSurvival';
 import type { Shield, Weapon } from '../../types/items';
 
@@ -413,10 +413,14 @@ export function createSettleOfflineHandler(
           skillDpsMult: 1 + (skillBonuses.dps ?? 0) + (gateCacheRank.damage ?? 0),
           skillStatusChance: skillBonuses.statusChance ?? 0,
         }),
-        maxHp: Math.round(
-          computeHunterMaxHp(profile.player_level || 1, gateShieldCapacity) *
-            (1 + (skillBonuses.survival ?? 0)),
-        ),
+        // The gate judges against the ONE canonical HP pool (owner
+        // ruling, audit HTR-03, 2026-11-12): the same HP the player
+        // actually fights with — chassis scaled by Cache Rank Thick
+        // Skin, shield HP unscaled on top. The hidden
+        // (1 + skillBonuses.survival) multiplier that used to
+        // inflate this input was an artifact, not a design: no perk
+        // boosts offline HP.
+        maxHp: computeCanonicalMaxHp(profile.player_level || 1, gateShieldCapacity, gateCacheRank.maxHp),
         shieldCapacity: gateShieldCapacity,
         mitigation: gateShield?.mitigation ?? 0,
         dodgeChance: 0,

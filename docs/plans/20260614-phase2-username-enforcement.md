@@ -6,6 +6,8 @@
 
 **Why this is Phase 2:** Phase 1 added the stats backend and expanded the private profile. Phase 3 will add leaderboards and public profile lookup. Before those go live we must ensure every visible identity has a human-readable, unique handle.
 
+> **Ruling update (owner, 2026-11-12, audit G-F5):** the boot-time forced setup modal that later shipped in `App.tsx` — a full-screen wall over every tab until a name was claimed — is superseded. The prompt now defers ("Not now"), follows the verification reminder's once-a-day cadence after a deferral, and re-asks contextually at the Standings route and the Hunter tab. This plan's own decision #5 ("soft gate, not hard lock" for play) stands; appearing under a name on leaderboards and public profiles remains enforced per-op on the server.
+
 ## Architecture decisions
 
 1. **Server-authoritative username validation.** All uniqueness/format checks happen in Supabase RPCs. The client validates for UX but the RPC is the gate.

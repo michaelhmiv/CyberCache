@@ -300,13 +300,52 @@ export function computeMedKitBuffer(consumableId: string, pool = 0): number {
 }
 
 /**
- * Compute the hunter's max HP. Mirrors `computePlayerMaxHp` in
- * `fightTimeline.ts:9-10`. The formula is identical and must stay in
- * lockstep — `test/damageContract.test.ts` asserts the parity.
+ * Compute the hunter's chassis max HP — the gear-and-level base BEFORE
+ * the Cache Rank Thick Skin scaling. Mirrors `computePlayerMaxHp` in
+ * `fightTimeline.ts` at bonus 0. The formula is identical and must stay
+ * in lockstep — `test/damageContract.test.ts` asserts the parity.
  *
  *   maxHp = 500 + level*40 + shieldHp + 200 + level*20
  *         = 700 + level*60 + shieldHp
+ *
+ * This is NOT the pool any engine settles against on its own: the one
+ * canonical pool is `computeCanonicalMaxHp` below (owner ruling,
+ * audit HTR-03, 2026-11-12).
  */
 export function computeHunterMaxHp(playerLevel: number, shieldHp: number): number {
   return 700 + playerLevel * 60 + shieldHp;
+}
+
+/**
+ * THE canonical hunter HP pool (owner ruling, audit HTR-03,
+ * 2026-11-12): one build has exactly one HP pool, and every surface
+ * that states or settles HP reads it from here.
+ *
+ *   pool = round((700 + 60·level) · (1 + thickSkin)) + shieldHp
+ *
+ * Thick Skin is the Cache Rank max-HP track, resolved by the ONE
+ * resolver `cacheRankBonuses(spends).maxHp` (src/content/cacheRank.ts);
+ * it scales the chassis (base HP) only — shield HP is gear and never
+ * scales. With no Thick Skin spends the pool is exactly
+ * `computeHunterMaxHp(level, shieldHp)`.
+ *
+ * Surfaces bound to this definition: the roaming survival store (Home
+ * HP cell + the maxHp the client sends the Chef claim), the idle
+ * ticker's loadout survival stats / area danger, the server offline
+ * danger gate, the boss sim's player pool (HP part; its shield stays
+ * a separate pool of `shieldHp` on top), the mechanics snapshot /
+ * Hunter Totals pool, and the boss-fight HP bar.
+ *
+ * NOT this pool, deliberately: the boss sim's `totalSurvival`
+ * aggregate (pool + consumable heals, scaled by rating / legendary /
+ * survival-composite multipliers) is win math, not an HP statement;
+ * and `extractionSurvivalPool` is the extraction brief's own
+ * documented pool definition.
+ */
+export function computeCanonicalMaxHp(
+  playerLevel: number,
+  shieldHp: number,
+  cacheRankMaxHpBonus: number,
+): number {
+  return Math.round(computeHunterMaxHp(playerLevel, 0) * (1 + cacheRankMaxHpBonus)) + shieldHp;
 }
