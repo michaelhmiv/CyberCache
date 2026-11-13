@@ -90,7 +90,15 @@ export async function decodeRegionStats(page, pngBuffer, region) {
 
 /** Screenshot an element and compute stats for a fractional region of it. */
 export async function elementRegionStats(page, locator, region) {
-  const png = await locator.screenshot();
+  // Clip a page screenshot to the element's box rather than taking an
+  // element screenshot: Playwright's element capture waits for the
+  // element to be "stable" (un-animating), and a live game stage
+  // never is — calibration round 2's enemy-presence case died on
+  // exactly that wait (19.6 s stability timeout). A clipped page
+  // capture takes the pixels as they are.
+  const box = await locator.boundingBox();
+  if (!box) throw new Error('elementRegionStats: element has no bounding box (detached?)');
+  const png = await page.screenshot({ clip: box });
   return decodeRegionStats(page, png, region);
 }
 

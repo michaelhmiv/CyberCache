@@ -103,50 +103,96 @@ public class PlaySessionTest {
         SystemClock.sleep(1200);
     }
 
+    // Verified-find discipline ported from the screen-inventory
+    // crawl (ScreenInventoryTest), which operates this same app on
+    // this same emulator image: search TEXT first, then the content
+    // DESCRIPTION (WebView aria labels surface as descriptions, and
+    // rounds 1–2 proved text-only search misses real controls),
+    // keep only nodes whose bounds intersect the band, and prefer
+    // the SMALLEST node — aggregated ancestor containers carry the
+    // same strings and their centres tap the wrong place.
+
+    private UiObject2 pickVisible(List<UiObject2> objs, int minY, int maxY) {
+        UiObject2 best = null;
+        int bestArea = Integer.MAX_VALUE;
+        if (objs == null) {
+            return null;
+        }
+        for (UiObject2 o : objs) {
+            try {
+                Rect b = o.getVisibleBounds();
+                if (b == null || b.height() <= 0 || b.width() <= 0) {
+                    continue;
+                }
+                if (b.bottom < minY || b.top > maxY) {
+                    continue;
+                }
+                if (b.bottom <= 0 || b.top >= displayHeight) {
+                    continue;
+                }
+                int area = b.width() * b.height();
+                if (area < bestArea) {
+                    bestArea = area;
+                    best = o;
+                }
+            } catch (Exception ignored) {
+                // Stale node — the next query re-reads live.
+            }
+        }
+        return best;
+    }
+
+    private UiObject2 visibleFind(String needle, int minY, int maxY) {
+        UiObject2 byText = pickVisible(device.findObjects(By.textContains(needle)), minY, maxY);
+        if (byText != null) {
+            return byText;
+        }
+        return pickVisible(device.findObjects(By.descContains(needle)), minY, maxY);
+    }
+
+    /** Verified find anywhere in the viewport. */
+    private UiObject2 vf(String needle) {
+        return visibleFind(needle, 0, displayHeight);
+    }
+
+    /** Verified find in the top region (headers, tab rows, chips). */
+    private UiObject2 vfTop(String needle) {
+        return visibleFind(needle, 0, (int) (displayHeight * 0.45));
+    }
+
+    /** Poll until any needle is visibly present; returns it or null. */
+    private String waitVisible(long timeoutMs, String... needles) {
+        long deadline = SystemClock.uptimeMillis() + timeoutMs;
+        while (true) {
+            for (String n : needles) {
+                if (vf(n) != null) {
+                    return n;
+                }
+            }
+            if (SystemClock.uptimeMillis() >= deadline) {
+                return null;
+            }
+            SystemClock.sleep(500);
+        }
+    }
+
     private UiObject2 findVisible(String needle, boolean contains, long timeoutMs) {
         long deadline = SystemClock.uptimeMillis() + timeoutMs;
         while (SystemClock.uptimeMillis() < deadline) {
-            List<UiObject2> objs = contains
-                    ? device.findObjects(By.textContains(needle))
-                    : device.findObjects(By.text(needle));
-            UiObject2 best = null;
-            int bestLen = Integer.MAX_VALUE;
-            if (objs != null) {
-                for (UiObject2 o : objs) {
-                    try {
-                        Rect b = o.getVisibleBounds();
-                        if (b == null || b.bottom <= 0 || b.top >= displayHeight) {
-                            continue;
-                        }
-                        String label = o.getText();
-                        if (label == null) {
-                            label = o.getContentDescription();
-                        }
-                        int len = label == null ? Integer.MAX_VALUE - 1 : label.length();
-                        if (len < bestLen) {
-                            bestLen = len;
-                            best = o;
-                        }
-                    } catch (Exception ignored) {
-                        // Stale node — the next poll re-queries live.
-                    }
-                }
+            UiObject2 o = vf(needle);
+            if (o != null) {
+                return o;
             }
-            if (best != null) {
-                return best;
-            }
-            SystemClock.sleep(600);
+            SystemClock.sleep(500);
         }
         return null;
     }
 
     private boolean bodyContains(String needle) {
-        List<UiObject2> objs = device.findObjects(By.textContains(needle));
-        return objs != null && !objs.isEmpty();
+        return vf(needle) != null;
     }
 
-    private boolean click(String needle, boolean contains, long timeoutMs) {
-        UiObject2 o = findVisible(needle, contains, timeoutMs);
+    private boolean tapObject(UiObject2 o) {
         if (o == null) {
             return false;
         }
@@ -164,6 +210,50 @@ public class PlaySessionTest {
                 return false;
             }
         }
+    }
+
+    private boolean click(String needle, boolean contains, long timeoutMs) {
+        return tapObject(findVisible(needle, contains, timeoutMs));
+    }
+
+    /** Tap the verified node for a needle, if present right now. */
+    private boolean tapVisible(String needle) {
+        UiObject2 o = vf(needle);
+        if (o == null) {
+            return false;
+        }
+        boolean ok = tapObject(o);
+        if (ok) {
+            settle();
+        }
+        return ok;
+    }
+
+    private void swipeDown() {
+        device.swipe(displayWidth / 2, (int) (displayHeight * 0.72),
+                displayWidth / 2, (int) (displayHeight * 0.30), 22);
+        SystemClock.sleep(700);
+    }
+
+    /**
+     * Scroll-search: scan, swipe down, scan … up to maxSwipes.
+     * Returns the number of swipes used (0 = already visible), or -1.
+     */
+    private int scrollSearch(int maxSwipes, String... needles) {
+        for (String n : needles) {
+            if (vf(n) != null) {
+                return 0;
+            }
+        }
+        for (int i = 1; i <= maxSwipes; i++) {
+            swipeDown();
+            for (String n : needles) {
+                if (vf(n) != null) {
+                    return i;
+                }
+            }
+        }
+        return -1;
     }
 
     private void snap(String name) {
@@ -249,16 +339,27 @@ public class PlaySessionTest {
         launchApp();
 
         // 1 — Guest entry.
-        boolean guestOffered = findVisible("Continue as Guest", false, 90_000) != null;
+        boolean guestOffered = waitVisible(90_000, "Continue as Guest") != null;
         record("guestEntryOffered", guestOffered, null);
         if (!guestOffered) {
             snap("play-launch-failure");
             writeResult();
             throw new IllegalStateException("app launched but guest entry never appeared");
         }
-        click("Continue as Guest", false, 10_000);
-        boolean homeArrived = findVisible("HUNTER", true, 60_000) != null
-                && findVisible("GEAR", true, 5_000) != null;
+        tapVisible("Continue as Guest");
+        // Home arrival = BOTH shell tabs present, polled together:
+        // round 2 recorded guestEntered=false while the home
+        // hierarchy (dumped seconds later) was fully loaded — the
+        // sequential two-step check raced a slow production sign-in.
+        boolean homeArrived = false;
+        long homeDeadline = SystemClock.uptimeMillis() + 90_000;
+        while (SystemClock.uptimeMillis() < homeDeadline) {
+            if (vf("HUNTER") != null && vf("GEAR") != null) {
+                homeArrived = true;
+                break;
+            }
+            SystemClock.sleep(500);
+        }
         record("guestEntered", homeArrived, null);
         // The starter Collect modal may sit over Home; dismiss it the
         // way a player does.
@@ -269,19 +370,29 @@ public class PlaySessionTest {
         snap("play-home");
         dumpHierarchy("play-home-hierarchy");
 
-        // 2 — Roam: the stage must be alive across spaced captures.
-        boolean roamStarted = click("Start Roam", true, 20_000);
-        if (!roamStarted) {
-            // findVisible filters off-viewport nodes out by design —
-            // if the control sits below the fold on the Home scroll,
-            // sweep upward and retry (the crawl's scroll discipline,
-            // scoped to this one control).
-            for (int i = 0; i < 3 && !roamStarted; i++) {
-                swipeUp();
-                roamStarted = click("Start Roam", true, 6_000);
+        // 2 — Roam: tap the standby panel's start control (the
+        // diorama's aria node reads START ROAM; the panel button
+        // reads Start Roam), scroll-searching like the crawl, then
+        // VERIFY the roaming state — a tap that changes nothing is
+        // not a started roam (crawl semantics; rounds 1–2 tapped
+        // blind and learned nothing from the miss).
+        String roamNote = null;
+        boolean roamClicked = tapVisible("Start Roam") || tapVisible("START ROAM");
+        if (!roamClicked) {
+            int swipes = scrollSearch(4, "Start Roam", "START ROAM");
+            if (swipes >= 0) {
+                roamClicked = tapVisible("Start Roam") || tapVisible("START ROAM");
+                if (swipes > 0) {
+                    roamNote = "start control found after " + swipes + " scroll swipes";
+                }
             }
         }
-        record("roamStarted", roamStarted, null);
+        boolean roamStarted = roamClicked
+                && waitVisible(30_000, "Roaming Loot", "Sweeping the area") != null;
+        if (roamClicked && !roamStarted) {
+            roamNote = "start tapped but the roaming state never verified";
+        }
+        record("roamStarted", roamStarted, roamNote);
         if (roamStarted) {
             SystemClock.sleep(4000);
             snap("play-roam-1");
@@ -295,29 +406,26 @@ public class PlaySessionTest {
         boolean cacheOpened = false;
         boolean revealCompleted = false;
         String cacheNote = null;
-        UiObject2 cacheEntry = findVisible("Caches", true, 10_000);
+        // The cache entry is the top-bar control whose description
+        // reads "Cache — N cache keys held. Opens the cache chest."
+        // (round-2 hierarchy evidence) — search the top band first.
+        UiObject2 cacheEntry = vfTop("Cache");
         if (cacheEntry == null) {
-            cacheEntry = findVisible("Cache", true, 5_000);
+            cacheEntry = findVisible("Cache", true, 10_000);
         }
         if (cacheEntry == null) {
-            cacheNote = "no cache entry control found by text";
+            cacheNote = "no cache entry control found by text or description";
         } else {
-            try {
-                cacheEntry.click();
-            } catch (Exception e) {
-                Rect b = cacheEntry.getVisibleBounds();
-                device.click(b.centerX(), b.centerY());
-            }
+            tapObject(cacheEntry);
             settle();
             dumpHierarchy("play-cache-hierarchy");
-            boolean keyClicked = click("OPEN WITH KEY", false, 20_000);
+            boolean keyClicked = tapVisible("OPEN WITH KEY");
             if (!keyClicked) {
-                // The key action may sit below the fold on the cache
-                // screen — one scroll sweep before conceding, and the
-                // post-scroll hierarchy shows what the screen holds.
-                swipeUp();
+                int swipes = scrollSearch(3, "OPEN WITH KEY", "Open with key");
+                if (swipes >= 0) {
+                    keyClicked = tapVisible("OPEN WITH KEY") || tapVisible("Open with key");
+                }
                 dumpHierarchy("play-cache-hierarchy-scrolled");
-                keyClicked = click("Open with key", true, 6_000);
             }
             if (keyClicked) {
                 cacheOpened = true;

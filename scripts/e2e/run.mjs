@@ -409,7 +409,36 @@ async function settleDeck(page, c) {
 
 async function openOneCache(page, c, label) {
   const t0 = Date.now();
-  await page.getByRole('button', { name: /OPEN WITH KEY/i }).first().click({ timeout: 15000 });
+  const btn = page.getByRole('button', { name: /OPEN WITH KEY/i }).first();
+  // Actionability probe (calibration round 3): in both prior rounds
+  // this click timed out with the locator resolved to the real
+  // button — something covers its click point or the button never
+  // settles. Record what sits at the centre, keep the screenshot,
+  // and fall back to a force click so the reveal assertions still
+  // get exercised; the probe note carries the finding either way.
+  const probe = await page
+    .evaluate(() => {
+      const b = [...document.querySelectorAll('button')].find((x) => /OPEN WITH KEY/i.test(x.textContent ?? ''));
+      if (!b) return 'button absent';
+      const r = b.getBoundingClientRect();
+      const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      const covered = top && top !== b && !b.contains(top);
+      return (
+        `disabled=${b.disabled} rect=${Math.round(r.width)}x${Math.round(r.height)}@${Math.round(r.x)},${Math.round(r.y)}` +
+        ` covered=${!!covered}` +
+        (covered
+          ? ` by ${top.tagName}.${(top.className ?? '').toString().slice(0, 50)} testid=${top.getAttribute?.('data-testid') ?? ''}`
+          : '')
+      );
+    })
+    .catch(() => 'probe failed');
+  try {
+    await btn.click({ timeout: 15000 });
+  } catch {
+    c.note(`${label}: OPEN WITH KEY plain click timed out — probe: ${probe}; retrying with force`);
+    await shot(page, 'decrypt-blocked.png');
+    await btn.click({ timeout: 15000, force: true });
+  }
   return observeReveal(page, c, label, t0);
 }
 
@@ -537,12 +566,21 @@ async function caseGearScale(browser) {
     // Productised audit fixture: expand the runtime items response
     // to the owner's 2,366-item scale, varying the art signatures so
     // the list exercises distinct composes (relay.mjs seed-gear).
+    let seedNoted = false;
     await page.route('**/api/runtime/items**', async (route) => {
       const res = await route.fetch();
       let body = await res.text();
       try {
         const rows = JSON.parse(body);
         if (Array.isArray(rows) && rows.length > 0) {
+          if (!seedNoted) {
+            seedNoted = true;
+            const kinds = rows
+              .slice(0, 8)
+              .map((r) => `${r.payload?.kind ?? r.kind ?? '?'}/${r.payload?.form ?? r.form ?? '?'}`)
+              .join(' ');
+            c.note(`seed source: rows=${rows.length} kinds: ${kinds}`);
+          }
           // Validity-preserving expansion (calibration round 2): the
           // scale variable is the ROW COUNT, not invented art combos.
           // Round 1 forced element/rarity values onto source rows,
@@ -606,6 +644,13 @@ async function caseGearScale(browser) {
       );
       c.note(`pending series: ${series.join('>')}; stuck sample: ${JSON.stringify(stuck)}`);
       c.note(`console: ${consoleMsgs.slice(-4).join(' | ') || 'none'}; pageErrors: ${pageErrors.slice(-2).join(' | ') || 'none'}`);
+      // Does a scroll nudge wake the deferred-art activation?
+      // (IntersectionObserver margin probe — notes only.)
+      await page.mouse.wheel(0, 600);
+      await sleep(1500);
+      const afterKick = await sample();
+      await page.mouse.wheel(0, -600);
+      c.note(`after scroll kick: pending=${afterKick.pending} rows=${afterKick.rows}`);
     }
     await shot(page, 'gear-scale-top.png');
     // Scroll to the bottom of the list and check the last screenful.
@@ -689,7 +734,23 @@ async function caseBossStage(browser) {
         .catch(() => {});
     }
     c.check('boss prep panel reached', await page.evaluate(() => !!document.querySelector('[data-testid="boss-encounter-panel"]')));
-    const fightBtn = page.locator('[data-testid="boss-encounter-panel"] button').filter({ hasText: /fight/i }).last();
+    // The panel's start control reads "Start Boss Encounter — …"
+    // (BossEncounterPanel handleStart) — no button in the panel
+    // contains the word "fight", so the round-1/2 /fight/i filter
+    // could never resolve. Probe the control's state first so a
+    // disabled (unaffordable) entry is data, not a timeout.
+    const fightState = await page.evaluate(() => {
+      const panel = document.querySelector('[data-testid="boss-encounter-panel"]');
+      const btn = panel
+        ? [...panel.querySelectorAll('button')].find((b) => /Start Boss Encounter/i.test(b.textContent ?? ''))
+        : null;
+      return btn
+        ? { found: true, disabled: btn.disabled, label: (btn.textContent ?? '').trim().slice(0, 60) }
+        : { found: false, disabled: null, label: null };
+    });
+    c.note(`boss start control: ${JSON.stringify(fightState)}`);
+    c.check('boss start control present', fightState.found, JSON.stringify(fightState));
+    const fightBtn = page.locator('[data-testid="boss-encounter-panel"] button').filter({ hasText: /Start Boss Encounter/i }).last();
     await fightBtn.click({ timeout: 15000, force: true });
     // Observe the whole attempt.
     const t0 = Date.now();
