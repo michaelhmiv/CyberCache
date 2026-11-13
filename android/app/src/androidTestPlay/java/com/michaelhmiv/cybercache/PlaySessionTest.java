@@ -54,8 +54,8 @@ import java.util.Map;
 public class PlaySessionTest {
 
     private static final String TAG = "PlaySession";
-    private static final String PACKAGE = 'com.michaelhmiv.cybercache';
-    private static final String OUT_DIR_NAME = 'play-session';
+    private static final String PACKAGE = "com.michaelhmiv.cybercache";
+    private static final String OUT_DIR_NAME = "play-session";
 
     private UiDevice device;
     private File outDir;
