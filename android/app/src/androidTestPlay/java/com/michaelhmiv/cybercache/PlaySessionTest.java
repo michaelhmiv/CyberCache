@@ -537,8 +537,17 @@ public class PlaySessionTest {
                 }
                 long verifyDeadline = SystemClock.uptimeMillis() + 14_000;
                 while (SystemClock.uptimeMillis() < verifyDeadline) {
-                    if (vf("Roaming Loot") != null || vf("Sweeping the area") != null) {
+                    // State needles that exist only while roaming:
+                    // the roaming panel's "ACTIVE AREA" header and
+                    // its "ROAMING LOOT MODS" strip (round-8 after-
+                    // dump). The economy counters turned out to be
+                    // settlement-gated — they can sit still for a
+                    // whole verify window on a healthy roam — so
+                    // they are supporting signals, not the gate.
+                    if (vf("Roaming Loot") != null || vf("Sweeping the area") != null
+                            || vf("ACTIVE AREA") != null || vf("LOOT MODS") != null) {
                         roamStarted = true;
+                        roamNote = "verified by roaming state labels (attempt " + attempt + ")";
                         break;
                     }
                     long[] now = economySnapshot();

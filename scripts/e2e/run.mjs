@@ -904,9 +904,9 @@ async function caseBossStage(browser) {
       // note, stage never persisting across polls). The telegraph
       // assertion needs a fight that lasts to the cadence special,
       // so: walk the picker, read each panel's HP and start-button
-      // state, and pick the tankiest boss the guest can actually
-      // start. Region unlocks are seeded (above) precisely so this
-      // choice exists.
+      // state, and pick the boss whose fight lasts long enough
+      // for its cadence special to present. Region unlocks are
+      // seeded (above) precisely so this choice exists.
       const cellIds = await page.evaluate(() =>
         [...document.querySelectorAll('[data-testid^="bossselect-dps-"]')].map((e) => e.getAttribute('data-testid')),
       );
@@ -927,8 +927,15 @@ async function caseBossStage(browser) {
           return { hp: hp ? Number(hp[1].replace(/,/g, '')) : null, startDisabled: btn ? btn.disabled : null };
         });
         c.note(`boss candidate ${id}: HP=${probe.hp} startDisabled=${probe.startDisabled}`);
-        if (probe.hp !== null && probe.startDisabled === false && (!best || probe.hp > best.hp)) {
-          best = { id, hp: probe.hp };
+        // Target the DURABLE MIDDLE, not the max (round 10): the
+        // 19,000 HP mirror boss killed the seeded guest at 93% HP
+        // remaining — an instant, unpresentable defeat — while the
+        // 800 HP first boss dies before its special. ~5,000 HP is
+        // the band where this guest's fight lasts long enough for
+        // the cadence special to present.
+        if (probe.hp !== null && probe.startDisabled === false) {
+          const score = Math.abs(Math.log(probe.hp / 5000));
+          if (!best || score < best.score) best = { id, hp: probe.hp, score };
         }
         const change = page.getByRole('button', { name: /Change Boss/i }).first();
         if (await change.isVisible().catch(() => false)) {
@@ -1007,7 +1014,6 @@ async function caseBossStage(browser) {
     const t0 = Date.now();
     let stageSeen = false;
     let bestStats = null;
-    let lastStatsAt = 0;
     let lastStateNoteAt = 0;
     let phases = new Set();
     let telegraphSeen = false;
@@ -1015,24 +1021,39 @@ async function caseBossStage(browser) {
     while (Date.now() - t0 < BUDGET.bossFinishMs) {
       const s = await page.evaluate(() => {
         const stage = document.querySelector('[data-testid="boss-fight-stage"]');
+        const txt = document.body.innerText ?? '';
         return {
           stage: !!stage,
           phase: stage?.getAttribute('data-phase') ?? null,
           finished: stage?.getAttribute('data-finished') === 'true',
           telegraph: !!document.querySelector('[data-testid="boss-special-layer"]'),
           banner: !!document.querySelector('[data-testid="boss-fight-banner"]'),
+          // The panel's own outcome text is the finished state a
+          // player reads (rounds 8–10: "BOSS DEFEATED +750cr" /
+          // "DEFEATED — Failed during the Mirror Shield phase");
+          // the stage's data-finished/banner testids never appeared
+          // in this flow.
+          outcome: /BOSS DEFEATED|DEFEATED\s+—\s+Failed during|VICTORY/.test(txt),
         };
       });
       if (s.stage) stageSeen = true;
       if (s.phase !== null && s.phase !== '') phases.add(s.phase);
       if (s.telegraph) telegraphSeen = true;
-      if (s.stage && Date.now() - lastStatsAt > 4000) {
-        lastStatsAt = Date.now();
-        try {
-          const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
-          const stats = await elementRegionStats(page, stageEl, BOSS_REGION);
-          if (!bestStats || stats.nonBgMass > bestStats.nonBgMass) bestStats = stats;
-        } catch { /* stage remounting — the next sample retries */ }
+      if (s.outcome) finished = true;
+      if (s.stage && !bestStats) {
+        // Capture on FIRST sighting, immediately: the presentation
+        // window for a fast fight is seconds, and round 10's
+        // throttled in-loop captures kept missing it (the census
+        // saw the stage; the stats sampler never landed a box).
+        for (let attempt = 0; attempt < 3 && !bestStats; attempt++) {
+          try {
+            const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
+            bestStats = await elementRegionStats(page, stageEl, BOSS_REGION);
+          } catch {
+            await sleep(300);
+          }
+        }
+        if (bestStats) await shot(page, 'boss-stage.png');
       }
       if (Date.now() - lastStateNoteAt > 15000) {
         lastStateNoteAt = Date.now();
@@ -1051,6 +1072,7 @@ async function caseBossStage(browser) {
             .filter((i) => /fight|stage|diorama/i.test(i ?? ''));
           return { staging, err, fightBits, fightIds: [...new Set(ids)].slice(0, 8) };
         });
+        if (state.fightIds?.includes('boss-fight-stage')) stageSeen = true;
         c.note(`fight state @${Math.round((Date.now() - t0) / 1000)}s: ${JSON.stringify(state)} phases=${[...phases].join(',')}`);
         await shot(page, `boss-fight-${Math.round((Date.now() - t0) / 1000)}s.png`);
       }
