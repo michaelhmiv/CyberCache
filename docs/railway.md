@@ -54,6 +54,7 @@ Build from this repo; the start command runs the Express server
 | `GOOGLE_OAUTH_CLIENT_IDS` | Comma-separated OAuth client IDs for the Android (and later iOS) app, from the Google Cloud console for the CyberCache project. Used to verify Google ID tokens at sign-in. |
 | `FIREBASE_ADMIN_JSON` | The Firebase service-account JSON (single line), from the Firebase console. Enables FCM test pushes (`POST /api/push/test`); optional — push sending is disabled without it. |
 | `PORT` | Provided by Railway. |
+| `SERVE_WEB_CLIENT` | Optional. Leave unset everywhere except production. Production sets it to `false`: the Chef then serves the API only — `/`, `/index.html` and static asset paths return 404 while `/api/*` and `/health` respond exactly as before — so crawlers get no page to execute and cannot mint guest accounts. Any value other than `false`/`0`/`off`/`no` (or unset) serves the web client. |
 | `NPC_MARKET_USER_ID` | Optional. The NPC seller account id; defaults to the well-known zero-UUID service account, which is created on first seed. |
 | `NPC_MARKET_SEED_SECRET` | Optional. Gates the legacy `POST /api/market/seed` alias; generate if the alias will be used. |
 
@@ -62,6 +63,11 @@ writes, gameplay, jobs) mount **only** when `CHEF_JWT_SECRET` and
 `DATABASE_URL` are both set; job routes additionally require
 `CHEF_JOB_SECRET`. A boot missing them serves the SPA and
 `GET /api/health` only.
+
+Serving the page itself is gated separately by `SERVE_WEB_CLIENT`
+(see the table): the game is app-only in production, where the flag
+is `false`; staging and every local or CI boot leave it unset and
+keep serving the page.
 
 The client build needs the Chef's public URL as `VITE_CHEF_URL` (the
 June client reads it via `chefUrl()` in `src/lib/chef/chefClient.ts`).

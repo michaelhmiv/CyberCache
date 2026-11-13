@@ -2,7 +2,9 @@
  * CyberCache Server — Express + Chef Worker
  *
  * Single Railway service that:
- *   1. Serves the built React app (static files)
+ *   1. Serves the built React app (static files) — unless SERVE_WEB_CLIENT
+ *      is off, as in production: the game is app-only there and the
+ *      service answers the API alone (see src/server/webClient.ts).
  *   2. Runs the Chef worker — the authoritative engine for gameplay logic.
  * Item generation lives in src/server/lib/generators and is no longer
  * reachable from the browser bundle.
@@ -24,6 +26,7 @@ import { PgLeaderboardStore } from './leaderboards/store';
 import { PgEconomyStore } from './economy/store';
 import { EconomyConfig } from './economy/config';
 import { fcmSenderFromEnv } from './jobs/fcm';
+import { isWebClientEnabled, mountWebClient } from './webClient';
 
 const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, '../../dist');
@@ -192,13 +195,11 @@ if (chefJwtSecret && databaseUrl) {
   console.log('[chef] gameplay routes disabled (Route B not configured)');
 }
 
-// Static files — the React SPA
-app.use(express.static(DIST_DIR));
-
-// SPA fallback — all non-API routes serve index.html
-app.get(/^(?!\/api\/).*/, (_req, res) => {
-  res.sendFile(path.join(DIST_DIR, 'index.html'));
-});
+// The web client is env-gated (src/server/webClient.ts): production
+// runs app-only with SERVE_WEB_CLIENT=false so crawlers get no page to
+// execute; every other boot — local, staging, CI, the e2e fixture —
+// serves the SPA exactly as before.
+mountWebClient(app, DIST_DIR, isWebClientEnabled());
 
 app.listen(PORT, () => {
   console.log(`[cybercache] server running on port ${PORT}`);
