@@ -16,7 +16,8 @@ import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
 import { useSkillStore } from '@/store/slices/skillSlice';
-import { computeHunterMaxHp, type HunterSurvivalStats } from './damageContract';
+import { computeCanonicalMaxHp, type HunterSurvivalStats } from './damageContract';
+import { cacheRankBonuses } from '@/content/cacheRank';
 import { computeWeaponDps } from '@/lib/stats/dpsChain';
 import type { GearItem, Weapon } from '@/types/items';
 
@@ -150,11 +151,17 @@ export function loadoutSurvivalStats(): HunterSurvivalStats {
   const shieldCapacity = shieldProfile?.hp ?? 0;
   const currentShieldHp = useSurvivalStore.getState().shieldHp;
   const skillBonuses = useSkillStore.getState().getBonuses();
-  const survivalMult = 1 + (skillBonuses.survival || 0);
+  // The pool is the ONE canonical pool (owner ruling, audit HTR-03,
+  // 2026-11-12): chassis scaled by Cache Rank Thick Skin, shield HP
+  // unscaled on top — identical to the survival store, the snapshot
+  // and the offline gate. The skillBonuses 'survival' composite
+  // (shield/stagger) no longer inflates this number; it was a hidden
+  // second pool that disagreed with the store this module mirrors.
+  const cacheRankMaxHpBonus = cacheRankBonuses(usePlayerStore.getState().cacheRankSpends).maxHp;
   // Stagger chance translates to monster miss chance (capped at 40%).
   const staggerDodge = Math.min(0.4, (skillBonuses.staggerChance || 0) * 0.5);
   return {
-    maxHp: Math.round(computeHunterMaxHp(level, shieldCapacity) * survivalMult),
+    maxHp: computeCanonicalMaxHp(level, shieldCapacity, cacheRankMaxHpBonus),
     shieldHp: currentShieldHp,
     dodgeChance: staggerDodge,
     elementalResist: 0, // no generic resist affix yet

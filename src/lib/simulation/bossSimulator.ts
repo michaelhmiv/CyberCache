@@ -5,7 +5,7 @@ import { getElementMatchup } from '../../constants/elements';
 import { CONSUMABLES, type ConsumableDef, getConsumableRuntimeEffects } from '../../constants/consumables';
 import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 import { computeEffectiveCritChance, computeWeaponDps } from '../stats/dpsChain';
-import { computeHunterMaxHp } from '../combat/damageContract';
+import { computeCanonicalMaxHp } from '../combat/damageContract';
 import {
   SHIELD_BEHAVIOR_TUNING,
   modelShieldBehaviorForBoss,
@@ -660,18 +660,17 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   }
 
   // 1. Survival Check
-  // ONE hunter HP formula everywhere: computeHunterMaxHp (700 + 60 per
-  // level + shield HP) — the same formula the mechanics snapshot and
-  // the roaming survival store use. The sim used to run its own
+  // ONE canonical hunter HP pool everywhere (owner ruling, audit
+  // HTR-03, 2026-11-12): computeCanonicalMaxHp — the same pool the
+  // mechanics snapshot prints, the roaming survival store settles,
+  // and the offline gate judges against. The sim used to run its own
   // 500 + 40/level pool, so boss survival was silently ~27% lower
   // than the HP the player sees everywhere else.
   // Cache Rank Thick Skin (0031): the routes merge the resolved
   // bonus into skillBonuses as cacheRankMaxHpBonus; it scales the
   // base hunter HP only (shield HP is gear, never scaled) — the
-  // same split the mechanics snapshot applies.
-  const playerHP = Math.round(
-    computeHunterMaxHp(playerLevel, 0) * (1 + (skillBonuses.cacheRankMaxHpBonus || 0)),
-  );
+  // canonical helper applies exactly that split.
+  const playerHP = computeCanonicalMaxHp(playerLevel, 0, skillBonuses.cacheRankMaxHpBonus || 0);
   const playerShieldHP = shield?.hp || 0;
 
   const adrenaline = consumables['AdrenalineShot'] || 0;
@@ -734,6 +733,12 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     consumableAttackSpeedMult *= fx.attackSpeedMultiplier ?? 1;
   }
 
+  // NOTE (HTR-03 scope): totalSurvival is a win-math AGGREGATE —
+  // the canonical pool plus consumable heals, scaled by the rating,
+  // legendary and survival-composite multipliers. It is not an HP
+  // pool statement and was deliberately left out of the canonical
+  // pool unification; the pool it starts from (playerHP +
+  // playerShieldHP) is the canonical one.
   let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
 
   // Shield mitigation: % damage reduction effectively multiplies the survival pool.

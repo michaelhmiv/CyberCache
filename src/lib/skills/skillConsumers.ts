@@ -248,6 +248,14 @@ export const CACHE_RANK_BONUS_CONSUMERS: Record<string, SkillEffectConsumer[]> =
   maxHp: [
     { engine: 'boss sim survival HP (merged skillBonuses key)', file: BOSS_SIM, needle: 'cacheRankMaxHpBonus' },
     { engine: 'mechanics snapshot max HP (base HP part only)', file: 'src/lib/mechanics/buildCharacterMechanicsSnapshot.ts', needle: 'cacheRankMaxHpBonus' },
+    // HTR-03 (owner ruling 2026-11-12): the canonical pool reaches
+    // every surface that states or settles HP — the roaming store
+    // sync, the idle ticker's survival stats, the server offline
+    // danger gate, and the boss-fight HP bar.
+    { engine: 'roaming survival pool sync (Home HP cell + Chef claim pool)', file: 'src/hooks/useSyncSurvivalMaxHp.ts', needle: 'cacheRankMaxHpBonus' },
+    { engine: 'idle ticker survival stats / area danger (loadoutSurvivalStats)', file: 'src/lib/combat/loadoutSurvival.ts', needle: 'cacheRankMaxHpBonus' },
+    { engine: 'offline danger gate max HP (settleOffline)', file: 'src/server/routes/settleOffline.ts', needle: 'gateCacheRank.maxHp' },
+    { engine: 'boss fight HP bar (fight timeline pool)', file: 'src/lib/animation/fightTimeline.ts', needle: 'cacheRankMaxHpBonus' },
   ],
   cacheQuality: [
     { engine: 'cache draw weight shift (TS write mirror of cc_make_item)', file: 'src/server/writes/memory.ts', needle: 'cacheQualityAdjustedWeights' },
