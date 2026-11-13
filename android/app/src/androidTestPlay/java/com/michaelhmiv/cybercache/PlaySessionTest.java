@@ -472,31 +472,43 @@ public class PlaySessionTest {
         // canvas-rendered (never in the tree), but a live roam ticks
         // credits and XP upward within seconds — round 5's post-tap
         // dump showed exactly that (+4cr, +6xp) while the text
-        // needles matched nothing.
+        // needles matched nothing. Tap-until-verified (up to 3
+        // attempts): round 7's single tap produced no movement in
+        // 30 s while round 6's verified in seconds — the native
+        // tap->effect path on this emulator is intermittent, and a
+        // player taps again when nothing happens.
         boolean roamStarted = false;
         if (roamClicked) {
-            long verifyDeadline = SystemClock.uptimeMillis() + 30_000;
-            while (SystemClock.uptimeMillis() < verifyDeadline) {
-                if (vf("Roaming Loot") != null || vf("Sweeping the area") != null) {
-                    roamStarted = true;
-                    break;
+            for (int attempt = 1; attempt <= 3 && !roamStarted; attempt++) {
+                if (attempt > 1) {
+                    tapVisible("Start Roam");
+                    tapVisible("START ROAM");
                 }
-                long[] now = economySnapshot();
-                if (economyBefore[0] >= 0 && now[0] > economyBefore[0]) {
-                    roamStarted = true;
-                    roamNote = "verified by credits tick " + economyBefore[0] + " -> " + now[0];
-                    break;
+                long verifyDeadline = SystemClock.uptimeMillis() + 14_000;
+                while (SystemClock.uptimeMillis() < verifyDeadline) {
+                    if (vf("Roaming Loot") != null || vf("Sweeping the area") != null) {
+                        roamStarted = true;
+                        break;
+                    }
+                    long[] now = economySnapshot();
+                    if (economyBefore[0] >= 0 && now[0] > economyBefore[0]) {
+                        roamStarted = true;
+                        roamNote = "verified by credits tick " + economyBefore[0] + " -> " + now[0]
+                                + " (attempt " + attempt + ")";
+                        break;
+                    }
+                    if (economyBefore[1] >= 0 && now[1] > economyBefore[1]) {
+                        roamStarted = true;
+                        roamNote = "verified by XP tick " + economyBefore[1] + " -> " + now[1]
+                                + " (attempt " + attempt + ")";
+                        break;
+                    }
+                    SystemClock.sleep(1200);
                 }
-                if (economyBefore[1] >= 0 && now[1] > economyBefore[1]) {
-                    roamStarted = true;
-                    roamNote = "verified by XP tick " + economyBefore[1] + " -> " + now[1];
-                    break;
-                }
-                SystemClock.sleep(1200);
             }
         }
         if (roamClicked && !roamStarted) {
-            roamNote = "start tapped but no economy movement within 30s (before: credits="
+            roamNote = "start tapped (3 attempts) but no economy movement (before: credits="
                     + economyBefore[0] + " xp=" + economyBefore[1] + ")";
         }
         // Evidence of the post-tap state either way (round 4's tap
@@ -566,9 +578,30 @@ public class PlaySessionTest {
             }
             if (keyClicked) {
                 cacheOpened = true;
-                // Evidence of what the key tap actually produced
-                // (round 4: neither DECRYPTING nor a deck control
-                // ever appeared in the tree during the watch).
+                // Tap-until-fired (round 7: the tap was accepted by
+                // the tree but the open never fired — Keys stayed 3
+                // and no reveal existed at 12 s or 45 s; round 5's
+                // identical tap spent the key). Probe briefly for
+                // any sign the decrypt began; re-tap when none.
+                boolean fired = false;
+                for (int attempt = 1; attempt <= 3 && !fired; attempt++) {
+                    if (attempt > 1) {
+                        if (!tapVisible("OPEN WITH KEY") && !tapVisible("Open with key")) {
+                            break;
+                        }
+                    }
+                    long probeDeadline = SystemClock.uptimeMillis() + 7_000;
+                    while (SystemClock.uptimeMillis() < probeDeadline) {
+                        if (bodyContains("DECRYPTING") || bodyContains("Collect")
+                                || bodyContains("Equip") || bodyContains("Salvage")) {
+                            fired = true;
+                            break;
+                        }
+                        SystemClock.sleep(700);
+                    }
+                }
+                final boolean openFired = fired;
+                // Evidence of what the key tap actually produced.
                 settle();
                 dumpHierarchy("play-cache-open-hierarchy");
                 snap("play-after-key");
@@ -600,8 +633,13 @@ public class PlaySessionTest {
                 if (!settledDeck) {
                     dumpHierarchy("play-reveal-end");
                 }
-                revealCompleted = sawDecrypting && settledDeck;
-                cacheNote = "sawDecrypting=" + sawDecrypting + " settledDeck=" + settledDeck;
+                // Completion = a settled deck after a fired open.
+                // (The probe may consume the brief DECRYPTING window
+                // before the watch starts, so sawDecrypting alone
+                // would under-report; openFired is the same evidence
+                // one step earlier.)
+                revealCompleted = settledDeck && (sawDecrypting || openFired);
+                cacheNote = "openFired=" + openFired + " sawDecrypting=" + sawDecrypting + " settledDeck=" + settledDeck;
                 snap("play-reveal");
             }
             // (No else: every keyClicked=false path above already

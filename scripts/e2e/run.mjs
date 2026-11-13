@@ -384,7 +384,18 @@ async function observeReveal(page, c, label, t0) {
 async function settleDeck(page, c) {
   const another = page.getByRole('button', { name: /Open Another/i }).first();
   if (await another.isVisible().catch(() => false)) {
-    await another.click({ timeout: 8000 }).catch(() => {});
+    // Fingerprint the deck being left + record whether the click
+    // itself landed (round 7: chained opens showed no DOM
+    // transition at all — either the click never lands or the
+    // chained reveal reuses the same deck element in place).
+    const before = await page
+      .evaluate(() => document.querySelector('[data-testid="cache-reveal-deck"]')?.innerText?.slice(0, 120) ?? null)
+      .catch(() => null);
+    const clickErr = await another
+      .click({ timeout: 8000 })
+      .then(() => null)
+      .catch((e) => String(e).slice(0, 120));
+    c.note(`settleDeck: Open Another click err=${clickErr}; deck before: ${JSON.stringify(before)}`);
     return 'another-started';
   }
   const collect = page.getByRole('button', { name: /^Collect$/ }).first();
@@ -510,6 +521,32 @@ async function caseDecrypt(browser) {
             if (!gen.deck || gen.decrypting || gen.moment) break;
             await sleep(200);
           }
+          // Trace the chained reveal's DOM shape (notes): what
+          // actually changes when Open Another fires — a fresh
+          // moment element, an in-place deck swap, a decrypting
+          // interlude, or nothing at all?
+          const trace = [];
+          const traceT0 = Date.now();
+          let lastFp = null;
+          while (Date.now() - traceT0 < 6000) {
+            const s = await page.evaluate(() => {
+              const deck = document.querySelector('[data-testid="cache-reveal-deck"]');
+              return {
+                moment: !!document.querySelector('[data-testid="cache-loot-moment"]'),
+                decrypting: document.body.innerText.includes('DECRYPTING CACHE'),
+                deckFp: deck ? (deck.innerText ?? '').replace(/\s+/g, ' ').slice(0, 60) : null,
+                keys: document.body.innerText.match(/Keys:\s*(\d+)/)?.[1] ?? null,
+              };
+            });
+            const fp = `${s.moment}|${s.decrypting}|${s.deckFp}|${s.keys}`;
+            if (fp !== lastFp) {
+              trace.push(`${Date.now() - traceT0}ms ${fp}`);
+              lastFp = fp;
+            }
+            if (s.moment) break;
+            await sleep(250);
+          }
+          c.note(`chained reveal trace: ${trace.join(' → ').slice(0, 420)}`);
           await observeReveal(page, c, `normal open ${i + 1} (via Open Another)`, Date.now());
           anotherStarted = false;
         } else {
@@ -942,10 +979,18 @@ async function caseBossStage(browser) {
       await shot(page, 'boss-panel.png');
       return c;
     }
-    // Observe the whole attempt.
+    // Observe the whole attempt. Actor stats are sampled
+    // repeatedly and the BEST sample carries the check: round 7's
+    // single first-sight sample caught a uniform takeover frame
+    // (nonBgMass=0.000, distinct=1) and the fight's phase attribute
+    // never moved — so this loop also records the visible state
+    // every ~15 s (staging? error? fight UI text?) to separate a
+    // stuck server staging from a stuck renderer.
     const t0 = Date.now();
     let stageSeen = false;
-    let actorChecked = false;
+    let bestStats = null;
+    let lastStatsAt = 0;
+    let lastStateNoteAt = 0;
     let phases = new Set();
     let telegraphSeen = false;
     let finished = false;
@@ -961,37 +1006,27 @@ async function caseBossStage(browser) {
         };
       });
       if (s.stage) stageSeen = true;
-      if (s.phase !== null) phases.add(s.phase);
+      if (s.phase !== null && s.phase !== '') phases.add(s.phase);
       if (s.telegraph) telegraphSeen = true;
-      if (s.stage && !actorChecked) {
-        actorChecked = true;
-        // The stage element remounts across fight phases (round 6
-        // died on a detached box mid-observe, discarding the case):
-        // retry the capture over a few seconds, and record — never
-        // throw — if it stays unavailable.
+      if (s.stage && Date.now() - lastStatsAt > 4000) {
+        lastStatsAt = Date.now();
         try {
-          let stats = null;
-          let lastErr = null;
-          for (let attempt = 0; attempt < 6 && !stats; attempt++) {
-            try {
-              const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
-              stats = await elementRegionStats(page, stageEl, BOSS_REGION);
-            } catch (e) {
-              lastErr = e;
-              await sleep(500);
-            }
-          }
-          if (!stats) throw lastErr ?? new Error('stage stats unavailable');
-          console.log('  boss region stats:', JSON.stringify(stats));
-          c.check(
-            'boss actor pixel mass present on the stage',
-            stats.nonBgMass > 0.05 && stats.distinct > 30,
-            `nonBgMass=${stats.nonBgMass.toFixed(3)} distinct=${stats.distinct}`,
-          );
-          await shot(page, 'boss-stage.png');
-        } catch (e) {
-          c.check('boss actor pixel mass present on the stage', false, `stats capture failed: ${String(e).slice(0, 140)}`);
-        }
+          const stageEl = page.locator('[data-testid="boss-fight-stage"]').first();
+          const stats = await elementRegionStats(page, stageEl, BOSS_REGION);
+          if (!bestStats || stats.nonBgMass > bestStats.nonBgMass) bestStats = stats;
+        } catch { /* stage remounting — the next sample retries */ }
+      }
+      if (Date.now() - lastStateNoteAt > 15000) {
+        lastStateNoteAt = Date.now();
+        const state = await page.evaluate(() => {
+          const txt = (document.body.innerText ?? '').replace(/\s+/g, ' ');
+          const staging = /Staging…|Staging\.\.\./.test(txt);
+          const err = txt.match(/.{0,40}(failed|error|timed out).{0,40}/i)?.[0] ?? null;
+          const fightBits = txt.match(/.{0,30}(DUNE TYRANT|Boss|VICTORY|DEFEAT).{0,30}/g)?.slice(0, 3) ?? [];
+          return { staging, err, fightBits };
+        });
+        c.note(`fight state @${Math.round((Date.now() - t0) / 1000)}s: ${JSON.stringify(state)} phases=${[...phases].join(',')}`);
+        await shot(page, `boss-fight-${Math.round((Date.now() - t0) / 1000)}s.png`);
       }
       if (s.finished || s.banner) {
         finished = true;
@@ -999,6 +1034,11 @@ async function caseBossStage(browser) {
       }
       await sleep(200);
     }
+    c.check(
+      'boss actor pixel mass present on the stage',
+      !!bestStats && bestStats.nonBgMass > 0.05 && bestStats.distinct > 30,
+      bestStats ? `best nonBgMass=${bestStats.nonBgMass.toFixed(3)} distinct=${bestStats.distinct}` : 'no stats sample captured',
+    );
     c.check('boss stage mounted for the attempt', stageSeen);
     c.check('fight phases advance', phases.size >= 2, `phases seen=${[...phases].join(',')}`);
     c.check(
