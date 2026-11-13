@@ -147,8 +147,30 @@ async function newGuestContext(browser) {
       }
     } catch { /* non-URL response */ }
   });
-  page.on('pageerror', (e) => console.log('  [pageerror]', String(e).slice(0, 200)));
-  return { context, page, responses };
+  // Aborted/failed requests emit no 'response' — record them too, so
+  // an interception case can prove its sabotage actually engaged.
+  const failures = [];
+  page.on('requestfailed', (req) => {
+    try {
+      const u = new URL(req.url());
+      if (u.pathname.startsWith('/api/')) {
+        failures.push({ method: req.method(), path: u.pathname, error: req.failure()?.errorText ?? '' });
+      }
+    } catch { /* non-URL request */ }
+  });
+  const pageErrors = [];
+  page.on('pageerror', (e) => {
+    pageErrors.push(String(e).slice(0, 200));
+    console.log('  [pageerror]', String(e).slice(0, 200));
+  });
+  const consoleMsgs = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' || msg.type() === 'warning') {
+      consoleMsgs.push(`${msg.type()}: ${msg.text().slice(0, 160)}`);
+      if (consoleMsgs.length > 24) consoleMsgs.shift();
+    }
+  });
+  return { context, page, responses, failures, pageErrors, consoleMsgs };
 }
 
 async function guestSignIn(page, { dismissCollect = true } = {}) {
@@ -345,16 +367,36 @@ async function observeReveal(page, c, label, t0) {
 // ('collected'); "Open Another" immediately starts the next reveal
 // ('another-started') — the caller must not click OPEN WITH KEY for
 // that next open.
-async function settleDeck(page) {
+async function settleDeck(page, c) {
   const collect = page.getByRole('button', { name: /^Collect$/ }).first();
   if (await collect.isVisible().catch(() => false)) {
     await collect.click({ timeout: 8000 }).catch(() => {});
+    // Wait for the deck to actually leave before touching the cache
+    // screen again — clicking OPEN WITH KEY through the deck's exit
+    // overlay is what timed the first calibration run out.
+    await page
+      .locator('[data-testid="cache-reveal-deck"]')
+      .first()
+      .waitFor({ state: 'detached', timeout: 10000 })
+      .catch(() => {});
     const back = await page
       .getByRole('button', { name: /OPEN WITH KEY/i })
       .first()
       .waitFor({ state: 'visible', timeout: 6000 })
       .then(() => true)
       .catch(() => false);
+    if (!back && c) {
+      const blocker = await page
+        .evaluate(() => {
+          const b = [...document.querySelectorAll('button')].find((x) => /OPEN WITH KEY/i.test(x.textContent ?? ''));
+          if (!b) return 'open-with-key button absent';
+          const r = b.getBoundingClientRect();
+          const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+          return `blocked by: ${top ? `${top.tagName}.${(top.className ?? '').toString().slice(0, 60)} testid=${top.getAttribute?.('data-testid') ?? ''}` : 'nothing'}`;
+        })
+        .catch(() => 'blocker probe failed');
+      c.note(`settleDeck: deck collected but cache screen not ready — ${blocker}`);
+    }
     return back ? 'collected' : 'unknown';
   }
   const another = page.getByRole('button', { name: /Open Another/i }).first();
@@ -401,7 +443,7 @@ async function caseDecrypt(browser) {
           await openOneCache(page, c, `normal open ${i + 1}`);
         }
         if (i < opens - 1) {
-          const settled = await settleDeck(page);
+          const settled = await settleDeck(page, c);
           anotherStarted = settled === 'another-started';
           if (settled === 'unknown') c.note(`open ${i + 1}: deck settle path not recognised`);
         }
@@ -490,7 +532,7 @@ async function caseDecrypt(browser) {
 // ── Case: gear at scale (blueprint assertion 4) ──────────────────
 async function caseGearScale(browser) {
   const c = new Case('gear-at-scale');
-  const { context, page } = await newGuestContext(browser);
+  const { context, page, consoleMsgs, pageErrors } = await newGuestContext(browser);
   try {
     // Productised audit fixture: expand the runtime items response
     // to the owner's 2,366-item scale, varying the art signatures so
@@ -501,8 +543,13 @@ async function caseGearScale(browser) {
       try {
         const rows = JSON.parse(body);
         if (Array.isArray(rows) && rows.length > 0) {
-          const ELEMENTS = ['Kinetic', 'Fire', 'Shock', 'Corrosive', 'Cryo', 'Void'];
-          const RARITIES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+          // Validity-preserving expansion (calibration round 2): the
+          // scale variable is the ROW COUNT, not invented art combos.
+          // Round 1 forced element/rarity values onto source rows,
+          // which can mint painted declarations with no sprite behind
+          // them (a pending canvas forever, by construction) — so
+          // clones now keep the source row's own element/rarity/form
+          // and vary only identity, name, and level.
           const out = [];
           const TOTAL = 2366;
           for (let i = 0; i < TOTAL; i++) {
@@ -512,8 +559,6 @@ async function caseGearScale(browser) {
             if (clone.payload && typeof clone.payload === 'object') {
               clone.payload.id = clone.id;
               if (typeof clone.payload.level === 'number') clone.payload.level = 1 + (i % 14);
-              if ('element' in clone.payload) clone.payload.element = ELEMENTS[i % 6];
-              if ('rarity' in clone.payload) clone.payload.rarity = RARITIES[i % 5];
               if (typeof clone.payload.name === 'string' && i % 3 === 0) {
                 clone.payload.name = `${clone.payload.name} Mk.${1 + (i % 9)}`;
               }
@@ -537,11 +582,31 @@ async function caseGearScale(browser) {
     let s = await sample();
     c.check('mounted rows are windowed, not the whole inventory', s.rows > 0 && s.rows <= BUDGET.gearRowCap, `rows=${s.rows} header=${s.header}`);
     const settleDeadline = Date.now() + BUDGET.gearArtSettleMs;
+    const series = [s.pending];
     while (s.pending > 0 && Date.now() < settleDeadline) {
       await sleep(300);
       s = await sample();
+      series.push(s.pending);
     }
     c.check('visible-row art settles (no pending art on screen)', s.pending === 0, `pending=${s.pending} after settle window`);
+    if (s.pending > 0) {
+      // Diagnostics for the calibration loop (notes, not assertions):
+      // what are the stuck elements, and did anything error?
+      const stuck = await page.evaluate(() =>
+        [...document.querySelectorAll('[data-deferred-art="pending"]')].slice(0, 3).map((el) => {
+          const r = el.getBoundingClientRect();
+          return {
+            tag: el.tagName,
+            sprite: el.getAttribute('data-painted-sprite'),
+            form: el.getAttribute('data-painted-form'),
+            testid: el.getAttribute('data-testid'),
+            rect: `${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}`,
+          };
+        }),
+      );
+      c.note(`pending series: ${series.join('>')}; stuck sample: ${JSON.stringify(stuck)}`);
+      c.note(`console: ${consoleMsgs.slice(-4).join(' | ') || 'none'}; pageErrors: ${pageErrors.slice(-2).join(' | ') || 'none'}`);
+    }
     await shot(page, 'gear-scale-top.png');
     // Scroll to the bottom of the list and check the last screenful.
     await page.evaluate(() => {
@@ -601,8 +666,11 @@ async function caseBossStage(browser) {
     } else {
       c.note('boss durability seed skipped (no fixture DB env)');
     }
-    // Enter boss mode from the stage's mode bar.
-    await page.getByRole('button', { name: /^Boss$/i }).first().click({ timeout: 15000, force: true });
+    // Enter boss mode from the Home mode rail. The rail stop's
+    // accessible name is its aria-label ("Boss — choose a boss to
+    // fight"), so a /^Boss$/ role match never resolves — target the
+    // shipped testid instead (calibration round 2).
+    await page.locator('[data-testid="mode-rail-boss"]').click({ timeout: 15000, force: true });
     await sleep(1500);
     // Boss mode may open a picker (BossSelectModal) or land on a prep
     // panel with a default boss. If a picker is up, choose the first
@@ -679,14 +747,21 @@ async function caseBossStage(browser) {
 // ── Case: market error state (Wave 2 X-07) ───────────────────────
 async function caseMarketError(browser) {
   const c = new Case('market-error-state');
-  const { context, page, responses } = await newGuestContext(browser);
+  const { context, page, failures } = await newGuestContext(browser);
   try {
     await guestSignIn(page);
     // Force the listings read to fail AFTER bootstrap, then open the
-    // Buy stop. Interception pattern is pinned from what the client
-    // actually requests; the response recorder proves the hit.
+    // Buy stop. The client requests GET /api/market/listings
+    // (src/lib/api/marketListings.ts). Interceptions are counted in
+    // the handler itself — an aborted request emits no 'response'
+    // event, so a response-side recorder can never prove the hit
+    // (calibration round 1's gets=0 was that artifact).
+    let intercepted = 0;
     await page.route(/\/api\/[^ ]*(market|listing)[^ ]*/i, (route) => {
-      if (route.request().method() === 'GET') return route.abort('failed');
+      if (route.request().method() === 'GET') {
+        intercepted++;
+        return route.abort('failed');
+      }
       return route.continue();
     });
     // The standard MARKET marker (Vendor + Filters) describes the
@@ -708,23 +783,23 @@ async function caseMarketError(browser) {
     }
     c.check('MARKET stop renders (healthy or error state)', arrivedMs !== null, `arrived=${arrivedMs}ms`);
     await sleep(2500);
-    const marketGets = responses.filter((r) => r.method === 'GET' && /market|listing/i.test(r.path));
+    const failedGets = failures.filter((f) => f.method === 'GET' && /market|listing/i.test(f.path));
     const state = await page.evaluate(() => ({
       retry: [...document.querySelectorAll('button')].some((b) => /retry/i.test(b.textContent ?? '')),
       falseEmpty: /No listings found/.test(document.body.innerText),
       errorCopy: /couldn.t load|failed to load|something went wrong|try again/i.test(document.body.innerText),
       rows: document.querySelectorAll('[data-testid="market-listing-row"], [data-testid="listing-row"]').length,
     }));
-    console.log('  market failure state:', JSON.stringify(state), 'market GETs:', JSON.stringify(marketGets.slice(0, 4)));
-    c.check('listings fetch was actually intercepted', marketGets.length > 0, `gets=${marketGets.length}`);
+    console.log('  market failure state:', JSON.stringify(state), 'intercepted:', intercepted, 'failedGets:', JSON.stringify(failedGets.slice(0, 4)));
+    c.check('listings fetch was actually intercepted', intercepted > 0, `intercepted=${intercepted} failedGets=${failedGets.length}`);
     c.check('failure shows an error state with a Retry control (X-07)', state.retry && state.errorCopy, JSON.stringify(state));
     c.check('failure is NOT presented as an empty market (X-07)', !(state.falseEmpty && !state.retry), JSON.stringify(state));
     await shot(page, 'market-error.png');
     if (state.retry) {
+      const before = intercepted;
       await page.getByRole('button', { name: /retry/i }).first().click({ timeout: 8000 }).catch(() => {});
       await sleep(1500);
-      const after = responses.filter((r) => r.method === 'GET' && /market|listing/i.test(r.path)).length;
-      c.check('Retry re-invokes the listings fetch (X-07)', after > marketGets.length, `gets ${marketGets.length} -> ${after}`);
+      c.check('Retry re-invokes the listings fetch (X-07)', intercepted > before, `interceptions ${before} -> ${intercepted}`);
     }
   } finally {
     await context.close().catch(() => {});

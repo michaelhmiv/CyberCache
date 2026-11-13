@@ -175,6 +175,23 @@ public class PlaySessionTest {
         }
     }
 
+    /** Accessibility-tree dump — calibration evidence for WHY a
+     *  text-searched control was not found (label variants, below
+     *  the fold, a modal in the way). Pulled with the screenshots. */
+    private void dumpHierarchy(String name) {
+        try {
+            device.dumpWindowHierarchy(new File(outDir, name + ".xml"));
+        } catch (Exception e) {
+            Log.e(TAG, "hierarchy dump failed for " + name, e);
+        }
+    }
+
+    private void swipeUp() {
+        device.swipe(displayWidth / 2, (int) (displayHeight * 0.75),
+                displayWidth / 2, (int) (displayHeight * 0.35), 24);
+        settle();
+    }
+
     private void launchApp() {
         Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
         Intent intent = target.getPackageManager().getLaunchIntentForPackage(PACKAGE);
@@ -250,9 +267,20 @@ public class PlaySessionTest {
         }
         settle();
         snap("play-home");
+        dumpHierarchy("play-home-hierarchy");
 
         // 2 — Roam: the stage must be alive across spaced captures.
         boolean roamStarted = click("Start Roam", true, 20_000);
+        if (!roamStarted) {
+            // findVisible filters off-viewport nodes out by design —
+            // if the control sits below the fold on the Home scroll,
+            // sweep upward and retry (the crawl's scroll discipline,
+            // scoped to this one control).
+            for (int i = 0; i < 3 && !roamStarted; i++) {
+                swipeUp();
+                roamStarted = click("Start Roam", true, 6_000);
+            }
+        }
         record("roamStarted", roamStarted, null);
         if (roamStarted) {
             SystemClock.sleep(4000);
@@ -281,7 +309,17 @@ public class PlaySessionTest {
                 device.click(b.centerX(), b.centerY());
             }
             settle();
-            if (click("OPEN WITH KEY", false, 20_000)) {
+            dumpHierarchy("play-cache-hierarchy");
+            boolean keyClicked = click("OPEN WITH KEY", false, 20_000);
+            if (!keyClicked) {
+                // The key action may sit below the fold on the cache
+                // screen — one scroll sweep before conceding, and the
+                // post-scroll hierarchy shows what the screen holds.
+                swipeUp();
+                dumpHierarchy("play-cache-hierarchy-scrolled");
+                keyClicked = click("Open with key", true, 6_000);
+            }
+            if (keyClicked) {
                 cacheOpened = true;
                 boolean sawDecrypting = false;
                 boolean settledDeck = false;
