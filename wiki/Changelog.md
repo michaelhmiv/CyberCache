@@ -14,6 +14,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Small labels in the workshop bay scenes meet the readable size** — the progress labels in the crafting, repair, shield and extraction bay scenes sat under the game's 11-pixel floor; they are at the floor now.
 - **The streak celebration plays once, as designed** — closing the streak sheet any way you like now counts the claim as seen, the same as tapping through: the stamp ceremony greets a fresh claim exactly once, and reopening the sheet later shows the quiet, banked poster instead of performing again.
 - **Finished work rises from where it sat** — in the assembly bay and at the crusher, a completed job's rise now lifts off the exact spot the item rested on while it was being worked, instead of a point borrowed from the crafting bench.
+- **The roaming stage no longer flashes black when it opens** — the Home stage's animated scene used to hand over from its fallback picture the instant it loaded, then sit black while it built the scene and loaded its art: a black stage with only the name plates standing over it, on every cold open. The fallback picture now stays up until the animated scene has actually drawn its first frames, and only then does the stage step aside. Nothing about the fight, the art, or the timings changed — the black gap between the two is simply gone.
 
 ## 2026-11-13 — The market says when it's down; the Gear tab is already warm
 
