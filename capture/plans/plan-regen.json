@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":6000},{"eval":"window.__startNumbers()"},{"shot":"regen-a","wait":7300},{"shot":"regen-b","wait":250},{"dump":"({strip: (document.querySelector('[data-testid=\"numbers-readout-strip\"]')||{}).textContent || null})"}],"width":412}

@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":6000},{"eval":"window.__startNumbers()"},{"shot":"hunter-hit-a","wait":4700},{"shot":"hunter-hit-b","wait":280},{"dump":"({strip: (document.querySelector('[data-testid=\"numbers-readout-strip\"]')||{}).textContent || null, floats: [...document.querySelectorAll('[data-float-kind]')].map(e=>e.getAttribute('data-float-kind'))})"}],"width":412}

@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":6000},{"dump":"({canvas: !!document.querySelector('canvas'), floats: [...document.querySelectorAll('[data-float-kind]')].map(e=>e.getAttribute('data-float-kind'))})"},{"shot":"proc-a"},{"shot":"proc-b","wait":220},{"shot":"proc-c","wait":220},{"shot":"proc-d","wait":220}],"width":412}
