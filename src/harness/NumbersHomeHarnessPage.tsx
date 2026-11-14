@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { LootMoment } from '@/components/pixelArt/LootMoment';
+import { getMonster } from '@/constants/monsters';
+import { getPixelSprite, pixelBackgroundForArea, pixelEnemySpriteForArchetype } from '@/lib/pixel/manifest';
+import { actorAnchorPoint } from '@/lib/pixel/movement';
+import { ROAM_ENEMY_PLACEMENT } from '@/lib/pixel/roamChoreography';
 import {
   FloatLayerHome,
   HOME_FLOAT_COLORS,
@@ -84,6 +89,33 @@ import type { GearItem as GearItemT, Shield as ShieldT } from '@/types/items';
  * seeds the drop event + the crit cluster on the capture
  * script's start line — the LootMoment unmounts when its
  * celebration completes, so the seed shares the shot's clock).
+ *
+ * Follow-up scenes (2026-11-14) — the honest kill/drop pair.
+ * Code truth (master afb26cc0): the beat and the drop both
+ * derive from the single standing event events[0]. A 'kill'
+ * event dissolves the enemy and holds it gone but carries no
+ * dropItem (gearDropFromEvent needs tone 'loot'); a 'loot'
+ * event mounts the LootMoment but the enemy stands at opacity
+ * 1. The shipped game therefore never shows a beam over an
+ * empty corpse spot — ?scene=kill's composition was a staging.
+ *   ?scene=killhold — PRODUCTION-TRUE: mounts at the tick-3
+ *     state (wraith 100 HP, shield 88); __seedKillHold() fires
+ *     the kill event + HP 0 + the crit cluster and ENDS. No
+ *     loot seed, no roster advance: the kill event stands, the
+ *     wraith stays dissolved, the feed shows the kill entry.
+ *   ?scene=drop — LABELED PROPOSAL: the same kill seed, then
+ *     once the dissolve completes the harness mounts the
+ *     PRODUCTION LootMoment component over the held kill state
+ *     (host box = the live roam-pixi-stage rect; anchors from
+ *     the production derivation itself). A composition today's
+ *     event model cannot hold — that is the proposal: during a
+ *     gear drop's LootMoment, hold the enemy slot empty (defer
+ *     the roster advance) so the beam celebrates over the kill
+ *     site.
+ * Fix B (de-cluster) applies to every cluster: the total is
+ * born alone; the anatomy satellites stagger in at 150/200/
+ * 250ms down a vertical staircase (+0/+18/+36px birth steps);
+ * procs follow at 350–450ms.
  */
 
 /** The hunter's equipped weapon — a flat rolled item, the shape
@@ -200,8 +232,31 @@ const REST_EVENT = {
   areaId: DEFAULT_ROAMING_AREA_ID,
 } as TickEvent;
 
-/** Seed every store the Home tree reads, BEFORE it mounts. */
-const seedStores = (killScene: boolean) => {
+/** The drop celebration's anchors, computed with the production
+ *  derivation itself (deriveRoamScene's enemyLoot / enemyFeet for
+ *  the standing target): the wraith sprite's lootPoint / feet
+ *  anchors over ROAM_ENEMY_PLACEMENT at the area's ground line —
+ *  the exact values RoamPixiStage passes its LootMoment. */
+const dropAnchorPct = () => {
+  const bgId = pixelBackgroundForArea(DEFAULT_ROAMING_AREA_ID);
+  const bg = bgId ? getPixelSprite(bgId) : undefined;
+  const groundY = bg?.anchors.groundLine?.y ?? 0.86;
+  const spriteId = pixelEnemySpriteForArchetype(getMonster('dustwaste_raider')?.archetype);
+  const sprite = spriteId ? getPixelSprite(spriteId) : undefined;
+  if (!sprite) return null;
+  const placement = { ...ROAM_ENEMY_PLACEMENT, groundY };
+  return {
+    loot: actorAnchorPoint(sprite, 'lootPoint', placement),
+    feet: actorAnchorPoint(sprite, 'feet', placement),
+  };
+};
+
+/** Seed every store the Home tree reads, BEFORE it mounts.
+ *  Modes: 'rest' — the fight at rest (wraith 300, shield 64);
+ *  'kill' — the ?scene=kill composition (wraith held at 0 HP,
+ *  shield 88, no standing event); 'tick3' — the tick-3 state
+ *  the kill lands from (wraith 100, shield 88, rest standing). */
+const seedStores = (mode: 'rest' | 'kill' | 'tick3') => {
   usePlayerStore.setState({
     id: 'numbers-home-harness',
     level: 5,
@@ -222,7 +277,7 @@ const seedStores = (killScene: boolean) => {
   useSurvivalSlice.setState({
     currentHp: HUNTER_HP,
     maxHp: HUNTER_MAX_HP,
-    shieldHp: killScene ? 88 : 64,
+    shieldHp: mode === 'rest' ? 64 : 88,
     isDead: false,
   });
   useActivityStore.setState({
@@ -243,10 +298,10 @@ const seedStores = (killScene: boolean) => {
   useIdleStore.setState({ selectedRoamingAreaId: DEFAULT_ROAMING_AREA_ID } as never);
   useKillCycleStore.setState({
     currentTargetId: 'dustwaste_raider',
-    currentTargetHp: killScene ? 0 : ENEMY_MAX,
+    currentTargetHp: mode === 'kill' ? 0 : mode === 'tick3' ? 100 : ENEMY_MAX,
     currentTargetHpMax: ENEMY_MAX,
   });
-  useTickFeedStore.setState({ events: killScene ? [] : [REST_EVENT] });
+  useTickFeedStore.setState({ events: mode === 'kill' ? [] : [REST_EVENT] });
   // Harness stub: the workshop mirror refresh is a server call;
   // the bench is not on this screen's workspace (roaming is).
   useWorkshopStore.setState({ refresh: async () => undefined } as never);
@@ -259,7 +314,20 @@ const SHIPPED_NUMBER_OFF =
 export const NumbersHomeHarnessPage: React.FC = () => {
   const [params] = useState(() => new URLSearchParams(window.location.search));
   const killScene = params.get('scene') === 'kill';
+  const killHoldScene = params.get('scene') === 'killhold';
+  const dropScene = params.get('scene') === 'drop';
   const probe = params.get('probe') === '1';
+  /** ?scene=drop (PROPOSAL): the harness-mounted LootMoment's
+   *  host box — the live Pixi stage's rect, resolved at seed
+   *  time — plus the production-derived beam anchors. */
+  const [dropHost, setDropHost] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    anchorXPct: number;
+    groundYPct: number;
+  } | null>(null);
   const [floats, setFloats] = useState<HomeFloatSpec[]>([]);
   const floatsRef = useRef<HomeFloatSpec[]>([]);
   floatsRef.current = floats;
@@ -283,7 +351,7 @@ export const NumbersHomeHarnessPage: React.FC = () => {
   useState(() => {
     const slow = Number.parseFloat(params.get('slow') ?? '1');
     if (Number.isFinite(slow) && slow > 0 && slow !== 1) setFloatTimeScale(slow);
-    seedStores(killScene);
+    seedStores(killScene ? 'kill' : killHoldScene || dropScene ? 'tick3' : 'rest');
   });
 
   const expireFloat = useCallback((id: number) => {
@@ -355,14 +423,18 @@ export const NumbersHomeHarnessPage: React.FC = () => {
       const ex = enemyCenterX();
       const driftFrom = (pt: { x: number; y: number } | null) =>
         pt && ex ? Math.max(0, Math.min(90, (ex - pt.x) * 0.35)) : 0;
+      // Fix B (de-cluster): the crit total is born alone and owns
+      // its patch of sky; the anatomy satellites stagger in at
+      // 150/200/250ms down a vertical staircase (+0/+18/+36px
+      // birth steps); the procs follow at 350/450ms.
       const specs: Array<Omit<HomeFloatSpec, 'id'>> = [];
       if (plate) specs.push({ x: plate.x, y: plate.y - 4, kind: 'critTotal', text: '-156', tag: 'CRIT', color: HOME_FLOAT_COLORS.crit });
-      if (dmg) specs.push({ x: dmg.x, y: dmg.y, kind: 'satellite', text: '-88', tag: 'DMG', color: HOME_FLOAT_COLORS.dmg, driftPx: driftFrom(dmg) });
-      if (spd) specs.push({ x: spd.x, y: spd.y, kind: 'satellite', text: '-12', tag: 'SPD', color: HOME_FLOAT_COLORS.spd, driftPx: driftFrom(spd) });
+      if (dmg) specs.push({ x: dmg.x, y: dmg.y, kind: 'satellite', text: '-88', tag: 'DMG', color: HOME_FLOAT_COLORS.dmg, driftPx: driftFrom(dmg), delayMs: 150 });
+      if (spd) specs.push({ x: spd.x, y: spd.y + 18, kind: 'satellite', text: '-12', tag: 'SPD', color: HOME_FLOAT_COLORS.spd, driftPx: driftFrom(spd), delayMs: 200 });
       if (impact) {
-        specs.push({ x: impact.x - 16, y: impact.y, kind: 'satellite', text: '-24', tag: 'FIRE', color: HOME_FLOAT_COLORS.fire, travelPx: 120 });
-        specs.push({ x: impact.x + 14, y: impact.y + 6, kind: 'proc', text: '+14', tag: 'MOLTEN', color: HOME_FLOAT_COLORS.molten, delayMs: 150, travelPx: 125 });
-        specs.push({ x: impact.x + 34, y: impact.y + 2, kind: 'proc', text: '+18', tag: 'ECHO', color: HOME_FLOAT_COLORS.echo, delayMs: 200, travelPx: 125 });
+        specs.push({ x: impact.x - 16, y: impact.y + 36, kind: 'satellite', text: '-24', tag: 'FIRE', color: HOME_FLOAT_COLORS.fire, travelPx: 120, delayMs: 250 });
+        specs.push({ x: impact.x + 14, y: impact.y + 10, kind: 'proc', text: '+14', tag: 'MOLTEN', color: HOME_FLOAT_COLORS.molten, delayMs: 350, travelPx: 125 });
+        specs.push({ x: impact.x + 34, y: impact.y + 20, kind: 'proc', text: '+18', tag: 'ECHO', color: HOME_FLOAT_COLORS.echo, delayMs: 450, travelPx: 125 });
       }
       spawn(specs);
       flashCell('hero-stat-dmgTick', HOME_FLOAT_COLORS.dmg);
@@ -370,6 +442,52 @@ export const NumbersHomeHarnessPage: React.FC = () => {
       flashCell('hero-stat-critChance', HOME_FLOAT_COLORS.crit);
       flashCell('hero-stat-critDamage', HOME_FLOAT_COLORS.crit);
     };
+
+    if (killHoldScene || dropScene) {
+      // The honest pair: fire the production kill (standing kill
+      // event + HP 0 + the Fix-B crit cluster) and END — no loot
+      // seed, no roster advance. The kill event stands and the
+      // wraith stays dissolved: the state the shipped game
+      // itself holds between the kill claim and the next claim.
+      const fireKill = () => {
+        seedBeatEvent({ tone: 'kill', label: '-156', value: 156 });
+        useKillCycleStore.setState({ currentTargetHp: 0 });
+        critCluster();
+      };
+      const w = window as unknown as Record<string, unknown>;
+      if (killHoldScene) {
+        w.__seedKillHold = fireKill;
+      } else {
+        // PROPOSAL ONLY: once the 500ms dissolve has completed,
+        // mount the production LootMoment over the held kill
+        // state — the composition today's single-standing-event
+        // model cannot hold (header note). Host box = the live
+        // Pixi stage's rect; anchors = the production derivation.
+        w.__seedProposalDrop = () => {
+          fireKill();
+          later(550, () => {
+            const stage = document.querySelector('[data-testid="roam-pixi-stage"]');
+            const wrap = wrapRef.current;
+            const anchors = dropAnchorPct();
+            if (!stage || !wrap || !anchors) return;
+            const sr = stage.getBoundingClientRect();
+            const wr = wrap.getBoundingClientRect();
+            setDropHost({
+              left: sr.left - wr.left,
+              top: sr.top - wr.top,
+              width: sr.width,
+              height: sr.height,
+              anchorXPct: anchors.loot.xPct,
+              groundYPct: anchors.feet.yPct,
+            });
+          });
+        };
+      }
+      return () => {
+        timers.current.forEach((t) => window.clearTimeout(t));
+        timers.current = [];
+      };
+    }
 
     if (killScene) {
       // Kill-drop composition: the kill has landed — the kill
@@ -419,9 +537,9 @@ export const NumbersHomeHarnessPage: React.FC = () => {
         const impact = impactBirth();
         const specs: Array<Omit<HomeFloatSpec, 'id'>> = [];
         if (plate) specs.push({ x: plate.x, y: plate.y - 4, kind: 'total', text: '-96', color: HOME_FLOAT_COLORS.total });
-        if (dmg) specs.push({ x: dmg.x, y: dmg.y, kind: 'satellite', text: '-58', tag: 'DMG', color: HOME_FLOAT_COLORS.dmg, driftPx: driftFrom(dmg) });
-        if (spd) specs.push({ x: spd.x, y: spd.y, kind: 'satellite', text: '-16', tag: 'SPD', color: HOME_FLOAT_COLORS.spd, driftPx: driftFrom(spd) });
-        if (impact) specs.push({ x: impact.x, y: impact.y, kind: 'satellite', text: '-22', tag: 'FIRE', color: HOME_FLOAT_COLORS.fire, travelPx: 120 });
+        if (dmg) specs.push({ x: dmg.x, y: dmg.y, kind: 'satellite', text: '-58', tag: 'DMG', color: HOME_FLOAT_COLORS.dmg, driftPx: driftFrom(dmg), delayMs: 150 });
+        if (spd) specs.push({ x: spd.x, y: spd.y + 18, kind: 'satellite', text: '-16', tag: 'SPD', color: HOME_FLOAT_COLORS.spd, driftPx: driftFrom(spd), delayMs: 200 });
+        if (impact) specs.push({ x: impact.x, y: impact.y + 36, kind: 'satellite', text: '-22', tag: 'FIRE', color: HOME_FLOAT_COLORS.fire, travelPx: 120, delayMs: 250 });
         spawn(specs);
         flashCell('hero-stat-dmgTick', HOME_FLOAT_COLORS.dmg);
         flashCell('hero-stat-dps', HOME_FLOAT_COLORS.spd);
@@ -435,13 +553,16 @@ export const NumbersHomeHarnessPage: React.FC = () => {
         const dmg = cellBirth('hero-stat-dmgTick');
         const spd = cellBirth('hero-stat-dps');
         const impact = impactBirth();
+        // Fix B (de-cluster), same pattern as the crit cluster:
+        // total alone at birth; DMG/SPD/FIRE staggered 150/200/
+        // 250ms down the staircase; the proc follows at 400ms.
         const specs: Array<Omit<HomeFloatSpec, 'id'>> = [];
         if (plate) specs.push({ x: plate.x, y: plate.y - 4, kind: 'total', text: '-104', color: HOME_FLOAT_COLORS.total });
-        if (dmg) specs.push({ x: dmg.x, y: dmg.y, kind: 'satellite', text: '-52', tag: 'DMG', color: HOME_FLOAT_COLORS.dmg, driftPx: driftFrom(dmg) });
-        if (spd) specs.push({ x: spd.x, y: spd.y, kind: 'satellite', text: '-14', tag: 'SPD', color: HOME_FLOAT_COLORS.spd, driftPx: driftFrom(spd) });
+        if (dmg) specs.push({ x: dmg.x, y: dmg.y, kind: 'satellite', text: '-52', tag: 'DMG', color: HOME_FLOAT_COLORS.dmg, driftPx: driftFrom(dmg), delayMs: 150 });
+        if (spd) specs.push({ x: spd.x, y: spd.y + 18, kind: 'satellite', text: '-14', tag: 'SPD', color: HOME_FLOAT_COLORS.spd, driftPx: driftFrom(spd), delayMs: 200 });
         if (impact) {
-          specs.push({ x: impact.x - 10, y: impact.y, kind: 'satellite', text: '-18', tag: 'FIRE', color: HOME_FLOAT_COLORS.fire, travelPx: 120 });
-          specs.push({ x: impact.x + 16, y: impact.y + 6, kind: 'proc', text: '+20', tag: 'MOLTEN', color: HOME_FLOAT_COLORS.molten, delayMs: 120, travelPx: 125 });
+          specs.push({ x: impact.x - 10, y: impact.y + 36, kind: 'satellite', text: '-18', tag: 'FIRE', color: HOME_FLOAT_COLORS.fire, travelPx: 120, delayMs: 250 });
+          specs.push({ x: impact.x + 16, y: impact.y + 12, kind: 'proc', text: '+20', tag: 'MOLTEN', color: HOME_FLOAT_COLORS.molten, delayMs: 400, travelPx: 125 });
         }
         spawn(specs);
         flashCell('hero-stat-dmgTick', HOME_FLOAT_COLORS.dmg);
@@ -514,6 +635,31 @@ export const NumbersHomeHarnessPage: React.FC = () => {
           <div ref={wrapRef} style={{ position: 'relative' }}>
             <HomeScreen onNavigate={() => undefined} onOpenBossSelect={() => undefined} />
             <FloatLayerHome floats={floats} onExpire={expireFloat} probe={probe} />
+            {dropHost && (
+              // ?scene=drop PROPOSAL: the production LootMoment,
+              // harness-mounted over the held kill state in a host
+              // box matching the live stage rect (see header).
+              <div
+                style={{
+                  position: 'absolute',
+                  left: dropHost.left,
+                  top: dropHost.top,
+                  width: dropHost.width,
+                  height: dropHost.height,
+                  pointerEvents: 'none',
+                  zIndex: 60,
+                }}
+              >
+                <LootMoment
+                  items={[DROP_GEAR]}
+                  surface="feed"
+                  reduced={false}
+                  anchorXPct={dropHost.anchorXPct}
+                  groundYPct={dropHost.groundYPct}
+                  testId="diorama-loot-moment"
+                />
+              </div>
+            )}
           </div>
         </div>
         <BottomNav activeTab="home" onChange={() => undefined} />
