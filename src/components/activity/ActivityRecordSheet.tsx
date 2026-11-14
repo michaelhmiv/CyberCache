@@ -12,7 +12,8 @@
  * story still reads true.
  */
 import type { ReactNode } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { sheetMotionProps } from '@/lib/animation/uiMotion';
 import { SheetPortal } from '@/components/common/SheetPortal';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import type { PxIconName } from '@/lib/pixel/icons';
@@ -410,6 +411,7 @@ function kindSections(record: ActivityRecord): ReactNode {
 }
 
 export function ActivityRecordSheet({ record, onClose }: { record: ActivityRecord | null; onClose: () => void }) {
+  const sheet = sheetMotionProps(useReducedMotion());
   const face = record ? recordFace(record) : null;
   const rarityColor = record?.item ? rarityHex(record.item.rarity) : '#F5F5F5';
   return (
@@ -418,12 +420,11 @@ export function ActivityRecordSheet({ record, onClose }: { record: ActivityRecor
         {record && face && (
           <motion.div
             className="fixed inset-0 z-[70] flex items-end justify-center bg-black/85"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            {...sheet.backdrop}
             onClick={onClose}
           >
             <motion.div
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+{...sheet.panel}
               className="max-h-[92vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.75)]"
               style={panelClip}
               onClick={(event) => event.stopPropagation()}

@@ -2611,6 +2611,11 @@ for a held reward). The whole beat runs about 1.2 seconds and
 settles. It plays once per claim: acknowledging the sheet,
 remounting, or re-reading the same day never replays it, and an
 already-claimed day opens the quiet sheet with no motion at all.
+**Owner ruling 2026-11-13:** closing the sheet by any route — not
+only tapping through the claim — marks the claim as seen
+(`seenClaimKey` is set on close), so the ceremony greets a fresh
+claim exactly once however the sheet is dismissed; reopening it
+later shows the quiet, banked poster. Implemented in PR #570.
 **Reduced motion** collapses the moment to its settled frame —
 rows simply present, balance already final.
 

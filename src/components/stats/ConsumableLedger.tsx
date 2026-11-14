@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { sheetMotionProps } from '@/lib/animation/uiMotion';
 import { X, ChevronRight } from 'lucide-react';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { LoadoutConsumables } from '@/store/slices/loadoutSlice';
@@ -40,7 +41,13 @@ export const ConsumableLedger: React.FC<{
   inventory: Record<string, number>;
   focusedSlot?: keyof LoadoutConsumables | null;
   onClose: () => void;
-}> = ({ consumables, inventory, focusedSlot, onClose }) => {
+  /** Presence control (Stage Iteration C1): the caller keeps the
+   *  ledger mounted and drives visibility through this prop so
+   *  the exit animation plays on close. */
+  open?: boolean;
+}> = ({ consumables, inventory, focusedSlot, onClose, open }) => {
+  const sheet = sheetMotionProps(useReducedMotion());
+  const isOpen = open ?? true;
   const now = useNow();
   const [pickingSlot, setPickingSlot] = useState<keyof LoadoutConsumables | null>(null);
   const loadout = useLoadoutStore();
@@ -83,18 +90,14 @@ export const ConsumableLedger: React.FC<{
 
   return (
     <AnimatePresence>
+      {isOpen && (
       <motion.div
         className="fixed inset-0 z-[85] flex items-end justify-center bg-black/80"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
+        {...sheet.backdrop}
         onClick={onClose}
       >
         <motion.div
-          initial={{ y: '100%' }}
-          animate={{ y: 0 }}
-          exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+          {...sheet.panel}
           className="max-h-[80vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-4 shadow-[0_-12px_32px_rgba(0,0,0,0.7)]"
           style={panelClip}
           onClick={(e) => e.stopPropagation()}
@@ -319,6 +322,7 @@ export const ConsumableLedger: React.FC<{
           )}
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 };

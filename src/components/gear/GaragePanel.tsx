@@ -48,17 +48,25 @@ const KIT_LABELS: Record<string, string> = {
  */
 export const VehicleSprite: React.FC<{ vehicle: VehicleDisplay; widthClass?: string }> = ({ vehicle, widthClass = 'w-[92px]' }) => {
   const fraction = conditionFraction(vehicle.conditionCurrent, vehicle.conditionMax);
+  // Containment (owner device defect, 2026-11-13): the adopted affix
+  // paintings are independent canvases, NOT pixel-aligned layers of the
+  // class painting — scanner-array is square (1600×1600) against a
+  // ~2.06:1 class canvas. An overlay stretched to the box width at its
+  // own aspect renders ~2× the box height and spills over the card's
+  // Condition row. Overlays therefore fit INSIDE the base-defined box
+  // (h-full + object-contain: whole painting, undistorted, never a
+  // pixel outside), and the wrapper clips as a hard guarantee.
   const overlay = (id: string) => (
     <img
       src={getPixelSprite(id)?.url}
       alt=""
       draggable={false}
-      className="absolute inset-0 w-full"
+      className="absolute inset-0 h-full w-full object-contain"
       style={{ imageRendering: 'pixelated' }}
     />
   );
   return (
-    <div className={`relative ${widthClass} shrink-0 self-start`} data-testid="garage-vehicle-sprite">
+    <div className={`relative ${widthClass} shrink-0 self-start overflow-hidden`} data-testid="garage-vehicle-sprite">
       <img
         src={getPixelSprite(`vehicle-${vehicle.vehicleClassId.replace(/_/g, '-')}`)?.url}
         alt=""

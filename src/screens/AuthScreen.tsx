@@ -1,6 +1,7 @@
 import React from 'react';
 import { Capacitor } from '@capacitor/core';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { stopTransitionProps } from '@/lib/animation/uiMotion';
 import { useAuth } from '../auth/AuthProvider';
 import { AuthHero } from '@/components/common/AuthHero';
 
@@ -24,6 +25,7 @@ import { AuthHero } from '@/components/common/AuthHero';
  */
 export const AuthScreen: React.FC = () => {
   const auth = useAuth();
+  const reduceMotion = useReducedMotion();
   const isNative = Capacitor.isNativePlatform();
 
   const message = auth.authError;
@@ -32,8 +34,8 @@ export const AuthScreen: React.FC = () => {
   return (
     <div className="bl-page flex min-h-full items-center justify-center p-4 text-text-primary">
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
+        {...stopTransitionProps(reduceMotion)}
+        exit={undefined}
         className="bl-card w-full max-w-sm space-y-4 p-5"
       >
         <div className="space-y-3 text-center">
