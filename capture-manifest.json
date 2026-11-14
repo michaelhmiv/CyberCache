@@ -1,1 +1,35 @@
-{"captures":[{"label":"roam-sweep","path":"/roam-harness.html?width=390","plan":"capture/plans/roam-sweep.json","prefix":"sw"},{"expect":["camp-roaming","camp-camp-early","camp-camp-settled","camp-resumed"],"label":"roam-camp","path":"/roam-harness.html?width=390","plan":"capture/plans/roam-camp.json","prefix":"camp"},{"expect":["endp-settled","endp-later","endp-latest"],"label":"endless-presence","path":"/endless-harness.html?scene=presence&width=390","plan":"capture/plans/endless-scene.json","prefix":"endp"},{"expect":["endf-settled","endf-later","endf-latest"],"label":"endless-fight","path":"/endless-harness.html?scene=fight&width=390","plan":"capture/plans/endless-scene.json","prefix":"endf"},{"expect":["endd-settled","endd-later","endd-latest"],"label":"endless-defeat","path":"/endless-harness.html?scene=defeat&width=390","plan":"capture/plans/endless-scene.json","prefix":"endd"}],"harnessPage":"/roam-harness.html?width=390","iter":"aud-shell","port":7134}
+{
+ "iter": "aud-sweep2",
+ "port": 7135,
+ "harnessPage": "/roam-harness.html?width=390",
+ "captures": [
+  {
+   "label": "roam-sweep2",
+   "path": "/roam-harness.html?width=390",
+   "plan": "capture/plans/roam-sweep2.json",
+   "prefix": "sw",
+   "expect": [
+    "sw-sweep-00",
+    "sw-sweep-01",
+    "sw-sweep-02",
+    "sw-sweep-03",
+    "sw-sweep-04",
+    "sw-sweep-05",
+    "sw-sweep-06",
+    "sw-sweep-07",
+    "sw-sweep-08",
+    "sw-sweep-09",
+    "sw-sweep-10",
+    "sw-sweep-11",
+    "sw-sweep-12",
+    "sw-sweep-13",
+    "sw-sweep-14",
+    "sw-sweep-15",
+    "sw-sweep-16",
+    "sw-sweep-17",
+    "sw-sweep-18",
+    "sw-sweep-19"
+   ]
+  }
+ ]
+}
