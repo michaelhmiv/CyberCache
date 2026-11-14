@@ -1,0 +1,135 @@
+{
+ "iter": "hunters-r2",
+ "port": 7130,
+ "harnessPage": "/hunters-harness.html",
+ "captures": [
+  {
+   "label": "vesper-roam-dom",
+   "path": "/hunters-harness.html?page=roam&renderer=dom&painting=vesper",
+   "plan": "capture/plans/vesper-roam-dom.json",
+   "expect": [
+    "vesper-roam-dom"
+   ]
+  },
+  {
+   "label": "vesper-roam-pixi",
+   "path": "/hunters-harness.html?page=roam&renderer=pixi&painting=vesper",
+   "plan": "capture/plans/vesper-roam-pixi.json",
+   "expect": [
+    "vesper-roam-pixi"
+   ]
+  },
+  {
+   "label": "silas-roam-dom",
+   "path": "/hunters-harness.html?page=roam&renderer=dom&painting=silas",
+   "plan": "capture/plans/silas-roam-dom.json",
+   "expect": [
+    "silas-roam-dom"
+   ]
+  },
+  {
+   "label": "silas-roam-pixi",
+   "path": "/hunters-harness.html?page=roam&renderer=pixi&painting=silas",
+   "plan": "capture/plans/silas-roam-pixi.json",
+   "expect": [
+    "silas-roam-pixi"
+   ]
+  },
+  {
+   "label": "josie-roam-dom",
+   "path": "/hunters-harness.html?page=roam&renderer=dom&painting=josie",
+   "plan": "capture/plans/josie-roam-dom.json",
+   "expect": [
+    "josie-roam-dom"
+   ]
+  },
+  {
+   "label": "josie-roam-pixi",
+   "path": "/hunters-harness.html?page=roam&renderer=pixi&painting=josie",
+   "plan": "capture/plans/josie-roam-pixi.json",
+   "expect": [
+    "josie-roam-pixi"
+   ]
+  },
+  {
+   "label": "doc-roam-dom",
+   "path": "/hunters-harness.html?page=roam&renderer=dom&painting=doc",
+   "plan": "capture/plans/doc-roam-dom.json",
+   "expect": [
+    "doc-roam-dom"
+   ]
+  },
+  {
+   "label": "doc-roam-pixi",
+   "path": "/hunters-harness.html?page=roam&renderer=pixi&painting=doc",
+   "plan": "capture/plans/doc-roam-pixi.json",
+   "expect": [
+    "doc-roam-pixi"
+   ]
+  },
+  {
+   "label": "parade-roam-dom",
+   "path": "/hunters-harness.html?page=roam&renderer=dom&painting=parade",
+   "plan": "capture/plans/josie-parade-roam-dom.json",
+   "expect": [
+    "josie-parade-roam-dom"
+   ]
+  },
+  {
+   "label": "vesper-boss",
+   "path": "/hunters-harness.html?page=boss&painting=vesper",
+   "plan": "capture/plans/vesper-boss-stage.json",
+   "expect": [
+    "vesper-boss-stage"
+   ]
+  },
+  {
+   "label": "silas-endless",
+   "path": "/hunters-harness.html?page=endless&painting=silas",
+   "plan": "capture/plans/silas-endless.json",
+   "expect": [
+    "silas-endless"
+   ]
+  },
+  {
+   "label": "doc-camp",
+   "path": "/hunters-harness.html?page=roam&scene=camp&renderer=dom&painting=doc",
+   "plan": "capture/plans/doc-camp.json",
+   "expect": [
+    "doc-camp"
+   ]
+  },
+  {
+   "label": "hunter-menu",
+   "path": "/hunters-harness.html?page=huntertab&stop=hub&painting=vesper",
+   "plan": "capture/plans/hunter-menu.json",
+   "expect": [
+    "hunter-menu"
+   ]
+  },
+  {
+   "label": "hunter-tree",
+   "path": "/hunters-harness.html?page=huntertab&stop=trees&painting=silas",
+   "plan": "capture/plans/hunter-tree.json",
+   "expect": [
+    "hunter-tree"
+   ]
+  },
+  {
+   "label": "hunter-wardrobe",
+   "path": "/hunters-harness.html?page=huntertab&stop=wardrobe&painting=parade",
+   "plan": "capture/plans/hunter-wardrobe.json",
+   "expect": [
+    "hunter-wardrobe"
+   ]
+  },
+  {
+   "label": "roster",
+   "path": "/hunters-harness.html?page=roster",
+   "plan": "capture/plans/roster-proposed.json",
+   "expect": [
+    "roster-proposed"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1 @@
+{"dsf": 2, "width": 412, "height": 915, "steps": [{"wait": 6000}, {"eval": "[...document.querySelectorAll('button')].filter(b=>b.textContent.includes('Demolition')).sort((a,b)=>a.textContent.length-b.textContent.length)[0]?.click()", "wait": 1800}, {"shot": "hunter-tree"}]}

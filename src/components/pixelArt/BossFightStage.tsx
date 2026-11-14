@@ -3,6 +3,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useAnimationControls } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
 import { PixelPartsActor } from './PixelPartsActor';
+import { activePainting, PaintedHunterFigure } from '@/harness/paintingSwap';
 import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
 import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
 import { layoutPartSet } from '@/lib/pixel/partsCompositor';
@@ -349,7 +350,10 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
               layers. Unarmed, the hunter stands 'relaxed' with no
               weapon layer at all: nothing baked in, nothing pasted
               on. */}
-          <PixelPartsActor
+          {activePainting() ? (
+            <PaintedHunterFigure painting={activePainting()!} {...hunterPlacement} testId="boss-stage-hunter" />
+          ) : (
+            <PixelPartsActor
             set={hunterSet}
             partPalettes={look.partPalettes}
             {...hunterPlacement}
@@ -359,6 +363,7 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
             weaponTestId="boss-stage-weapon"
             testId="boss-stage-hunter"
           />
+          )}
         </motion.div>
 
         {/* Boss — drop-in landing, hit reaction, telegraphed lunge, death.

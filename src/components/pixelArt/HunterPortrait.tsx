@@ -8,6 +8,7 @@
  */
 import React from 'react';
 import { PixelPartsActor } from './PixelPartsActor';
+import { activePainting, PaintedHunterFigure } from '@/harness/paintingSwap';
 import type { ResolvedLook } from '@/lib/pixel/lookResolution';
 import type { PixelWeaponInput } from '@/lib/pixel/weaponCompositor';
 
@@ -23,6 +24,9 @@ export const HunterPortrait: React.FC<{
     data-testid={testId}
     data-look-set={look.set.id}
   >
+    {activePainting() ? (
+      <PaintedHunterFigure painting={activePainting()!} xPct={50} heightPct={94} groundY={0.97} testId={testId ? `${testId}-actor` : undefined} />
+    ) : (
     <PixelPartsActor
       set={look.set}
       partPalettes={look.partPalettes}
@@ -34,5 +38,6 @@ export const HunterPortrait: React.FC<{
       weaponInput={weaponInput}
       testId={testId ? `${testId}-actor` : undefined}
     />
+    )}
   </div>
 );

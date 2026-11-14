@@ -41,6 +41,7 @@ import {
 } from '@/lib/pixel/travelChoreography';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
+import { activePainting, PaintedHunterFigure } from '@/harness/paintingSwap';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import {
   EXTRACTION_RISE_STAGGER_MS,
@@ -1392,7 +1393,9 @@ const PixelSceneLayerDom: React.FC<{
         initial={false}
         animate={reduced ? undefined : hunterControls}
       >
-        {showEnemy ? (
+        {activePainting() ? (
+          <PaintedHunterFigure painting={activePainting()!} {...hunterPlacement} testId="pixel-hunter" />
+        ) : showEnemy ? (
           <PixelPartsActor
             set={hunterSet}
             partPalettes={look.partPalettes}
