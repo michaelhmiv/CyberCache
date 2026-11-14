@@ -49,7 +49,7 @@ describe('SkillTreeScreen — Fixer tab', () => {
     for (const name of [
       'Assembly Rhythm', 'Parallel Hands', 'Calibrated Eye',
       'Rig Tuning', "Appraiser's Eye", 'Master Artificer',
-      'Fleet Engineer', 'House Brand', 'Second Shift', 'The Fixer',
+      'Fleet Engineer', 'House Brand', 'Second Shift', "Sutter's Hands",
     ]) {
       expect(screen.getAllByText(name).length, name).toBeGreaterThan(0);
     }
@@ -66,7 +66,7 @@ describe('SkillTreeScreen — Fixer tab', () => {
     // The keystone is gated: its majors are unmet, so a tap selects
     // but never trains. (Audit COPY-03: a lone tier node renders in
     // exactly one grid slot — it used to render twice.)
-    fireEvent.click(screen.getAllByRole('button', { name: /The Fixer/ })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /Sutter's Hands/ })[0]);
     expect(mockTrain).toHaveBeenCalledTimes(1);
   }, 30_000);
 });

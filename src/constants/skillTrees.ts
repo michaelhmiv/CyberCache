@@ -80,7 +80,7 @@ export const SKILL_NODES: SkillNode[] = [
   { id: 'scav_fee_1', tree: SkillTreeType.Scavenger, tier: 6, index: 2, name: 'Darknet Broker', description: '+5% Marketplace Listing Fee Reduction', type: 'small', maxPoints: 5, cost: 1, effects: { marketFeeReduction: 0.05 } },
   // Major
   { id: 'scav_major_1', tree: SkillTreeType.Scavenger, tier: 7, index: 1, name: 'Hoarder\'s Instinct', description: 'Salvaging gear grants +25% bonus scrap.', type: 'major', maxPoints: 1, cost: 3, effects: { salvageBonus: 0.25 }, requires: ['scav_scrap_1', 'scav_scrap_2'] },
-  { id: 'scav_major_2', tree: SkillTreeType.Scavenger, tier: 7, index: 2, name: 'Insurance Fraud', description: 'Consumables used in a victorious boss fight have a 50% chance to be refunded.', type: 'major', maxPoints: 1, cost: 3, effects: { consumableRecovery: 0.50 }, requires: ['scav_cons_1', 'scav_cons_2'] },
+  { id: 'scav_major_2', tree: SkillTreeType.Scavenger, tier: 7, index: 2, name: 'Fine Print', description: 'Consumables used in a victorious boss fight have a 50% chance to be refunded.', type: 'major', maxPoints: 1, cost: 3, effects: { consumableRecovery: 0.50 }, requires: ['scav_cons_1', 'scav_cons_2'] },
   { id: 'scav_major_3', tree: SkillTreeType.Scavenger, tier: 8, index: 1, name: 'Market Manipulator', description: 'Listing fees reduced an additional 15% for items you personally found.', type: 'major', maxPoints: 1, cost: 3, effects: { foundItemFeeReduction: 0.15 }, requires: ['scav_fee_1'] },
   { id: 'scav_major_4', tree: SkillTreeType.Scavenger, tier: 8, index: 2, name: 'Lucky Find', description: '+15% Rare Drop Chance.', type: 'major', maxPoints: 1, cost: 3, effects: { rareDropChance: 0.15 }, requires: ['scav_drop_1', 'scav_drop_2'] },
   // Growth branch — opportunist combat sprinkle (reshape slice (a),
@@ -129,7 +129,7 @@ export const SKILL_NODES: SkillNode[] = [
   { id: 'fix_armor_1', tree: SkillTreeType.Fixer, tier: 4, index: 3, name: 'Stress Points', description: '+10% Armor Damage', type: 'small', maxPoints: 5, cost: 1, effects: { armorDamageMod: 0.10 } },
   { id: 'fix_stag_1', tree: SkillTreeType.Fixer, tier: 5, index: 3, name: 'Loose Bolts', description: '+5% Stagger Chance', type: 'small', maxPoints: 5, cost: 1, effects: { staggerChance: 0.05 } },
   // Keystone
-  { id: 'fix_keystone', tree: SkillTreeType.Fixer, tier: 9, index: 1, name: 'The Fixer', description: 'Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%.', type: 'keystone', maxPoints: 1, cost: 5, effects: { coreCatalystDrawBonus: 1, workshopQueueBonus: 1, rushReductionCapBonus: 0.10 }, requires: ['fix_major_1', 'fix_major_2', 'fix_major_4'] },
+  { id: 'fix_keystone', tree: SkillTreeType.Fixer, tier: 9, index: 1, name: 'Sutter\'s Hands', description: 'Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%.', type: 'keystone', maxPoints: 1, cost: 5, effects: { coreCatalystDrawBonus: 1, workshopQueueBonus: 1, rushReductionCapBonus: 0.10 }, requires: ['fix_major_1', 'fix_major_2', 'fix_major_4'] },
 ];
 
 // The point budget is NOT a constant: a player holds (level − 1)

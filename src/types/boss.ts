@@ -112,6 +112,13 @@ export interface BossCadence {
 export interface BossDef {
   id: string;
   name: string;
+  /**
+   * Slice (f2): ONE dry dossier line — persona, not a joke, and never
+   * readiness/win-intel language (Boss Intel Law). Display-only: no
+   * engine reads it. Authored bosses all carry exactly one; generated
+   * encounters (Endless/Chamber) carry none by design.
+   */
+  dossier?: string;
   tier: number;
   level: number;
   health: number;

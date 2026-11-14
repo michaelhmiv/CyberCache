@@ -375,9 +375,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 306 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 307 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-14** — 6 merges
+**2026-11-14** — 7 merges
 
 - #566 — Stage iteration B2 — shell & parity: Pixi takeover readiness gate (no more black flash)
 - #570 — Stage iteration C1: crafting & every remaining animation (DO NOT MERGE — owner clip review)
@@ -385,6 +385,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #573 — Stage iteration R2 — drops & moments: corpse-anchored readable rises (DO NOT MERGE — owner clip review)
 - #574 — Stage iteration B1: per-boss stage scale + capture-arbitrated boss staging
 - #575 — Stage iteration: paint the three blank set-piece interiors
+- #585 — Cache Hunters slice (a): per-hunter pools, loadouts, binding, conversion (migration 0097)
 
 **2026-11-13** — 10 merges
 

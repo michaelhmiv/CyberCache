@@ -1,8 +1,8 @@
 # Vendor
 
-The NPC vendor is the beginner on-ramp: a counter that is always open,
+The vendor is **Marla Quill**, and her counter is the beginner on-ramp: always open,
 never out of stock, and happy to sell you the basics so a new hunter can
-always gear up for the next roam. What the vendor sells is deliberately
+always gear up for the next roam. What Marla sells is deliberately
 baseline — flat **100% quality**, no rarities, no surprises. Anything
 better (quality above 100%, crafter-only types, the good ammo) comes only
 from [[Crafting|crafters]] and [[The Market]].
@@ -27,7 +27,7 @@ Nine consumables are stocked every day, in unlimited quantity:
 
 | Staple | Price |
 |---|---|
-| Generic Fuel Cell | 40 cr |
+| Jerrican | 40 cr |
 | Ammo Pack | 150 cr |
 | Patch Kit | 150 cr |
 | Med Kit | 250 cr |

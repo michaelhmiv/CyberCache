@@ -1,20 +1,25 @@
 /**
- * TechFragments → "Tech" display rename (owner ruling, 2026-11-02).
+ * TechFragments display name — "Tech Fragments" (slice (f), Ruling 2).
  *
- * The resource collided by name with Cache Fragments (the cache-key
- * shard system). The ruling renames the DISPLAY name only: the
- * internal id stays 'TechFragments' because it is persisted player
- * data — it is the key in the profiles.materials JSONB map, the id in
- * applied-migration SQL whitelists and recipe payloads, and the wire
- * token in Chef feed labels. These tests pin both halves of that
- * contract so neither can drift:
+ * HISTORY: an owner ruling of 2026-11-02 renamed the DISPLAY name to
+ * "Tech" because the resource collided by name with Cache Fragments
+ * (the cache-key shard system). The 2026-11-14 naming-pass adoption
+ * SUPERSEDES that ruling: Cache Fragments are deleted from the game's
+ * face, so the collision no longer exists, and the material displays
+ * as "Tech Fragments" on every surface (Cache Hunters brief §4(f3)).
+ * This suite is the 2026-11-02 pin rewritten under the supersession.
+ *
+ * The other half of the original contract is untouched: the internal
+ * id stays 'TechFragments' because it is persisted player data — the
+ * key in the profiles.materials JSONB map, the id in applied-migration
+ * SQL whitelists and recipe payloads, and the wire token in Chef feed
+ * labels. These tests pin both halves:
  *
  *  - id stability: enum value, market id list, crafting inputs, and
  *    the vendor entry all still resolve under 'TechFragments';
- *  - display rename: every player-facing name source (visual
- *    registry label, vendor catalog, content glossary) says 'Tech',
- *    no display text anywhere still says 'Tech Fragments', and the
- *    generated wiki annex prints 'Tech'.
+ *  - display name: every player-facing name source (visual registry
+ *    label, vendor catalog, content glossary) says 'Tech Fragments',
+ *    and the generated wiki annex prints 'Tech Fragments'.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -29,7 +34,7 @@ import { MaterialType } from '../types/game';
 
 const WIKI_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'wiki');
 
-describe('TechFragments → Tech rename — stored id stays stable', () => {
+describe('TechFragments — stored id stays stable (unchanged by the supersession)', () => {
   it('the MaterialType id (profiles.materials JSONB key) is unchanged', () => {
     expect(MaterialType.TechFragments).toBe('TechFragments');
     expect(Object.values(MaterialType)).toContain('TechFragments');
@@ -53,40 +58,39 @@ describe('TechFragments → Tech rename — stored id stays stable', () => {
   });
 });
 
-describe('TechFragments → Tech rename — display name is Tech', () => {
-  it('the visual registry (the label every surface renders) says Tech', () => {
-    expect(MATERIAL_VISUALS[MaterialType.TechFragments].label).toBe('Tech');
-    expect(getVisualAsset('material', MaterialType.TechFragments).label).toBe('Tech');
+describe('TechFragments — display name is Tech Fragments on every surface', () => {
+  it('the visual registry (the label every surface renders) says Tech Fragments', () => {
+    expect(MATERIAL_VISUALS[MaterialType.TechFragments].label).toBe('Tech Fragments');
+    expect(getVisualAsset('material', MaterialType.TechFragments).label).toBe('Tech Fragments');
   });
 
-  it('the vendor catalog name says Tech', () => {
+  it('the vendor catalog name says Tech Fragments', () => {
     const entry = VENDOR_MATERIALS.find((e) => e.id === MaterialType.TechFragments);
-    expect(entry?.name).toBe('Tech');
+    expect(entry?.name).toBe('Tech Fragments');
   });
 
-  it('the content glossary name says Tech (its own def id untouched)', () => {
+  it('the content glossary name says Tech Fragments (its own def id untouched)', () => {
     const def = MATERIALS.find((m) => m.id === 'tech_fragments');
-    expect(def?.name).toBe('Tech');
+    expect(def?.name).toBe('Tech Fragments');
   });
 
-  it('no display text in the registries or vendor catalog still says Tech Fragments', () => {
+  it('no display text in the registries or vendor catalog falls back to the bare “Tech” name', () => {
     const displayTexts: string[] = [];
     for (const v of [...Object.values(MATERIAL_VISUALS), ...Object.values(ESSENCE_VISUALS)]) {
-      displayTexts.push(v.label, v.description);
+      displayTexts.push(v.label);
     }
     for (const e of VENDOR_MATERIALS) displayTexts.push(e.name);
     for (const m of MATERIALS) displayTexts.push(m.name);
-    for (const text of displayTexts) {
-      expect(text).not.toMatch(/tech fragments/i);
-    }
+    expect(displayTexts).not.toContain('Tech');
+    expect(displayTexts.filter((t) => t === 'Tech Fragments')).toHaveLength(3);
   });
 
-  it('the generated wiki annex prints Tech, never the old name', () => {
+  it('the generated wiki annex prints Tech Fragments, never the raw id', () => {
     const recipes = readFileSync(join(WIKI_DIR, 'Reference-Recipes.md'), 'utf8');
     const reference = readFileSync(join(WIKI_DIR, 'Reference.md'), 'utf8');
-    expect(recipes).toContain('Tech ×10');
+    expect(recipes).toContain('Tech Fragments ×10');
     expect(recipes).not.toContain('TechFragments');
-    expect(reference).toContain('Tech');
+    expect(reference).toContain('Tech Fragments');
     expect(reference).not.toContain('TechFragments');
   });
 });

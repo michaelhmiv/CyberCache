@@ -332,6 +332,16 @@ async function caseTabBudget(browser) {
     }
     const mounts = await page.evaluate(() => window.__e2e.roamPixiMounts);
     c.check('Pixi stage initialised exactly once for the session', mounts === 1, `mounts=${mounts}`);
+    // Slice (f) F1/F2: the Vendor stop presents Marla Quill as the
+    // counter persona and shows one of her fixed counter lines.
+    await measureSwitch(page, 'MARKET');
+    const marla = await page.evaluate(() => {
+      const text = document.body.innerText;
+      const line = document.querySelector('[data-testid="marla-counter-line"]');
+      return { named: /Marla Quill/.test(text), line: line ? line.textContent.trim() : '' };
+    });
+    c.check('vendor stop names Marla Quill (F1)', marla.named);
+    c.check('vendor stop shows a Marla counter line (F2)', marla.line.length > 10, `line="${marla.line}"`);
   } finally {
     await context.close().catch(() => {});
   }

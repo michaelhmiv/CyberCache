@@ -210,7 +210,7 @@ describe('CollectionsScreen — undiscovered masking (QC A11)', () => {
   it('discovered entries print their name; undiscovered print neither name nor drops', async () => {
     render(<CollectionsScreen />);
     // The one discovery in the payload renders in full.
-    expect(await screen.findByText('Dune Tyrant')).toBeTruthy();
+    expect(await screen.findByText('Harrow, the Dune Tyrant')).toBeTruthy();
     expect(screen.getByText(/Logged · Boss victory/)).toBeTruthy();
 
     // Undiscovered bosses: name hidden, dedicated-drop names hidden.
