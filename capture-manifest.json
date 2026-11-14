@@ -1,0 +1,57 @@
+{
+ "iter": "10",
+ "port": 7200,
+ "harnessPage": "/tempo-harness.html",
+ "captures": [
+  {
+   "label": "roam",
+   "path": "/tempo-harness.html?activity=roam&beat=rest",
+   "plan": "capture/plans/plan-roam.json",
+   "expect": [
+    "roam-rest",
+    "roam-surge",
+    "roam-kill"
+   ]
+  },
+  {
+   "label": "boss",
+   "path": "/tempo-harness.html?activity=boss&beat=rest",
+   "plan": "capture/plans/plan-boss.json",
+   "expect": [
+    "boss-rest",
+    "boss-telegraph",
+    "boss-kill"
+   ]
+  },
+  {
+   "label": "craft",
+   "path": "/tempo-harness.html?activity=craft&beat=slow",
+   "plan": "capture/plans/plan-craft.json",
+   "expect": [
+    "craft-slow",
+    "craft-ramped",
+    "craft-complete"
+   ]
+  },
+  {
+   "label": "gather",
+   "path": "/tempo-harness.html?activity=gather&beat=start",
+   "plan": "capture/plans/plan-gather.json",
+   "expect": [
+    "gather-start",
+    "gather-flow",
+    "gather-yield"
+   ]
+  },
+  {
+   "label": "research",
+   "path": "/tempo-harness.html?activity=research&beat=start",
+   "plan": "capture/plans/plan-research.json",
+   "expect": [
+    "research-start",
+    "research-flow",
+    "research-done"
+   ]
+  }
+ ]
+}

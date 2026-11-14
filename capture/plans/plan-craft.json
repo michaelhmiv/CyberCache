@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"shot":"craft-slow","wait":3200},{"eval":"window.__setBeat('ramped')","shot":"craft-ramped","wait":1200},{"eval":"window.__setBeat('complete')","shot":"craft-complete","wait":1600}],"width":412}

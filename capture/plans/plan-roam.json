@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"shot":"roam-rest","wait":3200},{"eval":"window.__setBeat('surge')","shot":"roam-surge","wait":1200},{"eval":"window.__setBeat('kill')","shot":"roam-kill","wait":1400}],"width":412}
