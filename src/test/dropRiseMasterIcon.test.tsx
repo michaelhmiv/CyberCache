@@ -39,6 +39,6 @@ describe('DropRiseMasterIcon — retry repaints once the master decodes', () => 
     act(() => {
       vi.advanceTimersByTime(60);
     });
-    expect(tintedDropRiseCanvas.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(vi.mocked(tintedDropRiseCanvas).mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });
