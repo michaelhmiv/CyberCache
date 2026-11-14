@@ -1,0 +1,57 @@
+{
+ "iter": "03",
+ "port": 7130,
+ "harnessPage": "/signal-harness.html",
+ "captures": [
+  {
+   "label": "roam",
+   "path": "/signal-harness.html?activity=roam&beat=rest&renderer=dom",
+   "plan": "capture/plans/roam.json",
+   "expect": [
+    "roam-rest",
+    "roam-surge",
+    "roam-kill"
+   ]
+  },
+  {
+   "label": "boss",
+   "path": "/signal-harness.html?activity=boss&beat=rest&renderer=dom",
+   "plan": "capture/plans/boss.json",
+   "expect": [
+    "boss-rest",
+    "boss-telegraph",
+    "boss-kill"
+   ]
+  },
+  {
+   "label": "craft",
+   "path": "/signal-harness.html?activity=craft&beat=slow&renderer=dom",
+   "plan": "capture/plans/craft.json",
+   "expect": [
+    "craft-slow",
+    "craft-ramped",
+    "craft-complete"
+   ]
+  },
+  {
+   "label": "gather",
+   "path": "/signal-harness.html?activity=gather&beat=start&renderer=dom",
+   "plan": "capture/plans/gather.json",
+   "expect": [
+    "gather-start",
+    "gather-flow",
+    "gather-yield"
+   ]
+  },
+  {
+   "label": "research",
+   "path": "/signal-harness.html?activity=research&beat=start&renderer=dom",
+   "plan": "capture/plans/research.json",
+   "expect": [
+    "research-start",
+    "research-flow",
+    "research-done"
+   ]
+  }
+ ]
+}
