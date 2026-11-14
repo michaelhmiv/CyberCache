@@ -21,6 +21,9 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **CyberCache is app-only now — the browser version is retired** — the game used to run in a web browser at the server's address too; that page is switched off, and the address now serves the app alone. The app itself is unchanged: same hunters, same fights, same loot.
 
 
+## 2026-11-12 — Stage iteration program
+
+- **The roaming stage no longer flashes black when it opens** — the Home stage's animated scene used to hand over from its fallback picture the instant it loaded, then sit black while it built the scene and loaded its art: a black stage with only the name plates standing over it, on every cold open. The fallback picture now stays up until the animated scene has actually drawn its first frames, and only then does the stage step aside. Nothing about the fight, the art, or the timings changed — the black gap between the two is simply gone.
 
 ## 2026-11-12 — The audit fix wave
 
