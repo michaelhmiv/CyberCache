@@ -1,0 +1,62 @@
+{
+ "iter": "06",
+ "port": 7160,
+ "harnessPage": "/ignition-harness.html",
+ "captures": [
+  {
+   "label": "roam",
+   "path": "/ignition-harness.html?activity=roam&beat=rest",
+   "plan": "capture/plans/plan-roam.json",
+   "prefix": "roam",
+   "expect": [
+    "roam-rest",
+    "roam-surge",
+    "roam-kill"
+   ]
+  },
+  {
+   "label": "boss",
+   "path": "/ignition-harness.html?activity=boss&beat=rest",
+   "plan": "capture/plans/plan-boss.json",
+   "prefix": "boss",
+   "expect": [
+    "boss-rest",
+    "boss-telegraph",
+    "boss-kill"
+   ]
+  },
+  {
+   "label": "craft",
+   "path": "/ignition-harness.html?activity=craft&beat=slow",
+   "plan": "capture/plans/plan-craft.json",
+   "prefix": "craft",
+   "expect": [
+    "craft-slow",
+    "craft-ramped",
+    "craft-complete"
+   ]
+  },
+  {
+   "label": "gather",
+   "path": "/ignition-harness.html?activity=gather&beat=start",
+   "plan": "capture/plans/plan-gather.json",
+   "prefix": "gather",
+   "expect": [
+    "gather-start",
+    "gather-flow",
+    "gather-yield"
+   ]
+  },
+  {
+   "label": "research",
+   "path": "/ignition-harness.html?activity=research&beat=start",
+   "plan": "capture/plans/plan-research.json",
+   "prefix": "research",
+   "expect": [
+    "research-start",
+    "research-flow",
+    "research-done"
+   ]
+  }
+ ]
+}

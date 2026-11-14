@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"shot":"rest","wait":3000},{"eval":"window.__setBeat('telegraph')","shot":"telegraph","wait":900},{"eval":"window.__setBeat('kill')","shot":"kill","wait":1000}],"width":412}
