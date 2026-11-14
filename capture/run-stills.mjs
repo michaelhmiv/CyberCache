@@ -78,7 +78,8 @@ try {
     mkdirSync(capTmp, { recursive: true });
     const planAbs = resolve(root, cap.plan);
     console.log(`\n=== capture ${cap.label} :: ${cap.path} :: plan ${cap.plan} ===`);
-    const r = await run('node', [join(here, 'stage-rig.mjs'), String(port), cap.path, capTmp, planAbs], { timeoutMs: 420000 });
+    const rigFile = cap.rig === 'dom' ? 'stage-rig-dom.mjs' : 'stage-rig.mjs';
+    const r = await run('node', [join(here, rigFile), String(port), cap.path, capTmp, planAbs], { timeoutMs: 420000 });
     const shots = existsSync(capTmp) ? readdirSync(capTmp).filter((f) => f.endsWith('.png')).sort() : [];
     const got = [];
     for (const f of shots) {

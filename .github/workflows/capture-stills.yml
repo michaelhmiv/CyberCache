@@ -75,6 +75,11 @@ jobs:
           npm install --no-save playwright-core@1.49.1
           npx playwright-core install chromium --with-deps
           HS=$(find ~/.cache/ms-playwright -name 'chrome-headless-shell' -type f | head -1)
+          FULL=$(find ~/.cache/ms-playwright -name 'chrome' -type f | grep -v headless | head -1)
+          if [ -n "$FULL" ]; then
+            echo "CHROME_FULL_PATH=$FULL" >> "$GITHUB_ENV"
+            echo "full chrome available: $FULL"
+          fi
           if [ -n "$HS" ]; then
             echo "CHROME_PATH=$HS" >> "$GITHUB_ENV"
             echo "using headless shell: $HS"
