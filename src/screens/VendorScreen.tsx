@@ -8,6 +8,7 @@ import { FAMILY_COLORS, FAMILY_LABELS, TRIGGER_LABELS } from '@/lib/consumables/
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
 import { verifiedOps } from '@/lib/api/verifiedOps';
+import { VendorBuySheet, type VendorBuySheetTarget } from '@/components/vendor/VendorBuySheet';
 import { useFilterSort } from '@/lib/hooks/useFilterSort';
 import { useNow } from '@/hooks/useNow';
 import type { ConsumableDef } from '@/constants/consumables';
@@ -54,6 +55,7 @@ export const VendorScreen: React.FC = () => {
   const [notice, setNotice] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [mode, setMode] = React.useState<'buy' | 'sell'>('buy');
+  const [buyTarget, setBuyTarget] = React.useState<VendorBuySheetTarget | null>(null);
 
   // Rotation + Item of the Day derive from the ONE vendor catalog by
   // UTC date — the same stock the server charges for today.
@@ -101,16 +103,23 @@ export const VendorScreen: React.FC = () => {
     defaultSortKey: 'price',
   });
 
-  const handleBuy = async (offer: VendorOffer, name: string) => {
-    if (player.credits < offer.unitPrice) {
+  const openBuy = (target: VendorBuySheetTarget) => {
+    setNotice(null);
+    setBuyTarget(target);
+  };
+
+  const handleBuyQty = async (target: VendorBuySheetTarget, qty: number) => {
+    const { offer, name } = target;
+    if (player.credits < offer.unitPrice * qty) {
       setNotice('Not enough credits.');
       return;
     }
     setBusyId(`buy:${offer.itemKey}`);
     setNotice(null);
     try {
-      await verifiedOps.vendorBuy(offer.itemKey, 1);
-      setNotice(`${name} added to inventory.`);
+      await verifiedOps.vendorBuy(offer.itemKey, qty);
+      setNotice(qty > 1 ? `${name} ×${qty.toLocaleString()} added to inventory.` : `${name} added to inventory.`);
+      setBuyTarget(null);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Purchase failed.');
     } finally {
@@ -208,11 +217,13 @@ export const VendorScreen: React.FC = () => {
               <div className="text-sm font-black leading-none text-text-primary">{owned}</div>
             </div>
             <button
-              onClick={() => offer && handleBuy(offer, c.name)}
+              type="button"
+              data-testid={`vendor-buy-${c.id}`}
+              onClick={() => offer && openBuy({ offer, name: c.name, kindLabel: FAMILY_LABELS[c.family], hasSprite: true })}
               disabled={!offer || player.credits < price || Boolean(busyId)}
               className={`w-full px-2 py-2 text-[11px] font-black disabled:opacity-40 ${vendorCtaCls}`}
             >
-              {buying ? 'Buying…' : `Buy 1 • ${price.toLocaleString()}cr`}
+              {buying ? 'Buying…' : `Buy • ${price.toLocaleString()}cr`}
             </button>
           </div>
         </div>
@@ -241,11 +252,13 @@ export const VendorScreen: React.FC = () => {
               <div className="text-sm font-black leading-none text-text-primary">{owned}</div>
             </div>
             <button
-              onClick={() => handleBuy(offer, entry.name)}
+              type="button"
+              data-testid={`vendor-buy-${entry.id}`}
+              onClick={() => openBuy({ offer, name: entry.name, kindLabel: entry.kind === 'material' ? 'Material' : 'Essence', hasSprite: false })}
               disabled={player.credits < offer.unitPrice || Boolean(busyId)}
               className={`w-full px-2 py-2 text-[11px] font-black disabled:opacity-40 ${vendorCtaCls}`}
             >
-              {buying ? 'Buying…' : `Buy 1 • ${offer.unitPrice.toLocaleString()}cr`}
+              {buying ? 'Buying…' : `Buy • ${offer.unitPrice.toLocaleString()}cr`}
             </button>
           </div>
         </div>
@@ -505,6 +518,12 @@ export const VendorScreen: React.FC = () => {
 
         </div>
       )}
+      <VendorBuySheet
+        target={buyTarget}
+        busy={buyTarget != null && busyId === `buy:${buyTarget.offer.itemKey}`}
+        onClose={() => setBuyTarget(null)}
+        onBuy={(t, qty) => void handleBuyQty(t, qty)}
+      />
     </div>
   );
 };

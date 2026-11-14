@@ -247,6 +247,8 @@ export interface InMemoryProfile {
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
+  /** Roaming consumable engine state (migration 0096); null = none stored yet. */
+  roaming_consumable_state: Json | null;
   skill_spends: Json;
   boss_state: Record<string, unknown>;
   /** Server death record (migration 0013); {} = alive. */
@@ -638,6 +640,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       materials: {},
       essences: {},
       consumables: {},
+      roaming_consumable_state: null,
       skill_spends: {},
       boss_state: {},
       death_state: {},
@@ -858,7 +861,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, cache_key_remainder: p.cache_key_remainder ?? 0, vehicle_fuel: p.vehicle_fuel, cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json };
+    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, cache_key_remainder: p.cache_key_remainder ?? 0, vehicle_fuel: p.vehicle_fuel, roaming_consumable_state: p.roaming_consumable_state ? (JSON.parse(JSON.stringify(p.roaming_consumable_state)) as Json) : null, cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -938,6 +941,9 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       xp_remainder: p.xp_remainder,
       cache_key_remainder: p.cache_key_remainder ?? 0,
       vehicle_fuel: p.vehicle_fuel,
+      roaming_consumable_state: p.roaming_consumable_state
+        ? (JSON.parse(JSON.stringify(p.roaming_consumable_state)) as Json)
+        : null,
       cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json,
     };
   }
@@ -3109,6 +3115,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     this.addContractStat(playerId, 'consumables.used', usedTotal);
     p.consumables = next;
     return { consumables: { ...next } };
+  }
+
+  async saveRoamingConsumableState(playerId: string, state: Json): Promise<void> {
+    const p = this.requireProfile(playerId);
+    p.roaming_consumable_state = JSON.parse(JSON.stringify(state)) as Json;
   }
 
   /**
