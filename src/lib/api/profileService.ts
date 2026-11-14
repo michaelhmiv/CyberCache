@@ -24,6 +24,10 @@ export interface ProfileRow {
   essences: Record<string, number>;
   consumables: Record<string, number>;
   skill_spends: Record<string, number>;
+  /** Active Cache Hunter (migration 0097, reshape slice (a)). */
+  active_hunter_id?: string | null;
+  /** Per-hunter loadout assignments (migration 0097). */
+  hunter_loadouts?: Record<string, unknown> | null;
   /** Server-composed effective vendor buyback rate (audit G-F3). */
   vendor_buyback_rate?: number;
   boss_state: Record<string, unknown>;

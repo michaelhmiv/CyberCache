@@ -3,6 +3,7 @@ import { type GearItem, type Weapon, type Shield, type ClassMod, type Relic, typ
 import { useInventoryStore } from './inventorySlice';
 import { useSkillStore } from './skillSlice';
 import { useVehicleStore, type VehicleDisplay } from './vehicleSlice';
+import { checkClassModBinding } from '@/lib/hunters/hunters';
 
 export type LoadoutSlot =
   | 'primary'
@@ -43,6 +44,11 @@ export const emptySlots: Record<LoadoutSlot, string | null> = {
 export interface LoadoutState {
   slots: Record<LoadoutSlot, string | null>;
   consumables: LoadoutConsumables;
+  /** The last class-mod binding refusal reason (reshape slice (a),
+   *  A5): a class mod equips only on its tree's hunter — the refusal
+   *  carries its reason for the surface to print. Null when the last
+   *  equip attempt was accepted (or none was made). */
+  classModRefusal: string | null;
   setSlots: (slots: Partial<Record<LoadoutSlot, string | null>>) => void;
   setSlot: (slot: LoadoutSlot, itemId: string | null) => void;
   getEquipped: (slot: LoadoutSlot) => string | null;
@@ -79,6 +85,7 @@ const isRelic = (item: GearItem | undefined): item is Relic =>
 
 export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
   slots: emptySlots,
+  classModRefusal: null,
   consumables: {
     PreFight: null,
     MidFight: null,
@@ -86,6 +93,19 @@ export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
   },
 
   setSlots: (slots) => {
+    // Class-mod binding (reshape slice (a)): refuse a mod whose tree
+    // is not the active hunter's, with the reason recorded.
+    if (slots.classMod) {
+      const candidate = getInventoryItem(slots.classMod);
+      if (isClassMod(candidate)) {
+        const binding = checkClassModBinding(candidate, useSkillStore.getState().activeHunterId);
+        if (!binding.ok) {
+          set({ classModRefusal: binding.reason });
+          return;
+        }
+      }
+    }
+    if ('classMod' in slots) set({ classModRefusal: null });
     // Handle class mod equip / unequip if classMod is in the new slots.
     if ('classMod' in slots) {
       const skillStore = useSkillStore.getState();
@@ -108,6 +128,19 @@ export const useLoadoutStore = create<LoadoutState>()((set, get) => ({
   },
 
   setSlot: (slot, itemId) => {
+    // Class-mod binding (reshape slice (a)): refuse a mismatched mod
+    // with its reason; the slot keeps its previous contents.
+    if (slot === 'classMod' && itemId) {
+      const candidate = getInventoryItem(itemId);
+      if (isClassMod(candidate)) {
+        const binding = checkClassModBinding(candidate, useSkillStore.getState().activeHunterId);
+        if (!binding.ok) {
+          set({ classModRefusal: binding.reason });
+          return;
+        }
+      }
+    }
+    if (slot === 'classMod') set({ classModRefusal: null });
     const prevId = get().slots[slot];
 
     // Handle class mod equip / unequip side effects.

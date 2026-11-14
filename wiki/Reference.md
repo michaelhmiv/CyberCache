@@ -11,7 +11,9 @@ definitions — the same constants the live game runs on — so a table
 cannot quietly drift from the game the way a hand-copied list always
 eventually does. A freshness check in CI (`npm run wiki:gen:check`)
 fails if a published table ever falls behind the definitions it was
-rendered from. If a number is in a Reference table, it is the number
+rendered from. Skill numbers in these tables are per Cache Hunter:
+each hunter's tree is its own pool, priced only while that hunter is
+fielded (see [[Progression]]). If a number is in a Reference table, it is the number
 the game shipped.
 
 The biggest tables get their own pages:

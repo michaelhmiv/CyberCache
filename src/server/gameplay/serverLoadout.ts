@@ -17,7 +17,12 @@
  * identification mirrors the engines' structural predicates so the
  * derived loadout is the loadout the engines think it is.
  */
-import { computeSkillBonuses, type ClassModBoosts } from '../../lib/skills/skillBonuses';
+import { type ClassModBoosts } from '../../lib/skills/skillBonuses';
+import {
+  activeHunterId,
+  computeHunterSkillBonuses,
+  type HunterId,
+} from '../../lib/hunters/hunters';
 import type { ClassMod, GearItem, Ordnance, Relic, Shield, Weapon } from '../../types/items';
 import type { EquippedItemEntry } from './store';
 
@@ -49,15 +54,25 @@ export function classModBoostsFromGear(equippedGear: GearItem[]): ClassModBoosts
 /**
  * The skillBonuses record the engines consume, rebuilt from the
  * server's records: profiles.skill_spends + the equipped class mod's
- * boosts, through the one shared computeSkillBonuses the client
- * store's getBonuses() also delegates to — so a derived record equals
- * what an honest client would have reported.
+ * boosts, through the one hunter derivation the client store's
+ * getBonuses() also delegates to — so a derived record equals what an
+ * honest client would have reported.
+ *
+ * Reshape slice (a): the derivation reads the ACTIVE hunter's spend
+ * subset + that hunter's base perk. Callers that hold the profile row
+ * pass its hunter context (active_hunter_id / action_skill_selection)
+ * as `hunter`; callers without one get the conversion default (the
+ * selection's hunter, else Vesper Cole) — the same default migration
+ * 0097 seeds profiles.active_hunter_id with.
  */
 export function skillBonusesFromRecords(
   equippedGear: GearItem[],
   skillSpends: Record<string, number>,
+  hunter?: HunterId | { active_hunter_id?: string | null; action_skill_selection?: string | null } | null,
 ): Record<string, number> {
-  return computeSkillBonuses(skillSpends, classModBoostsFromGear(equippedGear));
+  const hunterId =
+    typeof hunter === 'string' ? hunter : activeHunterId(hunter ?? undefined);
+  return computeHunterSkillBonuses(skillSpends, classModBoostsFromGear(equippedGear), hunterId);
 }
 
 /** Per-slot gear fields the boss sim consumes (BossSimulationInput minus boss/intent fields). */

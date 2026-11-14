@@ -94,6 +94,9 @@ export interface RoamingProfileRow {
   cache_rank_spends: Json;
   /** Roaming consumable engine state (migration 0096) — the coverage windows the claim resumes; null until the first claim under 0096 stores one. Written only by saveRoamingConsumableState from Chef-produced state, never from a client body. */
   roaming_consumable_state: Json | null;
+  /** Fielded Cache Hunter (migration 0097); null on unconverted profiles. */
+  active_hunter_id?: string | null;
+  action_skill_selection?: string | null;
 }
 
 /** profiles subset the boss handler reads. */
@@ -108,6 +111,8 @@ export interface BossProfileRow {
   action_skill_charge: number;
   /** Recorded action skill selection (a SkillTreeType name), or null (0030). */
   action_skill_selection: string | null;
+  /** Active Cache Hunter (migration 0097) — the selection collapses to this hunter's signature. */
+  active_hunter_id: string | null;
   /** Cache Rank spends (migration 0031) — the boss route resolves Cache Rank bonuses from this, never from a client body. */
   cache_rank_spends: Json;
 }
@@ -123,6 +128,8 @@ export interface ActionSkillFacts {
   class_mod_payload: Json;
   action_skill_charge: number;
   action_skill_selection: string | null;
+  /** Active Cache Hunter (migration 0097). */
+  active_hunter_id: string | null;
 }
 
 /** profiles subset the offline-settlement handler reads. */
@@ -157,6 +164,10 @@ export interface SettlementProfileRow {
   cache_rank_spends: Json;
   /** Roaming consumable engine state (migration 0096) — settlement resumes the same stored windows a foreground claim would. */
   roaming_consumable_state: Json | null;
+  /** Active Cache Hunter (migration 0097, reshape slice (a)) — settlement derives the active hunter's bonuses. */
+  active_hunter_id: string | null;
+  /** Recorded action skill selection — the conversion default for the active hunter (0097). */
+  action_skill_selection: string | null;
 }
 
 /**
@@ -277,6 +288,9 @@ export interface DispatchProfileFacts {
   dispatch_board_index: number;
   dispatch_rerolls_used: number;
   dispatch_board_day: string | null;
+  /** Per-hunter loadout assignments (migration 0097): Dispatch's
+   *  "spare" means spare across ALL hunters' loadouts. */
+  hunter_loadouts: Json;
 }
 
 /**
@@ -687,6 +701,10 @@ export interface ChefGameplayStore {
    * the player's own records; nonce-idempotent via the ledger.
    */
   setActionSkillSelection(playerId: string, nonce: string, tree: string | null): Promise<Json>;
+  /** Switch the active Cache Hunter (migration 0097): swaps the
+   *  equipped set to the hunter's saved loadout assignment and
+   *  collapses the action-skill selection to the hunter's tree. */
+  setActiveHunter(playerId: string, nonce: string, hunterId: string): Promise<Json>;
   /**
    * The Cache Rank facts for the /api/cache-rank routes (0031):
    * level/XP, token balance, grant watermark, spends — server
@@ -1142,7 +1160,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state from public.profiles where id = $1',
+      'select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state, active_hunter_id, action_skill_selection from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -1159,13 +1177,21 @@ export class PgChefGameplayStore implements ChefGameplayStore {
           row.roaming_consumable_state === null || row.roaming_consumable_state === undefined
             ? null
             : json(row.roaming_consumable_state),
+        active_hunter_id:
+          row.active_hunter_id === null || row.active_hunter_id === undefined
+            ? null
+            : String(row.active_hunter_id),
+        action_skill_selection:
+          row.action_skill_selection === null || row.action_skill_selection === undefined
+            ? null
+            : String(row.action_skill_selection),
       }),
     );
   }
 
   getBossProfile(playerId: string): Promise<BossProfileRow | null> {
     return this.one(
-      'select player_level, credits, consumables, boss_state, skill_spends, action_skill_charge, action_skill_selection, cache_rank_spends from public.profiles where id = $1',
+      'select player_level, credits, consumables, boss_state, skill_spends, action_skill_charge, action_skill_selection, cache_rank_spends, active_hunter_id from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -1179,13 +1205,17 @@ export class PgChefGameplayStore implements ChefGameplayStore {
             ? null
             : String(row.action_skill_selection),
         cache_rank_spends: json(row.cache_rank_spends),
+        active_hunter_id:
+          row.active_hunter_id === null || row.active_hunter_id === undefined
+            ? null
+            : String(row.active_hunter_id),
       }),
     );
   }
 
   async getActionSkillFacts(playerId: string): Promise<ActionSkillFacts | null> {
     const profile = await this.one(
-      'select skill_spends, action_skill_charge, action_skill_selection from public.profiles where id = $1',
+      'select skill_spends, action_skill_charge, action_skill_selection, active_hunter_id from public.profiles where id = $1',
       [playerId],
       (row) => ({
         skill_spends: json(row.skill_spends),
@@ -1194,6 +1224,10 @@ export class PgChefGameplayStore implements ChefGameplayStore {
           row.action_skill_selection === null || row.action_skill_selection === undefined
             ? null
             : String(row.action_skill_selection),
+        active_hunter_id:
+          row.active_hunter_id === null || row.active_hunter_id === undefined
+            ? null
+            : String(row.active_hunter_id),
       }),
     );
     if (!profile) return null;
@@ -1204,7 +1238,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       [playerId],
       (row) => json(row.payload),
     );
-    return { ...profile, class_mod_payload: (mod ?? {}) as Json };
+    return { ...profile, active_hunter_id: (profile as { active_hunter_id?: string | null }).active_hunter_id ?? null, class_mod_payload: (mod ?? {}) as Json };
   }
 
   setActionSkillSelection(playerId: string, nonce: string, tree: string | null): Promise<Json> {
@@ -1212,6 +1246,14 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       playerId,
       nonce,
       tree,
+    ]);
+  }
+
+  setActiveHunter(playerId: string, nonce: string, hunterId: string): Promise<Json> {
+    return this.callJson('select public.cc_set_active_hunter($1, $2, $3) as result', [
+      playerId,
+      nonce,
+      hunterId,
     ]);
   }
 
@@ -1636,7 +1678,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     const profile = await this.one(
       // Econ 5 (0069): the Scrap stock is materials['Scrap']; the
       // retired profiles.scrap column is never read.
-      'select player_level, vehicle_fuel, credits, coalesce((materials ->> \'Scrap\')::bigint, 0) as scrap, dispatch_board_index, dispatch_rerolls_used, dispatch_board_day from public.profiles where id = $1',
+      'select player_level, vehicle_fuel, credits, coalesce((materials ->> \'Scrap\')::bigint, 0) as scrap, dispatch_board_index, dispatch_rerolls_used, dispatch_board_day, hunter_loadouts from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -1647,6 +1689,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         dispatch_rerolls_used: num(row.dispatch_rerolls_used),
         dispatch_board_day: row.dispatch_board_day === null || row.dispatch_board_day === undefined
           ? null : String(row.dispatch_board_day),
+        hunter_loadouts: json(row.hunter_loadouts),
       }),
     );
     if (!profile) return null;
@@ -1733,7 +1776,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
 
   getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
     return this.one(
-      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state from public.profiles where id = $1',
+      'select player_level, skill_spends, consumables, last_claimed_tick, last_roaming_settled_at, last_settlement_nonce, offline_cap_hours, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state, active_hunter_id, action_skill_selection from public.profiles where id = $1',
       [playerId],
       (row) => ({
         player_level: num(row.player_level),
@@ -1756,6 +1799,14 @@ export class PgChefGameplayStore implements ChefGameplayStore {
           row.roaming_consumable_state === null || row.roaming_consumable_state === undefined
             ? null
             : json(row.roaming_consumable_state),
+        active_hunter_id:
+          row.active_hunter_id === null || row.active_hunter_id === undefined
+            ? null
+            : String(row.active_hunter_id),
+        action_skill_selection:
+          row.action_skill_selection === null || row.action_skill_selection === undefined
+            ? null
+            : String(row.action_skill_selection),
       }),
     );
   }
@@ -1883,7 +1934,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
     const facts = await this.getExtractionFacts(playerId);
     const items = await this.getEquippedItems(playerId);
     const gear = items.map((e) => e.item);
-    const skillBonuses = skillBonusesFromRecords(gear, (profile.skill_spends ?? {}) as Record<string, number>);
+    const skillBonuses = skillBonusesFromRecords(gear, (profile.skill_spends ?? {}) as Record<string, number>, profile);
     const lootQuantity = Math.max(0, skillBonuses.lootQuantity ?? 0);
     const shieldEntry = items.find((e) => e.slot === 'shield');
     const shieldPayload = (shieldEntry?.item ?? null) as unknown as Record<string, unknown> | null;

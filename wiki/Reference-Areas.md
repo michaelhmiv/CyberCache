@@ -5,7 +5,8 @@ opens on, with the facts a runner plans around: what hunts there,
 what the ground is known for, and the named elite whose territory it
 is. See [[Actions and Occupations]] for how roaming works, and the
 areas table in [[Reference]] for the baseline earning rates behind
-these pages.
+these pages. Roaming settles on your fielded Cache Hunter's skill
+pool (see [[Progression]]).
 
 <!-- GENERATED from src/constants/roamingAreas.ts, src/content/areaPalettes.ts, src/lib/pixel/manifest.ts, src/lib/pixel/paletteSwap.ts, src/constants/monsters.ts — do not edit by hand -->
 <!-- wiki-gen:areas-pictured -->

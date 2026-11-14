@@ -2686,3 +2686,93 @@ implementation corrects them instead of copying them:
   themselves, as they do throughout the PDFs. Doors, order, and tap
   counts in the mocks are exactly the spec's; only the type size is
   wrong.
+
+## 12. Decision log
+
+Rulings that govern the game's shape, recorded in this file (the
+repo's rulings home) as they land with their first implementation
+PR. Entries are verbatim ruling text — superseded rulings are edited
+at the source, never left standing beside their replacement.
+
+### 2026-11-14 — Cache Hunters: the character reshape (owner-ruled)
+
+The single segmented hunter is replaced by multiple playable **Cache Hunters**
+(Borderlands vault-hunter shape). Ruled on a voice call, 2026-11-14; this entry
+supersedes the 2026-11-13 leaning recorded in prep notes.
+
+1. **Launch roster of four** — **Vesper Cole** (Gunslinger), **Silas Boone**
+   (Demolition), **Josie Lode** (Scavenger), **Doc Sutter** (Fixer tree).
+   Each hunter has a specialized skill tree and base perks for its playstyle.
+   A fifth hunter, the Roamer, is designed-for and added later.
+2. **Segmented per-piece armor display retires.** The character on stage is
+   one painting per hunter × skin. (There are no armor items in the game;
+   the segmented body was the cosmetic skin-parts system plus the rig.)
+3. **Skins are purely cosmetic painted wholes — they never carry power.**
+   Nobody chooses between how they look and how they play. Skins are
+   crafted whole in the Workshop cosmetic lane (craft-only; no drops, no
+   cache tie-in); complete part-sets convert to whole skins; loose parts
+   grandfather as collection pieces under the catalog's grandfathering rule.
+4. **Skill points are per-hunter and never transfer.** Each hunter holds a
+   pool over the shared budget rule (account level − 1). Existing spends
+   convert by splitting the spend map per tree, node ids unchanged.
+5. **Level is one shared account level** (to 100, as shipped). No per-hunter
+   levels, no second level layer. Cache Rank — Thick Skin included — is
+   untouched and applies to whichever hunter is active.
+6. **The arsenal is shared; loadouts are per-hunter.** Every weapon,
+   legendaries included, stays in the one account pool; switching hunters
+   never strands a weapon. Class mods equip only on their tree's hunter
+   but live in the shared pool.
+7. **Action-skill charge is one shared pool** across hunters (deliberate
+   divergence from Borderlands 4, whose structure informed — but did not
+   dictate — tree segmentation: specialty-first trees with cross-facet
+   sprinkles).
+8. **Weapons stay procedural.** Combat math, tick timing, balance, and loot
+   tables are unchanged by this reshape.
+
+### 2026-11-14 — Names and voices: the world gets people (owner-ruled)
+
+Adopted in full from the world-names audit and the humor research (owner:
+"I agree with everything you recommend," 2026-11-14). These land as the
+reshape brief's naming pass (slice (f)) and its hunter-voice work.
+
+1. **The vendor is Marla Quill.** The most-visited character in the game has
+   a name. Her voice — a fixed pool of 4–6 rotating counter lines in the
+   Ledger register — ships with the naming, never before it; voice from an
+   unnamed "Vendor" would be a gag layer, not a person.
+2. **Manufacturers have founders and slogans.** Six companies become six
+   people with grudges: a founder (named in the hunters' wasteland-outlaw
+   register) and a one-line slogan per brand, copy-only, surfaced on the
+   wiki Manufacturers material, gun cards, and Manufacturer Standing. The
+   follow-on unit of the naming pass.
+3. **Every boss is a person with a title.** The person+title grammar
+   completes across all 13 bosses; the Dune Tyrant becomes **Harrow, the
+   Dune Tyrant**. Each boss also carries one dry dossier line of persona on
+   its prep surface; the intel mechanics copy itself is unchanged (Boss
+   Intel Law).
+4. **The six name clashes are fixed in one string-level pass** — the
+   Insurance Fraud node, the Fuel Cell / Generic Fuel Cell pair, the
+   duplicated Ordnance Charge, The Fixer keystone, the Overclock cluster,
+   and the "Tech" / "Tech Fragments" display split. Display strings only;
+   ids unchanged.
+5. **The Wounded Scavenger is named Pell, and he recurs.** His name lands
+   in the roaming event and in contract/dispatch copy in the same slice.
+   A named man who never reappears is an orphan, not a character — the
+   naming does not ship without the recurrence.
+6. **Emberfall is parked as Vaultkeeper Omega's dedicated named drop.**
+   Dormant until a future slice scopes the drop wiring; no surface may
+   present it as obtainable meanwhile.
+7. **The humor dosage law stands beside the No-Paragraphs Law.** The more
+   often a line is seen, the drier it must be; humor lives only where a
+   person or a rare moment carries it. Per-tick staples are straight;
+   legendary flavor keeps its one-line dose; numbers, plates, prices,
+   fees, win-intel, error strings, and commodity names are never funny.
+   No memes, no pop-culture references, no joke quotas, no fourth wall;
+   humor steps aside at defeat and death beats. The documented reason is
+   the franchise's own correction: BL4's writers purged BL3's excess and
+   grounded the comedy in character — this game's native Ledger register
+   was already on that side of the line.
+8. **The hunters have voices: fixed pools, rare triggers.** Each Cache
+   Hunter carries 3–4 authored lines bound to legendary drops, boss
+   kills, near-death saves, and streak completions — never a bark system,
+   never on ordinary ticks, silent at defeat and death. Borderlands humor
+   is character humor; the hunters are the characters.

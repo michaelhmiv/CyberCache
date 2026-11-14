@@ -59,7 +59,7 @@ Every entry charges a fee: **10 credits × your level**, for the first run of th
 
 ## Why run it
 
-Endless is where a finished build finds out what it is worth: a long run banks roughly boss-kill-scale XP and credits while exposing the whole bank to the death tax, pays milestone gear at rising rarity weights, and gives your [[Combat|action skill]] a steady charge source (20 charge per encounter that does not fire). It is competitive with boss farming at moderate depths without replacing it — bosses remain the home of named legendaries and guaranteed rolls.
+Endless is where a finished build finds out what it is worth: a long run banks roughly boss-kill-scale XP and credits while exposing the whole bank to the death tax, pays milestone gear at rising rarity weights, and gives your [[Combat|action skill]] a steady charge source (20 charge per encounter that does not fire). Every encounter prices your fielded Cache Hunter's own skill pool and base perk — the same derivation a boss attempt settles on (see [[Progression]]). It is competitive with boss farming at moderate depths without replacing it — bosses remain the home of named legendaries and guaranteed rolls.
 
 Farming one boss repeatedly instead? See [[Bosses]]. Building the gear to push deeper? See [[Gear]] and [[Crafting]].
 
