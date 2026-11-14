@@ -591,7 +591,7 @@ export const BossEncounterPanel: React.FC<{
           ))}
         </div>
         {boss.dossier && (
-          <div data-testid="boss-dossier" className="mt-2 text-[10px] italic leading-snug text-text-muted">{boss.dossier}</div>
+          <div data-testid="boss-dossier" className="mt-2 text-[11px] italic leading-snug text-text-muted">{boss.dossier}</div>
         )}
         <div className="mt-2 border-t border-border/40 pt-2 text-[10px] leading-snug text-text-secondary">
           <span className="font-black text-amber">{boss.mechanic.name}: </span>
