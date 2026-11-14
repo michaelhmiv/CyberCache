@@ -762,10 +762,10 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
       <AnimatePresence initial={false}>
         {!collapsed && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
+            initial={reduceMotion ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            exit={{ height: reduceMotion ? 'auto' : 0, opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.2 }}
             className="overflow-hidden"
           >
             {readOnly ? (

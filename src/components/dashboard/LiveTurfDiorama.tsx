@@ -665,7 +665,29 @@ const PixelSceneLayerDom: React.FC<{
       .map((elapsedMs) => setTimeout(() => setPoseAge({ eventId: poseEventId, elapsedMs }), elapsedMs));
     return () => timers.forEach(clearTimeout);
   }, [poseEventId, poseBeatKind]);
-  const actorPoses = roamPosesAt(beat, !!weapon, poseAge.eventId === poseEventId ? poseAge.elapsedMs : 0);
+  // Post-kill advance guard: a beat names the target that was current
+  // when its event arrived. The Chef settles a kill and the next spawn
+  // in ONE claim, so a kill beat routinely stands next to the NEXT
+  // enemy — the death pose and the dissolve belong to the enemy that
+  // died, never to the one now standing. When the event changes, the
+  // pre-beat target is snapshotted (a ref the beat effects below read
+  // — they run after this effect in the same commit — plus a state
+  // mirror for this render); the previous-target ref advances after
+  // it (declaration order is the mechanism).
+  const prevTargetIdRef = useRef<string | null>(null);
+  const beatTargetIdRef = useRef<string | null>(null);
+  const [beatTargetId, setBeatTargetId] = useState<string | null>(null);
+  useEffect(() => {
+    beatTargetIdRef.current = prevTargetIdRef.current;
+    setBeatTargetId(prevTargetIdRef.current);
+  }, [poseEventId]);
+  useEffect(() => {
+    prevTargetIdRef.current = currentTargetId ?? null;
+  });
+  const beatForCurrentTarget = beatTargetId === (currentTargetId ?? null);
+  const actorPoses = roamPosesAt(beat, !!weapon, poseAge.eventId === poseEventId ? poseAge.elapsedMs : 0, {
+    beatForCurrentTarget,
+  });
   const eventProp = event && (event.tone === 'event' || event.tone === 'event_major') && event.propId
     ? getPixelSprite(event.propId)
     : undefined;
@@ -1018,12 +1040,18 @@ const PixelSceneLayerDom: React.FC<{
         break;
       case 'kill':
         void hunterControls.start({ y: [0, -9, 0], transition: { duration: 0.42 } });
-        void enemyHitControls.start({
-          opacity: [1, 1, 0],
-          scale: [1, 1.05, 0.5],
-          y: [0, 0, 24],
-          transition: { duration: 0.5, ease: 'easeIn' },
-        });
+        if (beatTargetIdRef.current === (currentTargetId ?? null)) {
+          void enemyHitControls.start({
+            opacity: [1, 1, 0],
+            scale: [1, 1.05, 0.5],
+            y: [0, 0, 24],
+            transition: { duration: 0.5, ease: 'easeIn' },
+          });
+        } else {
+          // The kill names a previous enemy; the one standing now did
+          // not die — no dissolve on it (it walks in at rest).
+          void enemyHitControls.start({ opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.2 } });
+        }
         break;
       case 'loot':
         // A legendary drop is the celebration beat (P3): the hunter hops
@@ -1044,6 +1072,18 @@ const PixelSceneLayerDom: React.FC<{
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beatEventId, beatKind, reduced]);
+
+  // Post-kill advance: when the target changes under a standing kill
+  // beat that names the PREVIOUS enemy, release any held dissolve so
+  // the new enemy stays visible (the beat effect above does not
+  // re-run on a target change alone).
+  useEffect(() => {
+    if (reduced) return;
+    if (beatKind === 'kill' && beatTargetIdRef.current !== (currentTargetId ?? null)) {
+      void enemyHitControls.start({ opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.2 } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTargetId]);
 
   return (
     <PixelStage
@@ -1156,7 +1196,7 @@ const PixelSceneLayerDom: React.FC<{
           key={benchCompletionKey(activeBenchCompletion)}
           data-testid="bench-completion-rise"
           className="pointer-events-none absolute z-30 flex items-end justify-center"
-          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 46, height: 46, marginTop: -40 }}
+          style={{ left: '60%', top: `${workPointYPct}%`, width: 46, height: 46, marginTop: -40 }}
           initial={false}
           animate={{ x: '-50%', y: [6, -14, -26, -30], opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
           transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
@@ -1173,7 +1213,7 @@ const PixelSceneLayerDom: React.FC<{
           key={`salvage-rise-${salvageBeat.key}`}
           data-testid="salvage-completion-rise"
           className="pointer-events-none absolute z-30 flex items-end justify-center"
-          style={{ left: '60%', top: `${(groundY - 0.17) * 100}%`, width: 46, height: 46, marginTop: -40 }}
+          style={{ left: '60%', top: `${workPointYPct}%`, width: 46, height: 46, marginTop: -40 }}
           initial={false}
           animate={{ x: '-50%', y: [6, -14, -26, -30], opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
           transition={{ duration: MOVEMENT.LOOT_RISE_MS / 1000, times: [0, 0.2, 0.7, 1], ease: 'easeOut' }}
@@ -1259,10 +1299,15 @@ const PixelSceneLayerDom: React.FC<{
       {/* The equipped vehicle, parked at the scene edge during fights
           (Q4 travel legs + encounter clusters): the actual instance —
           class profile, rolled affix overlays, condition wear — with
-          its fuel/condition read from the last claim's status. */}
+          its fuel/condition read from the last claim's status. Affix
+          overlays are contained inside the class painting's box
+          (h-full + object-contain, the rule PR #579 settled): the
+          square scanner painting resolved at box width alone
+          rendered ~2.4× the plate height and spilled down the
+          stage (stage-artifacts REPORT §2b). */}
       {mode === 'roaming' && vehicle && (
         <div className="absolute" style={{ left: '1%', bottom: `${(1 - groundY) * 100 + 1}%`, width: '21%', zIndex: 5 }} data-testid="pixel-vehicle">
-          <div className="relative">
+          <div className="relative overflow-hidden">
             <img
               src={getPixelSprite(`vehicle-${vehicle.vehicleClassId.replace(/_/g, '-')}`)?.url}
               alt=""
@@ -1271,16 +1316,16 @@ const PixelSceneLayerDom: React.FC<{
               style={{ imageRendering: 'pixelated' }}
             />
             {vehicle.affixes.some((a) => a.stat === 'vehicleCargoPct') && (
-              <img src={getPixelSprite('vehicle-affix-cargo-rack')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-cargo-rack')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.affixes.some((a) => a.stat === 'vehicleScannerPct') && (
-              <img src={getPixelSprite('vehicle-affix-scanner-array')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-scanner-array')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.affixes.some((a) => a.stat === 'vehicleFramePct') && (
-              <img src={getPixelSprite('vehicle-affix-reinforced-frame')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-reinforced-frame')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.conditionCurrent / Math.max(1, vehicle.conditionMax) < 0.35 && (
-              <img src={getPixelSprite('vehicle-condition-scuff')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-condition-scuff')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
           </div>
           {vehicleStatus && (
@@ -1637,6 +1682,43 @@ const PixelSceneLayerDom: React.FC<{
 // failure — renders the DOM scene above, byte-identical to before
 // M2. Both renderers consume the same stores, the same tick events,
 // and the same movement.ts law; the M2 PR carries the A/B evidence.
+/**
+ * The Pixi takeover cover (stage-iteration B2, 2026-11-12): holds
+ * the transient DOM scene over the Pixi stage until the stage
+ * reports its first drawn frames (onSceneReady). Before this gate,
+ * the Suspense fallback unmounted the moment the Pixi chunk
+ * resolved and the canvas sat black for the entire scene build —
+ * texture loads included — on every cold roam mount. The cover is
+ * the same inert transient instance the Suspense fallback used (no
+ * walk clock, no resume probe), now rendered OUTSIDE the Suspense
+ * boundary so ONE instance spans both phases — chunk load and
+ * scene build — instead of unmounting and remounting between them,
+ * and it drops only when the swap can land on a live frame. A Pixi
+ * failure still routes through onPixiError and the switch renders
+ * the DOM scene permanently. The readiness state is mount-scoped:
+ * leaving roaming and returning re-covers.
+ */
+const PixiSceneWithCover: React.FC<{
+  pixiProps: RoamPixiStageProps;
+  domProps: React.ComponentProps<typeof PixelSceneLayerDom>;
+  /** Pixi-path DOM companions (the hunter HP plate): rendered only
+   *  once the cover drops — the cover's own scene carries the
+   *  identical plate in the identical spot until then, so the
+   *  plate never doubles during the swap. */
+  children?: React.ReactNode;
+}> = ({ pixiProps, domProps, children }) => {
+  const [pixiReady, setPixiReady] = useState(false);
+  return (
+    <>
+      <React.Suspense fallback={null}>
+        <RoamPixiStageLazy {...pixiProps} onSceneReady={() => setPixiReady(true)} />
+      </React.Suspense>
+      {!pixiReady && <PixelSceneLayerDom {...domProps} transientFallback />}
+      {pixiReady && children}
+    </>
+  );
+};
+
 const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>> = (props) => {
   const webgl = React.useMemo(() => detectWebGL(), []);
   const [pixiFailed, setPixiFailed] = useState(false);
@@ -1683,14 +1765,15 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
     onPixiError: () => setPixiFailed(true),
   };
   return (
-    <React.Suspense fallback={<PixelSceneLayerDom {...props} transientFallback />}>
-      <RoamPixiStageLazy {...pixiProps} />
+    <PixiSceneWithCover pixiProps={pixiProps} domProps={props}>
       {/* DOM companions the Pixi scene does not carry: the hunter
           HP plate (a sibling of the hunter wrapper in the DOM
           scene, anchored to his placement) — rendered here so it
-          rides the Pixi path identically. */}
+          rides the Pixi path identically. It mounts with the
+          cover drop: the cover's own scene carries the identical
+          plate until the Pixi stage's first frames land. */}
       <RoamHunterHpPlate groundY={getPixelSprite(props.backgroundId)?.anchors.groundLine?.y ?? 0.86} />
-    </React.Suspense>
+    </PixiSceneWithCover>
   );
 };
 

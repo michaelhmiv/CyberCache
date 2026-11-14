@@ -319,6 +319,40 @@ describe('Streak true claim — posting → landing → banked', () => {
   });
 });
 
+describe('Streak true claim — sheet-chrome close (owner ruling 2026-11-13)', () => {
+  it('closing via the sheet chrome after a claim marks it seen — the ceremony never replays on reopen', async () => {
+    mockStreak.mockResolvedValue(claimableDay3());
+    mockClaim.mockResolvedValue(claimedDay3());
+    render(<Harness />);
+    await waitFor(() => expect(mockStreak).toHaveBeenCalledTimes(1));
+    await openStreakSheet();
+
+    // A fresh claim still plays the ceremony: the landing frame
+    // with its stamped Banked rows.
+    fireEvent.click(screen.getByTestId('streak-claim-button'));
+    await waitFor(() => expect(screen.getByText('Claimed just now')).toBeTruthy());
+    expect(screen.getByTestId('streak-reward-rows')).toBeTruthy();
+    expect(useLoginStreakStore.getState().seenClaimKey).toBeNull();
+
+    // Close via the sheet's own chrome (the Close picker button),
+    // NOT the panel's "Back to the hunt" acknowledgement.
+    fireEvent.click(screen.getByRole('button', { name: 'Close picker' }));
+    await waitFor(() => expect(screen.queryByTestId('picker-sheet-overlay')).toBeNull());
+
+    // The close marked the claim seen (DESIGN.md §10: the stamp
+    // ceremony plays once per claim and never replays).
+    const store = useLoginStreakStore.getState();
+    expect(store.seenClaimKey).not.toBeNull();
+    expect(store.seenClaimKey).toBe(store.lastClaimedGrantKey);
+
+    // Reopen: the quiet banked sheet — no ceremony, no replay.
+    await openStreakSheet();
+    await waitFor(() => expect(screen.queryByText('Claimed just now')).toBeNull());
+    expect(screen.queryByTestId('streak-reward-rows')).toBeNull();
+    expect(screen.queryByTestId('streak-claim-button')).toBeNull();
+  });
+});
+
 describe('Streak true claim — expiry across the rollover', () => {
   it('yesterday’s unclaimed reward is gone; the streak continued and today’s reward is the claimable one', async () => {
     mockStreak.mockResolvedValue(claimableDay3());

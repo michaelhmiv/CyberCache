@@ -418,8 +418,12 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
             className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
           >
             <motion.div
-              animate={{ rotate: [0, -10, 10, -10, 0], scale: [1, 1.1, 1] }}
-              transition={{ repeat: Infinity, duration: 0.4 }}
+              animate={
+                reducedMotion
+                  ? { rotate: 0, scale: 1 }
+                  : { rotate: [0, -10, 10, -10, 0], scale: [1, 1.1, 1] }
+              }
+              transition={{ repeat: reducedMotion ? 0 : Infinity, duration: 0.4 }}
               className="text-amber"
             >
               {cachePropSprite && (
@@ -431,7 +435,9 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 />
               )}
             </motion.div>
-            <div className="absolute bottom-20 text-amber font-bold text-sm animate-pulse">
+            <div
+              className={`absolute bottom-20 text-amber font-bold text-sm ${reducedMotion ? '' : 'animate-pulse'}`}
+            >
               DECRYPTING CACHE...
             </div>
           </motion.div>
@@ -465,7 +471,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 the first viewport directly under CACHE DECRYPTED. */}
             <div
               data-testid="cache-reveal-stage"
-              className={`relative w-full ${reducedMotion ? '' : 'transition-[height] duration-500 ease-out'} ${momentDone ? 'h-[120px]' : 'h-dvh'}`}
+              className={`relative w-full overflow-hidden ${reducedMotion ? '' : 'transition-[height] duration-500 ease-out'} ${momentDone ? 'h-[120px]' : 'h-dvh'}`}
             >
               {/* P3 loot moment over the pixel zone backdrop — the
                   cache's actual drop, celebrated before the cards. */}

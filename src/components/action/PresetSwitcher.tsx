@@ -19,7 +19,7 @@
  * brief D5) — the switcher's old Lucide set is retired.
  */
 import React, { useCallback, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import {
   useLoadoutPresetsStore,
@@ -213,6 +213,7 @@ export const PresetSwitcher: React.FC<{
   /** Opens the loadout slot picker for a slot (the gone/incompatible remedy). */
   onPickReplacement?: (slot: LoadoutSlot) => void;
 }> = ({ className, onPickReplacement }) => {
+  const reduceMotion = useReducedMotion();
   const presets = useLoadoutPresetsStore((s) => s.presets);
   const activeId = useLoadoutPresetsStore((s) => s.activePresetId);
   const savePreset = useLoadoutPresetsStore((s) => s.savePreset);
@@ -366,9 +367,10 @@ export const PresetSwitcher: React.FC<{
       <AnimatePresence>
         {saveOpen && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
+            initial={reduceMotion ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+            exit={{ height: reduceMotion ? 'auto' : 0, opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.18, ease: 'easeOut' }}
             className="overflow-hidden"
           >
             <div className="mt-2 flex items-center gap-2">
@@ -396,13 +398,15 @@ export const PresetSwitcher: React.FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             onClick={() => { setListOpen(false); setRowRenameId(null); setIconPickId(null); }}
           >
             <motion.div
-              initial={{ scale: 0.95 }}
+              initial={reduceMotion ? false : { scale: 0.95 }}
               animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
+              exit={{ scale: reduceMotion ? 1 : 0.95 }}
+              transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
               className="w-full max-w-xs border-2 border-border bg-bg p-4"
               style={signClip}
               onClick={(e) => e.stopPropagation()}
@@ -524,13 +528,15 @@ export const PresetSwitcher: React.FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
             onClick={() => setManageId(null)}
           >
             <motion.div
-              initial={{ scale: 0.95 }}
+              initial={reduceMotion ? false : { scale: 0.95 }}
               animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
+              exit={{ scale: reduceMotion ? 1 : 0.95 }}
+              transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
               className="w-full max-w-xs border-2 border-border bg-bg p-4"
               style={signClip}
               onClick={(e) => e.stopPropagation()}
