@@ -1,0 +1,127 @@
+{
+ "iter": "04",
+ "port": 7140,
+ "harnessPage": "/ticker-harness.html",
+ "captures": [
+  {
+   "label": "roam-rest",
+   "path": "/ticker-harness.html?activity=roam&freeze=rest",
+   "plan": "capture/plans/roam-rest.json",
+   "expect": [
+    "roam-rest"
+   ]
+  },
+  {
+   "label": "roam-surge",
+   "path": "/ticker-harness.html?activity=roam&freeze=surge",
+   "plan": "capture/plans/roam-surge.json",
+   "expect": [
+    "roam-surge"
+   ]
+  },
+  {
+   "label": "roam-kill",
+   "path": "/ticker-harness.html?activity=roam&freeze=kill",
+   "plan": "capture/plans/roam-kill.json",
+   "expect": [
+    "roam-kill"
+   ]
+  },
+  {
+   "label": "boss-rest",
+   "path": "/ticker-harness.html?activity=boss&freeze=rest",
+   "plan": "capture/plans/boss-rest.json",
+   "expect": [
+    "boss-rest"
+   ]
+  },
+  {
+   "label": "boss-telegraph",
+   "path": "/ticker-harness.html?activity=boss&freeze=telegraph",
+   "plan": "capture/plans/boss-telegraph.json",
+   "expect": [
+    "boss-telegraph"
+   ]
+  },
+  {
+   "label": "boss-kill",
+   "path": "/ticker-harness.html?activity=boss&freeze=kill",
+   "plan": "capture/plans/boss-kill.json",
+   "expect": [
+    "boss-kill"
+   ]
+  },
+  {
+   "label": "craft-slow",
+   "path": "/ticker-harness.html?activity=craft&freeze=slow",
+   "plan": "capture/plans/craft-slow.json",
+   "expect": [
+    "craft-slow"
+   ]
+  },
+  {
+   "label": "craft-ramped",
+   "path": "/ticker-harness.html?activity=craft&freeze=ramped",
+   "plan": "capture/plans/craft-ramped.json",
+   "expect": [
+    "craft-ramped"
+   ]
+  },
+  {
+   "label": "craft-complete",
+   "path": "/ticker-harness.html?activity=craft&freeze=complete",
+   "plan": "capture/plans/craft-complete.json",
+   "expect": [
+    "craft-complete"
+   ]
+  },
+  {
+   "label": "gather-start",
+   "path": "/ticker-harness.html?activity=gather&freeze=start",
+   "plan": "capture/plans/gather-start.json",
+   "expect": [
+    "gather-start"
+   ]
+  },
+  {
+   "label": "gather-flow",
+   "path": "/ticker-harness.html?activity=gather&freeze=flow",
+   "plan": "capture/plans/gather-flow.json",
+   "expect": [
+    "gather-flow"
+   ]
+  },
+  {
+   "label": "gather-yield",
+   "path": "/ticker-harness.html?activity=gather&freeze=yield",
+   "plan": "capture/plans/gather-yield.json",
+   "expect": [
+    "gather-yield"
+   ]
+  },
+  {
+   "label": "research-start",
+   "path": "/ticker-harness.html?activity=research&freeze=start",
+   "plan": "capture/plans/research-start.json",
+   "expect": [
+    "research-start"
+   ]
+  },
+  {
+   "label": "research-flow",
+   "path": "/ticker-harness.html?activity=research&freeze=flow",
+   "plan": "capture/plans/research-flow.json",
+   "expect": [
+    "research-flow"
+   ]
+  },
+  {
+   "label": "research-done",
+   "path": "/ticker-harness.html?activity=research&freeze=done",
+   "plan": "capture/plans/research-done.json",
+   "expect": [
+    "research-done"
+   ]
+  }
+ ]
+}
