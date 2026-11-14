@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":9000},{"dump":"({canvas: !!document.querySelector('canvas'), rundown: (document.querySelector('[data-testid=\"hero-rundown\"]')||{}).textContent || null, workspace: document.body.innerText.includes('Active Area'), start: typeof window.__startNumbersHome})"},{"shot":"rest-a","wait":600},{"shot":"rest-b","wait":300}],"width":412}

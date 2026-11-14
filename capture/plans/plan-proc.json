@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":9000},{"dump":"({canvas: !!document.querySelector('canvas'), start: typeof window.__startNumbersHome})"},{"eval":"window.__startNumbersHome()"},{"shot":"proc-a","wait":3950},{"shot":"proc-b","wait":400},{"shot":"proc-c","wait":400}],"width":412}
