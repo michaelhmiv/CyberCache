@@ -29,8 +29,15 @@ const DARK_TEXT = '#1A1206';
  * fresh sheet's medal (and its CTA) only until acknowledged.
  * Same cadence as the claim row's PulseGlow; reduced motion
  * gets the static ring.
+ *
+ * In the CLAIMABLE state the glow is an affordance and pulses
+ * until acted on, like every claim pulse. In the FRESH state
+ * the news has landed: DESIGN.md's claim moment "runs about
+ * 1.2 seconds and settles", so the fresh glow is FINITE — two
+ * pulses and it comes to rest on the lit ring (Stage Iteration
+ * C1; the infinite fresh pulse never settled).
  */
-function MedalGlow() {
+function MedalGlow({ finite = false }: { finite?: boolean }) {
   const reduceMotion = useReducedMotion();
   const shadow = `0 0 14px ${STREAK_ACCENT}99, inset 0 0 0 1px ${STREAK_ACCENT}`;
   if (reduceMotion) {
@@ -50,7 +57,7 @@ function MedalGlow() {
       className="pointer-events-none absolute inset-0"
       style={{ boxShadow: shadow }}
       animate={{ opacity: [1, 0.35, 1] }}
-      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+      transition={{ duration: 1.5, repeat: finite ? 1 : Infinity, ease: 'easeInOut' }}
     />
   );
 }
@@ -280,9 +287,20 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
       {/* The poster plate: medal, the day as headline, the
           streak count as the poster numeral. In the claimed
           state at cycle's end the plate turns forward to the
-          tier that opens next. */}
-      <div
+          tier that opens next. On the claim itself the plate
+          STAMPS the day (DESIGN.md §10: "the poster plate
+          stamps the day") — the key flip remounts the plate
+          the instant the claim lands, and the stamp is the
+          remount's entrance: down fast, one hard settle. The
+          stamp belongs to the claim tap only — the legacy
+          auto-grant fresh state and every quiet state render
+          the plate at rest. */}
+      <motion.div
+        key={fresh && justClaimed ? 'streak-hero-stamped' : 'streak-hero'}
         data-testid="streak-hero"
+        initial={reduceMotion || !(fresh && justClaimed) ? false : { opacity: 0.65, scale: 1.06, y: -5 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 480, damping: 24 }}
         className="flex items-center gap-3.5 border-2 bg-surface-raised px-3.5 py-3"
         style={{ borderColor: claimable || fresh ? STREAK_ACCENT : 'rgba(255,138,61,0.4)' }}
       >
@@ -305,7 +323,7 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
             aria-hidden="true"
             draggable={false}
           />
-          {(claimable || fresh) && <MedalGlow />}
+          {(claimable || fresh) && <MedalGlow finite={fresh} />}
         </div>
         <div className="min-w-0">
           {!claimable && !fresh && cycleComplete ? (
@@ -357,7 +375,7 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
           </div>
           <div className="text-[11px] font-bold uppercase text-text-muted">Day streak</div>
         </div>
-      </div>
+      </motion.div>
 
       {claimable ? (
         <>
@@ -369,12 +387,11 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
               the reward, whole, before it is theirs — and
               taking it is an act, not a footnote. */}
           <div data-testid="streak-claim-rows">
-            {rows.map((row, i) => (
+            {rows.map((row) => (
               <motion.div
                 key={row.unit}
-                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 + i * 0.12, duration: 0.25 }}
                 className="relative flex items-center gap-3 border-b border-border-light/60 px-1 py-2.5 last:border-b-0"
               >
                 <PxIcon name={row.icon} size={26} style={{ color: row.tint }} />
@@ -468,9 +485,22 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
                 <span className="text-[13px] font-semibold uppercase tracking-wide text-text-primary">
                   {row.unit}
                 </span>
-                <span className="ml-auto text-[11px] font-bold uppercase text-text-muted">
+                {/* The Banked tag STAMPS onto the landed row
+                    (DESIGN.md §10) — it is not present from the
+                    row's first frame; it comes down just after
+                    the row lands, hard and fast. */}
+                <motion.span
+                  initial={reduceMotion ? false : { opacity: 0, scale: 1.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={
+                    reduceMotion
+                      ? { duration: 0 }
+                      : { delay: 0.15 + i * 0.12 + 0.25, duration: 0.16, ease: 'easeOut' }
+                  }
+                  className="ml-auto inline-block text-[11px] font-bold uppercase text-text-muted"
+                >
                   {row.tag}
-                </span>
+                </motion.span>
                 {row.flare && !reduceMotion && (
                   <motion.span
                     aria-hidden
@@ -483,7 +513,7 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
                         'inset 0 0 0 2px rgba(63,214,232,0)',
                       ],
                     }}
-                    transition={{ delay: 0.15 + rows.length * 0.12 + 0.1, duration: 0.9, times: [0, 0.35, 1] }}
+                    transition={{ delay: 0.15 + i * 0.12 + 0.27, duration: 0.7, times: [0, 0.35, 1] }}
                   />
                 )}
               </motion.div>
@@ -520,11 +550,13 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
 
       {/* The exit is the acknowledgement: in the fresh state it
           carries the announcement glow because tapping it is
-          what ends the announcement. In the claimable state this
-          block is skipped entirely: the claim branch above
-          carries its own actions (Claim / Later) and its own
-          footer — a "Back to the hunt" here would read as a
-          second, competing primary. */}
+          what ends the announcement. The glow is finite (two
+          pulses, resting lit) — the claim moment settles per
+          DESIGN.md §10 instead of pulsing until dismissed. In
+          the claimable state this block is skipped entirely:
+          the claim branch above carries its own actions (Claim
+          / Later) and its own footer — a "Back to the hunt"
+          here would read as a second, competing primary. */}
       {!claimable && (fresh ? (
         <motion.button
           type="button"
@@ -543,7 +575,7 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
                   ],
                 }
           }
-          transition={reduceMotion ? undefined : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          transition={reduceMotion ? undefined : { duration: 1.5, repeat: 1, ease: 'easeInOut' }}
         >
           Back to the hunt
         </motion.button>

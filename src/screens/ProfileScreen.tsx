@@ -7,6 +7,7 @@ import { useCharacterStatSummary } from '@/hooks/useCharacterStatSummary';
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
 import { getMyStatsSummary, type PlayerPublicStats } from '@/lib/api/statsService';
 import { formatKillDeathRatio, killDeathRatio } from '@/lib/stats/statsHelpers';
+import { stopTransitionProps } from '@/lib/animation/uiMotion';
 import { ResourceBar } from '@/components/layout/ResourceBar';
 import { xpToNextLevel } from '@/content/simulation';
 import { MobileCard } from '@/components/layout/MobileCard';
@@ -332,9 +333,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       <motion.section
         key={id}
         data-testid={`hunter-section-${id}`}
-        initial={false}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reduceMotion ? 0 : 0.18 }}
+        {...stopTransitionProps(reduceMotion)}
+        exit={undefined}
         className="space-y-2"
       >
         {children}

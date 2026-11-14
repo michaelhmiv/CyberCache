@@ -190,6 +190,23 @@ body {
   animation: epicPulse 2.5s ease-in-out infinite;
 }
 
+/* Reduced motion floor (DESIGN.md §10: UI motion collapses under
+   reduced motion). CSS/Tailwind loops cannot read the framer-motion
+   hooks the components use, so the floor lives here: every infinite
+   CSS loop in the app holds its static state instead. Semantic
+   indicators keep their static form (a live dot stays lit, a
+   skeleton stays visible) — only the pulsing stops. Sample-B scene
+   and loot motion is canvas/framer-driven and never reaches this
+   stylesheet. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-spin,
+  .rarity-legendary-glow,
+  .rarity-epic-glow {
+    animation: none;
+  }
+}
+
 .bl-page .rounded-lg:not(.rounded-full),
 .bl-page .rounded-xl:not(.rounded-full),
 .bl-page .rounded-2xl:not(.rounded-full) {

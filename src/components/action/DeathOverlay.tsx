@@ -34,8 +34,9 @@
  */
 import React, { useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Clock } from 'lucide-react';
+import { ClaimPulse } from '@/components/common/ClaimPulse';
 import {
   useSurvivalStore,
   usePlayerStore,
@@ -99,8 +100,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
   const creditCost = resurrectionCostForArea(deathAreaId);
   const canPayCredits = credits >= creditCost;
   const busy = busyMethod !== null;
-
-  if (!isDead) return null;
+  const reduceMotion = useReducedMotion();
 
   // ─── Click handlers ─────────────────────────────────────────────
   // Both paths are intents to the Chef: the server requires its own
@@ -110,7 +110,12 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
   // server copy, survival via the slice's resurrect applier). The
   // local stores deduct nothing on their own.
   const runResurrect = async (method: 'free' | 'paid') => {
-    if (busy || !playerId) return;
+    if (busy) return;
+    if (!playerId) {
+      // Never a silent dead button: say why the tap did nothing.
+      setError('Still reconnecting — give it a second and try again.');
+      return;
+    }
     setBusyMethod(method);
     setError(null);
     try {
@@ -145,6 +150,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
 
   return (
     <AnimatePresence>
+      {isDead && (
       <motion.div
         data-testid="death-overlay"
         data-monster-id={lastKilledBy?.monsterId ?? null}
@@ -156,16 +162,21 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: reduceMotion ? 0 : 0.2 }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="death-overlay-title"
       >
         <motion.div
           className="w-full max-w-md space-y-4 rounded-2xl border-2 border-red bg-surface p-5 shadow-[6px_6px_0_rgba(0,0,0,0.75)]"
-          initial={{ y: 20, scale: 0.95 }}
+          initial={reduceMotion ? false : { y: 20, scale: 0.95 }}
           animate={{ y: 0, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { type: 'spring', stiffness: 280, damping: 22 }
+          }
         >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-red bg-red/20 text-red">
@@ -193,12 +204,18 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
             data-enabled={freeTimerEnabled && !busy}
             onClick={handleFree}
             disabled={!freeTimerEnabled || busy}
-            className={`flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-transform active:scale-[0.98] ${
+            className={`relative flex w-full items-center gap-3 rounded-xl border-2 p-3 text-left transition-transform active:scale-[0.98] ${
               freeTimerEnabled
                 ? 'border-border bg-bg hover:border-amber'
                 : 'border-border bg-bg opacity-60'
             }`}
           >
+            {/* The ready flip must announce itself (§10: a static
+                claimable is a missed hook) — the player may have
+                been watching this button for five minutes. */}
+            {freeTimerEnabled && !busy && (
+              <ClaimPulse color="#FFC65C" testId="death-free-ready-pulse" />
+            )}
             <Clock size={20} className={freeTimerEnabled ? 'text-amber' : 'text-text-muted'} />
             <div className="min-w-0 flex-1">
               <div className="text-sm font-black uppercase tracking-wide text-text-primary">Free Recovery</div>
@@ -226,7 +243,11 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
             <div className="min-w-0 flex-1">
               <div className="text-sm font-black uppercase tracking-wide text-text-primary">Pay Credits</div>
               <div className="text-[10px] text-text-muted">
-                {busyMethod === 'paid' ? 'Charging…' : canPayCredits ? 'Skip the timer — charged by the server' : `Need ${formatCreditCost(creditCost)}`}
+                {busyMethod === 'paid'
+                  ? 'Charging…'
+                  : canPayCredits
+                    ? `Skip the timer — charged by the server · Balance ${formatCreditCost(credits)}`
+                    : `Need ${formatCreditCost(creditCost)} · You have ${formatCreditCost(credits)}`}
               </div>
             </div>
             <div className="text-xs font-black text-amber">{formatCreditCost(creditCost)}</div>
@@ -243,6 +264,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
           </div>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 };
