@@ -333,13 +333,20 @@ async function caseTabBudget(browser) {
     const mounts = await page.evaluate(() => window.__e2e.roamPixiMounts);
     c.check('Pixi stage initialised exactly once for the session', mounts === 1, `mounts=${mounts}`);
     // Slice (f) F1/F2: the Vendor stop presents Marla Quill as the
-    // counter persona and shows one of her fixed counter lines.
+    // counter persona and shows one of her fixed counter lines. The
+    // Market tab lands on the Buy stop by default, so open the Vendor
+    // stop from the rail first and wait for her header to render.
     await measureSwitch(page, 'MARKET');
-    const marla = await page.evaluate(() => {
-      const text = document.body.innerText;
-      const line = document.querySelector('[data-testid="marla-counter-line"]');
-      return { named: /Marla Quill/.test(text), line: line ? line.textContent.trim() : '' };
-    });
+    await page.getByRole('button', { name: 'Vendor', exact: true }).first().click({ timeout: 15000 }).catch(() => {});
+    let marla = { named: false, line: '' };
+    for (let i = 0; i < 20; i++) {
+      marla = await page.evaluate(() => {
+        const line = document.querySelector('[data-testid="marla-counter-line"]');
+        return { named: /Marla Quill/.test(document.body.innerText), line: line ? line.textContent.trim() : '' };
+      });
+      if (marla.named && marla.line) break;
+      await sleep(500);
+    }
     c.check('vendor stop names Marla Quill (F1)', marla.named);
     c.check('vendor stop shows a Marla counter line (F2)', marla.line.length > 10, `line="${marla.line}"`);
   } finally {
