@@ -1,0 +1,73 @@
+{
+ "iter": "05",
+ "port": 7150,
+ "harnessPage": "/chunk-harness.html",
+ "captures": [
+  {
+   "label": "roam",
+   "path": "/chunk-harness.html?activity=roam",
+   "plan": "capture/plans/plan-roam.json",
+   "prefix": "roam",
+   "expect": [
+    "roam-rest",
+    "roam-surge",
+    "roam-kill"
+   ]
+  },
+  {
+   "label": "boss",
+   "path": "/chunk-harness.html?activity=boss",
+   "plan": "capture/plans/plan-boss.json",
+   "prefix": "boss",
+   "expect": [
+    "boss-rest",
+    "boss-telegraph",
+    "boss-break"
+   ]
+  },
+  {
+   "label": "craft",
+   "path": "/chunk-harness.html?activity=craft",
+   "plan": "capture/plans/plan-craft.json",
+   "prefix": "craft",
+   "expect": [
+    "craft-slow",
+    "craft-ramped",
+    "craft-complete"
+   ]
+  },
+  {
+   "label": "gather",
+   "path": "/chunk-harness.html?activity=gather",
+   "plan": "capture/plans/plan-gather.json",
+   "prefix": "gather",
+   "expect": [
+    "gather-start",
+    "gather-flow",
+    "gather-yield"
+   ]
+  },
+  {
+   "label": "research",
+   "path": "/chunk-harness.html?activity=research",
+   "plan": "capture/plans/plan-research.json",
+   "prefix": "research",
+   "expect": [
+    "research-start",
+    "research-flow",
+    "research-done"
+   ]
+  },
+  {
+   "label": "dispatch",
+   "path": "/chunk-harness.html?activity=dispatch",
+   "plan": "capture/plans/plan-dispatch.json",
+   "prefix": "dispatch",
+   "expect": [
+    "dispatch-start",
+    "dispatch-flow",
+    "dispatch-done"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"shot":"start","wait":1500},{"eval":"window.__setBeat('flow')","shot":"flow","wait":700},{"eval":"window.__setBeat('done')","shot":"done","wait":700}],"width":412}
