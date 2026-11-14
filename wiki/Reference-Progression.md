@@ -8,7 +8,7 @@ and the Cache Rank tracks with their earning and cost curves. See
 
 <!-- GENERATED from src/constants/skillTrees.ts — do not edit by hand -->
 <!-- wiki-gen:skill-trees -->
-The four trees hold **67 nodes** and **303 points** of spending room. A hunter earns 1 point per level from level 2 — **99 points by level 100** — so the trees are deliberately wider than any single build: choosing is the game.
+The four trees hold **88 nodes** and **406 points** of spending room. A hunter earns 1 point per level from level 2 — **99 points by level 100** — so the trees are deliberately wider than any single build: choosing is the game.
 
 ### Gunslinger
 
@@ -30,6 +30,11 @@ The four trees hold **67 nodes** and **303 points** of spending room. A hunter e
 | 7 | **Speedloader** | major | 3 | 1 | +20% Attack Speed for first 10 seconds of boss fight. | Quick Cycle, Rapid Servos |
 | 8 | **Weakspot Analysis** | major | 3 | 1 | +25% Crit Damage against bosses below 50% HP. | Terminal Ballistics, Overpenetration |
 | 8 | **Elemental Overclock** | major | 3 | 1 | Equipping a weapon matching the boss weakness grants +10% overall damage. | Procedural Loads |
+| 5 | **Tracer Loads** | small | 1 | 5 | +5% Status Chance | — |
+| 6 | **Breaching Loads** | small | 1 | 5 | +5% Shield Damage | — |
+| 4 | **Fast Hands** | small | 1 | 5 | +8% Attack Speed | — |
+| 3 | **Hair Trigger** | small | 1 | 5 | +8% Attack Speed | — |
+| 8 | **The Long Hunt** | major | 3 | 1 | +15% Shield Damage and +10% Status Chance — the roaming hunter’s edge. | Tracer Loads, Breaching Loads |
 | 9 | **Death by a Thousand Cuts** | keystone | 5 | 1 | Critical hits increase the DPS check score by an additional +25%. If crit chance exceeds 50%, gain +10% boss damage. | Focus Fire, Speedloader, Weakspot Analysis |
 
 ### Demolition
@@ -47,6 +52,12 @@ The four trees hold **67 nodes** and **303 points** of spending room. A hunter e
 | 5 | **Overcharge** | small | 1 | 5 | +15% Heavy Weapon Burst | — |
 | 5 | **Siege Mode** | small | 1 | 5 | +15% Heavy Weapon Burst | — |
 | 6 | **Ion Surge** | small | 1 | 5 | +10% Shield Break Contribution from Ordnance | — |
+| 6 | **Ion Cascade** | small | 1 | 5 | +10% Shield Break Contribution from Ordnance | — |
+| 1 | **Field Kitchen** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue). | — |
+| 2 | **Powder Stores** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue). | — |
+| 3 | **Grease and Wicks** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue). | — |
+| 4 | **Spares Cache** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue). | — |
+| 5 | **Forward Stockpile** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue). | — |
 | 7 | **Breaching Charge** | major | 3 | 1 | Ordnance attacks strip an additional 20% shield before DPS phase. | Ion Surge, Payload Expansion |
 | 7 | **Concussive Payload** | major | 3 | 1 | Stagger effects last 30% longer and reduce boss damage output by 15% while active. | Concussion, Impact Force |
 | 8 | **Scorched Earth** | major | 3 | 1 | If you bring a Launcher as Heavy Weapon, gain +20% armor break and +10% boss DPS. | Penetrator Rounds, Crack Core |
@@ -73,6 +84,11 @@ The four trees hold **67 nodes** and **303 points** of spending room. A hunter e
 | 7 | **Insurance Fraud** | major | 3 | 1 | Consumables used in a victorious boss fight have a 50% chance to be refunded. | Efficient Routines, Conservation |
 | 8 | **Market Manipulator** | major | 3 | 1 | Listing fees reduced an additional 15% for items you personally found. | Darknet Broker |
 | 8 | **Lucky Find** | major | 3 | 1 | +15% Rare Drop Chance. | Data Miner, Scrap Filter |
+| 1 | **Borrowed Caliber** | small | 1 | 5 | +5% Weapon Damage | — |
+| 2 | **Found Ammunition** | small | 1 | 5 | +5% Weapon Damage | — |
+| 3 | **Opportunist** | small | 1 | 5 | +3% Crit Chance | — |
+| 4 | **Cheap Shot** | small | 1 | 5 | +3% Crit Chance | — |
+| 5 | **Soft Spot** | small | 1 | 5 | +10% Crit Damage | — |
 | 9 | **King of Scrap** | keystone | 5 | 1 | Low-rarity weapons gain +100% scrap value. Commons have 25% chance for bonus crafting material. Offline cap +4 hours. | Hoarder's Instinct, Insurance Fraud, Lucky Find |
 
 ### Fixer
@@ -95,6 +111,11 @@ The four trees hold **67 nodes** and **303 points** of spending room. A hunter e
 | 7 | **Fleet Engineer** | major | 3 | 1 | Vehicles lose 25% less condition per fueled tick. | Rig Tuning, Aero Fairings |
 | 8 | **House Brand** | major | 3 | 1 | Marketplace listing fees reduced an additional 15% for Workshop-crafted items you sell. | Appraiser's Eye |
 | 8 | **Second Shift** | major | 3 | 1 | +1 concurrent self-repair job. | Torque Discipline, Bay Choreography |
+| 1 | **Proof Loads** | small | 1 | 5 | +10% Ordnance Damage | — |
+| 2 | **Bench-Tested** | small | 1 | 5 | +10% Ordnance Damage | — |
+| 3 | **Measured Charge** | small | 1 | 5 | +8% Explosive Damage | — |
+| 4 | **Stress Points** | small | 1 | 5 | +10% Armor Damage | — |
+| 5 | **Loose Bolts** | small | 1 | 5 | +5% Stagger Chance | — |
 | 9 | **The Fixer** | keystone | 5 | 1 | Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%. | Master Artificer, Fleet Engineer, Second Shift |
 <!-- /wiki-gen:skill-trees -->
 

@@ -100,6 +100,11 @@ export interface ProfileRowData {
   essences: Record<string, number>;
   consumables: Record<string, number>;
   skill_spends: Record<string, number>;
+  /** Reshape slice (a) (0097): the fielded Cache Hunter + per-hunter
+   *  loadout assignments, carried by cc_profile_snapshot. Rows from
+   *  older snapshots read undefined. */
+  active_hunter_id?: string | null;
+  hunter_loadouts?: Record<string, unknown>;
   boss_state: Record<string, unknown>;
   last_idle_claim_at: string;
   last_claimed_tick: number;

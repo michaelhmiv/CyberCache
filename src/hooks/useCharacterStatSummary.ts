@@ -25,6 +25,7 @@ import { buildCharacterStatSummary, type CharacterStatSummary } from '@/lib/stat
 import { assembleStatSummaryInput, type StatSummaryAssemblyState } from '@/lib/stats/assembleStatSummaryInput';
 import { buildCharacterMechanicsSnapshot, type CharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { computeSkillBonuses } from '@/lib/skills/skillBonuses';
+import { computeHunterSkillBonuses } from '@/lib/hunters/hunters';
 import { buildConsumableInventoryMods } from '@/lib/buffs/consumableModsAdapter';
 import type { BossDef } from '@/types/boss';
 import type { Weapon } from '@/types/items';
@@ -63,7 +64,7 @@ export function useStatSummaryAssemblyState(boss?: BossDef | null): StatSummaryA
     s.slots.shield, s.slots.classMod, s.slots.relic, s.slots.ordnance,
   ]));
   const equipped = useInventoryStore(useShallow((s) => slots.map((id) => s.items.find((item) => item.id === id))));
-  const skills = useSkillStore(useShallow((s) => ({ spent: s.spent, classModBoosts: s.classModBoosts })));
+  const skills = useSkillStore(useShallow((s) => ({ spent: s.spent, classModBoosts: s.classModBoosts, activeHunterId: s.activeHunterId })));
   const medKitBuffer = useSurvivalStore((s) => s.medKitBuffer);
   const now = useNow();
   // Keep this array stable until an effect actually changes or expires.
@@ -78,6 +79,7 @@ export function useStatSummaryAssemblyState(boss?: BossDef | null): StatSummaryA
     ordnance: isOrdnanceItem(equipped[6]) ? equipped[6] : undefined,
     spent: skills.spent,
     classModBoosts: skills.classModBoosts,
+    activeHunterId: skills.activeHunterId,
     boss: boss ?? undefined,
     activeBuffs,
     consumableMods: buildConsumableInventoryMods(consumableInventory),
@@ -103,7 +105,9 @@ export function useCharacterStatSummary(boss?: BossDef | null): CharacterStatInp
       snapshot,
       weapons,
       primary: state.weapons[0] ?? null,
-      skillBonuses: computeSkillBonuses(state.spent, state.classModBoosts),
+      skillBonuses: state.activeHunterId
+        ? computeHunterSkillBonuses(state.spent, state.classModBoosts, state.activeHunterId)
+        : computeSkillBonuses(state.spent, state.classModBoosts),
     };
   }, [state]);
 }

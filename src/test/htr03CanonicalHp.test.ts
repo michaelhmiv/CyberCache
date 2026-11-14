@@ -90,7 +90,9 @@ describe('HTR-03 — every surface states the same pool', () => {
       resurrectionReadyAt: null, autoEatThreshold: 0.7,
     });
     usePlayerStore.setState({ level: LEVEL, cacheRankSpends: { ...THICK_SKIN_SPENDS } });
-    useSkillStore.setState({ spent: { demo_stag_1: 5, demo_stag_2: 5 }, classModBoosts: { nodeBoosts: {} } });
+    // The stagger spends are Silas's pool — he is the fielded hunter
+    // for this fixture (reshape slice (a): only his subset prices).
+    useSkillStore.setState({ spent: { demo_stag_1: 5, demo_stag_2: 5 }, classModBoosts: { nodeBoosts: {} }, activeHunterId: 'silas' });
     useLoadoutStore.setState({
       slots: {
         primary: null, secondary: null, heavy: null, ordnance: null,

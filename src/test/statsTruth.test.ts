@@ -356,7 +356,7 @@ describe('stats truth — offline settlement parity (HTTP)', () => {
       scrap: 0,
       last_claimed_tick: 0,
       last_roaming_settled_at: new Date(settleFromMs).toISOString(),
-      ...(withBuild ? { skill_spends: { scav_idle_1: 5, scav_scrap_1: 5 } } : {}),
+      ...(withBuild ? { skill_spends: { scav_idle_1: 5, scav_scrap_1: 5 }, active_hunter_id: 'josie' } : {}),
     });
     store.seedActiveAction({
       user_id: id,

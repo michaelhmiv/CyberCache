@@ -20,6 +20,15 @@ export const SKILL_NODES: SkillNode[] = [
   { id: 'gs_major_2', tree: SkillTreeType.Gunslinger, tier: 7, index: 2, name: 'Speedloader', description: '+20% Attack Speed for first 10 seconds of boss fight.', type: 'major', maxPoints: 1, cost: 3, effects: { openingAttackSpeed: 0.20 }, requires: ['gs_speed_1', 'gs_speed_2'] },
   { id: 'gs_major_3', tree: SkillTreeType.Gunslinger, tier: 8, index: 1, name: 'Weakspot Analysis', description: '+25% Crit Damage against bosses below 50% HP.', type: 'major', maxPoints: 1, cost: 3, effects: { critDamageSub50: 0.25 }, requires: ['gs_critdmg_1', 'gs_critdmg_2'] },
   { id: 'gs_major_4', tree: SkillTreeType.Gunslinger, tier: 8, index: 2, name: 'Elemental Overclock', description: 'Equipping a weapon matching the boss weakness grants +10% overall damage.', type: 'major', maxPoints: 1, cost: 3, effects: { weaknessMatchDamage: 0.10 }, requires: ['gs_status_1'] },
+  // Growth branch — "Long Hunt" (reshape slice (a), brief §2.1): the
+  // roaming sprinkle. Consumed keys only (statusChance /
+  // shieldDamageMod / attackSpeed second pairs + a major on the same
+  // keys) — 23 points, so the tree (100) stays above the 99 budget.
+  { id: 'gs_status_2', tree: SkillTreeType.Gunslinger, tier: 5, index: 3, name: 'Tracer Loads', description: '+5% Status Chance', type: 'small', maxPoints: 5, cost: 1, effects: { statusChance: 0.05 } },
+  { id: 'gs_shield_2', tree: SkillTreeType.Gunslinger, tier: 6, index: 3, name: 'Breaching Loads', description: '+5% Shield Damage', type: 'small', maxPoints: 5, cost: 1, effects: { shieldDamageMod: 0.05 } },
+  { id: 'gs_speed_3', tree: SkillTreeType.Gunslinger, tier: 4, index: 3, name: 'Fast Hands', description: '+8% Attack Speed', type: 'small', maxPoints: 5, cost: 1, effects: { attackSpeed: 0.08 } },
+  { id: 'gs_speed_4', tree: SkillTreeType.Gunslinger, tier: 3, index: 3, name: 'Hair Trigger', description: '+8% Attack Speed', type: 'small', maxPoints: 5, cost: 1, effects: { attackSpeed: 0.08 } },
+  { id: 'gs_major_5', tree: SkillTreeType.Gunslinger, tier: 8, index: 3, name: 'The Long Hunt', description: '+15% Shield Damage and +10% Status Chance — the roaming hunter’s edge.', type: 'major', maxPoints: 1, cost: 3, effects: { shieldDamageMod: 0.15, statusChance: 0.10 }, requires: ['gs_status_2', 'gs_shield_2'] },
   // Keystone
   { id: 'gs_keystone', tree: SkillTreeType.Gunslinger, tier: 9, index: 1, name: 'Death by a Thousand Cuts', description: 'Critical hits increase the DPS check score by an additional +25%. If crit chance exceeds 50%, gain +10% boss damage.', type: 'keystone', maxPoints: 1, cost: 5, effects: { critDpsBonus: 0.25, highCritBossDamage: 0.10 }, requires: ['gs_major_1', 'gs_major_2', 'gs_major_3'] },
 
@@ -35,6 +44,19 @@ export const SKILL_NODES: SkillNode[] = [
   { id: 'demo_heavy_1', tree: SkillTreeType.Demolition, tier: 5, index: 1, name: 'Overcharge', description: '+15% Heavy Weapon Burst', type: 'small', maxPoints: 5, cost: 1, effects: { heavyWeaponBurst: 0.15 } },
   { id: 'demo_heavy_2', tree: SkillTreeType.Demolition, tier: 5, index: 2, name: 'Siege Mode', description: '+15% Heavy Weapon Burst', type: 'small', maxPoints: 5, cost: 1, effects: { heavyWeaponBurst: 0.15 } },
   { id: 'demo_shield_1', tree: SkillTreeType.Demolition, tier: 6, index: 1, name: 'Ion Surge', description: '+10% Shield Break Contribution from Ordnance', type: 'small', maxPoints: 5, cost: 1, effects: { ordnanceShieldBreak: 0.10 } },
+  // Parity top-up (reshape slice (a), brief §2.1): Demolition shipped
+  // 5 points light (72 vs 77); this second ordnanceShieldBreak node
+  // completes the pair on an already-consumed key — all four trees
+  // now cost 77 before growth.
+  { id: 'demo_shield_2', tree: SkillTreeType.Demolition, tier: 6, index: 2, name: 'Ion Cascade', description: '+10% Shield Break Contribution from Ordnance', type: 'small', maxPoints: 5, cost: 1, effects: { ordnanceShieldBreak: 0.10 } },
+  // Growth branch — field-ordnance sprinkle (brief §2.1): Workshop
+  // craft-time for the ordnance Silas lives on, on the consumed
+  // consumableEfficiency key at sprinkle size — 25 points.
+  { id: 'demo_cons_1', tree: SkillTreeType.Demolition, tier: 1, index: 3, name: 'Field Kitchen', description: 'Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue).', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.04 } },
+  { id: 'demo_cons_2', tree: SkillTreeType.Demolition, tier: 2, index: 3, name: 'Powder Stores', description: 'Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue).', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.04 } },
+  { id: 'demo_cons_3', tree: SkillTreeType.Demolition, tier: 3, index: 3, name: 'Grease and Wicks', description: 'Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue).', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.04 } },
+  { id: 'demo_cons_4', tree: SkillTreeType.Demolition, tier: 4, index: 3, name: 'Spares Cache', description: 'Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue).', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.04 } },
+  { id: 'demo_cons_5', tree: SkillTreeType.Demolition, tier: 5, index: 3, name: 'Forward Stockpile', description: 'Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue).', type: 'small', maxPoints: 5, cost: 1, effects: { consumableEfficiency: 0.04 } },
   // Major
   { id: 'demo_major_1', tree: SkillTreeType.Demolition, tier: 7, index: 1, name: 'Breaching Charge', description: 'Ordnance attacks strip an additional 20% shield before DPS phase.', type: 'major', maxPoints: 1, cost: 3, effects: { shieldStripBonus: 0.20 }, requires: ['demo_shield_1', 'demo_ord_1'] },
   { id: 'demo_major_2', tree: SkillTreeType.Demolition, tier: 7, index: 2, name: 'Concussive Payload', description: 'Stagger effects last 30% longer and reduce boss damage output by 15% while active.', type: 'major', maxPoints: 1, cost: 3, effects: { staggerDuration: 0.30, staggerMitigation: 0.15 }, requires: ['demo_stag_1', 'demo_stag_2'] },
@@ -61,6 +83,15 @@ export const SKILL_NODES: SkillNode[] = [
   { id: 'scav_major_2', tree: SkillTreeType.Scavenger, tier: 7, index: 2, name: 'Insurance Fraud', description: 'Consumables used in a victorious boss fight have a 50% chance to be refunded.', type: 'major', maxPoints: 1, cost: 3, effects: { consumableRecovery: 0.50 }, requires: ['scav_cons_1', 'scav_cons_2'] },
   { id: 'scav_major_3', tree: SkillTreeType.Scavenger, tier: 8, index: 1, name: 'Market Manipulator', description: 'Listing fees reduced an additional 15% for items you personally found.', type: 'major', maxPoints: 1, cost: 3, effects: { foundItemFeeReduction: 0.15 }, requires: ['scav_fee_1'] },
   { id: 'scav_major_4', tree: SkillTreeType.Scavenger, tier: 8, index: 2, name: 'Lucky Find', description: '+15% Rare Drop Chance.', type: 'major', maxPoints: 1, cost: 3, effects: { rareDropChance: 0.15 }, requires: ['scav_drop_1', 'scav_drop_2'] },
+  // Growth branch — opportunist combat sprinkle (reshape slice (a),
+  // brief §2.1): weaponDamage / critChance pairs + a critDamage node,
+  // consumed keys only — 25 points, so the tree (102) stays above the
+  // 99 budget.
+  { id: 'scav_wpn_1', tree: SkillTreeType.Scavenger, tier: 1, index: 3, name: 'Borrowed Caliber', description: '+5% Weapon Damage', type: 'small', maxPoints: 5, cost: 1, effects: { weaponDamage: 0.05 } },
+  { id: 'scav_wpn_2', tree: SkillTreeType.Scavenger, tier: 2, index: 3, name: 'Found Ammunition', description: '+5% Weapon Damage', type: 'small', maxPoints: 5, cost: 1, effects: { weaponDamage: 0.05 } },
+  { id: 'scav_crit_1', tree: SkillTreeType.Scavenger, tier: 3, index: 3, name: 'Opportunist', description: '+3% Crit Chance', type: 'small', maxPoints: 5, cost: 1, effects: { critChance: 0.03 } },
+  { id: 'scav_crit_2', tree: SkillTreeType.Scavenger, tier: 4, index: 3, name: 'Cheap Shot', description: '+3% Crit Chance', type: 'small', maxPoints: 5, cost: 1, effects: { critChance: 0.03 } },
+  { id: 'scav_critdmg_1', tree: SkillTreeType.Scavenger, tier: 5, index: 3, name: 'Soft Spot', description: '+10% Crit Damage', type: 'small', maxPoints: 5, cost: 1, effects: { critDamage: 0.10 } },
   // Keystone
   { id: 'scav_keystone', tree: SkillTreeType.Scavenger, tier: 9, index: 1, name: 'King of Scrap', description: 'Low-rarity weapons gain +100% scrap value. Commons have 25% chance for bonus crafting material. Offline cap +4 hours.', type: 'keystone', maxPoints: 1, cost: 5, effects: { lowRarityScrapBonus: 1.0, commonMaterialChance: 0.25, offlineCapBonus: 4 }, requires: ['scav_major_1', 'scav_major_2', 'scav_major_4'] },
 
@@ -88,6 +119,15 @@ export const SKILL_NODES: SkillNode[] = [
   { id: 'fix_major_2', tree: SkillTreeType.Fixer, tier: 7, index: 2, name: 'Fleet Engineer', description: 'Vehicles lose 25% less condition per fueled tick.', type: 'major', maxPoints: 1, cost: 3, effects: { vehicleDecayReduction: 0.25 }, requires: ['fix_vehicle_yield_1', 'fix_vehicle_yield_2'] },
   { id: 'fix_major_3', tree: SkillTreeType.Fixer, tier: 8, index: 1, name: 'House Brand', description: 'Marketplace listing fees reduced an additional 15% for Workshop-crafted items you sell.', type: 'major', maxPoints: 1, cost: 3, effects: { craftedItemFeeReduction: 0.15 }, requires: ['fix_vendor_1'] },
   { id: 'fix_major_4', tree: SkillTreeType.Fixer, tier: 8, index: 2, name: 'Second Shift', description: '+1 concurrent self-repair job.', type: 'major', maxPoints: 1, cost: 3, effects: { bonusRepairJobs: 1 }, requires: ['fix_repair_speed_1', 'fix_repair_speed_2'] },
+  // Growth branch — combat sprinkle (reshape slice (a), brief §2.1):
+  // the Fixer builds the ordnance everyone else fires — small nodes
+  // on consumed combat keys only — 25 points, so the tree (102)
+  // stays above the 99 budget.
+  { id: 'fix_ord_1', tree: SkillTreeType.Fixer, tier: 1, index: 3, name: 'Proof Loads', description: '+10% Ordnance Damage', type: 'small', maxPoints: 5, cost: 1, effects: { ordnanceDamage: 0.10 } },
+  { id: 'fix_ord_2', tree: SkillTreeType.Fixer, tier: 2, index: 3, name: 'Bench-Tested', description: '+10% Ordnance Damage', type: 'small', maxPoints: 5, cost: 1, effects: { ordnanceDamage: 0.10 } },
+  { id: 'fix_exp_1', tree: SkillTreeType.Fixer, tier: 3, index: 3, name: 'Measured Charge', description: '+8% Explosive Damage', type: 'small', maxPoints: 5, cost: 1, effects: { explosiveDamage: 0.08 } },
+  { id: 'fix_armor_1', tree: SkillTreeType.Fixer, tier: 4, index: 3, name: 'Stress Points', description: '+10% Armor Damage', type: 'small', maxPoints: 5, cost: 1, effects: { armorDamageMod: 0.10 } },
+  { id: 'fix_stag_1', tree: SkillTreeType.Fixer, tier: 5, index: 3, name: 'Loose Bolts', description: '+5% Stagger Chance', type: 'small', maxPoints: 5, cost: 1, effects: { staggerChance: 0.05 } },
   // Keystone
   { id: 'fix_keystone', tree: SkillTreeType.Fixer, tier: 9, index: 1, name: 'The Fixer', description: 'Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%.', type: 'keystone', maxPoints: 1, cost: 5, effects: { coreCatalystDrawBonus: 1, workshopQueueBonus: 1, rushReductionCapBonus: 0.10 }, requires: ['fix_major_1', 'fix_major_2', 'fix_major_4'] },
 ];
@@ -96,7 +136,11 @@ export const SKILL_NODES: SkillNode[] = [
 // points, enforced server-side by cc_train_skill (migration 0004)
 // against profiles.player_level, and mirrored by the client store.
 // (The old MAX_SKILL_POINTS = 50 constant was dead and wrong — the
-// lifetime budget at level 100 is 99 against 303 points of trees.)
+// lifetime budget at level 100 is 99 against 303 points of trees.
+// Since reshape slice (a) the budget is PER HUNTER (each hunter's
+// pool is capped at level − 1 in their own tree) and the trees grew
+// to 406 points total — every tree still costs more than 99, so the
+// forced-choice pressure holds per hunter.)
 export const POINTS_PER_LEVEL = 1; // gain 1 per level, starting at level 2
 export function getSkillTreeNodes(tree: SkillTreeType): SkillNode[] {
   return SKILL_NODES.filter((n) => n.tree === tree);

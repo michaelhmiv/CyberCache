@@ -31,7 +31,11 @@ describe('skillSlice — class mod boosts', () => {
   it('starts with no class mod boosts', () => {
     const bonuses = useSkillStore.getState().getBonuses();
     expect(useSkillStore.getState().appliedClassModId).toBeNull();
-    expect(bonuses.dps).toBe(0);
+    // No mod and no spends — but the fielded hunter (default Vesper)
+    // always brings her Weakspot Eye base perk: critChance 0.03
+    // feeds the dps composite at ×0.5 (reshape slice (a)).
+    expect(bonuses.critChance).toBeCloseTo(0.03, 10);
+    expect(bonuses.dps).toBeCloseTo(0.015, 10);
   });
 
   it('applyClassMod sets the class mod id and boosts', () => {
@@ -150,9 +154,13 @@ describe('skillSlice — class mod boosts', () => {
     useSkillStore.setState({ spent: { 'gs_dmg_1': 3, 'fix_major_1': 1, 'fix_keystone': 1 } });
     const state = useSkillStore.getState();
     // The budget the level gate charges: 3×1 + 3 + 5 = 11 — not the raw
-    // count of 5 trained points. Respec quotes budget × 100cr, matching
-    // the server's cc_retrain charge.
+    // count of 5 trained points.
     expect(state.getSpentBudget()).toBe(11);
-    expect(state.respecCost()).toBe(1100);
+    // Respec quotes the ACTIVE hunter's pool × 100cr (slice (a) A3),
+    // matching the server's per-pool cc_retrain charge: Vesper's
+    // Gunslinger pool is 3; Doc's Fixer pool is 3 + 5 = 8.
+    expect(state.respecCost()).toBe(300);
+    useSkillStore.getState().setActiveHunter('doc');
+    expect(useSkillStore.getState().respecCost()).toBe(800);
   });
 });

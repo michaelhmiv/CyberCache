@@ -95,8 +95,10 @@ function baseSeed(): WriteSeed {
     { table_id: 'boss_attempt_balanced', outcome: 'victory', weight: 50, payload: { xp_mult: 1, credit_mult: 1, fragment_reward: 2 } },
   ];
   s.skillNodes = [
-    { id: 'dmg1', tree: 'combat', tier: 1, slot_index: 0, name: 'Damage 1', description: '', node_type: 'stat', max_points: 2, per_point_cost: 1, effects: {}, requires: [] },
-    { id: 'dmg2', tree: 'combat', tier: 2, slot_index: 0, name: 'Damage 2', description: '', node_type: 'stat', max_points: 1, per_point_cost: 1, effects: {}, requires: ['dmg1'] },
+    // Reshape slice (a): pools are per hunter tree — the fixture
+    // nodes live on the default hunter's (Vesper's) Gunslinger tree.
+    { id: 'dmg1', tree: 'Gunslinger', tier: 1, slot_index: 0, name: 'Damage 1', description: '', node_type: 'stat', max_points: 2, per_point_cost: 1, effects: {}, requires: [] },
+    { id: 'dmg2', tree: 'Gunslinger', tier: 2, slot_index: 0, name: 'Damage 2', description: '', node_type: 'stat', max_points: 1, per_point_cost: 1, effects: {}, requires: ['dmg1'] },
   ];
   s.roamingAreas = [
     { id: 'dustwaste', display_name: 'Dustwaste', unlock_level: 1, payload: { credits_per_tick: 2, scrap_per_tick: 1, xp_per_tick: 3, material_bias: ['Scrap'], essence_bias: [] } },

@@ -3,6 +3,7 @@
  *
  *   GET  /api/action-skill/me            — the player's OWN signature state
  *   POST /api/action-skill/select        — record the active signature
+ *   POST /api/action-skill/set-hunter    — switch the active Cache Hunter (0097)
  *   POST /api/action-skill/fire-workshop — the Fixer's Overclock workshop fire
  *
  * Trust model (the #207 pattern): identity comes from the JWT only;
@@ -38,6 +39,7 @@ import {
   type ActionSkillStateView,
 } from '../../content/actionSkills';
 import { SkillTreeType } from '../../types/game';
+import { activeHunterId, isHunterId, treeForHunter } from '../../lib/hunters/hunters';
 import type { GearItem } from '../../types/items';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
@@ -68,7 +70,13 @@ export async function actionSkillStateFor(
   return actionSkillStateView({
     spent: (facts.skill_spends ?? {}) as Record<string, number>,
     classModBoosts: boostsFromModPayload(facts.class_mod_payload),
-    selection: facts.action_skill_selection,
+    // Reshape slice (a): on a converted profile (0097 seeded
+    // active_hunter_id) the selection COLLAPSES to the active
+    // hunter's signature (keystone-qualified by resolveActionSkill);
+    // an unconverted profile keeps its stored selection.
+    selection: facts.active_hunter_id
+      ? treeForHunter(activeHunterId(facts))
+      : facts.action_skill_selection,
     charge: facts.action_skill_charge,
   });
 }
@@ -98,11 +106,18 @@ export function planActionSkillFire(input: {
   spent: Record<string, number>;
   classModBoosts: ClassModBoosts;
   selection: string | null | undefined;
+  /** Active hunter (0097): when present, the selection collapses to
+   *  this hunter's signature tree, ignoring the stored selection. */
+  activeHunterId?: string | null;
   charge: number;
   target: { health: number; shield: number; armor: number };
   levers: ActionSkillLeverValues;
 }): { plan: ActionSkillFirePlan; tree: SkillTreeType } | { error: string; code: 'no_active_signature' | 'not_charged' } {
-  const { selected } = resolveActionSkill(input.spent, input.classModBoosts, input.selection);
+  const { selected } = resolveActionSkill(
+    input.spent,
+    input.classModBoosts,
+    input.activeHunterId ? treeForHunter(activeHunterId({ active_hunter_id: input.activeHunterId, action_skill_selection: input.selection })) : input.selection,
+  );
   if (!selected) {
     return {
       error:
@@ -137,10 +152,15 @@ export function deferredActionSkillFirePlan(input: {
   spent: Record<string, number>;
   classModBoosts: ClassModBoosts;
   selection: string | null | undefined;
+  activeHunterId?: string | null;
   target: { health: number; shield: number; armor: number };
   levers: ActionSkillLeverValues;
 }): { plan: ActionSkillFirePlan; tree: SkillTreeType } | null {
-  const { selected } = resolveActionSkill(input.spent, input.classModBoosts, input.selection);
+  const { selected } = resolveActionSkill(
+    input.spent,
+    input.classModBoosts,
+    input.activeHunterId ? treeForHunter(activeHunterId({ active_hunter_id: input.activeHunterId, action_skill_selection: input.selection })) : input.selection,
+  );
   if (!selected) return null;
   return { plan: buildActionSkillFirePlan(selected, input.target, input.levers), tree: selected };
 }
@@ -227,6 +247,48 @@ export function createSelectActionSkillHandler(store: ChefGameplayStore, _config
       });
     } catch (err) {
       sendRouteError(res, 'Action skill selection failed', err);
+    }
+  };
+}
+
+export function createSetActiveHunterHandler(store: ChefGameplayStore, _config: ActionSkillConfig) {
+  return async function handleSetActiveHunter(req: Request, res: Response): Promise<void> {
+    try {
+      const body = (req.body ?? {}) as {
+        playerId?: string;
+        jwt?: string;
+        nonce?: string;
+        hunterId?: unknown;
+        hunter_id?: unknown;
+      };
+      const playerId = getAuthenticatedChefPlayer(_config, req, body.jwt, body.playerId);
+      const nonce =
+        typeof body.nonce === 'string' && body.nonce.trim().length >= 8
+          ? body.nonce
+          : `set-active-hunter:${playerId}:${Date.now()}`;
+      const hunterId = body.hunterId ?? body.hunter_id;
+      if (!isHunterId(hunterId)) {
+        res.status(400).json({ error: 'Unknown hunter', detail: String(hunterId) });
+        return;
+      }
+      let applied: Json;
+      try {
+        applied = await store.setActiveHunter(playerId, nonce, hunterId);
+      } catch (err) {
+        sendStoreError(res, 'Failed to set active hunter', err);
+        return;
+      }
+      const record = applied as Record<string, unknown>;
+      const state = await actionSkillStateFor(store, playerId);
+      res.json({
+        verified: true,
+        activeHunterId: hunterId,
+        actionSkill: state,
+        profile: record.profile,
+        idempotentReplay: record.idempotent_replay === true,
+      });
+    } catch (err) {
+      sendRouteError(res, 'Set active hunter failed', err);
     }
   };
 }

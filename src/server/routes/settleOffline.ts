@@ -108,6 +108,7 @@ export function createSettleOfflineHandler(
         const craftSkillBonuses = skillBonusesFromRecords(
           craftGear,
           (craftProfile.skill_spends ?? {}) as Record<string, number>,
+          craftProfile,
         );
         // Research: the Logistics track's offline-cap grants ARE
         // the cap's earned growth (gate-removal step 6 — settle-first
@@ -183,6 +184,7 @@ export function createSettleOfflineHandler(
         const extractSkillBonuses = skillBonusesFromRecords(
           extractGear,
           (extractProfile.skill_spends ?? {}) as Record<string, number>,
+          extractProfile,
         );
         const extractResearchBonuses = await store.getResearchBonuses(playerId);
         const extractEconomy = config.economyConfig
@@ -290,6 +292,7 @@ export function createSettleOfflineHandler(
         skillBonusesFromRecords(
           equippedGear,
           (profile.skill_spends ?? {}) as Record<string, number>,
+          profile,
         ),
         researchBonuses,
       );

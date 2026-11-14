@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { buildCharacterMechanicsSnapshot } from '@/lib/mechanics/buildCharacterMechanicsSnapshot';
 import { assembleStatSummaryInput } from '@/lib/stats/assembleStatSummaryInput';
-import { effectiveSkillPoints } from '@/lib/skills/skillBonuses';
+import { effectivePointsForHunter } from '@/lib/hunters/hunters';
 import { computeStandardDps } from '@/lib/stats/dpsChain';
 import {
   classModBoostsFromGear,
@@ -75,7 +75,10 @@ const spent = { scav_idle_1: 2, gs_dmg_1: 3 };
 const equippedGear: GearItem[] = [primary, wornMod];
 
 /** The Chef's own derivation from the same server records. */
-const chefRecord = skillBonusesFromRecords(equippedGear, spent);
+// Reshape slice (a): the worn mod is Scavenger-bound, so the fielded
+// hunter is Josie Lode — the Chef prices her pool only, and the
+// Gunslinger spends (Vesper's pool) do not price while she is fielded.
+const chefRecord = skillBonusesFromRecords(equippedGear, spent, 'josie');
 
 const assemblyState = {
   player,
@@ -83,6 +86,7 @@ const assemblyState = {
   classMod: wornMod,
   spent,
   classModBoosts: { treeBonus: wornMod.treeBonus, nodeBoosts: { ...wornMod.nodeBoosts } },
+  activeHunterId: 'josie' as const,
 };
 
 describe('class-mod truth fix — client summary ≡ Chef derivation', () => {
@@ -91,14 +95,21 @@ describe('class-mod truth fix — client summary ≡ Chef derivation', () => {
     // = 0.75, plus the treeBonus fold grants scav_idle_2 a point it
     // never spent: another 0.15. Total 0.90.
     expect(chefRecord.offlineEarnings).toBeCloseTo(0.9, 10);
-    // gs_dmg_1: (3 spent + 2 boost) × 0.05
-    expect(chefRecord.weaponDamage).toBeCloseTo(0.25, 10);
+    // gs_dmg_1 belongs to Vesper's pool: it does not price while
+    // Josie is fielded (the mod's gs_dmg_1 boost is dead with it —
+    // priced, it would add (3 + 2) × 0.05 = 0.25). The 0.10 that IS
+    // here is the Scavenger treeBonus fold (+1 to every tree node)
+    // landing on the growth branch's scav_wpn_1 / scav_wpn_2.
+    expect(chefRecord.weaponDamage).toBeCloseTo(0.1, 10);
+    // Josie's Hoard Sense base perk (0.10) rides as a hunter-level
+    // constant, on top of the treeBonus fold over scav_qty_1/2 (0.20).
+    expect(chefRecord.lootQuantity).toBeCloseTo(0.3, 10);
   });
 
   it('the assembled input folds exactly the points the Chef folds', () => {
     const input = assembleStatSummaryInput(assemblyState);
     expect(input.spentSkills).toEqual(
-      effectiveSkillPoints(spent, classModBoostsFromGear(equippedGear)),
+      effectivePointsForHunter(spent, classModBoostsFromGear(equippedGear), 'josie'),
     );
   });
 

@@ -42,6 +42,7 @@ import {
   type DispatchOffer,
 } from '../../content/dispatch';
 import { getVehicleClass, VEHICLE_CONDITION_MAX } from '../../lib/vehicles/vehicles';
+import { itemsAssignedToAnyHunter, type HunterLoadouts } from '../../lib/hunters/hunters';
 import type { Vehicle } from '../../types/items';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 
@@ -161,7 +162,11 @@ async function priceContract(
         reasons.push('Dispatch item not found');
         continue;
       }
-      if (item.runtime_state !== 'available' || item.equipped_slot !== null) {
+      if (
+        item.runtime_state !== 'available' ||
+        item.equipped_slot !== null ||
+        itemsAssignedToAnyHunter(facts.profile.hunter_loadouts as HunterLoadouts).has(item.id)
+      ) {
         reasons.push(`Item is not spare: ${itemName(item)}`);
       }
       if (item.kind === 'vehicle') {
@@ -210,11 +215,18 @@ async function priceContract(
   if (vehicleItemId && !vehicle) reasons.push('Courier vehicle not found');
   if (vehicle) {
     if (vehicle.kind !== 'vehicle') reasons.push('Courier assignment is not a vehicle');
-    if (vehicle.runtime_state !== 'available' || vehicle.equipped_slot !== null) {
+    if (
+      vehicle.runtime_state !== 'available' ||
+      vehicle.equipped_slot !== null ||
+      itemsAssignedToAnyHunter(facts.profile.hunter_loadouts as HunterLoadouts).has(vehicle.id)
+    ) {
       reasons.push(
         vehicle.equipped_slot !== null
           ? 'That vehicle is equipped — your ride stays with you; couriers are for spare vehicles'
-          : `Vehicle is ${vehicle.runtime_state} and cannot be assigned`,
+          : itemsAssignedToAnyHunter(facts.profile.hunter_loadouts as HunterLoadouts).has(vehicle.id) &&
+              vehicle.runtime_state === 'available'
+            ? 'That vehicle is assigned to a hunter’s loadout — unassign it before it can ride courier'
+            : `Vehicle is ${vehicle.runtime_state} and cannot be assigned`,
       );
     }
     const classId = vehicleClassId(vehicle);

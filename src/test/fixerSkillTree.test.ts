@@ -129,9 +129,9 @@ const FIXER_MAXED: Record<string, number> = {
 describe('Fixer tree — shape and identity', () => {
   const fixer = getSkillTreeNodes(SkillTreeType.Fixer);
 
-  it('has the shipped shape: 12 small / 4 major / 1 keystone, tiers 1–9 in pairs', () => {
-    expect(fixer).toHaveLength(17);
-    expect(fixer.filter((n) => n.type === 'small')).toHaveLength(12);
+  it('has the shipped shape: 17 small / 4 major / 1 keystone (12 + the 5-node growth branch)', () => {
+    expect(fixer).toHaveLength(22);
+    expect(fixer.filter((n) => n.type === 'small')).toHaveLength(17);
     expect(fixer.filter((n) => n.type === 'major')).toHaveLength(4);
     expect(fixer.filter((n) => n.type === 'keystone')).toHaveLength(1);
     for (const n of fixer) {
@@ -141,9 +141,9 @@ describe('Fixer tree — shape and identity', () => {
       if (n.type === 'keystone') { expect(n.cost).toBe(5); expect(n.maxPoints).toBe(1); }
     }
     const costToMax = fixer.reduce((sum, n) => sum + n.cost * n.maxPoints, 0);
-    expect(costToMax).toBe(77);
+    expect(costToMax).toBe(102);
     const allCost = SKILL_NODES.reduce((sum, n) => sum + n.cost * n.maxPoints, 0);
-    expect(allCost).toBe(303);
+    expect(allCost).toBe(406);
   });
 
   it('carries the brief\'s exact effect values', () => {
@@ -226,10 +226,24 @@ const FIXER_SMALL_IDS = [
   'fix_repair_speed_1', 'fix_repair_speed_2', 'fix_repair_eff_1', 'fix_repair_eff_2',
   'fix_vehicle_yield_1', 'fix_vehicle_yield_2', 'fix_vehicle_fuel_1', 'fix_vendor_1',
 ];
+// Reshape slice (a): the growth branches' smalls join the derived pool
+// inside their own tree's segment (registry order), never as new keys.
+const GROWTH_SMALL_IDS_BY_SEGMENT = {
+  afterGs: ['gs_status_2', 'gs_shield_2', 'gs_speed_3', 'gs_speed_4'],
+  afterDemo: ['demo_shield_2', 'demo_cons_1', 'demo_cons_2', 'demo_cons_3', 'demo_cons_4', 'demo_cons_5'],
+  afterScav: ['scav_wpn_1', 'scav_wpn_2', 'scav_crit_1', 'scav_crit_2', 'scav_critdmg_1'],
+  fixer: ['fix_ord_1', 'fix_ord_2', 'fix_exp_1', 'fix_armor_1', 'fix_stag_1'],
+};
+const EXPECTED_SMALL_IDS = [
+  ...LEGACY_SMALL_IDS.slice(0, 12), ...GROWTH_SMALL_IDS_BY_SEGMENT.afterGs,
+  ...LEGACY_SMALL_IDS.slice(12, 23), ...GROWTH_SMALL_IDS_BY_SEGMENT.afterDemo,
+  ...LEGACY_SMALL_IDS.slice(23), ...GROWTH_SMALL_IDS_BY_SEGMENT.afterScav,
+  ...FIXER_SMALL_IDS, ...GROWTH_SMALL_IDS_BY_SEGMENT.fixer,
+];
 
 describe('class mods — derived SKILL_NODE_IDS', () => {
-  it('the derived pool is the frozen legacy 35 in order, then the 12 Fixer smalls', () => {
-    expect(SKILL_NODE_IDS).toEqual([...LEGACY_SMALL_IDS, ...FIXER_SMALL_IDS]);
+  it('the derived pool is the frozen legacy 35 in order, then the 12 Fixer smalls, with growth smalls in their tree segments', () => {
+    expect(SKILL_NODE_IDS).toEqual(EXPECTED_SMALL_IDS);
     // And it really is derived from the one registry:
     expect(SKILL_NODE_IDS).toEqual(
       SKILL_NODES.filter((n) => n.type === 'small').map((n) => n.id),
@@ -290,7 +304,7 @@ describe('class mods — derived SKILL_NODE_IDS', () => {
 // ---------------------------------------------------------------------------
 
 describe('training and respec — the budget does not change', () => {
-  it('cc_train_skill accepts Fixer nodes, enforces prereqs and the shared level−1 budget', async () => {
+  it('cc_train_skill accepts Fixer nodes, enforces prereqs and the per-pool level−1 budget', async () => {
     const store = makeStore((s) => {
       s.profiles = [profile({ id: P, player_level: 10 })]; // budget 9
     });
@@ -305,12 +319,18 @@ describe('training and respec — the budget does not change', () => {
     // debit it sailed through as "8". This is the level-10 wall that keeps
     // the keystone path at level 21 (see the next test).
     await expect(train('fix_major_1')).rejects.toThrow(/Insufficient skill points/);
-    // Budget is shared across ALL trees: two 1-point trains fit, the next fails.
-    await train('gs_dmg_1'); // 8
-    await train('gs_dmg_2'); // 9
-    await expect(train('fix_craft_time_2')).rejects.toThrow(/Insufficient skill points/);
+    // Reshape slice (a): the budget is PER POOL (≤ level − 1 per
+    // hunter), not shared. Gunslinger trains draw on Vesper's own
+    // 9-point pool and leave Doc's at 7; Doc's pool then fills on its
+    // own schedule and rejects at its own wall.
+    await train('gs_dmg_1');
+    await train('gs_dmg_2');
+    await train('fix_craft_time_2'); // Doc pool: 8
+    await train('fix_craft_time_2'); // Doc pool: 9 — full
+    await expect(train('fix_quality_1')).rejects.toThrow(/Insufficient skill points/);
     const spends = store.seed.profiles[0].skill_spends as Record<string, number>;
     expect(spends.fix_craft_time_1).toBe(5);
+    expect(spends.gs_dmg_1).toBe(1);
     expect(spends.fix_major_1).toBeUndefined();
   });
 
@@ -335,19 +355,23 @@ describe('training and respec — the budget does not change', () => {
     await expect(train('fix_craft_time_1')).rejects.toThrow(/Insufficient skill points/);
   });
 
-  it('respec charges total × 100cr INCLUDING Fixer points and zeroes them', async () => {
+  it('respec charges the ACTIVE hunter pool × 100cr and zeroes only it (slice (a) A3)', async () => {
     const store = makeStore((s) => {
       s.profiles = [profile({
-        id: P, credits: 10_000,
+        id: P, credits: 10_000, active_hunter_id: 'doc',
         skill_spends: { gs_dmg_1: 5, fix_craft_time_1: 5, fix_major_1: 1, fix_keystone: 1 },
       })];
     });
     const result = await store.retrain(P, nonce());
-    // Weighted (audit HTR-01): 5 + 5 small points, the major at its
-    // 3-point cost, the keystone at 5 → 18 budget points × 100cr.
-    expect(result.total_price).toBe(1800);
-    expect(store.seed.profiles[0].credits).toBe(10_000 - 1800);
-    expect(store.seed.profiles[0].skill_spends).toEqual({});
+    // Weighted (audit HTR-01) over DOC's pool only: 5 small points,
+    // the major at its 3-point cost, the keystone at 5 → 13 budget
+    // points × 100cr. Vesper's gs_dmg_1 is a different pool: unpriced,
+    // untouched.
+    expect(result.total_price).toBe(1300);
+    expect(store.seed.profiles[0].credits).toBe(10_000 - 1300);
+    expect(store.seed.profiles[0].skill_spends).toEqual({ gs_dmg_1: 5 });
+    // A second respec on the now-empty pool refuses (zero guard).
+    await expect(store.retrain(P, nonce())).rejects.toThrow(/Nothing to respec/);
   });
 });
 
@@ -451,34 +475,49 @@ describe('craft enqueue — Fixer snapshots through the WriteStore', () => {
 
   function craftStore(spends: Record<string, number>, extra: Partial<ProfileRowData> = {}) {
     return makeStore((s) => {
-      s.profiles = [profile({ id: P, materials: { ...MATS }, skill_spends: spends, ...extra })];
+      s.profiles = [profile({ id: P, materials: { ...MATS }, skill_spends: spends, active_hunter_id: 'doc', ...extra })];
     });
   }
 
-  it('duration snapshot: Fixer term alone, then the 0.60 floor with Scavenger maxed', async () => {
+  it('duration snapshot: Fixer term alone, then each hunter reads only their own term', async () => {
     const plain = craftStore({});
     await plain.enqueueCraftJob(P, nonce(), { bench: 1, recipeId: 'recipe_medkit', units: 1 });
-    expect(plain.seed.craftJobs[0].snapshot.skillDurationMultiplier).toBe(1);
-    expect(plain.seed.craftJobs[0].unit_duration_ms).toBe(baseDuration());
+    // Doc fields no spends here, but his Overclock base perk IS a
+    // craft-speed constant (0.025) — the unspent floor is 0.975.
+    expect(plain.seed.craftJobs[0].snapshot.skillDurationMultiplier).toBeCloseTo(0.975, 10);
+    expect(plain.seed.craftJobs[0].unit_duration_ms).toBe(Math.round(baseDuration() * 0.975));
 
     const fixerOnly = craftStore({ fix_craft_time_1: 5, fix_craft_time_2: 5 });
     await fixerOnly.enqueueCraftJob(P, nonce(), { bench: 1, recipeId: 'recipe_medkit', units: 1 });
+    // 0.25 node craftSpeed + 0.025 Overclock base perk = 0.275, and
+    // the duration multiplier caps the total at 0.25 → 0.75.
     expect(fixerOnly.seed.craftJobs[0].snapshot.skillDurationMultiplier).toBeCloseTo(0.75, 10);
     expect(fixerOnly.seed.craftJobs[0].unit_duration_ms).toBe(Math.round(baseDuration() * 0.75));
     // The keystone draw bonus snapshots on every job (0 without it).
     expect(fixerOnly.seed.craftJobs[0].snapshot.coreCatalystDrawBonus).toBe(0);
 
-    const both = craftStore({
+    // Reshape slice (a): the two terms live on different hunters now,
+    // so the mixed build prices per fielded hunter — Doc reads his
+    // Fixer term only, Josie her Scavenger term only. (Pre-reshape
+    // this stack hit the 0.60 floor exactly: 0.80 × 0.75. The floor
+    // still guards the formula; no single hunter's spends reach it.)
+    const docView = craftStore({
       fix_craft_time_1: 5, fix_craft_time_2: 5, scav_cons_1: 5, scav_cons_2: 5,
     });
-    await both.enqueueCraftJob(P, nonce(), { bench: 1, recipeId: 'recipe_medkit', units: 1 });
-    // 0.80 (Scavenger cap) × 0.75 (Fixer cap) = 0.60 — the floor binds exactly.
-    expect(both.seed.craftJobs[0].snapshot.skillDurationMultiplier).toBeCloseTo(0.6, 10);
-    expect(both.seed.craftJobs[0].unit_duration_ms).toBe(Math.round(baseDuration() * 0.6));
+    await docView.enqueueCraftJob(P, nonce(), { bench: 1, recipeId: 'recipe_medkit', units: 1 });
+    expect(docView.seed.craftJobs[0].snapshot.skillDurationMultiplier).toBeCloseTo(0.75, 10);
+    const josieView = craftStore(
+      { fix_craft_time_1: 5, fix_craft_time_2: 5, scav_cons_1: 5, scav_cons_2: 5 },
+      { active_hunter_id: 'josie' },
+    );
+    await josieView.enqueueCraftJob(P, nonce(), { bench: 1, recipeId: 'recipe_medkit', units: 1 });
+    expect(josieView.seed.craftJobs[0].snapshot.skillDurationMultiplier).toBeCloseTo(0.8, 10);
+    expect(josieView.seed.craftJobs[0].unit_duration_ms).toBe(Math.round(baseDuration() * 0.8));
 
     const partial = craftStore({ fix_craft_time_1: 5 });
     await partial.enqueueCraftJob(P, nonce(), { bench: 1, recipeId: 'recipe_medkit', units: 1 });
-    expect(partial.seed.craftJobs[0].snapshot.skillDurationMultiplier).toBeCloseTo(0.875, 10);
+    // 0.125 node craftSpeed + 0.025 Overclock = 0.15.
+    expect(partial.seed.craftJobs[0].snapshot.skillDurationMultiplier).toBeCloseTo(0.85, 10);
   });
 
   it('bench queue: 1 + 5 by default; the keystone holds one more', async () => {
@@ -521,7 +560,7 @@ describe('craft enqueue — Fixer snapshots through the WriteStore', () => {
     const keystoned = makeStore((s) => {
       s.profiles = [profile({
         id: P, materials: { ...MATS }, consumables: { WorkshopRushTicket: 1 },
-        skill_spends: { fix_keystone: 1 },
+        skill_spends: { fix_keystone: 1 }, active_hunter_id: 'doc',
       })];
       seedTicket(s);
     });
@@ -530,7 +569,8 @@ describe('craft enqueue — Fixer snapshots through the WriteStore', () => {
     });
     // Raw reduction at quality 250 is 0.50 — under the raised 0.55 cap.
     expect(keystoned.seed.craftJobs[0].snapshot.rushReduction).toBeCloseTo(0.5, 10);
-    expect(keystoned.seed.craftJobs[0].unit_duration_ms).toBe(Math.round(baseDuration() * 0.5));
+    // Duration also carries Doc's 0.975 Overclock floor.
+    expect(keystoned.seed.craftJobs[0].unit_duration_ms).toBe(Math.round(baseDuration() * 0.5 * 0.975));
   });
 
   it('snapshots are respec-immune: retraining after enqueue changes nothing in flight', async () => {
@@ -737,7 +777,7 @@ describe('repair — Fixer snapshots at enqueue and accept', () => {
   it('self-repair: duration and efficiency snapshot the owner\'s Fixer terms', async () => {
     const store = makeStore((s) => {
       s.profiles = [profile({
-        id: Q, consumables: { PatchKit: 5 },
+        id: Q, consumables: { PatchKit: 5 }, active_hunter_id: 'doc',
         skill_spends: {
           fix_repair_speed_1: 5, fix_repair_speed_2: 5,
           fix_repair_eff_1: 5, fix_repair_eff_2: 5,
@@ -765,7 +805,7 @@ describe('repair — Fixer snapshots at enqueue and accept', () => {
 
   it('Second Shift: the self-repair cap is 3, or 4 with fix_major_4', async () => {
     const seedFour = (spends: Record<string, number>) => (s: WriteSeed) => {
-      s.profiles = [profile({ id: Q, consumables: { PatchKit: 20 }, skill_spends: spends })];
+      s.profiles = [profile({ id: Q, consumables: { PatchKit: 20 }, skill_spends: spends, active_hunter_id: 'doc' })];
       s.items = [VEH_A, VEH_B, VEH_C, VEH_D].map((id) => vehicleData(id, Q, 40));
       s.consumableBatches = [kitBatchData('kit-q1', Q, 100, 20)];
     };
@@ -789,7 +829,7 @@ describe('repair — Fixer snapshots at enqueue and accept', () => {
     const build = (mechSpends: Record<string, number>) => makeStore((s) => {
       s.profiles = [
         profile({ id: Q, credits: 10_000 }),
-        profile({ id: MECH, credits: 0, consumables: { PatchKit: 4 }, skill_spends: mechSpends }),
+        profile({ id: MECH, credits: 0, consumables: { PatchKit: 4 }, skill_spends: mechSpends, active_hunter_id: 'doc' }),
       ];
       s.items = [vehicleData(VEH_E, Q, 40)];
       s.consumableBatches = [kitBatchData('kit-m1', MECH, 100, 4)];
@@ -842,7 +882,7 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
   it('vendor sell: rate = min(0.90, lever + vendorBuybackBonus)', async () => {
     const sell = async (spends: Record<string, number>, opts: Record<string, unknown> = {}) => {
       const store = makeStore((s) => {
-        s.profiles = [profile({ id: P, materials: { BallisticParts: 20 }, skill_spends: spends })];
+        s.profiles = [profile({ id: P, materials: { BallisticParts: 20 }, skill_spends: spends, active_hunter_id: 'doc' })];
       }, opts);
       return store.vendorSell(P, nonce(), { kind: 'material', materialId: 'BallisticParts', quantity: 20 });
     };
@@ -1091,9 +1131,12 @@ describe('adversarial — forged Fixer fields in request bodies are ignored', ()
 // ---------------------------------------------------------------------------
 
 describe('migration 0029 — pins', () => {
-  const sql = readFileSync(resolve(process.cwd(), 'db/migrations/0029_fixer_tree.sql'), 'utf8');
+  const sql =
+    readFileSync(resolve(process.cwd(), 'db/migrations/0029_fixer_tree.sql'), 'utf8')
+    // Slice (a): the Fixer growth branch's definitions seed in 0097.
+    + readFileSync(resolve(process.cwd(), 'db/migrations/0097_cache_hunters.sql'), 'utf8');
 
-  it('seeds all 17 Fixer node definitions, mirroring the TS defs', () => {
+  it('seeds all 22 Fixer node definitions, mirroring the TS defs', () => {
     for (const node of getSkillTreeNodes(SkillTreeType.Fixer)) {
       expect(sql).toContain(`('${node.id}', 'Fixer',`);
       const effectsJson = JSON.stringify(node.effects);

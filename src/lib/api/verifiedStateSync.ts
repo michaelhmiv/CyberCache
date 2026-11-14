@@ -31,6 +31,8 @@ export type RuntimeProfilePayload = {
   /** Server-composed vendor buyback rate (audit G-F3); absent on snapshots that predate it. */
   vendor_buyback_rate?: number | string;
   skill_spends?: Record<string, number>;
+  /** Fielded Cache Hunter (0097); absent on pre-conversion snapshots. */
+  active_hunter_id?: string | null;
   boss_state?: Record<string, unknown>;
   /** Server-computed rematch-escalation state (UTC-day victory counts). */
   boss_victories_today?: Record<string, number>;
@@ -208,6 +210,13 @@ export function syncRuntimeProfile(profile: RuntimeProfilePayload | undefined): 
 
   const skillSpends = recordValue(profile.skill_spends);
   if (skillSpends) useSkillStore.setState({ spent: skillSpends });
+
+  // The active Cache Hunter (migration 0097, reshape slice (a)):
+  // server truth on the profile snapshot — applied only when the
+  // snapshot carries it, so older snapshots never clear it.
+  if (typeof profile.active_hunter_id === 'string' && profile.active_hunter_id) {
+    useSkillStore.getState().setActiveHunter(profile.active_hunter_id);
+  }
 
   const victoriesToday = recordValue(profile.boss_victories_today);
   if (victoriesToday) useBossStore.setState({ bossVictoriesToday: victoriesToday });

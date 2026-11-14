@@ -27,6 +27,7 @@ import {
   createFireOverclockWorkshopHandler,
   createGetActionSkillHandler,
   createSelectActionSkillHandler,
+  createSetActiveHunterHandler,
 } from '../routes/actionSkill';
 import { createGetCacheRankHandler, createSpendCacheRankHandler } from '../routes/cacheRank';
 import {
@@ -105,6 +106,7 @@ export function mountActionSkillRoutes(
 ): void {
   app.get('/api/action-skill/me', createGetActionSkillHandler(gameplayStore, config));
   app.post('/api/action-skill/select', createSelectActionSkillHandler(gameplayStore, config));
+  app.post('/api/action-skill/set-hunter', createSetActiveHunterHandler(gameplayStore, config));
   app.post('/api/action-skill/fire-workshop', createFireOverclockWorkshopHandler(writeStore, config));
   console.log('[chef] action skill routes mounted: GET /api/action-skill/me, POST /api/action-skill/select, /api/action-skill/fire-workshop (0030)');
 }

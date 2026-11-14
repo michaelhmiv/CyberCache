@@ -24,7 +24,7 @@ import { InMemoryWriteStore } from '../server/writes/memory';
 import { emptyWriteSeed, type WriteItemData, type WriteSeed } from '../server/writes/store';
 import type { ProfileRowData } from '../server/reads/store';
 import { issueAccessToken } from '../server/auth/tokens';
-import { computeSkillBonuses } from '../lib/skills/skillBonuses';
+import { computeHunterSkillBonuses } from '../lib/hunters/hunters';
 import { projectSalvageYield } from '../lib/gear/salvageAward';
 import type { GearItem } from '../types/items';
 
@@ -198,7 +198,7 @@ describe('salvage preview truth — projection equals route settlement', () => {
     const caseIdxs = full ? CASES.map((_, i) => i) : [0, 7, 8, 14];
     it(`state=${state.id}: every projected salvage settles to the unit`, async () => {
       const seed = emptyWriteSeed();
-      seed.profiles = [profile({ id: A, skill_spends: state.spends })];
+      seed.profiles = [profile({ id: A, skill_spends: state.spends, active_hunter_id: 'josie' })];
       if (state.modPayload) {
         seed.items.push(itemRow({
           id: uid(stateIdx * 1000 + 900), owner_user_id: A, kind: 'classMod',
@@ -219,7 +219,7 @@ describe('salvage preview truth — projection equals route settlement', () => {
       // the dedicated roll cases below.
       const { store, post, close } = await startRoute(seed, () => 0.99);
       try {
-        const bonuses = computeSkillBonuses(state.spends, state.boosts);
+        const bonuses = computeHunterSkillBonuses(state.spends, state.boosts, 'josie');
         let scrapTotal = 0;
         let coresTotal = 0;
         for (const ci of caseIdxs) {
@@ -261,7 +261,7 @@ describe('salvage preview truth — projection equals route settlement', () => {
 
   it('the King of Scrap roll, when it lands, pays exactly the projected kind', async () => {
     const seed = emptyWriteSeed();
-    seed.profiles = [profile({ id: A, skill_spends: { scav_keystone: 1 } })];
+    seed.profiles = [profile({ id: A, skill_spends: { scav_keystone: 1 }, active_hunter_id: 'josie' })];
     seed.items = [
       itemRow({ id: uid(1), owner_user_id: A, kind: 'weapon', rarity: 'Common', item_level: 5, payload: { weaponType: 'Pistol' } }),
       itemRow({ id: uid(2), owner_user_id: A, kind: 'relic', rarity: 'Common', item_level: 5, payload: {} }),
@@ -269,7 +269,7 @@ describe('salvage preview truth — projection equals route settlement', () => {
     // rng = 0: every material roll lands (0 < 0.25 chance).
     const { store, post, close } = await startRoute(seed, () => 0);
     try {
-      const bonuses = computeSkillBonuses({ scav_keystone: 1 }, { nodeBoosts: {} });
+      const bonuses = computeHunterSkillBonuses({ scav_keystone: 1 }, { nodeBoosts: {} }, 'josie');
       const weapon = projectSalvageYield(clientItemFor({ kind: 'weapon', rarity: 'Common', level: 5 }, uid(1)), bonuses);
       const res1 = await post(uid(1), 'nonce-grant-weapon-0001');
       expect(res1.status).toBe(200);
@@ -293,7 +293,7 @@ describe('salvage preview truth — projection equals route settlement', () => {
     expect(projectSalvageYield(clientItemFor({ kind: 'shield', rarity: 'Legendary', level: 50 }, 'x'), {}).legendaryCores).toBe(3);
     // Hoarder (+25%) × King of Scrap (×2 on low rarity) stack
     // multiplicatively on the base: L10 Common base 60 → 150.
-    const both = computeSkillBonuses({ scav_major_1: 1, scav_keystone: 1 }, { nodeBoosts: {} });
+    const both = computeHunterSkillBonuses({ scav_major_1: 1, scav_keystone: 1 }, { nodeBoosts: {} }, 'josie');
     expect(projectSalvageYield(clientItemFor({ kind: 'weapon', rarity: 'Common', level: 10 }, 'x'), both).scrapValue).toBe(150);
     // Uncommon takes the King of Scrap multiplier too (base 90 ×
     // 1.25 × 2 = 225) but is NOT Common: no material note, ever.
@@ -302,7 +302,7 @@ describe('salvage preview truth — projection equals route settlement', () => {
     expect(uncommon.bonusMaterialId).toBeUndefined();
     // Market Crash ×4 lands before skill bonuses: L12 Rare base 175
     // → 700 raw, ×1.25 Hoarder → 875.
-    const hoarder = computeSkillBonuses({ scav_major_1: 1 }, { nodeBoosts: {} });
+    const hoarder = computeHunterSkillBonuses({ scav_major_1: 1 }, { nodeBoosts: {} }, 'josie');
     expect(
       projectSalvageYield(clientItemFor({ kind: 'weapon', rarity: 'Rare', level: 12, effectId: 'market_crash' }, 'x'), hoarder).scrapValue,
     ).toBe(875);

@@ -304,6 +304,7 @@ export function createVerifyBossHandler(
       const serverSkillBonuses = skillBonusesFromRecords(
         serverGear,
         (profile.skill_spends ?? {}) as Record<string, number>,
+        profile,
       );
 
       // Research (0038): completion-derived bonuses merge onto the
@@ -346,6 +347,7 @@ export function createVerifyBossHandler(
           spent: (profile.skill_spends ?? {}) as Record<string, number>,
           classModBoosts: classModBoostsFromGear(serverGear),
           selection: profile.action_skill_selection,
+          activeHunterId: profile.active_hunter_id,
           charge: profile.action_skill_charge,
           target: bossDef,
           levers: actionSkillLeverValues,
