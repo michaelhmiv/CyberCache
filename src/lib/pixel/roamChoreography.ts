@@ -82,22 +82,29 @@ export const ROAM_ENEMY_PLACEMENT = { xPct: 78, heightPct: 58 } as const;
  * to bosses. The body-method numbers above understate reach:
  * the fodder's extended pistol hand sits at 61.2% against the
  * 51.6% tip, so at the shared 78 mark its true air is only
- * 9.6% DOM / 10.0% Pixi — below the ≥12% law. Fodder therefore
- * takes its own override {82}: the +4 shift moves its whole
- * silhouette right (sprite right edge ≈87% → ≈91%, clear of
- * the edge) and lands the pistol hand at ≈65%, air ≈13.5%.
- * The runner measured exactly 12.0% — at the floor with zero
- * margin; its head is its foremost point and its sprite's
- * right edge already sits at ≈98%, so it cannot move right.
- * Its height steps 44 → 42 instead: the smaller frame pulls
- * the leaning head ≈1 pt toward its anchor (air ≈13%) and
- * pulls the right edge in with it. Sniper (14.0%) and brute
- * (~16.7%) were re-measured passing and stay untouched.
+ * 9.6% DOM / 10.0% Pixi — below the ≥12% law. The obvious lever,
+ * moving fodder's mark right, is capped by the HP plate: the
+ * plate is centered on the placement xPct and at the shared
+ * mark the plate's % text already ends at 99.3% of stage
+ * width — capture round inkr5space (fodder {82}) measured air
+ * 14.2% DOM / 13.6% Pixi but the plate's % glyph ran off the
+ * stage edge. So fodder's fix shortens its rest REACH instead:
+ * height 58 → 46 scales the silhouette toward its anchor and
+ * pulls the extended pistol arm back with it (hand ≈61.2% →
+ * ≈64.7%, air ≈13%), while the mark — and the plate — stay
+ * exactly where they shipped. The runner measured exactly
+ * 12.0% — at the floor with zero margin; its head is its
+ * foremost point and its sprite's right edge already sits at
+ * ≈98%, so it cannot move right either. Its height steps
+ * 44 → 42: the smaller frame pulls the leaning head ≈1 pt
+ * toward its anchor (air ≈13%) and pulls the right edge in
+ * with it. Sniper (14.0%) and brute (~16.7%) were re-measured
+ * passing and stay untouched.
  */
 export const ROAM_ARCHETYPE_PLACEMENT_OVERRIDES: Partial<
   Record<MonsterArchetype, { xPct?: number; heightPct?: number }>
 > = {
-  fodder: { xPct: 82 },
+  fodder: { heightPct: 46 },
   runner: { xPct: 84, heightPct: 42 },
   sniper: { xPct: 86 },
 };
