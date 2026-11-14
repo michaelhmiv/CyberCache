@@ -410,6 +410,37 @@ export function withRoamWalkFrame(model: RoamSceneModel, walkMs?: number): RoamS
   return { ...model, rigPose, enemyWalk: { offsetXPct: walk.offsetXPct, deltaX: walk.deltaX } };
 }
 
+// ── Drop-hold derivation (Stage Iteration R3) ───────────────────────
+/** Why the enemy slot is held empty while a drop event stands. */
+export type EnemyHold = 'gear' | 'material';
+
+/**
+ * The enemy hold for a standing drop event. Presentation only —
+ * the kill-cycle store advances exactly as it does today; this
+ * decides whether the stage draws a living enemy:
+ *
+ *  - a gear-drop event (gearDropFromEvent non-null, tone 'loot'
+ *    with a gear payload) holds the slot EMPTY — the store has
+ *    already advanced to the next target (full HP) inside the same
+ *    claim, and a drop moment over a freshly spawned enemy reads
+ *    as a second body appearing under the loot;
+ *  - a non-crate rise (material / essence / fragment / scrap /
+ *    credits) holds the slot only while the kill-cycle target's
+ *    HP is 0 — the payout belongs to the corpse that just fell;
+ *  - anything else (no drop event, a living target, a crate rise)
+ *    renders the enemy exactly as before.
+ */
+export function enemyDropHold(
+  event: TickEvent | undefined | null,
+  targetHp: number | null | undefined,
+): EnemyHold | null {
+  if (!event) return null;
+  if (gearDropFromEvent(event)) return 'gear';
+  const rise = lootRiseVisualForEvent(event);
+  if (rise && rise !== 'crate' && (targetHp ?? 0) <= 0) return 'material';
+  return null;
+}
+
 /** One target's walk-in clock: which target key the clock belongs
  *  to and when (renderer wall-clock ms) its approach began. */
 export interface RoamWalkState {
