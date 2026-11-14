@@ -28,7 +28,9 @@ const CHROME = process.env.CHROME_PATH || (process.env.HOME + '/.cache/ms-playwr
 // minimal webm-only build — do not use it for review clips.
 const FFMPEG = process.env.FFMPEG_PATH || 'ffmpeg';
 const CDP_PORT = 9800 + (Number(port) % 150);
-const proc = spawn(CHROME, ['--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', `--remote-debugging-port=${CDP_PORT}`, '--window-size=500,1100', 'about:blank'], { stdio: 'ignore' });
+const SPAWN_ARGS = ['--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', `--remote-debugging-port=${CDP_PORT}`, '--window-size=500,1100', 'about:blank'];
+if (process.env.RIG_FULL_CHROME === '1') SPAWN_ARGS.unshift('--headless=new');
+const proc = spawn(CHROME, SPAWN_ARGS, { stdio: 'inherit' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let version;
