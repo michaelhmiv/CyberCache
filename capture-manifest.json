@@ -1,0 +1,57 @@
+{
+ "iter": "07",
+ "port": 7170,
+ "harnessPage": "/gauges-harness.html",
+ "captures": [
+  {
+   "label": "roam",
+   "path": "/gauges-harness.html",
+   "plan": "capture/plans/plan-roam.json",
+   "expect": [
+    "roam-rest",
+    "roam-surge",
+    "roam-kill"
+   ]
+  },
+  {
+   "label": "craft",
+   "path": "/craftgauges-harness.html",
+   "plan": "capture/plans/plan-craft.json",
+   "expect": [
+    "craft-slow",
+    "craft-ramped",
+    "craft-complete"
+   ]
+  },
+  {
+   "label": "boss",
+   "path": "/bossgauges-harness.html",
+   "plan": "capture/plans/plan-boss.json",
+   "expect": [
+    "boss-rest",
+    "boss-telegraph",
+    "boss-kill"
+   ]
+  },
+  {
+   "label": "gather",
+   "path": "/panelgauges-harness.html?mode=extract",
+   "plan": "capture/plans/plan-gather.json",
+   "expect": [
+    "gather-start",
+    "gather-flow",
+    "gather-yield"
+   ]
+  },
+  {
+   "label": "research",
+   "path": "/panelgauges-harness.html?mode=research",
+   "plan": "capture/plans/plan-research.json",
+   "expect": [
+    "research-start",
+    "research-flow",
+    "research-done"
+   ]
+  }
+ ]
+}
