@@ -1,0 +1,1 @@
+{"captures":[{"expect":["09-diag-a","09-diag-b"],"label":"diag","path":"/numbers-home-harness.html?scene=kill&probe=1","plan":"capture/plans/plan-diag.json","prefix":"09"}],"harnessPage":"/numbers-home-harness.html","iter":"numbers-home-diag","port":5319}
