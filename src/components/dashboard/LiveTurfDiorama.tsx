@@ -76,6 +76,7 @@ import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadout
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
+import { StageRise, ROAM_DROP_LIFT_PX } from '@/components/pixelArt/StageRise';
 import { detectWebGL } from '@/components/pixelArt/pixi/detectWebGL';
 import type { RoamPixiStageProps } from '@/components/pixelArt/pixi/RoamPixiStage';
 
@@ -1623,21 +1624,19 @@ const PixelSceneLayerDom: React.FC<{
           never carry one, so the crate no longer appears while roaming.
           Gear drops keep their LootMoment further down. */}
       {lootRise && lootRise !== 'crate' && event && (
-        <motion.div
+        <StageRise
           key={`loot-rise-${event.id}`}
-          data-testid="diorama-loot-rise"
-          data-loot-visual={lootRise}
-          className="pointer-events-none absolute z-20"
-          style={{ left: `${enemyLoot.xPct}%`, top: `${enemyLoot.yPct}%`, width: 46, height: 58, marginLeft: -23, marginTop: -40 }}
-          initial={{ y: 6, opacity: 0, scale: 0.6 }}
-          animate={{ y: -30, opacity: [0, 1, 1, 0], scale: [0.6, 1.05, 1, 0.8] }}
-          transition={{ duration: 1.6, ease: 'easeOut', times: [0, 0.2, 0.7, 1] }}
+          testId="diorama-loot-rise"
+          dataAttrs={{ 'loot-visual': lootRise }}
+          xPct={enemyFeet.xPct}
+          yPct={enemyFeet.yPct}
+          liftPx={ROAM_DROP_LIFT_PX}
         >
           <DropRiseIcon
             tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
             label={lootRise === 'scrap' ? 'scrap' : event.label}
           />
-        </motion.div>
+        </StageRise>
       )}
       {lootRise === 'crate' && crate && (
         <motion.img
