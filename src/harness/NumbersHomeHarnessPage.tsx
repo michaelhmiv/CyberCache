@@ -461,6 +461,17 @@ export const NumbersHomeHarnessPage: React.FC = () => {
       const w = window as unknown as Record<string, unknown>;
       if (killHoldScene) {
         w.__seedKillHold = fireKill;
+        // Split variant for the conjunction frame: the kill event
+        // alone first (the 500 ms dissolve starts), the Fix-B
+        // cluster on a later plan step — so the floats rise over an
+        // already-empty stage. Capture-timing accommodation,
+        // disclosed in the README; every element stays
+        // production-true (same standing kill event, same cluster).
+        w.__seedKillOnly = () => {
+          seedBeatEvent({ tone: 'kill', label: '-156', value: 156 });
+          useKillCycleStore.setState({ currentTargetHp: 0 });
+        };
+        w.__seedKillClusterOnly = critCluster;
       } else {
         // PROPOSAL ONLY, in two plan steps: the kill fires first;
         // the capture plan waits rig-side for the 500ms dissolve
