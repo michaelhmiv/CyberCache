@@ -26,6 +26,17 @@ on:
         description: 'Iteration number, NN (e.g. 02)'
         required: true
         type: string
+  # Bootstrap trigger: GitHub will not dispatch a workflow that has
+  # never run and does not exist on the default branch (both
+  # `gh workflow run` and the REST dispatches endpoint 404). A push to
+  # dash/capture touching the tooling runs the workflow once — with
+  # the fallback target below (the iter-02 pilot) — after which the
+  # workflow is registered and workflow_dispatch works as documented.
+  push:
+    branches: [dash/capture]
+    paths:
+      - 'capture/**'
+      - '.github/workflows/capture-stills.yml'
 
 permissions:
   contents: read
@@ -41,7 +52,9 @@ jobs:
       - name: Check out the iteration branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.iter_ref }}
+          # Fallback target applies to the bootstrap push run only;
+          # workflow_dispatch always passes both inputs explicitly.
+          ref: ${{ inputs.iter_ref || 'dash/iter-02' }}
 
       - name: Check out the capture tooling (dash/capture)
         uses: actions/checkout@v4
@@ -78,7 +91,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stills-iter-${{ inputs.iter }}
+          name: stills-iter-${{ inputs.iter || '02' }}
           path: |
             stills-out/
             vite-capture.log
