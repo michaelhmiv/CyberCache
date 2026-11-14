@@ -84,6 +84,20 @@ export const FIXTURE_OUTCOME: FightOutcome = {
   extraLoot: false,
 };
 
+/** Stage-iteration program variant (B1): the same five phases, but
+ *  the hunter falls in the last one — the boss survives at 170 HP
+ *  and the final counter is a taken hit, not a dodge, so the defeat
+ *  beats (playerHit pose, hunter fall, Defeated banner) can be
+ *  driven in the harness. Presentation fixture only. */
+export const FIXTURE_OUTCOME_DEFEAT: FightOutcome = {
+  result: { victory: false, winChance: 0.25, bossHpRemaining: 170 },
+  creditsDelta: 0,
+  bonusLootRolls: 0,
+  consumedConsumables: {},
+  loot: [],
+  extraLoot: false,
+};
+
 /** Per-phase decided damage: [bossDamage, playerDamage]. */
 const PHASE_DAMAGE: [number, number][] = [
   [120, 45],
@@ -93,20 +107,33 @@ const PHASE_DAMAGE: [number, number][] = [
   [290, 0],
 ];
 
+/** Defeat variant: boss damage sums to 830 (boss stands at 170),
+ *  player damage sums to exactly the player's 340 max — the last
+ *  phase's 185 is the fatal counter. */
+const PHASE_DAMAGE_DEFEAT: [number, number][] = [
+  [120, 45],
+  [90, 0],
+  [260, 60],
+  [240, 50],
+  [120, 185],
+];
+
 /** The snapshot script: one FightTimeline per phase, then the
  *  finished snapshot. finishedAt is stamped by the driver. */
-export function fixtureSnapshots(): FightTimeline[] {
+export function fixtureSnapshots(defeat = false): FightTimeline[] {
+  const outcome = defeat ? FIXTURE_OUTCOME_DEFEAT : FIXTURE_OUTCOME;
+  const phaseDamage = defeat ? PHASE_DAMAGE_DEFEAT : PHASE_DAMAGE;
   const snapshots: FightTimeline[] = [];
   let bossHp = FIXTURE_BOSS_HP_MAX;
   let playerHp = FIXTURE_PLAYER_HP_MAX;
   const log: FightTimeline['damageLog'] = [];
-  PHASE_DAMAGE.forEach(([bossDmg, playerDmg], i) => {
+  phaseDamage.forEach(([bossDmg, playerDmg], i) => {
     bossHp -= bossDmg;
     playerHp -= playerDmg;
     if (bossDmg > 0) log.push({ id: `fb-${i}`, target: 'boss', value: bossDmg, phaseName: FIXTURE_PHASES[i].phaseName });
     if (playerDmg > 0) log.push({ id: `fp-${i}`, target: 'player', value: playerDmg, phaseName: FIXTURE_PHASES[i].phaseName });
     snapshots.push({
-      outcome: FIXTURE_OUTCOME,
+      outcome,
       startedAt: 0,
       finishedAt: null,
       currentPhaseIndex: i,
@@ -118,13 +145,13 @@ export function fixtureSnapshots(): FightTimeline[] {
     });
   });
   snapshots.push({
-    outcome: FIXTURE_OUTCOME,
+    outcome,
     startedAt: 0,
     finishedAt: null, // stamped by the driver at apply time
     currentPhaseIndex: FIXTURE_PHASES.length,
     playerHp,
     playerHpMax: FIXTURE_PLAYER_HP_MAX,
-    bossHp: 0,
+    bossHp: defeat ? bossHp : 0,
     bossHpMax: FIXTURE_BOSS_HP_MAX,
     damageLog: [...log].slice(-6),
   });
@@ -149,8 +176,9 @@ export function playFixture(
   onSnapshot: (timeline: FightTimeline, index: number) => void,
   onDone: () => void,
   log: FixtureLogEntry[],
+  defeat = false,
 ): () => void {
-  const snapshots = fixtureSnapshots();
+  const snapshots = fixtureSnapshots(defeat);
   const timers: ReturnType<typeof setTimeout>[] = [];
   let stopped = false;
   snapshots.forEach((snapshot, i) => {
@@ -182,8 +210,8 @@ export function playFixture(
 }
 
 /** Freeze mode for stills: apply one snapshot and hold it. */
-export function freezeSnapshot(index: number): FightTimeline {
-  const snapshots = fixtureSnapshots();
+export function freezeSnapshot(index: number, defeat = false): FightTimeline {
+  const snapshots = fixtureSnapshots(defeat);
   const snapshot = snapshots[Math.max(0, Math.min(index, snapshots.length - 1))];
   if (index === snapshots.length - 1) {
     return { ...snapshot, finishedAt: performance.now() };
