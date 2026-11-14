@@ -83,6 +83,22 @@ export const MOVEMENT = {
   LOOT_DIM_OPACITY: 0.4,
   /** After a skip, the completed stack lingers this long before done. */
   LOOT_SKIP_LINGER_MS: 650,
+  /** Stage rise readability hold (Stage Iteration R2): after a stage
+   *  rise's LOOT_RISE_MS motion completes, the risen chip HOLDS at its
+   *  apex — icon and label fully readable — for this long before its
+   *  fade. The rise motion itself keeps its law length; the hold is
+   *  what makes a drop actually readable on device (owner report
+   *  2026-11-12: drops "weren't showing up" at the old 0.95–1.6 s
+   *  total presence). Rise total = RISE + HOLD + FADE ≈ one tick. */
+  LOOT_RISE_HOLD_MS: 1700,
+  /** Stage rise terminal fade (Stage Iteration R2). */
+  LOOT_RISE_FADE_MS: 300,
+  /** Minimum total on-stage time for a light-mode (roam feed) gear
+   *  drop (Stage Iteration R2): the settled ladder is owner law and
+   *  is NOT retimed (a Common drop's step is 900 ms), so the finished
+   *  moment rests in its settled state until the drop has been on
+   *  stage at least this long, then unmounts. */
+  LOOT_LIGHT_LINGER_MS: 2600,
 
   // ── Idle life ────────────────────────────────────────────────────────
   /** Breathing loops live in 2.3–3.2 s, offset per actor (spec §4). */
@@ -131,6 +147,11 @@ export const FIGHT_MAX_PHASES = 8;
 /** Total presentation budget for a fight of `phaseCount` phases. */
 export const fightBudgetMs = (phaseCount: number): number =>
   phaseCount * MOVEMENT.PHASE_INTERVAL_MS + MOVEMENT.FIGHT_SETTLE_MS;
+
+/** Total on-stage time of one stage rise (Stage Iteration R2): the
+ *  law-length rise motion, the readability hold, and the fade. */
+export const lootRiseTotalMs = (): number =>
+  MOVEMENT.LOOT_RISE_MS + MOVEMENT.LOOT_RISE_HOLD_MS + MOVEMENT.LOOT_RISE_FADE_MS;
 
 /** Hard cap asserted by tests so pacing can't silently regress. */
 export const FIGHT_TOTAL_BUDGET_MS = fightBudgetMs(FIGHT_MAX_PHASES);

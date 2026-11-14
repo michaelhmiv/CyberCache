@@ -159,6 +159,8 @@ describe('LiveTurfDiorama — honest loot rises on the pixel stage', () => {
     expect(screen.getByTestId('diorama-loot-rise').getAttribute('data-loot-visual')).toBe('material');
     expect(screen.queryByTestId('diorama-crate-rise')).toBeNull();
     expect(cratePixelsOnStage(container)).toHaveLength(0);
+    // Stage Iteration R2: the drop's beam stands at the corpse.
+    expect(screen.getByTestId('fx-loot-beam')).toBeTruthy();
   });
 
   it('an essence tick rises the essence icon and NOT the crate', () => {

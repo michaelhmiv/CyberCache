@@ -32,7 +32,7 @@ import {
   extractionBeatDurationMs,
   extractionRisesForPass,
 } from '@/lib/pixel/extractionRise';
-import { MOVEMENT } from '@/lib/pixel/movement';
+import { lootRiseTotalMs } from '@/lib/pixel/movement';
 import { WORK_CYCLE_SPECS } from '@/lib/pixel/workCycle';
 import type { ChefExtractionPass } from '@/lib/chef/chefClient';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -156,10 +156,10 @@ describe('the rise planner — a pure function of the settled payload', () => {
     expect(rises[rises.length - 1].qty).toBe(4);
   });
 
-  it('beat duration is the last rise’s full LOOT_RISE_MS after its stagger', () => {
+  it('beat duration is the last rise’s full rise schedule after its stagger', () => {
     expect(extractionBeatDurationMs(0)).toBe(0);
-    expect(extractionBeatDurationMs(1)).toBe(MOVEMENT.LOOT_RISE_MS);
-    expect(extractionBeatDurationMs(3)).toBe(MOVEMENT.LOOT_RISE_MS + 2 * EXTRACTION_RISE_STAGGER_MS);
+    expect(extractionBeatDurationMs(1)).toBe(lootRiseTotalMs());
+    expect(extractionBeatDurationMs(3)).toBe(lootRiseTotalMs() + 2 * EXTRACTION_RISE_STAGGER_MS);
   });
 });
 
@@ -289,10 +289,10 @@ describe('the beat — settled passes appear on the stage', () => {
     });
     expect(screen.getByTestId('extraction-pass-rises').getAttribute('data-pass-key')).toBe('extraction-pass-20');
     // Pass 20's beat holds for its single rise's full duration…
-    act(() => { vi.advanceTimersByTime(MOVEMENT.LOOT_RISE_MS + 10); });
+    act(() => { vi.advanceTimersByTime(extractionBeatDurationMs(1) + 10); });
     // …then pass 21's beat plays.
     expect(screen.getByTestId('extraction-pass-rises').getAttribute('data-pass-key')).toBe('extraction-pass-21');
-    act(() => { vi.advanceTimersByTime(MOVEMENT.LOOT_RISE_MS + 10); });
+    act(() => { vi.advanceTimersByTime(extractionBeatDurationMs(1) + 10); });
     expect(screen.queryByTestId('extraction-pass-rises')).toBeNull();
   });
 });

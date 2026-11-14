@@ -16,7 +16,7 @@
  * store. The diorama sequences the beats; this module only
  * decides what one pass's beat shows and how long it holds.
  */
-import { MOVEMENT } from './movement';
+import { lootRiseTotalMs } from './movement';
 import type { ChefExtractionPass } from '@/lib/chef/chefClient';
 
 /** One find rising: a material or essence id and the exact count
@@ -58,11 +58,12 @@ export function extractionRisesForPass(pass: ChefExtractionPass): ExtractionRise
 }
 
 /** How long one pass's beat holds the stage: the last rise's
- *  full LOOT_RISE_MS after its stagger delay. A pass with no
+ *  full rise schedule (rise + readability hold + fade —
+ *  lootRiseTotalMs) after its stagger delay. A pass with no
  *  finds earns no beat at all (duration 0 — the stage does not
  *  celebrate an empty pass; the panel prints "nothing this
  *  pass"). */
 export function extractionBeatDurationMs(riseCount: number): number {
   if (riseCount <= 0) return 0;
-  return MOVEMENT.LOOT_RISE_MS + (riseCount - 1) * EXTRACTION_RISE_STAGGER_MS;
+  return lootRiseTotalMs() + (riseCount - 1) * EXTRACTION_RISE_STAGGER_MS;
 }

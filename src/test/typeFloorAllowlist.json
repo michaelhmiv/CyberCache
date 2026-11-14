@@ -72,10 +72,6 @@
   "src/components/dashboard/ContractsPanel.tsx": {
     "text-[10px]": 6
   },
-  "src/components/dashboard/LiveTurfDiorama.tsx": {
-    "fontSize:8": 1,
-    "fontSize:9": 1
-  },
   "src/components/debug/GlobalErrorBoundary.tsx": {
     "text-[10px]": 3,
     "text-[9px]": 2
