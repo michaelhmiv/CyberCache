@@ -1,6 +1,6 @@
 import React from 'react';
 import { NAV_SIGIL_MASTERS } from '@/lib/pixel/iconMasters';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { getNavSigil } from '@/constants/navSigils';
 
 type TabId = 'home' | 'gear' | 'market' | 'hunter';
@@ -13,6 +13,7 @@ interface BottomNavProps {
 const TAB_IDS: TabId[] = ['home', 'gear', 'market', 'hunter'];
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => {
+  const reduceMotion = useReducedMotion();
   return (
     <nav className="shrink-0 h-[66px] bg-bg border-t-[3px] border-border z-50 px-2 pt-1.5 pb-[calc(0.35rem+env(safe-area-inset-bottom))] shadow-[0_-8px_18px_rgba(0,0,0,0.65)]">
       <div className="grid h-full grid-cols-4 gap-1.5">
@@ -28,13 +29,19 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onChange }) => 
               }`}
               style={{ clipPath: 'polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)' }}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 bg-amber"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
+              {isActive &&
+                (reduceMotion ? (
+                  // Reduced motion: no gliding pill — the button's
+                  // own amber paint already carries the state, so
+                  // the active tab simply IS amber, instantly.
+                  <div className="absolute inset-0 bg-amber" />
+                ) : (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-amber"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                ))}
               {/* INT-9 — the sigil is the painted master now (Wave 13).
                   Tint verification: the old PxIcon rode the span's
                   color, which is the tab's FIXED identity color when

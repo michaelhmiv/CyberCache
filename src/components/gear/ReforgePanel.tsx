@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, Check, Hammer, X } from 'lucide-react';
 import { RARITIES } from '@/constants/rarities';
 import { reforgeCostFor } from '@/content/reforge';
@@ -34,6 +34,7 @@ export function ReforgePanel({ item, equipped, onReforged }: {
 }) {
   const scrap = usePlayerStore((s) => s.scrap);
   const cores = usePlayerStore((s) => s.legendaryCores);
+  const reduceMotion = useReducedMotion();
   const [selected, setSelected] = useState<Affix | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,9 +122,10 @@ export function ReforgePanel({ item, equipped, onReforged }: {
         {selected && !blocked && (
           <motion.div
             key="confirm"
-            initial={{ opacity: 0, y: 6 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
+            exit={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
+            transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
             className="mt-3 border-2 border-amber/70 bg-bg/85 p-3"
             style={panelClip}
           >
@@ -185,9 +187,10 @@ export function ReforgePanel({ item, equipped, onReforged }: {
         {reveal && (
           <motion.div
             key="reveal"
-            initial={{ opacity: 0 }}
+            initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.15, ease: 'easeOut' }}
             className="mt-3 border-2 bg-bg/85 p-3"
             style={{ ...panelClip, borderColor: color }}
           >
@@ -197,9 +200,13 @@ export function ReforgePanel({ item, equipped, onReforged }: {
                 {reveal.oldAffix.displayText}
               </div>
               <motion.div
-                initial={{ scale: 0.92, opacity: 0, y: 8 }}
+                initial={reduceMotion ? false : { scale: 0.92, opacity: 0, y: 8 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                transition={{ type: 'spring', damping: 16, stiffness: 260 }}
+                transition={
+                  reduceMotion
+                    ? { duration: 0 }
+                    : { type: 'spring', damping: 24, stiffness: 260 }
+                }
                 className="border-2 p-2 text-sm font-black"
                 style={{ ...slashClip, borderColor: color, color, boxShadow: `0 0 18px ${color}55`, background: `${color}14` }}
               >

@@ -122,9 +122,6 @@
     "text-[9px]": 2,
     "text-[10px]": 2
   },
-  "src/components/pixelArt/ActionScenes.tsx": {
-    "text-[10px]": 2
-  },
   "src/components/pixelArt/LootMoment.tsx": {
     "text-[9px]": 1,
     "text-[10px]": 1

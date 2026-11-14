@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ChevronRight,
 } from 'lucide-react';
@@ -164,6 +164,7 @@ const RewardIcon: React.FC<{ tone?: string; compact?: boolean }> = ({ tone, comp
 const TOAST_WINDOW_MS = 7_000;
 
 const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
+  const reduceMotion = useReducedMotion();
   const color = getGainToneClass(event.tone);
   // Standing gains wear the manufacturer's own color (brief §2.7).
   const manufacturerColor =
@@ -181,7 +182,7 @@ const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
   const dropRarity = event.tone === 'loot' ? event.gear?.rarity : undefined;
   if (dropRarity === Rarity.Epic || dropRarity === Rarity.Legendary) {
     return (
-      <motion.div data-testid="gain-toast" data-toast-variant="amplified" layout initial={{ opacity: 0, y: 6, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 6, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}) }}>
+      <motion.div data-testid="gain-toast" data-toast-variant="amplified" layout initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : 6, scale: reduceMotion ? 1 : 0.92 }} transition={{ duration: reduceMotion ? 0 : 0.15 }} className={`pointer-events-none inline-flex min-w-[112px] items-center gap-2 border-2 ${color.border} bg-bg px-2 py-1.5 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}) }}>
         <div className={`absolute left-0 top-0 h-full w-1.5 ${color.fill}`} style={manufacturerColor ? { backgroundColor: manufacturerColor } : undefined} />
         <RewardIcon tone={event.tone} />
         <div className="min-w-0 leading-none">
@@ -234,7 +235,7 @@ const GainToast: React.FC<{ event: DisplayGainEvent }> = ({ event }) => {
     </div>
   );
   return (
-    <motion.div data-testid="gain-toast" data-toast-variant="compact" layout initial={{ opacity: 0, y: 6, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: 6, scale: 0.92 }} transition={{ duration: 0.14 }} className={`pointer-events-none inline-flex max-w-full items-center gap-1.5 border-2 ${color.border} bg-bg px-2 py-1 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}), ...(rareStyle ? { borderColor: rareStyle.color } : {}) }}>
+    <motion.div data-testid="gain-toast" data-toast-variant="compact" layout initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.9, rotate: -1 }} animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : 6, scale: reduceMotion ? 1 : 0.92 }} transition={{ duration: reduceMotion ? 0 : 0.15 }} className={`pointer-events-none inline-flex max-w-full items-center gap-1.5 border-2 ${color.border} bg-bg px-2 py-1 shadow-[0_10px_22px_rgba(0,0,0,0.85)]`} style={{ ...signClip, ...(manufacturerColor ? { borderColor: manufacturerColor } : {}), ...(rareStyle ? { borderColor: rareStyle.color } : {}) }}>
       <div className={`absolute left-0 top-0 h-full w-1 ${color.fill}`} style={manufacturerColor ? { backgroundColor: manufacturerColor } : undefined} />
       <RewardIcon tone={event.tone} compact />
       {rareStyle && (

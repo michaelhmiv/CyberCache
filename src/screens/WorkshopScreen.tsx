@@ -972,8 +972,12 @@ export const WorkshopScreen: React.FC<{
               <ChevronDown size={14} />
             </motion.span>
           </button>
-          <div className={`grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] overflow-hidden transition-all ${expandedMaterials ? 'max-h-[500px] opacity-100' : 'max-h-16 opacity-70'}`}>
-            {sortedMaterials.slice(0, expandedMaterials ? sortedMaterials.length : 4).map(([type, count]) => {
+          <motion.div
+            animate={{ height: expandedMaterials ? 'auto' : 40, opacity: expandedMaterials ? 1 : 0.7 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="grid grid-cols-2 gap-x-3 gap-y-1 overflow-hidden text-[11px]"
+          >
+            {sortedMaterials.map(([type, count]) => {
               return (
                 <button
                   key={type}
@@ -987,7 +991,7 @@ export const WorkshopScreen: React.FC<{
                 </button>
               );
             })}
-          </div>
+          </motion.div>
         </MobileCard>
       )}
 
@@ -1127,7 +1131,7 @@ const JobCard: React.FC<{
         <span className="flex items-center gap-1"><Clock size={10} /> {formatDuration(job.unitDurationMs)}/unit</span>
       </div>
       <div className="h-1.5 bg-surface-raised rounded-full overflow-hidden">
-        <div className="h-full bg-amber rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+        <div className="h-full bg-amber rounded-full transition-[width] duration-500" style={{ width: `${progressPct}%` }} />
       </div>
       <div className="flex justify-end">
         <motion.button

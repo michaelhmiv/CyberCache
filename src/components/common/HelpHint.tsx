@@ -24,7 +24,8 @@
  * class by construction.
  */
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { sheetMotionProps } from '@/lib/animation/uiMotion';
 import { X } from 'lucide-react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { SheetPortal } from '@/components/common/SheetPortal';
@@ -32,6 +33,7 @@ import { SheetPortal } from '@/components/common/SheetPortal';
 const panelClip = { clipPath: 'polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)' };
 
 export const HelpHint: React.FC<{
+
   /** Sheet title — the section's own label, so the sheet reads as
    *  that section's explanation and nothing else. */
   title: string;
@@ -40,6 +42,7 @@ export const HelpHint: React.FC<{
   children: React.ReactNode;
 }> = ({ title, label, children }) => {
   const [open, setOpen] = useState(false);
+  const sheet = sheetMotionProps(useReducedMotion());
 
   useEffect(() => {
     if (!open) return;
@@ -74,9 +77,7 @@ export const HelpHint: React.FC<{
         {open && (
           <motion.div
             className="fixed inset-0 z-[85] flex items-end justify-center bg-black/80"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+{...sheet.backdrop}
             onClick={() => setOpen(false)}
           >
             <motion.div
@@ -84,10 +85,7 @@ export const HelpHint: React.FC<{
               aria-modal="true"
               aria-label={title}
               data-testid="help-hint-sheet"
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+{...sheet.panel}
               className="w-full max-w-[480px] border-t-2 border-border bg-bg p-4 pb-6 shadow-[0_-12px_32px_rgba(0,0,0,0.7)]"
               style={panelClip}
               onClick={(e) => e.stopPropagation()}
