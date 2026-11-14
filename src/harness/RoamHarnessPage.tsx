@@ -208,6 +208,20 @@ export const RoamHarnessPage: React.FC = () => {
       useKillCycleStore.setState({ currentTargetId: 'dustwaste_raider', currentTargetHp: 6, currentTargetHpMax: 100 });
       seedBeatEvent({ tone: 'kill', label: 'kill', value: 10 });
       replayBeatSeq += 1;
+      // A real drop carries its ROLLED figures as top-level fields
+      // (weaponStatFigures reads baseDamage / attackSpeed /
+      // critChance); HARNESS_WEAPON is generator-shaped only, so the
+      // celebration crashed on item.attackSpeed.toFixed(2). Rolled
+      // from the fixture's own numbers:
+      //   baseDamage  = 50 × 1.08 (Barrel) × 1.02 (Core) = 55.08 ≈ 55
+      //   attackSpeed = 1.1 × 0.98 (Chamber)             = 1.078 ≈ 1.08
+      //   critChance  = 12 × 1.06 (Sight)                = 12.72 ≈ 12.7
+      const dropWeapon: Weapon = {
+        ...HARNESS_WEAPON,
+        baseDamage: 55.08,
+        attackSpeed: 1.078,
+        critChance: 12.72,
+      };
       const event = {
         id: `harness-gear-${replayBeatSeq}`,
         at: Date.now(),
@@ -215,7 +229,7 @@ export const RoamHarnessPage: React.FC = () => {
         label: HARNESS_WEAPON.name,
         detail: 'harness',
         value: 1,
-        gear: HARNESS_WEAPON,
+        gear: dropWeapon,
       } as TickEvent;
       useTickFeedStore.setState({ events: [event] });
       useKillCycleStore.setState({ currentTargetId: 'dustwaste_drone', currentTargetHp: 60, currentTargetHpMax: 60 });
