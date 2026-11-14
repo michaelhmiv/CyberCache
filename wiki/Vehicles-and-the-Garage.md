@@ -139,7 +139,8 @@ not. With no vehicle equipped the chip reads **On foot** and opens
 the same Garage. Expanded, you can see
 every vehicle you own — each card draws the vehicle itself, with its
 rolled affix fittings (cargo rack, scanner array, reinforced frame)
-fitted on the sprite and its wear showing once condition drops —
+fitted on the sprite, inside the vehicle's own frame on the card,
+and its wear showing once condition drops —
 equip one into the vehicle slot, check its condition and your fuel,
 refuel, and start a repair. Vehicles are
 managed there, not in the [[Gear]] grid — and they cannot be

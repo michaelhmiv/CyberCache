@@ -23,6 +23,7 @@ import { cacheRankBonuses } from '../../content/cacheRank';
 import { mergeResearchBonuses } from '../../content/research';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
+import { resolveRoamingConsumableState } from './roamingConsumableState';
 import {
   discoveryEntriesForItem,
   eliteDiscovery,
@@ -221,7 +222,17 @@ export function createClaimHandler(
         lastClaimedTick: profile.last_claimed_tick,
         consumableInventory,
         consumableQualityProfile,
-        roamingConsumableState: body.roamingConsumableState,
+        // Roaming consumable state (0096): the profile's stored
+        // copy owns the coverage windows — the body's blob is
+        // overridden here and adopted only when no stored state
+        // exists yet (the first claim after 0096 ships); a stored
+        // state the watermark has passed is discarded, never
+        // re-charged. See routes/roamingConsumableState.ts.
+        roamingConsumableState: resolveRoamingConsumableState(
+          profile.roaming_consumable_state,
+          body.roamingConsumableState,
+          profile.last_claimed_tick,
+        ),
         masteryLevels: body.masteryLevels,
         vehicle: equippedVehicle
           ? {
@@ -399,6 +410,30 @@ export function createClaimHandler(
           console.error('[chef] Failed to consume roaming consumables:', message);
           res.status(500).json({
             error: 'Failed to persist consumable consumption',
+            detail: message,
+            profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
+            rewards: result.rewards,
+          });
+          return;
+        }
+      }
+
+      // Persist the roaming consumable state (0096): the engine
+      // ran from the profile's stored state; write back the state
+      // it returned so the next claim — in this session or after an
+      // app restart — resumes the same coverage windows instead of
+      // resetting them for free. A persistence failure surfaces
+      // exactly like the consumption failure above: the state is
+      // the billing basis for the next window charge, so silently
+      // succeeding would hand out uncharged coverage.
+      if (result.roamingConsumableState) {
+        try {
+          await store.saveRoamingConsumableState(playerId, result.roamingConsumableState as unknown as Json);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[chef] Failed to persist roaming consumable state:', message);
+          res.status(500).json({
+            error: 'Failed to persist roaming consumable state',
             detail: message,
             profile: (rpcResult as Record<string, unknown>)?.profile ?? rpcResult,
             rewards: result.rewards,

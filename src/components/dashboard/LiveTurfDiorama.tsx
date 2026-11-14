@@ -30,7 +30,7 @@ import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScen
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, lootRiseTotalMs, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
 import { dropAssetColor, dropRiseBeamColor, parseDropType } from '@/lib/pixel/dropColors';
 import { StageRise, ROAM_DROP_LIFT_PX } from '@/components/pixelArt/StageRise';
-import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
+import { ROAM_ELITE_FLAT_HEIGHT_PCT, ROAM_ELITE_RIG_HEIGHT_PCT, ROAM_ENEMY_PLACEMENT, ROAM_HUNTER_PLACEMENT, approachOffsetXPct, roamEnemyPlacementFor, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -301,12 +301,12 @@ export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, 
  * the ground line — where on device it read as part of the stats
  * row below the animation, the wrong layer entirely. It now rides
  * IN the stage as a translucent overlay on the enemy's column
- * (xPct 74, the shared enemy placement), its top edge lifted off
+ * (the shared enemy placement, ROAM_ENEMY_PLACEMENT), its top edge lifted off
  * the ground line by the hunter plate's own lift (HP_PLATE_LIFT),
  * so the two plates read as a matched pair at the same height on
  * their respective sides. The lift was chosen off the enemy's
  * geometry, not the hunter's anchor copied blindly: roaming
- * enemies stand 66% of the stage tall on the ground line, so a
+ * enemies stand 58% of the stage tall on the ground line, so a
  * plate whose top edge sits 18.5 points above that line lands on
  * the enemy's lower body — face and head stay completely clear,
  * honoring the original no-plate-across-a-face ruling. The BOSS
@@ -327,12 +327,16 @@ const TargetHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYP
   if (!active || !targetId || maxHp <= 0) return null;
 
   const ratio = Math.max(0, Math.min(1, currentHp / maxHp));
-  const targetName = MONSTERS.find((monster) => monster.id === targetId)?.name ?? 'Target';
+  const targetMonster = MONSTERS.find((monster) => monster.id === targetId);
+  const targetName = targetMonster?.name ?? 'Target';
+  // The plate rides the enemy's column — the same per-archetype
+  // settle the stage renders at (roamChoreography owns the mark).
+  const plateXPct = roamEnemyPlacementFor(targetMonster?.archetype).xPct;
 
   return (
     <div
       className="pointer-events-none absolute z-30 w-[176px] border-2 border-border bg-bg/80 px-2 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
-      style={{ ...signClip, left: '74%', top: `${(groundYPct - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
+      style={{ ...signClip, left: `${plateXPct}%`, top: `${(groundYPct - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
       data-testid="primary-diorama-target-hp"
     >
       <div className="mb-1 flex items-center justify-between gap-2 text-[11px] font-black uppercase leading-tight tracking-wide text-text-muted">
@@ -674,7 +678,29 @@ const PixelSceneLayerDom: React.FC<{
       .map((elapsedMs) => setTimeout(() => setPoseAge({ eventId: poseEventId, elapsedMs }), elapsedMs));
     return () => timers.forEach(clearTimeout);
   }, [poseEventId, poseBeatKind]);
-  const actorPoses = roamPosesAt(beat, !!weapon, poseAge.eventId === poseEventId ? poseAge.elapsedMs : 0);
+  // Post-kill advance guard: a beat names the target that was current
+  // when its event arrived. The Chef settles a kill and the next spawn
+  // in ONE claim, so a kill beat routinely stands next to the NEXT
+  // enemy — the death pose and the dissolve belong to the enemy that
+  // died, never to the one now standing. When the event changes, the
+  // pre-beat target is snapshotted (a ref the beat effects below read
+  // — they run after this effect in the same commit — plus a state
+  // mirror for this render); the previous-target ref advances after
+  // it (declaration order is the mechanism).
+  const prevTargetIdRef = useRef<string | null>(null);
+  const beatTargetIdRef = useRef<string | null>(null);
+  const [beatTargetId, setBeatTargetId] = useState<string | null>(null);
+  useEffect(() => {
+    beatTargetIdRef.current = prevTargetIdRef.current;
+    setBeatTargetId(prevTargetIdRef.current);
+  }, [poseEventId]);
+  useEffect(() => {
+    prevTargetIdRef.current = currentTargetId ?? null;
+  });
+  const beatForCurrentTarget = beatTargetId === (currentTargetId ?? null);
+  const actorPoses = roamPosesAt(beat, !!weapon, poseAge.eventId === poseEventId ? poseAge.elapsedMs : 0, {
+    beatForCurrentTarget,
+  });
   const eventProp = event && (event.tone === 'event' || event.tone === 'event_major') && event.propId
     ? getPixelSprite(event.propId)
     : undefined;
@@ -968,15 +994,35 @@ const PixelSceneLayerDom: React.FC<{
     (bossOnStage ? bossSpriteId : undefined) ?? pixelEnemySpriteForArchetype(targetArchetype) ?? 'brute';
   const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
   // At camp the hunter takes the authored fire seat (center-x 505
-  // of 960 in the camp set's seat record); everywhere else the
-  // standing roam/fight mark holds.
-  const hunterPlacement: ActorPlacement = { xPct: idleCamp ? 52.6 : 22, heightPct: 57, groundY };
-  // Roam settle = ROAM_ENEMY_PLACEMENT (the tightened approach
-  // staging — roamChoreography owns it); boss encounters keep
-  // their own wider mark and taller frame.
+  // of 960 in the camp set's seat record); at a boss the shipped
+  // 22% mark holds (boss staging is its own composition); roaming
+  // reads ROAM_HUNTER_PLACEMENT — roamChoreography owns the mark.
+  const hunterPlacement: ActorPlacement = {
+    xPct: idleCamp ? 52.6 : bossOnStage ? 22 : ROAM_HUNTER_PLACEMENT.xPct,
+    heightPct: ROAM_HUNTER_PLACEMENT.heightPct,
+    groundY,
+  };
+  // Roam settle = the per-archetype mark (roamChoreography owns
+  // it — the shared ROAM_ENEMY_PLACEMENT plus its archetype
+  // overrides); boss encounters keep their own wider mark and
+  // taller frame, and elite events keep the shared mark exactly,
+  // mirroring the scene model's derivation. Elite heights mirror
+  // the Pixi derivation's (rig 72 / bespoke flat 74) so the DOM
+  // anchors — mass, feet, loot point — sit on the same frame the
+  // actor renders at (the rig/flat actors restate those heights
+  // at their own call sites below).
+  const roamEnemy = roamEnemyPlacementFor(targetArchetype);
   const enemyPlacement: ActorPlacement = {
-    xPct: bossOnStage ? 74 : ROAM_ENEMY_PLACEMENT.xPct,
-    heightPct: bossOnStage && bossSpriteId ? 80 : 66,
+    xPct: bossOnStage ? 74 : isEliteEvent ? ROAM_ENEMY_PLACEMENT.xPct : roamEnemy.xPct,
+    heightPct: bossOnStage
+      ? bossSpriteId
+        ? 80
+        : 66
+      : isEliteEvent
+        ? visuals.eliteSpriteId
+          ? ROAM_ELITE_FLAT_HEIGHT_PCT
+          : ROAM_ELITE_RIG_HEIGHT_PCT
+        : roamEnemy.heightPct,
     groundY,
   };
   const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
@@ -1018,7 +1064,6 @@ const PixelSceneLayerDom: React.FC<{
         });
         break;
       case 'shot':
-      case 'crit':
         void hunterControls.start({ x: [0, -4, 0], transition: { duration: 0.22 } });
         void enemyHitControls.start({
           scale: [1, 0.93, 1.03, 1],
@@ -1026,14 +1071,32 @@ const PixelSceneLayerDom: React.FC<{
           transition: { duration: MOVEMENT.HIT_REACTION_MS / 1000 },
         });
         break;
+      case 'crit':
+        // The crit's equivalent weight (stage-iteration program):
+        // the same windows as the shot, heavier keys — the exact
+        // values sampleRoamBeat samples on the Pixi path, so the
+        // two renderers carry one crit.
+        void hunterControls.start({ x: [0, -6, 0], transition: { duration: 0.22 } });
+        void enemyHitControls.start({
+          scale: [1, 0.88, 1.05, 1],
+          x: [0, 13, -4, 0],
+          transition: { duration: MOVEMENT.HIT_REACTION_MS / 1000 },
+        });
+        break;
       case 'kill':
         void hunterControls.start({ y: [0, -9, 0], transition: { duration: 0.42 } });
-        void enemyHitControls.start({
-          opacity: [1, 1, 0],
-          scale: [1, 1.05, 0.5],
-          y: [0, 0, 24],
-          transition: { duration: 0.5, ease: 'easeIn' },
-        });
+        if (beatTargetIdRef.current === (currentTargetId ?? null)) {
+          void enemyHitControls.start({
+            opacity: [1, 1, 0],
+            scale: [1, 1.05, 0.5],
+            y: [0, 0, 24],
+            transition: { duration: 0.5, ease: 'easeIn' },
+          });
+        } else {
+          // The kill names a previous enemy; the one standing now did
+          // not die — no dissolve on it (it walks in at rest).
+          void enemyHitControls.start({ opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.2 } });
+        }
         break;
       case 'loot':
         // A legendary drop is the celebration beat (P3): the hunter hops
@@ -1054,6 +1117,18 @@ const PixelSceneLayerDom: React.FC<{
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beatEventId, beatKind, reduced]);
+
+  // Post-kill advance: when the target changes under a standing kill
+  // beat that names the PREVIOUS enemy, release any held dissolve so
+  // the new enemy stays visible (the beat effect above does not
+  // re-run on a target change alone).
+  useEffect(() => {
+    if (reduced) return;
+    if (beatKind === 'kill' && beatTargetIdRef.current !== (currentTargetId ?? null)) {
+      void enemyHitControls.start({ opacity: 1, scale: 1, x: 0, y: 0, transition: { duration: 0.2 } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTargetId]);
 
   return (
     <PixelStage
@@ -1265,10 +1340,15 @@ const PixelSceneLayerDom: React.FC<{
       {/* The equipped vehicle, parked at the scene edge during fights
           (Q4 travel legs + encounter clusters): the actual instance —
           class profile, rolled affix overlays, condition wear — with
-          its fuel/condition read from the last claim's status. */}
+          its fuel/condition read from the last claim's status. Affix
+          overlays are contained inside the class painting's box
+          (h-full + object-contain, the rule PR #579 settled): the
+          square scanner painting resolved at box width alone
+          rendered ~2.4× the plate height and spilled down the
+          stage (stage-artifacts REPORT §2b). */}
       {mode === 'roaming' && vehicle && (
         <div className="absolute" style={{ left: '1%', bottom: `${(1 - groundY) * 100 + 1}%`, width: '21%', zIndex: 5 }} data-testid="pixel-vehicle">
-          <div className="relative">
+          <div className="relative overflow-hidden">
             <img
               src={getPixelSprite(`vehicle-${vehicle.vehicleClassId.replace(/_/g, '-')}`)?.url}
               alt=""
@@ -1277,16 +1357,16 @@ const PixelSceneLayerDom: React.FC<{
               style={{ imageRendering: 'pixelated' }}
             />
             {vehicle.affixes.some((a) => a.stat === 'vehicleCargoPct') && (
-              <img src={getPixelSprite('vehicle-affix-cargo-rack')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-cargo-rack')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.affixes.some((a) => a.stat === 'vehicleScannerPct') && (
-              <img src={getPixelSprite('vehicle-affix-scanner-array')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-scanner-array')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.affixes.some((a) => a.stat === 'vehicleFramePct') && (
-              <img src={getPixelSprite('vehicle-affix-reinforced-frame')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-affix-reinforced-frame')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
             {vehicle.conditionCurrent / Math.max(1, vehicle.conditionMax) < 0.35 && (
-              <img src={getPixelSprite('vehicle-condition-scuff')?.url} alt="" draggable={false} className="absolute inset-0 w-full" style={{ imageRendering: 'pixelated' }} />
+              <img src={getPixelSprite('vehicle-condition-scuff')?.url} alt="" draggable={false} className="absolute inset-0 h-full w-full object-contain" style={{ imageRendering: 'pixelated' }} />
             )}
           </div>
           {vehicleStatus && (
@@ -1668,6 +1748,43 @@ const PixelSceneLayerDom: React.FC<{
 // failure — renders the DOM scene above, byte-identical to before
 // M2. Both renderers consume the same stores, the same tick events,
 // and the same movement.ts law; the M2 PR carries the A/B evidence.
+/**
+ * The Pixi takeover cover (stage-iteration B2, 2026-11-12): holds
+ * the transient DOM scene over the Pixi stage until the stage
+ * reports its first drawn frames (onSceneReady). Before this gate,
+ * the Suspense fallback unmounted the moment the Pixi chunk
+ * resolved and the canvas sat black for the entire scene build —
+ * texture loads included — on every cold roam mount. The cover is
+ * the same inert transient instance the Suspense fallback used (no
+ * walk clock, no resume probe), now rendered OUTSIDE the Suspense
+ * boundary so ONE instance spans both phases — chunk load and
+ * scene build — instead of unmounting and remounting between them,
+ * and it drops only when the swap can land on a live frame. A Pixi
+ * failure still routes through onPixiError and the switch renders
+ * the DOM scene permanently. The readiness state is mount-scoped:
+ * leaving roaming and returning re-covers.
+ */
+const PixiSceneWithCover: React.FC<{
+  pixiProps: RoamPixiStageProps;
+  domProps: React.ComponentProps<typeof PixelSceneLayerDom>;
+  /** Pixi-path DOM companions (the hunter HP plate): rendered only
+   *  once the cover drops — the cover's own scene carries the
+   *  identical plate in the identical spot until then, so the
+   *  plate never doubles during the swap. */
+  children?: React.ReactNode;
+}> = ({ pixiProps, domProps, children }) => {
+  const [pixiReady, setPixiReady] = useState(false);
+  return (
+    <>
+      <React.Suspense fallback={null}>
+        <RoamPixiStageLazy {...pixiProps} onSceneReady={() => setPixiReady(true)} />
+      </React.Suspense>
+      {!pixiReady && <PixelSceneLayerDom {...domProps} transientFallback />}
+      {pixiReady && children}
+    </>
+  );
+};
+
 const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>> = (props) => {
   const webgl = React.useMemo(() => detectWebGL(), []);
   const [pixiFailed, setPixiFailed] = useState(false);
@@ -1714,14 +1831,15 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
     onPixiError: () => setPixiFailed(true),
   };
   return (
-    <React.Suspense fallback={<PixelSceneLayerDom {...props} transientFallback />}>
-      <RoamPixiStageLazy {...pixiProps} />
+    <PixiSceneWithCover pixiProps={pixiProps} domProps={props}>
       {/* DOM companions the Pixi scene does not carry: the hunter
           HP plate (a sibling of the hunter wrapper in the DOM
           scene, anchored to his placement) — rendered here so it
-          rides the Pixi path identically. */}
+          rides the Pixi path identically. It mounts with the
+          cover drop: the cover's own scene carries the identical
+          plate until the Pixi stage's first frames land. */}
       <RoamHunterHpPlate groundY={getPixelSprite(props.backgroundId)?.anchors.groundLine?.y ?? 0.86} />
-    </React.Suspense>
+    </PixiSceneWithCover>
   );
 };
 
@@ -1738,7 +1856,7 @@ const RoamHunterHpPlate: React.FC<{ groundY: number }> = ({ groundY }) => {
     <div
       data-testid="diorama-hunter-hp"
       className="pointer-events-none absolute z-20 w-[104px] border-2 border-border bg-bg/85 px-1.5 py-1 shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
-      style={{ ...signClip, left: '22%', top: `${(groundY - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
+      style={{ ...signClip, left: `${ROAM_HUNTER_PLACEMENT.xPct}%`, top: `${(groundY - HP_PLATE_LIFT) * 100}%`, transform: 'translateX(-50%)' }}
     >
       <div className="mb-0.5 flex items-baseline justify-between gap-1 text-[11px] font-black leading-none">
         <span className="text-text-muted">HP</span>

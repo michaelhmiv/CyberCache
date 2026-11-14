@@ -68,7 +68,7 @@ const ResultFlash: React.FC<{ result: 'success' | 'failure'; qualityPct?: number
 
 const CauseProgress: React.FC<{ progress: number; causeLabel: string; buysLabel?: string }> = ({ progress, causeLabel, buysLabel }) => (
   <div className="absolute inset-x-3 bottom-2 z-20">
-    <div className="flex items-baseline justify-between text-[10px] font-bold">
+    <div className="flex items-baseline justify-between text-[11px] font-bold">
       <span className="text-text-primary">{causeLabel}</span>
       {buysLabel && <span className="text-amber">{buysLabel}</span>}
     </div>
@@ -210,7 +210,7 @@ export const ExtractionScene: React.FC<ExtractionSceneProps> = ({
       {paused && (
         <>
           <div className="pointer-events-none absolute inset-0 z-10 bg-black/55" data-testid="extraction-paused-shade" />
-          <div className="absolute left-3 top-3 z-20 border-2 border-border bg-bg/85 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-text-primary" data-testid="extraction-paused-pennant">
+          <div className="absolute left-3 top-3 z-20 border-2 border-border bg-bg/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-widest text-text-primary" data-testid="extraction-paused-pennant">
             Paused
           </div>
         </>

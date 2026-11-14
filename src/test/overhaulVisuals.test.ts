@@ -375,6 +375,21 @@ describe('performance + payload budgets (§4.9)', () => {
     // re-derived from the slash-painted-out Wave 8 master (the
     // framed chest diamond accent preserved pixel-exact), 6,596 →
     // 6,497 B (−99 B); the ceiling literal follows the total +1.
-    expect(total).toBeLessThan(36_204_267 + 1);  });
+        // Stage-iteration pxl interiors (2026-11-12): the three set
+    // pieces whose interiors shipped blank white are painted in.
+    // INT-5 keyed the masters with the key_white border-flood
+    // recipe, which cannot reach white enclosed by the frame —
+    // and the masters were never painted there — so set-bay-lift,
+    // set-vendor-stall, and set-calibration-rig carried white
+    // holes (census, central 40%, near-white >= 250: 76.5 / 70.1
+    // / 57.4% vs <= 2.4% for the other eighteen). Painted under
+    // the pxl-craft standard in the INT-5 palette-256 form:
+    // set-bay-lift 237,797 -> 247,645 B,
+    // set-vendor-stall 353,077 -> 353,871 B,
+    // set-calibration-rig 185,166 -> 190,750 B
+    // (family +16,226 B; white compresses, paint does not).
+    // Census after: single digits, in family. The ceiling
+    // literal follows the total +1.
+    expect(total).toBeLessThan(36_220_493 + 1);  });
 
 });

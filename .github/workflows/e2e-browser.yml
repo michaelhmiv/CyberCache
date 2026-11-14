@@ -1,0 +1,118 @@
+name: E2E Browser
+
+# Lane 1 of the CI overhaul (audit blueprint, REPORT.md §6.3): the
+# first gate that boots the PRODUCTION build in a real browser and
+# PLAYS it — guest session, roam fight, tab switches, cache decrypts
+# (including the sabotage variants), gear at owner scale, a boss
+# attempt — asserting outcomes, not compilation.
+#
+# The six pre-existing checks never did this, which is how an
+# invisible enemy, a hanging decrypt, and a collapsing gear list
+# shipped through green CI (REPORT.md §6.1/§6.2).
+#
+# STATUS: NON-REQUIRED while it calibrates (blueprint migration
+# order step 2). The job runs on every PR and master push under a
+# stable name — `e2e-browser` — so branch protection can be flipped
+# to required without a rename once the calibration window closes.
+# Promotion path + calibration log: scripts/e2e/README.md and the
+# overhaul PR body.
+#
+# Public repo: Actions minutes are not a constraint (owner note,
+# 2026-10-29) — the fixture is a real Postgres + the real Chef
+# server, not a mock.
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-browser:
+    runs-on: ubuntu-latest
+    # Backstop: a healthy run is ~10-15 minutes (fixture + build +
+    # six played cases). The cap turns a wedged case into a failure
+    # instead of a 360-minute default hang (anim-replay lesson).
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: e2e
+          POSTGRES_PASSWORD: e2e
+          POSTGRES_DB: cybercache_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U e2e -d cybercache_e2e"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    env:
+      E2E_DATABASE_URL: postgres://e2e:e2e@127.0.0.1:5432/cybercache_e2e
+      DATABASE_URL: postgres://e2e:e2e@127.0.0.1:5432/cybercache_e2e
+      CHEF_JWT_SECRET: e2e-fixture-jwt-secret
+      CHEF_JOB_SECRET: e2e-fixture-job-secret
+      PORT: "3000"
+      E2E_BASE: http://127.0.0.1:3000
+      E2E_OUT: ${{ github.workspace }}/e2e-out
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright (repo pattern, from anim-replay)
+        run: |
+          npm install --no-save playwright-core@1.49.1
+          npx playwright-core install chromium --with-deps
+          echo "CHROME_PATH=$(find ~/.cache/ms-playwright -name chrome -type f | head -1)" >> "$GITHUB_ENV"
+
+      - name: Build production app
+        run: npm run build
+
+      - name: Apply fixture migrations
+        run: node scripts/e2e/fixture.mjs apply-migrations
+
+      - name: Start the real Chef server (serves dist + /api)
+        run: |
+          npm run server > e2e-server.log 2>&1 &
+          echo $! > e2e-server.pid
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:3000/health > /dev/null; then
+              echo "server up after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:3000/health
+
+      - name: Play the game (Lane 1 cases)
+        run: node scripts/e2e/run.mjs
+
+      - name: Server log tail
+        if: always()
+        run: tail -100 e2e-server.log || true
+
+      - name: Upload e2e evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-browser-evidence
+          path: |
+            e2e-out/
+            e2e-server.log
+          if-no-files-found: warn
+          retention-days: 14

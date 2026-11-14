@@ -85,6 +85,20 @@ export function lootCelebrationForRarity(rarity: Rarity): LootCelebration {
   return { ...CELEBRATION_BY_RARITY[rarity], color: RARITY_FRAME_STYLES[rarity].color };
 }
 
+/**
+ * The rise budget inside one celebration beat: the ladder's
+ * durationMs is a HOLD inside a composite (beam ignite + rise +
+ * staggered deck), and the rise itself is capped at LOOT_RISE_MS
+ * with a 300ms floor — the exact curve LootMoment's risen item
+ * and cache prop run. Surfaces that present a drop on the
+ * ladder's timings without the moment (the Return Sheet poster)
+ * rise on this budget and hold settled for the remainder of the
+ * beat, instead of stretching the whole hold into one slow ease.
+ */
+export function lootRiseBudgetMs(durationMs: number): number {
+  return Math.max(300, Math.min(MOVEMENT.LOOT_RISE_MS, durationMs - 300));
+}
+
 // ── Drop card data ─────────────────────────────────────────────────────
 
 export interface LootCardData {

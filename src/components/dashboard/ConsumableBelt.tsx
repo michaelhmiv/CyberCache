@@ -51,17 +51,19 @@ export const ConsumableBelt: React.FC<{
           setLedgerOpen(true);
         }}
       />
-      {ledgerOpen && (
-        <ConsumableLedger
-          consumables={loadout.consumables}
-          inventory={player.consumables}
-          focusedSlot={focusedSlot}
-          onClose={() => {
-            setLedgerOpen(false);
-            setFocusedSlot(null);
-          }}
-        />
-      )}
+      <ConsumableLedger
+        open={ledgerOpen}
+        consumables={loadout.consumables}
+        inventory={player.consumables}
+        focusedSlot={focusedSlot}
+        onClose={() => {
+          // focusedSlot stays set while the ledger animates out
+          // (clearing it here would swap the exit's content to
+          // the unfocused variant mid-exit); the next open sets
+          // it fresh from the tapped slot.
+          setLedgerOpen(false);
+        }}
+      />
     </section>
   );
 };

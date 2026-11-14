@@ -39,6 +39,7 @@ function TabPaneFallback({ label }: { label: string }) {
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
 import { useUsernamePrompt } from './auth/useUsernamePrompt';
+import { useIdleWarmOnce } from './hooks/useIdleWarmOnce';
 import { isGuestAccount, isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
 
 import { useAuth } from './auth/AuthProvider';
@@ -128,6 +129,24 @@ function App() {
     setVisitedTabs((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)));
     setActiveTab(tab);
   };
+  // Gear first-open warming (audit #569): the Gear pane was the one
+  // tab whose whole first build — the lazy chunk plus the heaviest
+  // first render in the app (the painted loadout figure, the
+  // inventory sections) — waited for the player's first tap, and
+  // that tap usually lands while the roam stage is in its startup
+  // storm, so the build queued behind multi-second stage tasks
+  // (CI e2e: the loadout marker never landed inside a 9 s window;
+  // a warm switch is ~0.1 s). Once the signed-in shell is up, warm
+  // the pane during idle time instead: it mounts hidden under the
+  // keep-alive contract and pays its first build in a calm window,
+  // so the first real switch is a warm visibility flip. Gear only —
+  // Market and Hunter first-visits sit well inside the switch
+  // budget and stay lazy, keeping boot lean. The pane fetches
+  // nothing on mount (it renders from the bootstrap stores), so
+  // warming costs no network work.
+  useIdleWarmOnce(!!user && !loading, () =>
+    setVisitedTabs((prev) => (prev.has('gear') ? prev : new Set(prev).add('gear'))),
+  );
   const [subScreen, setSubScreen] = useState<SubScreen>(null);
   const [bossSelectOpen, setBossSelectOpen] = useState(false);
   // Deep-link focus inside the Profile tab: 'skills' lands the player

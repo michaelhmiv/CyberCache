@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { detectWebGL, resetWebGLCacheForTests } from '@/components/pixelArt/pixi/detectWebGL';
 import { MOVEMENT } from '@/lib/pixel/movement';
@@ -110,6 +110,29 @@ describe('M2 — roam renderer selection (the BossFightStage switch pattern)', (
     expect(screen.getByTestId('diorama-hunter-hp')).toBeTruthy();
   });
 
+  it('the DOM scene covers the Pixi stage until it reports its first frames (the black-swap gate)', async () => {
+    webglAvailable.value = true;
+    render(
+      <LiveTurfDiorama area={area} weapon={DIORAMA_WEAPON} playerLevel={5} equippedCount={1} activityKind="roaming_loot" />,
+    );
+    expect(await screen.findByTestId('roam-pixi-stage')).toBeTruthy();
+    // The Pixi stage has mounted but has not reported drawn frames:
+    // the DOM cover still carries the scene — hunter rendered, and
+    // exactly one HP plate (the cover's) — so the player never
+    // sees the black canvas of a building Pixi scene.
+    expect(screen.getByTestId('pixel-hunter')).toBeTruthy();
+    expect(screen.getAllByTestId('diorama-hunter-hp')).toHaveLength(1);
+    const passed = roamPixiMounts.mock.calls[roamPixiMounts.mock.calls.length - 1][0] as Record<string, unknown>;
+    expect(typeof passed.onSceneReady).toBe('function');
+    act(() => {
+      (passed.onSceneReady as () => void)();
+    });
+    // Cover dropped; the Pixi stage and its own plate remain.
+    expect(screen.queryByTestId('pixel-hunter')).toBeNull();
+    expect(screen.getByTestId('roam-pixi-stage')).toBeTruthy();
+    expect(screen.getAllByTestId('diorama-hunter-hp')).toHaveLength(1);
+  });
+
   it('with WebGL available, a non-roaming mode still renders DOM (Pixi is roam-only)', async () => {
     webglAvailable.value = true;
     render(
@@ -170,10 +193,10 @@ describe('M2 — the roam scene model (one derivation for both renderers)', () =
     expect(model.hunterPoseName).toBe('aim');
     expect(model.rig?.segments).toHaveLength(4);
     expect(model.rigPose).toEqual({});
-    expect(model.hunterPlacement).toMatchObject({ xPct: 22, heightPct: 57 });
-    // Settle mark 66% — the tightened approach staging
-    // (animation fix iteration; was 74%).
-    expect(model.enemyPlacement).toMatchObject({ xPct: 66, heightPct: 66 });
+    expect(model.hunterPlacement).toMatchObject({ xPct: 12, heightPct: 57 });
+    // Settle mark 78%, frame 58% — the stage-iteration restage
+    // (2026-11-12; was the tightened 66%/66%).
+    expect(model.enemyPlacement).toMatchObject({ xPct: 78, heightPct: 58 });
     expect(model.lootRise).toBeNull();
     expect(model.dropItem).toBeNull();
   });
@@ -233,6 +256,19 @@ describe('M2 — beat tracks are the DOM stage tables, sampled', () => {
     const mid = sampleRoamBeat(beat, 110);
     expect(mid.hunter.x).toBeLessThan(0);
     expect(mid.enemyHit.scale).toBeLessThan(1);
+    const done = sampleRoamBeat(beat, MOVEMENT.HIT_REACTION_MS + 50);
+    expect(done.hunter.x).toBe(0);
+    expect(done.enemyHit.scale).toBe(1);
+    expect(done.enemyHit.x).toBe(0);
+  });
+
+  it('crit: same windows as the shot, heavier keys — deeper dip, harder knock, settled by HIT_REACTION_MS (stage-iteration program)', () => {
+    const beat = { kind: 'crit' as const, value: 30 };
+    const shotMid = sampleRoamBeat({ kind: 'shot' as const, value: 10 }, 110);
+    const mid = sampleRoamBeat(beat, 110);
+    expect(mid.enemyHit.scale).toBeLessThan(shotMid.enemyHit.scale);
+    expect(mid.enemyHit.x).toBeGreaterThan(shotMid.enemyHit.x);
+    expect(mid.hunter.x).toBeLessThan(shotMid.hunter.x);
     const done = sampleRoamBeat(beat, MOVEMENT.HIT_REACTION_MS + 50);
     expect(done.hunter.x).toBe(0);
     expect(done.enemyHit.scale).toBe(1);
