@@ -328,6 +328,8 @@ export const NumbersHomeHarnessPage: React.FC = () => {
     anchorXPct: number;
     groundYPct: number;
   } | null>(null);
+  /** ?scene=drop diagnostics for the capture plan's dumps. */
+  const dropDebugRef = useRef<Record<string, unknown> | null>(null);
   const [floats, setFloats] = useState<HomeFloatSpec[]>([]);
   const floatsRef = useRef<HomeFloatSpec[]>([]);
   floatsRef.current = floats;
@@ -432,9 +434,11 @@ export const NumbersHomeHarnessPage: React.FC = () => {
       if (dmg) specs.push({ x: dmg.x, y: dmg.y, kind: 'satellite', text: '-88', tag: 'DMG', color: HOME_FLOAT_COLORS.dmg, driftPx: driftFrom(dmg), delayMs: 150 });
       if (spd) specs.push({ x: spd.x, y: spd.y + 18, kind: 'satellite', text: '-12', tag: 'SPD', color: HOME_FLOAT_COLORS.spd, driftPx: driftFrom(spd), delayMs: 200 });
       if (impact) {
-        specs.push({ x: impact.x - 16, y: impact.y + 36, kind: 'satellite', text: '-24', tag: 'FIRE', color: HOME_FLOAT_COLORS.fire, travelPx: 120, delayMs: 250 });
-        specs.push({ x: impact.x + 14, y: impact.y + 10, kind: 'proc', text: '+14', tag: 'MOLTEN', color: HOME_FLOAT_COLORS.molten, delayMs: 350, travelPx: 125 });
-        specs.push({ x: impact.x + 34, y: impact.y + 20, kind: 'proc', text: '+18', tag: 'ECHO', color: HOME_FLOAT_COLORS.echo, delayMs: 450, travelPx: 125 });
+        // Impact-born floats spread wide + travel apart (run 1
+        // showed FIRE/MOLTEN text colliding at one point).
+        specs.push({ x: impact.x - 30, y: impact.y + 36, kind: 'satellite', text: '-24', tag: 'FIRE', color: HOME_FLOAT_COLORS.fire, travelPx: 105, delayMs: 250 });
+        specs.push({ x: impact.x + 20, y: impact.y + 10, kind: 'proc', text: '+14', tag: 'MOLTEN', color: HOME_FLOAT_COLORS.molten, delayMs: 400, travelPx: 140 });
+        specs.push({ x: impact.x + 56, y: impact.y + 20, kind: 'proc', text: '+18', tag: 'ECHO', color: HOME_FLOAT_COLORS.echo, delayMs: 550, travelPx: 165 });
       }
       spawn(specs);
       flashCell('hero-stat-dmgTick', HOME_FLOAT_COLORS.dmg);
@@ -458,30 +462,41 @@ export const NumbersHomeHarnessPage: React.FC = () => {
       if (killHoldScene) {
         w.__seedKillHold = fireKill;
       } else {
-        // PROPOSAL ONLY: once the 500ms dissolve has completed,
-        // mount the production LootMoment over the held kill
-        // state — the composition today's single-standing-event
-        // model cannot hold (header note). Host box = the live
-        // Pixi stage's rect; anchors = the production derivation.
-        w.__seedProposalDrop = () => {
-          fireKill();
-          later(550, () => {
+        // PROPOSAL ONLY, in two plan steps: the kill fires first;
+        // the capture plan waits rig-side for the 500ms dissolve
+        // to complete, then __seedProposalCelebration mounts the
+        // production LootMoment over the held kill state — the
+        // composition today's single-standing-event model cannot
+        // hold (header note). Host box = the live Pixi stage's
+        // rect; anchors = the production derivation. (Run 1 used
+        // an in-page timer for step two and the moment never
+        // mounted — this page's main-thread timers starve under
+        // SwiftShader, the documented capture pathology.)
+        w.__seedProposalKill = fireKill;
+        w.__seedProposalCelebration = () => {
+          try {
             const stage = document.querySelector('[data-testid="roam-pixi-stage"]');
             const wrap = wrapRef.current;
             const anchors = dropAnchorPct();
+            dropDebugRef.current = { stageFound: !!stage, wrapFound: !!wrap, anchors };
             if (!stage || !wrap || !anchors) return;
             const sr = stage.getBoundingClientRect();
             const wr = wrap.getBoundingClientRect();
-            setDropHost({
+            const host = {
               left: sr.left - wr.left,
               top: sr.top - wr.top,
               width: sr.width,
               height: sr.height,
               anchorXPct: anchors.loot.xPct,
               groundYPct: anchors.feet.yPct,
-            });
-          });
+            };
+            dropDebugRef.current = { ...dropDebugRef.current, host };
+            setDropHost(host);
+          } catch (err) {
+            dropDebugRef.current = { error: String(err) };
+          }
         };
+        w.__nhDropDebug = () => dropDebugRef.current;
       }
       return () => {
         timers.current.forEach((t) => window.clearTimeout(t));
