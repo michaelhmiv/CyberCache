@@ -342,7 +342,7 @@ async function caseTabBudget(browser) {
     for (let i = 0; i < 20; i++) {
       marla = await page.evaluate(() => {
         const line = document.querySelector('[data-testid="marla-counter-line"]');
-        return { named: /Marla Quill/.test(document.body.innerText), line: line ? line.textContent.trim() : '' };
+        return { named: /Marla Quill/i.test(document.body.innerText), line: line ? line.textContent.trim() : '' };
       });
       if (marla.named && marla.line) break;
       await sleep(500);
