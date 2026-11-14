@@ -28,6 +28,10 @@
         {
           "number": 575,
           "title": "Stage iteration: paint the three blank set-piece interiors"
+        },
+        {
+          "number": 585,
+          "title": "Cache Hunters slice (a): per-hunter pools, loadouts, binding, conversion (migration 0097)"
         }
       ]
     },

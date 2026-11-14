@@ -518,7 +518,7 @@ describe('activity log read API (AL-2)', () => {
   it('boss and cache records carry their verdicts and odds stamps', async () => {
     const boss = (await get('/api/activity-log/me?kind=boss')).body.records;
     expect(boss.length).toBe(1);
-    expect(boss[0].boss?.bossName).toBe('Dune Tyrant');
+    expect(boss[0].boss?.bossName).toBe('Harrow, the Dune Tyrant');
     expect(boss[0].boss?.victory).toBe(true);
     expect(boss[0].boss?.dedicatedChance).toBe(0.11);
     expect(boss[0].boss?.dedicatedDropAwarded).toBe(true);

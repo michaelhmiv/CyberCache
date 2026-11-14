@@ -1337,7 +1337,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
   // stays false in this slice.
   [ConsumableType.GenericFuelCell]: defineConsumable({
     id: ConsumableType.GenericFuelCell,
-    name: 'Generic Fuel Cell',
+    name: 'Jerrican',
     family: 'economy',
     shortDescription: 'Baseline fuel cell. Load it into your vehicle tank to keep the yield bonus running.',
     tacticalRole: 'Vehicle Fuel',

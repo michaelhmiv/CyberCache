@@ -14,6 +14,6 @@ describe('encounter registry bridge', () => {
   });
 
   it('requires encounters by stable id', () => {
-    expect(requireEncounterById('dune_tyrant').name).toBe('Dune Tyrant');
+    expect(requireEncounterById('dune_tyrant').name).toBe('Harrow, the Dune Tyrant');
   });
 });

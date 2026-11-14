@@ -137,7 +137,7 @@ export const LEGENDARY_ART_PARITY: readonly LegendaryArtParityRow[] = [
   },
   {
     effectId: 'overclocked',
-    name: 'Overclocked',
+    name: 'Runaway',
     spriteId: 'legendary-overclocked',
     defType: WeaponType.SMG,
     depictedType: WeaponType.SMG,

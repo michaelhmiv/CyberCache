@@ -41,7 +41,7 @@ Burned highway loops owned by speed crews and pursuit drones.
 Fortified ridge posts where precision crews hold long sightlines.
 
 - **Danger:** Medium/High · **Enemies:** Marksmen, armored captains, and sentry posts
-- **Signature materials:** Ballistic Parts, Tech · **Signature loot:** Snipers, pistols, crit rolls, weakpoint and boss-damage flavor
+- **Signature materials:** Ballistic Parts, Tech Fragments · **Signature loot:** Snipers, pistols, crit rolls, weakpoint and boss-damage flavor
 - **Influence:** Ironwood · **Named elite:** Thornwarden
 - Need better crit or boss weapons? Roam Ironwood Bastion.
 
@@ -63,7 +63,7 @@ Industrial breaker yards packed with refinery bots and live ordnance.
 A leaking test reactor where elemental anomalies rewrite the battlefield.
 
 - **Danger:** Variable · **Enemies:** Elemental anomalies, shielded test subjects, and reactor constructs
-- **Signature materials:** Tech, Ignition Fluid, Conduit Wire, Acid Compound, Cryo Gel, Void Essence · **Signature loot:** Beams, elemental weapons, status affixes, weakness exploitation
+- **Signature materials:** Tech Fragments, Ignition Fluid, Conduit Wire, Acid Compound, Cryo Gel, Void Essence · **Signature loot:** Beams, elemental weapons, status affixes, weakness exploitation
 - **Influence:** Prismatek · **Named elite:** Phase Revenant
 - Need elemental essences? Roam Prismatek Reactor.
 
@@ -74,7 +74,7 @@ A leaking test reactor where elemental anomalies rewrite the battlefield.
 A hacked junk-grid of turret nests, signal traps, and cheap disposable tech.
 
 - **Danger:** Medium · **Enemies:** Hacked drones, turret nests, minefields, and signal traps
-- **Signature materials:** Tech, Reactive Components, Conduit Wire · **Signature loot:** Deployable-flavored gear, ordnance, utility drops, drone parts
+- **Signature materials:** Tech Fragments, Reactive Components, Conduit Wire · **Signature loot:** Deployable-flavored gear, ordnance, utility drops, drone parts
 - **Influence:** ThrowTech · **Named elite:** Heap Warden
 - Need utility tech and deployable flavor? Roam ThrowTech Dumpnet.
 
@@ -85,7 +85,7 @@ A hacked junk-grid of turret nests, signal traps, and cheap disposable tech.
 A shifting prototype complex where modular test rigs rebuild themselves.
 
 - **Danger:** High · **Enemies:** Prototype constructs, unstable test rigs, and shifting lab defenses
-- **Signature materials:** Tech, Void Dust, Scrap, Reactive Components, Void Essence · **Signature loot:** HelixWorks gear, higher roll quality flavor, modular parts
+- **Signature materials:** Tech Fragments, Void Dust, Scrap, Reactive Components, Void Essence · **Signature loot:** HelixWorks gear, higher roll quality flavor, modular parts
 - **Influence:** HelixWorks · **Named elite:** Specimen Zero
 - Need modular crafting depth? Roam HelixWorks Labyrinth.
 

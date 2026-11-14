@@ -86,7 +86,7 @@ export const LEGENDARY_EFFECTS: LegendaryEffectDef[] = [
   },
   {
     id: 'overclocked',
-    name: 'Overclocked',
+    name: 'Runaway',
     description: 'Attack speed ramps +5% every 5 seconds during a fight, but crit chance drops -2% per ramp.',
     eligibleSources: [DropSource.BossDrop],
     minBossTier: 4,

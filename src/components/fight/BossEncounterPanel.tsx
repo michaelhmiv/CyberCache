@@ -590,6 +590,9 @@ export const BossEncounterPanel: React.FC<{
             <span key={tag} className="border border-border bg-surface px-1.5 py-0.5 text-[9px] font-bold text-text-secondary">{tag}</span>
           ))}
         </div>
+        {boss.dossier && (
+          <div data-testid="boss-dossier" className="mt-2 text-[11px] italic leading-snug text-text-muted">{boss.dossier}</div>
+        )}
         <div className="mt-2 border-t border-border/40 pt-2 text-[10px] leading-snug text-text-secondary">
           <span className="font-black text-amber">{boss.mechanic.name}: </span>
           {boss.mechanic.description}

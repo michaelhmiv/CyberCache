@@ -4,7 +4,8 @@ import { Element } from '../types/game';
 export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'dune_tyrant',
-    name: 'Dune Tyrant',
+    name: 'Harrow, the Dune Tyrant',
+    dossier: 'He taxed the caravans until the caravans stopped coming. The toll stands.',
     tier: 1,
     level: 5,
     health: 800,
@@ -49,6 +50,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'siltstalker',
     name: 'The Siltstalker',
+    dossier: 'It has buried better hunters than the ones who named it.',
     tier: 2,
     level: 10,
     health: 1500,
@@ -105,6 +107,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'heap_guard',
     name: 'Gromm, the Heap Guard',
+    dossier: 'Gromm sorts the heap by what it cost somebody. Nothing leaves without his mark.',
     tier: 3,
     level: 15,
     health: 2000,
@@ -150,6 +153,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'ashgut',
     name: 'Ashgut',
+    dossier: 'It ate the fire crews first. The burning since then is just habit.',
     tier: 4,
     level: 22,
     health: 3500,
@@ -195,6 +199,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'mirage_duster',
     name: 'The Mirage Duster',
+    dossier: 'Three hunters have killed it. All three were believed.',
     tier: 5,
     level: 28,
     health: 5000,
@@ -252,6 +257,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'rust_prophet',
     name: 'The Rust Prophet',
+    dossier: 'It preaches to the scrap. The scrap, lately, has started answering.',
     tier: 6,
     level: 35,
     health: 6000,
@@ -297,6 +303,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'scrap_bishop',
     name: 'Scrap Bishop',
+    dossier: 'It blesses every wreck that enters the yard. None has ever left.',
     tier: 7,
     level: 45,
     health: 10000,
@@ -367,6 +374,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'spinneret_widow',
     name: 'Widow-9, the Spinneret',
+    dossier: 'Eight predecessors are woven into the loom. She keeps the count current.',
     tier: 8,
     level: 50,
     health: 14000,
@@ -433,6 +441,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'mnemosyne_mirror',
     name: 'The Mnemosyne Mirror',
+    dossier: 'It remembers every hunter who ever faced it. It is patient about introductions.',
     tier: 9,
     level: 55,
     health: 19000,
@@ -499,6 +508,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'static_choir',
     name: 'The Static Choir',
+    dossier: 'Every voice in it was once on the radio asking for help.',
     tier: 10,
     level: 60,
     health: 26000,
@@ -567,6 +577,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'verdant_maw',
     name: 'The Verdant Maw',
+    dossier: 'The grove feeds it what falls. It has stopped distinguishing.',
     tier: 11,
     level: 65,
     health: 35000,
@@ -634,6 +645,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'sister_null',
     name: 'Sister Null, the Void Anchor',
+    dossier: 'She took the vow after the rift took everything else. The rift has not collected.',
     tier: 12,
     level: 70,
     health: 47000,
@@ -702,6 +714,7 @@ export const REGION_1_BOSSES: BossDef[] = [
   {
     id: 'vaultkeeper_omega',
     name: 'Vaultkeeper Omega',
+    dossier: 'It has counted every key ever spent. It would like yours back.',
     tier: 13,
     level: 75,
     health: 64000,

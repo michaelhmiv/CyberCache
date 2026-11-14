@@ -81,7 +81,7 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 6 | **Encrypted Payloads** | small | 1 | 5 | +5% Cache Quality Modifier | — |
 | 6 | **Darknet Broker** | small | 1 | 5 | +5% Marketplace Listing Fee Reduction | — |
 | 7 | **Hoarder's Instinct** | major | 3 | 1 | Salvaging gear grants +25% bonus scrap. | Decompiler, Compression |
-| 7 | **Insurance Fraud** | major | 3 | 1 | Consumables used in a victorious boss fight have a 50% chance to be refunded. | Efficient Routines, Conservation |
+| 7 | **Fine Print** | major | 3 | 1 | Consumables used in a victorious boss fight have a 50% chance to be refunded. | Efficient Routines, Conservation |
 | 8 | **Market Manipulator** | major | 3 | 1 | Listing fees reduced an additional 15% for items you personally found. | Darknet Broker |
 | 8 | **Lucky Find** | major | 3 | 1 | +15% Rare Drop Chance. | Data Miner, Scrap Filter |
 | 1 | **Borrowed Caliber** | small | 1 | 5 | +5% Weapon Damage | — |
@@ -89,7 +89,7 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 3 | **Opportunist** | small | 1 | 5 | +3% Crit Chance | — |
 | 4 | **Cheap Shot** | small | 1 | 5 | +3% Crit Chance | — |
 | 5 | **Soft Spot** | small | 1 | 5 | +10% Crit Damage | — |
-| 9 | **King of Scrap** | keystone | 5 | 1 | Low-rarity weapons gain +100% scrap value. Commons have 25% chance for bonus crafting material. Offline cap +4 hours. | Hoarder's Instinct, Insurance Fraud, Lucky Find |
+| 9 | **King of Scrap** | keystone | 5 | 1 | Low-rarity weapons gain +100% scrap value. Commons have 25% chance for bonus crafting material. Offline cap +4 hours. | Hoarder's Instinct, Fine Print, Lucky Find |
 
 ### Fixer
 
@@ -116,7 +116,7 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 3 | **Measured Charge** | small | 1 | 5 | +8% Explosive Damage | — |
 | 4 | **Stress Points** | small | 1 | 5 | +10% Armor Damage | — |
 | 5 | **Loose Bolts** | small | 1 | 5 | +5% Stagger Chance | — |
-| 9 | **The Fixer** | keystone | 5 | 1 | Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%. | Master Artificer, Fleet Engineer, Second Shift |
+| 9 | **Sutter's Hands** | keystone | 5 | 1 | Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%. | Master Artificer, Fleet Engineer, Second Shift |
 <!-- /wiki-gen:skill-trees -->
 
 ## Cache Rank

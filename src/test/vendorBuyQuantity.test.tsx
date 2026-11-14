@@ -110,7 +110,7 @@ describe('VendorScreen — buy quantity picker wiring', () => {
     render(<VendorScreen />);
     fireEvent.click(screen.getByTestId('vendor-buy-GenericFuelCell'));
     fireEvent.click(screen.getByTestId('vendor-qty-confirm'));
-    expect(await screen.findByText('Generic Fuel Cell added to inventory.')).toBeInTheDocument();
+    expect(await screen.findByText('Jerrican added to inventory.')).toBeInTheDocument();
     expect(hoisted.vendorBuy).toHaveBeenCalledWith('GenericFuelCell', 1);
   });
 });

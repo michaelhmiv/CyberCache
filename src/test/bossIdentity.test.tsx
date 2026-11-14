@@ -162,7 +162,8 @@ describe('boss identity components', () => {
   it('the Arena Plate presents the boss: name, weakness chip, mechanic', () => {
     render(<BossArenaPlate boss={bossById('dune_tyrant')} />);
     expect(screen.getByTestId('boss-arena-plate')).toBeTruthy();
-    expect(screen.getByText('DUNE TYRANT')).toBeTruthy();
+    expect(screen.getByText('HARROW,')).toBeTruthy();
+    expect(screen.getByText('THE DUNE TYRANT')).toBeTruthy();
     expect(screen.getByText('WEAK: KINETIC')).toBeTruthy();
     expect(screen.getByText('No Special Mechanic')).toBeTruthy();
   });
