@@ -1,20 +1,29 @@
-// Dashboard-iteration stills driver for GitHub Actions (2026-11-13).
+// Dashboard-iteration stills driver for GitHub Actions (2026-11-13, v2).
 // Runs inside the checked-out ITERATION branch workspace; the shared rig
 // (stage-rig.mjs) sits next to this file in the .dash-capture checkout.
 //
 // Reads ./capture-manifest.json from the workspace root:
 //   { "iter": "02", "port": 7120, "harnessPage": "/anatomy-harness.html",
-//     "captures": [ { "name": "roam-rest",
-//                     "path": "/anatomy-harness.html?act=roam&beat=rest",
-//                     "plan": "capture/plans/roam-rest.json" }, ... ] }
+//     "viteConfig": "vite.signal.config.ts",            // optional
+//     "captures": [
+//       { "label": "roam",                               // plan-run label
+//         "path": "/signal-harness.html?activity=roam&beat=rest&renderer=dom",
+//         "plan": "capture/plans/roam.json",
+//         "prefix": "roam",                              // optional: bare
+//                                                        // shot names get
+//                                                        // "<prefix>-"
+//         "expect": ["roam-rest", "roam-surge"] } ] }    // optional: final
+//                                                        // still names that
+//                                                        // MUST land
 //
 // Starts the iteration's Vite dev server, waits for the harness page,
 // runs each capture plan through stage-rig.mjs (STILLS ONLY — clip plans
-// are never in the manifest), and collects the frames into stills-out/
-// under the program naming convention (<activity>-<beat>.png).
-// Writes stills-out/capture-summary.json; exit code 1 if any capture is
-// missing or suspiciously small (the workflow uploads the artifact with
-// if: always(), so evidence survives a failed run).
+// are never in the manifest), and collects EVERY frame the plan produces
+// into stills-out/ under the program naming convention
+// (<activity>-<beat>.png, NN- index stripped). Writes
+// stills-out/capture-summary.json; exit code 1 if any capture errors or
+// any expected still is missing/empty (the workflow uploads the
+// artifact with if: always(), so evidence survives a failed run).
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, statSync, readdirSync, createWriteStream } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -30,25 +39,27 @@ mkdirSync(outDir, { recursive: true });
 mkdirSync(tmpDir, { recursive: true });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const results = [];
+const landed = new Map(); // still name -> bytes
+const runReports = [];
 let vite;
 let exitCode = 0;
 
 function run(cmd, args, opts = {}) {
   return new Promise((res) => {
-    const p = spawn(cmd, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'], ...opts });
-    let out = '';
-    p.stdout.on('data', (d) => { out += d; process.stdout.write(d); });
-    p.stderr.on('data', (d) => { out += d; process.stderr.write(d); });
+    const p = spawn(cmd, args, { cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+    p.stdout.on('data', (d) => process.stdout.write(d));
+    p.stderr.on('data', (d) => process.stderr.write(d));
     const timer = opts.timeoutMs ? setTimeout(() => { p.kill('SIGKILL'); }, opts.timeoutMs) : null;
-    p.on('close', (code) => { if (timer) clearTimeout(timer); res({ code, out }); });
-    p.on('error', (err) => { if (timer) clearTimeout(timer); res({ code: -1, out: String(err) }); });
+    p.on('close', (code) => { if (timer) clearTimeout(timer); res({ code }); });
+    p.on('error', (err) => { if (timer) clearTimeout(timer); res({ code: -1, error: String(err) }); });
   });
 }
 
 try {
   const viteLog = createWriteStream(join(root, 'vite-capture.log'));
-  vite = spawn('node', ['node_modules/vite/bin/vite.js', '--port', String(port), '--host', '127.0.0.1', '--strictPort'], { cwd: root, env: process.env });
+  const viteArgs = ['node_modules/vite/bin/vite.js', '--port', String(port), '--host', '127.0.0.1', '--strictPort'];
+  if (manifest.viteConfig) viteArgs.push('--config', manifest.viteConfig);
+  vite = spawn('node', viteArgs, { cwd: root, env: process.env });
   vite.stdout.pipe(viteLog);
   vite.stderr.pipe(viteLog);
 
@@ -62,34 +73,44 @@ try {
   console.log(`vite up on ${port}, harness ${manifest.harnessPage} HTTP 200`);
 
   for (const cap of manifest.captures) {
-    const capTmp = join(tmpDir, cap.name);
+    const label = cap.label || cap.name; // v1 manifests used "name"
+    const capTmp = join(tmpDir, label);
     mkdirSync(capTmp, { recursive: true });
     const planAbs = resolve(root, cap.plan);
-    console.log(`\n=== capture ${cap.name} :: ${cap.path} :: plan ${cap.plan} ===`);
-    const r = await run('node', [join(here, 'stage-rig.mjs'), String(port), cap.path, capTmp, planAbs], { timeoutMs: 300000 });
-    const shots = existsSync(capTmp) ? readdirSync(capTmp).filter((f) => f.endsWith('.png')) : [];
-    const src = shots.map((f) => join(capTmp, f)).find((f) => f.endsWith(`-${cap.name}.png`)) || (shots.length ? join(capTmp, shots[0]) : null);
-    if (src && existsSync(src)) {
+    console.log(`\n=== capture ${cap.label} :: ${cap.path} :: plan ${cap.plan} ===`);
+    const r = await run('node', [join(here, 'stage-rig.mjs'), String(port), cap.path, capTmp, planAbs], { timeoutMs: 420000 });
+    const shots = existsSync(capTmp) ? readdirSync(capTmp).filter((f) => f.endsWith('.png')).sort() : [];
+    const got = [];
+    for (const f of shots) {
+      const shot = f.replace(/^\d+-/, '').replace(/\.png$/, '');
+      const name = cap.prefix && !shot.startsWith(`${cap.prefix}-`) ? `${cap.prefix}-${shot}` : shot;
+      const src = join(capTmp, f);
       const bytes = statSync(src).size;
-      const dest = join(outDir, `${cap.name}.png`);
-      copyFileSync(src, dest);
-      results.push({ name: cap.name, ok: bytes > 0, bytes, rigExit: r.code });
-      console.log(`LANDED ${cap.name}.png ${bytes} bytes`);
-    } else {
-      results.push({ name: cap.name, ok: false, bytes: 0, rigExit: r.code, error: 'no PNG produced' });
-      console.log(`MISSING ${cap.name} (rig exit ${r.code})`);
-      exitCode = 1;
+      copyFileSync(src, join(outDir, `${name}.png`));
+      landed.set(name, bytes);
+      got.push({ name, bytes });
+      console.log(`LANDED ${name}.png ${bytes} bytes`);
     }
+    if (!got.length) { console.log(`MISSING ${label} (rig exit ${r.code})`); exitCode = 1; }
+    runReports.push({ label, rigExit: r.code, shots: got });
   }
 } catch (err) {
-  console.log('DRIVER ERROR', String(err && err.message || err));
+  console.log('DRIVER ERROR', String((err && err.message) || err));
   exitCode = 1;
 } finally {
   if (vite) vite.kill('SIGKILL');
 }
 
-const landed = results.filter((r) => r.ok).length;
-const summary = { iter: manifest.iter, port, total: manifest.captures.length, landed, results, finishedAt: new Date().toISOString() };
+const expected = manifest.captures.flatMap((c) => c.expect || []);
+const missing = expected.filter((n) => !landed.has(n) || (landed.get(n) || 0) === 0);
+if (missing.length) { console.log(`EXPECTED BUT MISSING/EMPTY: ${missing.join(', ')}`); exitCode = 1; }
+const summary = {
+  iter: manifest.iter, port,
+  landedCount: landed.size,
+  landed: Object.fromEntries([...landed.entries()].map(([n, b]) => [n, b])),
+  expected, missing, runs: runReports,
+  finishedAt: new Date().toISOString(),
+};
 writeFileSync(join(outDir, 'capture-summary.json'), JSON.stringify(summary, null, 2));
-console.log(`\nSUMMARY iter-${manifest.iter}: ${landed}/${manifest.captures.length} stills landed`);
+console.log(`\nSUMMARY iter-${manifest.iter}: ${landed.size} stills landed, ${missing.length} expected missing`);
 process.exit(exitCode);
