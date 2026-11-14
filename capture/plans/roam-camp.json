@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"shot":"roaming","wait":3000},{"eval":"window.__stopRoam && window.__stopRoam()","shot":"camp-early","wait":900},{"shot":"camp-settled","wait":2500},{"eval":"window.__resumeRoam && window.__resumeRoam()","shot":"resumed","wait":1500}],"width":412}
