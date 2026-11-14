@@ -1,0 +1,86 @@
+name: Capture Stills
+
+# Dashboard-iteration stills capture (owner-directed move off the local
+# VM, 2026-11-13). Lives ONLY on the scratch branch `dash/capture` —
+# never merged. The workflow file is read from dash/capture; the job
+# checks out the requested iteration branch (input iter_ref) for the
+# app + harness code and dash/capture into .dash-capture/ for the
+# shared capture rig. Each iteration branch carries a
+# capture-manifest.json + capture/plans/*.json describing its stills.
+#
+# Dispatch:
+#   gh workflow run capture-stills.yml --ref dash/capture \
+#     -f iter_ref=dash/iter-02 -f iter=02
+#
+# Chromium install + Node setup reuse the e2e-browser lane's proven
+# pattern (playwright-core + find the binary into CHROME_PATH).
+
+on:
+  workflow_dispatch:
+    inputs:
+      iter_ref:
+        description: 'Iteration branch to capture (e.g. dash/iter-02)'
+        required: true
+        type: string
+      iter:
+        description: 'Iteration number, NN (e.g. 02)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    # Backstop: npm ci + browser install + vite + up to ~20 stills at
+    # SwiftShader speeds. A healthy run should be well under this.
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out the iteration branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.iter_ref }}
+
+      - name: Check out the capture tooling (dash/capture)
+        uses: actions/checkout@v4
+        with:
+          ref: dash/capture
+          path: .dash-capture
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium (e2e-lane pattern)
+        run: |
+          npm install --no-save playwright-core@1.49.1
+          npx playwright-core install chromium --with-deps
+          HS=$(find ~/.cache/ms-playwright -name 'chrome-headless-shell' -type f | head -1)
+          if [ -n "$HS" ]; then
+            echo "CHROME_PATH=$HS" >> "$GITHUB_ENV"
+            echo "using headless shell: $HS"
+          else
+            echo "CHROME_PATH=$(find ~/.cache/ms-playwright -name chrome -type f | head -1)" >> "$GITHUB_ENV"
+            echo "RIG_FULL_CHROME=1" >> "$GITHUB_ENV"
+            echo "using full chrome (headless=new)"
+          fi
+
+      - name: Capture stills
+        run: node .dash-capture/capture/run-stills.mjs
+
+      - name: Upload stills
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stills-iter-${{ inputs.iter }}
+          path: |
+            stills-out/
+            vite-capture.log
+          if-no-files-found: warn
+          retention-days: 14
