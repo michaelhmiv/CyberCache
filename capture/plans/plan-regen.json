@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":9000},{"dump":"({canvas: !!document.querySelector('canvas'), start: typeof window.__startNumbersHome})"},{"eval":"window.__startNumbersHome()"},{"shot":"regen-a","wait":7050},{"shot":"regen-b","wait":280}],"width":412}
