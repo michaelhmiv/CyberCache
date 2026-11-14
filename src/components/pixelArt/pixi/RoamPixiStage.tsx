@@ -15,7 +15,7 @@ import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
 import { CritFlash, DamageNumber, LootBeam } from '../PixelFx';
 import { DropRiseIcon } from '@/components/dashboard/LiveTurfDiorama';
 import { dropRiseBeamColor } from '@/lib/pixel/dropColors';
-import { StageRise, ROAM_DROP_LIFT_PX, STAGE_RISE_TOTAL_MS } from '@/components/pixelArt/StageRise';
+import { StageRise, ROAM_DROP_LIFT_PX, STAGE_RISE_TOTAL_MS, STAGE_RISE_FADE_MS } from '@/components/pixelArt/StageRise';
 import { LootMoment } from '../LootMoment';
 import { PARTS_FEET_X, PART_POSES, SKELETON, type PartSetDef } from '@/lib/pixel/parts';
 import { layoutPartSet, type PartSetLayout, type PartsWeaponFractions } from '@/lib/pixel/partsCompositor';
@@ -1770,6 +1770,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
               flareScale={2.2}
               radiant={false}
               durationMs={STAGE_RISE_TOTAL_MS}
+              fadeTailMs={STAGE_RISE_FADE_MS}
               reduced={false}
             />
             <StageRise

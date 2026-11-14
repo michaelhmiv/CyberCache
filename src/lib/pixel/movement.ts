@@ -70,7 +70,7 @@ export const MOVEMENT = {
   /** Legendary weapon rise out of the beam. */
   LOOT_RISE_MS: 950,
   /** Hold at apex after the rise before the fade (StageRise roam drops). */
-  LOOT_RISE_HOLD_MS: 1700,
+  LOOT_RISE_HOLD_MS: 1900,
   /** Legendary float bob period once the weapon has risen. */
   LOOT_FLOAT_MS: 2600,
   /** God-ray disc full rotation (slow, stately). */

@@ -78,7 +78,7 @@ import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadout
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
-import { StageRise, ROAM_DROP_LIFT_PX, STAGE_RISE_TOTAL_MS } from '@/components/pixelArt/StageRise';
+import { StageRise, ROAM_DROP_LIFT_PX, STAGE_RISE_TOTAL_MS, STAGE_RISE_FADE_MS } from '@/components/pixelArt/StageRise';
 import { detectWebGL } from '@/components/pixelArt/pixi/detectWebGL';
 import type { RoamPixiStageProps } from '@/components/pixelArt/pixi/RoamPixiStage';
 
@@ -236,7 +236,7 @@ export const DropRiseMasterIcon: React.FC<{ kind: DropRiseKind; base: string }> 
       ref={ref}
       width={60}
       height={60}
-      style={{ width: 30, height: 30 }}
+      style={{ width: 34, height: 34 }}
       aria-hidden="true"
       data-drop-rise-master={kind}
     />
@@ -261,26 +261,28 @@ export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, 
         : kind === 'credits'
           ? '#FFD700'
           : dropAssetColor(parseDropType(label));
-  const tag =
-    kind === 'material' || kind === 'essence'
-      ? parseDropType(label).slice(0, 4).toUpperCase()
-      : kind === 'fragment'
-        ? 'FRAG'
-        : null;
+  // The chip names what dropped, in full: the item kinds carry the
+  // event's own label — "+1 TechFragments", quantity and all — where
+  // the pre-fix chip showed a 4-letter truncation ("TECH") or "FRAG"
+  // and the cash kinds nothing. Cash rises stay icon-only: a payout
+  // is not an item, and its amount already prints in the feed.
+  const nameLine =
+    kind === 'material' || kind === 'essence' || kind === 'fragment' ? label : null;
   return (
     <div className="flex h-full flex-col items-center" style={{ paddingTop: 9 }}>
       <DropRiseMasterIcon kind={kind} base={base} />
-      {tag ? (
+      {nameLine ? (
         <span
           style={{
             color: base,
-            fontSize: 8,
+            fontSize: 11,
             fontWeight: 900,
             lineHeight: 1.4,
+            whiteSpace: 'nowrap',
             textShadow: '1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000',
           }}
         >
-          {tag}
+          {nameLine}
         </span>
       ) : null}
     </div>
@@ -1641,6 +1643,7 @@ const PixelSceneLayerDom: React.FC<{
             flareScale={2.2}
             radiant={false}
             durationMs={STAGE_RISE_TOTAL_MS}
+            fadeTailMs={STAGE_RISE_FADE_MS}
             reduced={reduced}
           />
           <StageRise
@@ -1648,6 +1651,7 @@ const PixelSceneLayerDom: React.FC<{
             dataAttrs={{ 'loot-visual': lootRise }}
             xPct={enemyFeet.xPct}
             yPct={enemyFeet.yPct}
+            width={150}
             liftPx={ROAM_DROP_LIFT_PX}
           >
             <DropRiseIcon

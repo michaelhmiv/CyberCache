@@ -16,6 +16,13 @@ const HP_PLATE_LIFT = 0.185;
 const MIN_CLEARANCE_PX = 12;
 const MIN_VISIBLE_LIFE_MS = 2500;
 
+describe('StageRise schedule — the hold ruling', () => {
+  it('pins the hold ruling: 1900 ms hold, 3150 ms total', () => {
+    expect(MOVEMENT.LOOT_RISE_HOLD_MS).toBe(1900);
+    expect(STAGE_RISE_TOTAL_MS).toBe(3150);
+  });
+});
+
 describe('StageRise schedule', () => {
   it('keeps the chip visible for at least 2.5s', () => {
     // The task's arithmetic: rise + hold + fade is the on-stage life.

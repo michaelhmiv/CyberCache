@@ -8,7 +8,7 @@
  * everywhere: the rise MOTION keeps its Sample-B law length
  * (MOVEMENT.LOOT_RISE_MS), then the chip HOLDS at its apex, icon
  * and label fully readable, before a short fade. Total on-stage
- * time is STAGE_RISE_TOTAL_MS (~2.95 s, one tick).
+ * time is STAGE_RISE_TOTAL_MS (~3.15 s, one tick).
  *
  * The chip's box BOTTOM sits on the origin point (the fallen
  * enemy's feet): content stacks from the ground up and the track

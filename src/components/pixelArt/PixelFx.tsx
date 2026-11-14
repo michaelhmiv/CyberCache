@@ -409,6 +409,19 @@ type SteppedDraw = (ctx: CanvasRenderingContext2D, wCells: number, hCells: numbe
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 const easeOutCubic = (p: number): number => 1 - Math.pow(1 - clamp01(p), 3);
 
+/**
+ * The corpse beam's schedule envelope: full strength until the
+ * rise's fade phase, easing to zero across it, zero from the
+ * schedule's end on — the beam's life bound to the rise schedule
+ * (durationMs) instead of the standing drop event.
+ */
+export function beamScheduleEnvelope(tMs: number, durationMs: number, fadeTailMs: number): number {
+  if (fadeTailMs <= 0 || tMs <= durationMs - fadeTailMs) return tMs >= durationMs ? 0 : 1;
+  if (tMs >= durationMs) return 0;
+  const p = (tMs - (durationMs - fadeTailMs)) / fadeTailMs;
+  return 1 - (p * p * (3 - 2 * p));
+}
+
 function paintEllipse(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -929,6 +942,10 @@ interface LootBeamPaintOpts {
    *  Only the in-moment smooth painter honors it; hosts without a
    *  header over the beam omit it. */
   headerBandPx?: { top: number; bottom: number };
+  /** Fade the beam out across the last `fadeTailMs` of durationMs
+   *  (the corpse beam's schedule bond). Unset = legacy behaviour:
+   *  the beam paints at full strength until the component unmounts. */
+  fadeTailMs?: number;
 }
 
 /** True when the beam's canvas is one of the light kit's scoped
@@ -956,7 +973,12 @@ function paintLootBeamFrameSmooth(
   const cx = (opts.xPct / 100) * W;
   const ground = (opts.groundYPct / 100) * H;
   const ignition = easeOutCubic(tMs / MOVEMENT.LOOT_BEAM_IN_MS);
-  const strength = 0.55 + 0.45 * easeOutCubic(tMs / 700);
+  let strength = 0.55 + 0.45 * easeOutCubic(tMs / 700);
+  if (opts.fadeTailMs) {
+    const envelope = beamScheduleEnvelope(tMs, opts.durationMs, opts.fadeTailMs);
+    if (envelope <= 0) return;
+    strength *= envelope;
+  }
 
   // The glow center rides the rise: it starts at the ground junction
   // and travels to the item's hover point on the rise's own budget.
@@ -1050,7 +1072,12 @@ function paintLootBeamFrame(
   const cx = (opts.xPct / 100) * wCells;
   const ground = (opts.groundYPct / 100) * hCells;
   const ignition = easeOutCubic(tMs / MOVEMENT.LOOT_BEAM_IN_MS);
-  const strength = 0.55 + 0.45 * easeOutCubic(tMs / 700);
+  let strength = 0.55 + 0.45 * easeOutCubic(tMs / 700);
+  if (opts.fadeTailMs) {
+    const envelope = beamScheduleEnvelope(tMs, opts.durationMs, opts.fadeTailMs);
+    if (envelope <= 0) return;
+    strength *= envelope;
+  }
 
   // The glow center rides the rise: it starts at the ground junction
   // and travels to the item's hover point on the rise's own budget.
@@ -1139,8 +1166,11 @@ export const LootBeam: React.FC<
     /** Host header span (CSS px from the host top) crossing the
      *  beam — the header-law notch (in-moment painter only). */
     headerBandPx?: { top: number; bottom: number };
+    /** Fade the beam out across the last `fadeTailMs` of durationMs
+     *  (the corpse beam's schedule bond). Unset = legacy behavior. */
+    fadeTailMs?: number;
   }
-> = ({ xPct, groundYPct, color, widthPx, flareScale = 2.6, reduced = false, durationMs, glowYPct, radiant = true, headerBandPx }) => {
+> = ({ xPct, groundYPct, color, widthPx, flareScale = 2.6, reduced = false, durationMs, glowYPct, radiant = true, headerBandPx, fadeTailMs }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawRef = useRef<SteppedDraw>(() => {});
   // Latest-closure draw for the stepped-canvas loop: assigned in an
@@ -1157,9 +1187,14 @@ export const LootBeam: React.FC<
         glowYPct,
         radiant,
         headerBandPx,
+        fadeTailMs,
       });
   });
-  useSteppedCanvas(canvasRef, drawRef, { reduced, staticMs: 1400 });
+  useSteppedCanvas(canvasRef, drawRef, {
+    reduced,
+    staticMs: 1400,
+    ...(fadeTailMs ? { runMs: durationMs ?? MOVEMENT.LOOT_LEGENDARY_MS } : {}),
+  });
   return (
     <canvas
       ref={canvasRef}
