@@ -198,13 +198,15 @@ const dropAssetColor = (typeName: string): string => {
 export const DropRiseMasterIcon: React.FC<{ kind: DropRiseKind; base: string }> = ({ kind, base }) => {
   const retinted = kind === 'material' || kind === 'essence' || kind === 'fragment' || kind === 'scrap';
   const ref = React.useRef<HTMLCanvasElement>(null);
-  const [, setReady] = React.useState(0);
+  const [ready, setReady] = React.useState(0);
   React.useEffect(() => {
     if (!retinted) return;
     const canvas = tintedDropRiseCanvas(DROP_RISE_MASTERS[kind], base);
     if (!canvas) {
       // Master not decoded yet — its onload invalidated the tint cache;
-      // re-render shortly to pick the tinted canvas up.
+      // re-render shortly to pick the tinted canvas up. The retry
+      // counter (`ready`) is a dependency of this effect, so the
+      // re-render re-runs it and picks the tinted canvas up.
       const t = window.setTimeout(() => setReady((n) => n + 1), 60);
       return () => window.clearTimeout(t);
     }
@@ -217,7 +219,7 @@ export const DropRiseMasterIcon: React.FC<{ kind: DropRiseKind; base: string }> 
     ctx.clearRect(0, 0, host.width, host.height);
     ctx.drawImage(canvas, 0, 0);
     return undefined;
-  }, [kind, base, retinted]);
+  }, [kind, base, retinted, ready]);
   if (!retinted) {
     return (
       <img
