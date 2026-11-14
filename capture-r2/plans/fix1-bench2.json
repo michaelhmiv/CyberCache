@@ -1,0 +1,55 @@
+{
+  "dsf": 2,
+  "height": 915,
+  "steps": [
+    {
+      "shot": "00-mount+0000",
+      "wait": 300
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=bench-completion-rise]'); if (!el) return 'absent'; const r = el.getBoundingClientRect(); return JSON.stringify({rect:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),b:Math.round(r.bottom),t:Math.round(r.top)}, opacity: getComputedStyle(el).opacity, text: el.textContent}); })()",
+      "shot": "01-t+650",
+      "wait": 350
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=bench-completion-rise]'); if (!el) return 'absent'; const r = el.getBoundingClientRect(); return JSON.stringify({rect:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),b:Math.round(r.bottom),t:Math.round(r.top)}, opacity: getComputedStyle(el).opacity, text: el.textContent}); })()",
+      "shot": "02-t+1000",
+      "wait": 350
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=bench-completion-rise]'); if (!el) return 'absent'; const r = el.getBoundingClientRect(); return JSON.stringify({rect:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),b:Math.round(r.bottom),t:Math.round(r.top)}, opacity: getComputedStyle(el).opacity, text: el.textContent}); })()",
+      "shot": "03-t+1350",
+      "wait": 350
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=bench-completion-rise]'); if (!el) return 'absent'; const r = el.getBoundingClientRect(); return JSON.stringify({rect:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),b:Math.round(r.bottom),t:Math.round(r.top)}, opacity: getComputedStyle(el).opacity, text: el.textContent}); })()",
+      "shot": "04-t+1700",
+      "wait": 350
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=bench-completion-rise]'); if (!el) return 'absent'; const r = el.getBoundingClientRect(); return JSON.stringify({rect:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),b:Math.round(r.bottom),t:Math.round(r.top)}, opacity: getComputedStyle(el).opacity, text: el.textContent}); })()",
+      "shot": "05-t+2050",
+      "wait": 350
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=bench-completion-rise]'); if (!el) return 'absent'; const r = el.getBoundingClientRect(); return JSON.stringify({rect:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),b:Math.round(r.bottom),t:Math.round(r.top)}, opacity: getComputedStyle(el).opacity, text: el.textContent}); })()",
+      "shot": "06-t+2400",
+      "wait": 350
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=bench-completion-rise]'); if (!el) return 'absent'; const r = el.getBoundingClientRect(); return JSON.stringify({rect:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),b:Math.round(r.bottom),t:Math.round(r.top)}, opacity: getComputedStyle(el).opacity, text: el.textContent}); })()",
+      "shot": "07-t+2750",
+      "wait": 350
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=bench-completion-rise]'); if (!el) return 'absent'; const r = el.getBoundingClientRect(); return JSON.stringify({rect:{x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height),b:Math.round(r.bottom),t:Math.round(r.top)}, opacity: getComputedStyle(el).opacity, text: el.textContent}); })()",
+      "shot": "08-t+3100",
+      "wait": 350
+    },
+    {
+      "shot": "09-t+3450",
+      "wait": 350
+    }
+  ],
+  "width": 412
+}

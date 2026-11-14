@@ -1,0 +1,40 @@
+{
+  "dsf": 2,
+  "height": 915,
+  "steps": [
+    {
+      "shot": "00-settle",
+      "wait": 9000
+    },
+    {
+      "eval": "window.__setTarget && window.__setTarget('dustwaste_raider', 6, 100); window.__seedBeat && window.__seedBeat('kill', 10); window.__seedBeat && window.__seedBeat('drop'); (() => { window.__riseTrace = []; const t0 = performance.now(); const iv = setInterval(() => { const el = document.querySelector('[data-testid=diorama-loot-rise]'); const plate = document.querySelector('[data-testid=primary-diorama-target-hp]'); const rec = { t: Math.round(performance.now() - t0) }; if (el) { const span = el.querySelector('span'); const sr = span ? span.getBoundingClientRect() : null; const pr = plate ? plate.getBoundingClientRect() : null; rec.op = getComputedStyle(el).opacity; rec.label = span ? span.textContent : null; rec.labelB = sr ? Math.round(sr.bottom) : null; rec.plateT = pr ? Math.round(pr.top) : null; rec.clearance = (sr && pr) ? Math.round(pr.top - sr.bottom) : null; } else { rec.absent = true; } window.__riseTrace.push(rec); if (window.__riseTrace.length >= 60) clearInterval(iv); }, 150); })()",
+      "shot": "01-rise+0350",
+      "wait": 350
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=diorama-loot-rise]'); if (!el) return 'no-rise'; const cs = getComputedStyle(el); const r = el.getBoundingClientRect(); const span = el.querySelector('span'); const plate = document.querySelector('[data-testid=primary-diorama-target-hp]'); const pr = plate ? plate.getBoundingClientRect() : null; const sr = span ? span.getBoundingClientRect() : null; return JSON.stringify({op: cs.opacity, riseB: Math.round(r.bottom), label: span ? span.textContent : null, labelB: sr ? Math.round(sr.bottom) : null, plateT: pr ? Math.round(pr.top) : null, clearance: (pr && sr) ? Math.round(pr.top - sr.bottom) : null}); })()",
+      "shot": "02-rise+0850",
+      "wait": 500
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=diorama-loot-rise]'); if (!el) return 'no-rise'; const cs = getComputedStyle(el); const r = el.getBoundingClientRect(); const span = el.querySelector('span'); const plate = document.querySelector('[data-testid=primary-diorama-target-hp]'); const pr = plate ? plate.getBoundingClientRect() : null; const sr = span ? span.getBoundingClientRect() : null; return JSON.stringify({op: cs.opacity, riseB: Math.round(r.bottom), label: span ? span.textContent : null, labelB: sr ? Math.round(sr.bottom) : null, plateT: pr ? Math.round(pr.top) : null, clearance: (pr && sr) ? Math.round(pr.top - sr.bottom) : null}); })()",
+      "shot": "03-rise+1450",
+      "wait": 600
+    },
+    {
+      "dump": "(() => { const el = document.querySelector('[data-testid=diorama-loot-rise]'); if (!el) return 'no-rise'; const cs = getComputedStyle(el); const r = el.getBoundingClientRect(); const span = el.querySelector('span'); const plate = document.querySelector('[data-testid=primary-diorama-target-hp]'); const pr = plate ? plate.getBoundingClientRect() : null; const sr = span ? span.getBoundingClientRect() : null; return JSON.stringify({op: cs.opacity, riseB: Math.round(r.bottom), label: span ? span.textContent : null, labelB: sr ? Math.round(sr.bottom) : null, plateT: pr ? Math.round(pr.top) : null, clearance: (pr && sr) ? Math.round(pr.top - sr.bottom) : null}); })()",
+      "shot": "04-rise+2150",
+      "wait": 700
+    },
+    {
+      "shot": "05-rise+2950",
+      "wait": 800
+    },
+    {
+      "dump": "JSON.stringify(window.__riseTrace || 'no-trace')",
+      "shot": "06-trace-end",
+      "wait": 2500
+    }
+  ],
+  "width": 412
+}

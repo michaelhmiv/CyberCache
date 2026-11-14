@@ -1,0 +1,73 @@
+name: Capture R2 Fix Round
+
+# R2 fix-round proof queue (PR #573, branch stage-iter/r2-drops) on a
+# fresh runner: kill-true material-drop sets on both renderers, crate,
+# bench/salvage/extract ladders, and the real-time clip with measured
+# unique fps. Tooling lives on dash/capture under capture-r2/; pushing
+# there re-runs the queue (smoke), workflow_dispatch runs it on demand.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [dash/capture]
+    paths:
+      - 'capture-r2/**'
+      - '.github/workflows/capture-r2.yml'
+
+jobs:
+  capture-r2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the R2 branch
+        uses: actions/checkout@v4
+        with:
+          ref: stage-iter/r2-drops
+
+      - name: Check out the capture tooling (dash/capture)
+        uses: actions/checkout@v4
+        with:
+          ref: dash/capture
+          path: .dash-capture
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium (e2e-lane pattern)
+        run: |
+          npm install --no-save playwright-core@1.49.1
+          npx playwright-core install chromium --with-deps
+          SHELL_BIN=$(find "$HOME/.cache/ms-playwright" -name 'chrome-headless-shell' -type f | head -1)
+          if [ -n "$SHELL_BIN" ]; then
+            echo "CHROME_PATH=$SHELL_BIN" >> "$GITHUB_ENV"
+          else
+            FULL_BIN=$(find "$HOME/.cache/ms-playwright" -name 'chrome' -type f | grep -v headless | head -1)
+            echo "CHROME_PATH=$FULL_BIN" >> "$GITHUB_ENV"
+            echo "RIG_FULL_CHROME=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Ensure ffmpeg (clip assembly + fps measurement)
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y ffmpeg
+          fi
+          ffmpeg -version | head -1
+
+      - name: Run the R2 queue
+        run: node .dash-capture/capture-r2/run-r2.mjs
+
+      - name: Upload R2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-fix1
+          path: |
+            r2-out/
+            vite-r2.log
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,0 +1,1 @@
+{"dsf":1,"fps":12,"height":560,"seconds":9,"settleMs":9000,"steps":[{"at":1.0,"eval":"window.__setTarget && window.__setTarget('dustwaste_raider', 6, 100)"},{"at":1.6,"eval":"window.__seedBeat && window.__seedBeat('kill', 10)"},{"at":3.0,"eval":"window.__seedBeat && window.__seedBeat('drop')"}],"width":412}
