@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":9000},{"dump":"JSON.stringify(window.__cybercacheBench||null)"},{"shot":"panel"},{"wait":2600},{"shot":"panel-late"}]}
