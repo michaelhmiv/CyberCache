@@ -14,12 +14,18 @@ const beat = (partial: Partial<TickEvent>): TickEvent =>
   ({ id: 'harness-beat-test', at: 1, detail: 'harness', ...partial }) as TickEvent;
 
 describe('roam harness beat seam shapes', () => {
-  it('a shot seed (negative loot label, value > 0) classifies as a shot beat', () => {
-    expect(classifyTickBeat(beat({ tone: 'loot', label: '-10', value: 10 }), 100)?.kind).toBe('shot');
+  it('a shot seed (production hit shape: tone hit, -N HP label) classifies as a shot beat', () => {
+    expect(classifyTickBeat(beat({ tone: 'hit', label: '-10 HP', value: 10 }), 100)?.kind).toBe('shot');
   });
 
-  it('a heavy shot seed at/above the crit fraction classifies as a crit', () => {
-    expect(classifyTickBeat(beat({ tone: 'loot', label: '-20', value: 20 }), 100)?.kind).toBe('crit');
+  it('a heavy hit seed at/above the crit fraction classifies as a crit', () => {
+    expect(classifyTickBeat(beat({ tone: 'hit', label: '-20 HP', value: 20 }), 100)?.kind).toBe('crit');
+  });
+
+  it('a nova-shaped hit seed (label without a leading minus) still classifies as a hit beat carrying its value', () => {
+    const nova = classifyTickBeat(beat({ tone: 'hit', label: 'Nova burst — 30 damage', value: 30 }), 100);
+    expect(nova?.kind).toBe('crit'); // 30/100 = 0.30 ≥ 0.18 — the label never gates the match
+    expect(nova?.value).toBe(30);
   });
 
   it('a player-hit seed (damage tone) classifies as playerHit', () => {

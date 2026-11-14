@@ -62,12 +62,14 @@ const HARNESS_WEAPON: Weapon = {
   pixelSeed: 42,
 } as unknown as Weapon;
 
+// Production-shaped hunter-damage event (brief fact F1): tone 'hit',
+// label '-N HP', value = the damage the record carries.
 const SHOT_EVENT: TickEvent = {
   id: 'harness-shot-1',
   at: 1,
-  tone: 'loot',
-  label: '-10',
-  detail: 'harness',
+  tone: 'hit',
+  label: '-10 HP',
+  detail: 'Hit dustwaste_raider for 10 HP.',
   value: 10,
 } as TickEvent;
 
@@ -204,22 +206,31 @@ export const RoamHarnessPage: React.FC = () => {
     w.__resumeRoam = () => setStopped(false);
     // Anim-replay beat seams: one call per beat kind, unique event
     // id each time so the stage's beat clock restarts per beat.
-    //   shot/crit — tone 'loot' with a negative label is the hit
-    //     shape (isTickHit); crit weighs value vs target max HP.
+    //   shot/crit — production hit shape (tone 'hit', label '-N HP';
+    //     isTickHit); crit weighs value vs target max HP.
     //   playerHit — tone 'damage' (the enemy answers).
     //   kill — tone 'kill' + the target's HP lands at 0.
     //   drop — tone 'material' (a rarity beam, no gear card).
     //   crate — tone 'cache' (the crate rise; no roaming producer
     //     emits it in the real game — staged here only, R2).
     w.__seedBeat = (kind: string, value = 10) => {
-      if (kind === 'shot') seedBeatEvent({ tone: 'loot', label: `-${value}`, value });
-      else if (kind === 'crit') seedBeatEvent({ tone: 'loot', label: `-${value}`, value });
+      if (kind === 'shot') seedBeatEvent({ tone: 'hit', label: `-${value} HP`, value });
+      else if (kind === 'crit') seedBeatEvent({ tone: 'hit', label: `-${value} HP`, value });
       else if (kind === 'playerHit') seedBeatEvent({ tone: 'damage', label: `-${value}`, value });
       else if (kind === 'kill') {
         seedBeatEvent({ tone: 'kill', label: 'kill', value });
         useKillCycleStore.setState({ currentTargetHp: 0 });
       } else if (kind === 'drop') seedBeatEvent({ tone: 'material', label: '+1 TechFragments', value: 1 });
       else if (kind === 'crate') seedBeatEvent({ tone: 'cache', label: 'Cache', value: 1 });
+    };
+    // Seed the verbatim production hit shape (tone 'hit', label
+    // '-N HP', detail 'Hit … for N HP.') and apply the kill-cycle sync
+    // a claim applies: currentTargetHp reduced by value, floored at 0,
+    // so captures can assert plate truth against synced HP.
+    w.__seedHit = (value: number) => {
+      seedBeatEvent({ tone: 'hit', label: `-${value} HP`, detail: `Hit dustwaste_raider for ${value} HP.`, value });
+      const { currentTargetHp } = useKillCycleStore.getState();
+      useKillCycleStore.setState({ currentTargetHp: Math.max(0, currentTargetHp - value) });
     };
     // Gear drop seam (Stage Iteration R2): a shipped-shape loot
     // event WITH a gear payload, so the roam stage's LootMoment

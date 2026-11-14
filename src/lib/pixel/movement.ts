@@ -180,9 +180,16 @@ export interface CombatBeat {
   value?: number;
 }
 
-/** Hit events in the tick feed: tone 'loot', label is a negative number. */
+/**
+ * Hunter-damage events in the tick feed (brief facts F1/F2/F3): the
+ * Chef's kill-cycle hit, detonation, and nova-burst pushes all carry
+ * tone 'hit' with the dealt damage in `value` ('-N HP' for
+ * weapon/detonation hits, 'Nova burst — N damage' for a nova break).
+ * The label is display text and is never the match key; a loot event
+ * carrying an item name is never a hit.
+ */
 export const isTickHit = (event?: TickEvent): boolean =>
-  !!event && event.tone === 'loot' && event.label?.startsWith('-') && (event.value ?? 0) > 0;
+  !!event && event.tone === 'hit' && (event.value ?? 0) > 0;
 
 /**
  * Classify the latest tick event into a presentation beat for a scene.
