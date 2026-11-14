@@ -200,6 +200,26 @@ export const RoamHarnessPage: React.FC = () => {
     w.__setVehicle = (which: string) => {
       useLoadoutStore.getState().setSlot('vehicle', which === 'buggy' ? HARNESS_BUGGY.id : which === 'bike' ? HARNESS_BIKE.id : null);
     };
+    // Gear-drop seam (drops-hold, R3): stage the exact production
+    // shape — target at 6/100, the kill beat, THEN the tick feed
+    // replaced by one gear-carrying loot event, and the kill-cycle
+    // store already advanced to the next target at full HP.
+    w.__seedGearDrop = () => {
+      useKillCycleStore.setState({ currentTargetId: 'dustwaste_raider', currentTargetHp: 6, currentTargetHpMax: 100 });
+      seedBeatEvent({ tone: 'kill', label: 'kill', value: 10 });
+      replayBeatSeq += 1;
+      const event = {
+        id: `harness-gear-${replayBeatSeq}`,
+        at: Date.now(),
+        tone: 'loot',
+        label: HARNESS_WEAPON.name,
+        detail: 'harness',
+        value: 1,
+        gear: HARNESS_WEAPON,
+      } as TickEvent;
+      useTickFeedStore.setState({ events: [event] });
+      useKillCycleStore.setState({ currentTargetId: 'dustwaste_drone', currentTargetHp: 60, currentTargetHpMax: 60 });
+    };
     w.__stopRoam = () => setStopped(true);
     w.__resumeRoam = () => setStopped(false);
     // Anim-replay beat seams: one call per beat kind, unique event

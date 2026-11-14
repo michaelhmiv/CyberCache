@@ -19,6 +19,7 @@ import {
   DustRing,
   GhostHpBar,
   ImpactSparks,
+  LootBeam,
   MuzzleFlash,
   ShellCasing,
   TelegraphGlow,
@@ -27,7 +28,8 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
-import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
+import { dropRiseBeamColor } from '@/lib/pixel/dropColors';
+import { ROAM_ENEMY_PLACEMENT, approachOffsetXPct, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt, enemyDropHold } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -76,7 +78,7 @@ import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadout
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
-import { StageRise, ROAM_DROP_LIFT_PX } from '@/components/pixelArt/StageRise';
+import { StageRise, ROAM_DROP_LIFT_PX, STAGE_RISE_TOTAL_MS } from '@/components/pixelArt/StageRise';
 import { detectWebGL } from '@/components/pixelArt/pixi/detectWebGL';
 import type { RoamPixiStageProps } from '@/components/pixelArt/pixi/RoamPixiStage';
 
@@ -537,6 +539,8 @@ const PixelSceneLayerDom: React.FC<{
   const bossOnStage = bossMode || showBossPrep;
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
+  const currentTargetHp = useKillCycleStore((state) => state.currentTargetHp);
+  const dropHold = mode === 'roaming' ? enemyDropHold(event, currentTargetHp) : null;
   const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
   // Resume probe (diagnostic only; see useDomResumeProbe above).
   useDomResumeProbe(!transientFallback && isResumeProbeEnabled());
@@ -1482,8 +1486,10 @@ const PixelSceneLayerDom: React.FC<{
       {/* Enemy — drops in for boss fights (dust + shake on landing),
           walks in roaming; lunges on damage beats; hit/kill reactions.
           In boss prep the boss already stands here (bossOnStage):
-          the same drop-in, but no beats answer it — presence only. */}
-      {(showEnemy || showBossPrep) && (
+          the same drop-in, but no beats answer it — presence only.
+          Drop hold (R3): while a drop event stands the slot stays
+          empty — the drop plays over the fallen enemy's spot. */}
+      {(showEnemy || showBossPrep) && !dropHold && (
         <motion.div
           className="absolute inset-0"
           style={{ transformOrigin: `${enemyPlacement.xPct}% ${groundY * 100}%` }}
@@ -1624,19 +1630,32 @@ const PixelSceneLayerDom: React.FC<{
           never carry one, so the crate no longer appears while roaming.
           Gear drops keep their LootMoment further down. */}
       {lootRise && lootRise !== 'crate' && event && (
-        <StageRise
-          key={`loot-rise-${event.id}`}
-          testId="diorama-loot-rise"
-          dataAttrs={{ 'loot-visual': lootRise }}
-          xPct={enemyFeet.xPct}
-          yPct={enemyFeet.yPct}
-          liftPx={ROAM_DROP_LIFT_PX}
-        >
-          <DropRiseIcon
-            tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
-            label={lootRise === 'scrap' ? 'scrap' : event.label}
+        <React.Fragment key={`loot-rise-${event.id}`}>
+          {/* The drop's own light at the corpse (R3): a beam in the
+              drop's color for the rise's whole schedule. */}
+          <LootBeam
+            xPct={enemyFeet.xPct}
+            groundYPct={enemyFeet.yPct}
+            color={dropRiseBeamColor(lootRise, event.label)}
+            widthPx={14}
+            flareScale={2.2}
+            radiant={false}
+            durationMs={STAGE_RISE_TOTAL_MS}
+            reduced={reduced}
           />
-        </StageRise>
+          <StageRise
+            testId="diorama-loot-rise"
+            dataAttrs={{ 'loot-visual': lootRise }}
+            xPct={enemyFeet.xPct}
+            yPct={enemyFeet.yPct}
+            liftPx={ROAM_DROP_LIFT_PX}
+          >
+            <DropRiseIcon
+              tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise}
+              label={lootRise === 'scrap' ? 'scrap' : event.label}
+            />
+          </StageRise>
+        </React.Fragment>
       )}
       {lootRise === 'crate' && crate && (
         <motion.img
@@ -1686,6 +1705,7 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
   const [pixiFailed, setPixiFailed] = useState(false);
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
+  const currentTargetHp = useKillCycleStore((state) => state.currentTargetHp);
   // The DOM scene resolves mounted gear from the loadout/inventory
   // stores itself; the Pixi scene receives the same resolution as a
   // prop (its derivation lives beside the component).
@@ -1723,6 +1743,7 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
     hot: props.hot,
     targetMaxHp,
     currentTargetId: currentTargetId ?? undefined,
+    currentTargetHp,
     mountedGear,
     onPixiError: () => setPixiFailed(true),
   };
@@ -1785,6 +1806,8 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const stageBossDef = bossName ? REGION_1_BOSSES.find((b) => b.name === bossName) : undefined;
   const stageBossSpriteId = pixelBossSpriteForBoss(stageBossDef?.id);
   const mode = modeFromActivity(activityKind, bossPhase);
+  const stageTargetHp = useKillCycleStore((state) => state.currentTargetHp);
+  const stageEnemyHold = mode === 'roaming' ? enemyDropHold(latestEvent, stageTargetHp) : null;
   // One-Stage Law (owner ruling 2026-11-06): while the encounter
   // panel plays back a Chef-decided attempt, it publishes the
   // fight presentation to the boss store and THIS stage renders
@@ -1901,7 +1924,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           the boss plate stays anchored under the boss on the
           ground line (owner ruling 2026-11-02, reaffirmed
           2026-11-03). Neither ever sits across a face. */}
-      <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
+      <TargetHpOverlay active={activityKind === 'roaming_loot' && !stageEnemyHold} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
       <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
       {/* The count plate is the top row's only resident now
           (owner ruling 2026-11-02 removed the area/target plate

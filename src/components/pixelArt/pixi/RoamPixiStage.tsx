@@ -12,9 +12,10 @@ import {
   logResumeProbeEvent,
 } from '@/lib/pixel/resumeProbe';
 import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
-import { CritFlash, DamageNumber } from '../PixelFx';
+import { CritFlash, DamageNumber, LootBeam } from '../PixelFx';
 import { DropRiseIcon } from '@/components/dashboard/LiveTurfDiorama';
-import { StageRise, ROAM_DROP_LIFT_PX } from '@/components/pixelArt/StageRise';
+import { dropRiseBeamColor } from '@/lib/pixel/dropColors';
+import { StageRise, ROAM_DROP_LIFT_PX, STAGE_RISE_TOTAL_MS } from '@/components/pixelArt/StageRise';
 import { LootMoment } from '../LootMoment';
 import { PARTS_FEET_X, PART_POSES, SKELETON, type PartSetDef } from '@/lib/pixel/parts';
 import { layoutPartSet, type PartSetLayout, type PartsWeaponFractions } from '@/lib/pixel/partsCompositor';
@@ -65,6 +66,7 @@ import {
 import { EASE, sampleTrack } from '@/lib/pixel/pixiChoreography';
 import {
   deriveRoamScene,
+  enemyDropHold,
   enemyWalkAlpha,
   resolveRoamWalkFrame,
   roamPosesAt,
@@ -146,6 +148,9 @@ export interface RoamPixiStageProps {
   /** The DOM scene's mounted-gear inputs (resolved by the seam
    *  from the same stores PixelSceneLayer reads). */
   mountedGear: MountedGearItem[];
+  /** Live kill-cycle HP of the current roam target — drives the
+   *  drop-hold derivation (an undroppable corpse implies HP 0). */
+  currentTargetHp?: number;
   /** Init/texture failure seam: the wrapper swaps to the DOM scene. */
   onPixiError?: () => void;
 }
@@ -395,6 +400,7 @@ function installRoamResumeProbe(app: Application, runtime: RoamRuntime): () => v
 interface TickEnv {
   props: RoamPixiStageProps;
   model: RoamSceneModel;
+  currentTargetHp?: number;
   /** Cache each actor pose once per event; compose only the moving
    * rig bands during walk-in. No per-frame hunter-layout rebuild. */
   deriveModelAt: (walkMs: number | undefined, beatMs: number, beatForCurrentTarget?: boolean) => RoamSceneModel;
@@ -939,6 +945,11 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   }
 
   // ── Enemy ──
+  // Drop hold (R3): while a drop event stands, the enemy slot is
+  // empty — the drop plays over the fallen enemy's spot. The
+  // store is NOT touched; only this render path hides the actor.
+  const dropHold = enemyDropHold(props.event, env.currentTargetHp);
+  scene.enemyLunge.visible = !dropHold;
   // Approach staging (roamChoreography sampleEnemyWalkPose): the
   // walk wrapper rides the sampled offset — the enemy enters
   // from off-frame right and travels the full approach to its
@@ -1272,6 +1283,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
     envRef.current = {
       props,
       model,
+      currentTargetHp: props.currentTargetHp,
       deriveModelAt: (walkMs, beatMs, beatForCurrentTarget) => {
         const key = roamPosesAt(model.beat, !!props.weapon, beatMs, { beatForCurrentTarget }).key;
         let frame = poseModels.get(key);
@@ -1746,16 +1758,31 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
             over the DOM stage. Gated on scene readiness so a rise
             never plays over the fallback-blank canvas. */}
         {lootRise && lootRise !== 'crate' && props.event && (
-          <StageRise
-            key={`loot-rise-${props.event.id}`}
-            testId="diorama-loot-rise"
-            dataAttrs={{ 'loot-visual': lootRise }}
-            xPct={model.enemyFeet.xPct}
-            yPct={model.enemyFeet.yPct}
-            liftPx={ROAM_DROP_LIFT_PX}
-          >
-            <DropRiseIcon tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise} label={lootRise === 'scrap' ? 'scrap' : props.event.label} />
-          </StageRise>
+          <React.Fragment key={`loot-rise-${props.event.id}`}>
+            {/* The drop's own light at the corpse (R3): a beam in
+                the drop's color for the rise's whole schedule.
+                Gated on scene readiness like the rise itself. */}
+            <LootBeam
+              xPct={model.enemyFeet.xPct}
+              groundYPct={model.enemyFeet.yPct}
+              color={dropRiseBeamColor(lootRise, props.event.label)}
+              widthPx={14}
+              flareScale={2.2}
+              radiant={false}
+              durationMs={STAGE_RISE_TOTAL_MS}
+              reduced={false}
+            />
+            <StageRise
+              testId="diorama-loot-rise"
+              dataAttrs={{ 'loot-visual': lootRise }}
+              xPct={model.enemyFeet.xPct}
+              yPct={model.enemyFeet.yPct}
+              width={150}
+              liftPx={ROAM_DROP_LIFT_PX}
+            >
+              <DropRiseIcon tone={lootRise === 'scrap' || lootRise === 'credits' ? 'cash' : lootRise} label={lootRise === 'scrap' ? 'scrap' : props.event.label} />
+            </StageRise>
+          </React.Fragment>
         )}
         {lootRise === 'crate' && props.event && (
           <CrateRise key={`loot-${props.event.id}`} lootPoint={model.enemyLoot} />
