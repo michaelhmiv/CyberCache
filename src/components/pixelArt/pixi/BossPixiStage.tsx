@@ -1057,7 +1057,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
         <div ref={hostRef} className="absolute inset-0" data-testid="boss-fight-pixel-stage" data-renderer="pixi" />
         {props.depthBadge && bandTint && (
           <div
-            className="pointer-events-none absolute right-2 top-2 z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-fuchsia-300"
+            className={`pointer-events-none absolute right-2 ${props.embedded ? 'top-[60px]' : 'top-2'} z-20 border-2 border-black bg-[#050608]/85 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-fuchsia-300`}
             data-testid="endless-depth-chip"
           >
             Depth {props.depthBadge.depth} · Band {props.depthBadge.band + 1}
