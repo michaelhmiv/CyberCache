@@ -74,11 +74,31 @@ export const ROAM_ENEMY_PLACEMENT = { xPct: 78, heightPct: 58 } as const;
  * ≈12.4%, right edge ≈99.6%). Every other archetype keeps the
  * shared mark, the elite staging (rig 72 / flat 74) is
  * untouched, and no timing changes anywhere.
+ *
+ * Round 3 (2026-11-14, post-merge audit re-verification on
+ * master 80c604fe) re-measured rest air WEAPONS-INCLUSIVE — the
+ * brief's text: rifle tip → the enemy's foremost point
+ * including its own weapon, the same method the audit applies
+ * to bosses. The body-method numbers above understate reach:
+ * the fodder's extended pistol hand sits at 61.2% against the
+ * 51.6% tip, so at the shared 78 mark its true air is only
+ * 9.6% DOM / 10.0% Pixi — below the ≥12% law. Fodder therefore
+ * takes its own override {82}: the +4 shift moves its whole
+ * silhouette right (sprite right edge ≈87% → ≈91%, clear of
+ * the edge) and lands the pistol hand at ≈65%, air ≈13.5%.
+ * The runner measured exactly 12.0% — at the floor with zero
+ * margin; its head is its foremost point and its sprite's
+ * right edge already sits at ≈98%, so it cannot move right.
+ * Its height steps 44 → 42 instead: the smaller frame pulls
+ * the leaning head ≈1 pt toward its anchor (air ≈13%) and
+ * pulls the right edge in with it. Sniper (14.0%) and brute
+ * (~16.7%) were re-measured passing and stay untouched.
  */
 export const ROAM_ARCHETYPE_PLACEMENT_OVERRIDES: Partial<
   Record<MonsterArchetype, { xPct?: number; heightPct?: number }>
 > = {
-  runner: { xPct: 84, heightPct: 44 },
+  fodder: { xPct: 82 },
+  runner: { xPct: 84, heightPct: 42 },
   sniper: { xPct: 86 },
 };
 
