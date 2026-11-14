@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"shot":"boss-rest","wait":3000},{"eval":"window.__setBeat(3)","shot":"boss-telegraph","wait":500},{"eval":"window.__setBeat(4)","shot":"boss-kill","wait":1100}],"width":412}

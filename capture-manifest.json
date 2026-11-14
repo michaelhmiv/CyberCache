@@ -1,0 +1,57 @@
+{
+ "iter": "09",
+ "port": 7190,
+ "harnessPage": "/heatroam-harness.html",
+ "captures": [
+  {
+   "label": "roam",
+   "path": "/heatroam-harness.html",
+   "plan": "capture/plans/plan-roam.json",
+   "expect": [
+    "roam-rest",
+    "roam-surge",
+    "roam-kill"
+   ]
+  },
+  {
+   "label": "boss",
+   "path": "/heatboss-harness.html",
+   "plan": "capture/plans/plan-boss.json",
+   "expect": [
+    "boss-rest",
+    "boss-telegraph",
+    "boss-kill"
+   ]
+  },
+  {
+   "label": "craft",
+   "path": "/heatcraft-harness.html",
+   "plan": "capture/plans/plan-craft.json",
+   "expect": [
+    "craft-slow",
+    "craft-ramped",
+    "craft-complete"
+   ]
+  },
+  {
+   "label": "gather",
+   "path": "/heatgather-harness.html",
+   "plan": "capture/plans/plan-gather.json",
+   "expect": [
+    "gather-start",
+    "gather-flow",
+    "gather-yield"
+   ]
+  },
+  {
+   "label": "research",
+   "path": "/heatresearch-harness.html",
+   "plan": "capture/plans/plan-research.json",
+   "expect": [
+    "research-start",
+    "research-flow",
+    "research-done"
+   ]
+  }
+ ]
+}

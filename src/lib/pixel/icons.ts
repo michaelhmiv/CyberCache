@@ -144,13 +144,6 @@ export const PX_ICONS = {
   warn: [[7,2,2,2],[6,4,4,2],[5,6,6,2],[4,8,8,2],[3,10,10,2],[2,12,12,1],[7,6,2,4,'k'],[7,11,2,1,'k']],
   waves: [[2,3,3,1],[5,2,3,1],[8,3,3,1],[11,2,3,1],[2,8,3,1],[5,7,3,1],[8,8,3,1],[11,7,3,1],[2,13,3,1],[5,12,3,1],[8,13,3,1],[11,12,3,1]],
   x: [[3,3,2,2],[5,5,2,2],[7,7,2,2],[9,9,2,2],[11,11,2,2],[11,3,2,2],[9,5,2,2],[5,9,2,2],[3,11,2,2]],
-  // flameFlick: the 'flame' glyph's flicker frame — the outer teardrop
-  // is rect-for-rect identical; only the inner highlight core moves
-  // (seated 1px higher, narrower at the seat), so alternating the two
-  // at a flame cadence reads as the core dancing inside a steady
-  // flame. Drawn for the hot-area mark beside the Active Area name
-  // (owner steer 2026-11-13); same 16x16 duotone hand.
-  flameFlick: [[9,1,1,1],[8,2,2,1],[7,3,4,2],[6,5,6,2],[5,7,8,1],[4,8,8,1],[4,9,9,1],[4,10,10,1],[4,11,9,1],[4,12,10,2],[5,14,8,1],[8,7,2,1,'h'],[7,8,3,1,'h'],[7,9,4,1,'h'],[6,10,4,1,'h'],[7,11,4,2,'h'],[7,13,2,1,'h']],
 } as const satisfies Record<string, readonly PxRect[]>;
 
 export type PxIconName = keyof typeof PX_ICONS;
