@@ -21,7 +21,7 @@ describe('Roaming claim server authority regression', () => {
     // 0096: the same read also pulls roaming_consumable_state — the
     // stored coverage-window state the claim resumes (and re-saves)
     // instead of trusting the request body's copy.
-    expect(store).toContain('select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state from public.profiles');
+    expect(store).toContain('select player_level, skill_spends, last_claimed_tick, consumables, scrap_remainder, credits_remainder, xp_remainder, cache_key_remainder, vehicle_fuel, cache_rank_spends, roaming_consumable_state, active_hunter_id, action_skill_selection from public.profiles');
     expect(handler).toContain('store.getRoamingProfile(playerId)');
     expect(handler).toContain('consumableInventory');
     expect(handler).toContain('claimWithConsumables');

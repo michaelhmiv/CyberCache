@@ -37,11 +37,14 @@ describe('Field Manual (HelpScreen)', () => {
     // (Combat cross-references [[Bosses]] for the attack pattern;
     // the Endless-Mode cadence note is link-free by design) = 320,
     // +1 G-F5 (Getting-Started's hunter-name note cross-references
-    // [[Leaderboards-and-Streaks]]) = 321. Bump the pin in the same
+    // [[Leaderboards-and-Streaks]]) = 321, +4 slice (a) (the
+    // fielded-hunter notes in Endless-Mode, Actions-and-Occupations,
+    // Reference-Areas and Reference each cross-reference
+    // [[Progression]]) = 325. Bump the pin in the same
     // change as any wiki edit that moves the census.
     await waitFor(() => expect(wikiCorpusReady()).toBe(true));
-    expect(getWikiLinkCount()).toBe(321);
-    await waitFor(() => expect(screen.getByText('321')).toBeTruthy());
+    expect(getWikiLinkCount()).toBe(325);
+    await waitFor(() => expect(screen.getByText('325')).toBeTruthy());
   });
 
   it('converges the Links LCD to whatever count the corpus itself reports', async () => {

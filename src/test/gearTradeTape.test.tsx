@@ -63,6 +63,9 @@ function seed() {
   useSkillStore.setState({
     spent: { scav_idle_1: 2, gs_dmg_1: 3 },
     classModBoosts: { treeBonus: wornMod.treeBonus, nodeBoosts: { ...wornMod.nodeBoosts } },
+    // The worn mod is Scavenger-bound: Josie is the fielded hunter
+    // (reshape slice (a)) — both assemblies must price her pool.
+    activeHunterId: 'josie',
   });
   usePlayerStore.setState({ level: 10, consumables: {} });
   useSurvivalStore.setState({ medKitBuffer: 0 });
@@ -86,6 +89,7 @@ describe('assembly drift pin', () => {
       ordnance: loadout.getOrdnance(),
       spent: skills.spent,
       classModBoosts: skills.classModBoosts,
+      activeHunterId: skills.activeHunterId,
       activeBuffs: [],
       consumableMods: buildConsumableInventoryMods(player.consumables),
       consumableInventory: player.consumables,
