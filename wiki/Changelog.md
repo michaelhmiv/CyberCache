@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-15 — The board counts hunters
+
+- **The standings board counts hunters now** — the global board used to list every profile that ever opened the game, hundreds of empty names deep. It now shows only hunters with at least one kill to their name, and the field size it reports counts the same field you are ranked in. Nobody was removed from anything — the board simply ranks the hunters who have hunted.
+- Under the hood: two timing-sensitive tests (the vendor counter and the Return Sheet) were pinned to the behavior they were written against, so the build gate reads true again.
+
 ## 2026-11-14 — The stage iteration lands
 
 - **The repair bay, the vendor stall, and the calibration rig have insides now** — those three work-cycle set pieces shipped with their interiors blank white, so repairs, market listings, and shield calibrations all played in front of a white hole. The lift’s bay is a workshop wall with its tool board and cabinet, the stall’s window is its shaded back shelf, and the rig’s ring holds an instrument field — painted in the same hand and the same palette-256 form as the rest of the set. Nothing about the cycles, the seats, or the timings changed.
@@ -375,9 +380,13 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 307 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 309 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-14** — 7 merges
+**2026-11-15** — 1 merge
+
+- #593 — Fix vendorBuyQuantity calendar flake: pin the vendor date in the test
+
+**2026-11-14** — 8 merges
 
 - #566 — Stage iteration B2 — shell & parity: Pixi takeover readiness gate (no more black flash)
 - #570 — Stage iteration C1: crafting & every remaining animation (DO NOT MERGE — owner clip review)
@@ -386,6 +395,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #574 — Stage iteration B1: per-boss stage scale + capture-arbitrated boss staging
 - #575 — Stage iteration: paint the three blank set-piece interiors
 - #585 — Cache Hunters slice (a): per-hunter pools, loadouts, binding, conversion (migration 0097)
+- #586 — Slice (f): the naming pass — Marla Quill, Harrow + boss dossiers, clash pass, Tech Fragments
 
 **2026-11-13** — 10 merges
 

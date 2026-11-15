@@ -560,7 +560,7 @@ describe('Dashboard top — level doors: specifics pop-up + the Return Sheet', (
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
   });
 
-  it('the Return Sheet opened on a held recap shows WAITING and its Claim button pays in place', async () => {
+  it('the Return Sheet opened on a held recap shows WAITING and its Claim button pays in place', { timeout: 20_000 }, async () => {
     usePlayerStore.setState({
       offlineHold: {
         credits: 4321, scrap: 87, xp: 640, cacheKeys: 0, kills: 12, ticks: 120,
@@ -612,6 +612,13 @@ describe('Dashboard top — level doors: specifics pop-up + the Return Sheet', (
     await waitFor(() => expect(screen.queryByTestId('return-held-note')).toBeNull());
     expect(mockClaimOffline).toHaveBeenCalledTimes(1);
     expect(usePlayerStore.getState().offlineHold.credits).toBe(0);
+    // The door-row tap above SWITCHED sheets (level → return):
+    // both sheet bodies legitimately coexist while the level
+    // sheet's exit animation plays out (PickerSheet's presence
+    // pattern), and under full-suite load that spring can outlast
+    // the claim's own awaits. Wait for the exit to settle to the
+    // one open sheet before addressing THE sheet body.
+    await waitFor(() => expect(screen.getAllByTestId('picker-sheet-body')).toHaveLength(1), { timeout: 5000 });
     expect(within(screen.getByTestId('picker-sheet-body')).getByRole('button', { name: 'Collect' })).toBeTruthy();
   });
 });

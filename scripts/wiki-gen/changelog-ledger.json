@@ -3,6 +3,15 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-15",
+      "merges": [
+        {
+          "number": 593,
+          "title": "Fix vendorBuyQuantity calendar flake: pin the vendor date in the test"
+        }
+      ]
+    },
+    {
       "date": "2026-11-14",
       "merges": [
         {
@@ -32,6 +41,10 @@
         {
           "number": 585,
           "title": "Cache Hunters slice (a): per-hunter pools, loadouts, binding, conversion (migration 0097)"
+        },
+        {
+          "number": 586,
+          "title": "Slice (f): the naming pass — Marla Quill, Harrow + boss dossiers, clash pass, Tech Fragments"
         }
       ]
     },
