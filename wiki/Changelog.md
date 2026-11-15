@@ -2,6 +2,12 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-15 — Three small stage repairs
+
+- **Boss fights open like a scene change, not a channel change** — the boss panel used to cut hard from prep to the fight and from the fight to the result. Each state now hands over on the game's shared stop crossfade — a short fade with a small settle — and the result card arrives on that same move instead of popping in on its own. Nothing about the fight, the intel, or the timings changed.
+- **The forge work sits on the anvil now** — at the crafting bench, the piece being worked floated off the front face of the worktop and the hunter's hands stopped short of it across a visible gap of air. He now stands at the anvil itself: the piece, the sparks, and the finished unit's rise all sit on the anvil's top face, on the Home stage and in the workshop's bench scene alike. The crusher and the service lift keep the seats they already had.
+- **Two pictures repainted** — the gap between the crusher's jaw and its body was flat unpainted white inside; it is now the machine's dark steel throat, shadowed the way the jaw would leave it. And the siltstalker's arena wreck — a crashed skimmer half-buried in the silt — has been redrawn as clean pixel work, so it reads as a wreck instead of static.
+
 ## 2026-11-14 — The stage iteration lands
 
 - **The repair bay, the vendor stall, and the calibration rig have insides now** — those three work-cycle set pieces shipped with their interiors blank white, so repairs, market listings, and shield calibrations all played in front of a white hole. The lift’s bay is a workshop wall with its tool board and cabinet, the stall’s window is its shaded back shelf, and the rig’s ring holds an instrument field — painted in the same hand and the same palette-256 form as the rest of the set. Nothing about the cycles, the seats, or the timings changed.

@@ -342,6 +342,64 @@ describe('the salvage beat — salvaging celebrates its settlements', () => {
   });
 });
 
+describe('the forge work point — C1-01 staging (rulings batch-3)', () => {
+  it('home stage: seat and FX sit on the anvil point, not the old fallback', () => {
+    // The bench actor stands at xPct 60 (feet anchor 0.4972), so
+    // its left edge is ≈45.0 and the anvil (centre ≈0.235 of the
+    // sprite) stands at stage x ≈52; its top face sits ≈6
+    // points above the pre-C1-01 fallback point.
+    const groundY = getPixelSprite(pixelBackgroundForArea(DEFAULT_ROAMING_AREA_ID)!)?.anchors.groundLine?.y ?? 0.86;
+    setWorkshop(serverView({ jobs: [job({})] }));
+    renderDiorama('crafting');
+    const seat = screen.getByTestId('bench-seat');
+    expect(seat.style.left).toBe('52%');
+    expect(seat.style.top).toBe(`${(groundY - 0.23) * 100}%`);
+    const fx = screen.getByTestId('bench-fx');
+    expect(fx.style.left).toBe('52%');
+    expect(fx.style.top).toBe(`${(groundY - 0.23) * 100}%`);
+  });
+
+  it('home stage: the crafting completion rise lifts off the anvil point', () => {
+    const groundY = getPixelSprite(pixelBackgroundForArea(DEFAULT_ROAMING_AREA_ID)!)?.anchors.groundLine?.y ?? 0.86;
+    const doneJob = job({ state: 'complete', unitsCompleted: 1 });
+    setWorkshop(serverView({ jobs: [doneJob], recentCompletions: [] }));
+    renderDiorama('crafting');
+    setWorkshop(serverView({
+      jobs: [doneJob],
+      recentCompletions: [{ jobId: 'job-1', recipeId: 'recipe_patch_kit', name: 'Patch Kit', unit: 0, completedAtMs: 5 } as never],
+    }));
+    const rise = screen.getByTestId('bench-completion-rise');
+    expect(rise.style.left).toBe('52%');
+    expect(rise.style.top).toBe(`${(groundY - 0.23) * 100}%`);
+  });
+
+  it('panel scene: the seat rides the same anvil, mirrored for its bench mark', () => {
+    // Panel bench at xPct 58 / heightPct 36: left edge ≈42.1,
+    // anvil at stage x ≈50, top face ≈6 points above the old
+    // (groundY − 0.19) point.
+    const groundY = getPixelSprite('zone-blastforge-bg')?.anchors.groundLine?.y ?? 0.86;
+    render(<CraftingBenchScene progress={0.4} causeLabel="Tempering" working seatJob={job({})} />);
+    const seat = screen.getByTestId('crafting-bench-seat');
+    expect(seat.style.left).toBe('50%');
+    expect(seat.style.top).toBe(`${(groundY - 0.25) * 100}%`);
+    const fx = screen.getByTestId('crafting-bench-fx');
+    expect(fx.style.left).toBe('50%');
+    expect(fx.style.top).toBe(`${(groundY - 0.25) * 100}%`);
+  });
+
+  it('the seat-derived lanes keep their registry points (salvage unchanged)', () => {
+    const seat = SET_SEATS['set-refinery-crusher']?.seat;
+    expect(seat).toBeTruthy();
+    const groundY = getPixelSprite(pixelBackgroundForArea(DEFAULT_ROAMING_AREA_ID)!)?.anchors.groundLine?.y ?? 0.86;
+    setWorkshop(serverView({ jobs: [] }));
+    renderDiorama('salvaging');
+    // No running craft job seats in the salvage lane; the point
+    // derivation itself is pinned by the service-lane rise test
+    // above. Here: the crusher's seat row still resolves.
+    expect(seatPointTopPct(seat!, 34, groundY)).toBeGreaterThan(0);
+  });
+});
+
 describe('the panel bench scene seats the caller’s job', () => {
   it('CraftingBenchScene renders the seat for the running job it is handed', () => {
     render(<CraftingBenchScene progress={0.4} causeLabel="Tempering" working seatJob={job({})} />);

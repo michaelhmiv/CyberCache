@@ -128,6 +128,10 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
   // The item on the bench (M4b): the caller's running job seats
   // its truthful output picture at the work point — the same
   // anchor BenchFx bursts from, so the sparks land on the work.
+  // The point is the anvil (C1-01 panel mirror, rulings
+  // batch-3): at xPct 58 / heightPct 36 the bench's left edge is
+  // ≈42.1 and the anvil stands at stage x ≈50, its top face
+  // ≈6 points above the old point — the seat rides the slab.
   const seatPlan = benchSeatPlanForJob(seatJob);
   return (
     <SceneShell backgroundId={backgroundId} testId="crafting-bench-scene" reduced={reduced} {...rest}>
@@ -137,12 +141,12 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
         <div
           data-testid="crafting-bench-seat"
           className="pointer-events-none absolute z-20 flex items-center justify-center"
-          style={{ left: '58%', top: `${(groundY - 0.19) * 100}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+          style={{ left: '50%', top: `${(groundY - 0.25) * 100}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
         >
           <BenchItemRender plan={seatPlan} testId="crafting-bench-seat-render" />
         </div>
       )}
-      <BenchFx spec={spec} active={active} reduced={reduced} xPct={58} yPct={(groundY - 0.19) * 100} testId="crafting-bench-fx" />
+      <BenchFx spec={spec} active={active} reduced={reduced} xPct={50} yPct={(groundY - 0.25) * 100} testId="crafting-bench-fx" />
       <PixelPartsActor
         set={look.set}
         partPalettes={look.partPalettes}
