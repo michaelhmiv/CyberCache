@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PixelSprite } from '@/lib/pixel/manifest';
 import { SKELETON } from '@/lib/pixel/parts';
 import { paintedPlacement } from '@/lib/pixel/paintedStage';
@@ -31,7 +31,17 @@ import { usePresentationActive } from '@/hooks/usePresentationActive';
  * The travel stride cannot articulate a painting's legs; it
  * survives as the stride spec's torso bob, whole-figure, driven by
  * the same envelope bookkeeping PixelPartsActor runs (engage ramp
- * from the spec, one-period decay on disengage).
+ * from the spec, one-period decay on disengage). The root carries
+ * the same data-stride-cycle / data-stride-active observability
+ * PixelPartsActor exposes — the M2b travel-beat tests pin that
+ * contract on whichever actor seats the hunter. The active flag
+ * mirrors the parts actor's strideDrives semantics: 'true' while
+ * the stride is actually driving the figure (bob applied, through
+ * the settle tail), tracked as state in the bob loop — mirroring
+ * the raw travelActive prop instead proved unobservable, because
+ * the 850 ms window can open and close inside one batched render
+ * in the test environment while the pose state the parts actor
+ * exposed always committed.
  */
 export interface PixelPaintedHunterActorProps {
   sprite: PixelSprite;
@@ -71,12 +81,26 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
     stopAt: null,
     ampAtStop: 0,
   });
+  // Whether the stride is actually driving the figure right now
+  // (envelope engaged, bob being applied, through the settle
+  // tail) — the exact analogue of PixelPartsActor's strideDrives
+  // (!!stridePose), held in state so the root's data-stride-active
+  // observability commits like the parts actor's does.
+  const [strideDriving, setStrideDriving] = useState(false);
+  const strideDrivingRef = useRef(false);
   useEffect(() => {
     const bobEl = bobRef.current;
     if (!presentationActive || !bobEl) return;
+    const markDriving = (v: boolean) => {
+      if (strideDrivingRef.current !== v) {
+        strideDrivingRef.current = v;
+        setStrideDriving(v);
+      }
+    };
     if (!strideSpec || reduced) {
       strideRunRef.current = { start: null, stopAt: null, ampAtStop: 0 };
       bobEl.style.transform = '';
+      markDriving(false);
       return;
     }
     let raf = 0;
@@ -95,6 +119,7 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
         if (phaseMs >= 0) {
           const amp = strideEnvelopeAt(strideSpec, localMs);
           applyBob(sampleStride(strideSpec, phaseMs, amp).poseDelta.torso?.y ?? 0);
+          markDriving(true);
         }
         raf = requestAnimationFrame(tick);
         return;
@@ -102,6 +127,7 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
       if (run.start === null || now - run.start < strideEnvelopeStartMs(strideSpec)) {
         run.start = null;
         bobEl.style.transform = '';
+        markDriving(false);
         return;
       }
       if (run.stopAt === null) {
@@ -113,11 +139,13 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
         run.start = null;
         run.stopAt = null;
         bobEl.style.transform = '';
+        markDriving(false);
         return;
       }
       applyBob(
         sampleStride(strideSpec, now - run.start - strideEnvelopeStartMs(strideSpec), amp).poseDelta.torso?.y ?? 0,
       );
+      markDriving(true);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -131,6 +159,8 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
       data-testid={testId}
       data-sprite={sprite.id}
       data-painted-hunter={sprite.id}
+      data-stride-cycle={strideSpec?.id}
+      data-stride-active={strideDriving && !reduced ? 'true' : undefined}
       style={{
         height: `${placement.heightPct}%`,
         aspectRatio: `${sprite.width} / ${sprite.height}`,

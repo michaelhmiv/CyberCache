@@ -27,8 +27,8 @@ import type { HunterId } from './hunters';
  *    second line inside the moment window below.
  *  - No repeat within a session: for a hunter + trigger, a fired
  *    line does not repeat while an unfired line for that trigger
- *    remains (Marla's counter rotation, marlaVoice.ts, is the
- *    house pattern: session state is module-level).
+ *    remains (the vendor counter rotation in marlaVoice.ts is
+ *    the house pattern: session state is module-level).
  *  - One moment never carries two lines: a fired moment key can
  *    never fire again (any trigger, any surface — the DOM and
  *    Pixi stages both mount voice watchers during the renderer

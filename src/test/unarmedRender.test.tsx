@@ -41,6 +41,18 @@ vi.mock('@/lib/feedback/sfx', () => ({
  * render must show the slot's actual contents — absent when the
  * slot is empty. The deep pixel-identity assertions live in
  * loadoutTruthRender.test.tsx.
+ *
+ * Paintings-only succession (owner ruling 2026-11-15, Cache
+ * Hunters slice (c)): the STAGE surfaces (LiveTurfDiorama roam +
+ * idle, BossFightStage) no longer render the part set at all —
+ * the figure is the active hunter's whole Cast B painting, whose
+ * signature weapon is part of the character. The invariant
+ * survives in stronger form: weapon state cannot change the
+ * stage figure — armed and unarmed render the identical
+ * painting, and no weapon layer exists on a stage surface. The
+ * parts-edition describes below still govern the surfaces that
+ * keep the rig (bench scenes, panel bays, the compositor
+ * itself).
  */
 
 const spriteCache = new Map<string, RgbaImage | undefined>();
@@ -168,11 +180,14 @@ const TEST_WEAPON: Weapon = {
 } as unknown as Weapon;
 
 describe('LiveTurfDiorama — unarmed hunter + slot audit', () => {
-  it('roaming with NO weapon: part set unarmed, no held weapon, and every empty slot renders absent', () => {
+  it('roaming with NO weapon: the painted hunter, no weapon layer, and every empty slot renders absent', () => {
     render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} playerLevel={5} equippedCount={0} activityKind="roaming_loot" />);
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-sprite')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-rig')).toBeNull();
+    expect(hunter.getAttribute('data-armed')).toBeNull();
+    expect(hunter.querySelector('[data-part-layer]')).toBeNull();
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     // Slot audit (fresh stores: nothing equipped anywhere).
     expect(screen.queryByTestId('pixel-gear-shield')).toBeNull();
@@ -182,30 +197,35 @@ describe('LiveTurfDiorama — unarmed hunter + slot audit', () => {
     expect(screen.queryByTestId('pixel-vehicle')).toBeNull();
   });
 
-  it('roaming WITH a weapon: same part set, armed, compositor weapon (equipped path unchanged)', () => {
+  it('roaming WITH a weapon: the identical painting — the stage figure never reflects the equipped weapon', () => {
     render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={TEST_WEAPON} playerLevel={5} equippedCount={1} activityKind="roaming_loot" />);
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
-    expect(hunter.getAttribute('data-armed')).toBe('true');
-    expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
-  });
-
-  it('idle with NO weapon: the relaxed part set instead of any baked-gun sprite', () => {
-    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} playerLevel={5} equippedCount={0} activityKind="idle_standby" />);
-    const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
-    expect(hunter.getAttribute('data-sprite')).toBeNull();
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-sprite')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-rig')).toBeNull();
+    expect(hunter.getAttribute('data-armed')).toBeNull();
+    expect(hunter.querySelector('[data-part-layer]')).toBeNull();
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
   });
 
-  it('idle WITH a weapon: part set + the equipped weapon (no whole-sprite path)', () => {
+  it('idle with NO weapon: the same painting (no part set, no baked-gun sprite)', () => {
+    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} playerLevel={5} equippedCount={0} activityKind="idle_standby" />);
+    const hunter = screen.getByTestId('pixel-hunter');
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-sprite')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-rig')).toBeNull();
+    expect(hunter.querySelector('[data-part-layer]')).toBeNull();
+    expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
+  });
+
+  it('idle WITH a weapon: the same painting again (weapon state is invisible on stage)', () => {
     render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} weapon={TEST_WEAPON} playerLevel={5} equippedCount={1} activityKind="idle_standby" />);
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
-    expect(hunter.getAttribute('data-armed')).toBe('true');
-    expect(hunter.getAttribute('data-sprite')).toBeNull();
-    expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-sprite')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-rig')).toBeNull();
+    expect(hunter.querySelector('[data-part-layer]')).toBeNull();
+    expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
   });
 });
 
@@ -234,21 +254,26 @@ const TIMELINE: FightTimeline = (() => {
 })();
 
 describe('BossFightStage — unarmed hunter', () => {
-  it('no weapon: part set unarmed in the arena, no weapon layer', () => {
+  it('no weapon: the painted hunter in the arena, no weapon layer', () => {
     render(<BossFightStage timeline={TIMELINE} phases={PHASES} />);
     const hunter = screen.getByTestId('boss-stage-hunter');
-    expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-sprite')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-rig')).toBeNull();
+    expect(hunter.getAttribute('data-armed')).toBeNull();
+    expect(hunter.querySelector('[data-part-layer]')).toBeNull();
     expect(screen.queryByTestId('boss-stage-weapon')).toBeNull();
   });
 
-  it('with a weapon: part set armed + compositor weapon at the grip (no whole-sprite path)', () => {
+  it('with a weapon: the identical painting — no compositor weapon at any grip', () => {
     render(<BossFightStage timeline={TIMELINE} phases={PHASES} weapon={TEST_WEAPON} />);
     const hunter = screen.getByTestId('boss-stage-hunter');
-    expect(hunter.getAttribute('data-rig')).toBe('standard-issue');
-    expect(hunter.getAttribute('data-armed')).toBe('true');
-    expect(hunter.getAttribute('data-sprite')).toBeNull();
-    expect(screen.getByTestId('boss-stage-weapon')).toBeTruthy();
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-sprite')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-rig')).toBeNull();
+    expect(hunter.getAttribute('data-armed')).toBeNull();
+    expect(hunter.querySelector('[data-part-layer]')).toBeNull();
+    expect(screen.queryByTestId('boss-stage-weapon')).toBeNull();
   });
 });
 
