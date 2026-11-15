@@ -1362,7 +1362,10 @@ async function caseHunterSliceB(browser) {
     await page.locator('[data-testid="roster-open-trees"]').click({ timeout: 15000 });
     let boardUp = false;
     for (let i = 0; i < 40 && !boardUp; i++) {
-      boardUp = await page.evaluate(() => /Fixer Board/.test(document.body.innerText)).catch(() => false);
+      // innerText is the RENDERED text — the board header is
+      // CSS-uppercased ("FIXER BOARD"), so match case-insensitively
+      // (the same trap slice (f)'s Marla assertion documented).
+      boardUp = await page.evaluate(() => /Fixer Board/i.test(document.body.innerText)).catch(() => false);
       if (!boardUp) await sleep(500);
     }
     if (!boardUp) {
@@ -1375,9 +1378,9 @@ async function caseHunterSliceB(browser) {
     }
     c.check('B2 trees stop reaches the Fixer board', boardUp);
     const trees = await page.evaluate(() => ({
-      board: /Fixer Board/.test(document.body.innerText),
+      board: /Fixer Board/i.test(document.body.innerText),
       respec: [...document.querySelectorAll('button')].some((b) => /respec/i.test(b.textContent)),
-      selectorDesc: /Explosives, armor break/.test(document.body.innerText),
+      selectorDesc: /Explosives, armor break/i.test(document.body.innerText),
     }));
     c.check('B2 trees stop shows the new hunter tree', trees.board);
     c.check('B2 respec remains on the trees stop', trees.respec);
