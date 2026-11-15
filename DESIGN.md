@@ -2776,3 +2776,40 @@ reshape brief's naming pass (slice (f)) and its hunter-voice work.
    kills, near-death saves, and streak completions — never a bark system,
    never on ordinary ticks, silent at defeat and death. Borderlands humor
    is character humor; the hunters are the characters.
+
+### 2026-11-15 — Cast B paintings; paintings only on stage (owner-ruled)
+
+Ruled by the owner across the painting selection and the slice (c)
+premise check, 2026-11-15. This entry sharpens §12 item 2 of the
+2026-11-14 reshape entry and supersedes the reshape brief §C's
+equipped-weapon-on-stage treatment.
+
+1. **Cast B is the shipped hunter set.** The four paintings the stage
+   and every hunter surface carry: **Vesper Cole** cache-touched (brim,
+   one arm and coat edge dissolving into glowing cache-energy shards,
+   one lit eye) · **Silas Boone** living ordnance (torso fused with a
+   bomb casing, shell pauldrons, fuse-and-gauge chest) · **Josie Lode**
+   a non-humanoid salvage machine (multi-limb junk-spider, open
+   storage-bin body, lamp eye on a stalk, grabber claws) · **Doc
+   Sutter** a walking workshop (scrap-golem, lit furnace-forge chest,
+   welding-mask faceplate with loupe optic). The human Cast A set and
+   the earlier texel-built figures are retired.
+2. **Paintings only on stage.** The stage figure is the hunter's
+   painting alone — its signature weapon is part of the character.
+   No compositor weapon, no segmented part rig, and no mounted-gear
+   layers ride the stage figure in either renderer (DOM or Pixi), on
+   the roam stage or the boss stage. The equipped weapon continues to
+   display on Gear, cards, and loadouts exactly as before; this
+   ruling governs the stage only. Stage FX (muzzle, grip, mass)
+   anchor to the painting's own manifest anchors, and the painting's
+   width law (its own frame and feet anchor) replaces the
+   armed-skeleton width law on stage.
+3. **Hunter voice: mechanism and copy shipped.** The §2.6 voice
+   mechanism (fixed pools, closed trigger list, no-repeat session
+   rotation, one line per moment, silence at defeat and death) is
+   built as ruled in the 2026-11-14 entry item 8. The first drafted
+   lines were vetoed by the owner on 2026-11-15 ("need to be more
+   clever and witty"); the rewritten v2 set was approved the same
+   day as written ("That's good", no vetoes) and is the shipped
+   copy — one line per hunter × trigger, mains only; the v2 file's
+   legendary-drop alternates are spares and stay unwired.

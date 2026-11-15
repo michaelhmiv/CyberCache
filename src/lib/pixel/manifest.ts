@@ -213,3 +213,24 @@ export function pixelBossSpriteForBoss(bossId: string | undefined): string | und
   const id = PIXEL_BOSS_SPRITES[bossId];
   return id && sprites.has(id) ? id : undefined;
 }
+
+/**
+ * Cache Hunter id (src/lib/hunters/hunters.ts) -> the hunter's Cast B
+ * whole painting (Cache Hunters slice (c), owner ruling 2026-11-15:
+ * paintings only on stage — the painting IS the stage figure, its
+ * signature weapon part of the character). Hunters are fixed
+ * identities, so each gets fixed art, like the bosses. Unknown ids
+ * resolve to undefined and stage callers keep their fallback.
+ */
+export const PIXEL_HUNTER_SPRITES: Record<string, string> = {
+  vesper: 'hunter-vesper-cole',
+  silas: 'hunter-silas-boone',
+  josie: 'hunter-josie-lode',
+  doc: 'hunter-doc-sutter',
+};
+
+export function pixelHunterSpriteForHunter(hunterId: string | undefined): string | undefined {
+  if (!hunterId) return undefined;
+  const id = PIXEL_HUNTER_SPRITES[hunterId];
+  return id && sprites.has(id) ? id : undefined;
+}

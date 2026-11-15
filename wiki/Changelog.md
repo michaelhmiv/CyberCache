@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-15 — The Cache Hunters take the stage
+
+- **Your hunter is a painting now** — the figure on the Home stage and in the boss arena is your active Cache Hunter painted whole: Vesper Cole, cache-touched, her arm and coat edge dissolving into glowing shards; Silas Boone, living ordnance with a bomb casing for a torso; Josie Lode, a salvage machine on spider limbs with her finds spilling from her bin; Doc Sutter, a walking workshop with a lit forge for a chest. The assembled suit of parts has retired from the stage. The weapon in each painting is the hunter's own signature piece; the weapon you have equipped keeps its exact numbers in the fight and is drawn on its card, in Gear, and in your loadouts, exactly as before. Switch your active hunter and the figure on the stage changes with it, mid-session, with no gap in the scene.
+- **The hunters have voices, used sparingly** — at the rarest moments of a run — a legendary drop, a boss kill, a save at death's edge, a streak completed — your hunter says one line, in the stage's own chip, and the moment never carries two. Ordinary ticks, common finds, and ordinary kills stay quiet, and a defeat is met with silence.
+
 ## 2026-11-14 — The stage iteration lands
 
 - **The repair bay, the vendor stall, and the calibration rig have insides now** — those three work-cycle set pieces shipped with their interiors blank white, so repairs, market listings, and shield calibrations all played in front of a white hole. The lift’s bay is a workshop wall with its tool board and cabinet, the stall’s window is its shaded back shelf, and the rig’s ring holds an instrument field — painted in the same hand and the same palette-256 form as the rest of the set. Nothing about the cycles, the seats, or the timings changed.
