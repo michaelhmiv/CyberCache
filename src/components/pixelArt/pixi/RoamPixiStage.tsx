@@ -3,6 +3,7 @@ import { usePresentationActive } from '@/hooks/usePresentationActive';
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
+import { activePainting } from '@/harness/paintingSwap';
 import {
   attachResumeProbeDomLifecycle,
   buildHeartbeatData,
@@ -213,6 +214,8 @@ interface Scene {
   aprops: { sprite: Sprite; index: number }[];
   hunterRoot: Container;
   hunterFrame: Container;
+  paintingSprite: Sprite | null;
+  paintingFeetX: number;
   parts: PartNode[];
   gear: GearNode[];
   weaponRoot?: Container;
@@ -855,6 +858,13 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const frameW = frameH * (SKELETON.frameWidth / SKELETON.frameHeight);
   const s = frameH / SKELETON.frameHeight;
   scene.hunterFrame.position.set(-PARTS_FEET_X * frameW, frameTop - groundYPx);
+  if (scene.paintingSprite) {
+    const paintH = frameH;
+    const paintW = paintH * (scene.paintingSprite.texture.width / scene.paintingSprite.texture.height);
+    scene.paintingSprite.width = paintW;
+    scene.paintingSprite.height = paintH;
+    scene.paintingSprite.position.set(PARTS_FEET_X * frameW - scene.paintingFeetX * paintW, 0);
+  }
   // ── Travel stride execution (Motion M2b) ──
   // While the beat drives, the stride layout — the M2a spec
   // sampled this frame, composed onto the 'roam' stance the beat
@@ -1377,10 +1387,11 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       }
       await Promise.all(warmJobs);
       if (cancelled) return;
-      const partNodes = await createPartNodes({ layout: initialModel.hunterLayout, partPalettes: look.partPalettes });
+      const paintingDef = activePainting();
+      const partNodes = paintingDef ? [] : await createPartNodes({ layout: initialModel.hunterLayout, partPalettes: look.partPalettes });
       // Gear textures (tinted via the same palette cache the DOM uses).
       const gearNodes: GearNode[] = [];
-      for (const item of initialProps.mountedGear) {
+      for (const item of paintingDef ? [] : initialProps.mountedGear) {
         const sprite = requirePixelSprite(item.spriteId);
         const src = item.tint
           ? paletteSpriteUrl(item.spriteId, sprite.url, item.tintKey!, item.tint)
@@ -1536,6 +1547,15 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       hunterRoot.addChild(hunterFrame);
       world.addChild(hunterRoot);
       for (const node of partNodes) hunterFrame.addChild(node.container);
+      let paintingSprite: Sprite | null = null;
+      if (paintingDef) {
+        const img = new Image();
+        img.src = paintingDef.src;
+        await img.decode();
+        paintingSprite = new Sprite(Texture.from(img));
+        paintingSprite.zIndex = 6;
+        hunterFrame.addChild(paintingSprite);
+      }
       for (const g of gearNodes) {
         g.sprite.zIndex = GEAR_PAINT_ORDER;
         hunterFrame.addChild(g.sprite);
@@ -1543,7 +1563,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       hunterFrame.sortableChildren = true;
       let weaponRoot: Container | undefined;
       let weaponSway: Container | undefined;
-      if (weaponTex && initialModel.hunterLayout.weapon) {
+      if (!paintingDef && weaponTex && initialModel.hunterLayout.weapon) {
         weaponRoot = new Container();
         weaponRoot.zIndex = 10; // WEAPON_PAINT_ORDER
         weaponSway = new Container();
@@ -1631,6 +1651,8 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         aprops,
         hunterRoot,
         hunterFrame,
+        paintingSprite,
+        paintingFeetX: paintingDef?.feetX ?? 0.5,
         parts: partNodes,
         gear: gearNodes,
         weaponRoot,
