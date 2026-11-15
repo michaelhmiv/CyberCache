@@ -1303,7 +1303,31 @@ async function caseHunterSliceB(browser) {
   try {
     await guestSignIn(page);
     await clickTab(page, 'HUNTER');
-    await page.waitForFunction(() => !!document.querySelector('[data-testid="hunter-section-hub"]'), null, { timeout: 30000 });
+    // A fresh guest can land under an overlay (the initial-bundle
+    // reveal, the deferred name prompt) that swallows the first
+    // tab tap; the tab cases that run later in a session never see
+    // it. Poll for the hub, and midway dismiss any overlay and tap
+    // again. On failure the check prints what the guest is stuck
+    // looking at instead of dying on a bare timeout.
+    let hubUp = false;
+    for (let i = 0; i < 40 && !hubUp; i++) {
+      hubUp = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-section-hub"]')).catch(() => false);
+      if (!hubUp) {
+        if (i === 12) {
+          await page.getByRole('button', { name: /^Collect$/ }).first().click({ timeout: 2000 }).catch(() => {});
+          await page.getByRole('button', { name: /Not now/i }).first().click({ timeout: 2000 }).catch(() => {});
+          await clickTab(page, 'HUNTER').catch(() => {});
+        }
+        await sleep(500);
+      }
+    }
+    if (!hubUp) {
+      const stuck = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '');
+      await shot(page, 'hunter-slice-b-stuck.png');
+      c.check('B5 guest reaches the Hunter hub', false, `stuck on: ${stuck.replace(/\s+/g, ' ').slice(0, 200)}`);
+      return c;
+    }
+    c.check('B5 guest reaches the Hunter hub', true);
 
     // B1: the hero plate is the fielded hunter (Vesper Cole by
     // default) — her name headlines and her painting is seated.
