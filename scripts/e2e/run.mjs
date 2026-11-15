@@ -1360,7 +1360,20 @@ async function caseHunterSliceB(browser) {
     // B2: the trees stop now shows Doc's Fixer board, respec on it,
     // and no tree selector (trees change at the Roster only).
     await page.locator('[data-testid="roster-open-trees"]').click({ timeout: 15000 });
-    await page.waitForFunction(() => /Fixer Board/.test(document.body.innerText), null, { timeout: 15000 });
+    let boardUp = false;
+    for (let i = 0; i < 40 && !boardUp; i++) {
+      boardUp = await page.evaluate(() => /Fixer Board/.test(document.body.innerText)).catch(() => false);
+      if (!boardUp) await sleep(500);
+    }
+    if (!boardUp) {
+      // Diagnostic: print what the stop actually shows (which
+      // board, or what screen) so a failure here is evidence, not
+      // a bare timeout.
+      const seen = await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => '');
+      console.log('  trees-stop diagnostic:', seen.replace(/\s+/g, ' ').slice(0, 320));
+      await shot(page, 'hunter-trees-diagnostic.png');
+    }
+    c.check('B2 trees stop reaches the Fixer board', boardUp);
     const trees = await page.evaluate(() => ({
       board: /Fixer Board/.test(document.body.innerText),
       respec: [...document.querySelectorAll('button')].some((b) => /respec/i.test(b.textContent)),
@@ -1375,7 +1388,12 @@ async function caseHunterSliceB(browser) {
     await page.locator('[data-testid="hunter-back-menu"]').click({ timeout: 15000 });
     await page.waitForFunction(() => !!document.querySelector('[data-testid="hunter-section-hub"]'), null, { timeout: 15000 });
     await page.locator('[data-testid="hub-door-wardrobe"]').click({ timeout: 15000 });
-    await page.waitForFunction(() => !!document.querySelector('[data-testid="wardrobe-console"]'), null, { timeout: 15000 });
+    let wardrobeUp = false;
+    for (let i = 0; i < 30 && !wardrobeUp; i++) {
+      wardrobeUp = await page.evaluate(() => !!document.querySelector('[data-testid="wardrobe-console"]')).catch(() => false);
+      if (!wardrobeUp) await sleep(500);
+    }
+    c.check('B3 wardrobe stop mounts', wardrobeUp);
     const wardrobe = await page.evaluate(() => ({
       channels: !!document.querySelector('[data-testid="wardrobe-channels"]'),
       skinRow: !!document.querySelector('[data-testid="wardrobe-skin-doc-standard-issue"]'),
