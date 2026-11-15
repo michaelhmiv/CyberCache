@@ -40,11 +40,14 @@ describe('Field Manual (HelpScreen)', () => {
     // [[Leaderboards-and-Streaks]]) = 321, +4 slice (a) (the
     // fielded-hunter notes in Endless-Mode, Actions-and-Occupations,
     // Reference-Areas and Reference each cross-reference
-    // [[Progression]]) = 325. Bump the pin in the same
-    // change as any wiki edit that moves the census.
+    // [[Progression]]) = 325, +1 slice (b) (Progression's
+    // Four-hunters note cross-references [[Skins and Cosmetics]];
+    // the Skins page's whole-skin rewrite trades its Standings
+    // link for a Collections link, net 0) = 326. Bump the pin in
+    // the same change as any wiki edit that moves the census.
     await waitFor(() => expect(wikiCorpusReady()).toBe(true));
-    expect(getWikiLinkCount()).toBe(325);
-    await waitFor(() => expect(screen.getByText('325')).toBeTruthy());
+    expect(getWikiLinkCount()).toBe(326);
+    await waitFor(() => expect(screen.getByText('326')).toBeTruthy());
   });
 
   it('converges the Links LCD to whatever count the corpus itself reports', async () => {
