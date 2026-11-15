@@ -57,9 +57,11 @@ describe('embedded Skill Trees (Profile) — respec reachable', () => {
   it('exposes the Respec button with its cost and the points summary', () => {
     render(<SkillTreeScreen embedded />);
     expect(screen.getByRole('button', { name: /respec/i })).toBeTruthy();
-    // Cost = total spent x 100cr, the cc_retrain rule.
+    // Cost = the FIELDED hunter's spent x 100cr, the cc_retrain rule
+    // (per-hunter retrain since reshape slice (a); the fixture's
+    // spends are all in the default fielded hunter Vesper's tree).
     expect(screen.getByText('300cr')).toBeTruthy();
-    expect(screen.getByText('Respec returns every spent point — cost 300cr (100cr per point spent).')).toBeTruthy();
+    expect(screen.getByText("Respec returns Vesper Cole's spent points — cost 300cr (100cr per point spent).")).toBeTruthy();
   });
 
   it('completing a respec refunds the points in the UI via the profile sync', async () => {
@@ -86,7 +88,7 @@ describe('embedded Skill Trees (Profile) — respec reachable', () => {
     });
     // All 5 earned points are available again, and respec is now free.
     expect(screen.getByText('Available').nextSibling?.textContent).toBe('5');
-    expect(screen.getByText('Respec returns every spent point — cost 0cr (100cr per point spent).')).toBeTruthy();
+    expect(screen.getByText("Respec returns Vesper Cole's spent points — cost 0cr (100cr per point spent).")).toBeTruthy();
   });
 
   it('one Respec click never calls retrain; the confirmation names the exact cost (audit HTR-07)', () => {

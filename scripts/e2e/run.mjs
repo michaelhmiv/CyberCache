@@ -1293,6 +1293,85 @@ async function caseMarketError(browser) {
   return c;
 }
 
+// ── Case: Cache Hunters slice (b) — the Hunter tab ──────────────
+// Brief checks B1/B2/B3/B5 against a FRESH GUEST session (the
+// guest context is the B5 condition by construction: everything
+// below must work with real data and no sign-in lock).
+async function caseHunterSliceB(browser) {
+  const c = new Case('hunter-tab-slice-b');
+  const { context, page } = await newGuestContext(browser);
+  try {
+    await guestSignIn(page);
+    await clickTab(page, 'HUNTER');
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="hunter-section-hub"]'), null, { timeout: 30000 });
+
+    // B1: the hero plate is the fielded hunter (Vesper Cole by
+    // default) — her name headlines and her painting is seated.
+    const hero = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="hunter-hero"]');
+      const fig = document.querySelector('[data-testid="hunter-hero-figure"]');
+      return { text: el ? el.textContent : '', fig: fig ? fig.getAttribute('src') : null };
+    });
+    c.check('B1 hero headlines the fielded hunter (guest)', /Vesper Cole/.test(hero.text), hero.text.slice(0, 80));
+    c.check('B1 hero seats the hunter painting', !!hero.fig && /hunter-vesper-cole/.test(hero.fig), String(hero.fig));
+
+    // B5/B2: the Roster shows all four hunters with real data.
+    await page.locator('[data-testid="hub-door-roster"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="roster-panel"]'), null, { timeout: 15000 });
+    const roster = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="roster-hunter-"]')].map((el) => el.getAttribute('data-testid')));
+    c.check('B5 guest sees all four roster plates', roster.length === 4, JSON.stringify(roster));
+
+    // B2: field Doc Sutter — the FIELDED chip moves to his plate.
+    await page.locator('[data-testid="roster-hunter-doc"]').click({ timeout: 15000 });
+    let fielded = false;
+    for (let i = 0; i < 30 && !fielded; i++) {
+      fielded = await page.evaluate(() => {
+        const el = document.querySelector('[data-testid="roster-hunter-doc"]');
+        return !!el && /Fielded/.test(el.textContent);
+      });
+      if (!fielded) await sleep(500);
+    }
+    c.check('B2 roster switch fields Doc Sutter', fielded);
+
+    // B2: the trees stop now shows Doc's Fixer board, respec on it,
+    // and no tree selector (trees change at the Roster only).
+    await page.locator('[data-testid="roster-open-trees"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => /Fixer Board/.test(document.body.innerText), null, { timeout: 15000 });
+    const trees = await page.evaluate(() => ({
+      board: /Fixer Board/.test(document.body.innerText),
+      respec: [...document.querySelectorAll('button')].some((b) => /respec/i.test(b.textContent)),
+      selectorDesc: /Explosives, armor break/.test(document.body.innerText),
+    }));
+    c.check('B2 trees stop shows the new hunter tree', trees.board);
+    c.check('B2 respec remains on the trees stop', trees.respec);
+    c.check('B2 no tree selector remains on the stop', !trees.selectorDesc);
+
+    // B3/B5: the Wardrobe wears wholes — Doc's skin row, no part
+    // channels, no sign-in lock for the guest, wear/remove works.
+    await page.locator('[data-testid="hunter-back-menu"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="hunter-section-hub"]'), null, { timeout: 15000 });
+    await page.locator('[data-testid="hub-door-wardrobe"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="wardrobe-console"]'), null, { timeout: 15000 });
+    const wardrobe = await page.evaluate(() => ({
+      channels: !!document.querySelector('[data-testid="wardrobe-channels"]'),
+      skinRow: !!document.querySelector('[data-testid="wardrobe-skin-doc-standard-issue"]'),
+      text: document.querySelector('[data-testid="wardrobe-console"]').textContent,
+    }));
+    c.check('B3 wardrobe lists whole skins for the fielded hunter', wardrobe.skinRow);
+    c.check('B3 no part-wearing surface remains on the stop', !wardrobe.channels);
+    c.check('B5 wardrobe carries no sign-in lock for a guest', !/Sign in to craft and wear/.test(wardrobe.text));
+    await page.locator('[data-testid="wardrobe-remove-doc-standard-issue"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="wardrobe-wear-doc-standard-issue"]'), null, { timeout: 15000 });
+    await page.locator('[data-testid="wardrobe-wear-doc-standard-issue"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="wardrobe-remove-doc-standard-issue"]'), null, { timeout: 15000 });
+    c.check('B3 wear/remove round-trips', true);
+    await shot(page, 'hunter-wardrobe-doc.png');
+  } finally {
+    await context.close().catch(() => {});
+  }
+  return c;
+}
+
 const CASES = {
   'enemy-presence': caseEnemyPresence,
   'tab-switch-budget': caseTabBudget,
@@ -1300,6 +1379,7 @@ const CASES = {
   'gear-at-scale': caseGearScale,
   'boss-stage': caseBossStage,
   'market-error-state': caseMarketError,
+  'hunter-tab-slice-b': caseHunterSliceB,
 };
 
 async function main() {

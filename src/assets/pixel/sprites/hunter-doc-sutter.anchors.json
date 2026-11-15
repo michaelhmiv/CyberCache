@@ -1,0 +1,29 @@
+{
+  "sprite": "hunter-doc-sutter",
+  "src": "work/doc-source-keyed-bg.png",
+  "out": "src/assets/pixel/sprites/hunter-doc-sutter.png",
+  "width": 163,
+  "height": 384,
+  "anchors": {
+    "feet": {
+      "x": 0.4903,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4797,
+      "y": 0.4889
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6292
+    },
+    "lootPoint": {
+      "x": 0.5883,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.3331,
+      "y": 0.7023
+    }
+  }
+}

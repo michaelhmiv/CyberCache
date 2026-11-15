@@ -1363,7 +1363,7 @@ export async function getExtractionState(): Promise<ChefExtractionStateResult> {
 }
 
 /** Idempotency nonce for one action-skill call — unique per tap, stable per send. */
-export function newActionSkillNonce(kind: 'select' | 'workshop'): string {
+export function newActionSkillNonce(kind: 'select' | 'workshop' | 'hunter'): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return `action-skill-${kind}:${random}`;
 }
@@ -1385,6 +1385,37 @@ export async function selectActionSkill(request: {
     '/action-skill/select',
     { method: 'POST', body: JSON.stringify(request) },
     'Chef action skill selection failed',
+  );
+}
+
+export interface ChefSetActiveHunterResult {
+  verified: true;
+  activeHunterId: string;
+  actionSkill: import('@/content/actionSkills').ActionSkillStateView;
+  /** The canonical profile snapshot after the switch — feed it to
+   *  syncVerifiedResult, then re-read items (the switch re-seats
+   *  the loadout server-side from the incoming hunter's saved
+   *  assignment). */
+  profile: Record<string, unknown>;
+  idempotentReplay?: boolean;
+}
+
+/**
+ * Field a different Cache Hunter (reshape slice (a)'s
+ * cc_set_active_hunter, slice (b)'s roster). The server saves the
+ * outgoing hunter's equipped set as their loadout assignment,
+ * equips the incoming hunter's, and collapses the action-skill
+ * selection to the new hunter's tree. Not an economy action — no
+ * guest gate server-side.
+ */
+export async function setActiveHunter(request: {
+  nonce: string;
+  hunterId: string;
+}): Promise<ChefSetActiveHunterResult> {
+  return endlessFetch<ChefSetActiveHunterResult>(
+    '/action-skill/set-hunter',
+    { method: 'POST', body: JSON.stringify(request) },
+    'Chef hunter switch failed',
   );
 }
 

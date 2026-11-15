@@ -88,6 +88,10 @@ export interface ProfileRecordTelemetryProps {
   /** Account status line ('Verified account' / 'Guest account' / …). */
   verifiedLabel: string;
   accountVerified: boolean;
+  /** The fielded Cache Hunter display field (reshape slice (b)):
+   *  "{Hunter name} · {Tree}". Every metric on this record stays
+   *  account-keyed — this field only names who is in the field. */
+  fieldedHunterLabel?: string;
   /** Overall research studied percent (completed / total courses), null until the Chef state loads. */
   researchStudiedPct: number | null;
   /** The active enrollment for the channel note, null when not enrolled. */
@@ -280,6 +284,14 @@ export const ProfileRecordTelemetry: React.FC<ProfileRecordTelemetryProps> = (pr
               <TmLed lit color={TM_CYAN} size={8} />
               <span className="text-[11px] font-bold uppercase" style={{ ...tmMonoStyle, color: TM_MUT }}>
                 Research {props.researchStudiedPct}% Studied
+              </span>
+            </span>
+          )}
+          {props.fieldedHunterLabel && (
+            <span className="flex items-center gap-1.5" data-testid="profile-fielded-hunter">
+              <TmLed lit color={TM_AMBER} size={8} />
+              <span className="text-[11px] font-bold uppercase" style={{ ...tmMonoStyle, color: TM_MUT }}>
+                Fielded {props.fieldedHunterLabel}
               </span>
             </span>
           )}
