@@ -1427,7 +1427,7 @@ export function processRoamingClaim(
             // AL-1 (0070): an event find — the event is the provenance.
             stampClaimDropReceipt(gear, { via: 'event', context: def.id });
             generatedItems.push(gear);
-            pushGearFeed(gear, 'grateful scavenger');
+            pushGearFeed(gear, 'grateful Pell');
           }
         } else {
           creditsFraction += 12 + eventRng() * 8;
