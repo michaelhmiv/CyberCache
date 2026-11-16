@@ -15,6 +15,22 @@ lists every maker's Parts Crate and Signature Order with its claim state
 (claimable, already claimed, or the rank it needs), so the week's
 business is one tap from the rail.
 
+## The founders
+
+Every maker is one person's outfit, and the Rep Desk deals with you the
+way the founder built it:
+
+- **Redline — Della Voss.** “It only gets faster.”
+- **Ironwood — Amos Thorne.** “Ironwood takes its time. Once.”
+- **BlastForge — Hollis Brandt.** “Subtlety was not in the budget.”
+- **Prismatek — Iris Calloway.** “Every element, accounted for.”
+- **ThrowTech — Tobin Larkin.** “Built to be left behind.”
+- **HelixWorks — Ada Kessler.** “No two alike. All of them calibrated.”
+
+The same two lines ride every gun card of that maker's work, under the
+Maker row — the founder's name and the house slogan, straight from the
+factory def.
+
 ## Earning standing
 
 Two ways in:

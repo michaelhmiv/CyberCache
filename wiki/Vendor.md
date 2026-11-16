@@ -11,7 +11,8 @@ You'll find the vendor as a stop on the Market rail. The stop opens on
 the buy counter; a dashed **Sell to Vendor — Buyback** row at the top of
 the stop opens the buyback desk. Standing with the makers has moved out
 of the stall entirely — the [[Manufacturer Standing|Rep Desk]] is its
-own stop on the same rail. Every item on the counter is one compact row: its icon,
+own stop on the same rail, where each maker's card is headed by its
+founder's name and house slogan. Every item on the counter is one compact row: its icon,
 its family and what it does, how many you already own, and the Buy
 button with its price.
 

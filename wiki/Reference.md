@@ -48,14 +48,14 @@ Base stats below are the frame every roll starts from, before manufacturer bias,
 
 ### Manufacturers
 
-| Manufacturer | Identity | Baked-in mechanic | Stat bias |
-| --- | --- | --- | --- |
-| **Redline** | Attack speed, ramping damage, sustained DPS | Attack speed +15% baked into every roll; its ramping damage is folded into base damage (+8%) | Attack Speed ×1.15, Base Damage ×0.95 |
-| **Ironwood** | Crits, precision, boss killing | High crit chance/damage; strong single-target modifiers (+20% crit damage vs bosses) | Crit Chance ×1.2, Crit Damage ×1.25, Base Damage ×1.05 |
-| **BlastForge** | Explosions, splash, stagger, armor cracking | Explosive damage helps armor break and boss phase checks (+25% armor damage) | Armor Damage ×1.25, Base Damage ×1.1, Attack Speed ×0.9 |
-| **Prismatek** | Elemental specialization | Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored | Status Chance ×1.3, Status Damage ×1.3, Base Damage ×0.95 |
-| **ThrowTech** | Deployables and disposable tech | Deployable-tech frames: +20% wave damage baked into every roll | Wave Damage ×1.2, Base Damage ×0.9 |
-| **HelixWorks** | Modular, flexible, better stat variance | Modular frames: +10 roll quality floor on every roll | Base Damage ×1 |
+| Manufacturer | Founder | Slogan | Identity | Baked-in mechanic | Stat bias |
+| --- | --- | --- | --- | --- | --- |
+| **Redline** | Della Voss | It only gets faster. | Attack speed, ramping damage, sustained DPS | Attack speed +15% baked into every roll; its ramping damage is folded into base damage (+8%) | Attack Speed ×1.15, Base Damage ×0.95 |
+| **Ironwood** | Amos Thorne | Ironwood takes its time. Once. | Crits, precision, boss killing | High crit chance/damage; strong single-target modifiers (+20% crit damage vs bosses) | Crit Chance ×1.2, Crit Damage ×1.25, Base Damage ×1.05 |
+| **BlastForge** | Hollis Brandt | Subtlety was not in the budget. | Explosions, splash, stagger, armor cracking | Explosive damage helps armor break and boss phase checks (+25% armor damage) | Armor Damage ×1.25, Base Damage ×1.1, Attack Speed ×0.9 |
+| **Prismatek** | Iris Calloway | Every element, accounted for. | Elemental specialization | Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored | Status Chance ×1.3, Status Damage ×1.3, Base Damage ×0.95 |
+| **ThrowTech** | Tobin Larkin | Built to be left behind. | Deployables and disposable tech | Deployable-tech frames: +20% wave damage baked into every roll | Wave Damage ×1.2, Base Damage ×0.9 |
+| **HelixWorks** | Ada Kessler | No two alike. All of them calibrated. | Modular, flexible, better stat variance | Modular frames: +10 roll quality floor on every roll | Base Damage ×1 |
 
 ### Elements
 

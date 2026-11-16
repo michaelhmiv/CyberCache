@@ -4,6 +4,8 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-16 — The Cache Hunters take the field
 
+- **The makers have faces now** — every manufacturer is one person's outfit, and the game finally says whose: Della Voss founded Redline ("It only gets faster."), Amos Thorne founded Ironwood ("Ironwood takes its time. Once."), Hollis Brandt founded BlastForge ("Subtlety was not in the budget."), Iris Calloway founded Prismatek ("Every element, accounted for."), Tobin Larkin founded ThrowTech ("Built to be left behind."), and Ada Kessler founded HelixWorks ("No two alike. All of them calibrated."). The founder's name and the house slogan ride every gun card of that maker's work, head the maker's card at the Rep Desk, and stand in the Field Manual's Manufacturers table. Names and words only — no gun, price, or drop changed.
+
 - **The Hunter tab is theirs now** — opening the Hunter tab puts your fielded hunter front and center: their painting on the hero plate, their name, their tree, and the base perk they bring to every fight. The roster fields any of the four — Vesper Cole, Silas Boone, Josie Lode, and Doc Sutter — with one tap, and the skill trees in front of you are always the fielded hunter's own. The old parts console is retired: the Wardrobe wears whole skins now, painted the way the hunters are.
 - **Your hunter is a painting now** — the figure on the Home stage and in the boss arena is your active Cache Hunter painted whole: Vesper Cole, cache-touched, her arm and coat edge dissolving into glowing shards; Silas Boone, living ordnance with a bomb casing for a torso; Josie Lode, a salvage machine on spider limbs with her finds spilling from her bin; Doc Sutter, a walking workshop with a lit forge for a chest. The assembled suit of parts has retired from the stage. The weapon in each painting is the hunter's own signature piece; the weapon you have equipped keeps its exact numbers in the fight and is drawn on its card, in Gear, and in your loadouts, exactly as before. Switch your active hunter and the figure on the stage changes with it, mid-session, with no gap in the scene.
 - **The hunters have voices, used sparingly** — at the rarest moments of a run — a legendary drop, a boss kill, a save at death's edge, a streak completed — your hunter says one line, in the stage's own chip, and the moment never carries two. Ordinary ticks, common finds, and ordinary kills stay quiet, and a defeat is met with silence.
@@ -394,9 +396,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 316 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 318 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-16** — 6 merges
+**2026-11-16** — 8 merges
 
 - #587 — Cache Hunters slice (b): the Hunter tab — roster, hero, per-hunter trees, whole-skin wardrobe
 - #588 — Cache Hunters slice (c): painted hunter on stage + voice pools
@@ -404,6 +406,8 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #590 — A6: Med Kit / Shield Cell text matches the roaming engine (copy only)
 - #591 — 0098: leaderboard counts only hunters with a kill
 - #592 — Rulings batch-3: boss panel stop transition, C1-01 forge anvil staging, crusher wedge + skimmer wreck repaints
+- #595 — Cache Hunters slice (e): the deferrable starting-hunter pick
+- #596 — Cache Hunters slice (d): Workshop whole-skin crafting + part-set conversion
 
 **2026-11-15** — 2 merges
 
