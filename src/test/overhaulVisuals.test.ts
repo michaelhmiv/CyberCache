@@ -390,6 +390,14 @@ describe('performance + payload budgets (§4.9)', () => {
     // (family +16,226 B; white compresses, paint does not).
     // Census after: single digits, in family. The ceiling
     // literal follows the total +1.
-    expect(total).toBeLessThan(36_220_493 + 1);  });
+    // Cache Hunters slice (b) (2026-11-15): the four Cast B hunter
+    // paintings land (owner ruling 2026-11-15, DESIGN.md §12) —
+    // NEW manifest sprites, kind 'character', at their file
+    // dimensions (384 tall, the pixel-key canonical height):
+    // hunter-vesper-cole 141,122 B; hunter-silas-boone 134,741 B;
+    // hunter-josie-lode 121,478 B; hunter-doc-sutter 106,110 B —
+    // family +503,451 B. Manifest total 36,220,493 → 36,723,944 B;
+    // the ceiling literal follows the total +1.
+    expect(total).toBeLessThan(36_723_944 + 1);  });
 
 });

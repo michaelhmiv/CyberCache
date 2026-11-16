@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-16 — The Cache Hunters take the field
+
+- **The Hunter tab is theirs now** — opening the Hunter tab puts your fielded hunter front and center: their painting on the hero plate, their name, their tree, and the base perk they bring to every fight. The roster fields any of the four — Vesper Cole, Silas Boone, Josie Lode, and Doc Sutter — with one tap, and the skill trees in front of you are always the fielded hunter's own. The old parts console is retired: the Wardrobe wears whole skins now, painted the way the hunters are.
+- Under the hood: the standings board's kill filter now lives in the game's own code as well as its database, so the two cannot drift apart.
+
 ## 2026-11-15 — The board counts hunters
 
 - **The standings board counts hunters now** — the global board used to list every profile that ever opened the game, hundreds of empty names deep. It now shows only hunters with at least one kill to their name, and the field size it reports counts the same field you are ranked in. Nobody was removed from anything — the board simply ranks the hunters who have hunted.
