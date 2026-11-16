@@ -16,9 +16,9 @@ import {
 import {
   ACTION_SKILL_DEFS,
   ACTION_SKILL_CHARGE_MAX,
-  NO_KEYSTONE_NOTE,
   type ActionSkillStateView,
 } from '@/content/actionSkills';
+import { hunterById, treeForHunter } from '@/lib/hunters/hunters';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import { Bolts, PlateFootStrip } from '@/components/profile/HunterPlates';
 import {
@@ -32,33 +32,45 @@ import {
 } from '@/components/profile/hunterPlateTheme';
 
 /**
- * ActionSkillPicker — the ONE active signature choice (0030). The
- * server derives qualification from skill spends + the equipped
- * class mod; this picker only sends the player's pick. It lives
- * here, where respec happens — changing keystones changes what can
- * be picked, and a respec that drops the selected keystone clears
- * the signature server-side.
+ * ActionSkillPicker — the FIELDED hunter's signature plate (0030,
+ * reshape slice (b)). The selection is the active hunter's
+ * signature (brief §2.5: switching hunters collapses the selection
+ * server-side), so this plate presents exactly one signature: the
+ * fielded hunter's. The server derives qualification from that
+ * hunter's skill spends + the equipped class mod; the plate only
+ * sends the player's pick (select this tree, or clear). Charge is
+ * one shared pool across hunters. It lives here, where respec
+ * happens — a respec that drops the keystone clears the signature
+ * server-side.
  */
 const ActionSkillPicker: React.FC = () => {
   const [view, setView] = useState<ActionSkillStateView | null>(null);
   const [busy, setBusy] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const hunter = hunterById(activeHunterId);
+  const tree = treeForHunter(activeHunterId);
 
   const load = useCallback(() => {
     getActionSkillState()
       .then((r) => setView(r.actionSkill))
       .catch(() => { /* no picker without the server's word */ });
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, activeHunterId]);
 
   if (!view) return null;
+  const sig = view.signatures.find((s) => s.tree === tree);
+  if (!sig) return null;
+  const def = ACTION_SKILL_DEFS[tree];
+  const visual = getSkillTreeVisual(tree);
+  const isActive = view.selected === tree;
 
-  const pick = async (tree: SkillTreeType | null) => {
+  const pick = async (next: SkillTreeType | null) => {
     if (busy) return;
     setBusy(true);
     setPickError(null);
     try {
-      const result = await selectActionSkill({ nonce: newActionSkillNonce('select'), tree });
+      const result = await selectActionSkill({ nonce: newActionSkillNonce('select'), tree: next });
       setView(result.actionSkill);
     } catch (error) {
       setPickError(error instanceof Error ? error.message : 'Selection failed');
@@ -80,51 +92,41 @@ const ActionSkillPicker: React.FC = () => {
             </div>
           )}
         </div>
-        {view.qualified.length === 0 ? (
+        {!sig.qualified ? (
           <div className="text-[11px] leading-snug" style={{ color: BONE_FAINT }} data-testid="action-skill-picker-none">
-            {NO_KEYSTONE_NOTE}
+            No action skill yet — own the {String(tree)} keystone to unlock {hunter.name}&apos;s signature
           </div>
         ) : (
           <>
             <div className="text-[11px] leading-snug" style={{ color: BONE_FAINT }}>
-              Owning a tree&apos;s keystone unlocks its signature. Pick ONE active signature — it charges through boss attempts and endless fights (Fixers also charge at the benches and the repair bay).
+              {hunter.name}&apos;s signature — charges through boss attempts and endless fights (Fixers also charge at the benches and the repair bay)
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {view.qualified.map((tree) => {
-                const def = ACTION_SKILL_DEFS[tree];
-                const visual = getSkillTreeVisual(tree);
-                const isActive = view.selected === tree;
-                return (
-                  <button
-                    key={tree}
-                    type="button"
-                    data-testid={`action-skill-pick-${tree}`}
-                    onClick={() => void pick(isActive ? null : tree)}
-                    disabled={busy}
-                    className="relative min-h-[44px] overflow-hidden p-2.5 pb-3.5 text-left disabled:opacity-50"
-                    style={{
-                      border: '2px solid #000',
-                      background: 'linear-gradient(158deg, #1D1811 0%, #0C0A08 100%)',
-                      boxShadow: isActive
-                        ? `3px 3px 0 rgba(0,0,0,0.7), inset 0 0 0 2px ${AMBER}`
-                        : '3px 3px 0 rgba(0,0,0,0.7)',
-                    }}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <PxIcon name={visual.sigil} size={13} style={{ color: visual.color }} />
-                      <span className="text-xs font-black" style={{ color: BONE }}>{def.name}</span>
-                    </div>
-                    <div className="mt-0.5 text-[11px] leading-snug" style={{ color: BONE_FAINT }}>{def.summary}</div>
-                    <div className="mt-1 text-[11px] font-black uppercase" style={{ color: visual.color }}>
-                      {isActive ? 'Active — tap to clear' : `${tree} signature`}
-                    </div>
-                    {/* The tree's color rides the foot strip — never
-                        a side bar (Arena Plates law). */}
-                    <PlateFootStrip color={visual.color} height={3} />
-                  </button>
-                );
-              })}
-            </div>
+            <button
+              type="button"
+              data-testid={`action-skill-pick-${tree}`}
+              onClick={() => void pick(isActive ? null : tree)}
+              disabled={busy}
+              className="relative block min-h-[44px] w-full overflow-hidden p-2.5 pb-3.5 text-left disabled:opacity-50"
+              style={{
+                border: '2px solid #000',
+                background: 'linear-gradient(158deg, #1D1811 0%, #0C0A08 100%)',
+                boxShadow: isActive
+                  ? `3px 3px 0 rgba(0,0,0,0.7), inset 0 0 0 2px ${AMBER}`
+                  : '3px 3px 0 rgba(0,0,0,0.7)',
+              }}
+            >
+              <div className="flex items-center gap-1.5">
+                <PxIcon name={visual.sigil} size={13} style={{ color: visual.color }} />
+                <span className="text-xs font-black" style={{ color: BONE }}>{def.name}</span>
+              </div>
+              <div className="mt-0.5 text-[11px] leading-snug" style={{ color: BONE_FAINT }}>{def.summary}</div>
+              <div className="mt-1 text-[11px] font-black uppercase" style={{ color: visual.color }}>
+                {isActive ? 'Active — tap to clear' : `${String(tree)} signature — tap to select`}
+              </div>
+              {/* The tree's color rides the foot strip — never
+                  a side bar (Arena Plates law). */}
+              <PlateFootStrip color={visual.color} height={3} />
+            </button>
             {pickError && (
               <div role="alert" className="text-[11px] font-black uppercase text-red">{pickError}</div>
             )}
@@ -152,16 +154,23 @@ const nodeTone = (node: SkillNode, isAvailable: boolean, isMaxed: boolean) => {
 };
 
 export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
-  const [activeTree, setActiveTree] = useState(SkillTreeType.Gunslinger);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [pendingNodeId, setPendingNodeId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const player = usePlayerStore();
   const skillStore = useSkillStore();
 
-  // Budget points spent — weighted by listed cost (audit HTR-01), so
-  // Available, the spend gate, and the Respec quote all match the server.
-  const pointsSpent = skillStore.getSpentBudget();
+  // The board is the FIELDED hunter's tree (reshape slice (b),
+  // brief check B2): there is no tree selector on this stop —
+  // switching trees means switching hunters, at the Roster stop.
+  const activeHunter = hunterById(skillStore.activeHunterId);
+  const activeTree = treeForHunter(skillStore.activeHunterId);
+
+  // Budget points spent in the ACTIVE hunter's pool — weighted by
+  // listed cost (audit HTR-01), per-hunter since slice (a) — so
+  // Available, the spend gate, and the Respec quote all match the
+  // server (cc_retrain retrains this hunter's pool only).
+  const pointsSpent = skillStore.getActiveSpentBudget();
   const pointsEarned = Math.max(0, player.level - 1);
   const pointsAvailable = Math.max(0, pointsEarned - pointsSpent);
   const nodes = getSkillTreeNodes(activeTree);
@@ -266,7 +275,9 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   // embedded (Profile) — which suppressed both and made the working
   // cc_retrain flow unreachable. They now render in both modes, with
   // the exact cost semantics of the original header: cc_retrain
-  // charges the weighted spent total × 100cr server-side.
+  // charges the ACTIVE hunter's weighted spent total × 100cr
+  // server-side (per-hunter retrain, slice (a)) — pointsSpent here
+  // is that same pool, so the quote and the charge agree.
   const respecButton = (
     <button
       onClick={respec}
@@ -328,67 +339,26 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
           what spending costs before the tap. One explainer line in
           both render modes, matching the shipped math exactly:
           pointsEarned = level − 1 (1 per level), a node's cost is
-          spent from its inspect panel, and cc_retrain returns every
-          spent point at a cost of pointsSpent × 100cr. */}
+          spent from its inspect panel, and cc_retrain returns this
+          hunter's spent points at a cost of pointsSpent × 100cr. */}
       <div className="text-[11px] leading-snug text-text-muted">
-        Skill points come from levels — 1 per level ({pointsEarned} earned at level {player.level}). Tap a node to inspect it and spend its listed cost. Respec returns every spent point and costs 100cr per point spent.
+        Skill points come from levels — 1 per level ({pointsEarned} earned at level {player.level}). Tap a node to inspect it and spend its listed cost. Respec returns every spent point and costs 100cr per point spent. Each hunter holds their own pool — switch hunters at the Roster.
       </div>
       {embedded && (
         <div className="flex items-center justify-between gap-3">
-          <div className="text-[11px] leading-snug text-text-muted">Respec returns every spent point — cost {pointsSpent * 100}cr (100cr per point spent).</div>
+          <div className="text-[11px] leading-snug text-text-muted">Respec returns {activeHunter.name}&apos;s spent points — cost {pointsSpent * 100}cr (100cr per point spent).</div>
           {respecButton}
         </div>
       )}
 
       <ActionSkillPicker />
 
-      {/* Tree selector — plates, one per tree. The tree's color is
-          data (its identity): it rides the label and the foot
-          strip, never a side bar. The active plate takes an inset
-          frame in its own color; each plate gauges its spent
-          count on the right. */}
-      <div className="space-y-2">
-        {TREES.map((tree) => {
-          const treeSpentPts = getSkillTreeNodes(tree.id).reduce((sum, n) => sum + (skillStore.spent[n.id] || 0), 0);
-          const isActiveTree = activeTree === tree.id;
-          return (
-            <button
-              key={tree.id}
-              type="button"
-              onClick={() => {
-                setActiveTree(tree.id);
-                setSelectedNodeId(null);
-              }}
-              className="relative block min-h-[44px] w-full overflow-hidden px-3.5 pb-3.5 pt-2.5 text-left transition-transform active:scale-[0.99]"
-              style={{
-                ...plateShell,
-                boxShadow: isActiveTree
-                  ? `5px 5px 0 rgba(0,0,0,0.75), inset 0 0 0 2px ${tree.color}`
-                  : plateShell.boxShadow,
-              }}
-            >
-              <div className="relative flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-[13px] font-black uppercase tracking-wide" style={{ color: tree.color }}>{tree.label}</div>
-                  <div className="mt-0.5 text-[11px] leading-snug" style={{ color: BONE_FAINT }}>{tree.desc}</div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className="text-[19px] font-black leading-none" style={{ color: BONE }}>{treeSpentPts}</div>
-                  <div className="mt-0.5 text-[11px] font-bold uppercase leading-none" style={{ color: BONE_FAINT }}>pts in</div>
-                </div>
-              </div>
-              <PlateFootStrip color={tree.color} height={isActiveTree ? 4 : 3} />
-            </button>
-          );
-        })}
-      </div>
-
       <div className="relative" style={plateShell}>
         <Bolts />
         <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '2px solid rgba(163,152,134,0.28)' }}>
           <div>
             <div className="text-[13px] font-black uppercase tracking-wide" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
-            <div className="mt-0.5 text-[11px]" style={{ color: BONE_FAINT }}>Horizontal scroll is intentional on mobile. Tap a node to inspect or spend.</div>
+            <div className="mt-0.5 text-[11px]" style={{ color: BONE_FAINT }}>{activeHunter.name}&apos;s tree · {activeHunter.basePerkName} base perk · tap a node to inspect or spend</div>
           </div>
           {/* The tree sigil is decorative (QC A7: an unexplained red
               glyph at the board's top-right read as a button). It now

@@ -15,7 +15,7 @@
  * HunterLookView) fetched by LeaderboardsScreen. Race earnings
  * auto-pay by settlement — no claim affordance exists here.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
 import { resolveLookView } from '@/lib/pixel/lookResolution';
@@ -54,6 +54,9 @@ const weekRangeLabel = (startIso: string, endsAtIso: string): string => {
 };
 
 const METRICS = Object.keys(METRIC_SHORT) as LeaderboardMetric[];
+
+/** Rows the global board shows on All Time before the expand control. */
+export const ALL_TIME_COLLAPSED_ROWS = 10;
 
 const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
   { id: 'all_time', label: 'ALL TIME' },
@@ -109,7 +112,11 @@ export const ConsoleHead: React.FC<{
    *  already prints the stop's name, so the head drops its own
    *  title row (every header prints once) and keeps the LCD bank. */
   bare?: boolean;
-}> = ({ week, totalPlayers, bestRank, dropBuff, bare = false }) => (
+  /** The viewer's fielded Cache Hunter (reshape slice (b)):
+   *  "{Hunter name} · {Tree}". A display field only — every board
+   *  metric stays account-keyed. */
+  fieldedHunter?: string;
+}> = ({ week, totalPlayers, bestRank, dropBuff, bare = false, fieldedHunter }) => (
   <Panel testId="standings-console-head">
     {!bare && (
       <>
@@ -146,6 +153,16 @@ export const ConsoleHead: React.FC<{
       <div className="mt-2 flex items-baseline justify-between" style={{ ...monoStyle, fontSize: 11, color: FAINT }}>
         <span>WEEK WINDOW</span>
         <span style={{ color: MUT }}>{weekRangeLabel(week.start, week.ends_at).toUpperCase()}</span>
+      </div>
+    )}
+    {fieldedHunter && (
+      <div
+        className="mt-2 flex items-baseline justify-between"
+        style={{ ...monoStyle, fontSize: 11, color: FAINT }}
+        data-testid="standings-fielded-hunter"
+      >
+        <span>FIELDED</span>
+        <span style={{ color: MUT }}>{fieldedHunter.toUpperCase()}</span>
       </div>
     )}
   </Panel>
@@ -253,7 +270,21 @@ export const BoardConsole: React.FC<{
 }) => {
   const leaderValue = entries.length > 0 ? entries[0].value : 0;
   const unit = channelUnit(metric);
-  const meInEntries = myPlayerId != null && entries.some((e) => e.player_id === myPlayerId);
+  // All Time collapse (owner ruling 2026-11-15): the all-time board
+  // runs to the fetch limit (100 rows) and buried the weekly races
+  // below it under a long scroll. On All Time it now opens on the
+  // top 10 with an in-place expand control; WEEK / DAY keep their
+  // full list. The pinned MY READING foot keys off the SHOWN rows,
+  // so a viewer cut off by the collapse still sees their standing.
+  // Expansion is keyed to the channel+period it was opened on, so
+  // switching channel or period lands back on the collapsed top 10
+  // without an effect resetting state.
+  const boardKey = `${metric}:${period}`;
+  const [expansion, setExpansion] = useState<{ key: string; open: boolean }>({ key: '', open: false });
+  const expanded = expansion.key === boardKey && expansion.open;
+  const collapsible = period === 'all_time' && entries.length > ALL_TIME_COLLAPSED_ROWS;
+  const shownEntries = collapsible && !expanded ? entries.slice(0, ALL_TIME_COLLAPSED_ROWS) : entries;
+  const meInEntries = myPlayerId != null && shownEntries.some((e) => e.player_id === myPlayerId);
   return (
     <Panel testId="standings-board-console">
       <PanelLabel label="Global board" right={totalPlayers != null ? `FIELD ${totalPlayers}` : undefined} />
@@ -359,7 +390,7 @@ export const BoardConsole: React.FC<{
             </div>
           </div>
         ) : (
-          entries.map((entry, i) => (
+          shownEntries.map((entry, i) => (
             <div key={entry.player_id} style={i > 0 ? { borderTop: '1px solid rgba(58,52,43,0.55)' } : undefined}>
               <BoardRow
                 entry={entry}
@@ -373,6 +404,26 @@ export const BoardConsole: React.FC<{
           ))
         )}
       </div>
+      {collapsible && (
+        <button
+          type="button"
+          data-testid="standings-board-expand"
+          aria-expanded={expanded}
+          onClick={() => setExpansion({ key: boardKey, open: !expanded })}
+          className="mt-2 flex w-full items-center justify-center gap-2 px-2"
+          style={{
+            minHeight: 48,
+            border: `1px solid ${STEEL_DARK}`,
+            background: 'linear-gradient(180deg, #050403 0%, #0A0806 100%)',
+            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.85)',
+          }}
+        >
+          <Led lit color={GOLD} size={7} />
+          <span style={{ ...monoStyle, fontSize: 11, color: GOLD, letterSpacing: '0.12em' }}>
+            {expanded ? `SHOW TOP ${ALL_TIME_COLLAPSED_ROWS}` : `SHOW ALL ${entries.length} HUNTERS`}
+          </span>
+        </button>
+      )}
       {/* My reading, pinned at the foot when the shown entries
           exclude the viewer — the real /leaderboard/me payload. */}
       {myRank && !meInEntries && (

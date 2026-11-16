@@ -20,6 +20,12 @@ Levels buy power (skill points, Cache Rank tokens, base HP), not permission: [[A
 
 Your progress is glanceable without opening your profile: Home's **Now** feed carries your level progress alongside your current activity, boss progress, and best weapon (see [[The Board]]).
 
+## Four hunters, one account
+
+You field one of four **Cache Hunters** at a time — **Vesper Cole** (Gunslinger), **Silas Boone** (Demolition), **Josie Lode** (Scavenger), and **Doc Sutter** (Fixer). Switch at **Hunter → Roster**: each hunter's plate shows their painting, tree, base perk, and their own pool's spent and unspent points.
+
+Switching is a change of who is in the field, not a new character: your **level and XP are one shared account level**, and the **arsenal is shared** — every weapon, legendaries included, stays in the one pool. What each hunter keeps separately is their **skill pool** (below), their **loadout** (switching saves the outgoing hunter's equipped set and equips the incoming hunter's saved set; the belt is shared), and their **look** (see [[Skins and Cosmetics]]). The action skill you bring to a fight is your fielded hunter's signature, charged from one shared pool. Cache Rank applies to whichever hunter is fielded.
+
 ## Skill points and the four trees
 
 Your skill-point budget is **your level − 1**: a level 1 hunter has no points, and every level after that earns exactly one. The budget is **per hunter** — each of the four Cache Hunters holds their own pool of up to 99 points, spent only in their own tree, and points never transfer between hunters. Each tree belongs to one hunter:

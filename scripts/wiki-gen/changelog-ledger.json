@@ -32,6 +32,10 @@
         {
           "number": 585,
           "title": "Cache Hunters slice (a): per-hunter pools, loadouts, binding, conversion (migration 0097)"
+        },
+        {
+          "number": 586,
+          "title": "Slice (f): the naming pass — Marla Quill, Harrow + boss dossiers, clash pass, Tech Fragments"
         }
       ]
     },

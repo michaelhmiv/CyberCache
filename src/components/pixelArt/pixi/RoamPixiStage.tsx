@@ -12,13 +12,13 @@ import {
 } from '@/lib/pixel/resumeProbe';
 import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
 import { CritFlash, DamageNumber, LootBeam } from '../PixelFx';
+import { RoamHunterVoice } from '../HunterVoiceChip';
 import { DropRiseIcon } from '@/components/dashboard/LiveTurfDiorama';
 import { dropRiseBeamColor } from '@/lib/pixel/dropColors';
 import { StageRise, ROAM_DROP_LIFT_PX } from '../StageRise';
 import { LootMoment } from '../LootMoment';
-import { PARTS_FEET_X, PART_POSES, SKELETON, type PartSetDef } from '@/lib/pixel/parts';
-import { layoutPartSet, type PartSetLayout, type PartsWeaponFractions } from '@/lib/pixel/partsCompositor';
-import { composeStridePose, sampleStride } from '@/lib/pixel/strideCycle';
+import { SKELETON } from '@/lib/pixel/parts';
+import { sampleStride } from '@/lib/pixel/strideCycle';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -31,28 +31,19 @@ import {
 import {
   DEG,
   STAGE_RESOLUTION,
-  applyPartPose,
-  applyPartPoseInstant,
   canvasTexture,
   circleTexture,
-  createPartNodes,
   loadTexture,
   nearest,
   radialTexture,
   ringTexture,
   solidTexture,
   starTexture,
-  tickPartNodes,
   tracerTexture,
-  weaponTextureForWeapon,
-  type PartNode,
 } from './stageCore';
-import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
-import { useLoadoutStore } from '@/store';
+import { useLoadoutStore, useSkillStore } from '@/store';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
-import { resolveGearMount, GEAR_PAINT_ORDER, type MountedGearItem } from '@/lib/pixel/gearMounts';
-import { armedActorExtents, fitArmedActorHeight, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
-import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
+import { fitPaintedActorHeight } from '@/lib/pixel/paintedStage';
 import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
 import { containFit, vehiclePlateKeyFor, vehiclePlateSpriteIds, type VehiclePlateArtInput } from '@/lib/pixel/vehiclePlate';
 import { paletteSpriteUrl, type PaletteSpec } from '@/lib/pixel/paletteSwap';
@@ -103,12 +94,14 @@ import type { Weapon } from '@/types/items';
  *  - the vista: one master background painting (cover + the DOM
  *    stage's own drift track sampled per frame) with the scene's
  *    ambient elements painted over it by the shared vista painter;
- *  - the hunter as a part set (layoutPartSet, the same layouts the
- *    DOM actor uses) with pose blending INCLUDING position — the
- *    M2 brief's upgrade over the pilot's rotation-only tweens —
- *    on the SEGMENT slot durations; mounted gear rides its mount
- *    part's transform; the held weapon is the One Grammar held
- *    render, swaying on PixelSway's own 3.4 s track;
+ *  - the hunter as the active hunter's whole painting (Cache
+ *    Hunters slice (c), 2026-11-15 — paintings only on stage: no
+ *    part layers, no held weapon, no gear mounts on the figure),
+ *    seated by its manifest feet anchor at the roam mark; the
+ *    travel stride survives as the stride spec's torso bob and
+ *    the painting breathes on the flat actors' grammar, exactly
+ *    as the DOM painted actor renders it; a mid-session hunter
+ *    switch swaps the texture in place (syncHunterArt);
  *  - the enemy as the CURRENT shipped art: the segmented band rig
  *    with ENEMY_POSES transforms sampled per frame and the area
  *    palette wash applied to its textures (the same paletteSwap
@@ -118,10 +111,10 @@ import type { Weapon } from '@/types/items';
  *    roamChoreography.ts — the DOM stage's keyframe tables,
  *    value-for-value; combat FX pooled (sparks / tracers / embers
  *    / one-shots), nothing spawns per frame;
- *  - continuous life between ticks: vista drift, embers, weapon
- *    sway, the elite flat's breathe — the DOM roam hunter/rig have
- *    NO between-tick idle motion (PixelPartsActor/PixelRigActor
- *    breathe nowhere), so none is invented here.
+ *  - continuous life between ticks: vista drift, embers, the
+ *    hunter painting's breathe, the elite flat's breathe — the
+ *    enemy rig has NO between-tick idle motion (PixelRigActor
+ *    breathes nowhere), so none is invented for it here.
  *
  * The pilot's DOM split holds: damage numbers and the crit flash
  * stay DOM (identical components), and ALL loot stays DOM and
@@ -144,9 +137,6 @@ export interface RoamPixiStageProps {
   hot?: boolean;
   targetMaxHp: number;
   currentTargetId?: string;
-  /** The DOM scene's mounted-gear inputs (resolved by the seam
-   *  from the same stores PixelSceneLayer reads). */
-  mountedGear: MountedGearItem[];
   /** Init/texture failure seam: the wrapper swaps to the DOM scene. */
   onPixiError?: () => void;
   /** First-frames seam (stage-iteration B2, 2026-11-12): fired once
@@ -172,16 +162,6 @@ function tintTexture(hex: string, alphaHex: string): Texture {
 }
 
 // ── Scene graph ─────────────────────────────────────────────────────
-
-interface GearNode {
-  item: MountedGearItem;
-  sprite: Sprite;
-  slot: string;
-  anchorStage: { x: number; y: number };
-  rotationDeg: number;
-  targetW: number;
-  targetH: number;
-}
 
 interface RigNode {
   segId: string;
@@ -212,11 +192,13 @@ interface Scene {
   vistaAmbientNodes?: VistaAmbientNode[];
   aprops: { sprite: Sprite; index: number }[];
   hunterRoot: Container;
-  hunterFrame: Container;
-  parts: PartNode[];
-  gear: GearNode[];
-  weaponRoot?: Container;
-  weaponSway?: Container;
+  /** The painted hunter (slice (c)): ONE sprite — the active
+   *  hunter's whole painting, feet-anchored at the root origin. */
+  hunterSprite: Sprite;
+  /** Hunter presentation identity the sprite was built for
+   *  (slice (c)): the tick swaps the texture whenever the live
+   *  model's hunter no longer matches this key (syncHunterArt). */
+  hunterArtKey: string;
   enemyLunge: Container;
   enemyHit: Container;
   enemyWalk: Container;
@@ -267,13 +249,15 @@ interface RoamRuntime {
   size: { w: number; h: number };
   /** Vista clock: wall time drives the ambient life. */
   vistaClock: VistaClock;
-  poseKey: string;
   /** F6: the enemy art key whose swap build is in flight (the
    *  generation guard — a superseded build is discarded). */
   pendingRigKey: string | null;
   /** The vehicle plate key whose rebuild is in flight (the same
    *  generation guard, for the §2a vehicle re-sync). */
   pendingVehicleKey: string | null;
+  /** The hunter sprite id whose texture swap is in flight (the
+   *  same generation guard, for the slice-(c) hunter re-sync). */
+  pendingHunterKey: string | null;
   rigPoseKey: string;
   rigCurrent: Record<string, RigPoseVals>;
   rigTweens: Record<string, { from: RigPoseVals; to: RigPoseVals; startMs: number; durationMs: number }>;
@@ -288,12 +272,7 @@ interface RoamRuntime {
    *  the stride drove the last frame (the falling edge re-applies
    *  the beat pose — the arrival settle). */
   travel: TravelRunState;
-  travelDriving: boolean;
   travelSample: TravelSample | null;
-  /** The stride layout's weapon geometry while the stride drives
-   *  (the held weapon rides the striding grip, not the held
-   *  beat-pose layout). */
-  strideWeapon: PartSetLayout['weapon'];
   fps: { lastMs: number; deltas: number[] };
   /** Resume probe heartbeat state (DEVICE-PROBE-SPEC item 3):
    *  advanced by the ticker callback only while the probe is
@@ -306,9 +285,9 @@ function createRoamRuntime(): RoamRuntime {
     scene: null,
     size: { w: 420, h: 286 },
     vistaClock: { wallMs: 0 },
-    poseKey: '',
     pendingRigKey: null,
     pendingVehicleKey: null,
+    pendingHunterKey: null,
     rigPoseKey: '',
     rigCurrent: {},
     rigTweens: {},
@@ -317,9 +296,7 @@ function createRoamRuntime(): RoamRuntime {
     walkOffsetXPct: 0,
     shake: null,
     travel: createTravelRun(),
-    travelDriving: false,
     travelSample: null,
-    strideWeapon: undefined,
     fps: { lastMs: 0, deltas: [] },
     probeTick: { lastTickAt: null, tickCount: 0 },
   };
@@ -405,11 +382,6 @@ interface TickEnv {
   /** Cache each actor pose once per event; compose only the moving
    * rig bands during walk-in. No per-frame hunter-layout rebuild. */
   deriveModelAt: (walkMs: number | undefined, beatMs: number, beatForCurrentTarget?: boolean) => RoamSceneModel;
-  /** The hunter's part set + held-weapon fractions (Motion M2b:
-   *  the travel stride composes layouts per frame from the same
-   *  inputs deriveRoamScene consumes). */
-  hunterSet: PartSetDef;
-  weaponFractions?: PartsWeaponFractions;
   shakeWrap: HTMLDivElement | null;
   /** V1: the authored vista scene for the current background (null
    *  for non-vista backgrounds) + its expanded ambient instances. */
@@ -607,6 +579,50 @@ function syncVehicleArt(rt: RoamRuntime, env: TickEnv): void {
     });
 }
 
+/** Slice (c) (2026-11-15): keep the stage's hunter painting
+ *  married to the ACTIVE hunter. The scene builds once at mount;
+ *  the active hunter does not — a mid-session switch on the
+ *  Hunter tab must swap the figure with no black frame and no
+ *  rebuild stall. The vehicle plate's §2a pattern: the current
+ *  painting stays up until the new texture lands, then swaps in
+ *  a single frame; a superseded load is discarded. */
+function syncHunterArt(rt: RoamRuntime, env: TickEnv): void {
+  const scene = rt.scene;
+  if (!scene) return;
+  const model = env.model;
+  const wantKey = model.hunterSpriteId;
+  if (scene.hunterArtKey === wantKey) {
+    rt.pendingHunterKey = null;
+    return;
+  }
+  if (rt.pendingHunterKey === wantKey) return; // this swap is already loading
+  rt.pendingHunterKey = wantKey;
+  const def = model.hunterSprite;
+  void loadTexture(def.url)
+    .then((tex) => {
+      if (rt.scene !== scene || rt.pendingHunterKey !== wantKey) {
+        // Superseded (or the stage unmounted) while loading:
+        // discard rather than landing stale art.
+        return;
+      }
+      rt.pendingHunterKey = null;
+      const next = new Sprite(tex);
+      const feet = def.anchors.feet ?? { x: 0.5, y: 1 };
+      next.anchor.set(feet.x, feet.y);
+      scene.hunterRoot.addChild(next);
+      const old = scene.hunterSprite;
+      scene.hunterRoot.removeChild(old);
+      old.destroy({ texture: false });
+      scene.hunterSprite = next;
+      scene.hunterArtKey = wantKey;
+    })
+    .catch(() => {
+      // A texture failure mid-swap keeps the current painting
+      // rather than blanking the figure; the next switch retries.
+      if (rt.pendingHunterKey === wantKey) rt.pendingHunterKey = null;
+    });
+}
+
 /** F6 (2026-11-08): keep the stage's enemy art married to the
  *  CURRENT target. The scene build happens once at mount; the
  *  target does not — the rig was built for the mount's first
@@ -694,6 +710,7 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   const walkFrame = resolveRoamWalkFrame(rt.walk, walkTargetKey, now);
   rt.walk = walkFrame.walk;
   // F6: the enemy art follows the current target, not the mount's.
+  syncHunterArt(rt, env);
   syncEnemyArt(rt, env);
   // §2a: the vehicle plate follows the loadout slot, not the mount's.
   syncVehicleArt(rt, env);
@@ -732,37 +749,6 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     model.beat?.kind === 'kill' && !beatForCurrentTarget
       ? { scale: 1, x: 0, y: 0, opacity: 1 }
       : beatSample.enemyHit;
-
-  // Gear mounts re-resolve against a layout (DOM: the gear
-  // layers re-derive and tween rotation on SEGMENT timing;
-  // positions snap with the layout there — mirrored here). One
-  // resolver for the pose block, the travel stride, and the
-  // arrival settle, so the mounts can never disagree.
-  const resolveGearFrom = (layout: PartSetLayout) => {
-    for (const g of scene.gear) {
-      const mount = resolveGearMount(layout, g.item);
-      if (!mount) {
-        g.sprite.visible = false;
-        continue;
-      }
-      g.sprite.visible = true;
-      g.slot = mount.slot;
-      g.anchorStage = mount.stage;
-      g.rotationDeg = mount.rotationDeg;
-    }
-  };
-
-  // ── Pose: a changed pose re-applies (position blend is M2's) ──
-  const poseKey = `${model.hunterPoseName}|${props.weapon?.id ?? ''}|${props.currentTargetId ?? ''}|${eventId ?? ''}`;
-  if (rt.poseKey !== poseKey) {
-    rt.poseKey = poseKey;
-    applyPartPose(scene.parts, model.hunterLayout, now, { poseName: model.hunterPoseName, blendPositions: true });
-    resolveGearFrom(model.hunterLayout);
-    // The enemy walk-in clock is NOT keyed here anymore: it is
-    // resolved from state at the top of the tick
-    // (resolveRoamWalkFrame), so a target change starts the walk
-    // on the same frame even when this pose block does not run.
-  }
 
   // ── Travel beat (Motion Reboot M2b): the shared tracker, fed
   // this stage's own observations. This stage only mounts for
@@ -829,121 +815,43 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
     ap.sprite.alpha = 0.85;
   }
 
-  // ── Hunter ──
+  // ── Hunter (painted, slice (c)) ──
+  // The root sits at the placement's FEET point (placement x +
+  // beat x, ground line + beat y + stride bob); the sprite's own
+  // Pixi anchor IS its manifest feet anchor, so the painting
+  // seats exactly on the mark. The beat scaleY runs on the root
+  // (the dodge squash); the breathe runs on the sprite's scale,
+  // around the feet.
+  const hunterFit = fitPaintedActorHeight({
+    containerW: W,
+    containerH: H,
+    heightPct: model.hunterPlacement.heightPct,
+    xPct: model.hunterPlacement.xPct,
+    groundY: model.groundY,
+    sprite: model.hunterSprite,
+  });
+  const hunterH = hunterFit.heightPx;
+  // Travel stride (Motion M2b): a painting cannot articulate
+  // legs — the stride survives as the spec's torso bob, sampled
+  // from the same travel sample that drives the vista pan, at
+  // the same stage-space amplitude the parts figure's bob had
+  // (S-REF px through the frame scale).
+  const bobPx = travel.driving
+    ? ((sampleStride(travelStrideSpec(TRAVEL_SPECS.advance), travel.phaseMs, travel.amplitude).poseDelta.torso?.y ?? 0) *
+        hunterH) /
+      SKELETON.frameHeight
+    : 0;
   scene.hunterRoot.position.set(
     (model.hunterPlacement.xPct / 100) * W + beatSample.hunter.x,
-    groundYPx + beatSample.hunter.y,
+    groundYPx + beatSample.hunter.y + bobPx,
   );
   scene.hunterRoot.scale.set(1, beatSample.hunter.scaleY);
-  const nominalFrameH = (model.hunterPlacement.heightPct / 100) * H;
-  let frameH = nominalFrameH;
-  let frameTop = groundYPx - nominalFrameH;
-  if (props.weapon && model.hunterLayout.weapon) {
-    const fit = fitArmedActorHeight({
-      containerW: W,
-      containerH: H,
-      heightPct: model.hunterPlacement.heightPct,
-      xPct: model.hunterPlacement.xPct,
-      groundY: model.groundY,
-      extents: armedActorExtents(model.hunterLayout),
-    });
-    if (fit.constrained) {
-      frameH = fit.heightPx;
-      frameTop = fit.topPx;
-    }
-  }
-  const frameW = frameH * (SKELETON.frameWidth / SKELETON.frameHeight);
-  const s = frameH / SKELETON.frameHeight;
-  scene.hunterFrame.position.set(-PARTS_FEET_X * frameW, frameTop - groundYPx);
-  // ── Travel stride execution (Motion M2b) ──
-  // While the beat drives, the stride layout — the M2a spec
-  // sampled this frame, composed onto the 'roam' stance the beat
-  // departs from — is written to the part nodes DIRECTLY (no
-  // tween: the sampled pose is followed, the DOM actor's
-  // duration-0-while-a-cycle-drives semantics). The frame fit
-  // above stays on the held layout so the frame box never
-  // breathes with the gait. When the envelope lands back at 0,
-  // the beat pose re-applies through the SEGMENT blend — the
-  // arrival settle onto exactly the layout the beat system holds.
-  if (travel.driving) {
-    rt.travelDriving = true;
-    // Base pose, mirroring the DOM actor's composition exactly:
-    // while the window is open the stride rides the 'roam'
-    // stance the beat departs from; while it settles (a combat
-    // beat preempted it) the stride decays over the CURRENT beat
-    // pose, as the actor composes its ramp-out onto the pose it
-    // is handed.
-    const basePose = travel.active ? PART_POSES.roam : PART_POSES[model.hunterPoseName];
-    const strideLayout = layoutPartSet(
-      env.hunterSet,
-      composeStridePose(
-        sampleStride(travelStrideSpec(TRAVEL_SPECS.advance), travel.phaseMs, travel.amplitude),
-        basePose,
-      ),
-      env.weaponFractions,
-    );
-    applyPartPoseInstant(scene.parts, strideLayout);
-    resolveGearFrom(strideLayout);
-    rt.strideWeapon = strideLayout.weapon;
-  } else if (rt.travelDriving) {
-    rt.travelDriving = false;
-    rt.strideWeapon = undefined;
-    applyPartPose(scene.parts, model.hunterLayout, now, { poseName: model.hunterPoseName, blendPositions: true });
-    resolveGearFrom(model.hunterLayout);
-  }
-  tickPartNodes(scene.parts, now, s);
-  // Gear rides its mount part's CURRENT transform (the DOM gear
-  // layer is a motion.img INSIDE the actor frame with its own
-  // rotate tween on the mount's rotationDeg — the layout rotation
-  // of the carrying part. Here the gear sprite is a frame child:
-  // its position is the mount's stage point, rotated around the
-  // frame origin exactly as the part containers' transforms place
-  // it, and its rotation follows the carrying part's live
-  // container rotation (which tweens to the same rotationDeg).
-  for (const g of scene.gear) {
-    if (!g.sprite.visible) continue;
-    const node = scene.parts.find((n) => n.slot === g.slot);
-    if (!node) {
-      g.sprite.visible = false;
-      continue;
-    }
-    const tw = g.targetW * s;
-    const th = g.targetH * s;
-    g.sprite.width = tw;
-    g.sprite.height = th;
-    // The sprite's Pixi anchor is the item's own anchor (set at
-    // build), so position = the mount's stage point; rotation =
-    // the carrying part's live rotation (the DOM gear img tweens
-    // its own rotate to the same rotationDeg on the same SEGMENT
-    // duration — following the part's sampled value keeps them
-    // locked, as they are in the DOM frame).
-    g.sprite.position.set(g.anchorStage.x * s, g.anchorStage.y * s);
-    g.sprite.rotation = node.container.rotation;
-  }
-  if (scene.weaponRoot && scene.weaponSway) {
-    // While the travel stride drives, the weapon rides the
-    // striding grip (the stride layout's geometry); otherwise the
-    // held beat-pose layout's, as before M2b.
-    const wgeo = rt.travelDriving ? rt.strideWeapon : model.hunterLayout.weapon;
-    scene.weaponRoot.visible = !!wgeo;
-    if (wgeo) {
-      const boxW = wgeo.targetW * s;
-      const boxH = wgeo.targetH * s;
-      scene.weaponRoot.position.set(
-        (wgeo.gripStage.x - wgeo.gripFrac.x * wgeo.targetW) * s,
-        (wgeo.gripStage.y - wgeo.gripFrac.y * wgeo.targetH) * s,
-      );
-      scene.weaponRoot.rotation = -3 * DEG;
-      // PixelSway: rotate [-1.1, 1.1, -1.1] over 3.4 s easeInOut.
-      const swayDeg = -1.1 * Math.cos((2 * Math.PI * (now % 3400)) / 3400);
-      scene.weaponSway.position.set(0.18 * boxW, 0.6 * boxH);
-      scene.weaponSway.rotation = swayDeg * DEG;
-      const weaponSprite = scene.weaponSway.children[0] as Sprite;
-      weaponSprite.position.set(-0.18 * boxW, -0.6 * boxH);
-      weaponSprite.width = boxW;
-      weaponSprite.height = boxH;
-    }
-  }
+  // Breathe (the flat actors' grammar — the DOM painted actor's
+  // own): scaleY 1↔1.015 over 2.7 s around the feet anchor.
+  const breathe = 1 + 0.015 * (0.5 - 0.5 * Math.cos((2 * Math.PI * (now % 2700)) / 2700));
+  const hs = hunterH / model.hunterSprite.height;
+  scene.hunterSprite.scale.set(hs, hs * breathe);
+  scene.hunterSprite.position.set(0, 0);
 
   // ── Enemy ──
   // Approach staging (roamChoreography sampleEnemyWalkPose): the
@@ -1181,7 +1089,7 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
       beatKind: model.beat?.kind ?? null,
       eventId: props.event?.id ?? null,
       beatMs: Number.isFinite(beatMs) ? Math.round(beatMs) : null,
-      pose: model.hunterPoseName,
+      hunterSprite: model.hunterSpriteId,
       /** F6: the enemy art key the stage currently SHOWS (the
        *  regression probe: it must follow the target's key). */
       enemyRig: scene.enemyRigKey,
@@ -1200,9 +1108,6 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
           }
         : null,
       nodeCount: roamAnimatedNodeCount({
-        partCount: scene.parts.length,
-        gearCount: scene.gear.length,
-        armed: !!scene.weaponRoot,
         enemySegments: scene.rigSegs.length || 1,
         vista: !!env.vistaScene,
       }),
@@ -1235,7 +1140,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
   const presentationActive = usePresentationActive();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const shakeWrapRef = useRef<HTMLDivElement | null>(null);
-  const look = useOwnLookWithLoad();
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
   const runtimeRef = useRef<RoamRuntime | null>(null);
   const envRef = useRef<TickEnv | null>(null);
   const [failed, setFailed] = useState(false);
@@ -1256,7 +1161,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         event: props.event,
         targetMaxHp: props.targetMaxHp,
         currentTargetId: props.currentTargetId,
-        hunterSet: look.set,
+        hunterId: activeHunterId,
         // The walk clock lives in the stage runtime (per-frame);
         // the model handed to the seed build — and the tick's
         // resting frame — is the SETTLED model (no walkMs): the
@@ -1265,7 +1170,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         // (resolveRoamWalkFrame). A spawn-instant model here
         // (walkMs 0) made arrival snap the enemy back to alpha 0.
       }),
-    [props.backgroundId, props.areaId, props.weapon, props.event, props.targetMaxHp, props.currentTargetId, look.set],
+    [props.backgroundId, props.areaId, props.weapon, props.event, props.targetMaxHp, props.currentTargetId, activeHunterId],
   );
 
   const vistaScene = useMemo(() => vistaSceneForBackground(props.backgroundId), [props.backgroundId]);
@@ -1290,7 +1195,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
           event: props.event,
           targetMaxHp: props.targetMaxHp,
           currentTargetId: props.currentTargetId,
-          hunterSet: look.set,
+          hunterId: activeHunterId,
             beatElapsedMs: beatMs,
             beatForCurrentTarget,
           });
@@ -1298,10 +1203,6 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         }
         return withRoamWalkFrame(frame, walkMs);
       },
-      hunterSet: look.set,
-      weaponFractions: props.weapon
-        ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(props.weapon))
-        : undefined,
       shakeWrap: shakeWrapRef.current,
       vistaScene,
       vistaInstances,
@@ -1349,27 +1250,13 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       const eventPropDef = initialModel.eventPropId ? getPixelSprite(initialModel.eventPropId) : undefined;
       const statusDef = getPixelSprite(initialModel.dialect.statusSpriteId);
 
-      const [bgTex, weaponTex] = await Promise.all([
+      const [bgTex, hunterTex] = await Promise.all([
         loadTexture(background.url),
-        weaponTextureForWeapon(initialProps.weapon),
+        loadTexture(initialModel.hunterSprite.url),
       ]);
-      // Warm the palette cache (part tints, gear tints, the enemy
-      // wash) so every texture below loads the converged art.
+      // Warm the palette cache (the enemy wash) so every texture
+      // below loads the converged art.
       const warmJobs: Promise<string>[] = [];
-      if (look.partPalettes) {
-        for (const slot of Object.keys(look.partPalettes) as (keyof typeof look.partPalettes)[]) {
-          const pp = look.partPalettes[slot];
-          const spriteId = initialModel.hunterLayout.placements[slot as keyof typeof initialModel.hunterLayout.placements]?.part.spriteId;
-          if (pp && spriteId) {
-            warmJobs.push(warmPaletteUrl(spriteId, requirePixelSprite(spriteId).url, pp.paletteId, pp.spec));
-          }
-        }
-      }
-      for (const item of initialProps.mountedGear) {
-        if (item.tint && item.tintKey) {
-          warmJobs.push(warmPaletteUrl(item.spriteId, requirePixelSprite(item.spriteId).url, item.tintKey, item.tint));
-        }
-      }
       if (initialModel.rig) {
         for (const seg of initialModel.rig.segments) {
           warmJobs.push(warmPaletteUrl(seg.spriteId, requirePixelSprite(seg.spriteId).url, initialProps.areaId, visuals.enemyPalette));
@@ -1377,29 +1264,6 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
       }
       await Promise.all(warmJobs);
       if (cancelled) return;
-      const partNodes = await createPartNodes({ layout: initialModel.hunterLayout, partPalettes: look.partPalettes });
-      // Gear textures (tinted via the same palette cache the DOM uses).
-      const gearNodes: GearNode[] = [];
-      for (const item of initialProps.mountedGear) {
-        const sprite = requirePixelSprite(item.spriteId);
-        const src = item.tint
-          ? paletteSpriteUrl(item.spriteId, sprite.url, item.tintKey!, item.tint)
-          : sprite.url;
-        const tex = await loadTexture(src);
-        const mount = resolveGearMount(initialModel.hunterLayout, item);
-        if (!mount) continue;
-        const gearSprite = new Sprite(tex);
-        gearSprite.anchor.set(item.anchor.x, item.anchor.y);
-        gearNodes.push({
-          item,
-          sprite: gearSprite,
-          slot: mount.slot,
-          anchorStage: mount.stage,
-          rotationDeg: mount.rotationDeg,
-          targetW: item.width,
-          targetH: (item.width * sprite.height) / sprite.width,
-        });
-      }
       // Enemy nodes: washed rig segments or the flat — built by
       // the shared builder the F6 target swap also uses.
       const enemyNodes = await buildEnemyNodes({ model: initialModel, areaId: initialProps.areaId });
@@ -1530,29 +1394,18 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
           }
         }
       }
-      // Hunter.
+      // Hunter (painted, slice (c)): root at the ground anchor
+      // point (the tick positions it; wrapper tracks land here),
+      // ONE sprite inside it — the active hunter's whole painting,
+      // its Pixi anchor set to the manifest feet anchor so the
+      // painting seats on the root origin. The tick's
+      // syncHunterArt swaps the sprite on a hunter switch.
       const hunterRoot = new Container();
-      const hunterFrame = new Container();
-      hunterRoot.addChild(hunterFrame);
+      const hunterSpriteNode = new Sprite(hunterTex);
+      const hunterFeet = initialModel.hunterSprite.anchors.feet ?? { x: 0.5, y: 1 };
+      hunterSpriteNode.anchor.set(hunterFeet.x, hunterFeet.y);
+      hunterRoot.addChild(hunterSpriteNode);
       world.addChild(hunterRoot);
-      for (const node of partNodes) hunterFrame.addChild(node.container);
-      for (const g of gearNodes) {
-        g.sprite.zIndex = GEAR_PAINT_ORDER;
-        hunterFrame.addChild(g.sprite);
-      }
-      hunterFrame.sortableChildren = true;
-      let weaponRoot: Container | undefined;
-      let weaponSway: Container | undefined;
-      if (weaponTex && initialModel.hunterLayout.weapon) {
-        weaponRoot = new Container();
-        weaponRoot.zIndex = 10; // WEAPON_PAINT_ORDER
-        weaponSway = new Container();
-        const weaponSprite = new Sprite(weaponTex);
-        weaponSprite.name = 'weaponSprite';
-        weaponSway.addChild(weaponSprite);
-        weaponRoot.addChild(weaponSway);
-        hunterFrame.addChild(weaponRoot);
-      }
       // Enemy: lunge → hit → walk-in → rig root (frame space) or flat.
       const enemyLunge = new Container();
       const enemyHit = new Container();
@@ -1630,11 +1483,8 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         vistaAmbientNodes: vistaScene ? vistaAmbientNodes : undefined,
         aprops,
         hunterRoot,
-        hunterFrame,
-        parts: partNodes,
-        gear: gearNodes,
-        weaponRoot,
-        weaponSway,
+        hunterSprite: hunterSpriteNode,
+        hunterArtKey: initialModel.hunterSpriteId,
         enemyLunge,
         enemyHit,
         enemyWalk,
@@ -1666,7 +1516,6 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
         readyAt: performance.now(),
       };
       runtime.scene = scene;
-      runtime.poseKey = '';
       setSceneReady(true);
       // Readiness report for the wrapper's swap gate: sceneReady
       // above means the scene graph exists; onSceneReady means a
@@ -1805,6 +1654,15 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
             testId="diorama-loot-moment"
           />
         )}
+        {/* Hunter voice (slice (c), §2.6): the active hunter's
+            line at its rare triggers — decided state only, one
+            line per moment (hunterVoice.ts). Copy is the
+            owner-approved v2 set (2026-11-15). */}
+        <RoamHunterVoice
+          event={props.event}
+          xPct={model.hunterPlacement.xPct}
+          topPct={(model.groundY - model.hunterPlacement.heightPct / 100) * 100 - 4}
+        />
       </div>
     </div>
   );

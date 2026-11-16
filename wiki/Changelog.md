@@ -2,11 +2,22 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
-## 2026-11-15 — Three small stage repairs
+## 2026-11-16 — The Cache Hunters take the field
 
+- **The Hunter tab is theirs now** — opening the Hunter tab puts your fielded hunter front and center: their painting on the hero plate, their name, their tree, and the base perk they bring to every fight. The roster fields any of the four — Vesper Cole, Silas Boone, Josie Lode, and Doc Sutter — with one tap, and the skill trees in front of you are always the fielded hunter's own. The old parts console is retired: the Wardrobe wears whole skins now, painted the way the hunters are.
+- **Your hunter is a painting now** — the figure on the Home stage and in the boss arena is your active Cache Hunter painted whole: Vesper Cole, cache-touched, her arm and coat edge dissolving into glowing shards; Silas Boone, living ordnance with a bomb casing for a torso; Josie Lode, a salvage machine on spider limbs with her finds spilling from her bin; Doc Sutter, a walking workshop with a lit forge for a chest. The assembled suit of parts has retired from the stage. The weapon in each painting is the hunter's own signature piece; the weapon you have equipped keeps its exact numbers in the fight and is drawn on its card, in Gear, and in your loadouts, exactly as before. Switch your active hunter and the figure on the stage changes with it, mid-session, with no gap in the scene.
+- **The hunters have voices, used sparingly** — at the rarest moments of a run — a legendary drop, a boss kill, a save at death's edge, a streak completed — your hunter says one line, in the stage's own chip, and the moment never carries two. Ordinary ticks, common finds, and ordinary kills stay quiet, and a defeat is met with silence.
+- **The All Time board opens on its top 10** — the full board is one tap away on the Show All control at the foot of the rows, and folds back just as easily; the weekly and daily boards still show everyone, and your own standing stays pinned in view even when it falls below the cut.
+- **Two consumables say what they do now** — the Med Kit's and Shield Cell's descriptions promised thresholds they never had. They now describe what the items actually do: the Med Kit is a stocked buffer that soaks damage first, and the Shield Cell restores your shield when it fires.
 - **Boss fights open like a scene change, not a channel change** — the boss panel used to cut hard from prep to the fight and from the fight to the result. Each state now hands over on the game's shared stop crossfade — a short fade with a small settle — and the result card arrives on that same move instead of popping in on its own. Nothing about the fight, the intel, or the timings changed.
 - **The forge work sits on the anvil now** — at the crafting bench, the piece being worked floated off the front face of the worktop and the hunter's hands stopped short of it across a visible gap of air. He now stands at the anvil itself: the piece, the sparks, and the finished unit's rise all sit on the anvil's top face, on the Home stage and in the workshop's bench scene alike. The crusher and the service lift keep the seats they already had.
 - **Two pictures repainted** — the gap between the crusher's jaw and its body was flat unpainted white inside; it is now the machine's dark steel throat, shadowed the way the jaw would leave it. And the siltstalker's arena wreck — a crashed skimmer half-buried in the silt — has been redrawn as clean pixel work, so it reads as a wreck instead of static.
+- Under the hood: the standings board's kill filter now lives in the game's own code as well as its database, so the two cannot drift apart.
+
+## 2026-11-15 — The board counts hunters
+
+- **The standings board counts hunters now** — the global board used to list every profile that ever opened the game, hundreds of empty names deep. It now shows only hunters with at least one kill to their name, and the field size it reports counts the same field you are ranked in. Nobody was removed from anything — the board simply ranks the hunters who have hunted.
+- Under the hood: two timing-sensitive tests (the vendor counter and the Return Sheet) were pinned to the behavior they were written against, so the build gate reads true again.
 
 ## 2026-11-14 — The stage iteration lands
 
@@ -381,9 +392,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 307 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 308 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-14** — 7 merges
+**2026-11-14** — 8 merges
 
 - #566 — Stage iteration B2 — shell & parity: Pixi takeover readiness gate (no more black flash)
 - #570 — Stage iteration C1: crafting & every remaining animation (DO NOT MERGE — owner clip review)
@@ -392,6 +403,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #574 — Stage iteration B1: per-boss stage scale + capture-arbitrated boss staging
 - #575 — Stage iteration: paint the three blank set-piece interiors
 - #585 — Cache Hunters slice (a): per-hunter pools, loadouts, binding, conversion (migration 0097)
+- #586 — Slice (f): the naming pass — Marla Quill, Harrow + boss dossiers, clash pass, Tech Fragments
 
 **2026-11-13** — 10 merges
 
