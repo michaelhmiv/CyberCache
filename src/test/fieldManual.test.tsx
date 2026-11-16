@@ -43,11 +43,13 @@ describe('Field Manual (HelpScreen)', () => {
     // [[Progression]]) = 325, +1 slice (b) (Progression's
     // Four-hunters note cross-references [[Skins and Cosmetics]];
     // the Skins page's whole-skin rewrite trades its Standings
-    // link for a Collections link, net 0) = 326. Bump the pin in
+    // link for a Collections link, net 0) = 326. Slice (d)'s wiki
+    // pass (Crafting, The-Market, Gear, Skins and Cosmetics) moves
+    // the census 326 -> 329. Bump the pin in
     // the same change as any wiki edit that moves the census.
     await waitFor(() => expect(wikiCorpusReady()).toBe(true));
-    expect(getWikiLinkCount()).toBe(326);
-    await waitFor(() => expect(screen.getByText('326')).toBeTruthy());
+    expect(getWikiLinkCount()).toBe(329);
+    await waitFor(() => expect(screen.getByText('329')).toBeTruthy());
   });
 
   it('converges the Links LCD to whatever count the corpus itself reports', async () => {
