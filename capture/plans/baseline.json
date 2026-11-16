@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":4500},{"shot":"standings-baseline-top"},{"eval":"document.querySelector('[data-testid=\"standings-board-console\"]').scrollIntoView({block:'start'})"},{"wait":700},{"shot":"standings-baseline-board"}],"width":412}
