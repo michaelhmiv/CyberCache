@@ -11,7 +11,6 @@ import {
   sampleRoamBeat,
 } from '@/lib/pixel/roamChoreography';
 import { enemyArtKeyFor } from '@/components/pixelArt/pixi/RoamPixiStage';
-import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
 import { useKillCycleStore, useTickFeedStore } from '@/store';
 import { Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -105,7 +104,9 @@ describe('M2 — roam renderer selection (the BossFightStage switch pattern)', (
     expect(passed.areaId).toBe(DEFAULT_ROAMING_AREA_ID);
     expect(passed.targetMaxHp).toBe(100);
     expect(passed.currentTargetId).toBe('dustwaste_raider');
-    expect(Array.isArray(passed.mountedGear)).toBe(true);
+    // Slice (c): the Pixi stage no longer receives mounted gear —
+    // the painted figure carries no gear mounts (paintings only).
+    expect(passed.mountedGear).toBeUndefined();
     // The hunter HP plate rides the Pixi path as a DOM sibling.
     expect(screen.getByTestId('diorama-hunter-hp')).toBeTruthy();
   });
@@ -184,13 +185,14 @@ describe('M2 — the roam scene model (one derivation for both renderers)', () =
     weapon: DIORAMA_WEAPON,
     targetMaxHp: 100,
     currentTargetId: 'dustwaste_raider',
-    hunterSet: STANDARD_ISSUE,
+    hunterId: 'vesper' as const,
   };
 
-  it('idle roam: hunter aims (armed), enemy is the band rig at rest', () => {
+  it('idle roam: the painted hunter stands at the mark, enemy is the band rig at rest', () => {
     const model = deriveRoamScene(baseInput);
     expect(model.beat).toBeNull();
-    expect(model.hunterPoseName).toBe('aim');
+    expect(model.hunterSpriteId).toBe('hunter-vesper-cole');
+    expect(model.hunterStagePlacement).toEqual(model.hunterPlacement);
     expect(model.rig?.segments).toHaveLength(4);
     expect(model.rigPose).toEqual({});
     expect(model.hunterPlacement).toMatchObject({ xPct: 12, heightPct: 57 });
@@ -210,7 +212,6 @@ describe('M2 — the roam scene model (one derivation for both renderers)', () =
     } as TickEvent;
     const model = deriveRoamScene({ ...baseInput, event });
     expect(model.beat).toEqual({ kind: 'shot', value: 10 });
-    expect(model.hunterPoseName).toBe('recoil');
     expect(model.shake).toEqual({ key: 'evt-shot-1', intensity: 3, durationMs: MOVEMENT.SHAKE_MS + 140 });
   });
 
@@ -307,7 +308,7 @@ describe('F6 — the Pixi stage enemy art key follows the target (rig-swap regre
     areaId: DEFAULT_ROAMING_AREA_ID,
     weapon: DIORAMA_WEAPON,
     targetMaxHp: 100,
-    hunterSet: STANDARD_ISSUE,
+    hunterId: 'vesper' as const,
   };
 
   it('the key names the CURRENT target archetype rig', () => {
@@ -346,10 +347,10 @@ describe('F6 — the Pixi stage enemy art key follows the target (rig-swap regre
 });
 
 describe('M2 — node accounting is reported honestly', () => {
-  it('full-dress roam counts 53 on the pilot formula (11 parts + weapon + 6 gear + 4 segments + pools)', () => {
-    const n = roamAnimatedNodeCount({ partCount: 11, gearCount: 6, armed: true, enemySegments: 4 });
-    expect(n).toBe(11 + 1 + 6 + 4 + ROAM_POOL_CAPS.sparks + ROAM_POOL_CAPS.tracers + ROAM_POOL_CAPS.embers + ROAM_POOL_CAPS.oneShots);
-    expect(n).toBe(53);
+  it('full-dress roam counts 36 on the pilot formula (1 painting + 4 segments + pools)', () => {
+    const n = roamAnimatedNodeCount({ enemySegments: 4 });
+    expect(n).toBe(1 + 4 + ROAM_POOL_CAPS.sparks + ROAM_POOL_CAPS.tracers + ROAM_POOL_CAPS.embers + ROAM_POOL_CAPS.oneShots);
+    expect(n).toBe(36);
     // The DOM scene this replaces animates at least as many
     // framer-driven elements; the count is reported, not trimmed
     // (trimming = dropping scene elements = a behavior change).

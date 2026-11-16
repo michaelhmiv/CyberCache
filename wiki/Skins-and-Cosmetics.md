@@ -1,13 +1,39 @@
 # Skins and Cosmetics
 
 Your hunter's look is gear too — it just refuses to carry a single
-stat. **Skin parts** are crafted items that replace pieces of your
+stat. Each of the four Cache Hunters is **one painting**, and a
+**skin** is a whole replacement painting for that hunter — worn
+whole, never in pieces, and **pure cosmetic — zero stats**.
+
+## Whole skins: the Wardrobe
+
+Open **Hunter → Wardrobe** to see your fielded hunter's painting
+and their skins. Every hunter starts with their **Standard Issue**
+skin — the painting itself:
+
+- **Vesper Cole** — the cache-touched gunslinger: outlaw brim,
+  cache-energy arm (plum).
+- **Silas Boone** — living ordnance: a torso fused with a bomb
+  casing (hazard rust-orange).
+- **Josie Lode** — a non-humanoid salvage machine: storage-bin
+  body, lamp eye-stalk (teal).
+- **Doc Sutter** — a walking workshop: furnace-forge chest,
+  welding-mask faceplate (dusty steel-blue).
+
+**Wear** seats a skin; **Remove** returns the hunter to their base
+painting. The wardrobe prints worn and owned counts for the fielded
+hunter. Crafted skins will join the Workshop's cosmetic lane — a
+complete skin, never a fragment.
+
+## Skin parts: the legacy system
+
+**Skin parts** are crafted items that once replaced pieces of a
 hunter's standard-issue frame: a helm, a torso, arms, legs, a back
-rig. They are **pure cosmetic — zero stats** — and they show
-everywhere your hunter does: the Home stage, boss fights, the
-Workshop bays, your Hunter profile showcase, and [[Leaderboards
-and Streaks|Standings]], where every hunter renders wearing their
-own parts.
+rig. They are **no longer worn** — the Wardrobe fits whole skins
+now — so parts stand as **collection pieces**: they stay in your
+[[Collections]], they still craft and trade as before, and a
+complete part-set will convert to a whole skin in the Workshop
+lane. Nothing you own is deleted or devalued by the change.
 
 ## How you get parts: the Workshop
 

@@ -23,6 +23,8 @@ import { getPublicProfile, type PlayerPublicProfile } from '@/lib/api/publicProf
 import { PublicProfilePanel } from '@/components/profile/PublicProfilePanel';
 import { PlayerProfileSheet } from '@/components/profile/PlayerProfileSheet';
 import { useHunterLooks } from '@/lib/pixel/useHunterLooks';
+import { useSkillStore } from '@/store';
+import { hunterById } from '@/lib/hunters/hunters';
 
 interface LeaderboardsScreenProps {
   onNavigate?: (screen: string) => void;
@@ -253,6 +255,12 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number; bareHead?: boole
     return out;
   }, [myRanks]);
 
+  // The fielded-hunter display field (reshape slice (b)): the
+  // viewer's active hunter, named on the head bank. Every metric
+  // on this board stays account-keyed.
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const fieldedHunter = hunterById(activeHunterId);
+
   return (
     <>
       <ConsoleHead
@@ -261,6 +269,7 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number; bareHead?: boole
         bestRank={bestRank}
         dropBuff={weekly?.my_drop_buff ?? null}
         bare={bareHead}
+        fieldedHunter={`${fieldedHunter.name} · ${String(fieldedHunter.tree)}`}
       />
 
       <WeeklyEarningsPanel

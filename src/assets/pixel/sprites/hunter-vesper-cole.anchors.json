@@ -1,0 +1,29 @@
+{
+  "sprite": "hunter-vesper-cole",
+  "src": "work/vesper-source-keyed-bg.png",
+  "out": "src/assets/pixel/sprites/hunter-vesper-cole.png",
+  "width": 221,
+  "height": 384,
+  "anchors": {
+    "feet": {
+      "x": 0.426,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.4084,
+      "y": 0.4926
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.6984
+    },
+    "lootPoint": {
+      "x": 0.421,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.261,
+      "y": 0.6917
+    }
+  }
+}

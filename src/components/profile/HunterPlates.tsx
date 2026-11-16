@@ -66,14 +66,23 @@ export interface HubDoorDatum {
 
 /**
  * The hero plate — identity as a boss-arena plate: the Dune Tyrant
- * arena painting behind the scrim, the level in its steel well, and
- * the announcements row (only what exists): unspent points get the
+ * arena painting behind the scrim, the FIELDED hunter's painting
+ * standing at the plate's right with its feet on the plate's base
+ * (reshape slice (b): the hero IS the active hunter — name, tree,
+ * and base perk headline the plate; the account handle rides the
+ * line under it), the level in its steel well, and the
+ * announcements row (only what exists): unspent points get the
  * amber fill — the tab's one primary action; settled earnings and
  * the research clock ride quiet. Every chip is a door.
  */
 export const HunterPlateHero: React.FC<{
   level: number;
   name: string;
+  /** "{Tree} · {Base perk}" for the fielded hunter, in its tree color. */
+  hunterLine: string;
+  hunterLineColor: string;
+  /** The fielded hunter's painting URL (pixel manifest). */
+  hunterArtUrl?: string;
   handleLine: React.ReactNode;
   xp: number;
   xpToNext: number;
@@ -87,7 +96,7 @@ export const HunterPlateHero: React.FC<{
 }> = (p) => {
   const art = bossArt('dune_tyrant');
   return (
-    <div className="relative overflow-hidden" style={plateShell}>
+    <div className="relative overflow-hidden" style={plateShell} data-testid="hunter-hero">
       {art && (
         <div
           aria-hidden="true"
@@ -105,8 +114,18 @@ export const HunterPlateHero: React.FC<{
         className="absolute inset-0"
         style={{ background: 'linear-gradient(90deg, rgba(10,7,5,0.94) 52%, rgba(10,7,5,0.45) 100%)' }}
       />
+      {p.hunterArtUrl && (
+        <img
+          src={p.hunterArtUrl}
+          alt=""
+          aria-hidden="true"
+          data-testid="hunter-hero-figure"
+          className="pointer-events-none absolute bottom-0 right-1 h-[158px] w-auto select-none"
+          style={{ imageRendering: 'pixelated', filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.55))' }}
+        />
+      )}
       <Bolts />
-      <div className="relative px-4 pb-4 pt-3.5">
+      <div className="relative px-4 pb-4 pt-3.5" style={p.hunterArtUrl ? { paddingRight: 92 } : undefined}>
         <div className="flex items-start gap-3">
           <div
             className="flex h-[54px] w-[54px] shrink-0 flex-col items-center justify-center"
@@ -125,6 +144,13 @@ export const HunterPlateHero: React.FC<{
               style={{ color: BONE }}
             >
               {p.name}
+            </div>
+            <div
+              className="mt-0.5 text-[11px] font-black uppercase tracking-wide"
+              style={{ color: p.hunterLineColor }}
+              data-testid="hunter-hero-line"
+            >
+              {p.hunterLine}
             </div>
             <div className="flex flex-wrap items-center gap-x-2 text-xs" style={{ color: BONE_MUTED }}>
               {p.handleLine}
@@ -246,6 +272,53 @@ export const PlatesTreesDoor: React.FC<{
       </div>
     </div>
     <PlateFootStrip color={points > 0 ? AMBER : STEEL} />
+  </button>
+);
+
+/**
+ * The Roster door — the hero plate's identity companion, seated
+ * directly under it: who is in the field right now (name + tree,
+ * with their painting standing at the door's right edge), and the
+ * one action the stop behind it exists for — switching hunters.
+ */
+export const PlatesRosterDoor: React.FC<{
+  door: HubDoorDatum;
+  /** "Vesper Cole · Gunslinger" — the fielded hunter. */
+  fieldedLine: string;
+  artUrl?: string;
+}> = ({ door, fieldedLine, artUrl }) => (
+  <button
+    type="button"
+    data-testid={door.testId}
+    onClick={door.onClick}
+    className="relative block min-h-[44px] w-full overflow-hidden text-left transition-transform active:scale-[0.99]"
+    style={plateShell}
+  >
+    <Bolts />
+    <div className="relative flex items-center gap-3 px-4 py-2.5">
+      <div className="bl-well flex h-9 w-9 shrink-0 items-center justify-center" style={{ color: BONE }}>
+        <PxIcon name={door.icon} size={15} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-black uppercase tracking-wide" style={{ color: BONE }}>
+          {door.label}
+        </div>
+        <div className="truncate text-[11px] font-semibold" style={{ color: BONE_FAINT }}>
+          Fielding {fieldedLine}
+        </div>
+      </div>
+      {artUrl && (
+        <img
+          src={artUrl}
+          alt=""
+          aria-hidden="true"
+          className="h-[38px] w-auto shrink-0 select-none"
+          style={{ imageRendering: 'pixelated' }}
+        />
+      )}
+      <PxIcon name="chevs" size={14} className="shrink-0" />
+    </div>
+    <PlateFootStrip color={STEEL} height={3} />
   </button>
 );
 

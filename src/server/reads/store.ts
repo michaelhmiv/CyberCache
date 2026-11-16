@@ -976,7 +976,10 @@ function periodStart(period: LeaderboardPeriod, now: Date): number {
 }
 
 /** Mirrors cc_get_leaderboard: latest snapshot inside the period window per
- * player, previous value from the latest snapshot before the window. */
+ * player, previous value from the latest snapshot before the window.
+ * 0098: a player whose latest snapshot carries no lifetime kill
+ * (total_kills null or 0) is skipped before ranking — the SQL predicate
+ * is coalesce(l.total_kills, 0) >= 1 on that same latest snapshot. */
 export function computeLeaderboard(
   snapshots: readonly ProgressionSnapshotData[],
   usernames: ReadonlyMap<string, string | null>,
@@ -997,6 +1000,7 @@ export function computeLeaderboard(
   const rows: LeaderboardEntryData[] = [];
   for (const [playerId, snap] of latest) {
     if (!usernames.has(playerId)) continue; // SQL inner-joins profiles
+    if ((snap.total_kills ?? 0) < 1) continue; // 0098 honesty filter (see above)
     const current = metricValue(snap, metric);
     if (current === null) continue;
     const prevSnap = prior.get(playerId);
