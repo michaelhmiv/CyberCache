@@ -69,6 +69,19 @@ import { usePlayerStore } from '@/store';
 
 describe('VendorScreen — buy quantity picker wiring', () => {
   beforeEach(() => {
+    // Pin the wall clock: the vendor stock is DATE-SEEDED (rotation +
+    // Item of the Day derive from the UTC date via useNow), and these
+    // assertions describe Ammo Pack as a plain 150cr staple. On any
+    // date where Ammo Pack IS the Item of the Day (e.g. 2026-11-15)
+    // it renders twice by design — the featured IoD row that leads
+    // the counter plus its staples-list row — at the discounted
+    // 112cr, so the unpinned suite failed every run that day and
+    // passed on others. 2026-11-13 is the date the expectations were
+    // authored against (IoD: SignalScrambler). Only 'Date' is faked
+    // (the hotFlameMark.test.tsx pattern) so RTL's async queries keep
+    // real timers.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-13T12:00:00Z'));
     hoisted.vendorBuy.mockClear();
     usePlayerStore.setState({
       vendorBuybackRate: null,
@@ -79,7 +92,10 @@ describe('VendorScreen — buy quantity picker wiring', () => {
       credits: 175000,
     });
   });
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   it('row buttons drop the fixed "1" (they open the picker now)', () => {
     render(<VendorScreen />);
