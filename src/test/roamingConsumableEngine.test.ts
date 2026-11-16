@@ -6,6 +6,9 @@ import {
   getSurvivalState,
   buildActiveBuffs,
   isRoamingConsumable,
+  isBufferConsumable,
+  isReactiveConsumable,
+  isShieldRestoreConsumable,
 } from '../lib/consumables/roamingConsumableEngine';
 import { CONSUMABLES } from '../constants/consumables';
 import { ConsumableType } from '../types/game';
@@ -642,5 +645,34 @@ describe('activateFromInventory — def contract', () => {
     const result = processTick(forged, ctx({ tickIndex: 1, inventory: { [ConsumableType.AmmoPack]: 1 } }));
     expect(result.state.slots.map((s) => s.consumableId)).toEqual([ConsumableType.AmmoPack]);
     expect(result.mods.dpsMultiplier).toBeCloseTo(AMMO_PACK_DPS_MULT);
+  });
+});
+
+describe('A6 pin — Med Kit / Shield Cell def text matches the engine family', () => {
+  // Owner ruling 2026-11-15 (server-truth A6): the Med Kit line is a
+  // proactive buffer formed at activation and Shield Cell restores on
+  // (re)activation — neither has a threshold trigger in this engine.
+  // The def copy must never again claim one.
+  const medKitLine = [ConsumableType.MedKit, ConsumableType.MedKitRefined];
+
+  it('the Med Kit line is buffer-family, never reactive', () => {
+    for (const id of medKitLine) {
+      expect(isBufferConsumable(id)).toBe(true);
+      expect(isReactiveConsumable(id)).toBe(false);
+    }
+  });
+
+  it('Shield Cell is shield-restore-family, never reactive', () => {
+    expect(isShieldRestoreConsumable(ConsumableType.ShieldCell)).toBe(true);
+    expect(isReactiveConsumable(ConsumableType.ShieldCell)).toBe(false);
+  });
+
+  it('no def copy for these items claims a threshold or auto-fire trigger', () => {
+    for (const id of [...medKitLine, ConsumableType.ShieldCell]) {
+      const def = CONSUMABLES[id];
+      const copy = [def.shortDescription, ...(def.uiHints ?? [])].join(' ');
+      expect(copy).not.toMatch(/auto-(used|fires)/i);
+      expect(copy).not.toMatch(/50% HP|below 25%|danger threshold/i);
+    }
   });
 });

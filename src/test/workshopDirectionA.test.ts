@@ -211,7 +211,7 @@ describe('card copy — purpose, quality, search', () => {
     const medkit = getCraftRecipe('recipe_medkit')!;
     const purpose = recipePurpose(medkit, fixtureCtx());
     expect(purpose.text).toContain('emergency heal');
-    expect(purpose.hint).toContain('50% HP');
+    expect(purpose.hint).toContain('Buffer drains first');
   });
 
   it('refining purpose states the live conversion at the player’s mastery', () => {
