@@ -46,12 +46,14 @@ describe('Field Manual (HelpScreen)', () => {
     // link for a Collections link, net 0) = 326. Slice (d)'s wiki
     // pass (Crafting, The-Market, Gear, Skins and Cosmetics) moves
     // the census 326 -> 329; slice (e) adds +1 (Getting-Started's
-    // starting-hunter note cross-references [[Progression]]) = 330.
+    // starting-hunter note cross-references [[Progression]]) = 330;
+    // F5 adds +1 (Actions-and-Occupations' Roaming section
+    // cross-references [[Contracts]] for Pell's Run) = 331.
     // Bump the pin in
     // the same change as any wiki edit that moves the census.
     await waitFor(() => expect(wikiCorpusReady()).toBe(true));
-    expect(getWikiLinkCount()).toBe(330);
-    await waitFor(() => expect(screen.getByText('330')).toBeTruthy());
+    expect(getWikiLinkCount()).toBe(331);
+    await waitFor(() => expect(screen.getByText('331')).toBeTruthy());
   });
 
   it('converges the Links LCD to whatever count the corpus itself reports', async () => {

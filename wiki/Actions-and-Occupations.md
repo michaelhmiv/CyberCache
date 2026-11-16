@@ -29,6 +29,8 @@ Both settlements — the foreground claim and the while-away one — run your **
 
 Roaming is also where the open world can kill you — death and resurrection are covered under [[Bosses]]. Pacing, XP rates, and offline earnings (including the 24-hour absolute offline cap) are covered in [[Progression]]. Every area, pictured in its own painting with its signature loot and named elite: [[Reference-Areas]].
 
+The run is interrupted, now and then, by events — finds, hazards, and people. In the Dustwaste Frontier the person is **Pell**, a wounded scavenger who flags runners down: aid him and it costs a survival consumable from your bag, if you carry one. While he heals, his own route posts on the [[Contracts]] board as **Pell's Run**.
+
 ## Crafting
 
 Crafting turns materials into gear frames, consumables, refining output, and vehicle supplies through timed jobs at the bench — the Workshop workspace on Home, behind the mode rail's **Craft** stop — and it only progresses **while crafting is your active action**. A job left mid-progress waits for you; it does not finish in the background while you roam. The service lane (**Workshop Service**) is the bench's other occupation: it works one repair or shield-tech job at a time, aimed at that job.
