@@ -2961,3 +2961,32 @@ per-name veto.
 3. **Copy only.** No id, mechanic, stat bias, price, or drop logic
    moved; the def's mechanics fields are pinned byte-identical in
    the F6 suite.
+
+### 2026-11-16 — The Board Hub: past results are a receipt (owner-ruled)
+
+The owner, reviewing the Standings screen: the settlement readout
+took up too much room for a record of the past — "make it a button
+somewhere on board hub and it can be a pop up. i don't think past
+results should take up that much room 24/7." Approved from a
+real-code rendering (hub v2, QC-passed) the same day.
+
+1. **Past results are a receipt, not a billboard.** The settlement
+   readout leaves the Standings screen's flow. It lives behind a
+   SETTLEMENT button on the Board Hub and opens as a pop-up (the
+   shared PickerSheet), its content byte-for-byte the shipped
+   record. The button carries the one-glance headline — keys paid
+   for the settled week, or the drop-luck figure when no keys were
+   paid — over the window label, so the outcome reads without
+   opening anything.
+2. **The hub is the Standings screen's control deck.** The Board
+   Hub panel stands where the settlement panel sat: its PanelLabel
+   carries the live selection readout, its deck holds the ten
+   channel cells and the ALL TIME / WEEK / DAY switch (one state
+   owner — LeaderboardBoard), and the Global Board below opens
+   straight on its rows, its selectors hub-gated off, never
+   duplicated. Rows, the All Time top-10 collapse, and the pinned
+   MY READING are unchanged.
+3. **The signal resolves at the sheet.** The Standings badge's
+   focus landing moves to the hub panel; opening the settlement
+   sheet with earnings on it marks the week seen, exactly as
+   viewing the in-flow panel did. A closed sheet marks nothing.

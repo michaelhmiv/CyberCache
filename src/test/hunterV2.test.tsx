@@ -485,10 +485,18 @@ describe('Hunter arrangement — Standings door badge + stop', () => {
     // The leaderboards board mounts behind the door (weekly races panel).
     expect(await screen.findByText('Weekly Races')).toBeTruthy();
     await waitFor(() => expect(getWeeklyLeaderboards).toHaveBeenCalled());
-    // The earnings panel is the badge's destination: it renders the
-    // settled record at the top of Standings, and viewing it marks
-    // the week seen — the notice clears instead of crying "claim"
-    // over money already paid.
+    // The badge's destination is the Board Hub at the top of
+    // Standings (owner ruling 2026-11-16): the settled record is a
+    // receipt behind the hub's SETTLEMENT button — its headline
+    // (+4 keys for the two rewarded races) reads at a glance, and
+    // the record itself is NOT in the flow.
+    const settleButton = await screen.findByTestId('standings-settlement-open');
+    await waitFor(() => expect(settleButton.textContent).toContain('+4'));
+    expect(screen.queryByTestId('weekly-earnings-autopay-note')).toBeNull();
+    // Opening the receipt renders the settled record and marks the
+    // week seen — the notice clears instead of crying "claim" over
+    // money already paid.
+    fireEvent.click(settleButton);
     expect(await screen.findByTestId('weekly-earnings-autopay-note')).toBeTruthy();
     expect(screen.getByTestId('weekly-earnings-row-kills')).toBeTruthy();
     expect(screen.getByTestId('weekly-earnings-row-bosses')).toBeTruthy();

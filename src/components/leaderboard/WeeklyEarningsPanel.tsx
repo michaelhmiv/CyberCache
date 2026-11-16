@@ -7,15 +7,20 @@ import {
   type WeeklyEarningRow,
 } from '@/components/leaderboard/weeklyEarnings';
 import type {
+  LeaderboardMetric,
+  LeaderboardPeriod,
   WeeklyLeaderboards,
 } from '@/lib/api/leaderboardService';
 import { LcdWell, Led, Panel, PanelLabel } from './StandingsConsoleKit';
+import { PickerSheet } from '@/components/common/PickerSheet';
+import { ChevronRight } from 'lucide-react';
 import {
   AMBER,
   FAINT,
   GOLD,
   GREEN,
   INK,
+  METRIC_SHORT,
   MUT,
   STEEL_DARK,
   headStyle,
@@ -23,28 +28,138 @@ import {
 } from './standingsConsoleTokens';
 
 /**
- * Your Weekly Earnings (Standings) — the destination the Hunter
+ * Board hub (owner-ruled 2026-11-16, DESIGN.md §12): the Board Hub
+ * is the Standings screen's control deck. The global board's
+ * channel + period selection lives in this panel, so a player
+ * picks a board where the settlement signal brought them instead
+ * of scrolling to a separate console. The BoardConsole below
+ * keeps the rows, the All Time top-10 collapse and the pinned
+ * MY READING; in hub mode it no longer repeats the selectors.
+ * Selection state stays owned by LeaderboardBoard — this deck is
+ * a control surface, not a second source of truth.
+ */
+export interface BoardHubSelection {
+  metric: LeaderboardMetric;
+  period: LeaderboardPeriod;
+  onMetricChange: (metric: LeaderboardMetric) => void;
+  onPeriodChange: (period: LeaderboardPeriod) => void;
+  /** The viewer's rank on every channel, for the selected period. */
+  myRanks: Partial<Record<LeaderboardMetric, number | null>>;
+}
+
+const HUB_METRICS = Object.keys(METRIC_SHORT) as LeaderboardMetric[];
+
+const HUB_PERIODS: { id: LeaderboardPeriod; label: string }[] = [
+  { id: 'all_time', label: 'ALL TIME' },
+  { id: 'weekly', label: 'WEEK' },
+  { id: 'daily', label: 'DAY' },
+];
+
+const BoardHubDeck: React.FC<{
+  hub: BoardHubSelection;
+}> = ({ hub }) => {
+  const { metric, period, onMetricChange, onPeriodChange, myRanks } = hub;
+  return (
+    <div data-testid="standings-board-hub">
+      <div className="grid grid-cols-5 gap-1.5" role="tablist" aria-label="Leaderboard metric">
+        {HUB_METRICS.map((m) => {
+          const active = m === metric;
+          const rk = myRanks[m];
+          return (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              data-testid={`standings-hub-channel-${m}`}
+              onClick={() => onMetricChange(m)}
+              className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5"
+              style={{
+                minHeight: 48,
+                border: `1px solid ${active ? GOLD : STEEL_DARK}`,
+                background: active
+                  ? 'linear-gradient(180deg, rgba(242,192,99,0.16) 0%, rgba(242,192,99,0.05) 100%)'
+                  : 'linear-gradient(180deg, #050403 0%, #0A0806 100%)',
+                boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.85)',
+              }}
+            >
+              <span className="flex items-center gap-1" style={{ ...monoStyle, fontSize: 11, color: active ? GOLD : FAINT }}>
+                <Led lit={active} color={GOLD} size={6} />
+                {METRIC_SHORT[m]}
+              </span>
+              <span className="font-bold leading-none" style={{ ...monoStyle, fontSize: 16, color: active ? INK : MUT }}>
+                {rk != null ? `#${rk}` : '—'}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div
+        className="mt-2 flex p-1"
+        style={{ border: `1px solid ${STEEL_DARK}`, background: 'rgba(0,0,0,0.4)' }}
+        role="tablist"
+        aria-label="Leaderboard period"
+      >
+        {HUB_PERIODS.map((p) => {
+          const active = p.id === period;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              data-testid={`standings-hub-period-${p.id}`}
+              onClick={() => onPeriodChange(p.id)}
+              className="flex-1 py-2 font-black"
+              style={{
+                ...monoStyle,
+                fontSize: 11,
+                letterSpacing: '0.1em',
+                minHeight: 44,
+                color: active ? '#0B0906' : MUT,
+                backgroundColor: active ? GOLD : 'transparent',
+              }}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-2" style={{ ...monoStyle, fontSize: 11, color: FAINT, letterSpacing: '0.1em' }}>
+        THE GLOBAL BOARD BELOW READS THIS SELECTION
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Your Weekly Earnings (Standings) — the record the Hunter
  * Standings badge points at. Weekly race rewards are PAID
  * AUTOMATICALLY by settlement (src/server/leaderboards/store.ts:
  * cache keys credited and the drop-luck buff started inside the
  * settlement transaction; there is no claim op for race rewards).
- * This panel is the record the player was promised: per settled
+ * This body is the record the player was promised: per settled
  * week, the race, their finish, and the reward — hero-sized, per
  * the numbers law — with the auto-pay stated in plain words so
  * nobody hunts for a claim button that does not exist.
  *
  * Restyled 2026-11-05 to the Standings "Instrument panel" register
- * (owner pick B): the record now reads as a settlement readout —
+ * (owner pick B): the record reads as a settlement readout —
  * a lit PAYOUT · AUTO — NO CLAIM lamp over the shipped auto-pay
  * sentence verbatim, totals in an LCD bank, per-race tally lines.
- * Every state, string, and testid of the shipped panel is kept.
+ * Every state, string, and testid of the shipped record is kept.
  *
- * Viewing the panel marks the week seen (standingsBadge seen
- * marker), which clears the door pill / rail chip notice: the
- * signal exists to bring the player here, and here is where it
- * resolves. Guests see the panel's shape with the honest empty
+ * Host (owner-ruled 2026-11-16): past results are a receipt, not
+ * a billboard — the record no longer sits in the Standings flow.
+ * It lives behind the Board Hub's SETTLEMENT button and opens as
+ * the SettlementReadoutSheet; opening the sheet with earnings on
+ * it marks the week seen (standingsBadge seen marker), which
+ * clears the door pill / rail chip notice: the signal exists to
+ * bring the player to the hub, and the sheet is where it
+ * resolves. Guests see the record's shape with the honest empty
  * state — guests cannot place under a name, so they never carry
- * earnings (guest-visibility law: the surface renders for everyone).
+ * earnings (guest-visibility law: the surface renders for
+ * everyone).
  */
 
 const shortDay = (iso: string): string =>
@@ -105,43 +220,21 @@ const EarningRow: React.FC<{ row: WeeklyEarningRow }> = ({ row }) => {
   );
 };
 
-export const WeeklyEarningsPanel: React.FC<{
+/**
+ * The settlement record itself — payout lamp, the auto-pay note,
+ * the LCD totals bank, the per-race tally rows and the total line
+ * (plus the loading / error / pending / placed / empty states).
+ * Its only host is the settlement sheet (SettlementReadoutSheet)
+ * since the 2026-11-16 hub ruling retired the in-flow panel; the
+ * content is the shipped record verbatim.
+ */
+const WeeklyEarningsBody: React.FC<{
   data: WeeklyLeaderboards | null;
   loading: boolean;
   error: string | null;
   onRetry: () => void;
-  /** Incremented by the Hunter door tap: scroll to + highlight the panel. */
-  focusNonce?: number;
-}> = ({ data, loading, error, onRetry, focusNonce = 0 }) => {
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const [highlighted, setHighlighted] = useState(false);
-  const handledNonce = useRef(0);
-
+}> = ({ data, loading, error, onRetry }) => {
   const state = deriveWeeklyEarnings(data);
-  const prev = data?.previous_week ?? null;
-
-  // Viewing the panel with earnings on it marks the week seen —
-  // the badge notice that pointed here clears.
-  useEffect(() => {
-    if (state.kind === 'earnings' && prev?.key) {
-      markStandingsEarningsSeen(prev.key);
-    }
-  }, [state.kind, prev?.key]);
-
-  // The door/badge tap lands the player ON the panel: scroll it
-  // into view and hold a highlight ring briefly, once the payload
-  // has landed (the panel may mount before the fetch resolves).
-  useEffect(() => {
-    if (focusNonce === 0 || loading || handledNonce.current === focusNonce) return;
-    handledNonce.current = focusNonce;
-    const el = panelRef.current;
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
-    setHighlighted(true);
-    const timer = window.setTimeout(() => setHighlighted(false), 2600);
-    return () => window.clearTimeout(timer);
-  }, [focusNonce, loading]);
 
   const scrollToRaces = () => {
     const el = document.getElementById('weekly-races-card');
@@ -157,18 +250,7 @@ export const WeeklyEarningsPanel: React.FC<{
   };
 
   return (
-    <div
-      ref={panelRef}
-      id="weekly-earnings-panel"
-      data-testid="weekly-earnings-panel"
-      className={`scroll-mt-2 transition-shadow ${highlighted ? 'ring-2 ring-amber' : ''}`}
-    >
-      <Panel>
-        <PanelLabel
-          label="Settlement readout"
-          right={prev ? `LAST WEEK · ${weekRangeLabel(prev.start, prev.ends_at).toUpperCase()}` : undefined}
-        />
-
+    <>
         {loading ? (
           <div className="space-y-2" data-testid="weekly-earnings-loading">
             <div className="h-4 w-2/3 animate-pulse rounded bg-bg" />
@@ -263,7 +345,188 @@ export const WeeklyEarningsPanel: React.FC<{
             </button>
           </div>
         )}
+    </>
+  );
+};
+
+/**
+ * Board hub (owner-ruled 2026-11-16): the settlement readout is
+ * a receipt, not a billboard — it leaves the Standings screen's
+ * flow and lives behind this button on the Board Hub. The button
+ * carries the one-glance headline from the settlement data (keys
+ * paid for the settled week, or the drop-luck figure when no
+ * keys were paid) over the window label, in the deck's own
+ * label-over-numeral grammar, so the outcome reads without
+ * opening anything. The LED is lit when a settled record with
+ * earnings waits behind the door.
+ */
+const SettlementButton: React.FC<{
+  data: WeeklyLeaderboards | null;
+  loading: boolean;
+  onOpen: () => void;
+}> = ({ data, loading, onOpen }) => {
+  const state = deriveWeeklyEarnings(data);
+  const prev = data?.previous_week ?? null;
+
+  let headline: { value: string; label: string } | null = null;
+  if (!loading && state.kind === 'earnings') {
+    if (state.totalCacheKeys > 0) {
+      headline = { value: `+${state.totalCacheKeys}`, label: 'Keys paid' };
+    } else if (state.rows.some((r) => r.reward.buff_bonus > 0)) {
+      headline = {
+        value: `+${Math.round(Math.max(...state.rows.map((r) => r.reward.buff_bonus)) * 100)}%`,
+        label: 'Drop luck',
+      };
+    }
+  }
+
+  return (
+    <div style={{ borderTop: `1px solid ${STEEL_DARK}`, marginTop: 12, paddingTop: 12 }}>
+      <button
+        type="button"
+        data-testid="standings-settlement-open"
+        onClick={onOpen}
+        className="flex w-full items-center gap-3 px-3 py-2 text-left"
+        style={{
+          minHeight: 48,
+          border: `1px solid ${STEEL_DARK}`,
+          background: 'linear-gradient(180deg, #050403 0%, #0A0806 100%)',
+          boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.85)',
+        }}
+      >
+        <Led lit={state.kind === 'earnings'} color={GOLD} size={8} />
+        <span className="min-w-0 flex-1">
+          <span
+            className="block"
+            style={{ ...monoStyle, fontSize: 11, color: INK, letterSpacing: '0.12em' }}
+          >
+            SETTLEMENT
+          </span>
+          <span
+            className="block"
+            style={{ ...monoStyle, fontSize: 11, color: FAINT, letterSpacing: '0.08em' }}
+          >
+            {prev ? `LAST WEEK · ${weekRangeLabel(prev.start, prev.ends_at).toUpperCase()}` : 'WEEKLY RECORD'}
+          </span>
+        </span>
+        {headline && (
+          <span className="shrink-0 text-right">
+            <span
+              className="block font-bold leading-none"
+              style={{ ...monoStyle, fontSize: 16, color: GOLD }}
+            >
+              {headline.value}
+            </span>
+            <span
+              className="mt-0.5 block uppercase"
+              style={{ ...monoStyle, fontSize: 11, color: FAINT, letterSpacing: '0.08em' }}
+            >
+              {headline.label}
+            </span>
+          </span>
+        )}
+        <ChevronRight size={14} className="shrink-0" style={{ color: FAINT }} />
+      </button>
+    </div>
+  );
+};
+
+/**
+ * The Board Hub as its own panel: the panel that stands in the
+ * settlement readout's old position on the Standings screen.
+ * Its PanelLabel carries the current selection readout; the deck
+ * below it is the screen's board control surface (channels +
+ * period, one state owner in LeaderboardBoard); the SETTLEMENT
+ * button at its foot opens the week's receipt in a sheet. The
+ * door/badge focus behaviour moves with the panel — the
+ * Standings badge now lands the player here, where both the
+ * board controls and the settlement door live.
+ */
+export const BoardHubPanel: React.FC<{
+  hub: BoardHubSelection;
+  data: WeeklyLeaderboards | null;
+  loading: boolean;
+  onOpenSettlement: () => void;
+  /** Incremented by the Hunter door tap: scroll to + highlight the panel. */
+  focusNonce?: number;
+}> = ({ hub, data, loading, onOpenSettlement, focusNonce = 0 }) => {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [highlighted, setHighlighted] = useState(false);
+  const handledNonce = useRef(0);
+
+  useEffect(() => {
+    if (focusNonce === 0 || loading || handledNonce.current === focusNonce) return;
+    handledNonce.current = focusNonce;
+    const el = panelRef.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+    setHighlighted(true);
+    const timer = window.setTimeout(() => setHighlighted(false), 2600);
+    return () => window.clearTimeout(timer);
+  }, [focusNonce, loading]);
+
+  const myRk = hub.myRanks[hub.metric];
+  const readout =
+    `${METRIC_SHORT[hub.metric]} · ${HUB_PERIODS.find((p) => p.id === hub.period)?.label}` +
+    (myRk != null ? ` · MY RK #${myRk}` : '');
+
+  return (
+    <div
+      ref={panelRef}
+      data-testid="standings-board-hub-panel"
+      className={`scroll-mt-2 transition-shadow ${highlighted ? 'ring-2 ring-amber' : ''}`}
+    >
+      <Panel>
+        <PanelLabel label="Board hub" right={readout} rightColor={GOLD} />
+        <BoardHubDeck hub={hub} />
+        <SettlementButton data={data} loading={loading} onOpen={onOpenSettlement} />
       </Panel>
     </div>
+  );
+};
+
+/**
+ * The settlement readout as a sheet: the shipped record, hosted
+ * by the game's shared bottom-sheet chrome (PickerSheet —
+ * portal, backdrop dismiss, chevron close, the C1 presence
+ * motion). The sheet's title names the surface; the settled
+ * window rides as the body's datum line (PickerSheet's own
+ * subtitle slot renders below the 11px type floor, so it is not
+ * used for player text). Opening the sheet with earnings on it
+ * marks the week seen, exactly as viewing the in-flow panel did
+ * before the hub ruling — the badge notice resolves here now.
+ */
+export const SettlementReadoutSheet: React.FC<{
+  open: boolean;
+  onClose: () => void;
+  data: WeeklyLeaderboards | null;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+}> = ({ open, onClose, data, loading, error, onRetry }) => {
+  const state = deriveWeeklyEarnings(data);
+  const prev = data?.previous_week ?? null;
+
+  useEffect(() => {
+    if (open && state.kind === 'earnings' && prev?.key) {
+      markStandingsEarningsSeen(prev.key);
+    }
+  }, [open, state.kind, prev?.key]);
+
+  return (
+    <PickerSheet title="Settlement Readout" onClose={onClose} open={open}>
+      <div className="pt-3">
+        {prev && (
+          <div
+            className="mb-2.5"
+            style={{ ...monoStyle, fontSize: 11, color: FAINT, letterSpacing: '0.1em' }}
+          >
+            LAST WEEK · {weekRangeLabel(prev.start, prev.ends_at).toUpperCase()}
+          </div>
+        )}
+        <WeeklyEarningsBody data={data} loading={loading} error={error} onRetry={onRetry} />
+      </div>
+    </PickerSheet>
   );
 };
