@@ -1,10 +1,21 @@
 import { create } from 'zustand';
 import { SKILL_NODES } from '../../constants/skillTrees';
-import { computeSkillBonuses, skillSpendCost } from '@/lib/skills/skillBonuses';
+import { skillSpendCost } from '@/lib/skills/skillBonuses';
+import {
+  computeHunterSkillBonuses,
+  defaultHunterForSelection,
+  isHunterId,
+  spendsForHunter,
+  type HunterId,
+} from '@/lib/hunters/hunters';
 import type { ClassMod } from '../../types/items';
 
 export interface SkillState {
   spent: Record<string, number>;
+  /** The active Cache Hunter (reshape slice (a)); server truth is
+   *  profiles.active_hunter_id, hydrated via verifiedStateSync. */
+  activeHunterId: HunterId;
+  setActiveHunter: (hunterId: string) => void;
   /** ID of the currently equipped class mod, or null. */
   appliedClassModId: string | null;
   /** Boosts from the equipped class mod (treeBonus + nodeBoosts). */
@@ -16,6 +27,10 @@ export interface SkillState {
   getTotalSpent: () => number;
   /** Budget points consumed by real spends (weighted: major 3, keystone 5). */
   getSpentBudget: () => number;
+  /** The active hunter's own pool (reshape slice (a): pools are per-hunter). */
+  getActivePool: () => Record<string, number>;
+  /** Budget consumed by the ACTIVE hunter's pool only. */
+  getActiveSpentBudget: () => number;
   /** Apply a class mod's boosts. Called by loadoutSlice on equip. */
   applyClassMod: (classMod: ClassMod) => void;
   /** Remove all class mod boosts. Called by loadoutSlice on unequip. */
@@ -25,8 +40,13 @@ export interface SkillState {
 
 export const useSkillStore = create<SkillState>()((set, get) => ({
   spent: {},
+  activeHunterId: defaultHunterForSelection(null),
   appliedClassModId: null,
   classModBoosts: { nodeBoosts: {} },
+
+  setActiveHunter: (hunterId) => {
+    if (isHunterId(hunterId)) set({ activeHunterId: hunterId });
+  },
 
   spendPoint: (nodeId) => {
     const node = SKILL_NODES.find((n) => n.id === nodeId);
@@ -37,27 +57,41 @@ export const useSkillStore = create<SkillState>()((set, get) => ({
   },
 
   respecCost: () => {
-    // Respec prices BUDGET points (audit HTR-01): a major refunds as the
-    // 3 points it cost, a keystone as 5 — the server's cc_retrain charges
-    // cc_skill_spend_cost × 100, and this quote must equal that charge.
-    return get().getSpentBudget() * 100;
+    // Respec is PER-HUNTER (reshape slice (a), brief §2.2): it prices
+    // the ACTIVE hunter's pool only — 100 cr × that hunter's budget
+    // points (a major counts its 3-point cost, a keystone 5; audit
+    // HTR-01) — and the server's cc_retrain charges exactly this for
+    // the active hunter (migration 0097).
+    return get().getActiveSpentBudget() * 100;
   },
 
   respec: (creditsAvailable) => {
     const cost = get().respecCost();
     if (creditsAvailable >= cost) {
-      set({ spent: {} });
+      // Zero ONLY the active hunter's subset; the other hunters'
+      // pools read identically before and after (check A3).
+      const { spent, activeHunterId } = get();
+      const pool = spendsForHunter(spent, activeHunterId);
+      const next = { ...spent };
+      for (const nodeId of Object.keys(pool)) delete next[nodeId];
+      set({ spent: next });
       return true;
     }
     return false;
   },
 
   getBonuses: () => {
-    const { spent, classModBoosts } = get();
-    // The computation itself lives in lib/skills/skillBonuses so the
-    // server derives identical bonuses from server-side records.
-    return computeSkillBonuses(spent, classModBoosts);
+    const { spent, classModBoosts, activeHunterId } = get();
+    // The hunter derivation (lib/hunters/hunters) reads the ACTIVE
+    // hunter's spend subset + hunter-scoped class-mod boosts + the
+    // hunter's base perk — the same derivation the server runs from
+    // server-side records (skillBonusesFromRecords).
+    return computeHunterSkillBonuses(spent, classModBoosts, activeHunterId);
   },
+
+  getActivePool: () => spendsForHunter(get().spent, get().activeHunterId),
+
+  getActiveSpentBudget: () => skillSpendCost(get().getActivePool()),
 
   getTotalSpent: () => {
     // Spend accounting reads REAL spends only (audit HTR-02): this total

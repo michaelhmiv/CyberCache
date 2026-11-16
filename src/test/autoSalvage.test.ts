@@ -153,12 +153,12 @@ describe('auto-salvage settlement pass (0080 twin)', () => {
 
   it("Hoarder's Instinct changes the yield — through the same recycle path, not a fork", async () => {
     const withSpends = gameStore();
-    withSpends.seedProfile({ id: A, skill_spends: { scav_major_1: 1 } });
+    withSpends.seedProfile({ id: A, skill_spends: { scav_major_1: 1 }, active_hunter_id: 'josie' });
     withSpends.seedItem({ id: 'drop-1', owner_user_id: A, rarity: 'Common', item_level: 10, payload: { rollQuality: 5 } });
     const autoSummary = (await withSpends.applyAutoSalvage(A, 'claim:106', 'roam', ['drop-1'])) as Json;
 
     const manual = gameStore();
-    manual.seedProfile({ id: A, skill_spends: { scav_major_1: 1 } });
+    manual.seedProfile({ id: A, skill_spends: { scav_major_1: 1 }, active_hunter_id: 'josie' });
     manual.seedItem({ id: 'drop-1', owner_user_id: A, rarity: 'Common', item_level: 10, payload: { rollQuality: 5 } });
     const recycled = (await manual.recycleItem(A, 'manual-nonce-0002', 'drop-1')) as Json;
 

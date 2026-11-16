@@ -2,12 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, useAnimationControls } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
-import { PixelPartsActor } from './PixelPartsActor';
-import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
-import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
-import { layoutPartSet } from '@/lib/pixel/partsCompositor';
-import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
-import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
+import { PixelPaintedHunterActor } from './PixelPaintedHunterActor';
+import { BossHunterVoice } from './HunterVoiceChip';
+import { paintedPlacement } from '@/lib/pixel/paintedStage';
+import { useSkillStore } from '@/store';
 import {
   CritFlash,
   DamageNumber,
@@ -22,7 +20,7 @@ import {
 } from './PixelFx';
 import { specialTelegraphForBossPhase } from '@/lib/pixel/bossTelegraph';
 import { bossStagePlacement } from '@/lib/pixel/bossStageScale';
-import { getPixelSprite, pixelBossSpriteForBoss, requirePixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite, pixelBossSpriteForBoss, pixelHunterSpriteForHunter, requirePixelSprite } from '@/lib/pixel/manifest';
 import { bossArena, endlessBandTint } from '@/content/areaPalettes';
 import {
   MOVEMENT,
@@ -89,7 +87,7 @@ export interface BossFightStageProps {
   embedded?: boolean;
 }
 
-export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, weapon, reduced = false, backgroundId, depthBadge, signatureFire, embedded = false }) => {
+export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, phases, bossId, reduced = false, backgroundId, depthBadge, signatureFire, embedded = false }) => {
   // Unique arena per boss (Q3 ruling): the boss's own arena art + its
   // signature prop; the home area informs palette only.
   const arena = bossArena(bossId);
@@ -156,30 +154,18 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
   }, [beats, presentingIndex, finished, reduced]);
 
   const bossSprite = getPixelSprite(pixelBossSpriteForBoss(bossId) ?? 'brute') ?? requirePixelSprite('brute');
-  // The hunter is a part set (M2): FX points resolve from the parts
-  // layout for the pose he is actually in — the grip/muzzle of the
-  // held weapon, the torso span for his mass (M3). (The deleted
-  // whole-hunter sprite's manifest anchors used to feed these.)
-  const hunterPoseName: PartsPoseName = !weapon
-    ? 'relaxed'
-    : beat('playerHit')
-      ? 'hit'
-      : shotBeat
-        ? 'recoil'
-        : 'aim';
-  const look = useOwnLookWithLoad();
-  const hunterSet = look.set;
-  const hunterLayout = layoutPartSet(
-    hunterSet,
-    PART_POSES[hunterPoseName],
-    weapon ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(weapon)) : undefined,
-  );
-  const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
-  const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
-  // M3: the mass joint is layout-resolved from the posed torso
-  // (neckSeat→pelvisSeat) — the FX anchor chain's last hard-coded
-  // point (the skeleton's fixed chest design point) is gone.
-  const hunterMass = partsAnchorPoint(hunterLayout.joints.mass, hunterPlacement);
+  // The painted hunter (Cache Hunters slice (c); owner ruling
+  // 2026-11-15 — PAINTINGS ONLY ON STAGE): the active hunter's
+  // Cast B painting is the stage figure, and the FX points resolve
+  // from the PAINTING's manifest anchors at the width-law-fitted
+  // placement — the same anchor discipline the boss flat uses.
+  // (The parts layout's joints used to feed these.)
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const hunterSprite = requirePixelSprite(pixelHunterSpriteForHunter(activeHunterId) ?? 'hunter-vesper-cole');
+  const hunterStagePlacement = paintedPlacement(hunterSprite, hunterPlacement);
+  const muzzle = actorAnchorPoint(hunterSprite, 'muzzle', hunterStagePlacement);
+  const grip = actorAnchorPoint(hunterSprite, 'grip', hunterStagePlacement);
+  const hunterMass = actorAnchorPoint(hunterSprite, 'centerMass', hunterStagePlacement);
   const bossMass = actorAnchorPoint(bossSprite, 'centerMass', bossPlacement);
   const bossFeet = actorAnchorPoint(bossSprite, 'feet', bossPlacement);
 
@@ -343,23 +329,29 @@ export const BossFightStageDom: React.FC<BossFightStageProps> = ({ timeline, pha
           initial={false}
           animate={reduced ? undefined : hunterControls}
         >
-          {/* Loadout truth, parts edition: the part set wears the
-              player's head variant; the equipped weapon instance —
-              and only it — renders grip-to-grip between the arm
-              layers. Unarmed, the hunter stands 'relaxed' with no
-              weapon layer at all: nothing baked in, nothing pasted
-              on. */}
-          <PixelPartsActor
-            set={hunterSet}
-            partPalettes={look.partPalettes}
+          {/* Paintings only on stage (ruling 2026-11-15): the
+              active hunter's whole painting fights the boss — no
+              part layers, no held weapon on the figure. The defeat
+              fall above runs on this wrapper exactly as it did on
+              the parts figure (it pivots at the feet origin and
+              settles shrunk inside the frame). */}
+          <PixelPaintedHunterActor
+            sprite={hunterSprite}
             {...hunterPlacement}
             reduced={reduced}
-            pose={hunterPoseName}
-            weapon={weapon}
-            weaponTestId="boss-stage-weapon"
             testId="boss-stage-hunter"
           />
         </motion.div>
+
+        {/* Hunter voice (slice (c), §2.6): the boss-kill line on a
+            victory finish; a defeat finish stays silent. Copy is
+            owner-approved v2 copy (2026-11-15). */}
+        <BossHunterVoice
+          timeline={timeline}
+          bossId={bossId}
+          xPct={hunterPlacement.xPct}
+          topPct={(groundY - hunterPlacement.heightPct / 100) * 100 - 4}
+        />
 
         {/* Boss — drop-in landing, hit reaction, telegraphed lunge, death.
             Persistent wrappers; reactions run through controls. */}

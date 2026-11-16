@@ -151,6 +151,9 @@ export const RepDeskPanel: React.FC = () => {
                 ? 'No standing yet'
                 : `Rank ${m.rank} · ${m.genericTitle}${m.rankTitle ? ` — “${m.rankTitle}”` : ''}`}
             </div>
+            <div className="mt-0.5 text-[11px] text-text-muted">
+              {m.founder} · “{m.slogan}”
+            </div>
           </div>
           <div className="flex shrink-0 gap-1 pt-1" aria-label={`Rank ${m.rank} of 5`}>
             {[1, 2, 3, 4, 5].map((pip) => (

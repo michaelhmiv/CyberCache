@@ -15,7 +15,7 @@ You run your action from **the stage on the Home tab** — pick an area, tap Sta
 
 ## Roaming
 
-The area's rate grids print **Base credits**, **Base scrap**, **Base gear** and **Base materials**: these are the area's starting rates, before your gear, skills, vehicle and hot-area bonuses. The feed records the settled rewards. The panel's heading names the area you are working, and when that area is the day's hot area a small flame flickers beside its name — the same mark the area picker shows — stilling to a steady flame when reduced motion is on; no flame shows beside any other area's name. The elapsed clock measures real seconds from the activity's start, including when you return to the tab. Each foreground sync processes at most 20 ticks; the separate away settlement keeps its earned-hours cap.
+The area's rate grids print **Base credits**, **Base scrap**, **Base gear** and **Base materials**: these are the area's starting rates, before your gear, skills, vehicle and hot-area bonuses. The skill side of those bonuses is your fielded Cache Hunter's own pool and base perk — the other hunters' trees do not price while they are benched (see [[Progression]]). The feed records the settled rewards. The panel's heading names the area you are working, and when that area is the day's hot area a small flame flickers beside its name — the same mark the area picker shows — stilling to a steady flame when reduced motion is on; no flame shows beside any other area's name. The elapsed clock measures real seconds from the activity's start, including when you return to the tab. Each foreground sync processes at most 20 ticks; the separate away settlement keeps its earned-hours cap.
 
 Roaming is the core idle activity and the default state of the game. Your hunter works one of **7 areas**, resolved in **3-second ticks**, earning credits, XP, scrap, materials, and gear drops as the ticks land. **Every area is open from the start** — there are no level locks. Higher areas pay better against tougher opposition, and the area picker tells you honestly when an area outmatches your build: it shows the duel in real numbers (their damage per tick against your HP + shield pool, your damage against their health) and warns you before you switch — but the warning never blocks you. **Roam anyway** is always there.
 
@@ -28,6 +28,8 @@ Roaming consumables you own switch themselves on and run in **coverage windows**
 Both settlements — the foreground claim and the while-away one — run your **Auto-Salvage Rules** over the drops they just stored (see [[Gear]]): a drop under your rarity and roll-quality caps is salvaged as it lands, announced in the feed and the recap rather than added to your bag.
 
 Roaming is also where the open world can kill you — death and resurrection are covered under [[Bosses]]. Pacing, XP rates, and offline earnings (including the 24-hour absolute offline cap) are covered in [[Progression]]. Every area, pictured in its own painting with its signature loot and named elite: [[Reference-Areas]].
+
+The run is interrupted, now and then, by events — finds, hazards, and people. In the Dustwaste Frontier the person is **Pell**, a wounded scavenger who flags runners down: aid him and it costs a survival consumable from your bag, if you carry one. While he heals, his own route posts on the [[Contracts]] board as **Pell's Run**.
 
 ## Crafting
 

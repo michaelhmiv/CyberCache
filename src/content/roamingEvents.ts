@@ -224,9 +224,9 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
     resolution: { kind: 'stormWindow' },
   }),
   ev({
-    id: 'dustwaste_wounded_scavenger', areaId: 'dustwaste_frontier', name: 'Wounded Scavenger', family: 'objective',
+    id: 'dustwaste_wounded_scavenger', areaId: 'dustwaste_frontier', name: 'Pell, the Wounded Scavenger', family: 'objective',
     weight: 3, propId: 'prop-aid-marker', expectedValueCredits: 18.3,
-    blurb: 'A wounded scavenger flags you down.',
+    blurb: 'Pell flags you down, wounded. Josie Lode\'s people still owe him.',
     resolution: { kind: 'aidObjective' },
   }),
 

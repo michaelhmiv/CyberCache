@@ -1,19 +1,17 @@
 import { MOVEMENT, classifyTickBeat, type ActorPlacement, type CombatBeat } from './movement';
 import { STRIDE_SPECS, sampleStride, type StrideSpec } from './strideCycle';
 import { EASE, sampleTrack } from './pixiChoreography';
-import { PART_POSES, type PartsPoseName } from './parts';
+import { type PartsPoseName } from './parts';
 import { ENEMY_POSES, enemyRig, type RigDef, type RigPose } from './rig';
-import { layoutPartSet, type PartSetLayout } from './partsCompositor';
-import { partsAnchorPoint, partsWeaponFractionsFor } from './partsStage';
 import { actorAnchorPoint } from './movement';
+import { paintedPlacement } from './paintedStage';
 import { getMonster, type MonsterArchetype } from '@/constants/monsters';
 import { areaVisuals, type AreaVisualIdentity } from '@/content/areaPalettes';
 import { elementDialect, shotCadence, type ElementDialect, type ShotCadence } from './elementFx';
-import { getPixelSprite, pixelEnemySpriteForArchetype, requirePixelSprite, type PixelSprite } from './manifest';
-import { pixelWeaponInputFromWeapon } from './weaponCompositor';
+import { getPixelSprite, pixelEnemySpriteForArchetype, pixelHunterSpriteForHunter, requirePixelSprite, type PixelSprite } from './manifest';
 import { gearDropFromEvent, lootRiseVisualForEvent, type LootRiseVisual } from './lootMoment';
 import { Rarity } from '@/types/game';
-import type { PartSetDef } from './parts';
+import type { HunterId } from '@/lib/hunters/hunters';
 import type { TickEvent } from '@/store/slices/tickSlice';
 import type { GearItem, Weapon } from '@/types/items';
 
@@ -24,10 +22,13 @@ import type { GearItem, Weapon } from '@/types/items';
  * Pixi renderer and its tests consume ONE derivation:
  *
  *  - the tick beat (classifyTickBeat — movement.ts, unmodified),
- *  - the hunter's pose for the beat and his parts layout,
+ *  - the hunter's figure: the active hunter's whole painting
+ *    (Cache Hunters slice (c), paintings only on stage) seated at
+ *    the roam mark, its FX anchors read from the painting's own
+ *    manifest anchors,
  *  - the enemy: segmented band rig (current shipped art) with its
  *    ENEMY_POSES pose, or the area's bespoke elite flat,
- *  - FX anchors from the same layout/anchor math the DOM uses,
+ *  - FX anchors from the same anchor math the DOM uses,
  *  - the element dialect + shot cadence for the beat FX,
  *  - the loot facts (rise visual / gear drop) — the rises and the
  *    LootMoment themselves STAY DOM (the pilot's split: the canvas
@@ -50,7 +51,13 @@ import type { GearItem, Weapon } from '@/types/items';
  *  sits at 12% since capture-pass round 2 (2026-11-13): the
  *  hunter's extended rifle tip measures 57.6% of stage width from
  *  the 18% mark, which left every archetype short of the ≥12%
- *  rest-air law; the −6 shift buys all of them +6 air at once. */
+ *  rest-air law; the −6 shift buys all of them +6 air at once.
+ *  Slice (c) note (2026-11-15): the mark itself is unchanged, but
+ *  its rationale is superseded — the painted figure's right edge
+ *  is the painting's own edge (the widest, Vesper, reaches ≈24.8%
+ *  of stage width from this mark), so the rest air to every
+ *  archetype's front now measures ≈40%+, far past the law. The
+ *  per-archetype enemy overrides below stay as shipped. */
 export const ROAM_HUNTER_PLACEMENT = { xPct: 12, heightPct: 57 } as const;
 export const ROAM_ENEMY_PLACEMENT = { xPct: 78, heightPct: 58 } as const;
 
@@ -275,7 +282,10 @@ export interface RoamSceneInput {
   event?: TickEvent;
   targetMaxHp: number;
   currentTargetId?: string;
-  hunterSet: PartSetDef;
+  /** The active hunter (slice (c)): selects the Cast B painting
+   *  that stands on the stage. Absent keeps the roster default
+   *  (Vesper) — the same default the skill store seeds. */
+  hunterId?: HunterId;
   /** Walk-in-local ms (0 at the target spawn) while the enemy is
    *  still walking in; undefined once settled. Supplied by the
    *  renderers from their own walk clocks (Pixi's walk state,
@@ -302,10 +312,13 @@ export interface RoamSceneModel {
   visuals: AreaVisualIdentity;
   dialect: ElementDialect;
   cadence: ShotCadence;
-  hunterPoseName: PartsPoseName;
   poseKey: string;
-  hunterLayout: PartSetLayout;
+  /** The painted hunter (slice (c)): the active hunter's whole
+   *  painting + the width-law-fitted placement it renders at. */
+  hunterSprite: PixelSprite;
+  hunterSpriteId: string;
   hunterPlacement: ActorPlacement;
+  hunterStagePlacement: ActorPlacement;
   enemyPlacement: ActorPlacement;
   /** Segmented rig path (the standard roaming enemy). */
   rig?: RigDef;
@@ -349,18 +362,20 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
   const poses = roamPosesAt(beat, !!input.weapon, input.beatElapsedMs ?? 0, {
     beatForCurrentTarget: input.beatForCurrentTarget,
   });
-  const hunterPoseName = poses.hunter;
-  const hunterLayout = layoutPartSet(
-    input.hunterSet,
-    PART_POSES[hunterPoseName],
-    input.weapon ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(input.weapon)) : undefined,
-  );
+  // The painted hunter (slice (c)): the active hunter's Cast B
+  // painting, seated by its own anchors at the roam mark. The
+  // beat's hunter pose name survives only inside poses.key (the
+  // frame-cache discriminator) — a painting has no poses; the
+  // wrapper beat tracks in sampleRoamBeat carry the reactions.
+  const hunterSpriteId = pixelHunterSpriteForHunter(input.hunterId) ?? 'hunter-vesper-cole';
+  const hunterSprite = getPixelSprite(hunterSpriteId) ?? requirePixelSprite('hunter-vesper-cole');
   const targetArchetype = input.currentTargetId ? getMonster(input.currentTargetId)?.archetype : undefined;
   const flatSpriteId = isEliteEvent && visuals.eliteSpriteId ? visuals.eliteSpriteId : undefined;
   const enemySpriteId =
     (flatSpriteId ?? pixelEnemySpriteForArchetype(targetArchetype)) ?? 'brute';
   const enemySprite = getPixelSprite(enemySpriteId) ?? requirePixelSprite('brute');
   const hunterPlacement: ActorPlacement = { ...ROAM_HUNTER_PLACEMENT, groundY };
+  const hunterStagePlacement = paintedPlacement(hunterSprite, hunterPlacement);
   // Elite staging keeps the shared mark exactly (its heights
   // below); the plain path reads the per-archetype settle.
   const enemyBase = isEliteEvent ? ROAM_ENEMY_PLACEMENT : roamEnemyPlacementFor(targetArchetype);
@@ -388,10 +403,11 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
     visuals,
     dialect: elementDialect(input.weapon?.element),
     cadence: shotCadence(input.weapon?.weaponType, input.weapon?.attackSpeed),
-    hunterPoseName,
     poseKey: poses.key,
-    hunterLayout,
+    hunterSprite,
+    hunterSpriteId,
     hunterPlacement,
+    hunterStagePlacement,
     enemyPlacement,
     rig: flatSpriteId ? undefined : enemyRig(isEliteEvent ? 'elite' : (targetArchetype ?? 'brute')),
     rigPose: beatRigPose,
@@ -399,9 +415,9 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
     flatSpriteId,
     enemySprite,
     enemySpriteId,
-    muzzle: partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement),
-    grip: partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement),
-    hunterMass: partsAnchorPoint(hunterLayout.joints.mass, hunterPlacement),
+    muzzle: actorAnchorPoint(hunterSprite, 'muzzle', hunterStagePlacement),
+    grip: actorAnchorPoint(hunterSprite, 'grip', hunterStagePlacement),
+    hunterMass: actorAnchorPoint(hunterSprite, 'centerMass', hunterStagePlacement),
     enemyMass: actorAnchorPoint(enemySprite, 'centerMass', enemyPlacement),
     enemyFeet: actorAnchorPoint(enemySprite, 'feet', enemyPlacement),
     enemyLoot: actorAnchorPoint(enemySprite, 'lootPoint', enemyPlacement),
@@ -418,7 +434,7 @@ export function deriveRoamScene(input: RoamSceneInput): RoamSceneModel {
   }, input.walkMs);
 }
 
-/** Compose only the moving rig bands; reuse the cached hunter layout and FX geometry. */
+/** Compose only the moving rig bands; reuse the cached hunter figure and FX geometry. */
 export function withRoamWalkFrame(model: RoamSceneModel, walkMs?: number): RoamSceneModel {
   if (model.isEliteEvent || model.flatSpriteId || walkMs === undefined || walkMs >= MOVEMENT.WALK_IN_MS) return model;
   const walk = sampleEnemyWalkPose(walkMs);
@@ -662,24 +678,25 @@ export const ROAM_POOL_CAPS = {
  * formula (pixiAnimatedNodeCount: actor sprites + pooled FX;
  * containers and static sprites — vista plates, the vehicle, the
  * event prop — are not animated nodes). HONEST RESULT: the roam
- * scene counts HIGHER than the boss fight's 40 (53 at full dress:
- * 11 parts + weapon + 6 gear mounts + 4 rig segments against
- * 6+4+14+7 pooled FX) — because the DOM scene it replaces animates
- * at least as many framer-driven elements (14 embers, 11 part
- * layers, gear layers, rig segments, the whole FX kit as separate
- * DOM nodes). The Pixi scene is one canvas with pooled sprites and
+ * scene counts HIGHER than the boss fight's count (36 at full
+ * dress since slice (c): the ONE hunter painting + 4 rig segments
+ * against 6+4+14+7 pooled FX; before slice (c) it was 53 — 11
+ * parts + weapon + 6 gear mounts) — because the DOM scene it
+ * replaces animates at least as many framer-driven elements
+ * (14 embers, rig segments, the whole FX kit as separate DOM
+ * nodes). The Pixi scene is one canvas with pooled sprites and
  * no per-frame allocation; the count is reported, not trimmed —
  * trimming it would mean dropping scene elements the DOM shows,
  * which is a behavior change, not an optimization.
  */
-export function roamAnimatedNodeCount(opts: { partCount: number; gearCount: number; armed: boolean; enemySegments: number; vista?: boolean }): number {
-  const actors = opts.partCount + (opts.armed ? 1 : 0) + opts.gearCount + opts.enemySegments;
+export function roamAnimatedNodeCount(opts: { enemySegments: number; vista?: boolean }): number {
+  const actors = 1 + opts.enemySegments;
   // V1 vista scenes: the procedural ember pool stands down (the
   // authored ambient sets carry the ember life) and the four
   // ambient canvas sprites join the count; the band wrap pairs are
   // vista dressing like the plates they replace. Full dress on a
-  // vista scene: 22 actors + 6 + 4 + 0 + 7 + 4 = 43 (vs 53 for the
-  // painting stack) — reported, not trimmed, same as ever.
+  // vista scene: 5 actors + 6 + 4 + 0 + 7 + 4 = 26 — reported, not
+  // trimmed, same as ever.
   const embers = opts.vista ? 0 : ROAM_POOL_CAPS.embers;
   const vistaAmbient = opts.vista ? 4 : 0;
   return actors + ROAM_POOL_CAPS.sparks + ROAM_POOL_CAPS.tracers + embers + ROAM_POOL_CAPS.oneShots + vistaAmbient;

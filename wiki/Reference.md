@@ -11,7 +11,9 @@ definitions — the same constants the live game runs on — so a table
 cannot quietly drift from the game the way a hand-copied list always
 eventually does. A freshness check in CI (`npm run wiki:gen:check`)
 fails if a published table ever falls behind the definitions it was
-rendered from. If a number is in a Reference table, it is the number
+rendered from. Skill numbers in these tables are per Cache Hunter:
+each hunter's tree is its own pool, priced only while that hunter is
+fielded (see [[Progression]]). If a number is in a Reference table, it is the number
 the game shipped.
 
 The biggest tables get their own pages:
@@ -46,14 +48,14 @@ Base stats below are the frame every roll starts from, before manufacturer bias,
 
 ### Manufacturers
 
-| Manufacturer | Identity | Baked-in mechanic | Stat bias |
-| --- | --- | --- | --- |
-| **Redline** | Attack speed, ramping damage, sustained DPS | Attack speed +15% baked into every roll; its ramping damage is folded into base damage (+8%) | Attack Speed ×1.15, Base Damage ×0.95 |
-| **Ironwood** | Crits, precision, boss killing | High crit chance/damage; strong single-target modifiers (+20% crit damage vs bosses) | Crit Chance ×1.2, Crit Damage ×1.25, Base Damage ×1.05 |
-| **BlastForge** | Explosions, splash, stagger, armor cracking | Explosive damage helps armor break and boss phase checks (+25% armor damage) | Armor Damage ×1.25, Base Damage ×1.1, Attack Speed ×0.9 |
-| **Prismatek** | Elemental specialization | Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored | Status Chance ×1.3, Status Damage ×1.3, Base Damage ×0.95 |
-| **ThrowTech** | Deployables and disposable tech | Deployable-tech frames: +20% wave damage baked into every roll | Wave Damage ×1.2, Base Damage ×0.9 |
-| **HelixWorks** | Modular, flexible, better stat variance | Modular frames: +10 roll quality floor on every roll | Base Damage ×1 |
+| Manufacturer | Founder | Slogan | Identity | Baked-in mechanic | Stat bias |
+| --- | --- | --- | --- | --- | --- |
+| **Redline** | Della Voss | It only gets faster. | Attack speed, ramping damage, sustained DPS | Attack speed +15% baked into every roll; its ramping damage is folded into base damage (+8%) | Attack Speed ×1.15, Base Damage ×0.95 |
+| **Ironwood** | Amos Thorne | Ironwood takes its time. Once. | Crits, precision, boss killing | High crit chance/damage; strong single-target modifiers (+20% crit damage vs bosses) | Crit Chance ×1.2, Crit Damage ×1.25, Base Damage ×1.05 |
+| **BlastForge** | Hollis Brandt | Subtlety was not in the budget. | Explosions, splash, stagger, armor cracking | Explosive damage helps armor break and boss phase checks (+25% armor damage) | Armor Damage ×1.25, Base Damage ×1.1, Attack Speed ×0.9 |
+| **Prismatek** | Iris Calloway | Every element, accounted for. | Elemental specialization | Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored | Status Chance ×1.3, Status Damage ×1.3, Base Damage ×0.95 |
+| **ThrowTech** | Tobin Larkin | Built to be left behind. | Deployables and disposable tech | Deployable-tech frames: +20% wave damage baked into every roll | Wave Damage ×1.2, Base Damage ×0.9 |
+| **HelixWorks** | Ada Kessler | No two alike. All of them calibrated. | Modular, flexible, better stat variance | Modular frames: +10 roll quality floor on every roll | Base Damage ×1 |
 
 ### Elements
 
@@ -262,11 +264,11 @@ Baseline rates are the area design rates before gear, skills, vehicles, and the 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | **Dustwaste Frontier** | Low | Raiders, scrap drones, and scavengers | 15 | 3 | 1 | Scrap, Ballistic Parts | Balanced gear, early salvage | Mixed |
 | **Redline Circuit** | Medium | Fast raiders, pursuit drones, and overheating runners | 18 | 3 | 1.2 | Scrap, Ballistic Parts | SMGs, pistols, attack speed, reload and ramp affixes | Redline |
-| **Ironwood Bastion** | Medium/High | Marksmen, armored captains, and sentry posts | 17 | 4 | 1.4 | Ballistic Parts, Tech | Snipers, pistols, crit rolls, weakpoint and boss-damage flavor | Ironwood |
+| **Ironwood Bastion** | Medium/High | Marksmen, armored captains, and sentry posts | 17 | 4 | 1.4 | Ballistic Parts, Tech Fragments | Snipers, pistols, crit rolls, weakpoint and boss-damage flavor | Ironwood |
 | **BlastForge Yards** | Medium/High | Armored machines, refinery bots, and demolition crews | 16 | 5 | 1.65 | Scrap, Ballistic Parts, Reactive Components | Launchers, shotguns, armor break, stagger and explosive flavor | BlastForge |
-| **Prismatek Reactor** | Variable | Elemental anomalies, shielded test subjects, and reactor constructs | 18 | 4 | 1.9 | Tech | Beams, elemental weapons, status affixes, weakness exploitation | Prismatek |
-| **ThrowTech Dumpnet** | Medium | Hacked drones, turret nests, minefields, and signal traps | 19 | 4 | 2.15 | Tech, Reactive Components | Deployable-flavored gear, ordnance, utility drops, drone parts | ThrowTech |
-| **HelixWorks Labyrinth** | High | Prototype constructs, unstable test rigs, and shifting lab defenses | 21 | 5 | 2.4 | Tech, Void Dust, Scrap, Reactive Components | HelixWorks gear, higher roll quality flavor, modular parts | HelixWorks |
+| **Prismatek Reactor** | Variable | Elemental anomalies, shielded test subjects, and reactor constructs | 18 | 4 | 1.9 | Tech Fragments | Beams, elemental weapons, status affixes, weakness exploitation | Prismatek |
+| **ThrowTech Dumpnet** | Medium | Hacked drones, turret nests, minefields, and signal traps | 19 | 4 | 2.15 | Tech Fragments, Reactive Components | Deployable-flavored gear, ordnance, utility drops, drone parts | ThrowTech |
+| **HelixWorks Labyrinth** | High | Prototype constructs, unstable test rigs, and shifting lab defenses | 21 | 5 | 2.4 | Tech Fragments, Void Dust, Scrap, Reactive Components | HelixWorks gear, higher roll quality flavor, modular parts | HelixWorks |
 <!-- /wiki-gen:areas -->
 
 ## Vehicles

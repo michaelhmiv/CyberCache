@@ -22,7 +22,7 @@ cores are for.
 | **Thunder Receipt** | Boss drops, tier 1+ |
 | **Second Opinion** | Boss drops, tier 4+ |
 | **Salvage Rights** | Boss drops, tier 4+ |
-| **Overclocked** | Boss drops, tier 4+ |
+| **Runaway** | Boss drops, tier 4+ |
 | **Borrowed Time** | Boss drops, tier 4+ |
 | **Kickback** | Boss drops, tier 4+ |
 | **Vampiric Ledger** | Boss drops, tier 4+ |
@@ -42,10 +42,10 @@ cores are for.
 
 | Entry | How it is found |
 | --- | --- |
-| **Dune Tyrant** | Tier 1 · level 5 · dedicated drops: Debt Collector, Warranty Void |
+| **Harrow, the Dune Tyrant** | Tier 1 · level 5 · dedicated drops: Debt Collector, Warranty Void |
 | **The Siltstalker** | Tier 2 · level 10 · dedicated drops: Bad Decision, Glass Sun |
 | **Gromm, the Heap Guard** | Tier 3 · level 15 · dedicated drops: Ricochet Gospel, Thunder Receipt |
-| **Ashgut** | Tier 4 · level 22 · dedicated drops: Salvage Rights, Overclocked |
+| **Ashgut** | Tier 4 · level 22 · dedicated drops: Salvage Rights, Runaway |
 | **The Mirage Duster** | Tier 5 · level 28 · dedicated drops: Borrowed Time, Kickback |
 | **The Rust Prophet** | Tier 6 · level 35 · dedicated drops: Vampiric Ledger, Echo Chamber |
 | **Scrap Bishop** | Tier 7 · level 45 · dedicated drops: Chain Lightning, Void Bargain, Jackpot |

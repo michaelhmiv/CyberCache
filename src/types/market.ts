@@ -20,7 +20,7 @@ export interface MarketFilter {
   sortDir: 'asc' | 'desc';
 }
 
-export type ListingKind = 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
+export type ListingKind = 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic' | 'skin';
 
 export interface Listing {
   id: string;
@@ -51,6 +51,8 @@ export interface Listing {
   /** Cosmetic listings (0053): the part design id + worn tint palette id. Null otherwise. */
   partId: string | null;
   tintPaletteId: string | null;
+  /** Whole-skin listings (reshape slice (d)): the skin def id. Null otherwise. */
+  skinId: string | null;
   /** Price-history identity key (src/lib/market/identityKey.ts). */
   identityKey: string | null;
   weaponType: string | null;

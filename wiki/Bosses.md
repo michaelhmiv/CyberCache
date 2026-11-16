@@ -6,11 +6,11 @@ Boss fights occupy your personal action slot while they resolve (see [[Actions a
 
 ## The ladder
 
-You do not pick any boss you like from a menu. The ladder is sequential: **defeating a boss unlocks the next one.** The first boss, Dune Tyrant, is a level-5 tutorial fight; the ladder then climbs steadily to Vaultkeeper Omega at level 75. A boss's level is the level of the fight — its health, damage, and rewards are built for a hunter around that level.
+You do not pick any boss you like from a menu. The ladder is sequential: **defeating a boss unlocks the next one.** The first boss, Harrow, the Dune Tyrant, is a level-5 tutorial fight; the ladder then climbs steadily to Vaultkeeper Omega at level 75. A boss's level is the level of the fight — its health, damage, and rewards are built for a hunter around that level.
 
 The roster by band:
 
-- **The early ladder (levels 5–15)** — Dune Tyrant (5), The Siltstalker (10), and Gromm, the Heap Guard (15). These teach the basics: reading a mechanic, bringing a counter element, surviving an enrage.
+- **The early ladder (levels 5–15)** — Harrow, the Dune Tyrant (5), The Siltstalker (10), and Gromm, the Heap Guard (15). These teach the basics: reading a mechanic, bringing a counter element, surviving an enrage.
 - **The middle ladder (levels 22–45)** — Ashgut (22), The Mirage Duster (28), The Rust Prophet (35), and Scrap Bishop (45). Phases and repair/shield mechanics start deciding fights here, and prep matters as much as raw DPS.
 - **The high ladder (levels 50–65)** — Widow-9, the Spinneret (50), The Mnemosyne Mirror (55), The Static Choir (60), and The Verdant Maw (65). Expect adaptive and multi-phase fights that punish a one-note build.
 - **The endgame (levels 70–75)** — Sister Null, the Void Anchor (70), and Vaultkeeper Omega (75). The last word, for now, in single-boss difficulty.
@@ -19,7 +19,9 @@ The roster by band:
 
 Before an attempt, prep shows you the boss itself: its stats, its mechanic, its phases and what each phase checks, its weaknesses and resistances, and the consumables it recommends bringing. Read it — a phase's failure reason tells you plainly what kind of build the phase is testing.
 
-The boss presents itself, literally: the prep header is a portrait plate of the creature itself, standing on its own arena — its name, tier and level, its first weakness as a colored chip (the strip along the plate's foot carries the same element color), and its mechanic's name. The same creature marks the boss picker rows, the fight's vitals line, and the defeat screen, each one cut from the same sprite — what prep promises is exactly what the fight delivers. And the presentation is not only in the header: on Home, the boss itself waits on the main stage while you prep, and when you launch, the fight plays out on that same stage — your hunter and the boss, blow by blow — above the panel that then carries the result. Your HP bar in the fight is your real HP pool — the same number your Hunter totals show, Cache Rank Thick Skin included — not a fight-only figure.
+Every boss is somebody: the prep surface also carries one **dossier line** per boss — a single dry line about who this boss is, above the mechanic. It is persona, not intel: it never rates your chances and tells you nothing about the fight.
+
+The boss presents itself, literally: the prep header is a portrait plate of the creature itself, standing on its own arena — its name, tier and level, its first weakness as a colored chip (the strip along the plate's foot carries the same element color), and its mechanic's name. The same creature marks the boss picker rows, the fight's vitals line, and the defeat screen, each one cut from the same sprite — what prep promises is exactly what the fight delivers. And the presentation is not only in the header: on Home, the boss itself waits on the main stage while you prep, and when you launch, the fight plays out on that same stage — your hunter and the boss, blow by blow — above the panel that then carries the result. Your HP bar in the fight is your real HP pool — the same number your Hunter totals show, Cache Rank Thick Skin included — not a fight-only figure. The panel itself no longer snaps between its states: prep gives way to the fight, and the fight to the result, on the same short crossfade every stop in the game uses.
 
 By design, prep **never shows a computed win chance, readiness score, or any odds figure about you**. That is a hard rule of the game, not a missing feature: the intel is the boss's facts, and judging whether your build is ready is your call. If a screen ever seems to be rating your chances, that is a bug — the game does not grade you.
 
@@ -41,7 +43,7 @@ A boss's mechanic names a demand, and the fight collects it. Where a mechanic st
 
 The Scrap Bishop's siege is the same rule three times at once: shield break 1.25, armor break 1.25, and kill speed 1.35 are all measured, and the weakest of the three sets the tax — a build that maxes one layer and skimps another is taxed on the skimped layer. The other bosses' phases stay what they have always been: reporting. A phase tells you what it checks and whether your build answers it; only the mechanic itself collects.
 
-Two mechanics work differently and always have: a trait gate (the Mirage Duster's, the Static Choir's, Sister Null's) is binary — bring the trait or fight at half strength — and the Mirror and the Widow/Omega answer specific counters (a second element; kill speed against the ramp) rather than a numeric line. Dune Tyrant, the tutorial, makes no demand at all.
+Two mechanics work differently and always have: a trait gate (the Mirage Duster's, the Static Choir's, Sister Null's) is binary — bring the trait or fight at half strength — and the Mirror and the Widow/Omega answer specific counters (a second element; kill speed against the ramp) rather than a numeric line. Harrow, the tutorial, makes no demand at all.
 
 ## The risk setting
 

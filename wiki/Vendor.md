@@ -1,8 +1,8 @@
 # Vendor
 
-The NPC vendor is the beginner on-ramp: a counter that is always open,
+The vendor is **Marla Quill**, and her counter is the beginner on-ramp: always open,
 never out of stock, and happy to sell you the basics so a new hunter can
-always gear up for the next roam. What the vendor sells is deliberately
+always gear up for the next roam. What Marla sells is deliberately
 baseline — flat **100% quality**, no rarities, no surprises. Anything
 better (quality above 100%, crafter-only types, the good ammo) comes only
 from [[Crafting|crafters]] and [[The Market]].
@@ -11,7 +11,8 @@ You'll find the vendor as a stop on the Market rail. The stop opens on
 the buy counter; a dashed **Sell to Vendor — Buyback** row at the top of
 the stop opens the buyback desk. Standing with the makers has moved out
 of the stall entirely — the [[Manufacturer Standing|Rep Desk]] is its
-own stop on the same rail. Every item on the counter is one compact row: its icon,
+own stop on the same rail, where each maker's card is headed by its
+founder's name and house slogan. Every item on the counter is one compact row: its icon,
 its family and what it does, how many you already own, and the Buy
 button with its price.
 
@@ -27,7 +28,7 @@ Nine consumables are stocked every day, in unlimited quantity:
 
 | Staple | Price |
 |---|---|
-| Generic Fuel Cell | 40 cr |
+| Jerrican | 40 cr |
 | Ammo Pack | 150 cr |
 | Patch Kit | 150 cr |
 | Med Kit | 250 cr |

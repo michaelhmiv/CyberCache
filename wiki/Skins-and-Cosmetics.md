@@ -1,13 +1,55 @@
 # Skins and Cosmetics
 
 Your hunter's look is gear too — it just refuses to carry a single
-stat. **Skin parts** are crafted items that replace pieces of your
+stat. Each of the four Cache Hunters is **one painting**, and a
+**skin** is a whole replacement painting for that hunter — worn
+whole, never in pieces, and **pure cosmetic — zero stats**.
+
+## Whole skins: the Wardrobe
+
+Open **Hunter → Wardrobe** to see your fielded hunter's painting
+and their skins. Every hunter starts with their **Standard Issue**
+skin — the painting itself:
+
+- **Vesper Cole** — the cache-touched gunslinger: outlaw brim,
+  cache-energy arm (plum).
+- **Silas Boone** — living ordnance: a torso fused with a bomb
+  casing (hazard rust-orange).
+- **Josie Lode** — a non-humanoid salvage machine: storage-bin
+  body, lamp eye-stalk (teal).
+- **Doc Sutter** — a walking workshop: furnace-forge chest,
+  welding-mask faceplate (dusty steel-blue).
+
+**Wear** seats a skin; **Remove** returns the hunter to their base
+painting. The wardrobe prints worn and owned counts for the fielded
+hunter. A skin belongs to exactly one hunter — Vesper's skin never
+fits Silas — and wearing one changes **no stat, ever**: a skin is
+paint, not power. Whole skins are items: they craft in the
+Workshop's cosmetic lane (a complete skin, never a fragment), they
+come from set conversion (below), and they trade on [[The Market]]
+under their own **Skins** category.
+
+## Skin parts: the legacy system
+
+**Skin parts** are crafted items that once replaced pieces of a
 hunter's standard-issue frame: a helm, a torso, arms, legs, a back
-rig. They are **pure cosmetic — zero stats** — and they show
-everywhere your hunter does: the Home stage, boss fights, the
-Workshop bays, your Hunter profile showcase, and [[Leaderboards
-and Streaks|Standings]], where every hunter renders wearing their
-own parts.
+rig. They are **no longer worn** — the Wardrobe fits whole skins
+now — so parts stand as **collection pieces**: they stay in your
+[[Collections]], and nothing you own is deleted by the change.
+Part crafting has **ended**: the part recipes have left the
+Workshop, and no new part listings can be created (a listing that
+was already live still completes for its buyer).
+
+**Set conversion.** Owning **every part of a set** converts that
+set into the set's **whole skin** — one skin per hunter the set
+has been painted for. The parts are **not consumed**: they stay
+yours as collection pieces, and the skin arrives on its own. A
+partial set converts nothing. Conversion is checked whenever your
+cosmetics are read, so a set completed by a trade converts on
+your next look. No wave-1 set has a whole painting yet — Bulwark
+and Dreadplate were never painted as wholes — so conversion
+stands ready and grants nothing until the first set painting
+ships.
 
 ## How you get parts: the Workshop
 
@@ -23,6 +65,13 @@ Crafting a part is a normal timed Workshop job: it advances only
 while crafting is your active action, and it pays into its own
 **Cosmetic Crafting** mastery (15 XP per part), which widens the
 finish roll below.
+
+**That was the wave-1 shape. The lane has turned over:** the part
+recipes are retired, and the cosmetic lane now belongs to **whole
+skins** — a whole-skin recipe crafts one complete skin for its
+hunter, paid mostly in Scrap like the parts were, under the same
+finish roll. The lane stands empty until the first painted set
+ships its recipe; **tinting** owned parts (below) is unchanged.
 
 Wave 1 ships **26 parts** in three tiers:
 
@@ -41,9 +90,9 @@ Wave 1 ships **26 parts** in three tiers:
   lane, the [[Manufacturer Standing]] rank-3 head pick (below).
   No new copies can be crafted, and the helms can't be newly
   listed for sale. Copies crafted before the retirement are
-  grandfathered absolutely — they still wear, equip, and render
-  exactly as before, and a listing that was already live trades
-  as normal.
+  grandfathered absolutely — they remain yours as collection
+  pieces, and a listing that was already live trades as normal.
+  The same retirement now covers Bulwark and Dreadplate too.
 
 Every slot is covered from day one: head, torso, both arms
 (upper + forearm near, far arm), both legs (thigh + lower leg —
@@ -198,23 +247,28 @@ listed for sale until the job lands.
 
 ## Trading parts
 
-Parts are ordinary inventory: **sellable and tradeable on [[The
-Market]]** under the Skin Parts category, at the standard 5% fee,
-with price history tracked per part design. The listing card shows
-the part worn on a hunter, its finish, and its tint — what you see
-is the exact item. Rules that keep the market honest:
+Parts traded on [[The Market]] under the Skin Parts category at
+the standard 5% fee, with price history tracked per part design.
+**New part listings have ended** — every part design is retired
+now, not just the manufacturer helms. A part listing that was
+already live still completes for its buyer as normal; owned parts
+stay in your [[Collections]] either way.
 
-- Listing a part you're **wearing** takes it off your hunter in
-  the same motion — a listed part is never still on a hunter.
-- **Locked** parts can't be listed; unlock first.
-- A part **mid-tint** can't be listed until the tint lands.
-- **Retired designs** — the six manufacturer helms — can't be
-  newly listed at all; their crafted run has ended. A helm
-  listing that was already live when they retired still trades
-  as normal, and owned helms still wear forever.
-- Buying a part puts it in your inventory, ready to wear from the
-  Wardrobe.
+**Whole skins are the tradeable cosmetics now.** A skin lists
+under its own **Skins** category on [[The Market]], at the same
+standard 5% fee, with price history tracked per skin. The listing
+card shows the skin's painting, its hunter, and its finish. Rules
+that keep the market honest:
+
+- A skin fits **only its own hunter** — the card names the hunter,
+  and the Wardrobe only offers skins you own for the hunter
+  you're dressing.
+- Listing a skin you're **wearing** is fine: if it sells, your
+  hunter falls back to their Standard Issue painting until you
+  pick another.
+- **Locked** skins can't be listed; unlock first.
+- Buying a skin puts it in your inventory, ready to wear from the
+  Wardrobe on its hunter.
 
 Parts can also be salvaged like other items if you truly never
-want to see one again — but the market usually pays better than
-the recycler.
+want to see one again.

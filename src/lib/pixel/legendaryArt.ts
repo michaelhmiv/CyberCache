@@ -38,7 +38,7 @@ export const BESPOKE_LEGENDARY_SPRITES: Record<string, string> = {
   'thunder receipt': 'legendary-thunder-receipt',
   'second opinion': 'legendary-second-opinion',
   'salvage rights': 'legendary-salvage-rights',
-  overclocked: 'legendary-overclocked',
+  runaway: 'legendary-overclocked',
   'borrowed time': 'legendary-borrowed-time',
   kickback: 'legendary-kickback',
   'vampiric ledger': 'legendary-vampiric-ledger',

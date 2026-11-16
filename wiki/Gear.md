@@ -84,6 +84,13 @@ baked into every roll. ThrowTech builds deployable tech with extra wave
 damage. HelixWorks is modular and flexible, with a better roll-quality
 floor on every roll.
 
+Each maker is one founder's outfit, and a weapon's card says whose:
+under the Maker row, the inspect sheet and the cache-reveal deck print
+the founder's name and the house slogan — Della Voss of Redline ("It
+only gets faster."), Amos Thorne of Ironwood, Hollis Brandt of
+BlastForge, Iris Calloway of Prismatek, Tobin Larkin of ThrowTech,
+Ada Kessler of HelixWorks (full table in [[Reference]]).
+
 **6 elements.** Kinetic is the neutral baseline. Fire burns flesh and
 organic targets over time but struggles against shields. Shock breaks
 shields and struggles against heavy armor. Corrosive eats armor and
@@ -243,7 +250,9 @@ Loadout page. Everything below is on it, in one scroll:
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
-protected from salvage), or salvage it. The stat deck is one shared
+protected from salvage), or salvage it. A class mod's sheet names the
+hunter it belongs to (Vesper Cole · Gunslinger, and so on) — a mod only
+works on its own hunter. The stat deck is one shared
 rendering everywhere it appears: the inspect sheet and the
 [[Caches|cache reveal]] print the same numbers the same way — DPS,
 every affix spelled out, and a legendary effect's name *and* what it

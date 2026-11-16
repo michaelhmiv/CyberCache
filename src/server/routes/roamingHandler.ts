@@ -150,6 +150,7 @@ export function createClaimHandler(
         skillBonusesFromRecords(
           equippedGear,
           (profile.skill_spends ?? {}) as Record<string, number>,
+          profile,
         ),
         // Research (0038): Xenotech weapon damage / shield capacity
         // + Powertrain's decay term merge onto the one bonus record

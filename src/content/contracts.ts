@@ -179,7 +179,7 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
   { id: 'field_work', name: 'Field Work', family: 'combat', kind: 'kills', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 200, baseTargetWeekly: 1200, paramKind: 'none', unitLabel: 'kills' },
   { id: 'elite_hunt', name: 'Elite Hunt', family: 'combat', kind: 'elites', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1, baseTargetWeekly: 4, paramKind: 'none', unitLabel: 'elites downed' },
   { id: 'surge_watch', name: 'Surge Watch', family: 'combat', kind: 'events', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 100, paramKind: 'none', unitLabel: 'events triggered' },
-  { id: 'long_haul', name: 'Long Haul', family: 'combat', kind: 'roaming_xp', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1000, baseTargetWeekly: 8000, paramKind: 'none', unitLabel: 'roaming XP' },
+  { id: 'long_haul', name: 'Pell\'s Run', family: 'combat', kind: 'roaming_xp', cadences: ['daily', 'weekly'], minBand: 'B1', baseTargetDaily: 1000, baseTargetWeekly: 8000, paramKind: 'none', unitLabel: 'roaming XP' },
   { id: 'gauntlet', name: 'Gauntlet', family: 'combat', kind: 'endless_depth', cadences: ['daily', 'weekly'], minBand: 'B1', targetByBand: { B1: { daily: 2, weekly: 3 }, B2: { daily: 3, weekly: 5 }, B3: { daily: 5, weekly: 8 }, B4: { daily: 4, weekly: 6 }, B5: { daily: 3, weekly: 5 } }, paramKind: 'none', unitLabel: 'depth reached' },
   { id: 'gauntlet_regular', name: 'Gauntlet Regular', family: 'combat', kind: 'endless_runs', cadences: ['weekly'], minBand: 'B1', baseTargetWeekly: 3, paramKind: 'none', unitLabel: 'endless runs' },
   // Boss family.

@@ -6,6 +6,7 @@
  * for call-site compatibility and are not sent.
  */
 import type { AccountState, AccountType } from '../../auth/accountState';
+import { isHunterId } from '../hunters/hunters';
 import { apiRequest, isNotFoundError } from './http';
 import type { ApiUser } from './session';
 
@@ -24,6 +25,10 @@ export interface ProfileRow {
   essences: Record<string, number>;
   consumables: Record<string, number>;
   skill_spends: Record<string, number>;
+  /** Active Cache Hunter (migration 0097, reshape slice (a)). */
+  active_hunter_id?: string | null;
+  /** Per-hunter loadout assignments (migration 0097). */
+  hunter_loadouts?: Record<string, unknown> | null;
   /** Server-composed effective vendor buyback rate (audit G-F3). */
   vendor_buyback_rate?: number;
   boss_state: Record<string, unknown>;
@@ -53,6 +58,14 @@ export function profileRowToAccountState(profile: ProfileRow, user?: ApiUser | n
     verificationGraceExpiresAt: profile.verification_grace_expires_at,
     verificationReminderLastSeenAt: profile.verification_reminder_last_seen_at,
     isAnonymous: user ? user.isAnonymous : profile.account_type === 'guest',
+    // Slice (e): the RAW column, never the resolved hunter — a
+    // null here is the pending starting-hunter pick, and it must
+    // survive this mapping un-resolved or the pick could never
+    // be offered. Account-type flips (guest→Google linking) do
+    // not touch the column, so the pick state carries across an
+    // upgrade unchanged (brief check E3).
+    activeHunterId: profile.active_hunter_id ?? null,
+    hasHunterPick: isHunterId(profile.active_hunter_id),
   };
 }
 

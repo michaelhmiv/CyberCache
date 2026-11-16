@@ -67,9 +67,9 @@ import {
 import type { GearItem, Vehicle } from '../../types/items';
 import { VEHICLE_CONDITION_MAX } from '../../lib/vehicles/vehicles';
 import {
-  computeSkillBonuses,
   type ClassModBoosts,
 } from '../../lib/skills/skillBonuses';
+import { activeHunterId, checkClassModBinding, computeHunterSkillBonuses, emptyHunterLoadout, HUNTER_GEAR_SLOTS, isHunterId, itemsAssignedToAnyHunter, loadoutForHunter, treeForHunter, type HunterLoadouts } from '../../lib/hunters/hunters';
 import { applySalvageSkillBonuses, SALVAGE_MATERIAL_BY_KIND } from '../../lib/skills/salvageBonuses';
 import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections';
 import {
@@ -186,9 +186,14 @@ import {
   HEAD_VARIANT_MANUFACTURERS,
   isCosmeticSlot,
   type CosmeticPartItemView,
+  type CosmeticSkinItemView,
   type CosmeticsStateView,
   type HunterLookView,
 } from '../../content/skins';
+import {
+  buildCosmeticSkinPayload,
+  evaluateSetConversions,
+} from '../../lib/hunters/hunterSkins';
 import {
   accrueExtractionTime,
   finalizeExtractionPasses,
@@ -244,6 +249,10 @@ export interface InMemoryProfile {
   action_skill_charge: number;
   /** Recorded action skill selection (SkillTreeType name), or null (0030). */
   action_skill_selection: string | null;
+  /** Active Cache Hunter id (migration 0097), or null when unseeded. */
+  active_hunter_id?: string | null;
+  /** Per-hunter loadout assignments (migration 0097). */
+  hunter_loadouts?: Record<string, unknown>;
   materials: Record<string, number>;
   essences: Record<string, number>;
   consumables: Record<string, number>;
@@ -712,6 +721,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       skill_spends: p.skill_spends,
       action_skill_charge: p.action_skill_charge ?? 0,
       action_skill_selection: p.action_skill_selection ?? null,
+      active_hunter_id: p.active_hunter_id ?? null,
+      hunter_loadouts: JSON.parse(JSON.stringify(p.hunter_loadouts ?? {})) as Json,
       boss_state: JSON.parse(JSON.stringify(p.boss_state)) as Json,
       last_idle_claim_at: p.last_idle_claim_at,
       // 0083: the held (unpaid) offline settlement totals — the
@@ -861,7 +872,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   async getRoamingProfile(playerId: string): Promise<RoamingProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, cache_key_remainder: p.cache_key_remainder ?? 0, vehicle_fuel: p.vehicle_fuel, roaming_consumable_state: p.roaming_consumable_state ? (JSON.parse(JSON.stringify(p.roaming_consumable_state)) as Json) : null, cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json };
+    return { player_level: p.player_level, skill_spends: JSON.parse(JSON.stringify(p.skill_spends)) as Json, last_claimed_tick: p.last_claimed_tick, consumables: { ...p.consumables }, scrap_remainder: p.scrap_remainder, credits_remainder: p.credits_remainder, xp_remainder: p.xp_remainder, cache_key_remainder: p.cache_key_remainder ?? 0, vehicle_fuel: p.vehicle_fuel, roaming_consumable_state: p.roaming_consumable_state ? (JSON.parse(JSON.stringify(p.roaming_consumable_state)) as Json) : null, cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json, active_hunter_id: (p as { active_hunter_id?: string | null }).active_hunter_id ?? null, action_skill_selection: (p as { action_skill_selection?: string | null }).action_skill_selection ?? null };
   }
 
   async getBossProfile(playerId: string): Promise<BossProfileRow | null> {
@@ -876,6 +887,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       action_skill_charge: p.action_skill_charge ?? 0,
       action_skill_selection: p.action_skill_selection ?? null,
       cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json,
+      active_hunter_id: (p as { active_hunter_id?: string | null }).active_hunter_id ?? null,
     };
   }
 
@@ -894,6 +906,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       class_mod_payload: (mod ? JSON.parse(JSON.stringify(mod.payload)) : {}) as Json,
       action_skill_charge: p.action_skill_charge ?? 0,
       action_skill_selection: p.action_skill_selection ?? null,
+      active_hunter_id: (p as { active_hunter_id?: string | null }).active_hunter_id ?? null,
     };
   }
 
@@ -925,6 +938,61 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return result;
   }
 
+  /** cc_set_active_hunter mirror (migration 0097). */
+  async setActiveHunter(playerId: string, nonce: string, hunterId: string): Promise<Json> {
+    const p = this.requireProfile(playerId);
+    if (!nonce || nonce.trim().length < 8) throw new GameplayStoreError('nonce is required');
+    const prior = this.ledger.get(nonce);
+    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true };
+    if (!isHunterId(hunterId)) throw new GameplayStoreError(`Unknown hunter: ${hunterId}`);
+    const current = activeHunterId(p);
+    const loadouts: HunterLoadouts = JSON.parse(JSON.stringify(p.hunter_loadouts ?? {})) as HunterLoadouts;
+    if (current !== hunterId) {
+      // Save the outgoing hunter's physically equipped set as their
+      // assignment (belt preserved), then unequip everything.
+      const outgoing = { ...emptyHunterLoadout(), belt: loadoutForHunter(loadouts, current).belt };
+      for (const item of this.items.values()) {
+        if (item.owner_user_id === playerId && item.runtime_state === 'equipped' && item.equipped_slot) {
+          (outgoing as unknown as Record<string, string | null>)[item.equipped_slot] = item.id;
+          item.equipped_slot = null;
+          item.runtime_state = item.is_locked ? 'locked' : 'available';
+        }
+      }
+      loadouts[current] = outgoing;
+      // Equip the incoming hunter's assignment: owned + available
+      // items only; a mismatched class mod is skipped and its
+      // assignment cleared (it stays in the shared pool).
+      const incoming = loadoutForHunter(loadouts, hunterId);
+      const equippedNow = { ...emptyHunterLoadout(), belt: incoming.belt };
+      for (const slot of [...HUNTER_GEAR_SLOTS, 'vehicle'] as const) {
+        const itemId = incoming[slot];
+        if (!itemId) continue;
+        const item = this.items.get(itemId);
+        if (!item || item.owner_user_id !== playerId) continue;
+        if (item.runtime_state !== 'available' && item.runtime_state !== 'locked') continue;
+        if (slot === 'classMod') {
+          const binding = checkClassModBinding(item.payload as { treeBonus?: string | null }, hunterId);
+          if (!binding.ok) continue;
+        }
+        item.equipped_slot = slot;
+        item.runtime_state = 'equipped';
+        (equippedNow as unknown as Record<string, string | null>)[slot] = item.id;
+      }
+      loadouts[hunterId] = equippedNow;
+    }
+    p.hunter_loadouts = loadouts as Record<string, unknown>;
+    p.active_hunter_id = hunterId;
+    // The selection collapses to the active hunter's signature tree.
+    p.action_skill_selection = treeForHunter(hunterId);
+    const result: Json = {
+      action_type: 'cc_set_active_hunter',
+      active_hunter_id: hunterId,
+      profile: this.snapshot(p),
+    };
+    this.ledger.set(nonce, result);
+    return result;
+  }
+
   async getSettlementProfile(playerId: string): Promise<SettlementProfileRow | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
@@ -945,6 +1013,8 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         ? (JSON.parse(JSON.stringify(p.roaming_consumable_state)) as Json)
         : null,
       cache_rank_spends: JSON.parse(JSON.stringify(p.cache_rank_spends ?? {})) as Json,
+      active_hunter_id: (p as { active_hunter_id?: string | null }).active_hunter_id ?? null,
+      action_skill_selection: p.action_skill_selection ?? null,
     };
   }
 
@@ -1280,13 +1350,72 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   // cc_cosmetic_unequip / cc_cosmetic_set_head_variant /
   // cc_hunter_look_view — same gates, same messages.
 
+  /** Complete-set conversion (reshape slice (d); the twin of
+   *  cc_convert_skin_sets): owning every part of a set grants that
+   *  set's whole skin for each hunter it is painted for. Runs at
+   *  the head of the cosmetics read (the lazy-settle pattern);
+   *  idempotent — a held skin is never re-granted — and parts are
+   *  never consumed. With today's catalog (no set paintings) this
+   *  grants nothing. */
+  private convertSkinSets(playerId: string): void {
+    const ownedPartIds = new Set<string>();
+    const heldSkinIds = new Set<string>();
+    for (const item of this.items.values()) {
+      if (item.owner_user_id !== playerId || item.kind !== 'cosmetic') continue;
+      const payload = item.payload ?? {};
+      // A skin is HELD while any live row names it — a listed skin
+      // is escrowed, not gone (the SQL twin's rule); salvaged /
+      // consumed rows are gone and never block a re-grant.
+      if (typeof payload.skinId === 'string'
+        && item.runtime_state !== 'salvaged' && item.runtime_state !== 'consumed') {
+        heldSkinIds.add(payload.skinId);
+      }
+      if (item.runtime_state !== 'available' && item.runtime_state !== 'locked') continue;
+      if (typeof payload.partId === 'string') ownedPartIds.add(payload.partId);
+    }
+    for (const skin of evaluateSetConversions(ownedPartIds, heldSkinIds)) {
+      const payload = buildCosmeticSkinPayload(skin.id, 100, 'converted', null);
+      if (!payload) continue;
+      const item: InMemoryItem = {
+        id: randomUUID(),
+        owner_user_id: playerId,
+        kind: 'cosmetic',
+        runtime_state: 'available',
+        is_locked: false,
+        rarity: 'Common',
+        item_level: 1,
+        estimated_value: 0,
+        supply_mode: 'verified_action',
+        tradeable: true,
+        equipped_slot: null,
+        payload: { ...payload },
+      };
+      this.items.set(item.id, item);
+    }
+  }
+
   private cosmeticsView(playerId: string): CosmeticsStateView {
+    this.convertSkinSets(playerId);
     const sel = this.skinSelections.get(playerId);
     const parts: CosmeticPartItemView[] = [];
+    const skins: CosmeticSkinItemView[] = [];
     for (const item of this.items.values()) {
       if (item.owner_user_id !== playerId || item.kind !== 'cosmetic') continue;
       if (item.runtime_state !== 'available' && item.runtime_state !== 'locked') continue;
       const payload = item.payload ?? {};
+      if (typeof payload.skinId === 'string') {
+        skins.push({
+          id: item.id,
+          skinId: payload.skinId,
+          hunterId: String(payload.hunterId ?? ''),
+          name: String(payload.name ?? ''),
+          setId: typeof payload.setId === 'string' ? payload.setId : null,
+          quality: Number(payload.quality ?? 0),
+          origin: payload.origin === 'converted' ? 'converted' : 'crafted',
+          runtimeState: item.runtime_state,
+        });
+        continue;
+      }
       parts.push({
         id: item.id,
         name: String(payload.name ?? ''),
@@ -1314,6 +1443,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         headVariant: sel?.headVariant ?? 'visor',
       },
       parts,
+      skins,
       wearableVariantIds,
     };
   }
@@ -2055,6 +2185,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         dispatch_board_index: p.dispatch_board_index ?? 0,
         dispatch_rerolls_used: p.dispatch_rerolls_used ?? 0,
         dispatch_board_day: p.dispatch_board_day ?? null,
+        hunter_loadouts: JSON.parse(JSON.stringify((p as { hunter_loadouts?: unknown }).hunter_loadouts ?? {})) as Json,
       },
       items,
     };
@@ -2127,7 +2258,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       for (const id of loadoutIds) {
         const item = this.items.get(id);
         if (!item || item.owner_user_id !== playerId) { missing = true; continue; }
-        if (item.runtime_state !== 'available' || item.equipped_slot !== null) {
+        if (
+          item.runtime_state !== 'available' ||
+          item.equipped_slot !== null ||
+          itemsAssignedToAnyHunter((p as { hunter_loadouts?: HunterLoadouts }).hunter_loadouts).has(item.id)
+        ) {
           throw new GameplayStoreError(`Dispatch item is not spare: ${item.id}`);
         }
         if (item.kind === 'vehicle') {
@@ -2147,7 +2282,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
       vehicle = this.items.get(vehicleId) ?? null;
       if (!vehicle || vehicle.owner_user_id !== playerId) throw new GameplayStoreError('Courier vehicle not found');
       if (vehicle.kind !== 'vehicle') throw new GameplayStoreError('Courier assignment is not a vehicle');
-      if (vehicle.runtime_state !== 'available' || vehicle.equipped_slot !== null) {
+      if (
+        vehicle.runtime_state !== 'available' ||
+        vehicle.equipped_slot !== null ||
+        itemsAssignedToAnyHunter((p as { hunter_loadouts?: HunterLoadouts }).hunter_loadouts).has(vehicle.id)
+      ) {
         throw new GameplayStoreError('Courier vehicle is not spare');
       }
       const classId = typeof vehicle.payload.vehicleClassId === 'string' ? vehicle.payload.vehicleClassId : null;
@@ -2443,7 +2582,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         for (const [k, v] of Object.entries((prof.skill_spends ?? {}) as Record<string, unknown>)) {
           if (typeof v === 'number' && Number.isFinite(v)) spends[k] = v;
         }
-        return computeSkillBonuses(spends, this.classModBoostsFor(id))[key] ?? 0;
+        return computeHunterSkillBonuses(spends, this.classModBoostsFor(id), activeHunterId(prof))[key] ?? 0;
       },
       cacheRankXpBonus: (id) => {
         const prof = this.profiles.get(id);
@@ -3949,7 +4088,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     for (const [k, v] of Object.entries((p.skill_spends ?? {}) as Record<string, unknown>)) {
       if (typeof v === 'number' && Number.isFinite(v)) spends[k] = v;
     }
-    const bonuses = computeSkillBonuses(spends, this.classModBoostsFor(playerId));
+    const bonuses = computeHunterSkillBonuses(spends, this.classModBoostsFor(playerId), activeHunterId(p));
     const needsMaterialRoll = item.rarity === 'Common' && (bonuses.commonMaterialChance || 0) > 0;
     const { award, bonusMaterial } = applySalvageSkillBonuses({
       baseAward: crashedAward,

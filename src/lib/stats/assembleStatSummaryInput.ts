@@ -32,6 +32,11 @@ import {
   type ClassModBoosts,
 } from '@/lib/skills/skillBonuses';
 import { simulateBoss } from '@/lib/simulation/bossSimulator';
+import {
+  computeHunterSkillBonuses,
+  effectivePointsForHunter,
+  type HunterId,
+} from '@/lib/hunters/hunters';
 import { RiskSetting } from '@/types/game';
 import type { CharacterStatSummaryInput } from '@/lib/stats/characterStats';
 
@@ -62,6 +67,14 @@ export interface StatSummaryAssemblyState {
   spent: Record<string, number>;
   /** Boosts of the currently equipped class mod (the skill slice's `classModBoosts`). */
   classModBoosts: ClassModBoosts;
+  /**
+   * The active Cache Hunter (reshape slice (a)). When present, the
+   * assembly prices the hunter's subset + base perk — the same
+   * derivation the Chef's skillBonusesFromRecords performs — so the
+   * summary can never drift from the settling sim. Absent = the
+   * legacy whole-map fold (non-hunter callers).
+   */
+  activeHunterId?: HunterId;
   activeBuffs?: ActiveBuff[];
   consumableMods?: Record<string, number>;
   consumableInventory?: Record<string, number>;
@@ -113,7 +126,9 @@ export function assembleStatSummaryInput(
     }
   }
 
-  const spentSkills = effectiveSkillPoints(state.spent, boosts);
+  const spentSkills = state.activeHunterId
+    ? effectivePointsForHunter(state.spent, boosts, state.activeHunterId)
+    : effectiveSkillPoints(state.spent, boosts);
 
   // Audit HTR-05: when a boss is in context, the snapshot's boss
   // metrics carry the boss SIM's own numbers through the bossSimDps /
@@ -144,7 +159,9 @@ export function assembleStatSummaryInput(
       // computeSkillBonuses folds effective points itself (raw
       // spends + boosts) — the same derivation the Chef's
       // skillBonusesFromRecords performs for the settling sim.
-      skillBonuses: computeSkillBonuses(state.spent, boosts),
+      skillBonuses: state.activeHunterId
+        ? computeHunterSkillBonuses(state.spent, boosts, state.activeHunterId)
+        : computeSkillBonuses(state.spent, boosts),
     });
     bossSimDps = sim.effectiveDPS;
     bossSimShieldBreak = sim.shieldBreakValue;

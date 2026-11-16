@@ -1,0 +1,29 @@
+{
+  "sprite": "hunter-silas-boone",
+  "src": "work/silas-source-keyed-bg.png",
+  "out": "src/assets/pixel/sprites/hunter-silas-boone.png",
+  "width": 182,
+  "height": 384,
+  "anchors": {
+    "feet": {
+      "x": 0.511,
+      "y": 1.0
+    },
+    "centerMass": {
+      "x": 0.5024,
+      "y": 0.5009
+    },
+    "muzzle": {
+      "x": 1.0,
+      "y": 0.596
+    },
+    "lootPoint": {
+      "x": 0.6195,
+      "y": 0.0
+    },
+    "grip": {
+      "x": 0.2839,
+      "y": 0.6824
+    }
+  }
+}

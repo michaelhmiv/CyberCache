@@ -43,6 +43,7 @@ import {
   gearCategoryFromPayload,
   gearIdentityFromPayload,
   materialIdentityKey,
+  skinIdentityKey,
   vehicleIdentityKey,
 } from '../../lib/market/identityKey.js';
 import {
@@ -178,9 +179,9 @@ import { skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
 import type { Affix, GearItem } from '../../types/items.js';
 import { buildStarterVehicle } from '../lib/generators/vehicleGenerator.js';
 import {
-  computeSkillBonuses,
   type ClassModBoosts,
 } from '../../lib/skills/skillBonuses.js';
+import { activeHunterId, checkClassModBinding, computeHunterSkillBonuses, emptyHunterLoadout, loadoutForHunter, treeForHunter, type HunterLoadouts } from '../../lib/hunters/hunters.js';
 import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses.js';
 import {
   VENDOR_BUYBACK_RATE_DEFAULT,
@@ -635,6 +636,8 @@ export class InMemoryWriteStore implements WriteStore {
       skill_spends: clone(p.skill_spends),
       action_skill_charge: p.action_skill_charge ?? 0,
       action_skill_selection: p.action_skill_selection ?? null,
+      active_hunter_id: (p as { active_hunter_id?: string | null }).active_hunter_id ?? null,
+      hunter_loadouts: clone((p as { hunter_loadouts?: Json }).hunter_loadouts ?? {}),
       boss_state: clone(p.boss_state),
       last_idle_claim_at: p.last_idle_claim_at,
     };
@@ -662,6 +665,34 @@ export class InMemoryWriteStore implements WriteStore {
       }
     }
     return loadout;
+  }
+
+  /**
+   * Keep the ACTIVE hunter's loadout assignment (profiles
+   * .hunter_loadouts, migration 0097) mirroring the physically
+   * equipped set: an equip/unequip on the fielded hunter IS that
+   * hunter's assignment changing. Other hunters' assignments are
+   * untouched — they change only at a hunter switch
+   * (cc_set_active_hunter's swap). Belt picks are preserved from the
+   * stored assignment (the belt is client-carried in this slice).
+   */
+  private syncActiveHunterLoadout(playerId: string): void {
+    const p = this.profileOrNull(playerId);
+    if (!p) return;
+    const hunter = activeHunterId(p);
+    const stored = ((p as { hunter_loadouts?: HunterLoadouts }).hunter_loadouts ?? {}) as HunterLoadouts;
+    const next = { ...emptyHunterLoadout(), belt: loadoutForHunter(stored, hunter).belt };
+    for (const item of this.items.values()) {
+      if (
+        item.owner_user_id === playerId &&
+        item.runtime_state === 'equipped' &&
+        item.equipped_slot &&
+        (LOADOUT_SLOTS as readonly string[]).includes(item.equipped_slot)
+      ) {
+        (next as unknown as Record<string, string | null>)[item.equipped_slot] = item.id;
+      }
+    }
+    (p as { hunter_loadouts?: HunterLoadouts }).hunter_loadouts = { ...stored, [hunter]: next };
   }
 
   private activitySnapshot(row: ActiveActionData): Json {
@@ -921,7 +952,7 @@ export class InMemoryWriteStore implements WriteStore {
     // Cache Optimizer track. The first consumer of the cacheQuality
     // effect; the SQL twin is cc_make_item's quality-aware
     // cc_draw_odds call.
-    const skillQuality = computeSkillBonuses(asNumberMap(p.skill_spends)).cacheQuality ?? 0;
+    const skillQuality = computeHunterSkillBonuses(asNumberMap(p.skill_spends), { nodeBoosts: {} }, activeHunterId(p)).cacheQuality ?? 0;
     const cacheQuality = Math.max(0, skillQuality) + this.cacheRankBonusesFor(p).cacheQuality;
     const rawDraw = drawOdds(
       'cache_primary_rarity',
@@ -1447,7 +1478,7 @@ export class InMemoryWriteStore implements WriteStore {
     // rate = min(0.90, leverRate + vendorBuybackBonus), derived from
     // the seller's records (SQL twin: cc_vendor_sell in 0029).
     const vendorBuybackBonus =
-      computeSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId))
+      computeHunterSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId), activeHunterId(p))
         .vendorBuybackBonus ?? 0;
     // Street Economics (0038): the seller's research term joins
     // under the same 0.90 ceiling (SQL twin: cc_vendor_sell).
@@ -1689,7 +1720,7 @@ export class InMemoryWriteStore implements WriteStore {
     // yield a bonus crafting material from Commons. Bonuses derive
     // from the player's own records (skill_spends + equipped class
     // mod) through the one computeSkillBonuses derivation.
-    const bonuses = computeSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId));
+    const bonuses = computeHunterSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId), activeHunterId(p));
     const needsMaterialRoll = item.rarity === 'Common' && (bonuses.commonMaterialChance || 0) > 0;
     const { award, bonusMaterial } = applySalvageSkillBonuses({
       baseAward: crashedAward,
@@ -1910,6 +1941,16 @@ export class InMemoryWriteStore implements WriteStore {
     const item = this.ownItem(playerId, itemId);
     if (!['available', 'locked', 'equipped'].includes(item.runtime_state)) throw writeError('Item state invalid');
     if (!itemAcceptsSlot(item.payload, slotName)) throw writeError('Item type does not match loadout slot');
+    // Class-mod binding (reshape slice (a), migration 0097): a class
+    // mod equips only on the hunter whose tree it boosts — refused
+    // with the reason, mirroring cc_equip_item's 0097 block.
+    if (slotName === 'classMod') {
+      const binding = checkClassModBinding(
+        item.payload as { treeBonus?: string | null },
+        activeHunterId(p),
+      );
+      if (!binding.ok) throw writeError(binding.reason ?? 'Class mod is bound to another hunter');
+    }
     // Vehicle equip (0021; gate removed by owner ruling 2026-11-02):
     // vehicles are pure market goods — if you can buy it, you can
     // drive it. Ownership (ownItem above) is the only gate; the
@@ -1936,6 +1977,7 @@ export class InMemoryWriteStore implements WriteStore {
     item.runtime_state = 'equipped';
     this.touchItem(item);
     changed.push(item);
+    this.syncActiveHunterLoadout(playerId);
     const result: Json = {
       action_type: 'cc_equip_item',
       profile: this.profileSnapshot(p),
@@ -1961,6 +2003,7 @@ export class InMemoryWriteStore implements WriteStore {
         if (!found) found = item;
       }
     }
+    if (p) this.syncActiveHunterLoadout(playerId);
     const profilePayload: Json = p
       ? this.profileSnapshot(p)
       : {
@@ -2469,7 +2512,7 @@ export class InMemoryWriteStore implements WriteStore {
         const p = this.profileOrNull(playerId);
         if (!p) return 0;
         return (
-          computeSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId))[key] ?? 0
+          computeHunterSkillBonuses(asNumberMap(p.skill_spends), this.classModBoostsFor(playerId), activeHunterId(p))[key] ?? 0
         );
       },
       cacheRankXpBonus: (playerId) => {
@@ -2723,7 +2766,7 @@ export class InMemoryWriteStore implements WriteStore {
     const gear = [...this.items.values()]
       .filter((i) => i.owner_user_id === playerId && i.runtime_state === 'equipped')
       .map((i) => i.payload as unknown as GearItem);
-    return skillBonusesFromRecords(gear, (p.skill_spends ?? {}) as Record<string, number>)
+    return skillBonusesFromRecords(gear, (p.skill_spends ?? {}) as Record<string, number>, p)
       .consumableEfficiency ?? 0;
   }
 
@@ -2743,7 +2786,7 @@ export class InMemoryWriteStore implements WriteStore {
     const gear = [...this.items.values()]
       .filter((i) => i.owner_user_id === playerId && i.runtime_state === 'equipped')
       .map((i) => i.payload as unknown as GearItem);
-    const bonuses = skillBonusesFromRecords(gear, (p.skill_spends ?? {}) as Record<string, number>);
+    const bonuses = skillBonusesFromRecords(gear, (p.skill_spends ?? {}) as Record<string, number>, p);
     return {
       craftSpeedBonus: bonuses.craftSpeedBonus ?? 0,
       workshopQueueBonus: bonuses.workshopQueueBonus ?? 0,
@@ -3133,7 +3176,7 @@ export class InMemoryWriteStore implements WriteStore {
       const gear = [...this.items.values()]
         .filter((i) => i.owner_user_id === provider.id && i.runtime_state === 'equipped')
         .map((i) => i.payload as unknown as GearItem);
-      const bonuses = skillBonusesFromRecords(gear, (provider.skill_spends ?? {}) as Record<string, number>);
+      const bonuses = skillBonusesFromRecords(gear, (provider.skill_spends ?? {}) as Record<string, number>, provider);
       fee = repairServiceFee(payout, await this.feeRateProvider(), bonuses).feeCredits;
       provider.credits += payout - fee;
       this.touch(provider);
@@ -3436,9 +3479,10 @@ export class InMemoryWriteStore implements WriteStore {
     // multiplier — board work accrues points over time), and the
     // efficiency term composes past the mastery cap (ceiling 1.80).
     // The settler burns kits at this snapshot unchanged.
-    const mechanicBonuses = computeSkillBonuses(
+    const mechanicBonuses = computeHunterSkillBonuses(
       asNumberMap(p.skill_spends),
       this.classModBoostsFor(playerId),
+      activeHunterId(p),
     );
     job.repair_snapshot = {
       masteryLevel,
@@ -3615,9 +3659,10 @@ export class InMemoryWriteStore implements WriteStore {
     const p = this.profile(playerId);
     const craft = this.craftLevers();
     const myLevel = masteryRow ? Math.max(1, masteryRow.mastery_level) : 1;
-    const bonuses = computeSkillBonuses(
+    const bonuses = computeHunterSkillBonuses(
       asNumberMap(p.skill_spends),
       this.classModBoostsFor(playerId),
+      activeHunterId(p),
     );
     const supply = this.serviceReaderSupply(playerId, REPAIR_KIT_TYPES);
     const reader: ServiceReaderFacts = {
@@ -3701,7 +3746,7 @@ export class InMemoryWriteStore implements WriteStore {
       const gear = [...this.items.values()]
         .filter((i) => i.owner_user_id === provider.id && i.runtime_state === 'equipped')
         .map((i) => i.payload as unknown as GearItem);
-      const bonuses = skillBonusesFromRecords(gear, (provider.skill_spends ?? {}) as Record<string, number>);
+      const bonuses = skillBonusesFromRecords(gear, (provider.skill_spends ?? {}) as Record<string, number>, provider);
       fee = repairServiceFee(payout, await this.feeRateProvider(), bonuses).feeCredits;
       provider.credits += payout - fee;
       this.touch(provider);
@@ -4210,19 +4255,28 @@ export class InMemoryWriteStore implements WriteStore {
     const prior = this.prior(playerId, key);
     if (prior) return prior;
     const p = this.profile(playerId);
-    // Respec prices BUDGET points (audit HTR-01): majors refund at their
-    // 3-point cost, keystones at 5 — the SQL twin charges
-    // cc_skill_spend_cost × 100 (migration 0089).
-    const total = skillSpendCost(p.skill_spends as Json, this.seed.skillNodes);
-    // Zero-spend guard (audit HTR-07): a retrain with nothing spent
-    // used to 'succeed' at 0cr and write a ledger/stat record for a
-    // no-op. Refuse before anything records. (Zero weighted cost ⟺
-    // zero points spent: every node costs at least 1.)
+    // Respec is PER-HUNTER (reshape slice (a), migration 0097): it
+    // prices the ACTIVE hunter's pool only — 100 cr × that hunter's
+    // budget points (majors at their 3-point cost, keystones at 5;
+    // audit HTR-01) — and zeroes ONLY that hunter's subset. The SQL
+    // twin is cc_retrain as restated by 0097.
+    const hunter = activeHunterId(p);
+    const hunterTree = treeForHunter(hunter);
+    const poolSpends: Record<string, number> = {};
+    for (const [nodeId, points] of Object.entries(asNumberMap(p.skill_spends))) {
+      const nodeDef = this.seed.skillNodes.find((n) => n.id === nodeId);
+      if (nodeDef && nodeDef.tree === hunterTree) poolSpends[nodeId] = points;
+    }
+    const total = skillSpendCost(poolSpends as Json, this.seed.skillNodes);
+    // Zero-spend guard (audit HTR-07), per-hunter: a retrain of an
+    // empty pool refuses before anything records.
     if (total === 0) throw writeError('Nothing to respec');
     const cost = total * 100;
     if (p.credits < cost) throw writeError('Insufficient credits');
     p.credits -= cost;
-    p.skill_spends = {};
+    const remaining = { ...asNumberMap(p.skill_spends) };
+    for (const nodeId of Object.keys(poolSpends)) delete remaining[nodeId];
+    p.skill_spends = remaining;
     this.touch(p);
     const result: Json = { action_type: 'cc_retrain', profile: this.profileSnapshot(p), total_price: cost };
     return this.record(playerId, 'cc_retrain', key, result);
@@ -4244,8 +4298,16 @@ export class InMemoryWriteStore implements WriteStore {
     if (missing.length) throw writeError(`Missing prerequisites: ${missing.join(', ')}`);
     const budget = Math.max(0, p.player_level - 1);
     // The train debits the node's LISTED cost (audit HTR-01): a major
-    // costs 3 budget points, a keystone 5 — never a flat 1.
-    const totalAfter = skillSpendCost(spends as Json, this.seed.skillNodes) + node.per_point_cost;
+    // costs 3 budget points, a keystone 5 — never a flat 1. The
+    // budget is PER-POOL (reshape slice (a), migration 0097): only
+    // spends in the node's OWN tree count against it — each hunter
+    // holds at most (level − 1) in their tree.
+    const poolSpends: Record<string, number> = {};
+    for (const [nodeId, points] of Object.entries(spends)) {
+      const nodeDef = this.seed.skillNodes.find((n) => n.id === nodeId);
+      if (nodeDef && nodeDef.tree === node.tree) poolSpends[nodeId] = points;
+    }
+    const totalAfter = skillSpendCost(poolSpends as Json, this.seed.skillNodes) + node.per_point_cost;
     if (totalAfter > budget) throw writeError(`Insufficient skill points: have ${budget}, need ${totalAfter}`);
     spends[cleanNode] = current + 1;
     p.skill_spends = spends;
@@ -4335,6 +4397,43 @@ export class InMemoryWriteStore implements WriteStore {
       // or owns. Listings already live are untouched.
       const partId = typeof payload.partId === 'string' ? payload.partId : '';
       if (partId && skinPartDelisted(partId)) throw writeError(DELISTED_COSMETIC_LISTING_REFUSAL);
+      // Whole skins (reshape slice (d)): a skin item lists in its
+      // OWN family — no part columns, no auto-unequip (wearing is
+      // the device-local wardrobe; a listed skin simply stops
+      // being owned, and the worn selection falls back server-
+      // truthfully on the seller's next cosmetics read).
+      const skinId = typeof payload.skinId === 'string' ? payload.skinId : '';
+      if (skinId) {
+        const skinListing: WriteListingData = {
+          id: this.uuid(),
+          seller_user_id: playerId,
+          item_instance_id: item.id,
+          price_credits: price,
+          status: 'active',
+          listed_at: this.nowIso(),
+          sold_at: null,
+          listing_kind: 'skin',
+          quantity: 1,
+          identity_key: skinIdentityKey(skinId),
+          category: 'skin',
+          display_name: typeof payload.name === 'string' ? payload.name : null,
+          quality_percent: typeof payload.quality === 'number' ? payload.quality : null,
+          seller_type: 'player',
+        };
+        const skinDeposit = this.chargeListingDeposit(p, await this.resolvedListingDeposit());
+        this.insertListing(skinListing);
+        this.listingDeposits.set(skinListing.id, skinDeposit);
+        item.runtime_state = 'listed';
+        this.touchItem(item);
+        this.recalcNetWorth(playerId);
+        const skinResult: Json = {
+          action_type: 'cc_market_create',
+          profile: p ? this.profileSnapshot(p) : null,
+          listing: this.listingJson(skinListing),
+          item: this.itemJson(item),
+        };
+        return this.record(playerId, 'cc_market_create', key, skinResult);
+      }
       this.unequipCosmeticIfWorn(playerId, item);
       const cosmeticListing: WriteListingData = {
         id: this.uuid(),
@@ -4660,7 +4759,7 @@ export class InMemoryWriteStore implements WriteStore {
     listing.status = 'cancelled';
     const kind = listing.listing_kind ?? 'gear';
     const item = listing.item_instance_id ? this.items.get(listing.item_instance_id) : undefined;
-    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic') {
+    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic' || kind === 'skin') {
       if (item) {
         item.runtime_state = item.is_locked ? 'locked' : 'available';
         this.touchItem(item);
@@ -4762,7 +4861,7 @@ export class InMemoryWriteStore implements WriteStore {
     };
     let foundBySeller = false;
     let craftedBySeller = false;
-    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic') {
+    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic' || kind === 'skin') {
       if (seller && soldItem && soldItem.supply_mode !== 'npc_market') {
         foundBySeller = this.sellerFoundItem(seller.id, soldItem);
         // House Brand gate (Fixer major, 0029): the item counts as

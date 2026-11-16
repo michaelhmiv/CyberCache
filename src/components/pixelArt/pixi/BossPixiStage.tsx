@@ -5,42 +5,29 @@ import { motion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { installWebglContextRecovery } from '@/lib/pixel/webglContextRecovery';
 import { CritFlash, DamageNumber, SpecialTelegraphFx } from '../PixelFx';
+import { BossHunterVoice } from '../HunterVoiceChip';
 import { specialTelegraphForBossPhase, type BossSpecialTelegraph } from '@/lib/pixel/bossTelegraph';
 import { bossStagePlacement } from '@/lib/pixel/bossStageScale';
-import { PART_POSES, PARTS_FEET_X, PRIMARY_ANCHOR, SKELETON, type PartsPoseName } from '@/lib/pixel/parts';
 import {
-  PART_PAINT_ORDER,
   STAGE_RESOLUTION,
   circleTexture,
   ellipseTexture,
   loadTexture,
-  partSlotTweenDurationMs,
   radialTexture,
   ringTexture,
   solidTexture,
   starTexture,
   tracerTexture,
-  weaponTextureForWeapon,
-  type PartNode,
 } from './stageCore';
-
-const PAINT_ORDER = PART_PAINT_ORDER;
-import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
-import { layoutPartSet, type PartSetLayout } from '@/lib/pixel/partsCompositor';
-import {
-  armedActorExtents,
-  fitArmedActorHeight,
-  partsAnchorPoint,
-  partsWeaponFractionsFor,
-} from '@/lib/pixel/partsStage';
+import { useSkillStore } from '@/store';
+import { fitPaintedActorHeight, paintedPlacement } from '@/lib/pixel/paintedStage';
 import {
   getPixelSprite,
   pixelBossSpriteForBoss,
+  pixelHunterSpriteForHunter,
   requirePixelSprite,
   type PixelSprite,
 } from '@/lib/pixel/manifest';
-import { paletteSpriteUrl } from '@/lib/pixel/paletteSwap';
-import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
 import { bossArena, endlessBandTint } from '@/content/areaPalettes';
 import {
   MOVEMENT,
@@ -57,7 +44,6 @@ import {
   hitStopWindows,
   pixiAnimatedNodeCount,
   sampleTrack,
-  easeOutBack,
   type HitStopWindow,
 } from '@/lib/pixel/pixiChoreography';
 import type { BossFightStageProps } from '../BossFightStage';
@@ -76,11 +62,14 @@ import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
  *    chip, damage numbers, banner — the identical components the
  *    DOM stage renders), and the props feed.
  *  - choreography is sampled per frame from movement.ts track
- *    tables (see pixiChoreography.ts): pose rotations tween on the
- *    SEGMENT durations, the recoil entry overshoots and settles,
- *    the boss anticipates inside the telegraph window, and
- *    hit-stop freezes the phase clock briefly at impact — absorbed
- *    inside the 1150 ms phase, so the fight's total duration and
+ *    tables (see pixiChoreography.ts): the hunter is the active
+ *    hunter's whole painting (Cache Hunters slice (c), 2026-11-15
+ *    — paintings only on stage), so the beat reactions run on the
+ *    hunter WRAPPER tracks (dodge, recoil push, the defeat fall)
+ *    exactly as the DOM stage runs them on its wrapper; the boss
+ *    anticipates inside the telegraph window, and hit-stop
+ *    freezes the phase clock briefly at impact — absorbed inside
+ *    the 1150 ms phase, so the fight's total duration and
  *    FIGHT_TOTAL_BUDGET_MS are unchanged.
  *  - cadence specials (slice C3) get the big wind-up telegraph: in
  *    the phase the boss's authored cadence assigns its special to
@@ -117,8 +106,6 @@ interface PhaseModel {
   beats: PhaseBeat[];
   isCrit: boolean;
   shotBeat?: PhaseBeat;
-  poseName: PartsPoseName;
-  layout: PartSetLayout;
   muzzle: { xPct: number; yPct: number };
   grip: { xPct: number; yPct: number };
   hunterMass: { xPct: number; yPct: number };
@@ -140,10 +127,13 @@ interface Scene {
   tintSprite?: Sprite;
   prop?: Sprite;
   hunterRoot: Container;
-  hunterFrame: Container;
-  parts: PartNode[];
-  weaponRoot?: Container;
-  weaponSway?: Container;
+  /** The painted hunter (slice (c)): ONE sprite — the active
+   *  hunter's whole painting, feet-anchored at the root origin. */
+  hunterSprite: Sprite;
+  /** Hunter presentation identity the sprite was built for: the
+   *  tick swaps the texture whenever the stage model's hunter no
+   *  longer matches this key (a mid-fight hunter switch). */
+  hunterArtKey: string;
   bossLunge: Container;
   bossHit: Container;
   bossBody: Container;
@@ -169,22 +159,31 @@ interface StageModel {
   effectiveBackgroundId: string;
   groundY: number;
   hunterPlacement: ActorPlacement;
+  /** The painted hunter (slice (c)): the active hunter's whole
+   *  painting + the width-law-fitted placement it renders at. */
+  hunterSprite: PixelSprite;
+  hunterStagePlacement: ActorPlacement;
   bossPlacement: ActorPlacement;
   bossSprite: PixelSprite;
 }
 
 /** Static per-fight derivation — the same arena/ground/placement
  *  resolution the DOM stage performs. */
-function deriveStageModel(props: BossFightStageProps): StageModel {
+function deriveStageModel(props: BossFightStageProps, hunterId: string | undefined): StageModel {
   const arena = bossArena(props.bossId);
   const effectiveBackgroundId = props.backgroundId ?? arena.backgroundId;
   const background = getPixelSprite(effectiveBackgroundId);
   const groundY = background?.anchors.groundLine?.y ?? HUNTER_PLACEMENT.groundY;
+  const hunterPlacement = { ...HUNTER_PLACEMENT, groundY };
+  const hunterSprite =
+    getPixelSprite(pixelHunterSpriteForHunter(hunterId) ?? 'hunter-vesper-cole') ?? requirePixelSprite('hunter-vesper-cole');
   return {
     arena,
     effectiveBackgroundId,
     groundY,
-    hunterPlacement: { ...HUNTER_PLACEMENT, groundY },
+    hunterPlacement,
+    hunterSprite,
+    hunterStagePlacement: paintedPlacement(hunterSprite, hunterPlacement),
     bossPlacement: { ...BOSS_PLACEMENT, ...bossStagePlacement(props.bossId), groundY },
     bossSprite: getPixelSprite(pixelBossSpriteForBoss(props.bossId) ?? 'brute') ?? requirePixelSprite('brute'),
   };
@@ -195,7 +194,6 @@ function deriveStageModel(props: BossFightStageProps): StageModel {
 function derivePhaseModel(
   props: BossFightStageProps,
   stage: StageModel,
-  hunterSet: Parameters<typeof layoutPartSet>[0],
 ): PhaseModel {
   const { timeline, phases } = props;
   const victory = timeline.outcome?.result.victory === true;
@@ -228,18 +226,6 @@ function derivePhaseModel(
     !finished && !props.reduced && !props.depthBadge && beat('lunge')
       ? specialTelegraphForBossPhase(props.bossId, phases.length, presentingIndex)
       : null;
-  const poseName: PartsPoseName = !props.weapon
-    ? 'relaxed'
-    : beat('playerHit')
-      ? 'hit'
-      : shotBeat
-        ? 'recoil'
-        : 'aim';
-  const layout = layoutPartSet(
-    hunterSet,
-    PART_POSES[poseName],
-    props.weapon ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(props.weapon)) : undefined,
-  );
   const shake = finished
     ? undefined
     : beat('death')
@@ -256,11 +242,9 @@ function derivePhaseModel(
     beats,
     isCrit,
     shotBeat,
-    poseName,
-    layout,
-    muzzle: partsAnchorPoint(layout.joints.muzzle ?? layout.joints.grip, stage.hunterPlacement),
-    grip: partsAnchorPoint(layout.joints.grip, stage.hunterPlacement),
-    hunterMass: partsAnchorPoint(layout.joints.mass, stage.hunterPlacement),
+    muzzle: actorAnchorPoint(stage.hunterSprite, 'muzzle', stage.hunterStagePlacement),
+    grip: actorAnchorPoint(stage.hunterSprite, 'grip', stage.hunterStagePlacement),
+    hunterMass: actorAnchorPoint(stage.hunterSprite, 'centerMass', stage.hunterStagePlacement),
     bossMass: actorAnchorPoint(stage.bossSprite, 'centerMass', stage.bossPlacement),
     bossFeet: actorAnchorPoint(stage.bossSprite, 'feet', stage.bossPlacement),
     bossDamage,
@@ -293,6 +277,9 @@ interface StageRuntime {
   };
   shake: { key: string; startMs: number; intensity: number; durationMs: number } | null;
   landed: { landed: boolean; atMs: number };
+  /** The hunter sprite id whose texture swap is in flight (the
+   *  generation guard for the slice-(c) hunter re-sync). */
+  pendingHunterKey: string | null;
   fps: { lastMs: number; deltas: number[] };
 }
 
@@ -308,48 +295,55 @@ function createStageRuntime(): StageRuntime {
     },
     shake: null,
     landed: { landed: false, atMs: 0 },
+    pendingHunterKey: null,
     fps: { lastMs: 0, deltas: [] },
   };
 }
 
 interface TickEnv {
   props: BossPixiStageProps;
-  hunterSet: Parameters<typeof layoutPartSet>[0];
-  partPalettes: ReturnType<typeof useOwnLookWithLoad>['partPalettes'];
   stage: StageModel;
   shakeWrap: HTMLDivElement | null;
 }
 
-/** Apply a phase's pose: part positions snap from the new layout
- *  (as the DOM actor's do); rotations tween on the SEGMENT slot
- *  durations, with an easeOutBack overshoot on the arm chain when
- *  the recoil pose lands. */
-function applyPose(rt: StageRuntime, model: PhaseModel, now: number): void {
+/** Slice (c): keep the boss stage's hunter painting married to
+ *  the ACTIVE hunter — the roam stage's syncHunterArt pattern.
+ *  The current painting stays up until the new texture lands,
+ *  then swaps in a single frame; a superseded load is discarded. */
+function syncBossHunterArt(rt: StageRuntime, stage: StageModel): void {
   const scene = rt.scene;
   if (!scene) return;
-  for (const node of scene.parts) {
-    const placement = model.layout.placements[node.slot as keyof typeof model.layout.placements];
-    if (!placement) continue;
-    node.container.visible = !placement.hidden;
-    node.anchorStage = placement.anchorStage;
-    node.primaryLocal = placement.part.anchors[PRIMARY_ANCHOR[node.slot as keyof typeof PRIMARY_ANCHOR]];
-    node.width = placement.part.width;
-    node.height = placement.part.height;
-    const isArm = node.slot === 'armUpperN' || node.slot === 'armForeN' || node.slot === 'armFar';
-    node.tween = {
-      from: node.rotationDeg,
-      to: placement.rotationDeg,
-      startMs: now,
-      durationMs: partSlotTweenDurationMs(node.slot),
-      overshoot: model.poseName === 'recoil' && isArm,
-    };
+  const wantKey = stage.hunterSprite.id;
+  if (scene.hunterArtKey === wantKey) {
+    rt.pendingHunterKey = null;
+    return;
   }
+  if (rt.pendingHunterKey === wantKey) return;
+  rt.pendingHunterKey = wantKey;
+  const def = stage.hunterSprite;
+  void loadTexture(def.url)
+    .then((tex) => {
+      if (rt.scene !== scene || rt.pendingHunterKey !== wantKey) return;
+      rt.pendingHunterKey = null;
+      const next = new Sprite(tex);
+      const feet = def.anchors.feet ?? { x: 0.5, y: 1 };
+      next.anchor.set(feet.x, feet.y);
+      scene.hunterRoot.addChild(next);
+      const old = scene.hunterSprite;
+      scene.hunterRoot.removeChild(old);
+      old.destroy({ texture: false });
+      scene.hunterSprite = next;
+      scene.hunterArtKey = wantKey;
+    })
+    .catch(() => {
+      if (rt.pendingHunterKey === wantKey) rt.pendingHunterKey = null;
+    });
 }
 
 /** One frame of the Pixi stage. Pure sampling: every transform is a
  *  function of (law constants, phase-local effective time) — see
  *  pixiChoreography.ts. Ambient systems (background drift, embers,
- *  weapon sway, boss breathe) run on the raw clock; fight
+ *  hunter breathe, boss breathe) run on the raw clock; fight
  *  choreography runs on the hit-stop-adjusted effective clock. */
 function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
   const scene = rt.scene;
@@ -366,13 +360,12 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
   const timeline = props.timeline;
   const finished = timeline.finishedAt != null;
   const presentingIndex = Math.max(0, Math.min(timeline.currentPhaseIndex, props.phases.length - 1));
-  const phaseKey = `${presentingIndex}|${finished}|${props.weapon?.id ?? ''}|${props.bossId ?? ''}`;
+  const phaseKey = `${presentingIndex}|${finished}|${props.bossId ?? ''}`;
   let phase = rt.phase;
   if (!phase || phase.key !== phaseKey) {
-    const model = derivePhaseModel(props, stage, env.hunterSet);
+    const model = derivePhaseModel(props, stage);
     phase = { key: phaseKey, startMs: now, model };
     rt.phase = phase;
-    applyPose(rt, model, now);
     if (!finished) rt.finish = null;
     // Sparks fan is seeded per phase (DOM: seed `boss-${index}`).
     scene.sparkSpecs = particleField(`sparks-boss-${presentingIndex}`, 6).map((s, i) => ({
@@ -495,64 +488,26 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
   }
   rt.current = { boss: { ...boss }, hunter: { ...hunter } };
 
-  // ── Apply hunter ──
+  // ── Apply hunter (painted, slice (c)) ──
+  syncBossHunterArt(rt, stage);
   scene.hunterRoot.position.set((stage.hunterPlacement.xPct / 100) * W + hunter.x, groundYPx + hunter.y);
   scene.hunterRoot.rotation = hunter.rotate * DEG;
   scene.hunterRoot.scale.set(hunter.scale, hunter.scale * hunter.scaleY);
   scene.hunterRoot.alpha = hunter.opacity;
-  const nominalFrameH = (stage.hunterPlacement.heightPct / 100) * H;
-  let frameH = nominalFrameH;
-  let frameTop = groundYPx - nominalFrameH;
-  if (props.weapon && model.layout.weapon) {
-    const fit = fitArmedActorHeight({
-      containerW: W,
-      containerH: H,
-      heightPct: stage.hunterPlacement.heightPct,
-      xPct: stage.hunterPlacement.xPct,
-      groundY: stage.groundY,
-      extents: armedActorExtents(model.layout),
-    });
-    if (fit.constrained) {
-      frameH = fit.heightPx;
-      frameTop = fit.topPx;
-    }
-  }
-  const frameW = frameH * (SKELETON.frameWidth / SKELETON.frameHeight);
-  const s = frameH / SKELETON.frameHeight;
-  scene.hunterFrame.position.set(-PARTS_FEET_X * frameW, frameTop - groundYPx);
-  for (const node of scene.parts) {
-    if (node.tween) {
-      const p = Math.max(0, Math.min(1, (now - node.tween.startMs) / node.tween.durationMs));
-      const eased = node.tween.overshoot ? easeOutBack(p) : EASE.easeOut(p);
-      node.rotationDeg = node.tween.from + (node.tween.to - node.tween.from) * eased;
-      if (p >= 1) node.tween = undefined;
-    }
-    node.container.position.set(node.anchorStage.x * s, node.anchorStage.y * s);
-    node.container.rotation = node.rotationDeg * DEG;
-    node.sprite.position.set(-node.primaryLocal.x * s, -node.primaryLocal.y * s);
-    node.sprite.width = node.width * s;
-    node.sprite.height = node.height * s;
-  }
-  if (scene.weaponRoot && scene.weaponSway) {
-    const wgeo = model.layout.weapon;
-    scene.weaponRoot.visible = !!wgeo;
-    if (wgeo) {
-      const boxW = wgeo.targetW * s;
-      const boxH = wgeo.targetH * s;
-      scene.weaponRoot.position.set(
-        (wgeo.gripStage.x - wgeo.gripFrac.x * wgeo.targetW) * s,
-        (wgeo.gripStage.y - wgeo.gripFrac.y * wgeo.targetH) * s,
-      );
-      scene.weaponRoot.rotation = -3 * DEG;
-      const swayDeg = -1.1 * Math.cos((2 * Math.PI * (now % 3400)) / 3400);
-      scene.weaponSway.position.set(0.18 * boxW, 0.6 * boxH);
-      scene.weaponSway.rotation = swayDeg * DEG;
-      const weaponSprite = scene.weaponSway.children[0] as Sprite;
-      weaponSprite.position.set(-0.18 * boxW, -0.6 * boxH);
-      weaponSprite.width = boxW;
-      weaponSprite.height = boxH;
-    }
-  }
+  const hunterFit = fitPaintedActorHeight({
+    containerW: W,
+    containerH: H,
+    heightPct: stage.hunterPlacement.heightPct,
+    xPct: stage.hunterPlacement.xPct,
+    groundY: stage.groundY,
+    sprite: stage.hunterSprite,
+  });
+  // Breathe (the flat actors' grammar — the DOM painted actor's
+  // own): scaleY 1↔1.015 over 2.7 s around the feet anchor.
+  const hunterBreathe = 1 + 0.015 * (0.5 - 0.5 * Math.cos((2 * Math.PI * (now % 2700)) / 2700));
+  const hs = hunterFit.heightPx / stage.hunterSprite.height;
+  scene.hunterSprite.scale.set(hs, hs * hunterBreathe);
+  scene.hunterSprite.position.set(0, 0);
 
   // ── Apply boss ──
   const bossDef = scene.bossSpriteDef;
@@ -733,7 +688,7 @@ function tickStage(rt: StageRuntime, env: TickEnv, now: number): void {
       shakeKey: rt.shake?.key ?? null,
       specialTelegraph: model.special?.specialName ?? null,
       specialActive,
-      nodeCount: pixiAnimatedNodeCount(scene.parts.length, !!scene.weaponRoot),
+      nodeCount: pixiAnimatedNodeCount(1, false),
       fpsAvg: avg > 0 ? 1000 / avg : 0,
       frameDeltas: [...deltas],
     };
@@ -749,7 +704,7 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
   const presentationActive = usePresentationActive();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const shakeWrapRef = useRef<HTMLDivElement | null>(null);
-  const look = useOwnLookWithLoad();
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
   const runtimeRef = useRef<StageRuntime | null>(null);
   const envRef = useRef<TickEnv | null>(null);
   const [failed, setFailed] = useState(false);
@@ -764,16 +719,14 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
     if (presentationActive) app.start();
     else app.stop();
   }, [presentationActive, sceneReady]);
-  const stageModel = useMemo(() => deriveStageModel(props), [props.bossId, props.backgroundId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stageModel = useMemo(() => deriveStageModel(props, activeHunterId), [props.bossId, props.backgroundId, activeHunterId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep the tick's env snapshot current (props feed + look + the
-  // shake wrapper element). Effects run after render; the ticker
-  // only starts once the async scene build completes.
+  // Keep the tick's env snapshot current (props feed + the shake
+  // wrapper element). Effects run after render; the ticker only
+  // starts once the async scene build completes.
   useEffect(() => {
     envRef.current = {
       props,
-      hunterSet: look.set,
-      partPalettes: look.partPalettes,
       stage: stageModel,
       shakeWrap: shakeWrapRef.current,
     };
@@ -795,37 +748,19 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
       if (!host || !env) return;
       const initialProps = env.props;
       const stage = env.stage;
-      const set = env.hunterSet;
-      const firstModel = derivePhaseModel(initialProps, stage, set);
       const w = host.clientWidth || 420;
       const h = host.clientHeight || 228;
       runtime.size = { w, h };
 
       const background = requirePixelSprite(stage.effectiveBackgroundId);
       const propSprite = getPixelSprite(stage.arena.propId);
-      const [bgTex, propTex, bossTex, weaponTex] = await Promise.all([
+      const [bgTex, propTex, bossTex, hunterTex] = await Promise.all([
         loadTexture(background.url),
         propSprite ? loadTexture(propSprite.url) : Promise.resolve(null),
         loadTexture(stage.bossSprite.url),
-        weaponTextureForWeapon(initialProps.weapon),
+        loadTexture(stage.hunterSprite.url),
       ]);
-      // Part textures for the pilot pose layout (the set is fixed for
-      // the fight's duration; palettes resolve exactly as the DOM
-      // actor resolves them on first paint).
-      const partTexEntries = await Promise.all(
-        Object.values(firstModel.layout.placements)
-          .filter((p): p is NonNullable<typeof p> => !!p)
-          .map(async (placement) => {
-            const sprite = requirePixelSprite(placement.part.spriteId);
-            const slotPalette = env.partPalettes?.[placement.part.slot];
-            const src = slotPalette
-              ? paletteSpriteUrl(placement.part.spriteId, sprite.url, slotPalette.paletteId, slotPalette.spec)
-              : sprite.url;
-            return { slot: placement.part.slot, tex: await loadTexture(src) };
-          }),
-      );
       if (cancelled) return;
-      const partTex = new Map(partTexEntries.map((e) => [e.slot, e.tex]));
 
       app = new Application();
       await app.init({
@@ -876,46 +811,18 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
         prop = new Sprite(propTex);
         world.addChild(prop);
       }
-      // Hunter: root at the ground anchor point (wrapper tracks land
-      // here, pivot = the DOM wrapper's transformOrigin), frame
-      // container inside it.
+      // Hunter (painted, slice (c)): root at the ground anchor
+      // point (wrapper tracks land here, pivot = the DOM wrapper's
+      // transformOrigin), ONE sprite inside it — the active
+      // hunter's whole painting, its Pixi anchor set to the
+      // manifest feet anchor. The tick's syncBossHunterArt swaps
+      // the sprite on a mid-fight hunter switch.
       const hunterRoot = new Container();
-      const hunterFrame = new Container();
-      hunterRoot.addChild(hunterFrame);
+      const hunterSpriteNode = new Sprite(hunterTex);
+      const hunterFeet = stage.hunterSprite.anchors.feet ?? { x: 0.5, y: 1 };
+      hunterSpriteNode.anchor.set(hunterFeet.x, hunterFeet.y);
+      hunterRoot.addChild(hunterSpriteNode);
       world.addChild(hunterRoot);
-      const parts: PartNode[] = [];
-      const placements = Object.values(firstModel.layout.placements)
-        .filter((p): p is NonNullable<typeof p> => !!p)
-        .sort((a, b) => (PAINT_ORDER.get(a.part.slot) ?? 0) - (PAINT_ORDER.get(b.part.slot) ?? 0));
-      for (const placement of placements) {
-        const tex = partTex.get(placement.part.slot);
-        if (!tex) continue;
-        const container = new Container();
-        const sprite = new Sprite(tex);
-        container.addChild(sprite);
-        hunterFrame.addChild(container);
-        parts.push({
-          slot: placement.part.slot,
-          container,
-          sprite,
-          anchorStage: placement.anchorStage,
-          primaryLocal: placement.part.anchors[PRIMARY_ANCHOR[placement.part.slot]],
-          width: placement.part.width,
-          height: placement.part.height,
-          rotationDeg: placement.rotationDeg,
-        });
-      }
-      let weaponRoot: Container | undefined;
-      let weaponSway: Container | undefined;
-      if (weaponTex && firstModel.layout.weapon) {
-        weaponRoot = new Container();
-        weaponSway = new Container();
-        const weaponSprite = new Sprite(weaponTex);
-        weaponSprite.name = 'weaponSprite';
-        weaponSway.addChild(weaponSprite);
-        weaponRoot.addChild(weaponSway);
-        hunterFrame.addChild(weaponRoot);
-      }
       // Boss: lunge wrapper → hit wrapper → body (entrance + breathe)
       // → sprite, all pivoting at the feet anchor point.
       const bossLunge = new Container();
@@ -970,10 +877,8 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
         tintSprite,
         prop,
         hunterRoot,
-        hunterFrame,
-        parts,
-        weaponRoot,
-        weaponSway,
+        hunterSprite: hunterSpriteNode,
+        hunterArtKey: stage.hunterSprite.id,
         bossLunge,
         bossHit,
         bossBody,
@@ -1032,8 +937,8 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
   // crit flash, end banner) — React keeps these pixels; the canvas
   // underneath carries actors and particle FX only.
   const overlay = useMemo(
-    () => derivePhaseModel(props, stageModel, look.set),
-    [props, stageModel, look.set],
+    () => derivePhaseModel(props, stageModel),
+    [props, stageModel],
   );
   if (failed) return null;
   const { timeline, phases } = props;
@@ -1122,6 +1027,15 @@ export const BossPixiStage: React.FC<BossPixiStageProps> = (props) => {
             />
           </div>
         )}
+        {/* Hunter voice (slice (c), §2.6): the boss-kill line on a
+            victory finish; a defeat finish stays silent. Copy is
+            owner-approved v2 copy (2026-11-15). */}
+        <BossHunterVoice
+          timeline={props.timeline}
+          bossId={props.bossId}
+          xPct={stageModel.hunterPlacement.xPct}
+          topPct={(stageModel.groundY - stageModel.hunterPlacement.heightPct / 100) * 100 - 4}
+        />
         {finished && timeline.outcome && (
           <motion.div
             className="pointer-events-none absolute inset-x-0 top-[38%] z-30 flex justify-center"

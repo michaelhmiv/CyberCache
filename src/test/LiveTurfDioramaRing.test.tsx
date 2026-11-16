@@ -24,8 +24,12 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
     // The consumable ring and stat bar are now in DashboardScreen, not the diorama
     expect(screen.queryByTestId('active-buff-pills')).not.toBeInTheDocument();
     expect(screen.queryByTestId('hunter-totals-bar')).not.toBeInTheDocument();
-    // Diorama still renders its core scene (at least one role="img")
-    expect(screen.getAllByRole('img').length).toBeGreaterThanOrEqual(1);
+    // Diorama still renders its core scene: the stage figure.
+    // (Paintings-only succession, owner ruling 2026-11-15, slice
+    // (c): the role="img" elements this once counted were the
+    // retired rig's weapon/gear composites; the figure is now
+    // the active hunter's whole painting.)
+    expect(screen.getByTestId('pixel-hunter').getAttribute('data-painted-hunter')).toBeTruthy();
     // Drift-fix F2: the stage is visualization-only — the in-stage
     // action bar is gone (the mode's actions live in the workspace
     // under the stage). The stage renders no buttons at all; its

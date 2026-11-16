@@ -19,6 +19,7 @@ import type { Pool } from 'pg';
 import { Rarity } from '../../types/game.js';
 import { CRAFT_GEAR_KIND_BY_SLOT, generateCraftedGearItem, type CraftGearSlot } from './craftGear.js';
 import { buildCosmeticPartPayload } from '../../content/skins.js';
+import { buildCosmeticSkinPayload } from '../../lib/hunters/hunterSkins.js';
 
 export async function finalizePendingCraftedGear(
   pool: Pool,
@@ -104,6 +105,12 @@ export async function finalizePendingCraftedGear(
  * catalog entry), inserted as a kind='cosmetic' item_instances row
  * and stamped in through cc_finalize_crafted_cosmetic. Runs at the
  * same surfaces as the gear finalizer.
+ *
+ * Whole skins (reshape slice (d), migration 0099) drain through
+ * the same call: their pending outputs carry the skin id, the
+ * payload is built by lib/hunters/hunterSkins.ts
+ * buildCosmeticSkinPayload, and cc_finalize_crafted_skin stamps
+ * them in. One drain, both cosmetic families.
  */
 export async function finalizePendingCraftedCosmetics(
   pool: Pool,
@@ -127,6 +134,30 @@ export async function finalizePendingCraftedCosmetics(
     );
     const itemId = String((inserted.rows[0] as { id: string }).id);
     await pool.query('select public.cc_finalize_crafted_cosmetic($1, $2, $3, $4)', [
+      playerId,
+      String(row.job_id),
+      Number(row.unit),
+      itemId,
+    ]);
+    finalized += 1;
+  }
+  const { rows: skinRows } = await pool.query('select * from public.cc_pending_crafted_skins($1)', [playerId]);
+  for (const row of skinRows as Array<Record<string, unknown>>) {
+    const payload = buildCosmeticSkinPayload(String(row.skin_id), Number(row.quality ?? 50), 'crafted', playerId);
+    if (!payload) continue;
+    const inserted = await pool.query(
+      `insert into public.item_instances (
+         owner_user_id, kind, runtime_state, is_locked, rarity,
+         item_level, estimated_value, supply_mode, payload
+       ) values (
+         $1, 'cosmetic', 'available', false, 'Common', 1,
+         public.cc_compute_item_estimated_value($2::jsonb, 'cosmetic', 'Common', 1),
+         'verified_action', $2::jsonb
+       ) returning id`,
+      [playerId, JSON.stringify(payload)],
+    );
+    const itemId = String((inserted.rows[0] as { id: string }).id);
+    await pool.query('select public.cc_finalize_crafted_skin($1, $2, $3, $4)', [
       playerId,
       String(row.job_id),
       Number(row.unit),

@@ -48,7 +48,7 @@ is the quality band a crafted batch can roll, against the game's
 | <img src="images/consumables/salvage-contract.png" alt="Salvage Contract" width="48"> | **Salvage Contract** | Economy | Salvage Contract consumed: increased scrap/material yield. | 700 | Not stocked | 75–150% (cap 175%) |
 | <img src="images/consumables/workshop-rush-ticket.png" alt="Workshop Rush Ticket" width="48"> | **Workshop Rush Ticket** | Economy | Workshop Rush Ticket consumed: reduced workshop duration. | 1000 | Vendor rotation | 75–150% (cap 175%) |
 | <img src="images/consumables/elemental-coating.png" alt="Elemental Coating" width="48"> | **Elemental Coating** | Ammo | Elemental Coating consumed: rounds coated in elemental grit. | 500 | Crafter-only | 75–150% (cap 175%) |
-| <img src="images/consumables/generic-fuel-cell.png" alt="Generic Fuel Cell" width="48"> | **Generic Fuel Cell** | Economy | Fuel cell loaded into the vehicle tank. | 40 | Vendor staple | — |
+| <img src="images/consumables/generic-fuel-cell.png" alt="Jerrican" width="48"> | **Jerrican** | Economy | Fuel cell loaded into the vehicle tank. | 40 | Vendor staple | — |
 | <img src="images/consumables/patch-kit.png" alt="Patch Kit" width="48"> | **Patch Kit** | Economy | Patch Kit consumed: restored vehicle condition. | 150 | Vendor staple | 75–150% (cap 175%) |
 | <img src="images/consumables/field-patch-kit.png" alt="Field Patch Kit" width="48"> | **Field Patch Kit** | Economy | Field Patch Kit consumed: restored vehicle condition. | 400 | Crafter-only | 75–140% (cap 175%) |
 | <img src="images/consumables/master-patch-kit.png" alt="Master Patch Kit" width="48"> | **Master Patch Kit** | Economy | Master Patch Kit consumed: restored vehicle condition. | 1200 | Crafter-only | 80–160% (cap 175%) |

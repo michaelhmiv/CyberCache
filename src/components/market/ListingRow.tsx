@@ -44,7 +44,10 @@ import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
 import { VehicleSprite } from '@/components/gear/GaragePanel';
 import { listEntranceProps } from '@/lib/animation/uiMotion';
-import { gearRowHeadline, priceRowHeadline } from '@/lib/gear/gearCardSummary';
+import { gearRowHeadline, isClassMod, priceRowHeadline } from '@/lib/gear/gearCardSummary';
+import { classModBindingLabel, hunterById } from '@/lib/hunters/hunters';
+import { skinById } from '@/lib/hunters/hunterSkins';
+import { getPixelSprite } from '@/lib/pixel/manifest';
 import { listingAgeLabel } from '@/lib/market/listingAge';
 import { fmtUnitPrice } from '@/lib/market/unitPriceLabel';
 import { resolveLookView } from '@/lib/pixel/lookResolution';
@@ -112,6 +115,22 @@ function CosmeticThumb({ listing }: { listing: Listing }) {
       {look ? (
         <div className="w-10 overflow-hidden border border-border bg-bg">
           <HunterPortrait look={look} className="h-[44px]" />
+        </div>
+      ) : (
+        <div className="grid h-[44px] w-10 place-items-center border border-border bg-bg text-[11px] text-text-muted">?</div>
+      )}
+    </div>
+  );
+}
+
+function SkinThumb({ listing }: { listing: Listing }) {
+  const def = listing.skinId ? skinById(listing.skinId) : undefined;
+  const sprite = def ? getPixelSprite(def.spriteId) : undefined;
+  return (
+    <div className="flex w-12 shrink-0 items-center justify-center">
+      {sprite ? (
+        <div className="flex h-[44px] w-10 items-end justify-center overflow-hidden border border-border bg-bg">
+          <img src={sprite.url} alt="" className="max-h-full object-contain [image-rendering:pixelated]" draggable={false} />
         </div>
       ) : (
         <div className="grid h-[44px] w-10 place-items-center border border-border bg-bg text-[11px] text-text-muted">?</div>
@@ -237,12 +256,16 @@ export const ListingRow: React.FC<ListingRowProps> = ({
     fact = [{ node: `Listed ${age}` }, { node: netLine, flex: true }];
   } else if (item) {
     const headline = gearRowHeadline(item);
+    // Class mods speak their hunter-binding on the row (reshape
+    // slice (d)): the buyer sees whose mod it is before inspect.
+    const binding = isClassMod(item) ? classModBindingLabel(item) : null;
     fact = [
       // Flex, not fixed: a relic's headline IS its affix line and
       // can run long — it truncates inside the line (the Gear
       // list's capped headline block, same discipline) instead of
       // overflowing the row.
       { node: headline.label ? `${headline.label} ${headline.value}` : headline.value, flex: true, minW: '3.25rem' },
+      { node: binding },
       { node: sellerLabel, flex: true },
       { node: age },
     ];
@@ -263,6 +286,14 @@ export const ListingRow: React.FC<ListingRowProps> = ({
       { node: sellerLabel, flex: true },
       { node: age },
     ];
+  } else if (listing.kind === 'skin') {
+    const def = listing.skinId ? skinById(listing.skinId) : undefined;
+    fact = [
+      { node: def ? `Whole skin · ${hunterById(def.hunterId).name}` : 'Whole skin', flex: true, minW: '2.75rem' },
+      { node: listing.qualityPercent !== null && listing.qualityPercent !== undefined ? `Q${Math.round(listing.qualityPercent)}%` : null },
+      { node: sellerLabel, flex: true },
+      { node: age },
+    ];
   } else {
     fact = [
       { node: listing.quantity > 1 ? `×${listing.quantity}` : null },
@@ -274,13 +305,14 @@ export const ListingRow: React.FC<ListingRowProps> = ({
   }
 
   const price = priceRowHeadline(listing.price);
-  const perUnitMedian = listing.kind !== 'gear' && listing.kind !== 'vehicle' && listing.kind !== 'cosmetic';
+  const perUnitMedian = listing.kind !== 'gear' && listing.kind !== 'vehicle' && listing.kind !== 'cosmetic' && listing.kind !== 'skin';
 
   const identity = (
     <>
       {item ? <GearThumb item={item} element={listing.element} />
         : vehicle ? <VehicleThumb vehicle={vehicle} />
         : listing.kind === 'cosmetic' ? <CosmeticThumb listing={listing} />
+        : listing.kind === 'skin' ? <SkinThumb listing={listing} />
         : <StackThumb listing={listing} />}
       {/* No level column on listing rows (capture pass,
           2026-11-04): the Gear row can afford one — its right side

@@ -13,9 +13,9 @@ pool a boss draws from is not printed.
 
 <!-- GENERATED from src/constants/bosses.ts, src/content/areaPalettes.ts, src/lib/pixel/manifest.ts — do not edit by hand -->
 <!-- wiki-gen:bosses -->
-### Dune Tyrant — Tier 1
+### Harrow, the Dune Tyrant — Tier 1
 
-<img src="images/bosses/dune-tyrant.png" alt="Dune Tyrant" width="388">
+<img src="images/bosses/dune-tyrant.png" alt="Harrow, the Dune Tyrant" width="388">
 
 - **Boss level:** 5 · **Recommended power:** 120
 - **Health / Shield / Armor:** 800 / 0 / 0 · **Boss DPS:** 30
@@ -31,7 +31,7 @@ pool a boss draws from is not printed.
 
 **The arena** — every boss fights on its own ground:
 
-<img src="images/bosses/dune-tyrant-arena.jpg" alt="Dune Tyrant — arena" width="480">
+<img src="images/bosses/dune-tyrant-arena.jpg" alt="Harrow, the Dune Tyrant — arena" width="480">
 
 ### The Siltstalker — Tier 2
 
@@ -84,7 +84,7 @@ pool a boss draws from is not printed.
 - **Mechanic — Burning Ground:** The ground itself burns for the whole fight. Your survival is measured against the burn line (1.4) — a pool that merely survives the boss is not enough here.
 - **Attack pattern:** hits every 3s; special **Eruption** every 15s after a 3s wind-up, carrying ~25% of its damage
 - **Entry / rematch:** 600 cr / 700 cr
-- **Dedicated drops:** Salvage Rights, Overclocked
+- **Dedicated drops:** Salvage Rights, Runaway
 
 **Phases**
 

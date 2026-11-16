@@ -36,21 +36,27 @@ import {
   HunterPlateHero,
   PlatesBackRow,
   PlatesDoor,
+  PlatesRosterDoor,
   PlatesTreesDoor,
   PlatesWideDoor,
   type HubDoorDatum,
   type ResearchStatusLine,
 } from '@/components/profile/HunterPlates';
+import { RosterPanel } from '@/components/profile/RosterPanel';
 import { getSkillTreeNodes } from '@/constants/skillTrees';
+import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import { SkillTreeType } from '@/types/game';
 import { getResearchState } from '@/lib/chef/chefClient';
 import type { ResearchStateView } from '@/content/research';
-import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
+import { hunterById } from '@/lib/hunters/hunters';
+import { wardrobeCountsForHunter } from '@/lib/hunters/hunterSkins';
+import { useHunterWardrobeStore, wornSkinSpriteId } from '@/store/slices/hunterWardrobeSlice';
+import { getPixelSprite } from '@/lib/pixel/manifest';
 import { SkillTreeScreen } from './SkillTreeScreen';
 import { CollectionsScreen } from './CollectionsScreen';
 import { LeaderboardsScreen } from './LeaderboardsScreen';
 import { useAuth } from '@/auth/AuthProvider';
-import { isGuestAccount } from '@/auth/accountState';
+import { isGuestAccount, needsHunterPick } from '@/auth/accountState';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
 import { resolveSceneLabel } from '@/lib/dashboard/sceneLabel';
@@ -72,24 +78,27 @@ interface ProfileScreenProps {
 /**
  * Hunter (Arena Plates menu, owner pick 2026-11-05; DESIGN.md
  * §2/§3) — the tab opens on a MENU, not a rail: a hero plate
- * (identity + announcements) over live-status doors in the Arena
- * Plates register (HunterPlates.tsx). Every stop is a destination
- * behind its door: Skill Trees first (Mastery is its segment),
- * Research, Cache Rank, Standings (the leaderboards behind the
- * badged door), Collections (the 81 proofs), Wardrobe (its own
- * stop — cosmetics demoted to the tail), Account (identity plate +
- * tools: link, settings, field manual, sign-out), and Profile &
- * Record last (identity, Trophy Shelf, the Standings door,
- * lifetime record). Every stop carries the plate back row to the
- * menu; there is no rail.
+ * (the fielded Cache Hunter's identity + announcements, reshape
+ * slice (b)) over live-status doors in the Arena Plates register
+ * (HunterPlates.tsx). Every stop is a destination behind its door:
+ * Roster (the hunter switch, directly under the hero), Skill Trees
+ * (the fielded hunter's tree; Mastery is its segment), Research,
+ * Cache Rank, Standings (the leaderboards behind the badged door),
+ * Collections (the 81 proofs), Wardrobe (whole skins — cosmetics
+ * demoted to the tail), Account (identity plate + tools: link,
+ * settings, field manual, sign-out), and Profile & Record last
+ * (identity, Trophy Shelf, the Standings door, lifetime record).
+ * Every stop carries the plate back row to the menu; there is no
+ * rail.
  */
-type HunterStop = 'hub' | 'profile' | 'collections' | 'cacheRank' | 'research' | 'trees' | 'standings' | 'account' | 'wardrobe';
+type HunterStop = 'hub' | 'profile' | 'collections' | 'cacheRank' | 'research' | 'roster' | 'trees' | 'standings' | 'account' | 'wardrobe';
 
 const STOP_LABELS: Record<Exclude<HunterStop, 'hub'>, string> = {
   profile: 'Profile & Record',
   collections: 'Collections',
   cacheRank: 'Cache Rank',
   research: 'Research',
+  roster: 'Roster',
   trees: 'Skill Trees',
   standings: 'Standings',
   account: 'Account',
@@ -124,7 +133,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const inventory = useInventoryStore();
   const skillStore = useSkillStore();
   const deathLog = useSurvivalStore((s) => s.deathLog);
-  const { account, user, signOut, signInWithGoogle, actionLoading } = useAuth();
+  const { account, user, signOut, signInWithGoogle, actionLoading, refreshAccount } = useAuth();
+  // Slice (e): a deferred starting-hunter pick completes at the
+  // Roster stop below; the account refresh after a completing
+  // fielding is what retires the pick head.
+  const hunterPickPending = needsHunterPick(account);
   const [stats, setStats] = useState<PlayerPublicStats | null>(null);
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -217,10 +230,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   // Clamped (audit HTR-06): banked XP past a threshold — above all
   // at the level cap — must never print a progress over 100%.
   const xpProgress = Math.min(100, Math.round((player.xp / xpToNext) * 100));
-  // Budget points spent — weighted by listed cost (audit HTR-01), so the
-  // hub's spent/available story agrees with the tree screen and the server.
-  const spentSkillPoints = skillStore.getSpentBudget();
+  // The fielded Cache Hunter (reshape slices (a)/(b)): the tab's
+  // identity, its tree, and its OWN point pool. Pools are per-hunter
+  // (slice (a) law) — the hub's spent/available story reads the
+  // ACTIVE hunter's pool, weighted by listed cost (audit HTR-01),
+  // so it agrees with the tree screen and the server.
+  const activeHunter = hunterById(skillStore.activeHunterId);
+  const activeTreeVisual = getSkillTreeVisual(activeHunter.tree);
+  const spentSkillPoints = skillStore.getActiveSpentBudget();
   const availableSkillPoints = Math.max(0, player.level - 1 - spentSkillPoints);
+  // The painting the fielded hunter is seen in: the worn whole
+  // skin's painting (the base painting when nothing is selected).
+  const wornByHunter = useHunterWardrobeStore((s) => s.wornByHunter);
+  const activeHunterSpriteId = wornSkinSpriteId(wornByHunter, activeHunter.id);
+  const activeHunterArtUrl = getPixelSprite(activeHunterSpriteId)?.url;
   const verifiedLabel = account?.accountType === 'verified'
     ? 'Verified account'
     : account?.accountType === 'guest'
@@ -230,12 +253,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   // ── The hub (Arena Plates menu) ────────────────────────────────
   // Every door's status derives from the real profile at render:
   // per-tree spent from the skill store, the research line from the
-  // Chef state above, wardrobe counts from the cosmetics view (the
-  // same store the Wardrobe panel reads), the standings badge from
-  // the weekly-races payload, cores from the player record.
-  const cosmeticsView = useCosmeticsStore((s) => s.view);
-  const wardrobePartsOwned = cosmeticsView?.parts.length ?? 0;
-  const wardrobePartsWorn = Object.keys(cosmeticsView?.selection.equipped ?? {}).length;
+  // Chef state above, wardrobe counts from the whole-skin catalog
+  // for the fielded hunter (the same store the Wardrobe panel
+  // reads), the standings badge from the weekly-races payload,
+  // cores from the player record.
+  const wardrobeCounts = wardrobeCountsForHunter(activeHunter.id, wornByHunter[activeHunter.id]);
   const treeSpent = [SkillTreeType.Gunslinger, SkillTreeType.Demolition, SkillTreeType.Scavenger, SkillTreeType.Fixer].map((tree) => ({
     label: String(tree),
     spent: getSkillTreeNodes(tree).reduce((sum, node) => sum + (skillStore.spent[node.id] || 0), 0),
@@ -283,7 +305,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
     },
     {
       testId: 'hub-door-wardrobe', icon: 'person', label: 'Wardrobe',
-      status: wardrobePartsOwned > 0 ? `${wardrobePartsWorn} worn · ${wardrobePartsOwned} owned · pure cosmetic` : 'Skin parts · pure cosmetic — zero stats',
+      status: `${wardrobeCounts.worn} worn · ${wardrobeCounts.owned} owned · pure cosmetic`,
       onClick: () => goToStop('wardrobe'),
     },
     {
@@ -357,7 +379,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
               no feature lost, no dead doors. */}
           <HunterPlateHero
             level={player.level}
-            name={player.name}
+            name={activeHunter.name}
+            hunterLine={`${String(activeHunter.tree)} · ${activeHunter.basePerkName}`}
+            hunterLineColor={activeTreeVisual.color}
+            hunterArtUrl={activeHunterArtUrl}
             handleLine={(
               <>
                 <span className={account?.hasUsername ? 'font-bold text-amber' : undefined}>
@@ -379,6 +404,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
               setEarningsFocusNonce((n) => n + 1);
             }}
             onOpenResearch={() => goToStop('research')}
+          />
+          <PlatesRosterDoor
+            door={{
+              testId: 'hub-door-roster', icon: 'person', label: 'Roster',
+              status: '', onClick: () => goToStop('roster'),
+            }}
+            fieldedLine={`${activeHunter.name} · ${String(activeHunter.tree)}`}
+            artUrl={activeHunterArtUrl}
           />
           <PlatesTreesDoor door={hubDoors[0]} treeSpent={treeSpent} points={availableSkillPoints} />
           <div className="grid grid-cols-2 gap-2">
@@ -419,6 +452,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         onSetUsername={() => setSetupOpen(true)}
         verifiedLabel={verifiedLabel}
         accountVerified={account?.accountType === 'verified'}
+        fieldedHunterLabel={`${activeHunter.name} · ${String(activeHunter.tree)}`}
         researchStudiedPct={researchState && researchState.totalCourses > 0 ? Math.round((researchState.completedCount / researchState.totalCourses) * 100) : null}
         researchActive={researchLine ? { courseLabel: researchLine.courseLabel, progressPct: Math.round(researchLine.progress * 100) } : null}
         treeSpent={treeSpent}
@@ -591,6 +625,17 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         </>
       ))}
 
+      {stopSection('roster', (
+        <>
+          <PlatesBackRow stopLabel={STOP_LABELS.roster} onBack={() => goToStop('hub')} />
+          <RosterPanel
+            onOpenTrees={() => goToStop('trees')}
+            pickPending={hunterPickPending}
+            onPickComplete={() => void refreshAccount()}
+          />
+        </>
+      ))}
+
       {stopSection('trees', (
         <>
       <PlatesBackRow stopLabel={STOP_LABELS.trees} onBack={() => goToStop('hub')} />
@@ -622,10 +667,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         <>
           <PlatesBackRow stopLabel={STOP_LABELS.wardrobe} onBack={() => goToStop('hub')} />
           {/* The Wardrobe's own stop (Arena Plates menu): the
-              skin-part showcase + wear/remove surface, homed
-              behind its own door at the menu's tail. The wrapper
-              keeps the deep-link anchor testid the panel carried
-              on the Profile stop. */}
+              whole-skin showcase + wear/remove surface for the
+              fielded hunter, homed behind its own door at the
+              menu's tail. The wrapper keeps the deep-link anchor
+              testid the panel carried on the Profile stop. */}
           <div data-testid="profile-wardrobe-anchor" className="scroll-mt-2">
             <WardrobePanel />
           </div>

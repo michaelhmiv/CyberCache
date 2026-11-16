@@ -25,7 +25,7 @@ import {
   TelegraphGlow,
   Tracer,
 } from '@/components/pixelArt/PixelFx';
-import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, requirePixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, pixelHunterSpriteForHunter, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, lootRiseTotalMs, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
 import { dropAssetColor, dropRiseBeamColor, parseDropType } from '@/lib/pixel/dropColors';
@@ -41,6 +41,8 @@ import {
 } from '@/lib/pixel/travelChoreography';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
+import { PixelPaintedHunterActor } from '@/components/pixelArt/PixelPaintedHunterActor';
+import { RoamHunterVoice } from '@/components/pixelArt/HunterVoiceChip';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import {
   EXTRACTION_RISE_STAGGER_MS,
@@ -63,19 +65,14 @@ import { SET_SEATS, seatPointTopPct } from '@/lib/pixel/setSeats';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import type { WorkshopCompletionView } from '@/store/slices/workshopSlice';
 import { ENEMY_POSES, enemyRig, type RigPose } from '@/lib/pixel/rig';
-import { PART_POSES, type PartsPoseName } from '@/lib/pixel/parts';
 import { useCosmeticsStore, useOwnLook } from '@/store/slices/cosmeticsSlice';
-import { layoutPartSet } from '@/lib/pixel/partsCompositor';
-import { partsAnchorPoint, partsWeaponFractionsFor } from '@/lib/pixel/partsStage';
-import { pixelWeaponInputFromWeapon } from '@/lib/pixel/weaponCompositor';
+import { paintedPlacement } from '@/lib/pixel/paintedStage';
 import { areaVisuals, bossArena } from '@/content/areaPalettes';
 import { isHotArea } from '@/content/hotArea';
 import { elementDialect, shotCadence } from '@/lib/pixel/elementFx';
 import { useLoadoutStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
-import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
-import { isClassModItem, isRelicItem, isShieldItem } from '@/lib/loadout/loadoutReadModel';
 
 
 import { LootMoment } from '@/components/pixelArt/LootMoment';
@@ -90,7 +87,7 @@ import { gearDropFromEvent, lootRiseVisualForEvent } from '@/lib/pixel/lootMomen
 import { DROP_RISE_MASTERS, type DropRiseKind } from '@/lib/pixel/iconMasters';
 import { tintedDropRiseCanvas } from '@/lib/pixel/iconTint';
 import { getLiveTurfScene } from '@/constants/liveTurfVisuals';
-import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore, useSalvageFeedStore, useExtractionFeedStore } from '@/store';
+import { useKillCycleStore, useTickFeedStore, useBossStore, useInventoryStore, useWorkshopStore, useSalvageFeedStore, useExtractionFeedStore, useSkillStore } from '@/store';
 import { MONSTERS, getMonster } from '@/constants/monsters';
 import { REGION_1_BOSSES } from '@/constants/bosses';
 import { Rarity } from '@/types/game';
@@ -640,19 +637,6 @@ const PixelSceneLayerDom: React.FC<{
   const visuals = areaVisuals(areaId);
   const dialect = elementDialect(weapon?.element);
   const cadence = shotCadence(weapon?.weaponType, weapon?.attackSpeed);
-  const loadoutConsumables = useLoadoutStore((state) => state.consumables);
-  const equippedShieldId = useLoadoutStore((state) => state.slots.shield);
-  const equippedRelicId = useLoadoutStore((state) => state.slots.relic);
-  const equippedClassModId = useLoadoutStore((state) => state.slots.classMod);
-  const shieldItem = useInventoryStore((state) =>
-    equippedShieldId ? state.items.find((i) => i.id === equippedShieldId) : undefined,
-  );
-  const relicItem = useInventoryStore((state) =>
-    equippedRelicId ? state.items.find((i) => i.id === equippedRelicId) : undefined,
-  );
-  const classModItem = useInventoryStore((state) =>
-    equippedClassModId ? state.items.find((i) => i.id === equippedClassModId) : undefined,
-  );
   const vehicle = useLoadoutStore((state) => state.getVehicle());
   const vehicleStatus = useVehicleStore((state) => state.lastClaimStatus);
   // Hunter HP for the on-stage HP plate (owner ruling 2026-11-02:
@@ -662,18 +646,6 @@ const PixelSceneLayerDom: React.FC<{
   const hunterMaxHp = useSurvivalStore((state) => state.maxHp);
   const hunterHpRatio = hunterMaxHp > 0 ? Math.max(0, Math.min(1, hunterHp / hunterMaxHp)) : 1;
   const hunterHpColor = hunterHpRatio >= 0.6 ? '#4ADE80' : hunterHpRatio >= 0.3 ? '#FF9000' : '#F87171';
-  // Equipped gear, MOUNTED on the parts actor (M3): the mounted
-  // reads derive from the ACTUAL equipped instances (gearMounts.ts
-  // keys the shield by its behavior + element, the relic by its
-  // rarity, the pauldron by the class mod's tree, the belt by the
-  // slotted consumables). The overlay chips that used to float over
-  // the figure at fixed frame percentages are gone.
-  const mountedGear = mountedGearForLoadout({
-    shield: isShieldItem(shieldItem) ? shieldItem : undefined,
-    relic: isRelicItem(relicItem) ? relicItem : undefined,
-    classMod: isClassModItem(classModItem) ? classModItem : undefined,
-    consumables: [loadoutConsumables.PreFight, loadoutConsumables.MidFight, loadoutConsumables.Emergency],
-  });
   const isEliteEvent = !!event && (event.tone === 'event' || event.tone === 'event_major') && event.family === 'elite';
   const [poseAge, setPoseAge] = useState({ eventId: '', elapsedMs: 0 });
   const poseEventId = event?.id ?? '';
@@ -709,13 +681,6 @@ const PixelSceneLayerDom: React.FC<{
   const eventProp = event && (event.tone === 'event' || event.tone === 'event_major') && event.propId
     ? getPixelSprite(event.propId)
     : undefined;
-  // Parts poses (M2): armed standby idles at the ready; an unarmed
-  // hunter stands 'relaxed' — hands at his sides, holding nothing.
-  const hunterPoseName: PartsPoseName = !showEnemy
-    ? weapon
-      ? 'idle'
-      : 'relaxed'
-    : actorPoses.hunter;
   const enemyPose = isEliteEvent
     ? ENEMY_POSES.idle
     : ENEMY_POSES[actorPoses.enemy];
@@ -779,26 +744,14 @@ const PixelSceneLayerDom: React.FC<{
         }),
       )
     : enemyPose;
-  // The hunter's part set (M2) — Standard Issue wearing the player's
-  // head variant. FX points resolve from the parts layout for the
-  // pose he is actually in: the held weapon's grip/muzzle, and (M3)
-  // the layout's mass joint for his body. (The deleted whole-hunter
-  // sprite's manifest anchors used to feed these.)
+  // The hunter's part set survives ONLY on the bench / work
+  // branches below (work poses have no painting equivalent); the
+  // combat and standby figures are the active hunter's painting
+  // (slice (c) — see the FX-point block for the seating law).
   const look = useOwnLook();
   const loadCosmetics = useCosmeticsStore((s) => s.load);
   useEffect(() => { void loadCosmetics(); }, [loadCosmetics]);
   const hunterSet = look.set;
-  // Travel beat (M2b): while the advance window is open, the
-  // hunter stands in the 'roam' stance the stride departs from —
-  // the beat-derived pose resumes the instant the window closes
-  // (a combat beat preempts the travel, so the two never stack).
-  const stagePoseName: PartsPoseName =
-    travelActive && mode === 'roaming' ? 'roam' : hunterPoseName;
-  const hunterLayout = layoutPartSet(
-    hunterSet,
-    PART_POSES[stagePoseName],
-    weapon ? partsWeaponFractionsFor(pixelWeaponInputFromWeapon(weapon)) : undefined,
-  );
 
   // ── Work cycle (Motion Reboot M1; extraction M4a) ────────────
   // Bench modes run the work cycle: the hunter WORKS the set piece
@@ -885,11 +838,22 @@ const PixelSceneLayerDom: React.FC<{
   // anchor, so the shared xPct (60) stays exact; only the height
   // derives. The crafting lane's bench is #447's own build, not
   // the V2-authored bench, so its seat row does not describe the
-  // shipped art and the lane keeps the point #447 tuned for it.
+  // shipped art. Its point is C1-01's measured anvil point
+  // (rulings batch-3, 2026-11-15): the bench actor stands at
+  // xPct 60 with feet anchor 0.4972, putting its left edge at
+  // ≈45.0 and the anvil (centre ≈0.235 of the sprite's width)
+  // at stage x ≈52; the anvil's top face sits ≈6 points above
+  // the old fallback point, so the seat rides the slab instead
+  // of floating off its front face (CP2's forge finding).
   const workSeatPieceId = mode === 'salvaging' ? 'set-refinery-crusher' : mode === 'workshopService' ? 'set-bay-lift' : null;
   const workSeat = workSeatPieceId ? SET_SEATS[workSeatPieceId]?.seat ?? null : null;
   const workSeatHeightPct = mode === 'salvaging' ? 34 : 36;
-  const workPointYPct = workSeat ? seatPointTopPct(workSeat, workSeatHeightPct, groundY) : (groundY - 0.17) * 100;
+  const workPointYPct = workSeat
+    ? seatPointTopPct(workSeat, workSeatHeightPct, groundY)
+    : mode === 'crafting'
+      ? (groundY - 0.23) * 100
+      : (groundY - 0.17) * 100;
+  const workPointXPct = mode === 'crafting' ? 52 : 60;
   // Salvage completion beat (M4b): salvaging has no workshop
   // mirror, so its completions arrive on the salvage feed — the
   // store every recycle result already pushes to. A fresh settled
@@ -1003,7 +967,10 @@ const PixelSceneLayerDom: React.FC<{
   // 22% mark holds (boss staging is its own composition); roaming
   // reads ROAM_HUNTER_PLACEMENT — roamChoreography owns the mark.
   const hunterPlacement: ActorPlacement = {
-    xPct: idleCamp ? 52.6 : bossOnStage ? 22 : ROAM_HUNTER_PLACEMENT.xPct,
+    // Crafting holds its own mark (C1-01, rulings batch-3): at
+    // the shared roam mark the working hand stopped ≈10 points
+    // short of the bench; xPct 22 lands it at the anvil.
+    xPct: idleCamp ? 52.6 : bossOnStage ? 22 : mode === 'crafting' ? 22 : ROAM_HUNTER_PLACEMENT.xPct,
     heightPct: ROAM_HUNTER_PLACEMENT.heightPct,
     groundY,
   };
@@ -1030,9 +997,22 @@ const PixelSceneLayerDom: React.FC<{
         : roamEnemy.heightPct,
     groundY,
   };
-  const muzzle = partsAnchorPoint(hunterLayout.joints.muzzle ?? hunterLayout.joints.grip, hunterPlacement);
-  const grip = partsAnchorPoint(hunterLayout.joints.grip, hunterPlacement);
-  const hunterMass = partsAnchorPoint(hunterLayout.joints.mass, hunterPlacement);
+  // The painted hunter (Cache Hunters slice (c); owner ruling
+  // 2026-11-15 — PAINTINGS ONLY ON STAGE): the active hunter's
+  // Cast B painting is the stage figure, and the FX points resolve
+  // from the PAINTING's manifest anchors at the width-law-fitted
+  // placement — the same anchor discipline the enemy flat already
+  // uses. The anchors are the production sidecars' declared values
+  // (the muzzle/grip points are computed defaults, not measured
+  // weapon geometry — the flash and casing read from the figure's
+  // right edge / hand line, close enough for a 34px flash sprite;
+  // recorded in DESIGN.md §12 with the ruling).
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const hunterSprite = requirePixelSprite(pixelHunterSpriteForHunter(activeHunterId) ?? 'hunter-vesper-cole');
+  const hunterStagePlacement = paintedPlacement(hunterSprite, hunterPlacement);
+  const muzzle = actorAnchorPoint(hunterSprite, 'muzzle', hunterStagePlacement);
+  const grip = actorAnchorPoint(hunterSprite, 'grip', hunterStagePlacement);
+  const hunterMass = actorAnchorPoint(hunterSprite, 'centerMass', hunterStagePlacement);
   const enemyMass = actorAnchorPoint(enemySprite, 'centerMass', enemyPlacement);
   const enemyFeet = actorAnchorPoint(enemySprite, 'feet', enemyPlacement);
   /* (the enemy's above-the-head lootPoint anchor is no longer read here —
@@ -1204,7 +1184,7 @@ const PixelSceneLayerDom: React.FC<{
           spec={benchSpec}
           active={benchWorking && !benchCelebrating}
           reduced={reduced}
-          xPct={60}
+          xPct={workPointXPct}
           yPct={workPointYPct}
           testId="bench-fx"
         />
@@ -1233,7 +1213,7 @@ const PixelSceneLayerDom: React.FC<{
         <div
           data-testid="bench-seat"
           className="pointer-events-none absolute z-20 flex items-center justify-center"
-          style={{ left: '60%', top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+          style={{ left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
         >
           <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
         </div>
@@ -1245,7 +1225,7 @@ const PixelSceneLayerDom: React.FC<{
         <StageRise
           key={benchCompletionKey(activeBenchCompletion)}
           testId="bench-completion-rise"
-          xPct={60}
+          xPct={workPointXPct}
           yPct={workPointYPct}
           width={46}
           height={46}
@@ -1398,21 +1378,21 @@ const PixelSceneLayerDom: React.FC<{
         animate={reduced ? undefined : hunterControls}
       >
         {showEnemy ? (
-          <PixelPartsActor
-            set={hunterSet}
-            partPalettes={look.partPalettes}
+          /* Combat (slice (c), paintings only on stage): the active
+             hunter's whole painting fights — no part layers, no held
+             weapon, no mounted gear on the figure. The wrapper above
+             still runs every beat reaction (dodge, recoil, hops);
+             the travel stride survives as the painting's bob. */
+          <PixelPaintedHunterActor
+            sprite={hunterSprite}
             {...hunterPlacement}
             reduced={reduced}
-            pose={stagePoseName}
             strideCycle={
               mode === 'roaming'
                 ? { spec: travelStrideSpec(TRAVEL_SPECS.advance), active: travelActive }
                 : undefined
             }
-            weapon={weapon ?? undefined}
-            weaponTestId="pixel-held-weapon"
             testId="pixel-hunter"
-            gear={mountedGear}
           />
         ) : benchSpec ? (
           /* Bench modes (Motion Reboot M1): the hunter WORKS the
@@ -1472,30 +1452,18 @@ const PixelSceneLayerDom: React.FC<{
             workCycle={{ spec: stallSpec, active: true }}
             testId="pixel-hunter"
           />
-        ) : weapon ? (
-          /* Armed standby (loadout truth): the part set idles at the
-             ready with the equipped weapon — the actual instance —
-             seated grip-to-grip between the arm layers. */
-          <PixelPartsActor
-            set={hunterSet}
-            partPalettes={look.partPalettes}
-            {...hunterPlacement}
-            reduced={reduced}
-            pose="idle"
-            weapon={weapon}
-            weaponTestId="pixel-held-weapon"
-            testId="pixel-hunter"
-          />
         ) : (
-          /* Unarmed (real-item invariant): no weapon layer exists,
-             and the hunter stands 'relaxed' — hands at his sides,
-             no phantom weapon, no aim stance holding air. */
-          <PixelPartsActor
-            set={hunterSet}
-            partPalettes={look.partPalettes}
+          /* Standby / presence (camp idle, boss prep, endless):
+             the painting stands at the mark. Armed and unarmed
+             standby are the same picture now (paintings only on
+             stage, ruling 2026-11-15) — the equipped weapon is not
+             drawn on the stage figure in any mode; it keeps
+             displaying on Gear, cards, and loadouts exactly as
+             before. */
+          <PixelPaintedHunterActor
+            sprite={hunterSprite}
             {...hunterPlacement}
             reduced={reduced}
-            pose="relaxed"
             testId="pixel-hunter"
           />
         )}
@@ -1523,6 +1491,16 @@ const PixelSceneLayerDom: React.FC<{
           <GhostHpBar pct={hunterHpRatio * 100} color={hunterHpColor} reduced={reduced} barClassName="h-[9px]" testId="diorama-hunter-hp-bar" />
         </div>
       )}
+
+      {/* Hunter voice (slice (c), §2.6): the active hunter's line
+          at its rare triggers — decided state only, one line per
+          moment (hunterVoice.ts). Copy is the owner-approved v2
+          set (2026-11-15). */}
+      <RoamHunterVoice
+        event={event}
+        xPct={hunterPlacement.xPct}
+        topPct={(groundY - hunterPlacement.heightPct / 100) * 100 - 4}
+      />
 
       {/* Enemy — drops in for boss fights (dust + shake on landing),
           walks in roaming; lunges on damage beats; hit/kill reactions.
@@ -1799,32 +1777,6 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
   const currentTargetHp = useKillCycleStore((state) => state.currentTargetHp);
-  // The DOM scene resolves mounted gear from the loadout/inventory
-  // stores itself; the Pixi scene receives the same resolution as a
-  // prop (its derivation lives beside the component).
-  const loadoutConsumables = useLoadoutStore((state) => state.consumables);
-  const equippedShieldId = useLoadoutStore((state) => state.slots.shield);
-  const equippedRelicId = useLoadoutStore((state) => state.slots.relic);
-  const equippedClassModId = useLoadoutStore((state) => state.slots.classMod);
-  const shieldItem = useInventoryStore((state) =>
-    equippedShieldId ? state.items.find((i) => i.id === equippedShieldId) : undefined,
-  );
-  const relicItem = useInventoryStore((state) =>
-    equippedRelicId ? state.items.find((i) => i.id === equippedRelicId) : undefined,
-  );
-  const classModItem = useInventoryStore((state) =>
-    equippedClassModId ? state.items.find((i) => i.id === equippedClassModId) : undefined,
-  );
-  const mountedGear = React.useMemo(
-    () =>
-      mountedGearForLoadout({
-        shield: isShieldItem(shieldItem) ? shieldItem : undefined,
-        relic: isRelicItem(relicItem) ? relicItem : undefined,
-        classMod: isClassModItem(classModItem) ? classModItem : undefined,
-        consumables: [loadoutConsumables.PreFight, loadoutConsumables.MidFight, loadoutConsumables.Emergency],
-      }),
-    [shieldItem, relicItem, classModItem, loadoutConsumables],
-  );
   if (props.mode !== 'roaming' || props.reduced || !webgl || pixiFailed) {
     return <PixelSceneLayerDom {...props} />;
   }
@@ -1837,7 +1789,6 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
     targetMaxHp,
     currentTargetId: currentTargetId ?? undefined,
     currentTargetHp,
-    mountedGear,
     onPixiError: () => setPixiFailed(true),
   };
   return (

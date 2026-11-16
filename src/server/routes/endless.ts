@@ -280,6 +280,7 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
       const serverSkillBonuses = skillBonusesFromRecords(
         serverGear,
         (profile.skill_spends ?? {}) as Record<string, number>,
+        profile,
       );
 
       // Cache Rank (0031): resolved from the profile's own
@@ -329,6 +330,7 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
           spent: (profile.skill_spends ?? {}) as Record<string, number>,
           classModBoosts: classModBoostsFromGear(serverGear),
           selection: profile.action_skill_selection,
+          activeHunterId: profile.active_hunter_id,
           charge: profile.action_skill_charge,
           target: encounterDef,
           levers: actionSkillLeverValues,

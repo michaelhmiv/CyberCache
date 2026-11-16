@@ -213,3 +213,18 @@ export function pixelBossSpriteForBoss(bossId: string | undefined): string | und
   const id = PIXEL_BOSS_SPRITES[bossId];
   return id && sprites.has(id) ? id : undefined;
 }
+
+/**
+ * The Cache Hunters' paintings map lives with the pure manifest
+ * data (gearManifestData.ts) — the skin catalog loads under
+ * node-side tooling where the glob below does not exist.
+ * Re-exported here so existing import sites keep working.
+ */
+export { PIXEL_HUNTER_SPRITES } from './gearManifestData';
+import { PIXEL_HUNTER_SPRITES } from './gearManifestData';
+
+export function pixelHunterSpriteForHunter(hunterId: string | undefined): string | undefined {
+  if (!hunterId) return undefined;
+  const id = PIXEL_HUNTER_SPRITES[hunterId];
+  return id && sprites.has(id) ? id : undefined;
+}

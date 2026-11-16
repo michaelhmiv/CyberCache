@@ -37,11 +37,25 @@ describe('Field Manual (HelpScreen)', () => {
     // (Combat cross-references [[Bosses]] for the attack pattern;
     // the Endless-Mode cadence note is link-free by design) = 320,
     // +1 G-F5 (Getting-Started's hunter-name note cross-references
-    // [[Leaderboards-and-Streaks]]) = 321. Bump the pin in the same
-    // change as any wiki edit that moves the census.
+    // [[Leaderboards-and-Streaks]]) = 321, +4 slice (a) (the
+    // fielded-hunter notes in Endless-Mode, Actions-and-Occupations,
+    // Reference-Areas and Reference each cross-reference
+    // [[Progression]]) = 325, +1 slice (b) (Progression's
+    // Four-hunters note cross-references [[Skins and Cosmetics]];
+    // the Skins page's whole-skin rewrite trades its Standings
+    // link for a Collections link, net 0) = 326. Slice (d)'s wiki
+    // pass (Crafting, The-Market, Gear, Skins and Cosmetics) moves
+    // the census 326 -> 329; slice (e) adds +1 (Getting-Started's
+    // starting-hunter note cross-references [[Progression]]) = 330;
+    // F5 adds +1 (Actions-and-Occupations' Roaming section
+    // cross-references [[Contracts]] for Pell's Run) = 331;
+    // F6 adds +1 (Gear's maker-line note cross-references
+    // [[Reference]]) = 332.
+    // Bump the pin in
+    // the same change as any wiki edit that moves the census.
     await waitFor(() => expect(wikiCorpusReady()).toBe(true));
-    expect(getWikiLinkCount()).toBe(321);
-    await waitFor(() => expect(screen.getByText('321')).toBeTruthy());
+    expect(getWikiLinkCount()).toBe(332);
+    await waitFor(() => expect(screen.getByText('332')).toBeTruthy());
   });
 
   it('converges the Links LCD to whatever count the corpus itself reports', async () => {

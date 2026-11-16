@@ -706,9 +706,9 @@ describe('salvage skill bonuses — shipped write route', () => {
     const seed: WriteSeed = emptyWriteSeed();
     seed.profiles = [
       salvageProfile({ id: PLAIN, username: 'plain' }),
-      salvageProfile({ id: HOARDER, username: 'hoarder', skill_spends: { scav_major_1: 1 } }),
-      salvageProfile({ id: KING, username: 'king', skill_spends: { scav_keystone: 1 } }),
-      salvageProfile({ id: BOTH, username: 'both', skill_spends: { scav_major_1: 1, scav_keystone: 1 } }),
+      salvageProfile({ id: HOARDER, username: 'hoarder', skill_spends: { scav_major_1: 1 }, active_hunter_id: 'josie' }),
+      salvageProfile({ id: KING, username: 'king', skill_spends: { scav_keystone: 1 }, active_hunter_id: 'josie' }),
+      salvageProfile({ id: BOTH, username: 'both', skill_spends: { scav_major_1: 1, scav_keystone: 1 }, active_hunter_id: 'josie' }),
     ];
     seed.items = [
       salvageItem({ id: ITEM_PLAIN, owner_user_id: PLAIN }),

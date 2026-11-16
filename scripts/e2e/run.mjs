@@ -173,7 +173,7 @@ async function newGuestContext(browser) {
   return { context, page, responses, failures, pageErrors, consoleMsgs };
 }
 
-async function guestSignIn(page, { dismissCollect = true } = {}) {
+async function guestSignIn(page, { dismissCollect = true, dismissHunterPick = true } = {}) {
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await page.getByText('Continue as Guest', { exact: false }).first().click({ timeout: 30000 });
   await page.waitForFunction(
@@ -187,6 +187,24 @@ async function guestSignIn(page, { dismissCollect = true } = {}) {
       .first()
       .click({ timeout: 8000 })
       .catch(() => {});
+  }
+  if (dismissHunterPick) {
+    // Slice (e): a fresh guest now meets the starting-hunter pick
+    // at boot — an overlay over Home until it is answered. A
+    // player taps "Not now" and plays; the lane does the same so
+    // the cases play the game they were written against. The
+    // pick's own case opts out and drives the sheet itself. The
+    // sheet rides the account load, so poll briefly for it; its
+    // absence inside the window is tolerated like the Collect
+    // dismissal above.
+    for (let i = 0; i < 20; i++) {
+      const up = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-pick-sheet"]')).catch(() => false);
+      if (up) {
+        await page.locator('[data-testid="hunter-pick-not-now"]').first().click({ timeout: 8000 }).catch(() => {});
+        break;
+      }
+      await sleep(500);
+    }
   }
   await page.waitForFunction((m) => eval(m), MARKERS.HOME, { timeout: 30000 });
 }
@@ -332,6 +350,23 @@ async function caseTabBudget(browser) {
     }
     const mounts = await page.evaluate(() => window.__e2e.roamPixiMounts);
     c.check('Pixi stage initialised exactly once for the session', mounts === 1, `mounts=${mounts}`);
+    // Slice (f) F1/F2: the Vendor stop presents Marla Quill as the
+    // counter persona and shows one of her fixed counter lines. The
+    // Market tab lands on the Buy stop by default, so open the Vendor
+    // stop from the rail first and wait for her header to render.
+    await measureSwitch(page, 'MARKET');
+    await page.getByRole('button', { name: 'Vendor', exact: true }).first().click({ timeout: 15000 }).catch(() => {});
+    let marla = { named: false, line: '' };
+    for (let i = 0; i < 20; i++) {
+      marla = await page.evaluate(() => {
+        const line = document.querySelector('[data-testid="marla-counter-line"]');
+        return { named: /Marla Quill/i.test(document.body.innerText), line: line ? line.textContent.trim() : '' };
+      });
+      if (marla.named && marla.line) break;
+      await sleep(500);
+    }
+    c.check('vendor stop names Marla Quill (F1)', marla.named);
+    c.check('vendor stop shows a Marla counter line (F2)', marla.line.length > 10, `line="${marla.line}"`);
   } finally {
     await context.close().catch(() => {});
   }
@@ -1276,6 +1311,229 @@ async function caseMarketError(browser) {
   return c;
 }
 
+// ── Case: Cache Hunters slice (b) — the Hunter tab ──────────────
+// Brief checks B1/B2/B3/B5 against a FRESH GUEST session (the
+// guest context is the B5 condition by construction: everything
+// below must work with real data and no sign-in lock).
+async function caseHunterSliceB(browser) {
+  const c = new Case('hunter-tab-slice-b');
+  const { context, page } = await newGuestContext(browser);
+  try {
+    await guestSignIn(page);
+    await clickTab(page, 'HUNTER');
+    // A fresh guest can land under an overlay (the initial-bundle
+    // reveal, the deferred name prompt) that swallows the first
+    // tab tap; the tab cases that run later in a session never see
+    // it. Poll for the hub, and midway dismiss any overlay and tap
+    // again. On failure the check prints what the guest is stuck
+    // looking at instead of dying on a bare timeout.
+    let hubUp = false;
+    for (let i = 0; i < 40 && !hubUp; i++) {
+      hubUp = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-section-hub"]')).catch(() => false);
+      if (!hubUp) {
+        if (i === 12) {
+          await page.getByRole('button', { name: /^Collect$/ }).first().click({ timeout: 2000 }).catch(() => {});
+          await page.getByRole('button', { name: /Not now/i }).first().click({ timeout: 2000 }).catch(() => {});
+          await clickTab(page, 'HUNTER').catch(() => {});
+        }
+        await sleep(500);
+      }
+    }
+    if (!hubUp) {
+      const stuck = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '');
+      await shot(page, 'hunter-slice-b-stuck.png');
+      c.check('B5 guest reaches the Hunter hub', false, `stuck on: ${stuck.replace(/\s+/g, ' ').slice(0, 200)}`);
+      return c;
+    }
+    c.check('B5 guest reaches the Hunter hub', true);
+
+    // B1: the hero plate is the fielded hunter (Vesper Cole by
+    // default) — her name headlines and her painting is seated.
+    const hero = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="hunter-hero"]');
+      const fig = document.querySelector('[data-testid="hunter-hero-figure"]');
+      return { text: el ? el.textContent : '', fig: fig ? fig.getAttribute('src') : null };
+    });
+    c.check('B1 hero headlines the fielded hunter (guest)', /Vesper Cole/.test(hero.text), hero.text.slice(0, 80));
+    c.check('B1 hero seats the hunter painting', !!hero.fig && /hunter-vesper-cole/.test(hero.fig), String(hero.fig));
+
+    // B5/B2: the Roster shows all four hunters with real data.
+    await page.locator('[data-testid="hub-door-roster"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="roster-panel"]'), null, { timeout: 15000 });
+    const roster = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="roster-hunter-"]')].map((el) => el.getAttribute('data-testid')));
+    c.check('B5 guest sees all four roster plates', roster.length === 4, JSON.stringify(roster));
+
+    // B2: field Doc Sutter — the FIELDED chip moves to his plate.
+    await page.locator('[data-testid="roster-hunter-doc"]').click({ timeout: 15000 });
+    let fielded = false;
+    for (let i = 0; i < 30 && !fielded; i++) {
+      fielded = await page.evaluate(() => {
+        const el = document.querySelector('[data-testid="roster-hunter-doc"]');
+        return !!el && /Fielded/.test(el.textContent);
+      });
+      if (!fielded) await sleep(500);
+    }
+    c.check('B2 roster switch fields Doc Sutter', fielded);
+
+    // B2: the trees stop now shows Doc's Fixer board, respec on it,
+    // and no tree selector (trees change at the Roster only).
+    await page.locator('[data-testid="roster-open-trees"]').click({ timeout: 15000 });
+    let boardUp = false;
+    for (let i = 0; i < 40 && !boardUp; i++) {
+      // innerText is the RENDERED text — the board header is
+      // CSS-uppercased ("FIXER BOARD"), so match case-insensitively
+      // (the same trap slice (f)'s Marla assertion documented).
+      boardUp = await page.evaluate(() => /Fixer Board/i.test(document.body.innerText)).catch(() => false);
+      if (!boardUp) await sleep(500);
+    }
+    if (!boardUp) {
+      // Diagnostic: print what the stop actually shows (which
+      // board, or what screen) so a failure here is evidence, not
+      // a bare timeout.
+      const seen = await page.evaluate(() => document.body.innerText.slice(0, 400)).catch(() => '');
+      console.log('  trees-stop diagnostic:', seen.replace(/\s+/g, ' ').slice(0, 320));
+      await shot(page, 'hunter-trees-diagnostic.png');
+    }
+    c.check('B2 trees stop reaches the Fixer board', boardUp);
+    const trees = await page.evaluate(() => ({
+      board: /Fixer Board/i.test(document.body.innerText),
+      respec: [...document.querySelectorAll('button')].some((b) => /respec/i.test(b.textContent)),
+      selectorDesc: /Explosives, armor break/i.test(document.body.innerText),
+    }));
+    c.check('B2 trees stop shows the new hunter tree', trees.board);
+    c.check('B2 respec remains on the trees stop', trees.respec);
+    c.check('B2 no tree selector remains on the stop', !trees.selectorDesc);
+
+    // B3/B5: the Wardrobe wears wholes — Doc's skin row, no part
+    // channels, no sign-in lock for the guest, wear/remove works.
+    await page.locator('[data-testid="hunter-back-menu"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="hunter-section-hub"]'), null, { timeout: 15000 });
+    await page.locator('[data-testid="hub-door-wardrobe"]').click({ timeout: 15000 });
+    let wardrobeUp = false;
+    for (let i = 0; i < 30 && !wardrobeUp; i++) {
+      wardrobeUp = await page.evaluate(() => !!document.querySelector('[data-testid="wardrobe-console"]')).catch(() => false);
+      if (!wardrobeUp) await sleep(500);
+    }
+    c.check('B3 wardrobe stop mounts', wardrobeUp);
+    const wardrobe = await page.evaluate(() => ({
+      channels: !!document.querySelector('[data-testid="wardrobe-channels"]'),
+      skinRow: !!document.querySelector('[data-testid="wardrobe-skin-doc-standard-issue"]'),
+      text: document.querySelector('[data-testid="wardrobe-console"]').textContent,
+    }));
+    c.check('B3 wardrobe lists whole skins for the fielded hunter', wardrobe.skinRow);
+    c.check('B3 no part-wearing surface remains on the stop', !wardrobe.channels);
+    c.check('B5 wardrobe carries no sign-in lock for a guest', !/Sign in to craft and wear/.test(wardrobe.text));
+    await page.locator('[data-testid="wardrobe-remove-doc-standard-issue"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="wardrobe-wear-doc-standard-issue"]'), null, { timeout: 15000 });
+    await page.locator('[data-testid="wardrobe-wear-doc-standard-issue"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="wardrobe-remove-doc-standard-issue"]'), null, { timeout: 15000 });
+    c.check('B3 wear/remove round-trips', true);
+    await shot(page, 'hunter-wardrobe-doc.png');
+  } finally {
+    await context.close().catch(() => {});
+  }
+  return c;
+}
+
+// ── Case: Cache Hunters slice (e) — the starting-hunter pick ────
+// Brief checks E1/E2/E4 against a FRESH GUEST session (E3's live
+// leg is the owner's Pixel device pass; its preservation is
+// pinned in the vitest suite). The guest is level 1 by
+// construction, so fielding a non-default hunter below IS the
+// no-level-lock evidence (E4).
+async function caseHunterPickSliceE(browser) {
+  const c = new Case('hunter-pick-slice-e');
+  const { context, page } = await newGuestContext(browser);
+  try {
+    // This case drives the pick sheet itself — the shared
+    // sign-in helper must not dismiss it first.
+    await guestSignIn(page, { dismissHunterPick: false });
+
+    // E1: the boot invitation offers the pick — four plates and
+    // the "Not now" door — to a brand-new account.
+    let sheetUp = false;
+    for (let i = 0; i < 40 && !sheetUp; i++) {
+      sheetUp = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-pick-sheet"]')).catch(() => false);
+      if (!sheetUp) await sleep(500);
+    }
+    if (!sheetUp) {
+      const stuck = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '');
+      await shot(page, 'hunter-pick-e-no-sheet.png');
+      c.check('E1 fresh guest is offered the starting-hunter pick', false, `stuck on: ${stuck.replace(/\s+/g, ' ').slice(0, 200)}`);
+      return c;
+    }
+    c.check('E1 fresh guest is offered the starting-hunter pick', true);
+    const plates = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="hunter-pick-"]')].map((el) => el.getAttribute('data-testid')));
+    c.check(
+      'E1 the pick offers all four hunters',
+      ['vesper', 'silas', 'josie', 'doc'].every((id) => plates.includes(`hunter-pick-${id}`)),
+      JSON.stringify(plates),
+    );
+
+    // E1: defer — the sheet closes and the account is playing
+    // immediately on the default hunter (Vesper Cole headlines
+    // the Hunter hero at level 1).
+    await page.locator('[data-testid="hunter-pick-not-now"]').click({ timeout: 15000 });
+    let sheetGone = false;
+    for (let i = 0; i < 20 && !sheetGone; i++) {
+      sheetGone = await page.evaluate(() => !document.querySelector('[data-testid="hunter-pick-sheet"]')).catch(() => false);
+      if (!sheetGone) await sleep(500);
+    }
+    c.check('E1 "Not now" closes the pick', sheetGone);
+    await page.getByRole('button', { name: /^Collect$/ }).first().click({ timeout: 3000 }).catch(() => {});
+    const homeLive = await page.evaluate((m) => eval(m), MARKERS.HOME).catch(() => false);
+    c.check('E1 deferred account is on the live Home stage', homeLive);
+
+    await clickTab(page, 'HUNTER');
+    let hubUp = false;
+    for (let i = 0; i < 40 && !hubUp; i++) {
+      hubUp = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-section-hub"]')).catch(() => false);
+      if (!hubUp) await sleep(500);
+    }
+    c.check('E1 deferred guest reaches the Hunter hub', hubUp);
+    const hero = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="hunter-hero"]');
+      return el ? el.textContent : '';
+    });
+    c.check('E1 deferred account plays on the default hunter', /Vesper Cole/.test(hero), hero.slice(0, 80));
+    c.check('E4 the fresh account is level 1', /Level 1/.test(hero), hero.slice(0, 80));
+
+    // E2: no modal re-interrupts play in between — the sheet
+    // stayed down through the tab travel — and the pick
+    // resurfaces in place at the Roster door.
+    const sheetBack = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-pick-sheet"]'));
+    c.check('E2 no modal re-interrupts play after deferral', !sheetBack);
+    await page.locator('[data-testid="hub-door-roster"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="roster-panel"]'), null, { timeout: 15000 });
+    const pickHead = await page.evaluate(() => !!document.querySelector('[data-testid="roster-pick-head"]'));
+    c.check('E2 the deferred pick resurfaces at the Roster door', pickHead);
+
+    // E4 + E2: the level-1 guest fields Doc Sutter at the roster
+    // — any level lock would refuse or hide the switch — and
+    // the pick completes: the pick head retires.
+    await page.locator('[data-testid="roster-hunter-doc"]').click({ timeout: 15000 });
+    let fielded = false;
+    for (let i = 0; i < 30 && !fielded; i++) {
+      fielded = await page.evaluate(() => {
+        const el = document.querySelector('[data-testid="roster-hunter-doc"]');
+        return !!el && /Fielded/.test(el.textContent);
+      });
+      if (!fielded) await sleep(500);
+    }
+    c.check('E4 level-1 guest fields a non-default hunter', fielded);
+    let headGone = false;
+    for (let i = 0; i < 30 && !headGone; i++) {
+      headGone = await page.evaluate(() => !document.querySelector('[data-testid="roster-pick-head"]')).catch(() => false);
+      if (!headGone) await sleep(500);
+    }
+    c.check('E2 fielding at the roster completes the pick', headGone);
+    await shot(page, 'hunter-pick-e-roster-doc.png');
+  } finally {
+    await context.close().catch(() => {});
+  }
+  return c;
+}
+
 const CASES = {
   'enemy-presence': caseEnemyPresence,
   'tab-switch-budget': caseTabBudget,
@@ -1283,6 +1541,8 @@ const CASES = {
   'gear-at-scale': caseGearScale,
   'boss-stage': caseBossStage,
   'market-error-state': caseMarketError,
+  'hunter-tab-slice-b': caseHunterSliceB,
+  'hunter-pick-slice-e': caseHunterPickSliceE,
 };
 
 async function main() {

@@ -156,6 +156,7 @@ const buyListing: Listing = {
   essenceId: null,
   partId: null,
   tintPaletteId: null,
+  skinId: null,
   identityKey: null,
   weaponType: 'Pistol',
   element: 'Kinetic',

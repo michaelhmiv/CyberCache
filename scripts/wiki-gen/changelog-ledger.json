@@ -3,11 +3,134 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-16",
+      "merges": [
+        {
+          "number": 587,
+          "title": "Cache Hunters slice (b): the Hunter tab — roster, hero, per-hunter trees, whole-skin wardrobe"
+        },
+        {
+          "number": 588,
+          "title": "Cache Hunters slice (c): painted hunter on stage + voice pools"
+        },
+        {
+          "number": 589,
+          "title": "Rulings batch: All Time board top-10 collapse (kill filter specced, blocked on migration drill)"
+        },
+        {
+          "number": 590,
+          "title": "A6: Med Kit / Shield Cell text matches the roaming engine (copy only)"
+        },
+        {
+          "number": 591,
+          "title": "0098: leaderboard counts only hunters with a kill"
+        },
+        {
+          "number": 592,
+          "title": "Rulings batch-3: boss panel stop transition, C1-01 forge anvil staging, crusher wedge + skimmer wreck repaints"
+        },
+        {
+          "number": 595,
+          "title": "Cache Hunters slice (e): the deferrable starting-hunter pick"
+        },
+        {
+          "number": 596,
+          "title": "Cache Hunters slice (d): Workshop whole-skin crafting + part-set conversion"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-15",
+      "merges": [
+        {
+          "number": 593,
+          "title": "Fix vendorBuyQuantity calendar flake: pin the vendor date in the test"
+        },
+        {
+          "number": 594,
+          "title": "Fix dashboardTop Return Sheet flake: wait out the sheet-switch exit"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-14",
+      "merges": [
+        {
+          "number": 566,
+          "title": "Stage iteration B2 — shell & parity: Pixi takeover readiness gate (no more black flash)"
+        },
+        {
+          "number": 570,
+          "title": "Stage iteration C1: crafting & every remaining animation (DO NOT MERGE — owner clip review)"
+        },
+        {
+          "number": 571,
+          "title": "Stage iteration R1: roam combat — restage + crit weight (DO NOT MERGE — owner clip review)"
+        },
+        {
+          "number": 573,
+          "title": "Stage iteration R2 — drops & moments: corpse-anchored readable rises (DO NOT MERGE — owner clip review)"
+        },
+        {
+          "number": 574,
+          "title": "Stage iteration B1: per-boss stage scale + capture-arbitrated boss staging"
+        },
+        {
+          "number": 575,
+          "title": "Stage iteration: paint the three blank set-piece interiors"
+        },
+        {
+          "number": 585,
+          "title": "Cache Hunters slice (a): per-hunter pools, loadouts, binding, conversion (migration 0097)"
+        },
+        {
+          "number": 586,
+          "title": "Slice (f): the naming pass — Marla Quill, Harrow + boss dossiers, clash pass, Tech Fragments"
+        }
+      ]
+    },
+    {
       "date": "2026-11-13",
       "merges": [
         {
+          "number": 567,
+          "title": "ci: Actions overhaul — gates that play the game (e2e-browser + emulator-play + fleet browser session)"
+        },
+        {
           "number": 576,
           "title": "fix(market): listings fetch propagates failures — X-07 error state reachable (#568)"
+        },
+        {
+          "number": 577,
+          "title": "Fix #569: Gear tab warms at idle — first open no longer builds under roam load"
+        },
+        {
+          "number": 578,
+          "title": "fix(roam): a kill's death state no longer lands on the next enemy (post-kill invisibility)"
+        },
+        {
+          "number": 579,
+          "title": "fix(garage): vehicle affix overlays stay inside the thumbnail box"
+        },
+        {
+          "number": 580,
+          "title": "fix(roaming): persist consumable coverage state on the profile (0096) — ammo windows survive restarts"
+        },
+        {
+          "number": 581,
+          "title": "fix(stage): parked-vehicle plate re-syncs on equip + overlay containment on both renderers"
+        },
+        {
+          "number": 582,
+          "title": "feat(vendor): buy-quantity picker — chips, slider, MAX (owner-approved rendering)"
+        },
+        {
+          "number": 583,
+          "title": "feat(home): hot-area flame beside the Active Area name"
+        },
+        {
+          "number": 584,
+          "title": "Gate the web client behind SERVE_WEB_CLIENT — production goes app-only"
         }
       ]
     },

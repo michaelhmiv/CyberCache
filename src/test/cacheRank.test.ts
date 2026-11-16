@@ -860,7 +860,7 @@ describe('cache rank consumers — writes store', () => {
       s.oddsOutcomes = [...ODDS];
       s.profiles = [writeProfile({
         id: A, cache_tokens: 5,
-        skill_spends: { scav_cache_1: 5 },
+        skill_spends: { scav_cache_1: 5 }, active_hunter_id: 'josie',
         cache_rank_spends: { cacheQuality: 10 },
       } as Partial<ProfileRowData> & { id: string })];
     }, () => 0.65);

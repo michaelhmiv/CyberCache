@@ -231,10 +231,14 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
   });
 
-  it('roaming is untouched: enemy, held weapon, no cycle', () => {
+  it('roaming is untouched: enemy, painted hunter, no held weapon, no cycle', () => {
     renderDiorama('roaming_loot');
     expect(screen.getByTestId('pixel-enemy')).toBeTruthy();
-    expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
+    // Paintings-only on stage (owner ruling 2026-11-15, slice
+    // (c)): the roam figure is the active hunter's whole
+    // painting; no composited held weapon rides it any more.
+    expect(screen.getByTestId('pixel-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     expect(screen.queryByTestId('bench-fx')).toBeNull();
   });
 });

@@ -2,6 +2,27 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-16 — The Cache Hunters take the field
+
+- **The makers have faces now** — every manufacturer is one person's outfit, and the game finally says whose: Della Voss founded Redline ("It only gets faster."), Amos Thorne founded Ironwood ("Ironwood takes its time. Once."), Hollis Brandt founded BlastForge ("Subtlety was not in the budget."), Iris Calloway founded Prismatek ("Every element, accounted for."), Tobin Larkin founded ThrowTech ("Built to be left behind."), and Ada Kessler founded HelixWorks ("No two alike. All of them calibrated."). The founder's name and the house slogan ride every gun card of that maker's work, head the maker's card at the Rep Desk, and stand in the Field Manual's Manufacturers table. Names and words only — no gun, price, or drop changed.
+
+- **The Hunter tab is theirs now** — opening the Hunter tab puts your fielded hunter front and center: their painting on the hero plate, their name, their tree, and the base perk they bring to every fight. The roster fields any of the four — Vesper Cole, Silas Boone, Josie Lode, and Doc Sutter — with one tap, and the skill trees in front of you are always the fielded hunter's own. The old parts console is retired: the Wardrobe wears whole skins now, painted the way the hunters are.
+- **Your hunter is a painting now** — the figure on the Home stage and in the boss arena is your active Cache Hunter painted whole: Vesper Cole, cache-touched, her arm and coat edge dissolving into glowing shards; Silas Boone, living ordnance with a bomb casing for a torso; Josie Lode, a salvage machine on spider limbs with her finds spilling from her bin; Doc Sutter, a walking workshop with a lit forge for a chest. The assembled suit of parts has retired from the stage. The weapon in each painting is the hunter's own signature piece; the weapon you have equipped keeps its exact numbers in the fight and is drawn on its card, in Gear, and in your loadouts, exactly as before. Switch your active hunter and the figure on the stage changes with it, mid-session, with no gap in the scene.
+- **The hunters have voices, used sparingly** — at the rarest moments of a run — a legendary drop, a boss kill, a save at death's edge, a streak completed — your hunter says one line, in the stage's own chip, and the moment never carries two. Ordinary ticks, common finds, and ordinary kills stay quiet, and a defeat is met with silence.
+- **The All Time board opens on its top 10** — the full board is one tap away on the Show All control at the foot of the rows, and folds back just as easily; the weekly and daily boards still show everyone, and your own standing stays pinned in view even when it falls below the cut.
+- **Two consumables say what they do now** — the Med Kit's and Shield Cell's descriptions promised thresholds they never had. They now describe what the items actually do: the Med Kit is a stocked buffer that soaks damage first, and the Shield Cell restores your shield when it fires.
+- **Boss fights open like a scene change, not a channel change** — the boss panel used to cut hard from prep to the fight and from the fight to the result. Each state now hands over on the game's shared stop crossfade — a short fade with a small settle — and the result card arrives on that same move instead of popping in on its own. Nothing about the fight, the intel, or the timings changed.
+- **The forge work sits on the anvil now** — at the crafting bench, the piece being worked floated off the front face of the worktop and the hunter's hands stopped short of it across a visible gap of air. He now stands at the anvil itself: the piece, the sparks, and the finished unit's rise all sit on the anvil's top face, on the Home stage and in the workshop's bench scene alike. The crusher and the service lift keep the seats they already had.
+- **Two pictures repainted** — the gap between the crusher's jaw and its body was flat unpainted white inside; it is now the machine's dark steel throat, shadowed the way the jaw would leave it. And the siltstalker's arena wreck — a crashed skimmer half-buried in the silt — has been redrawn as clean pixel work, so it reads as a wreck instead of static.
+- **New hunters choose their first hunter — whenever they're ready** — a new account starts on Vesper Cole and is offered the full roster up front, all four hunters on their plates. There is no wall: tap **Not now** and you are playing, and the choice waits at the Roster, where fielding any hunter — Vesper included — settles it. No hunter is locked behind level, so a level-1 account can open on any of the four.
+- **The Workshop's cosmetic lane belongs to whole skins now** — the Bulwark and Dreadplate part recipes have retired alongside the maker helms: no new parts can be crafted, and no new part listings can be created. Everything you own stays yours as a collection piece, a part listing that was already live still completes for its buyer, and tinting a part you own works exactly as before. In their place: **whole skins** — one painting per hunter, crafted whole in the cosmetic lane, traded on the Market under their own **Skins** category, and earned by **set conversion**: own every part of a set and the set's whole skin is yours (the parts stay in your collection). No set has been painted whole yet, so the lane and the conversion stand ready for the first painted set. A skin is paint, never power — wearing one changes no number on your hunter. Class mod listings and inspect sheets now also name the hunter a mod is bound to, next to its tree.
+- Under the hood: the standings board's kill filter now lives in the game's own code as well as its database, so the two cannot drift apart.
+
+## 2026-11-15 — The board counts hunters
+
+- **The standings board counts hunters now** — the global board used to list every profile that ever opened the game, hundreds of empty names deep. It now shows only hunters with at least one kill to their name, and the field size it reports counts the same field you are ranked in. Nobody was removed from anything — the board simply ranks the hunters who have hunted.
+- Under the hood: two timing-sensitive tests (the vendor counter and the Return Sheet) were pinned to the behavior they were written against, so the build gate reads true again.
+
 ## 2026-11-14 — The stage iteration lands
 
 - **The repair bay, the vendor stall, and the calibration rig have insides now** — those three work-cycle set pieces shipped with their interiors blank white, so repairs, market listings, and shield calibrations all played in front of a white hole. The lift’s bay is a workshop wall with its tool board and cabinet, the stall’s window is its shaded back shelf, and the rig’s ring holds an instrument field — painted in the same hand and the same palette-256 form as the rest of the set. Nothing about the cycles, the seats, or the timings changed.
@@ -375,11 +396,47 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 291 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 318 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-13** — 1 merge
+**2026-11-16** — 8 merges
 
+- #587 — Cache Hunters slice (b): the Hunter tab — roster, hero, per-hunter trees, whole-skin wardrobe
+- #588 — Cache Hunters slice (c): painted hunter on stage + voice pools
+- #589 — Rulings batch: All Time board top-10 collapse (kill filter specced, blocked on migration drill)
+- #590 — A6: Med Kit / Shield Cell text matches the roaming engine (copy only)
+- #591 — 0098: leaderboard counts only hunters with a kill
+- #592 — Rulings batch-3: boss panel stop transition, C1-01 forge anvil staging, crusher wedge + skimmer wreck repaints
+- #595 — Cache Hunters slice (e): the deferrable starting-hunter pick
+- #596 — Cache Hunters slice (d): Workshop whole-skin crafting + part-set conversion
+
+**2026-11-15** — 2 merges
+
+- #593 — Fix vendorBuyQuantity calendar flake: pin the vendor date in the test
+- #594 — Fix dashboardTop Return Sheet flake: wait out the sheet-switch exit
+
+**2026-11-14** — 8 merges
+
+- #566 — Stage iteration B2 — shell & parity: Pixi takeover readiness gate (no more black flash)
+- #570 — Stage iteration C1: crafting & every remaining animation (DO NOT MERGE — owner clip review)
+- #571 — Stage iteration R1: roam combat — restage + crit weight (DO NOT MERGE — owner clip review)
+- #573 — Stage iteration R2 — drops & moments: corpse-anchored readable rises (DO NOT MERGE — owner clip review)
+- #574 — Stage iteration B1: per-boss stage scale + capture-arbitrated boss staging
+- #575 — Stage iteration: paint the three blank set-piece interiors
+- #585 — Cache Hunters slice (a): per-hunter pools, loadouts, binding, conversion (migration 0097)
+- #586 — Slice (f): the naming pass — Marla Quill, Harrow + boss dossiers, clash pass, Tech Fragments
+
+**2026-11-13** — 10 merges
+
+- #567 — ci: Actions overhaul — gates that play the game (e2e-browser + emulator-play + fleet browser session)
 - #576 — fix(market): listings fetch propagates failures — X-07 error state reachable (#568)
+- #577 — Fix #569: Gear tab warms at idle — first open no longer builds under roam load
+- #578 — fix(roam): a kill's death state no longer lands on the next enemy (post-kill invisibility)
+- #579 — fix(garage): vehicle affix overlays stay inside the thumbnail box
+- #580 — fix(roaming): persist consumable coverage state on the profile (0096) — ammo windows survive restarts
+- #581 — fix(stage): parked-vehicle plate re-syncs on equip + overlay containment on both renderers
+- #582 — feat(vendor): buy-quantity picker — chips, slider, MAX (owner-approved rendering)
+- #583 — feat(home): hot-area flame beside the Active Area name
+- #584 — Gate the web client behind SERVE_WEB_CLIENT — production goes app-only
 
 **2026-11-12** — 53 merges
 

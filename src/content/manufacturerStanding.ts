@@ -490,6 +490,9 @@ export interface StandingUnlockView extends StandingUnlockDef {
 export interface StandingManufacturerView {
   manufacturer: Manufacturer;
   name: string;
+  /** Founder + house slogan, carried from the manufacturer def (F6 — copy only). */
+  founder: string;
+  slogan: string;
   color: string;
   standing: number;
   rank: number;
@@ -551,6 +554,8 @@ export function buildStandingStateView(
     return {
       manufacturer,
       name: def.name,
+      founder: def.founder,
+      slogan: def.slogan,
       color: def.color,
       standing,
       rank,

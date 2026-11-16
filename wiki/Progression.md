@@ -20,22 +20,28 @@ Levels buy power (skill points, Cache Rank tokens, base HP), not permission: [[A
 
 Your progress is glanceable without opening your profile: Home's **Now** feed carries your level progress alongside your current activity, boss progress, and best weapon (see [[The Board]]).
 
+## Four hunters, one account
+
+You field one of four **Cache Hunters** at a time — **Vesper Cole** (Gunslinger), **Silas Boone** (Demolition), **Josie Lode** (Scavenger), and **Doc Sutter** (Fixer). Switch at **Hunter → Roster**: each hunter's plate shows their painting, tree, base perk, and their own pool's spent and unspent points. A new account starts on Vesper Cole by default — the starting-hunter pick is offered at first launch, can be deferred with **Not now**, and completes at this Roster the first time any hunter is fielded; no hunter is ever locked behind level.
+
+Switching is a change of who is in the field, not a new character: your **level and XP are one shared account level**, and the **arsenal is shared** — every weapon, legendaries included, stays in the one pool. What each hunter keeps separately is their **skill pool** (below), their **loadout** (switching saves the outgoing hunter's equipped set and equips the incoming hunter's saved set; the belt is shared), and their **look** (see [[Skins and Cosmetics]]). The action skill you bring to a fight is your fielded hunter's signature, charged from one shared pool. Cache Rank applies to whichever hunter is fielded.
+
 ## Skill points and the four trees
 
-Your skill-point budget is **your level − 1**: a level 1 hunter has no points, and every level after that earns exactly one. Points are spent across four trees:
+Your skill-point budget is **your level − 1**: a level 1 hunter has no points, and every level after that earns exactly one. The budget is **per hunter** — each of the four Cache Hunters holds their own pool of up to 99 points, spent only in their own tree, and points never transfer between hunters. Each tree belongs to one hunter:
 
 - **Gunslinger** — weapon damage, crits, attack speed, boss damage
 - **Demolition** — ordnance, explosives, armor break, stagger
 - **Scavenger** — drops, scrap, offline earnings, market fees — and the **King of Scrap** keystone, which adds **+4 hours** to your offline cap
 - **Fixer** — crafting speed and quality, repair speed and efficiency, vehicle yield
 
-Each tree also carries a signature [[Actions and Occupations|action skill]]. Because points arrive one per level and the trees are deep, a build is a commitment, not a checklist you complete.
+Each tree also carries a signature [[Actions and Occupations|action skill]] — the one your fielded hunter brings to a fight. Every hunter also brings a base perk that is always on while they are fielded: Vesper's Weakspot Eye (crit chance and boss damage), Silas's stagger floor, Josie's loot-quantity sense, and Doc's Overclock (craft speed and quality). Because points arrive one per level and the trees are deep, a build is a commitment, not a checklist you complete.
 
 **Spending a point:** tap any node to open its brief. The brief's **Spend** button is always there — when a point can't be spent yet, the button stays disabled and the brief says why in plain terms: no points banked (earn one per level), a prerequisite node to buy first, or the node already maxed.
 
-Nodes charge their listed cost against that budget: ordinary nodes cost **1 point**, each tree's major nodes cost **3**, and its keystone costs **5** — the Spend button always names the price before you commit. Filling all four trees would take 303 points against the 99 a level-100 hunter earns, so no build ever buys everything.
+Nodes charge their listed cost against that hunter's budget: ordinary nodes cost **1 point**, each tree's major nodes cost **3**, and its keystone costs **5** — the Spend button always names the price before you commit. Filling one tree takes 100–102 points against the 99 a level-100 hunter earns in that pool (class mods close the gap), and all four trees together hold 406 — so no build ever buys everything. A class mod is bound to its hunter: only the hunter whose tree it belongs to can equip it.
 
-**Respec:** you can retrain at any time, refunding all spent points, for **100 credits per budget point spent** (a major refunds as the 3 points it cost, a keystone as 5). Retraining a heavily invested build is expensive by design — plan the big spends.
+**Respec:** you can retrain a hunter at any time, refunding that hunter's spent points, for **100 credits per budget point in that hunter's pool** (a major refunds as the 3 points it cost, a keystone as 5). The other hunters' pools are untouched. Retraining a heavily invested build is expensive by design — plan the big spends.
 
 ## Offline earnings
 

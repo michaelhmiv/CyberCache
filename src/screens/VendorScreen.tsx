@@ -15,6 +15,7 @@ import type { ConsumableDef } from '@/constants/consumables';
 import type { GearItem } from '@/types/items';
 import { chipClip } from '@/lib/ui/clips';
 import { gearCategoryFromPayload } from '@/lib/market/identityKey';
+import { MARLA_QUILL_NAME, nextMarlaCounterLine } from '@/lib/vendor/marlaVoice';
 import {
   VENDOR_BUYBACK_RATE_DEFAULT,
   VENDOR_MATERIALS,
@@ -56,6 +57,10 @@ export const VendorScreen: React.FC = () => {
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [mode, setMode] = React.useState<'buy' | 'sell'>('buy');
   const [buyTarget, setBuyTarget] = React.useState<VendorBuySheetTarget | null>(null);
+  // Marla's counter line (slice (f1)): one line per stop visit, drawn
+  // from the fixed pool with session no-repeat rotation. Presentation
+  // only — prices, fees, and notices on this stop stay byte-plain.
+  const [counterLine] = React.useState(() => nextMarlaCounterLine());
 
   // Rotation + Item of the Day derive from the ONE vendor catalog by
   // UTC date — the same stock the server charges for today.
@@ -275,8 +280,9 @@ export const VendorScreen: React.FC = () => {
           datum is lost (the old sub's Workshop pointer survives in
           the shorter line). */}
       <div>
-        <div className="bl-title text-[17px] leading-none text-text-primary">Consumable Vendor</div>
+        <div className="bl-title text-[17px] leading-none text-text-primary">{MARLA_QUILL_NAME} — Consumable Vendor</div>
         <div className="text-[11px] text-text-muted">Boss-prep staples · crafted goods live in the Workshop</div>
+        <div data-testid="marla-counter-line" className="text-[11px] italic leading-snug text-text-secondary">{counterLine}</div>
       </div>
 
       {notice && <div className="text-xs text-text-secondary">{notice}</div>}

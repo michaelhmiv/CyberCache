@@ -119,15 +119,19 @@ describe('H1 catalog — one lane, truthful labels', () => {
     }
     const set = SKIN_SETS.find((s) => s.id === 'manufacturer')!;
     expect(set.tier).toBe('palette');
-    // Nothing else is delisted, and no other recipe reads delisted.
+    // At H1 time nothing else was delisted. SUPERSEDED by the
+    // Cache Hunters reshape, slice (d) (2026-11-16): the part
+    // SETS retired as wearables too, so EVERY part is delisted
+    // now through the same flag — the sets' succession is whole
+    // skins (cacheHuntersSliceD.test.ts carries the slice pins).
     for (const part of SKIN_PARTS) {
       if (part.setId === 'manufacturer') continue;
-      expect(part.delisted, part.id).toBeFalsy();
-      expect(skinPartDelisted(part.id), part.id).toBe(false);
-      expect(isDelistedRecipe(getCraftRecipe(part.recipeId)!), part.id).toBe(false);
+      expect(part.delisted, part.id).toBe(true);
+      expect(skinPartDelisted(part.id), part.id).toBe(true);
+      expect(isDelistedRecipe(getCraftRecipe(part.recipeId)!), part.id).toBe(true);
     }
     expect(skinPartDelisted('no-such-part')).toBe(false);
-    expect(ALL_CRAFT_RECIPES.filter(isDelistedRecipe)).toHaveLength(6);
+    expect(ALL_CRAFT_RECIPES.filter(isDelistedRecipe)).toHaveLength(26);
   });
 
   it("label audit: every part labeled 'shaped' measurably differs from the stock part (alpha IoU < 0.90)", () => {
@@ -211,23 +215,32 @@ describe('H1 craft gate — writes twin', () => {
     expect(store.seed.craftJobs.filter((j) => j.owner_user_id === A)).toHaveLength(0);
   });
 
-  it('a non-delisted cosmetic still enqueues (control)', async () => {
-    const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date('2026-10-29T12:00:00.000Z') });
-    const dread = getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!;
-    await expect(store.enqueueCraftJob(A, nonce(), {
-      bench: 1, recipeId: dread.id, units: 1,
-    })).resolves.toBeTruthy();
+  it('the one non-delisted cosmetic — the tint craft — still runs (control)', async () => {
+    // At H1 time the control was a Dreadplate part recipe. Slice
+    // (d) delisted every part recipe, so the surviving control is
+    // the tint craft: a cosmetic-kind job that is NOT a part
+    // product, started through its own lane against an owned part.
+    const itemId = '66666666-6666-4666-8666-666666666666';
+    const seed = writesSeed();
+    seed.items.push(mfrHelmItem(itemId, A));
+    const store = new InMemoryWriteStore(seed, { now: () => new Date('2026-10-29T12:00:00.000Z') });
+    await expect(store.enqueueTintJob(A, nonce(), { itemId, paletteId: 'arctic' }))
+      .resolves.toBeTruthy();
   });
 
   it('a helm job already in flight when the delisting landed still settles into the part', async () => {
     let nowMs = Date.parse('2026-10-29T12:00:00.000Z');
-    const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date(nowMs) });
-    // Model the pre-H1 job faithfully: a real record from the
-    // real enqueue path (a dread helm), re-pointed at the retired
+    const seed = writesSeed();
+    const tintTargetId = '66666666-6666-4666-8666-666666666667';
+    seed.items.push(mfrHelmItem(tintTargetId, A));
+    const store = new InMemoryWriteStore(seed, { now: () => new Date(nowMs) });
+    // Model the pre-H1 job faithfully: a real cosmetic job record
+    // from a real enqueue path (the tint lane — since slice (d)
+    // no part recipe enqueues at all), re-pointed at the retired
     // recipe — exactly the state a job enqueued before the ruling
-    // sits in. Settle resolves the part from the recipe.
-    const dread = getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!;
-    await store.enqueueCraftJob(A, nonce(), { bench: 1, recipeId: dread.id, units: 1 });
+    // sits in. Settle resolves the part from the recipe; the
+    // tint snapshot the job carries is inert on the part branch.
+    await store.enqueueTintJob(A, nonce(), { itemId: tintTargetId, paletteId: 'arctic' });
     const job = store.seed.craftJobs.find((j) => j.owner_user_id === A)!;
     job.recipe_id = skinPartCatalog('mfr-head-redline')!.recipeId;
     const recipe = getCraftRecipe(job.recipe_id)!;
@@ -235,8 +248,8 @@ describe('H1 craft gate — writes twin', () => {
     nowMs += recipe.unitDurationMs + 60_000;
     await store.getWorkshopState(A);
     const items = store.seed.items.filter((i) => i.owner_user_id === A && i.kind === 'cosmetic');
-    expect(items).toHaveLength(1);
-    expect((items[0].payload as { partId?: string }).partId).toBe('mfr-head-redline');
+    expect(items).toHaveLength(2);
+    expect(items.some((i) => (i.payload as { partId?: string }).partId === 'mfr-head-redline')).toBe(true);
   });
 });
 

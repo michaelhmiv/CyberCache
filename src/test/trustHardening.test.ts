@@ -21,6 +21,7 @@
  * equality loudly.
  */
 import express from 'express';
+import { computeHunterSkillBonuses } from '../lib/hunters/hunters';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -371,7 +372,10 @@ describe('trust hardening — boss attempts (POST /api/verify-boss)', () => {
       consumables: {},
       risk: RiskSetting.Balanced,
       playerLevel: 5,
-      skillBonuses: {},
+      // Reshape slice (a): a no-spend profile still fields a hunter —
+      // the server derives the default hunter's (Vesper's) base perk
+      // from records, so the honest request prices the same record.
+      skillBonuses: computeHunterSkillBonuses({}, { nodeBoosts: {} }, 'vesper'),
       pityCount: 0,
       playerCredits: 10000,
       entryFee: boss.entryCost,

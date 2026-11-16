@@ -56,6 +56,8 @@ function weaponTypesSection(): string {
 function manufacturersSection(): string {
   const rows = Object.values(MANUFACTURERS).map((m) => [
     `**${m.name}**`,
+    m.founder,
+    m.slogan,
     m.identity,
     m.mechanic,
     Object.entries(m.baseStatBias)
@@ -65,7 +67,7 @@ function manufacturersSection(): string {
   return [
     '### Manufacturers',
     '',
-    table(['Manufacturer', 'Identity', 'Baked-in mechanic', 'Stat bias'], rows),
+    table(['Manufacturer', 'Founder', 'Slogan', 'Identity', 'Baked-in mechanic', 'Stat bias'], rows),
   ].join('\n');
 }
 

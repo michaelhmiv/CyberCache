@@ -412,7 +412,7 @@ describe('tuning item 5 — offline cap earned by Research (gate-removal step 6)
   it('the Scavenger keystone’s offlineCapBonus extends the earned cap (first consumer of the key)', async () => {
     const { base, store, tokenA } = await makeServer();
     // No Research: the 2h base; King of Scrap (scav_keystone) adds +4h → 6h.
-    seedOfflinePlayer(store, { player_level: 10, skill_spends: { scav_keystone: 1 } }, 10);
+    seedOfflinePlayer(store, { player_level: 10, skill_spends: { scav_keystone: 1 }, active_hunter_id: 'josie' }, 10);
     const res = await post(base, '/api/settle-offline', { playerId: A, settlementNonce: 'tuning-cap-keystone' }, tokenA);
     expect(res.status).toBe(200);
     expect(res.json.settled).toBe(true);

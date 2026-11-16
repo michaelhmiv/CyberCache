@@ -73,6 +73,16 @@ export const SKILL_EFFECT_CONSUMERS: Record<string, SkillEffectConsumer[]> = {
   clusterDamage: [
     { engine: 'boss sim ordnance (Cluster Bombs re-trigger EV)', file: BOSS_SIM, needle: 'clusterDamage' },
   ],
+  // ---- Reshape slice (a) growth major (The Long Hunt, gs_major_5) —
+  // its keys are small-node keys promoted to a major, so they join
+  // the registry here with their real consumers. ----
+  shieldDamageMod: [
+    { engine: 'computeSkillBonuses shieldBreak composite', file: 'src/lib/skills/skillBonuses.ts', needle: 'shieldDamageMod' },
+    { engine: 'boss sim shield break (via the shieldBreak composite)', file: BOSS_SIM, needle: 'skillBonuses.shieldBreak' },
+  ],
+  statusChance: [
+    { engine: 'boss sim status roll (skillStatusChance)', file: BOSS_SIM, needle: 'skillBonuses.statusChance' },
+  ],
   explosiveArmorBreak: [
     { engine: 'computeSkillBonuses armorBreak composite', file: 'src/lib/skills/skillBonuses.ts', needle: 'explosiveArmorBreak' },
     { engine: 'boss sim armor break (via the armorBreak composite)', file: BOSS_SIM, needle: 'skillBonuses.armorBreak' },

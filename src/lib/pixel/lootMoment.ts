@@ -219,7 +219,7 @@ export const LEGENDARY_FLAVOR_OVERRIDES: Record<string, string> = {
   'thunder receipt': 'Itemized. Dated. Delivered at muzzle velocity.',
   'second opinion': 'Ask again. The answer has two barrels.',
   'salvage rights': 'Everything it kills is legally yours. Twice over.',
-  overclocked: 'The warranty is gone. So is the speed limit.',
+  runaway: 'The warranty is gone. So is the speed limit.',
   'borrowed time': 'Due back at the end of the fight. Late fees are severe.',
   kickback: 'Every seventh hit sends a thank-you note.',
   'vampiric ledger': 'It bills in blood. It pays out in credits.',
