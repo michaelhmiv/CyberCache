@@ -1,1 +1,18 @@
-{"captures":[{"expect":["standings-hub-top","standings-hub-rest","standings-hub-selected","standings-hub-selected-board"],"label":"hub","path":"/standings-harness.html?width=412","plan":"capture/plans/hub.json"}],"harnessPage":"/standings-harness.html","iter":"hub","port":7133}
+{
+ "captures": [
+  {
+   "expect": [
+    "standings-hub-top",
+    "standings-hub-rest",
+    "standings-hub-selected",
+    "standings-hub-selected-board"
+   ],
+   "label": "hub",
+   "path": "/standings-harness.html?width=412",
+   "plan": "capture/plans/hub.json"
+  }
+ ],
+ "harnessPage": "/standings-harness.html",
+ "iter": "hub-final",
+ "port": 7133
+}

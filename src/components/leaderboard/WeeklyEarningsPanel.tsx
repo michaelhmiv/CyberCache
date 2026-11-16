@@ -66,8 +66,8 @@ const BoardHubDeck: React.FC<{ hub: BoardHubSelection }> = ({ hub }) => {
         className="mb-1 flex items-baseline justify-between"
         style={{ ...monoStyle, fontSize: 11, color: FAINT, letterSpacing: '0.12em' }}
       >
-        <span>BOARD HUB — CHANNEL SELECT</span>
-        <span style={{ color: GOLD }}>
+        <span className="whitespace-nowrap">BOARD HUB</span>
+        <span className="whitespace-nowrap" style={{ color: GOLD }}>
           {METRIC_SHORT[metric]} · {HUB_PERIODS.find((p) => p.id === period)?.label}
           {myRk != null ? ` · MY RK #${myRk}` : ''}
         </span>
