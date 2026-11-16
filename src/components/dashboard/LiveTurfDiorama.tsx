@@ -30,7 +30,7 @@ import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScen
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, lootRiseTotalMs, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
 import { dropAssetColor, dropRiseBeamColor, parseDropType } from '@/lib/pixel/dropColors';
 import { StageRise, ROAM_DROP_LIFT_PX } from '@/components/pixelArt/StageRise';
-import { ROAM_ELITE_FLAT_HEIGHT_PCT, ROAM_ELITE_RIG_HEIGHT_PCT, ROAM_ENEMY_PLACEMENT, ROAM_HUNTER_PLACEMENT, approachOffsetXPct, roamEnemyPlacementFor, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
+import { ROAM_ELITE_FLAT_HEIGHT_PCT, ROAM_ELITE_RIG_HEIGHT_PCT, ROAM_ENEMY_PLACEMENT, ROAM_HUNTER_PLACEMENT, approachOffsetXPct, enemyDropHold, roamEnemyPlacementFor, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
 import {
   TRAVEL_SPECS,
   createTravelRun,
@@ -546,6 +546,11 @@ const PixelSceneLayerDom: React.FC<{
   const bossOnStage = bossMode || showBossPrep;
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
+  const currentTargetHp = useKillCycleStore((state) => state.currentTargetHp);
+  // Drop hold (Inkling R1, ported at the baseline reset): while a
+  // drop event stands, the enemy slot holds empty — the drop plays
+  // over the fallen enemy's spot, never over a standing figure.
+  const dropHold = mode === 'roaming' ? enemyDropHold(event, currentTargetHp) : null;
   const beat = reduced ? null : classifyTickBeat(event, targetMaxHp);
   // Resume probe (diagnostic only; see useDomResumeProbe above).
   useDomResumeProbe(!transientFallback && isResumeProbeEnabled());
@@ -1500,8 +1505,10 @@ const PixelSceneLayerDom: React.FC<{
       {/* Enemy — drops in for boss fights (dust + shake on landing),
           walks in roaming; lunges on damage beats; hit/kill reactions.
           In boss prep the boss already stands here (bossOnStage):
-          the same drop-in, but no beats answer it — presence only. */}
-      {(showEnemy || showBossPrep) && (
+          the same drop-in, but no beats answer it — presence only.
+          Drop hold: while a drop event stands the slot stays empty
+          (see the dropHold derivation above). */}
+      {(showEnemy || showBossPrep) && !dropHold && (
         <motion.div
           className="absolute inset-0"
           style={{ transformOrigin: `${enemyPlacement.xPct}% ${groundY * 100}%` }}
@@ -1657,6 +1664,7 @@ const PixelSceneLayerDom: React.FC<{
             flareScale={2.2}
             radiant={false}
             durationMs={lootRiseTotalMs()}
+            fadeTailMs={MOVEMENT.LOOT_RISE_FADE_MS}
             reduced={reduced}
           />
           <StageRise
@@ -1768,6 +1776,7 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
   const [pixiFailed, setPixiFailed] = useState(false);
   const targetMaxHp = useKillCycleStore((state) => state.currentTargetHpMax);
   const currentTargetId = useKillCycleStore((state) => state.currentTargetId);
+  const currentTargetHp = useKillCycleStore((state) => state.currentTargetHp);
   if (props.mode !== 'roaming' || props.reduced || !webgl || pixiFailed) {
     return <PixelSceneLayerDom {...props} />;
   }
@@ -1779,6 +1788,7 @@ const PixelSceneLayer: React.FC<React.ComponentProps<typeof PixelSceneLayerDom>>
     hot: props.hot,
     targetMaxHp,
     currentTargetId: currentTargetId ?? undefined,
+    currentTargetHp,
     onPixiError: () => setPixiFailed(true),
   };
   return (
@@ -1841,6 +1851,12 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
   const stageBossDef = bossName ? REGION_1_BOSSES.find((b) => b.name === bossName) : undefined;
   const stageBossSpriteId = pixelBossSpriteForBoss(stageBossDef?.id);
   const mode = modeFromActivity(activityKind, bossPhase);
+  const stageTargetHp = useKillCycleStore((state) => state.currentTargetHp);
+  // Drop hold (Inkling R1, ported at the baseline reset): the
+  // target HP plate unmounts for the drop's whole window — the
+  // plate belongs to the fallen enemy, and no figure stands
+  // behind the drop for it to describe.
+  const stageEnemyHold = mode === 'roaming' ? enemyDropHold(latestEvent, stageTargetHp) : null;
   // One-Stage Law (owner ruling 2026-11-06): while the encounter
   // panel plays back a Chef-decided attempt, it publishes the
   // fight presentation to the boss store and THIS stage renders
@@ -1957,7 +1973,7 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           the boss plate stays anchored under the boss on the
           ground line (owner ruling 2026-11-02, reaffirmed
           2026-11-03). Neither ever sits across a face. */}
-      <TargetHpOverlay active={activityKind === 'roaming_loot'} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
+      <TargetHpOverlay active={activityKind === 'roaming_loot' && !stageEnemyHold} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
       <BossHpOverlay active={activityKind === 'boss_fight' && bossPhase === 'fight'} accentColor={scene.accent} groundYPct={stageGroundYPct} reduced={reduced} />
       {/* The count plate is the top row's only resident now
           (owner ruling 2026-11-02 removed the area/target plate

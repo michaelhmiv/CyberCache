@@ -32,7 +32,7 @@ describe('LiveTurfDiorama — P2 beat FX on the pixel scene', () => {
   });
 
   it('a hit tick event stages muzzle flash, tracer, sparks and a damage number', () => {
-    pushEvent({ tone: 'loot', label: '-45', value: 45 });
+    pushEvent({ tone: 'hit', label: '-45 HP', value: 45 });
     render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} activityKind="roaming_loot" playerLevel={5} equippedCount={3} />);
     expect(screen.getByTestId('diorama-beat-fx')).toBeTruthy();
     expect(screen.getByTestId('fx-muzzle-flash')).toBeTruthy();
@@ -47,6 +47,13 @@ describe('LiveTurfDiorama — P2 beat FX on the pixel scene', () => {
     // down on vista scenes.
     expect(screen.getByTestId('pixel-ambient-stage')).toBeTruthy();
     expect(screen.queryByTestId('fx-embers')).toBeNull();
+  });
+
+  it('a nova-shaped hit event (label without a leading minus) stages the same shot FX', () => {
+    pushEvent({ tone: 'hit', label: 'Nova burst — 30 damage', value: 30 });
+    render(<LiveTurfDiorama area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)} activityKind="roaming_loot" playerLevel={5} equippedCount={3} />);
+    expect(screen.getByTestId('fx-muzzle-flash')).toBeTruthy();
+    expect(screen.getByTestId('fx-damage-number')).toBeTruthy();
   });
 
   it('a kill tick event stages the dust ring', () => {

@@ -196,18 +196,27 @@ describe('M2 — the roam scene model (one derivation for both renderers)', () =
     expect(model.rig?.segments).toHaveLength(4);
     expect(model.rigPose).toEqual({});
     expect(model.hunterPlacement).toMatchObject({ xPct: 12, heightPct: 57 });
-    // Settle mark 78%, frame 58% — the stage-iteration restage
-    // (2026-11-12; was the tightened 66%/66%).
-    expect(model.enemyPlacement).toMatchObject({ xPct: 78, heightPct: 58 });
+    // Settle mark 78% — the stage-iteration restage (2026-11-12;
+    // was the tightened 66%/66%). The frame height for this target
+    // is the fodder archetype's 46%, not the 58% base: Inkling
+    // Round 3's reach lever (2026-11-14) dropped fodder heightPct
+    // 58→46 so the weapons-inclusive rest air clears the ≥12%
+    // floor (measured 13.1% DOM / 13.0% Pixi).
+    expect(model.enemyPlacement).toMatchObject({ xPct: 78, heightPct: 46 });
     expect(model.lootRise).toBeNull();
     expect(model.dropItem).toBeNull();
   });
 
   it('a hit tick classifies as a shot beat: recoil pose, hit rig pose, shake pinned to the law', () => {
+    // Fixture shape is the Chef's real damage push (Inkling Round 1
+    // tone seam): tone 'hit' with the dealt damage in `value`; the
+    // label is display text ('-N HP'), never the match key. This
+    // replaces the retired inference fixture (tone 'loot' + a
+    // negative label), which encoded the pre-seam workaround.
     const event: TickEvent = {
       id: 'evt-shot-1',
-      tone: 'loot',
-      label: '-10',
+      tone: 'hit',
+      label: '-10 HP',
       value: 10,
     } as TickEvent;
     const model = deriveRoamScene({ ...baseInput, event });
@@ -216,7 +225,7 @@ describe('M2 — the roam scene model (one derivation for both renderers)', () =
   });
 
   it('a heavy hit presents as a crit (CRIT_DAMAGE_FRACTION of max HP)', () => {
-    const event: TickEvent = { id: 'evt-crit-1', tone: 'loot', label: '-30', value: 30 } as TickEvent;
+    const event: TickEvent = { id: 'evt-crit-1', tone: 'hit', label: '-30 HP', value: 30 } as TickEvent;
     const model = deriveRoamScene({ ...baseInput, event, targetMaxHp: 100 });
     expect(model.beat?.kind).toBe('crit');
     expect(model.shake?.intensity).toBe(7);

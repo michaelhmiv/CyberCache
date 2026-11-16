@@ -89,8 +89,13 @@ export const MOVEMENT = {
    *  fade. The rise motion itself keeps its law length; the hold is
    *  what makes a drop actually readable on device (owner report
    *  2026-11-12: drops "weren't showing up" at the old 0.95–1.6 s
-   *  total presence). Rise total = RISE + HOLD + FADE ≈ one tick. */
-  LOOT_RISE_HOLD_MS: 1700,
+   *  total presence). Rise total = RISE + HOLD + FADE ≈ one tick.
+   *  Hold is 1900 (not the original 1700): the Inkling R1 judge
+   *  measured full-opacity readability at ≈2.35–2.4 s with 1700
+   *  against the 2.5 s readability floor (checklist K5/K6); 1900
+   *  puts the schedule at 3150 ms and the readable window over
+   *  the floor. Ported from the R1b branch at the baseline reset. */
+  LOOT_RISE_HOLD_MS: 1900,
   /** Stage rise terminal fade (Stage Iteration R2). */
   LOOT_RISE_FADE_MS: 300,
   /** Minimum total on-stage time for a light-mode (roam feed) gear
@@ -175,9 +180,16 @@ export interface CombatBeat {
   value?: number;
 }
 
-/** Hit events in the tick feed: tone 'loot', label is a negative number. */
+/**
+ * Hunter-damage events in the tick feed (brief facts F1/F2/F3): the
+ * Chef's kill-cycle hit, detonation, and nova-burst pushes all carry
+ * tone 'hit' with the dealt damage in `value` ('-N HP' for
+ * weapon/detonation hits, 'Nova burst — N damage' for a nova break).
+ * The label is display text and is never the match key; a loot event
+ * carrying an item name is never a hit.
+ */
 export const isTickHit = (event?: TickEvent): boolean =>
-  !!event && event.tone === 'loot' && event.label?.startsWith('-') && (event.value ?? 0) > 0;
+  !!event && event.tone === 'hit' && (event.value ?? 0) > 0;
 
 /**
  * Classify the latest tick event into a presentation beat for a scene.

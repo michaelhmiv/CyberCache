@@ -102,7 +102,9 @@ vi.mock('@/lib/api/progressionService', async (importOriginal) => ({
   getMyProgressionSnapshots: vi.fn(async () => []),
 }));
 
+import { BossFightStage } from '@/components/pixelArt/BossFightStage';
 import { ActionScreenContextual } from '@/screens/ActionScreenContextual';
+import { buildInitialTimeline, type FightOutcome } from '@/lib/animation/fightTimeline';
 import {
   advanceEndlessEncounter,
   getEndlessMe,
@@ -338,6 +340,57 @@ describe('endless stage home — the wiring (source pins)', () => {
     expect(panelSrc).toContain('setEndlessPresentation');
     expect(panelSrc).toContain('setEndlessPresence');
     expect(panelSrc).not.toContain('BossFightStage');
+  });
+});
+
+describe('endless depth chip placement — embedded yields to the host gear chip', () => {
+  const outcome: FightOutcome = {
+    result: { victory: true, winChance: 0.75, bossHpRemaining: 0 },
+    creditsDelta: 0,
+    bonusLootRolls: 0,
+    consumedConsumables: {},
+    loot: [],
+    extraLoot: false,
+  };
+  const chipTimeline = buildInitialTimeline(outcome, 1000, 4, 0);
+
+  it('embedded mount drops the depth chip below the host gear chip row', () => {
+    render(
+      <BossFightStage
+        timeline={chipTimeline}
+        phases={FIXTURE_PHASES}
+        depthBadge={{ depth: 3, band: 1 }}
+        embedded
+      />,
+    );
+    const chip = screen.getByTestId('endless-depth-chip');
+    expect(chip.className).toContain('top-[60px]');
+    expect(chip.className).not.toContain('top-2 ');
+    // Text is the record's fact, unchanged.
+    expect(chip.textContent).toBe('Depth 3 · Band 2');
+  });
+
+  it('non-embedded (card) mount keeps the chip at top-2', () => {
+    render(
+      <BossFightStage
+        timeline={chipTimeline}
+        phases={FIXTURE_PHASES}
+        depthBadge={{ depth: 3, band: 1 }}
+      />,
+    );
+    const chip = screen.getByTestId('endless-depth-chip');
+    expect(chip.className).toContain('top-2');
+    expect(chip.className).not.toContain('top-[60px]');
+    expect(chip.textContent).toBe('Depth 3 · Band 2');
+  });
+
+  it('both renderers carry the identical embedded offset', () => {
+    const domSrc = readFileSync(resolve(process.cwd(), 'src/components/pixelArt/BossFightStage.tsx'), 'utf8');
+    const pixiSrc = readFileSync(resolve(process.cwd(), 'src/components/pixelArt/pixi/BossPixiStage.tsx'), 'utf8');
+    const needle = "embedded ? 'top-[60px]' : 'top-2'";
+    const pixiNeedle = "props.embedded ? 'top-[60px]' : 'top-2'";
+    expect(domSrc).toContain(needle);
+    expect(pixiSrc).toContain(pixiNeedle);
   });
 });
 

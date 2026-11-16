@@ -71,16 +71,36 @@ describe('classifyTickBeat', () => {
     expect(classifyTickBeat(event({ tone: 'kill', value: 40 }), 100)?.kind).toBe('kill');
   });
 
-  it('hit events beat as shot, or crit at/above the damage fraction of target max HP', () => {
-    const hit = event({ tone: 'loot', label: '-30', value: 30 });
-    expect(isTickHit(hit)).toBe(true);
-    expect(classifyTickBeat(hit, 1000)?.kind).toBe('shot'); // 3% of max
-    expect(classifyTickBeat(hit, 100)?.kind).toBe('crit'); // 30% of max
-    expect(classifyTickBeat(hit, 0)?.kind).toBe('shot'); // unknown max: never crit
+  it('production hit events classify by the 0.18 rule, carrying exact value', () => {
+    const light = event({ tone: 'hit', label: '-17 HP', value: 17 });
+    expect(isTickHit(light)).toBe(true);
+    expect(classifyTickBeat(light, 100)?.kind).toBe('shot'); // 0.17 < 0.18
+    const mid = event({ tone: 'hit', label: '-25 HP', value: 25 });
+    const midBeat = classifyTickBeat(mid, 100);
+    expect(midBeat?.kind).toBe('crit'); // 0.25 ≥ 0.18
+    expect(midBeat?.value).toBe(25);
+    expect(classifyTickBeat(mid, 0)?.kind).toBe('shot'); // unknown max: never crit
   });
 
-  it('non-hit loot labels are loot, not shots', () => {
-    const drop = event({ tone: 'loot', label: 'Vortex SMG', gear: undefined });
+  it('K1 fixture: 42 damage against 100 max HP crits and carries exactly 42', () => {
+    const k1 = event({ tone: 'hit', label: '-42 HP', detail: 'Hit Dustwaste Raider for 42 HP.', value: 42 });
+    expect(classifyTickBeat(k1, 100)).toEqual({ kind: 'crit', value: 42 });
+  });
+
+  it('nova-shaped hit events match on tone + value, never the label', () => {
+    const nova = event({ tone: 'hit', label: 'Nova burst — 30 damage', value: 30 });
+    expect(isTickHit(nova)).toBe(true);
+    expect(classifyTickBeat(nova, 100)).toEqual({ kind: 'crit', value: 30 });
+    const weakNova = event({ tone: 'hit', label: 'Nova burst — 17 damage', value: 17 });
+    expect(classifyTickBeat(weakNova, 100)).toEqual({ kind: 'shot', value: 17 });
+  });
+
+  it('a real loot event (item-name label + gear payload) classifies as loot, never a hit', () => {
+    const drop = event({
+      tone: 'loot',
+      label: 'Vortex SMG',
+      gear: { id: 'g1', name: 'Vortex SMG', level: 1, rarity: 'Common' } as TickEvent['gear'],
+    });
     expect(isTickHit(drop)).toBe(false);
     expect(classifyTickBeat(drop, 100)?.kind).toBe('loot');
   });

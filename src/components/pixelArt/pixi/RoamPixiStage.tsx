@@ -57,6 +57,7 @@ import {
 import { EASE, sampleTrack } from '@/lib/pixel/pixiChoreography';
 import {
   deriveRoamScene,
+  enemyDropHold,
   enemyWalkAlpha,
   resolveRoamWalkFrame,
   roamPosesAt,
@@ -137,6 +138,9 @@ export interface RoamPixiStageProps {
   hot?: boolean;
   targetMaxHp: number;
   currentTargetId?: string;
+  /** Live kill-cycle HP of the current roam target — drives the
+   *  drop-hold derivation (a material drop's corpse implies HP 0). */
+  currentTargetHp?: number;
   /** Init/texture failure seam: the wrapper swaps to the DOM scene. */
   onPixiError?: () => void;
   /** First-frames seam (stage-iteration B2, 2026-11-12): fired once
@@ -854,6 +858,11 @@ function tickStage(rt: RoamRuntime, env: TickEnv, now: number): void {
   scene.hunterSprite.position.set(0, 0);
 
   // ── Enemy ──
+  // Drop hold (Inkling R1, ported at the baseline reset): while a
+  // drop event stands, the enemy slot is empty — the drop plays
+  // over the fallen enemy's spot. The store is NOT touched; only
+  // this render path hides the actor.
+  scene.enemyLunge.visible = !enemyDropHold(env.props.event, env.props.currentTargetHp);
   // Approach staging (roamChoreography sampleEnemyWalkPose): the
   // walk wrapper rides the sampled offset — the enemy enters
   // from off-frame right and travels the full approach to its
@@ -1626,6 +1635,7 @@ export const RoamPixiStage: React.FC<RoamPixiStageProps> = (props) => {
               flareScale={2.2}
               radiant={false}
               durationMs={lootRiseTotalMs()}
+              fadeTailMs={MOVEMENT.LOOT_RISE_FADE_MS}
               reduced={false}
             />
             <StageRise

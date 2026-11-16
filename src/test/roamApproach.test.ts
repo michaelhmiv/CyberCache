@@ -237,12 +237,12 @@ describe('rest staging geometry — every archetype keeps its air (stage-iterati
     });
   }
 
-  it('per-archetype overrides: only runner + sniper move off the shared mark', () => {
-    expect(roamEnemyPlacementFor('fodder')).toEqual({ xPct: 78, heightPct: 58 });
+  it('per-archetype overrides: fodder, runner + sniper move off the shared mark', () => {
+    expect(roamEnemyPlacementFor('fodder')).toEqual({ xPct: 78, heightPct: 46 });
     expect(roamEnemyPlacementFor('brute')).toEqual({ xPct: 78, heightPct: 58 });
     expect(roamEnemyPlacementFor('elite')).toEqual({ xPct: 78, heightPct: 58 });
     expect(roamEnemyPlacementFor(undefined)).toEqual({ xPct: 78, heightPct: 58 });
-    expect(roamEnemyPlacementFor('runner')).toEqual({ xPct: 84, heightPct: 44 });
+    expect(roamEnemyPlacementFor('runner')).toEqual({ xPct: 84, heightPct: 42 });
     expect(roamEnemyPlacementFor('sniper')).toEqual({ xPct: 86, heightPct: 58 });
   });
 });

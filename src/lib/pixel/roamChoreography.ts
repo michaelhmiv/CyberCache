@@ -81,11 +81,38 @@ export const ROAM_ENEMY_PLACEMENT = { xPct: 78, heightPct: 58 } as const;
  * ≈12.4%, right edge ≈99.6%). Every other archetype keeps the
  * shared mark, the elite staging (rig 72 / flat 74) is
  * untouched, and no timing changes anywhere.
+ *
+ * Round 3 (2026-11-14, post-merge audit re-verification on
+ * master 80c604fe) re-measured rest air WEAPONS-INCLUSIVE — the
+ * brief's text: rifle tip → the enemy's foremost point
+ * including its own weapon, the same method the audit applies
+ * to bosses. The body-method numbers above understate reach:
+ * the fodder's extended pistol hand sits at 61.2% against the
+ * 51.6% tip, so at the shared 78 mark its true air is only
+ * 9.6% DOM / 10.0% Pixi — below the ≥12% law. The obvious lever,
+ * moving fodder's mark right, is capped by the HP plate: the
+ * plate is centered on the placement xPct and at the shared
+ * mark the plate's % text already ends at 99.3% of stage
+ * width — capture round inkr5space (fodder {82}) measured air
+ * 14.2% DOM / 13.6% Pixi but the plate's % glyph ran off the
+ * stage edge. So fodder's fix shortens its rest REACH instead:
+ * height 58 → 46 scales the silhouette toward its anchor and
+ * pulls the extended pistol arm back with it (hand ≈61.2% →
+ * ≈64.7%, air ≈13%), while the mark — and the plate — stay
+ * exactly where they shipped. The runner measured exactly
+ * 12.0% — at the floor with zero margin; its head is its
+ * foremost point and its sprite's right edge already sits at
+ * ≈98%, so it cannot move right either. Its height steps
+ * 44 → 42: the smaller frame pulls the leaning head ≈1 pt
+ * toward its anchor (air ≈13%) and pulls the right edge in
+ * with it. Sniper (14.0%) and brute (~16.7%) were re-measured
+ * passing and stay untouched.
  */
 export const ROAM_ARCHETYPE_PLACEMENT_OVERRIDES: Partial<
   Record<MonsterArchetype, { xPct?: number; heightPct?: number }>
 > = {
-  runner: { xPct: 84, heightPct: 44 },
+  fodder: { heightPct: 46 },
+  runner: { xPct: 84, heightPct: 42 },
   sniper: { xPct: 86 },
 };
 
@@ -424,6 +451,37 @@ export function withRoamWalkFrame(model: RoamSceneModel, walkMs?: number): RoamS
     }),
   );
   return { ...model, rigPose, enemyWalk: { offsetXPct: walk.offsetXPct, deltaX: walk.deltaX } };
+}
+
+// ── Drop-hold derivation (Stage Iteration R3) ───────────────────────
+/** Why the enemy slot is held empty while a drop event stands. */
+export type EnemyHold = 'gear' | 'material';
+
+/**
+ * The enemy hold for a standing drop event. Presentation only —
+ * the kill-cycle store advances exactly as it does today; this
+ * decides whether the stage draws a living enemy:
+ *
+ *  - a gear-drop event (gearDropFromEvent non-null, tone 'loot'
+ *    with a gear payload) holds the slot EMPTY — the store has
+ *    already advanced to the next target (full HP) inside the same
+ *    claim, and a drop moment over a freshly spawned enemy reads
+ *    as a second body appearing under the loot;
+ *  - a non-crate rise (material / essence / fragment / scrap /
+ *    credits) holds the slot only while the kill-cycle target's
+ *    HP is 0 — the payout belongs to the corpse that just fell;
+ *  - anything else (no drop event, a living target, a crate rise)
+ *    renders the enemy exactly as before.
+ */
+export function enemyDropHold(
+  event: TickEvent | undefined | null,
+  targetHp: number | null | undefined,
+): EnemyHold | null {
+  if (!event) return null;
+  if (gearDropFromEvent(event)) return 'gear';
+  const rise = lootRiseVisualForEvent(event);
+  if (rise && rise !== 'crate' && (targetHp ?? 0) <= 0) return 'material';
+  return null;
 }
 
 /** One target's walk-in clock: which target key the clock belongs

@@ -20,6 +20,7 @@ const CURRENT_TONES: TickEventTone[] = [
   'cache',
   'level',
   'kill',
+  'hit',
   'material',
   'essence',
   'fragment',
@@ -34,9 +35,9 @@ const CURRENT_TONES: TickEventTone[] = [
 ];
 
 describe('TickEventTone (canonical)', () => {
-  it('includes all 17 current tones', () => {
+  it('includes all 18 current tones', () => {
     // If you add a new tone, add it to CURRENT_TONES above.
-    expect(CURRENT_TONES).toHaveLength(17);
+    expect(CURRENT_TONES).toHaveLength(18);
   });
 
   for (const tone of CURRENT_TONES) {
@@ -67,6 +68,7 @@ const gainToneClass: Record<DisplayTone, { text: string; bg: string; border: str
   cache: { text: 'text-blue-300', bg: 'bg-blue-500/10', border: 'border-blue-400/70', fill: 'bg-blue-400' },
   level: { text: 'text-red', bg: 'bg-red/10', border: 'border-red/70', fill: 'bg-red' },
   kill: { text: 'text-text-secondary', bg: 'bg-surface-raised', border: 'border-border', fill: 'bg-text-muted' },
+  hit: { text: 'text-red', bg: 'bg-red/10', border: 'border-red/70', fill: 'bg-red' },
   material: { text: 'text-amber', bg: 'bg-amber/10', border: 'border-amber/70', fill: 'bg-amber' },
   essence: { text: 'text-purple', bg: 'bg-purple/10', border: 'border-purple/70', fill: 'bg-purple' },
   fragment: { text: 'text-blue-300', bg: 'bg-blue-500/10', border: 'border-blue-400/70', fill: 'bg-blue-400' },
@@ -116,10 +118,11 @@ describe('Tick event display mapping', () => {
     expect(cls).toBe(gainToneClass.unknown);
   });
 
-  it('display mapping has entries for all 17 current tones plus unknown', () => {
+  it('display mapping has entries for all 18 current tones plus unknown', () => {
     const keys = Object.keys(gainToneClass);
-    // 17 tones (13 legacy + 'event'/'event_major' from the roaming
-    // variance overhaul + 'standing'/'auto_salvage') + 'unknown' = 18 entries
+    // 18 tones (13 legacy + 'event'/'event_major' from the roaming
+    // variance overhaul + 'standing'/'auto_salvage' + 'hit' from the
+    // S1 hit-tone alignment) + 'unknown' = 19 entries
     expect(keys).toHaveLength(CURRENT_TONES.length + 1);
     for (const tone of CURRENT_TONES) {
       expect(gainToneClass[tone]).toBeDefined();
