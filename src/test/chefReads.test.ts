@@ -175,6 +175,46 @@ describe('InMemoryReadStore semantics (mirror of the ported SQL)', () => {
   });
 });
 
+describe('InMemoryReadStore — 0098 leaderboard kill filter', () => {
+  const E = '55555555-5555-4555-8555-555555555555'; // 0 kills, top XP
+  const F = '66666666-6666-4666-8666-666666666666'; // null kills
+  const G = '77777777-7777-4777-8777-777777777777'; // exactly 1 kill
+  const H = '88888888-8888-4888-8888-888888888888'; // 5 kills
+
+  function killSeed(): ReadSeed {
+    const s = emptyReadSeed();
+    s.profiles = [
+      profile({ id: E, username: 'never_killed' }),
+      profile({ id: F, username: 'unrecorded' }),
+      profile({ id: G, username: 'one_kill' }),
+      profile({ id: H, username: 'veteran' }),
+    ];
+    s.snapshots = [
+      snap({ player_id: E, snapshot_at: '2026-10-28T00:00:00.000Z', xp: 9999, total_kills: 0, total_deaths: 3 }),
+      snap({ player_id: F, snapshot_at: '2026-10-28T00:00:00.000Z', xp: 8000, total_kills: null }),
+      snap({ player_id: G, snapshot_at: '2026-10-28T00:00:00.000Z', xp: 500, total_kills: 1, total_deaths: 0 }),
+      snap({ player_id: H, snapshot_at: '2026-10-28T00:00:00.000Z', xp: 100, total_kills: 5, total_deaths: 1 }),
+    ];
+    return s;
+  }
+  const store = new InMemoryReadStore(killSeed(), () => NOW);
+
+  it('board excludes 0-kill and null-kill profiles and re-numbers ranks contiguously', async () => {
+    const board = await store.getLeaderboard('xp', 'all_time', 100);
+    expect(board.map((e) => [e.player_id, e.value, e.rank])).toEqual([
+      [G, 500, 1], [H, 100, 2],
+    ]);
+  });
+
+  it('total_players counts only filtered profiles; a 0-kill caller has no standing', async () => {
+    await expect(store.getMyLeaderboardRank(G, 'xp', 'all_time')).resolves.toMatchObject({
+      rank: 1, total_players: 2,
+    });
+    await expect(store.getMyLeaderboardRank(E, 'xp', 'all_time')).resolves.toBeNull();
+    await expect(store.getMyLeaderboardRank(F, 'xp', 'all_time')).resolves.toBeNull();
+  });
+});
+
 describe('read routes (HTTP)', () => {
   let base = '';
   let server: ReturnType<typeof express.application.listen>;
