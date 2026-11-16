@@ -2861,6 +2861,47 @@ Doc) is preserved in the prep files
 taken; it does not ship. Signature colors are identity: a hunter's
 color stays theirs across skins.
 
+### 2026-11-15 — Leaderboards count hunters (owner-ruled)
+
+The boards list hunters, not accounts: the production board listed
+653 profiles, nearly all guest mint-and-leave accounts left over
+from the web-page era. Ruled on a voice call, 2026-11-15; shipped
+in the same day's rulings batch.
+
+1. **Boards filter to players with at least one lifetime kill;
+   nothing is deleted.** The filter is in the read: migration 0098
+   restates `cc_get_leaderboard` with the kill floor, the TS twin
+   `computeLeaderboard` matches, and entries, ranks, and
+   `total_players` all inherit from the one function. Filtered,
+   the board lists 77 — the hunters who have actually killed
+   something.
+2. **The global All Time board opens on the top 10** with a
+   tap-to-expand control (SHOW ALL n HUNTERS, resetting on channel
+   switch). Weekly and daily boards keep their full lists; the
+   player's own standing stays pinned visible below the cut.
+   Shipped: PR #591 (migration 0098) + PR #589 (top-10 collapse).
+
+### 2026-11-15 — Closed directions: numbers/bars and the M3 reviewer (owner-ruled)
+
+Two explorations the owner closed outright on 2026-11-15 — dead,
+not parked. Neither reopens without a new owner ruling.
+
+1. **The numbers/bars direction is dead** (owner: "we can ditch
+   the numbers bar direction for sure"). The multi-iteration
+   program exploring numbers-forward and bar-based presentations
+   for the Home stage is closed; the stage's animation itself is
+   the work. This does not touch the shipped floating damage
+   numbers (both renderers' `DamageNumber`), which stay as they
+   are — what died is the redesign direction, not the shipped
+   feature.
+2. **The M3 video reviewer is killed outright.** Its Phase 1
+   gate failed on evidence — it caught gross defects on native
+   video but showed zero discrimination on measurement judgments
+   and raised false MAJOR defects on known-good controls — and
+   the owner declined the narrowed gross-triage seat the results
+   might have supported. Review of stage work stays frame-by-frame
+   capture review by Jeff/QC plus the owner's device pass.
+
 ### 2026-11-16 — Onboarding: the starting-hunter pick (reshape slice (e))
 
 The last reshape slice gives a new account its starting-hunter
