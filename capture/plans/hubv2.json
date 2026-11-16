@@ -1,0 +1,1 @@
+{"dsf":2,"height":915,"steps":[{"wait":4500},{"shot":"standings-hubv2-rest"},{"eval":"document.querySelector('[data-testid=\"standings-settlement-open\"]').click()"},{"wait":900},{"shot":"standings-hubv2-popup"}],"width":412}

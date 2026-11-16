@@ -2,7 +2,8 @@
  * Standings harness page (leaderboard-hub rendering, dev only) —
  * serves the REAL Standings screen composition at phone width for
  * before/after captures: ResourceBar chrome, ConsoleHead, the
- * settlement readout (WeeklyEarningsPanel), BoardConsole and the
+ * Board Hub panel with its settlement sheet (BoardHubPanel +
+ * SettlementReadoutSheet), BoardConsole and the
  * race channels, in the shipped LeaderboardsScreen order and page
  * classes, fed with production-shaped fixture payloads (the same
  * shapes the standings test suites pin). State (metric/period) is
@@ -16,7 +17,10 @@
  */
 import React, { useMemo, useState } from 'react';
 import { ResourceBar } from '@/components/layout/ResourceBar';
-import { WeeklyEarningsPanel } from '@/components/leaderboard/WeeklyEarningsPanel';
+import {
+  BoardHubPanel,
+  SettlementReadoutSheet,
+} from '@/components/leaderboard/WeeklyEarningsPanel';
 import {
   BoardConsole,
   ConsoleHead,
@@ -179,6 +183,7 @@ const ALL_METRICS = Object.keys(METRIC_BASE) as LeaderboardMetric[];
 export const StandingsHarnessPage: React.FC = () => {
   const [metric, setMetric] = useState<LeaderboardMetric>('level');
   const [period, setPeriod] = useState<LeaderboardPeriod>('all_time');
+  const [settlementOpen, setSettlementOpen] = useState(false);
 
   const entries = useMemo(() => entriesFor(metric, period), [metric, period]);
   const myRanks = useMemo(() => {
@@ -197,12 +202,7 @@ export const StandingsHarnessPage: React.FC = () => {
         dropBuff={WEEKLY.my_drop_buff}
         fieldedHunter="Vesper Cole · Gunslinger"
       />
-      <WeeklyEarningsPanel
-        data={WEEKLY}
-        loading={false}
-        error={null}
-        onRetry={() => {}}
-        focusNonce={0}
+      <BoardHubPanel
         hub={{
           metric,
           period,
@@ -210,6 +210,18 @@ export const StandingsHarnessPage: React.FC = () => {
           onPeriodChange: setPeriod,
           myRanks,
         }}
+        data={WEEKLY}
+        loading={false}
+        focusNonce={0}
+        onOpenSettlement={() => setSettlementOpen(true)}
+      />
+      <SettlementReadoutSheet
+        open={settlementOpen}
+        onClose={() => setSettlementOpen(false)}
+        data={WEEKLY}
+        loading={false}
+        error={null}
+        onRetry={() => {}}
       />
       <BoardConsole
         metric={metric}
