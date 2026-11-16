@@ -278,6 +278,13 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number; bareHead?: boole
         error={weeklyError}
         onRetry={retryWeekly}
         focusNonce={focusEarningsNonce}
+        hub={{
+          metric,
+          period,
+          onMetricChange: setMetric,
+          onPeriodChange: setPeriod,
+          myRanks: myRankNumbers,
+        }}
       />
 
       {error ? (
@@ -300,6 +307,7 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number; bareHead?: boole
           looks={boardLooks}
           totalPlayers={totalPlayers}
           onRowClick={openPlayer}
+          hubControlled
         />
       )}
 

@@ -203,7 +203,6 @@ export const StandingsHarnessPage: React.FC = () => {
         error={null}
         onRetry={() => {}}
         focusNonce={0}
-        // @ts-expect-error hub props land with the hub treatment; ignored before it
         hub={{
           metric,
           period,
@@ -224,7 +223,6 @@ export const StandingsHarnessPage: React.FC = () => {
         myRanks={myRanks}
         looks={{}}
         totalPlayers={TOTAL_PLAYERS}
-        // @ts-expect-error hubControlled lands with the hub treatment; ignored before it
         hubControlled
       />
       <RaceChannels

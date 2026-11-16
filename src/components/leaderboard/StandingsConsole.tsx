@@ -254,6 +254,11 @@ export const BoardConsole: React.FC<{
   looks: Record<string, HunterLookView>;
   totalPlayers: number | null;
   onRowClick?: (playerId: string) => void;
+  /** Board hub (rendering proposal): the channel + period selectors
+   *  live in the settlement readout's hub deck, so this console
+   *  omits its own selector bank and period switch and opens
+   *  straight on the column datum and rows. */
+  hubControlled?: boolean;
 }> = ({
   metric,
   period,
@@ -267,6 +272,7 @@ export const BoardConsole: React.FC<{
   looks,
   totalPlayers,
   onRowClick,
+  hubControlled = false,
 }) => {
   const leaderValue = entries.length > 0 ? entries[0].value : 0;
   const unit = channelUnit(metric);
@@ -289,7 +295,11 @@ export const BoardConsole: React.FC<{
     <Panel testId="standings-board-console">
       <PanelLabel label="Global board" right={totalPlayers != null ? `FIELD ${totalPlayers}` : undefined} />
       {/* Channel selector bank: each cell is a channel push-button
-          whose readout is the viewer's own rank on that channel. */}
+          whose readout is the viewer's own rank on that channel.
+          In hub mode the bank (and the period switch below) moves
+          to the settlement readout's hub deck — not duplicated. */}
+      {!hubControlled && (
+      <>
       <div
         className="mb-1 flex items-baseline justify-between"
         style={{ ...monoStyle, fontSize: 11, color: FAINT, letterSpacing: '0.12em' }}
@@ -360,6 +370,8 @@ export const BoardConsole: React.FC<{
           );
         })}
       </div>
+      </>
+      )}
       {/* Column datum line. */}
       <div
         className="mt-2.5 flex items-baseline justify-between pb-1"

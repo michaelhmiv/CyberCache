@@ -7,6 +7,8 @@ import {
   type WeeklyEarningRow,
 } from '@/components/leaderboard/weeklyEarnings';
 import type {
+  LeaderboardMetric,
+  LeaderboardPeriod,
   WeeklyLeaderboards,
 } from '@/lib/api/leaderboardService';
 import { LcdWell, Led, Panel, PanelLabel } from './StandingsConsoleKit';
@@ -16,11 +18,130 @@ import {
   GOLD,
   GREEN,
   INK,
+  METRIC_SHORT,
   MUT,
   STEEL_DARK,
   headStyle,
   monoStyle,
 } from './standingsConsoleTokens';
+
+/**
+ * Board hub (RENDERING — leaderboard-hub proposal, owner idea
+ * 2026-11-15, awaiting owner approval): the settlement readout
+ * becomes the hub for the leaderboard types. The global board's
+ * channel + period selection moves UP into this panel's foot, so a
+ * player picks a board where the settlement signal brought them
+ * instead of scrolling past the readout to a separate console.
+ * The BoardConsole below keeps the rows, the collapse and the
+ * pinned MY READING; in hub mode it no longer repeats the
+ * selectors. Selection state stays owned by LeaderboardBoard —
+ * this deck is a control surface, not a second source of truth.
+ */
+export interface BoardHubSelection {
+  metric: LeaderboardMetric;
+  period: LeaderboardPeriod;
+  onMetricChange: (metric: LeaderboardMetric) => void;
+  onPeriodChange: (period: LeaderboardPeriod) => void;
+  /** The viewer's rank on every channel, for the selected period. */
+  myRanks: Partial<Record<LeaderboardMetric, number | null>>;
+}
+
+const HUB_METRICS = Object.keys(METRIC_SHORT) as LeaderboardMetric[];
+
+const HUB_PERIODS: { id: LeaderboardPeriod; label: string }[] = [
+  { id: 'all_time', label: 'ALL TIME' },
+  { id: 'weekly', label: 'WEEK' },
+  { id: 'daily', label: 'DAY' },
+];
+
+const BoardHubDeck: React.FC<{ hub: BoardHubSelection }> = ({ hub }) => {
+  const { metric, period, onMetricChange, onPeriodChange, myRanks } = hub;
+  const myRk = myRanks[metric];
+  return (
+    <div
+      data-testid="standings-board-hub"
+      style={{ borderTop: `1px solid ${STEEL_DARK}`, marginTop: 12, paddingTop: 12 }}
+    >
+      <div
+        className="mb-1 flex items-baseline justify-between"
+        style={{ ...monoStyle, fontSize: 11, color: FAINT, letterSpacing: '0.12em' }}
+      >
+        <span>BOARD HUB — CHANNEL SELECT</span>
+        <span style={{ color: GOLD }}>
+          {METRIC_SHORT[metric]} · {HUB_PERIODS.find((p) => p.id === period)?.label}
+          {myRk != null ? ` · MY RK #${myRk}` : ''}
+        </span>
+      </div>
+      <div className="grid grid-cols-5 gap-1.5" role="tablist" aria-label="Leaderboard metric">
+        {HUB_METRICS.map((m) => {
+          const active = m === metric;
+          const rk = myRanks[m];
+          return (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              data-testid={`standings-hub-channel-${m}`}
+              onClick={() => onMetricChange(m)}
+              className="flex flex-col items-center justify-center gap-0.5 px-1 py-1.5"
+              style={{
+                minHeight: 48,
+                border: `1px solid ${active ? GOLD : STEEL_DARK}`,
+                background: active
+                  ? 'linear-gradient(180deg, rgba(242,192,99,0.16) 0%, rgba(242,192,99,0.05) 100%)'
+                  : 'linear-gradient(180deg, #050403 0%, #0A0806 100%)',
+                boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.85)',
+              }}
+            >
+              <span className="flex items-center gap-1" style={{ ...monoStyle, fontSize: 11, color: active ? GOLD : FAINT }}>
+                <Led lit={active} color={GOLD} size={6} />
+                {METRIC_SHORT[m]}
+              </span>
+              <span className="font-bold leading-none" style={{ ...monoStyle, fontSize: 16, color: active ? INK : MUT }}>
+                {rk != null ? `#${rk}` : '—'}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div
+        className="mt-2 flex p-1"
+        style={{ border: `1px solid ${STEEL_DARK}`, background: 'rgba(0,0,0,0.4)' }}
+        role="tablist"
+        aria-label="Leaderboard period"
+      >
+        {HUB_PERIODS.map((p) => {
+          const active = p.id === period;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              data-testid={`standings-hub-period-${p.id}`}
+              onClick={() => onPeriodChange(p.id)}
+              className="flex-1 py-2 font-black"
+              style={{
+                ...monoStyle,
+                fontSize: 11,
+                letterSpacing: '0.1em',
+                minHeight: 44,
+                color: active ? '#0B0906' : MUT,
+                backgroundColor: active ? GOLD : 'transparent',
+              }}
+            >
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-2" style={{ ...monoStyle, fontSize: 11, color: FAINT, letterSpacing: '0.1em' }}>
+        THE GLOBAL BOARD BELOW READS THIS SELECTION
+      </div>
+    </div>
+  );
+};
 
 /**
  * Your Weekly Earnings (Standings) — the destination the Hunter
@@ -112,7 +233,10 @@ export const WeeklyEarningsPanel: React.FC<{
   onRetry: () => void;
   /** Incremented by the Hunter door tap: scroll to + highlight the panel. */
   focusNonce?: number;
-}> = ({ data, loading, error, onRetry, focusNonce = 0 }) => {
+  /** Board hub (rendering proposal): when present, the panel's foot
+   *  carries the global board's channel + period selection. */
+  hub?: BoardHubSelection;
+}> = ({ data, loading, error, onRetry, focusNonce = 0, hub }) => {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [highlighted, setHighlighted] = useState(false);
   const handledNonce = useRef(0);
@@ -263,6 +387,7 @@ export const WeeklyEarningsPanel: React.FC<{
             </button>
           </div>
         )}
+        {hub && <BoardHubDeck hub={hub} />}
       </Panel>
     </div>
   );
