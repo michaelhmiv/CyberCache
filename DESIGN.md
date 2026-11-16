@@ -271,7 +271,7 @@ Board + Action merge into Home; Rank folds into Hunter as the Standings door.
 | **Home** | Rail, then Stage: `Roam · Boss · Endless · Extract · Craft` | The hunt and everything the Board used to hold. The rail leads the screen (owner ruling 2026-11-04); the belt sits in the rail's vacated slot under the stage, and the lit mode's workspace under the belt; the deck (below the fold, fixed order — §4) carries launchers, weekly claimables, the Now feed, and Hunter Totals. There is no Area stop (owner rework 2026-11-04): Roam is the area door — entering roam auto-opens the area picker, and tapping Roam while roaming opens it alone. |
 | **Gear** | No rail — one page | ONE merged Loadout page (owner layout "Exec C, the Split", 2026-11-03): the doll, vehicles (inside the page — §11 F1, owner ruling 2026-11-02), the Inventory grid and Belt & Stacks as the page's sections, and a Workshop status strip at its foot (◦ door to the bench on Home — crafting consolidated onto Home, owner ruling 2026-11-04; the Workshop stop is retired). |
 | **Market** | Rail: `Buy · Sell · Vendor · Repair · Shield Tech · Rep Desk` | Player market, NPC storefront, the two service boards as separate stops, and manufacturer standing at its own desk. |
-| **Hunter** | Menu (Arena Plates): `Skill Trees · Research · Cache Rank · Standings · Collections · Wardrobe · Account · Profile & Record` | The hunter's record behind live-status doors: trees first, with the build itself printed on the door (per-tree ladders, unspent gauge), courses, ranks, the weekly races behind the badged Standings door, collections and cores, the wardrobe at the tail, account/settings/manual, and the profile record (identity + Trophy Shelf + lifetime stats) as the wide closing door. |
+| **Hunter** | Menu (Arena Plates): `Roster · Skill Trees · Research · Cache Rank · Standings · Collections · Wardrobe · Account · Profile & Record` | The hunter's record behind live-status doors: the hero plate is the fielded Cache Hunter (their painting, name, tree, base perk), the Roster door under it switches hunters, trees next with the build itself printed on the door (per-tree ladders, the fielded hunter's unspent gauge), courses, ranks, the weekly races behind the badged Standings door, collections and cores, the wardrobe (whole skins) at the tail, account/settings/manual, and the profile record (identity + Trophy Shelf + lifetime stats) as the wide closing door. |
 
 Rules:
 
@@ -533,24 +533,37 @@ replace the canonical one. (Tap depths are governed by §9.)
 The tab opens on the **menu** in the **Arena Plates** register (owner pick
 A, 2026-11-05): clipped-corner plates with machined frames, corner bolts,
 bone-white scrim type, foot strips, and numbers as gauges — the boss-arena
-plate language promoted to a menu. A **hero plate** carries the identity
-(level well, name, handle, XP line) over a real arena painting, plus the
-announcements row — unspent skill points (amber fill), banked race rewards,
-the active research course — each announcement a door, printed only while
-it exists. Below it, the doors in menu order; every door prints its stop's
-live status, so progression substance reads at a glance and cosmetics sit
-demoted at the tail. Every stop is one door tap in, and the **plate back
-row** ("Hunter Menu" + the stop's name) heads each stop — every header
-prints exactly once. Zero colored side bars anywhere in this register:
-color lives in numerals, chips, foot strips, and light. There is no rail
-on this tab.
+plate language promoted to a menu. A **hero plate** carries the fielded
+Cache Hunter's identity (reshape slice (b)): their painting stands in the
+plate, feet on its base, over a real arena painting; the headline is the
+hunter's name with their tree and base perk under it; the level well, the
+account handle, and the XP line ride along, plus the announcements row —
+the fielded hunter's unspent skill points (amber fill), banked race
+rewards, the active research course — each announcement a door, printed
+only while it exists. Below it, the doors in menu order; every door prints
+its stop's live status, so progression substance reads at a glance and
+cosmetics sit demoted at the tail. Every stop is one door tap in, and the
+**plate back row** ("Hunter Menu" + the stop's name) heads each stop —
+every header prints exactly once. Zero colored side bars anywhere in this
+register: color lives in numerals, chips, foot strips, and light. There
+is no rail on this tab.
 
+- **Roster** — the hero's companion door, directly under it: the four
+  Cache Hunters as plates (painting, name, tree, base perk, their own
+  pool's spent/unspent). Tapping a plate fields that hunter — the
+  outgoing hunter's equipped set is saved as their loadout assignment
+  and the incoming hunter's is equipped (slice (a)'s switch); the
+  action-skill selection collapses to the new hunter's signature.
 - **Skill Trees** — the lead door, full width: a segment ladder per tree
-  (spent pips + count) and the unspent-points gauge print on the door
-  itself. Behind it, the four trees + keystones in the same plate register
-  (points as gauge wells; a tree's color rides its label and foot strip,
-  never a side bar); **Respec lives on this stop** (where the points are
-  visible); **Mastery is a segment of this stop**.
+  (spent pips + count) and the fielded hunter's unspent-points gauge
+  print on the door itself. Behind it, the fielded hunter's tree +
+  keystones in the same plate register (points as gauge wells, read
+  from that hunter's own pool; a tree's color rides its label and foot
+  strip, never a side bar); the Action Skill plate presents the fielded
+  hunter's signature only. There is no tree selector — trees change at
+  the Roster. **Respec lives on this stop** (where the points are
+  visible) and retrains the fielded hunter's pool only; **Mastery is a
+  segment of this stop**.
 - **Research** — the course catalog and enrollment (the parallel education
   track). The door heroes the active course's progress % and names the
   course; idle, it prints the catalog line.
@@ -566,19 +579,26 @@ on this tab.
   destination is the **Your Weekly Earnings** panel at the top of
   Standings, which prints each settled week's races, finishes, and rewards
   and states the auto-pay plainly. Viewing the panel clears the notice; a
-  newly settled week raises it again.
+  newly settled week raises it again. The head bank also names the
+  viewer's fielded hunter — a display field only; every board metric
+  stays account-keyed (reshape slice (b)).
 - **Collections** — the 81 proofs as a poster-grid shelf; legendary cores
   print in the stop header (cores are spent from Gear → inspect). The door
   heroes the legendary-core count while the player holds any.
 - **Wardrobe** — its own stop behind its own door, at the menu's tail: the
-  skin-part showcase + wear/remove surface (pure cosmetic, zero stats).
-  The door prints worn/owned counts once the player owns parts. The Gear
-  page's figure-stage door ◦ lands here too.
+  whole-skin showcase + wear/remove surface for the fielded hunter (pure
+  cosmetic, zero stats; a skin is one painting, worn whole — the
+  part-wearing surface retired with reshape slice (b), and skin parts
+  are collection pieces now). The door prints the fielded hunter's
+  worn/owned whole-skin counts. The Gear page's figure-stage door ◦
+  lands here too.
 - **Account** — guest→Google link, identity/username, sign-out; **Settings**
   row and **Field Manual** row live on this stop (their canonical home).
   The door prints the account status (verified / guest / pending).
 - **Profile & Record** — the wide closing door: profile + Trophy Shelf +
-  lifetime stats. The Trophy Shelf tile **opens Collections** (today it
+  lifetime stats. The Unit Identification readout names the fielded
+  hunter beside the account identity (metrics stay account-keyed). The
+  Trophy Shelf tile **opens Collections** (today it
   opens nothing — a defect the redesign fixes, not a behavior to preserve).
   The **Totals & Sources door** on this stop opens the full all-metrics
   source breakdown (the canonical home of the totals view since the deck's
@@ -2776,3 +2796,67 @@ reshape brief's naming pass (slice (f)) and its hunter-voice work.
    kills, near-death saves, and streak completions — never a bark system,
    never on ordinary ticks, silent at defeat and death. Borderlands humor
    is character humor; the hunters are the characters.
+
+### 2026-11-15 — Cast B paintings; paintings only on stage (owner-ruled)
+
+Ruled by the owner across the painting selection and the slice (c)
+premise check, 2026-11-15. This entry sharpens §12 item 2 of the
+2026-11-14 reshape entry and supersedes the reshape brief §C's
+equipped-weapon-on-stage treatment.
+
+1. **Cast B is the shipped hunter set.** The four paintings the stage
+   and every hunter surface carry: **Vesper Cole** cache-touched (brim,
+   one arm and coat edge dissolving into glowing cache-energy shards,
+   one lit eye) · **Silas Boone** living ordnance (torso fused with a
+   bomb casing, shell pauldrons, fuse-and-gauge chest) · **Josie Lode**
+   a non-humanoid salvage machine (multi-limb junk-spider, open
+   storage-bin body, lamp eye on a stalk, grabber claws) · **Doc
+   Sutter** a walking workshop (scrap-golem, lit furnace-forge chest,
+   welding-mask faceplate with loupe optic). The human Cast A set and
+   the earlier texel-built figures are retired.
+2. **Paintings only on stage.** The stage figure is the hunter's
+   painting alone — its signature weapon is part of the character.
+   No compositor weapon, no segmented part rig, and no mounted-gear
+   layers ride the stage figure in either renderer (DOM or Pixi), on
+   the roam stage or the boss stage. The equipped weapon continues to
+   display on Gear, cards, and loadouts exactly as before; this
+   ruling governs the stage only. Stage FX (muzzle, grip, mass)
+   anchor to the painting's own manifest anchors, and the painting's
+   width law (its own frame and feet anchor) replaces the
+   armed-skeleton width law on stage.
+3. **Hunter voice: mechanism and copy shipped.** The §2.6 voice
+   mechanism (fixed pools, closed trigger list, no-repeat session
+   rotation, one line per moment, silence at defeat and death) is
+   built as ruled in the 2026-11-14 entry item 8. The first drafted
+   lines were vetoed by the owner on 2026-11-15 ("need to be more
+   clever and witty"); the rewritten v2 set was approved the same
+   day as written ("That's good", no vetoes) and is the shipped
+   copy — one line per hunter × trigger, mains only; the v2 file's
+   legendary-drop alternates are spares and stay unwired.
+### 2026-11-15 — The hunters' faces: Cast B (owner-ruled)
+
+The four launch hunters' paintings were decided by an A/B cast review.
+The owner chose **Cast B — "one level weirder"** (2026-11-15), over the
+grounded Cast A. The cast is not four people: it is one cache-touched
+gunslinger, one living weapon, one salvage machine, and one walking
+workshop. These are the paintings that ship (manifest ids
+`hunter-vesper-cole`, `hunter-silas-boone`, `hunter-josie-lode`,
+`hunter-doc-sutter`):
+
+1. **Vesper Cole** — the human anchor, cache-touched: her outlaw brim
+   (locked as her look in the headgear review) over a translucent,
+   glowing cache-energy arm and coat edge, one lit eye. Signature
+   color: plum with cache-energy light.
+2. **Silas Boone** — living ordnance: a brute torso fused with a bomb
+   casing, fuse-and-gauge chest. Signature color: hazard rust-orange.
+3. **Josie Lode** — a non-humanoid salvage machine: storage-bin body,
+   lamp eye-stalk, six mismatched limbs. Signature color: teal.
+4. **Doc Sutter** — a walking workshop: furnace-forge chest,
+   welding-mask faceplate with a loupe optic, the red-cross pack his
+   only red. Signature color: dusty steel-blue.
+
+Cast A (human Vesper, mutant Silas, retrieval-bot Josie, half-built
+Doc) is preserved in the prep files
+(`~/workspace/cybercache-prep/cache-hunters/cast-ab/`) as the road not
+taken; it does not ship. Signature colors are identity: a hunter's
+color stays theirs across skins.

@@ -22,7 +22,6 @@ import { describe, expect, it } from 'vitest';
 import { MOVEMENT } from '@/lib/pixel/movement';
 import { anchorPoint, getPixelSprite, PIXEL_ENEMY_SPRITES } from '@/lib/pixel/manifest';
 import { ENEMY_POSES } from '@/lib/pixel/rig';
-import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import {
   ROAM_APPROACH,
   ROAM_ENEMY_PLACEMENT,
@@ -128,7 +127,7 @@ describe('walk frame resolution — presence is state, not a witnessed transitio
     areaId: 'dustwaste_frontier',
     targetMaxHp: 100,
     currentTargetId: 'dustwaste_drone',
-    hunterSet: STANDARD_ISSUE,
+    hunterId: 'vesper',
   } as const;
   const KEY = 'dustwaste_drone|std';
   function frame(prev: RoamWalkState | null, key: string, now: number): { state: RoamWalkState; model: RoamSceneModel } {
@@ -198,7 +197,7 @@ describe('walk frame resolution — presence is state, not a witnessed transitio
       areaId: 'dustwaste_frontier',
       targetMaxHp: 100,
       currentTargetId: 'dustwaste_drone',
-      hunterSet: STANDARD_ISSUE,
+      hunterId: 'vesper',
     } as const;
     const settled = deriveRoamScene({ ...base });
     expect(settled.enemyWalk).toBeNull();

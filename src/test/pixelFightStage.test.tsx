@@ -107,11 +107,16 @@ describe('BossFightStage (P2 movement system)', () => {
     expect(screen.getByTestId('boss-fight-banner')).toBeTruthy();
     expect(screen.queryByTestId('boss-fight-beats')).toBeNull();
     expect(screen.queryByTestId('fx-embers')).toBeNull();
-    // This stage's hunter carries no weapon, so the real-item
-    // invariant renders the part set unarmed (no weapon layer, no
-    // entrance choreography) instead of any baked-gun sprite.
-    expect(screen.getByTestId('boss-stage-hunter').getAttribute('data-rig')).toBe('standard-issue');
-    expect(screen.getByTestId('boss-stage-hunter').getAttribute('data-armed')).toBe('false');
+    // Paintings-only on stage (owner ruling, 2026-11-15, slice
+    // (c)): the hunter is the active hunter's Cast B painting —
+    // no segmented part rig, no composited weapon layer. The
+    // equipped weapon displays on Gear/cards/loadouts, never
+    // composited onto the stage figure.
+    const hunter = screen.getByTestId('boss-stage-hunter');
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-sprite')).toBe('hunter-vesper-cole');
+    expect(hunter.getAttribute('data-rig')).toBeNull();
+    expect(hunter.querySelector('[data-part-layer]')).toBeNull();
   });
 });
 

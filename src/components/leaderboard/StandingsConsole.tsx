@@ -112,7 +112,11 @@ export const ConsoleHead: React.FC<{
    *  already prints the stop's name, so the head drops its own
    *  title row (every header prints once) and keeps the LCD bank. */
   bare?: boolean;
-}> = ({ week, totalPlayers, bestRank, dropBuff, bare = false }) => (
+  /** The viewer's fielded Cache Hunter (reshape slice (b)):
+   *  "{Hunter name} · {Tree}". A display field only — every board
+   *  metric stays account-keyed. */
+  fieldedHunter?: string;
+}> = ({ week, totalPlayers, bestRank, dropBuff, bare = false, fieldedHunter }) => (
   <Panel testId="standings-console-head">
     {!bare && (
       <>
@@ -149,6 +153,16 @@ export const ConsoleHead: React.FC<{
       <div className="mt-2 flex items-baseline justify-between" style={{ ...monoStyle, fontSize: 11, color: FAINT }}>
         <span>WEEK WINDOW</span>
         <span style={{ color: MUT }}>{weekRangeLabel(week.start, week.ends_at).toUpperCase()}</span>
+      </div>
+    )}
+    {fieldedHunter && (
+      <div
+        className="mt-2 flex items-baseline justify-between"
+        style={{ ...monoStyle, fontSize: 11, color: FAINT }}
+        data-testid="standings-fielded-hunter"
+      >
+        <span>FIELDED</span>
+        <span style={{ color: MUT }}>{fieldedHunter.toUpperCase()}</span>
       </div>
     )}
   </Panel>
