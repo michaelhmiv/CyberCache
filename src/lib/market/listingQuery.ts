@@ -67,7 +67,7 @@ export interface MarketBrowseRow {
   id: string;
   sellerId: string;
   sellerType: 'player' | 'npc';
-  kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
+  kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic' | 'skin';
   category: MarketCategory;
   displayName: string;
   weaponType: string | null;
@@ -87,6 +87,9 @@ export interface MarketBrowseRow {
   /** Cosmetic listings (0053): the part design + worn tint. Null otherwise. */
   partId: string | null;
   tintPaletteId: string | null;
+  /** Whole-skin listings (reshape slice (d)): the skin def the
+   *  buyer can wear on its hunter. Null otherwise. */
+  skinId: string | null;
   identityKey: string | null;
   /** ms epoch. */
   listedAt: number;

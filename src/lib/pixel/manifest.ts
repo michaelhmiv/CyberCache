@@ -215,22 +215,13 @@ export function pixelBossSpriteForBoss(bossId: string | undefined): string | und
 }
 
 /**
- * The Cache Hunters' paintings (reshape slices (b) + (c), Cast B —
- * owner ruling 2026-11-15, DESIGN.md §12: paintings only on stage —
- * the painting IS the stage figure, its signature weapon part of
- * the character). One painted whole per hunter; skins are painted
- * wholes over the same seat (slice (d) adds more ids beside these).
- * Keyed by HunterId (src/lib/hunters/hunters.ts). Slice (c)'s stage
- * renderer resolves the fielded hunter through this same map — the
- * ids are a shared contract, do not rename. Unknown ids resolve to
- * undefined and stage callers keep their fallback.
+ * The Cache Hunters' paintings map lives with the pure manifest
+ * data (gearManifestData.ts) — the skin catalog loads under
+ * node-side tooling where the glob below does not exist.
+ * Re-exported here so existing import sites keep working.
  */
-export const PIXEL_HUNTER_SPRITES: Record<string, string> = {
-  vesper: 'hunter-vesper-cole',
-  silas: 'hunter-silas-boone',
-  josie: 'hunter-josie-lode',
-  doc: 'hunter-doc-sutter',
-};
+export { PIXEL_HUNTER_SPRITES } from './gearManifestData';
+import { PIXEL_HUNTER_SPRITES } from './gearManifestData';
 
 export function pixelHunterSpriteForHunter(hunterId: string | undefined): string | undefined {
   if (!hunterId) return undefined;

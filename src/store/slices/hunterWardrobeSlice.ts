@@ -4,9 +4,12 @@
  *
  * Device-local presentation state, the same shape as the head
  * variant preference ('cc-head-variant'): skins are pure cosmetic,
- * so the worn choice needs no server record at this slice. Slice
- * (d)'s crafted skins will carry server ownership; wearing stays
- * this selection.
+ * so the worn choice needs no server record. Slice (d) added
+ * server ownership for crafted/converted skins: wearing still
+ * lives in this selection, but the selection is gated on the
+ * ownership seam (hunterSkins.isSkinOwned) — an unowned skin can
+ * neither be put on nor stay painted (a sold skin's hunter falls
+ * back to the base painting until the selection changes).
  *
  * A hunter is never unpainted: the default (and the fallback for
  * any unreadable stored value) is the hunter's base skin worn.
@@ -15,7 +18,7 @@
  */
 import { create } from 'zustand';
 import { HUNTER_IDS, isHunterId, type HunterId } from '@/lib/hunters/hunters';
-import { baseSkinForHunter, skinById } from '@/lib/hunters/hunterSkins';
+import { baseSkinForHunter, isSkinOwned, skinById } from '@/lib/hunters/hunterSkins';
 
 const STORAGE_KEY = 'cc-hunter-wardrobe';
 
@@ -73,6 +76,10 @@ export const useHunterWardrobeStore = create<HunterWardrobeState>()((set, get) =
   wearSkin: (hunterId, skinId) => {
     const skin = skinById(skinId);
     if (!skin || skin.hunterId !== hunterId) return;
+    // Ownership gate (slice (d)): only an owned skin can be put
+    // on — the Wardrobe disables the action too, this is the
+    // enforcement seam behind it.
+    if (!isSkinOwned(skin)) return;
     const wornByHunter = { ...get().wornByHunter, [hunterId]: skin.id };
     persistWornSkins(wornByHunter);
     set({ wornByHunter });
@@ -93,6 +100,6 @@ export const useHunterWardrobeStore = create<HunterWardrobeState>()((set, get) =
  */
 export function wornSkinSpriteId(wornByHunter: WornSkinMap, hunterId: HunterId): string {
   const worn = skinById(wornByHunter[hunterId]);
-  if (worn && worn.hunterId === hunterId) return worn.spriteId;
+  if (worn && worn.hunterId === hunterId && isSkinOwned(worn)) return worn.spriteId;
   return baseSkinForHunter(hunterId).spriteId;
 }

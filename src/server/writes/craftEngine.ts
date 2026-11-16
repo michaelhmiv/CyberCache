@@ -101,6 +101,10 @@ import {
   tintPaletteById,
   type CosmeticPartPayload,
 } from '../../content/skins.js';
+import {
+  buildCosmeticSkinPayload,
+  type CosmeticSkinPayload,
+} from '../../lib/hunters/hunterSkins.js';
 import { Rarity } from '../../types/game.js';
 import { applyXp, DELISTED_COSMETIC_CRAFT_REFUSAL } from './store.js';
 import {
@@ -245,6 +249,9 @@ export interface CraftJobOutput {
   shieldUnavailable?: boolean;
   /** Cosmetic units (0053): the skin part a part craft produced. */
   cosmeticPartId?: string;
+  /** Cosmetic units (reshape slice (d)): the whole skin a skin
+   *  craft produced. */
+  cosmeticSkinId?: string;
   /** Tint units (0053): the palette written to the target part. */
   paletteId?: string;
   /** Tint units (0053): whether the tint actually landed (the
@@ -444,8 +451,10 @@ export interface CraftAdapter {
     points: number,
   ): { conditionCurrent: number; conditionMax: number } | null;
   /** Cosmetic crafts (0053): insert a finished skin part item;
-   *  returns the new item id (the gear insert's mirror). */
-  insertCosmeticItem(playerId: string, payload: CosmeticPartPayload): string;
+   *  returns the new item id (the gear insert's mirror). Whole
+   *  skins (slice (d)) insert through the same seam — same item
+   *  kind, a payload naming a skin def instead of a part. */
+  insertCosmeticItem(playerId: string, payload: CosmeticPartPayload | CosmeticSkinPayload): string;
   /** Tint jobs (0053): read one owned item's cosmetic state. */
   cosmeticInfo(
     playerId: string,
@@ -1090,6 +1099,29 @@ function completeCraftUnit(
     if (!payload) fail('Unknown cosmetic part');
     output.itemId = adapter.insertCosmeticItem(playerId, payload);
     output.cosmeticPartId = recipe.cosmeticPartId;
+    output.quality = quality;
+  } else if (job.kind === 'cosmetic' && recipe.cosmeticSkinId) {
+    // Whole-skin craft (reshape slice (d)): the same finish roll
+    // as a part craft — the quality is a collection finish, never
+    // a stat (skins carry zero power, hard law) — then the skin
+    // item is inserted like a part completion. The SQL branch in
+    // migration 0099's cc_complete_craft_unit is its twin.
+    const masteryLevel = adapter.masteryLevel(playerId, 'crafting.cosmetics');
+    const quality = rollCosmeticQuality({
+      random01: adapter.rng(),
+      bench: job.bench,
+      toolQualityMultiplier: job.snapshot.toolQualityMultiplier,
+      shift: composedCraftQualityShift(
+        levers.craftQualityShift,
+        adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+        adapter.researchBonus?.(playerId, 'craftQualityShift') ?? 0,
+      ),
+      masteryLevel,
+    });
+    const payload = buildCosmeticSkinPayload(recipe.cosmeticSkinId, quality, 'crafted', playerId);
+    if (!payload) fail('Unknown whole skin');
+    output.itemId = adapter.insertCosmeticItem(playerId, payload);
+    output.cosmeticSkinId = recipe.cosmeticSkinId;
     output.quality = quality;
   }
 
@@ -1750,7 +1782,11 @@ export function enqueueTintJob(
 
   const info = adapter.cosmeticInfo(playerId, input.itemId);
   if (!info) fail('Item not found');
-  if (info.kind !== 'cosmetic') fail('Item is not a cosmetic part');
+  // Whole skins (slice (d)) share the 'cosmetic' item kind but are
+  // not parts: a tint names a part payload or it does not start.
+  if (info.kind !== 'cosmetic' || typeof info.payload.partId !== 'string') {
+    fail('Item is not a cosmetic part');
+  }
   if (info.runtimeState !== 'available' || info.isLocked) {
     fail('Part is not available for tinting');
   }

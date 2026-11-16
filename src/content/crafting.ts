@@ -30,6 +30,7 @@ import { ROAMING_AREAS } from '../constants/roamingAreas';
 import { MaterialType, Rarity } from '../types/game';
 import type { Affix } from '../types/items';
 import { SKIN_PARTS, TINT_PALETTES, skinPartDelisted } from './skins';
+import { HUNTER_SKINS, type HunterSkinDef } from '../lib/hunters/hunterSkins';
 
 // ─── Levers (§2.10; registered in src/server/economy/config.ts) ─────
 
@@ -220,6 +221,14 @@ export interface CraftRecipe {
    *  src/content/skins.ts SKIN_PARTS). Completion stamps a pending
    *  output the craft finalizer turns into a cosmetic item. */
   cosmeticPartId?: string;
+  /** cosmetic kind (reshape slice (d)): the WHOLE skin this
+   *  recipe produces (an id in lib/hunters/hunterSkins.ts
+   *  HUNTER_SKINS). Completion stamps a pending output the craft
+   *  finalizer turns into a whole-skin item — zero stats, wearable
+   *  only by that skin's hunter. A recipe exists only for a
+   *  PAINTED non-base skin, so this family is empty until a
+   *  painting is commissioned + approved. */
+  cosmeticSkinId?: string;
   /** Per-recipe unit cap at enqueue (prestige crafts: T3 parts and
    *  manufacturer heads are single-unit jobs — brief §6.1). */
   maxUnits?: number;
@@ -706,6 +715,53 @@ export const COSMETIC_RECIPES: CraftRecipe[] = SKIN_PARTS.map((p) => {
   };
 });
 
+/** Whole-skin craft costs (reshape slice (d)), keyed by skin def
+ *  id. Scrap-led like every cosmetic (the skins law: scrap is the
+ *  bulk currency of the lane); a whole skin is a prestige craft —
+ *  priced at or above a full shaped part set's marquee pieces.
+ *  EMPTY today: no non-base skin is painted yet, so no recipe can
+ *  exist. Adding a painted skin def without a cost entry here
+ *  fails module load loudly (the COSMETIC_RECIPES discipline) —
+ *  a painting never ships unpriced by accident. */
+export const WHOLE_SKIN_COSTS: Record<
+  string,
+  { inputs: Record<string, number>; minutes: number; bench: number }
+> = {};
+
+/** One Workshop recipe per PAINTED non-base whole skin (reshape
+ *  slice (d)): kind 'cosmetic', category 'cosmetics', so the
+ *  recipes ride the existing cosmetic lane, finalizer, and
+ *  mastery track. Base skins get NO recipe — Standard Issue is
+ *  owned by definition and is never an item. The derivation is a
+ *  pure function of (catalog, costs) so the lane's behavior for a
+ *  future painted skin is testable before one exists. */
+export function buildWholeSkinRecipes(
+  skins: readonly HunterSkinDef[],
+  costs: Record<string, { inputs: Record<string, number>; minutes: number; bench: number }>,
+): CraftRecipe[] {
+  return skins
+    .filter((skin) => !skin.base)
+    .map((skin) => {
+      const cost = costs[skin.id];
+      if (!cost) throw new Error(`Missing whole-skin craft cost for ${skin.id}`);
+      return {
+        id: `recipe_skin_whole_${skin.id.replace(/-/g, '_')}`,
+        kind: 'cosmetic' as const,
+        name: skin.name,
+        category: 'cosmetics' as const,
+        inputs: cost.inputs,
+        unitDurationMs: cost.minutes * MIN,
+        requiresLevel: 1,
+        requiresBench: cost.bench,
+        station: 'bench' as const,
+        cosmeticSkinId: skin.id,
+        maxUnits: 1,
+      };
+    });
+}
+
+export const WHOLE_SKIN_RECIPES: CraftRecipe[] = buildWholeSkinRecipes(HUNTER_SKINS, WHOLE_SKIN_COSTS);
+
 /** The tint craft (brief §6.2): a short cosmetic job against an
  *  OWNED part item — started by the tint enqueue, never the generic
  *  one. Flat scrap in the recipe inputs; Chromaweave is priced per
@@ -734,6 +790,7 @@ export const ALL_CRAFT_RECIPES: readonly CraftRecipe[] = [
   ...BATCH_RECIPES,
   ...STANDING_RECIPES,
   ...COSMETIC_RECIPES,
+  ...WHOLE_SKIN_RECIPES,
   TINT_RECIPE,
 ];
 

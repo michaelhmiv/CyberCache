@@ -226,6 +226,23 @@ export interface ClassModBindingCheck {
 }
 
 /**
+ * The binding label (reshape slice (d)): what class-mod listings
+ * and the inspect sheet print so the binding speaks before the
+ * equip refusal has to — the owning hunter's name + tree, e.g.
+ * "Vesper Cole · Gunslinger". Null when the mod carries no tree
+ * identity (unbound legacy mods stay unlabeled, as they equip
+ * anywhere the check lets them).
+ */
+export function classModBindingLabel(
+  mod: { treeBonus?: string | null } | null | undefined,
+): string | null {
+  const modTree = mod?.treeBonus ? hunterForTreeName(mod.treeBonus) : undefined;
+  if (!modTree) return null;
+  const owner = hunterForTree(modTree);
+  return `${owner.name} · ${modTree}`;
+}
+
+/**
  * The binding rule (brief §2.3): a class mod equips only on the
  * hunter whose tree it boosts. The check reads the mod's own tree
  * identity (its treeBonus names the tree it boosts).
