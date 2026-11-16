@@ -390,10 +390,11 @@ describe('performance + payload budgets (§4.9)', () => {
     // (family +16,226 B; white compresses, paint does not).
     // Census after: single digits, in family. The ceiling
     // literal follows the total +1.
-    // Cache Hunters slice (c) (2026-11-15): the four Cast B
-    // hunter paintings land (the owner-chosen set; paintings-only
-    // ruling — the stage figure is now a whole painting). All
-    // four register kind 'character' at 384 tall, the
+    // Cache Hunters slices (b) + (c) (2026-11-15): the four Cast B
+    // hunter paintings land (owner ruling 2026-11-15, DESIGN.md
+    // §12; paintings-only on stage — the stage figure is a whole
+    // painting). All four register kind 'character' at their file
+    // dimensions (384 tall, the pixel-key canonical height), the
     // enemy-painting class: hunter-vesper-cole 141,122 B,
     // hunter-silas-boone 134,741 B, hunter-josie-lode 121,478 B,
     // hunter-doc-sutter 106,110 B — family +503,451 B, inside the

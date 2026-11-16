@@ -357,6 +357,7 @@ describe('Hunter menu — the Arena Plates hub (owner pick, 2026-11-05)', () => 
 
     expect(screen.getByTestId('hunter-section-hub')).toBeTruthy();
     for (const id of [
+      'hub-door-roster',
       'hub-door-trees',
       'hub-door-research',
       'hub-door-cache-rank',
@@ -372,15 +373,17 @@ describe('Hunter menu — the Arena Plates hub (owner pick, 2026-11-05)', () => 
   });
 
   it('the trees door reports the real build: per-tree ladders and the unspent gauge', () => {
-    // Level 12 → 11 points earned; 6 spent (3/2/1/0 across the
-    // trees) → 5 unspent.
+    // Level 12 → 11 points earned. Pools are per-hunter (reshape
+    // slice (a)); the gauge reads the FIELDED hunter's pool —
+    // Vesper (Gunslinger) by default: 3 of her points spent →
+    // 8 unspent, whatever the other hunters' pools hold.
     usePlayerStore.setState({ level: 12 });
-    useSkillStore.setState({ spent: { gs_dmg_1: 3, demo_ord_1: 2, scav_idle_1: 1 } });
+    useSkillStore.setState({ activeHunterId: 'vesper', spent: { gs_dmg_1: 3, demo_ord_1: 2, scav_idle_1: 1 } });
     render(<ProfileScreen onNavigate={() => {}} />);
 
     const door = screen.getByTestId('hub-door-trees');
     expect(door.textContent).toContain('Skill Trees');
-    expect(door.textContent).toContain('5 points unspent');
+    expect(door.textContent).toContain('8 points unspent');
     // Each ladder row pairs its tree label with its own spent count.
     for (const [label, count] of [['Gunslinger', '3'], ['Demolition', '2'], ['Scavenger', '1'], ['Fixer', '0']] as const) {
       const labelEl = [...door.querySelectorAll('span')].find((s) => s.textContent === label);
@@ -390,13 +393,15 @@ describe('Hunter menu — the Arena Plates hub (owner pick, 2026-11-05)', () => 
 
     // The hero's announcement chip is the same fact as a door.
     const chip = screen.getByTestId('hunter-announce-points');
-    expect(chip.textContent).toContain('5 skill points to spend');
+    expect(chip.textContent).toContain('8 skill points to spend');
   });
 
   it('the points announcement is quiet when every point is spent', () => {
-    // Level 7 → 6 earned; all 6 spent.
+    // Level 7 → 6 earned; the FIELDED hunter's pool is fully spent
+    // (6 in Gunslinger) — Silas's extra point is his own pool and
+    // does not quiet or wake Vesper's gauge.
     usePlayerStore.setState({ level: 7 });
-    useSkillStore.setState({ spent: { gs_dmg_1: 5, demo_ord_1: 1 } });
+    useSkillStore.setState({ activeHunterId: 'vesper', spent: { gs_dmg_1: 5, gs_dmg_2: 1, demo_ord_1: 1 } });
     render(<ProfileScreen onNavigate={() => {}} />);
 
     expect(screen.queryByTestId('hunter-announce-points')).toBeNull();
