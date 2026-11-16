@@ -15,11 +15,17 @@
  *    rewritten techRename.test.ts). The original collision partner,
  *    Cache Fragments, is deleted from the game's face.
  *
- * (f4) Pell is EXCLUDED from this slice by coordinator ruling (option
+ * (f4) Pell was EXCLUDED from slice (f) by coordinator ruling (option
  * C): contract issuance is DB-driven and dispatch has no named-line
- * channel, so a copy-only recurrence cannot land, and per the brief
- * the naming does not ship alone. The negative pin below guards the
- * exclusion: the string "Pell" must not appear in shipped content.
+ * channel, so a copy-only recurrence could not land, and per the brief
+ * the naming did not ship alone. The negative pin that guarded the
+ * exclusion is SUPERSEDED by follow-on unit F5 (owner-approved
+ * 2026-11-15): the recurrence channel turned out to be the contract
+ * template name itself — card titles are composed in code from
+ * CONTRACT_TEMPLATES, so a template rename lands on every issued card
+ * despite DB-driven issuance. F5 names Pell in the roaming event AND
+ * renames the long_haul template to "Pell's Run" in the same slice;
+ * the (f4) block below is now the positive F5 census.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -31,6 +37,8 @@ import { LEGENDARY_EFFECTS } from '../constants/legendaryEffects';
 import { SKILL_NODES } from '../constants/skillTrees';
 import { ACTION_SKILL_DEFS } from '../content/actionSkills';
 import { MARLA_COUNTER_LINES, MARLA_QUILL_NAME, nextMarlaCounterLine, resetMarlaCounterRotation } from '../lib/vendor/marlaVoice';
+import { ROAMING_EVENTS } from '../content/roamingEvents';
+import { CONTRACT_TEMPLATES, CONTRACT_TEMPLATE_BY_ID } from '../content/contracts';
 import { LEGENDARY_ART_PARITY } from './legendaryParityTable';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -246,19 +254,33 @@ describe('F4 · Clash pass — zero remainder (Ruling 1 scoping)', () => {
   });
 });
 
-// ------------------------------------------------------- (f4) exclusion
-describe('(f4) exclusion · Pell appears nowhere in shipped content', () => {
-  it('the string “Pell” is absent from every shipped source file and wiki page', () => {
-    for (const file of shippedFiles()) {
-      expect(readFileSync(file, 'utf8'), file).not.toMatch(/\bPell\b/);
-    }
-    for (const entry of readdirSync(WIKI_DIR)) {
-      if (entry.endsWith('.md')) {
-        expect(readFileSync(join(WIKI_DIR, entry), 'utf8'), entry).not.toMatch(/\bPell\b/);
-      }
-    }
-    // The Wounded Scavenger event itself stays unnamed in this slice.
-    expect(readSrc('content/roamingEvents.ts')).not.toMatch(/\bPell\b/);
+// ------------------------------------------------------- (f4) → F5 Pell
+// Supersedes the slice-(f) exclusion pin (see the header note): F5 ships
+// the naming WITH the recurrence, per the audit's honesty condition —
+// ≥2 player-visible surfaces or he is orphan #4.
+describe('(f4) → F5 · Pell is named in the event and recurs on the board', () => {
+  it('the Wounded Scavenger event names Pell (id unchanged)', () => {
+    const ev = ROAMING_EVENTS.find((e) => e.id === 'dustwaste_wounded_scavenger');
+    expect(ev).toBeDefined();
+    expect(ev!.name).toBe('Pell, the Wounded Scavenger');
+    expect(ev!.blurb).toContain('Pell flags you down, wounded.');
+    // The story thread: Josie Lode's people owe him a debt.
+    expect(ev!.blurb).toContain("Josie Lode's people still owe him.");
+  });
+
+  it("the long_haul contract template is Pell's Run (id unchanged)", () => {
+    expect(CONTRACT_TEMPLATE_BY_ID.get('long_haul')!.name).toBe("Pell's Run");
+    // Exactly one template carries his name — the recurrence is his alone.
+    expect(CONTRACT_TEMPLATES.filter((t) => /\bPell\b/.test(t.name))).toHaveLength(1);
+  });
+
+  it('census: “Pell” lives on exactly the intended shipped surfaces', () => {
+    const hits = shippedFiles().filter((file) => /\bPell\b/.test(readFileSync(file, 'utf8')));
+    const rel = hits.map((file) => file.slice(ROOT.length + 1)).sort();
+    expect(rel).toEqual(['content/contracts.ts', 'content/roamingEvents.ts', 'server/chef.ts']);
+    // …and the two wiki pages that tell his story.
+    expect(readFileSync(join(WIKI_DIR, 'Contracts.md'), 'utf8')).toMatch(/\bPell\b/);
+    expect(readFileSync(join(WIKI_DIR, 'Actions-and-Occupations.md'), 'utf8')).toMatch(/\bPell\b/);
   });
 });
 
