@@ -30,6 +30,7 @@ import {
   consumableDisplayName,
   consumableIdentityKey,
   cosmeticIdentityKey,
+  skinIdentityKey,
   essenceDisplayName,
   essenceIdentityKey,
   gearCategoryFromPayload,
@@ -679,7 +680,7 @@ export interface MarketListingData {
   seller_name: string | null;
   /** Market depth (0019): browse facts ride on the listing itself. */
   seller_type: 'player' | 'npc';
-  listing_kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
+  listing_kind: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic' | 'skin';
   quantity: number;
   quality_percent: number | null;
   consumable_type: string | null;
@@ -752,7 +753,7 @@ export interface RawItemFields {
 export function browseRowFor(listing: RawListingFields, item: RawItemFields | null): MarketBrowseRow {
   const kind = listing.listing_kind === 'consumable' || listing.listing_kind === 'material' || listing.listing_kind === 'vehicle'
     || listing.listing_kind === 'fragment' || listing.listing_kind === 'core' || listing.listing_kind === 'essence'
-    || listing.listing_kind === 'cosmetic'
+    || listing.listing_kind === 'cosmetic' || listing.listing_kind === 'skin'
     ? listing.listing_kind
     : 'gear';
   const payload = item?.payload ?? {};
@@ -796,6 +797,14 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
     displayName = listing.display_name ?? (typeof payload.name === 'string' ? payload.name : 'Skin Part');
     identityKey = listing.identity_key
       ?? (typeof payload.partId === 'string' ? cosmeticIdentityKey(payload.partId) : null);
+  } else if (kind === 'skin') {
+    // Whole skins (reshape slice (d)): their OWN listing family —
+    // the skin def is the commodity; the buyer wears it on the
+    // def's hunter. Finish rides quality_percent like a part's.
+    category = 'skin';
+    displayName = listing.display_name ?? (typeof payload.name === 'string' ? payload.name : 'Skin');
+    identityKey = listing.identity_key
+      ?? (typeof payload.skinId === 'string' ? skinIdentityKey(payload.skinId) : null);
   } else if (kind === 'vehicle') {
     // Vehicles (0021): browse like gear, bucketed by class + rarity.
     category = 'vehicle';
@@ -838,6 +847,7 @@ export function browseRowFor(listing: RawListingFields, item: RawItemFields | nu
     materialId: listing.material_id ?? null,
     essenceId: listing.essence_id ?? null,
     partId: listing.part_id ?? (typeof payload.partId === 'string' ? payload.partId : null),
+    skinId: typeof payload.skinId === 'string' ? payload.skinId : null,
     tintPaletteId: listing.tint_palette_id ?? (typeof payload.tintPaletteId === 'string' ? payload.tintPaletteId : null),
     identityKey,
     listedAt: Date.parse(listing.listed_at),
@@ -1549,7 +1559,7 @@ export interface MemListing {
   sold_at?: string | null;
   // Market depth (0019) — optional; browseRowFor derives the rest.
   // Sellable resources (0050) add fragment/core/essence + essence_id.
-  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
+  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic' | 'skin';
   quantity?: number;
   quality_percent?: number | null;
   consumable_type?: string | null;

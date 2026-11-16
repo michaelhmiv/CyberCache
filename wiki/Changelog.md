@@ -13,6 +13,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The forge work sits on the anvil now** — at the crafting bench, the piece being worked floated off the front face of the worktop and the hunter's hands stopped short of it across a visible gap of air. He now stands at the anvil itself: the piece, the sparks, and the finished unit's rise all sit on the anvil's top face, on the Home stage and in the workshop's bench scene alike. The crusher and the service lift keep the seats they already had.
 - **Two pictures repainted** — the gap between the crusher's jaw and its body was flat unpainted white inside; it is now the machine's dark steel throat, shadowed the way the jaw would leave it. And the siltstalker's arena wreck — a crashed skimmer half-buried in the silt — has been redrawn as clean pixel work, so it reads as a wreck instead of static.
 - **New hunters choose their first hunter — whenever they're ready** — a new account starts on Vesper Cole and is offered the full roster up front, all four hunters on their plates. There is no wall: tap **Not now** and you are playing, and the choice waits at the Roster, where fielding any hunter — Vesper included — settles it. No hunter is locked behind level, so a level-1 account can open on any of the four.
+- **The Workshop's cosmetic lane belongs to whole skins now** — the Bulwark and Dreadplate part recipes have retired alongside the maker helms: no new parts can be crafted, and no new part listings can be created. Everything you own stays yours as a collection piece, a part listing that was already live still completes for its buyer, and tinting a part you own works exactly as before. In their place: **whole skins** — one painting per hunter, crafted whole in the cosmetic lane, traded on the Market under their own **Skins** category, and earned by **set conversion**: own every part of a set and the set's whole skin is yours (the parts stay in your collection). No set has been painted whole yet, so the lane and the conversion stand ready for the first painted set. A skin is paint, never power — wearing one changes no number on your hunter. Class mod listings and inspect sheets now also name the hunter a mod is bound to, next to its tree.
 - Under the hood: the standings board's kill filter now lives in the game's own code as well as its database, so the two cannot drift apart.
 
 ## 2026-11-15 — The board counts hunters
@@ -393,7 +394,21 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 308 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 316 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+
+**2026-11-16** — 6 merges
+
+- #587 — Cache Hunters slice (b): the Hunter tab — roster, hero, per-hunter trees, whole-skin wardrobe
+- #588 — Cache Hunters slice (c): painted hunter on stage + voice pools
+- #589 — Rulings batch: All Time board top-10 collapse (kill filter specced, blocked on migration drill)
+- #590 — A6: Med Kit / Shield Cell text matches the roaming engine (copy only)
+- #591 — 0098: leaderboard counts only hunters with a kill
+- #592 — Rulings batch-3: boss panel stop transition, C1-01 forge anvil staging, crusher wedge + skimmer wreck repaints
+
+**2026-11-15** — 2 merges
+
+- #593 — Fix vendorBuyQuantity calendar flake: pin the vendor date in the test
+- #594 — Fix dashboardTop Return Sheet flake: wait out the sheet-switch exit
 
 **2026-11-14** — 8 merges
 

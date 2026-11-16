@@ -62,10 +62,10 @@ function rowToListing(row: MarketListingRow): Listing | null {
   const kind: ListingKind = row.listing_kind === 'consumable' || row.listing_kind === 'material'
     || row.listing_kind === 'vehicle'
     || row.listing_kind === 'fragment' || row.listing_kind === 'core' || row.listing_kind === 'essence'
-    || row.listing_kind === 'cosmetic'
+    || row.listing_kind === 'cosmetic' || row.listing_kind === 'skin'
     ? row.listing_kind
     : 'gear';
-  const gear = itemRow && kind !== 'vehicle'
+  const gear = itemRow && kind !== 'vehicle' && kind !== 'skin'
     ? serverItemRowToDisplayGear({
       id: itemRow.id ?? row.id,
       item_level: itemRow.item_level,
@@ -93,7 +93,7 @@ function rowToListing(row: MarketListingRow): Listing | null {
     sellerName: typeof row.seller_name === 'string' ? row.seller_name : '',
     sellerType: row.seller_type === 'npc' ? 'npc' : 'player',
     kind,
-    itemId: gear ? gear.id : (vehicle ? vehicle.id : (kind === 'cosmetic' ? (itemRow?.id ?? null) : null)),
+    itemId: gear ? gear.id : (vehicle ? vehicle.id : (kind === 'cosmetic' || kind === 'skin' ? (itemRow?.id ?? null) : null)),
     itemSnapshot: gear,
     vehicleSnapshot: vehicle,
     category: (row.category as MarketCategory | null) ?? null,
@@ -104,6 +104,7 @@ function rowToListing(row: MarketListingRow): Listing | null {
     materialId: row.material_id ?? null,
     essenceId: row.essence_id ?? null,
     partId: row.part_id ?? (itemRow?.payload && typeof (itemRow.payload as Record<string, unknown>).partId === 'string' ? (itemRow.payload as Record<string, unknown>).partId as string : null),
+    skinId: itemRow?.payload && typeof (itemRow.payload as Record<string, unknown>).skinId === 'string' ? (itemRow.payload as Record<string, unknown>).skinId as string : null,
     tintPaletteId: row.tint_palette_id ?? null,
     identityKey: row.identity_key ?? null,
     weaponType: row.weapon_type ?? null,

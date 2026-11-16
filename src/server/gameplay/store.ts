@@ -1496,10 +1496,16 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       (row) => ({ id: String(row.id) }),
     );
     if (!profile) return null;
+    // Complete-set conversion settles lazily at the head of the
+    // cosmetics read (reshape slice (d), migration 0099): owning
+    // a complete part set grants its whole skins. Idempotent;
+    // grants nothing until a set painting exists.
+    await this.callJson('select public.cc_convert_skin_sets($1) as result', [playerId]);
     const raw = (await this.callJson('select public.cc_cosmetics_view($1) as result', [playerId])) as unknown as {
       selectionExists: boolean;
       selection: { equipped: Record<string, string>; headVariant: string };
       parts: CosmeticsStateView['parts'];
+      skins: CosmeticsStateView['skins'];
       grandfatherHeads: string[];
     };
     // The SQL view reports grandfathered manufacturers (the 0043
@@ -1516,6 +1522,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         headVariant: raw.selection.headVariant,
       },
       parts: raw.parts,
+      skins: raw.skins ?? [],
       wearableVariantIds,
     };
   }

@@ -186,9 +186,14 @@ import {
   HEAD_VARIANT_MANUFACTURERS,
   isCosmeticSlot,
   type CosmeticPartItemView,
+  type CosmeticSkinItemView,
   type CosmeticsStateView,
   type HunterLookView,
 } from '../../content/skins';
+import {
+  buildCosmeticSkinPayload,
+  evaluateSetConversions,
+} from '../../lib/hunters/hunterSkins';
 import {
   accrueExtractionTime,
   finalizeExtractionPasses,
@@ -1345,13 +1350,72 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
   // cc_cosmetic_unequip / cc_cosmetic_set_head_variant /
   // cc_hunter_look_view — same gates, same messages.
 
+  /** Complete-set conversion (reshape slice (d); the twin of
+   *  cc_convert_skin_sets): owning every part of a set grants that
+   *  set's whole skin for each hunter it is painted for. Runs at
+   *  the head of the cosmetics read (the lazy-settle pattern);
+   *  idempotent — a held skin is never re-granted — and parts are
+   *  never consumed. With today's catalog (no set paintings) this
+   *  grants nothing. */
+  private convertSkinSets(playerId: string): void {
+    const ownedPartIds = new Set<string>();
+    const heldSkinIds = new Set<string>();
+    for (const item of this.items.values()) {
+      if (item.owner_user_id !== playerId || item.kind !== 'cosmetic') continue;
+      const payload = item.payload ?? {};
+      // A skin is HELD while any live row names it — a listed skin
+      // is escrowed, not gone (the SQL twin's rule); salvaged /
+      // consumed rows are gone and never block a re-grant.
+      if (typeof payload.skinId === 'string'
+        && item.runtime_state !== 'salvaged' && item.runtime_state !== 'consumed') {
+        heldSkinIds.add(payload.skinId);
+      }
+      if (item.runtime_state !== 'available' && item.runtime_state !== 'locked') continue;
+      if (typeof payload.partId === 'string') ownedPartIds.add(payload.partId);
+    }
+    for (const skin of evaluateSetConversions(ownedPartIds, heldSkinIds)) {
+      const payload = buildCosmeticSkinPayload(skin.id, 100, 'converted', null);
+      if (!payload) continue;
+      const item: InMemoryItem = {
+        id: randomUUID(),
+        owner_user_id: playerId,
+        kind: 'cosmetic',
+        runtime_state: 'available',
+        is_locked: false,
+        rarity: 'Common',
+        item_level: 1,
+        estimated_value: 0,
+        supply_mode: 'verified_action',
+        tradeable: true,
+        equipped_slot: null,
+        payload: { ...payload },
+      };
+      this.items.set(item.id, item);
+    }
+  }
+
   private cosmeticsView(playerId: string): CosmeticsStateView {
+    this.convertSkinSets(playerId);
     const sel = this.skinSelections.get(playerId);
     const parts: CosmeticPartItemView[] = [];
+    const skins: CosmeticSkinItemView[] = [];
     for (const item of this.items.values()) {
       if (item.owner_user_id !== playerId || item.kind !== 'cosmetic') continue;
       if (item.runtime_state !== 'available' && item.runtime_state !== 'locked') continue;
       const payload = item.payload ?? {};
+      if (typeof payload.skinId === 'string') {
+        skins.push({
+          id: item.id,
+          skinId: payload.skinId,
+          hunterId: String(payload.hunterId ?? ''),
+          name: String(payload.name ?? ''),
+          setId: typeof payload.setId === 'string' ? payload.setId : null,
+          quality: Number(payload.quality ?? 0),
+          origin: payload.origin === 'converted' ? 'converted' : 'crafted',
+          runtimeState: item.runtime_state,
+        });
+        continue;
+      }
       parts.push({
         id: item.id,
         name: String(payload.name ?? ''),
@@ -1379,6 +1443,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         headVariant: sel?.headVariant ?? 'visor',
       },
       parts,
+      skins,
       wearableVariantIds,
     };
   }
