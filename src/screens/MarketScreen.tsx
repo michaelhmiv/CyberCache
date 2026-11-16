@@ -1093,7 +1093,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
                       </button>
                     </div>
                     <SalesGuidance stats={stats} />
-                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
                     <ListingDepositLabel />
                   </div>
                 );
@@ -1103,7 +1103,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
 
           {ownedSkins.length > 0 && (
             <>
-              <div className="pt-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Skins</div>
+              <div className="pt-2 text-[11px] font-black uppercase tracking-wider text-text-muted">Skins</div>
               {ownedSkins.map((skin) => {
                 const key = skinIdentityKey(skin.skinId);
                 const stats = priceStats[key];
@@ -1119,7 +1119,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
                       </button>
                     </div>
                     <SalesGuidance stats={stats} />
-                    <div className="text-[10px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
+                    <div className="text-[11px] text-text-muted">You receive {preview.sellerProceeds.toLocaleString()}cr after the {preview.pctLabel}% market fee (−{preview.fee.toLocaleString()}cr)</div>
                     <ListingDepositLabel />
                   </div>
                 );
