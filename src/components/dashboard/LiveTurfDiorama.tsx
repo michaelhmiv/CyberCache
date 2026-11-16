@@ -833,11 +833,22 @@ const PixelSceneLayerDom: React.FC<{
   // anchor, so the shared xPct (60) stays exact; only the height
   // derives. The crafting lane's bench is #447's own build, not
   // the V2-authored bench, so its seat row does not describe the
-  // shipped art and the lane keeps the point #447 tuned for it.
+  // shipped art. Its point is C1-01's measured anvil point
+  // (rulings batch-3, 2026-11-15): the bench actor stands at
+  // xPct 60 with feet anchor 0.4972, putting its left edge at
+  // ≈45.0 and the anvil (centre ≈0.235 of the sprite's width)
+  // at stage x ≈52; the anvil's top face sits ≈6 points above
+  // the old fallback point, so the seat rides the slab instead
+  // of floating off its front face (CP2's forge finding).
   const workSeatPieceId = mode === 'salvaging' ? 'set-refinery-crusher' : mode === 'workshopService' ? 'set-bay-lift' : null;
   const workSeat = workSeatPieceId ? SET_SEATS[workSeatPieceId]?.seat ?? null : null;
   const workSeatHeightPct = mode === 'salvaging' ? 34 : 36;
-  const workPointYPct = workSeat ? seatPointTopPct(workSeat, workSeatHeightPct, groundY) : (groundY - 0.17) * 100;
+  const workPointYPct = workSeat
+    ? seatPointTopPct(workSeat, workSeatHeightPct, groundY)
+    : mode === 'crafting'
+      ? (groundY - 0.23) * 100
+      : (groundY - 0.17) * 100;
+  const workPointXPct = mode === 'crafting' ? 52 : 60;
   // Salvage completion beat (M4b): salvaging has no workshop
   // mirror, so its completions arrive on the salvage feed — the
   // store every recycle result already pushes to. A fresh settled
@@ -951,7 +962,10 @@ const PixelSceneLayerDom: React.FC<{
   // 22% mark holds (boss staging is its own composition); roaming
   // reads ROAM_HUNTER_PLACEMENT — roamChoreography owns the mark.
   const hunterPlacement: ActorPlacement = {
-    xPct: idleCamp ? 52.6 : bossOnStage ? 22 : ROAM_HUNTER_PLACEMENT.xPct,
+    // Crafting holds its own mark (C1-01, rulings batch-3): at
+    // the shared roam mark the working hand stopped ≈10 points
+    // short of the bench; xPct 22 lands it at the anvil.
+    xPct: idleCamp ? 52.6 : bossOnStage ? 22 : mode === 'crafting' ? 22 : ROAM_HUNTER_PLACEMENT.xPct,
     heightPct: ROAM_HUNTER_PLACEMENT.heightPct,
     groundY,
   };
@@ -1165,7 +1179,7 @@ const PixelSceneLayerDom: React.FC<{
           spec={benchSpec}
           active={benchWorking && !benchCelebrating}
           reduced={reduced}
-          xPct={60}
+          xPct={workPointXPct}
           yPct={workPointYPct}
           testId="bench-fx"
         />
@@ -1194,7 +1208,7 @@ const PixelSceneLayerDom: React.FC<{
         <div
           data-testid="bench-seat"
           className="pointer-events-none absolute z-20 flex items-center justify-center"
-          style={{ left: '60%', top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+          style={{ left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
         >
           <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
         </div>
@@ -1206,7 +1220,7 @@ const PixelSceneLayerDom: React.FC<{
         <StageRise
           key={benchCompletionKey(activeBenchCompletion)}
           testId="bench-completion-rise"
-          xPct={60}
+          xPct={workPointXPct}
           yPct={workPointYPct}
           width={46}
           height={46}

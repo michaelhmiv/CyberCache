@@ -402,6 +402,18 @@ describe('performance + payload budgets (§4.9)', () => {
     // No existing sprite is modified or removed by the landing.
     // Manifest total 36,220,493 → 36,723,944 B; the ceiling
     // literal follows the total +1.
-    expect(total).toBeLessThan(36_723_944 + 1);  });
+    // Rulings batch-3 pixel leg (2026-11-15): the crusher-jaw
+    // wedge interior — flat unpainted white enclosed between
+    // the jaw and the body — is painted in the sprite's own
+    // steel-shadow family, palette-surgical in the shipped
+    // palette-256 form: set-refinery-crusher 256,953 ->
+    // 277,898 B (+20,945; white compresses, paint does not).
+    // The siltstalker arena prop is re-authored as a deliberate
+    // texel sprite under pxl-craft (the painterly downscale
+    // read as noise at 64x46): arena-prop-skimmer-wreck
+    // 6,375 -> 493 B (−5,882). Net +15,063 B on top of the
+    // hunters' total: 36,723,944 → 36,739,007 B; the ceiling
+    // literal follows the total +1.
+    expect(total).toBeLessThan(36_739_007 + 1);  });
 
 });

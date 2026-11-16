@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Lock } from 'lucide-react';
 import type { BossDef, PhaseAnalysis } from '../../types/boss';
 import { RiskSetting } from '../../types/game';
@@ -10,6 +10,7 @@ import { RARITIES } from '../../constants/rarities';
 import { getBossRiskModifiers } from '../../lib/simulation/bossSimulator';
 import { buildBossFightActivity } from '../../lib/activity/activityBuilders';
 import { buildInitialTimeline, runFightAnimation, type FightOutcome, type FightTimeline } from '../../lib/animation/fightTimeline';
+import { stopTransitionProps } from '../../lib/animation/uiMotion';
 import { getActionSkillState, verifyBossFight, type ChefVerifyBossResult } from '../../lib/chef/chefClient';
 import { ACTION_SKILL_DEFS, type ActionSkillStateView } from '@/content/actionSkills';
 import { cacheRankBonuses } from '@/content/cacheRank';
@@ -548,7 +549,13 @@ export const BossEncounterPanel: React.FC<{
           with the detail-crop cell. Everything below the header row is
           the panel's unchanged vitals/intel body. */}
       <div className="relative overflow-hidden border-2 border-red/40 bg-red/[0.06] p-3" style={panelClip}>
+        {/* The header's top row is a stop swap too (full Arena
+            Plate at prep, compact row once the fight starts) —
+            it rides the same §10 stop transition as the stage
+            blocks below instead of cutting. */}
+        <AnimatePresence mode="wait" initial={false}>
         {stage === 'prep' ? (
+          <motion.div key="prep-plate" {...stopTransitionProps(reducedMotion)}>
           <BossArenaPlate
             boss={boss}
             action={(
@@ -562,7 +569,9 @@ export const BossEncounterPanel: React.FC<{
               </button>
             )}
           />
+          </motion.div>
         ) : (
+          <motion.div key="fight-row" {...stopTransitionProps(reducedMotion)}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <BossCell bossId={boss.id} size={48} />
@@ -575,7 +584,9 @@ export const BossEncounterPanel: React.FC<{
               Change Boss
             </button>
           </div>
+          </motion.div>
         )}
+        </AnimatePresence>
         <div className="mt-3">
           <BossVitals boss={boss} />
         </div>
@@ -603,7 +614,16 @@ export const BossEncounterPanel: React.FC<{
         <AttackPattern boss={boss} />
       </div>
 
-      {stage === 'fighting' && fightTimeline && (
+      {/* Stage stops (rulings batch, 2026-11-15): prep / fighting /
+          result are stops on one panel, so the swap rides the §10
+          stop transition (uiMotion.stopTransitionProps) under
+          AnimatePresence — it was a hard cut, and the result card
+          carried a hand-rolled entrance the motion vocabulary
+          never named. Chrome motion only: the fight's Sample-B
+          pacing lives inside FightCard and is untouched. */}
+      <AnimatePresence mode="wait" initial={false}>
+      {stage === 'fighting' && fightTimeline ? (
+        <motion.div key="fighting" {...stopTransitionProps(reducedMotion)}>
         <FightCard
           timeline={fightTimeline}
           phases={animationPhases}
@@ -614,10 +634,9 @@ export const BossEncounterPanel: React.FC<{
           accountHp={accountHp}
           accountHpMax={accountHpMax}
         />
-      )}
-
-      {stage === 'prep' && (
-        <>
+        </motion.div>
+      ) : stage === 'prep' ? (
+        <motion.div key="prep" {...stopTransitionProps(reducedMotion)} className="space-y-3">
           {/* Phase intel — what the boss does, in order. Intel only. */}
           <MobileCard className="space-y-2">
             <div className="text-[9px] font-black uppercase tracking-[0.22em] text-amber">Phase Intel</div>
@@ -777,13 +796,10 @@ export const BossEncounterPanel: React.FC<{
           {unlocked && feeMultiplier > 1 && (
             <div className="text-center text-[10px] text-amber">Rematch fee escalated ×{feeMultiplier} — {victoriesToday} {victoriesToday === 1 ? 'victory' : 'victories'} today. Resets at 00:00 UTC.</div>
           )}
-        </>
-      )}
-
-      {stage === 'result' && result && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
+        </motion.div>
+      ) : stage === 'result' && result ? (
+        <motion.div key="result" {...stopTransitionProps(reducedMotion)} className="space-y-3">
+        <div
           className={`space-y-2 border-2 p-4 text-center ${result.result.victory ? 'border-green/40 bg-green/10' : 'border-red/40 bg-red/10'}`}
           style={panelClip}
           data-testid="boss-result"
@@ -858,8 +874,10 @@ export const BossEncounterPanel: React.FC<{
             <button type="button" onClick={fightAgain} className="bl-primary py-2.5 text-xs font-black">Fight Again</button>
             <button type="button" onClick={onLeave} className="bl-secondary py-2.5 text-xs font-black text-text-secondary">Leave Encounter</button>
           </div>
+        </div>
         </motion.div>
-      )}
+      ) : null}
+      </AnimatePresence>
 
       {/* Boss LootMoment over the victory result — the rarity ladder
           for the drops the Chef actually awarded (already synced to

@@ -3,15 +3,6 @@
   "startDate": "2026-11-01",
   "days": [
     {
-      "date": "2026-11-15",
-      "merges": [
-        {
-          "number": 593,
-          "title": "Fix vendorBuyQuantity calendar flake: pin the vendor date in the test"
-        }
-      ]
-    },
-    {
       "date": "2026-11-14",
       "merges": [
         {
