@@ -394,9 +394,13 @@ describe('gearDropFromEvent — tick-feed adapter', () => {
     expect(gearDropFromEvent(event({ gear }))).toBe(gear);
   });
 
-  it('never treats a hit tick (tone loot, negative label) as a drop', () => {
-    expect(gearDropFromEvent(event({ label: '-45', value: 45 }))).toBeNull();
-    expect(gearDropFromEvent(event({ label: '-45', value: 45, gear: makeWeapon() }))).toBeNull();
+  it('never treats a hit tick (tone hit) as a drop', () => {
+    // The Chef's damage pushes carry tone 'hit' (Inkling Round 1
+    // tone seam); the pre-seam fixture (tone 'loot' + a negative
+    // label) encoded the retired label inference isTickHit used to
+    // run. A hit is never a drop, even with a gear payload attached.
+    expect(gearDropFromEvent(event({ tone: 'hit', label: '-45 HP', value: 45 }))).toBeNull();
+    expect(gearDropFromEvent(event({ tone: 'hit', label: '-45 HP', value: 45, gear: makeWeapon() }))).toBeNull();
   });
 
   it('ignores non-loot tones and missing gear', () => {
