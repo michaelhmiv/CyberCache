@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
-import { useKillCycleStore, useLoadoutStore, useTickFeedStore } from '@/store';
+import { useKillCycleStore, useLoadoutStore, useSkillStore, useTickFeedStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -139,6 +139,13 @@ export const RoamHarnessPage: React.FC = () => {
   // harness's first render — before the diorama mounts — so the
   // Pixi init's one mount-time read and the DOM plate both see it.
   useState(() => {
+    // ?hunter=vesper|silas|josie|doc: seed the fielded hunter during
+    // the harness's first render (capture-swap branch only — the
+    // eyeball pass for slice (c)'s painted stage figure).
+    const hunter = params.get('hunter');
+    if (hunter === 'vesper' || hunter === 'silas' || hunter === 'josie' || hunter === 'doc') {
+      useSkillStore.setState({ activeHunterId: hunter });
+    }
     const which = params.get('vehicle');
     if (which === 'bike' || which === 'buggy') {
       useVehicleStore.setState({ vehicles: [HARNESS_BIKE, HARNESS_BUGGY] });

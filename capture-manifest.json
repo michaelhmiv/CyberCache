@@ -1,0 +1,71 @@
+{
+ "captures": [
+  {
+   "label": "vesper-roam-dom",
+   "expect": [
+    "vesper-roam-dom"
+   ],
+   "path": "/roam-harness.html?scene=idle&renderer=dom&hunter=vesper&width=412",
+   "plan": "capture/plans/vesper-roam-dom.json"
+  },
+  {
+   "label": "vesper-roam-pixi",
+   "expect": [
+    "vesper-roam-pixi"
+   ],
+   "path": "/roam-harness.html?scene=idle&renderer=pixi&hunter=vesper&width=412",
+   "plan": "capture/plans/vesper-roam-pixi.json"
+  },
+  {
+   "label": "silas-roam-dom",
+   "expect": [
+    "silas-roam-dom"
+   ],
+   "path": "/roam-harness.html?scene=idle&renderer=dom&hunter=silas&width=412",
+   "plan": "capture/plans/silas-roam-dom.json"
+  },
+  {
+   "label": "silas-roam-pixi",
+   "expect": [
+    "silas-roam-pixi"
+   ],
+   "path": "/roam-harness.html?scene=idle&renderer=pixi&hunter=silas&width=412",
+   "plan": "capture/plans/silas-roam-pixi.json"
+  },
+  {
+   "label": "josie-roam-dom",
+   "expect": [
+    "josie-roam-dom"
+   ],
+   "path": "/roam-harness.html?scene=idle&renderer=dom&hunter=josie&width=412",
+   "plan": "capture/plans/josie-roam-dom.json"
+  },
+  {
+   "label": "josie-roam-pixi",
+   "expect": [
+    "josie-roam-pixi"
+   ],
+   "path": "/roam-harness.html?scene=idle&renderer=pixi&hunter=josie&width=412",
+   "plan": "capture/plans/josie-roam-pixi.json"
+  },
+  {
+   "label": "doc-roam-dom",
+   "expect": [
+    "doc-roam-dom"
+   ],
+   "path": "/roam-harness.html?scene=idle&renderer=dom&hunter=doc&width=412",
+   "plan": "capture/plans/doc-roam-dom.json"
+  },
+  {
+   "label": "doc-roam-pixi",
+   "expect": [
+    "doc-roam-pixi"
+   ],
+   "path": "/roam-harness.html?scene=idle&renderer=pixi&hunter=doc&width=412",
+   "plan": "capture/plans/doc-roam-pixi.json"
+  }
+ ],
+ "harnessPage": "/roam-harness.html",
+ "iter": "slice-c-eyeball",
+ "port": 7131
+}
