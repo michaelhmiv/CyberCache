@@ -56,7 +56,7 @@ import { SkillTreeScreen } from './SkillTreeScreen';
 import { CollectionsScreen } from './CollectionsScreen';
 import { LeaderboardsScreen } from './LeaderboardsScreen';
 import { useAuth } from '@/auth/AuthProvider';
-import { isGuestAccount } from '@/auth/accountState';
+import { isGuestAccount, needsHunterPick } from '@/auth/accountState';
 import { getMyProfileSummary, type ProfileSummary } from '@/lib/api/usernameService';
 import { UsernameSetupModal } from '@/components/profile/UsernameSetupModal';
 import { resolveSceneLabel } from '@/lib/dashboard/sceneLabel';
@@ -133,7 +133,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const inventory = useInventoryStore();
   const skillStore = useSkillStore();
   const deathLog = useSurvivalStore((s) => s.deathLog);
-  const { account, user, signOut, signInWithGoogle, actionLoading } = useAuth();
+  const { account, user, signOut, signInWithGoogle, actionLoading, refreshAccount } = useAuth();
+  // Slice (e): a deferred starting-hunter pick completes at the
+  // Roster stop below; the account refresh after a completing
+  // fielding is what retires the pick head.
+  const hunterPickPending = needsHunterPick(account);
   const [stats, setStats] = useState<PlayerPublicStats | null>(null);
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -624,7 +628,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       {stopSection('roster', (
         <>
           <PlatesBackRow stopLabel={STOP_LABELS.roster} onBack={() => goToStop('hub')} />
-          <RosterPanel onOpenTrees={() => goToStop('trees')} />
+          <RosterPanel
+            onOpenTrees={() => goToStop('trees')}
+            pickPending={hunterPickPending}
+            onPickComplete={() => void refreshAccount()}
+          />
         </>
       ))}
 

@@ -14,6 +14,8 @@ Signing in **upgrades your guest account in place**: you keep the same account, 
 
 **Your hunter name can wait.** Signing in offers you the name other hunters will see, but nothing waits on it: claim it when you're ready, or tap **Not now** and play. The game asks again when you first reach the [[Leaderboards-and-Streaks|standings]] — the name matters there, because it's the name on the board.
 
+**Your starting hunter can wait, too.** A new account fields **Vesper Cole** by default, and starting out offers you the full choice of the four [[Progression|Cache Hunters]]. Tap **Not now** and you are playing immediately; the choice then waits at **Hunter → Roster**, where it completes the first time you field a hunter there — confirming Vesper herself counts. The choice is never locked to level: a level-1 account can field any of the four, and switching later is free — level, arsenal, and progress are shared, and each hunter keeps their own skill pool and loadout.
+
 ## The starter bundle
 
 Every new hunter receives the **starter bundle** automatically, once, the first time your profile loads:

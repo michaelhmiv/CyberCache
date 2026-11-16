@@ -22,7 +22,7 @@ Your progress is glanceable without opening your profile: Home's **Now** feed ca
 
 ## Four hunters, one account
 
-You field one of four **Cache Hunters** at a time — **Vesper Cole** (Gunslinger), **Silas Boone** (Demolition), **Josie Lode** (Scavenger), and **Doc Sutter** (Fixer). Switch at **Hunter → Roster**: each hunter's plate shows their painting, tree, base perk, and their own pool's spent and unspent points.
+You field one of four **Cache Hunters** at a time — **Vesper Cole** (Gunslinger), **Silas Boone** (Demolition), **Josie Lode** (Scavenger), and **Doc Sutter** (Fixer). Switch at **Hunter → Roster**: each hunter's plate shows their painting, tree, base perk, and their own pool's spent and unspent points. A new account starts on Vesper Cole by default — the starting-hunter pick is offered at first launch, can be deferred with **Not now**, and completes at this Roster the first time any hunter is fielded; no hunter is ever locked behind level.
 
 Switching is a change of who is in the field, not a new character: your **level and XP are one shared account level**, and the **arsenal is shared** — every weapon, legendaries included, stays in the one pool. What each hunter keeps separately is their **skill pool** (below), their **loadout** (switching saves the outgoing hunter's equipped set and equips the incoming hunter's saved set; the belt is shared), and their **look** (see [[Skins and Cosmetics]]). The action skill you bring to a fight is your fielded hunter's signature, charged from one shared pool. Cache Rank applies to whichever hunter is fielded.
 

@@ -15,6 +15,14 @@
  * Guests see the same roster with the same real data (Guest
  * Visibility Law): the switch is not an economy transaction and
  * the server op carries no guest gate, so no lock lives here.
+ *
+ * Slice (e): this stop is also where a deferred starting-hunter
+ * pick completes. While the pick is pending (the account has
+ * never fielded a hunter), the stop carries the pick head and
+ * every plate — the defaulted hunter's included — acts as the
+ * choice: fielding stamps the profile's active_hunter_id
+ * server-side, which is the completion itself. No modal ever
+ * re-interrupts play to ask again (brief §4(e)).
  */
 import React, { useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
@@ -23,13 +31,18 @@ import { HUNTERS, hunterById, spendsForHunter, type HunterDef } from '@/lib/hunt
 import { skillSpendCost } from '@/lib/skills/skillBonuses';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import { getPixelSprite, pixelHunterSpriteForHunter } from '@/lib/pixel/manifest';
-import { newActionSkillNonce, setActiveHunter } from '@/lib/chef/chefClient';
-import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
-import { syncRuntimeItemsForUser } from '@/lib/api/runtimeStateService';
+import { fieldHunter } from '@/lib/hunters/fieldHunter';
 import { Bolts, PlateFootStrip } from './HunterPlates';
 import { AMBER, BONE, BONE_FAINT, BONE_MUTED, STEEL, plateShell } from './hunterPlateTheme';
 
-export const RosterPanel: React.FC<{ onOpenTrees: () => void }> = ({ onOpenTrees }) => {
+export const RosterPanel: React.FC<{
+  onOpenTrees: () => void;
+  /** Slice (e): the starting-hunter pick is still pending —
+   * this stop is its completion surface. */
+  pickPending?: boolean;
+  /** Fired after a fielding that completed the pending pick. */
+  onPickComplete?: () => void;
+}> = ({ onOpenTrees, pickPending = false, onPickComplete }) => {
   const player = usePlayerStore();
   const skillStore = useSkillStore();
   const [busyHunterId, setBusyHunterId] = useState<string | null>(null);
@@ -39,22 +52,17 @@ export const RosterPanel: React.FC<{ onOpenTrees: () => void }> = ({ onOpenTrees
   const activeHunter = hunterById(skillStore.activeHunterId);
 
   const switchHunter = async (hunter: HunterDef) => {
-    if (busyHunterId || hunter.id === skillStore.activeHunterId) return;
-    const previous = skillStore.activeHunterId;
+    if (busyHunterId) return;
+    // Outside a pending pick, tapping the fielded hunter is a
+    // no-op. While the pick is pending it is the choice itself:
+    // fielding the defaulted hunter stamps the pick complete.
+    if (hunter.id === skillStore.activeHunterId && !pickPending) return;
     setError(null);
     setBusyHunterId(hunter.id);
-    // Optimistic: the tab re-heads itself at once; the server
-    // snapshot below is the authority and a failure rolls back.
-    skillStore.setActiveHunter(hunter.id);
     try {
-      const result = await setActiveHunter({
-        nonce: newActionSkillNonce('hunter'),
-        hunterId: hunter.id,
-      });
-      syncVerifiedResult({ profile: result.profile });
-      await syncRuntimeItemsForUser('');
+      await fieldHunter(hunter.id);
+      if (pickPending) onPickComplete?.();
     } catch (err) {
-      skillStore.setActiveHunter(previous);
       setError(err instanceof Error ? err.message : 'Hunter switch failed');
     } finally {
       setBusyHunterId(null);
@@ -63,6 +71,13 @@ export const RosterPanel: React.FC<{ onOpenTrees: () => void }> = ({ onOpenTrees
 
   return (
     <div className="space-y-2" data-testid="roster-panel">
+      {pickPending && (
+        <div data-testid="roster-pick-head" className="px-1">
+          <div className="text-[15px] font-black uppercase tracking-wide" style={{ color: BONE }}>
+            Choose your hunter
+          </div>
+        </div>
+      )}
       <div className="px-1 text-[11px] font-semibold" style={{ color: BONE_FAINT }}>
         Shared arsenal · shared level · own tree, own loadout, own points
       </div>
@@ -81,7 +96,7 @@ export const RosterPanel: React.FC<{ onOpenTrees: () => void }> = ({ onOpenTrees
             type="button"
             data-testid={`roster-hunter-${hunter.id}`}
             onClick={() => void switchHunter(hunter)}
-            disabled={isActive || busyHunterId !== null}
+            disabled={busyHunterId !== null || (isActive && !pickPending)}
             className="relative block w-full overflow-hidden text-left transition-transform active:scale-[0.99] disabled:opacity-100"
             style={{
               ...plateShell,
@@ -130,6 +145,15 @@ export const RosterPanel: React.FC<{ onOpenTrees: () => void }> = ({ onOpenTrees
                 >
                   <PxIcon name="chevs" size={13} />
                   {isBusy ? 'Fielding…' : 'Field'}
+                </span>
+              )}
+              {isActive && pickPending && (
+                <span
+                  className="flex min-h-[44px] shrink-0 items-center gap-1 px-2 text-[11px] font-black uppercase tracking-wide"
+                  style={{ color: busyHunterId ? BONE_FAINT : AMBER }}
+                >
+                  <PxIcon name="chevs" size={13} />
+                  {isBusy ? 'Fielding…' : 'Confirm'}
                 </span>
               )}
             </div>

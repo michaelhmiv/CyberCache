@@ -173,7 +173,7 @@ async function newGuestContext(browser) {
   return { context, page, responses, failures, pageErrors, consoleMsgs };
 }
 
-async function guestSignIn(page, { dismissCollect = true } = {}) {
+async function guestSignIn(page, { dismissCollect = true, dismissHunterPick = true } = {}) {
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await page.getByText('Continue as Guest', { exact: false }).first().click({ timeout: 30000 });
   await page.waitForFunction(
@@ -187,6 +187,24 @@ async function guestSignIn(page, { dismissCollect = true } = {}) {
       .first()
       .click({ timeout: 8000 })
       .catch(() => {});
+  }
+  if (dismissHunterPick) {
+    // Slice (e): a fresh guest now meets the starting-hunter pick
+    // at boot — an overlay over Home until it is answered. A
+    // player taps "Not now" and plays; the lane does the same so
+    // the cases play the game they were written against. The
+    // pick's own case opts out and drives the sheet itself. The
+    // sheet rides the account load, so poll briefly for it; its
+    // absence inside the window is tolerated like the Collect
+    // dismissal above.
+    for (let i = 0; i < 20; i++) {
+      const up = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-pick-sheet"]')).catch(() => false);
+      if (up) {
+        await page.locator('[data-testid="hunter-pick-not-now"]').first().click({ timeout: 8000 }).catch(() => {});
+        break;
+      }
+      await sleep(500);
+    }
   }
   await page.waitForFunction((m) => eval(m), MARKERS.HOME, { timeout: 30000 });
 }
@@ -1417,6 +1435,105 @@ async function caseHunterSliceB(browser) {
   return c;
 }
 
+// ── Case: Cache Hunters slice (e) — the starting-hunter pick ────
+// Brief checks E1/E2/E4 against a FRESH GUEST session (E3's live
+// leg is the owner's Pixel device pass; its preservation is
+// pinned in the vitest suite). The guest is level 1 by
+// construction, so fielding a non-default hunter below IS the
+// no-level-lock evidence (E4).
+async function caseHunterPickSliceE(browser) {
+  const c = new Case('hunter-pick-slice-e');
+  const { context, page } = await newGuestContext(browser);
+  try {
+    // This case drives the pick sheet itself — the shared
+    // sign-in helper must not dismiss it first.
+    await guestSignIn(page, { dismissHunterPick: false });
+
+    // E1: the boot invitation offers the pick — four plates and
+    // the "Not now" door — to a brand-new account.
+    let sheetUp = false;
+    for (let i = 0; i < 40 && !sheetUp; i++) {
+      sheetUp = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-pick-sheet"]')).catch(() => false);
+      if (!sheetUp) await sleep(500);
+    }
+    if (!sheetUp) {
+      const stuck = await page.evaluate(() => document.body.innerText.slice(0, 300)).catch(() => '');
+      await shot(page, 'hunter-pick-e-no-sheet.png');
+      c.check('E1 fresh guest is offered the starting-hunter pick', false, `stuck on: ${stuck.replace(/\s+/g, ' ').slice(0, 200)}`);
+      return c;
+    }
+    c.check('E1 fresh guest is offered the starting-hunter pick', true);
+    const plates = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="hunter-pick-"]')].map((el) => el.getAttribute('data-testid')));
+    c.check(
+      'E1 the pick offers all four hunters',
+      ['vesper', 'silas', 'josie', 'doc'].every((id) => plates.includes(`hunter-pick-${id}`)),
+      JSON.stringify(plates),
+    );
+
+    // E1: defer — the sheet closes and the account is playing
+    // immediately on the default hunter (Vesper Cole headlines
+    // the Hunter hero at level 1).
+    await page.locator('[data-testid="hunter-pick-not-now"]').click({ timeout: 15000 });
+    let sheetGone = false;
+    for (let i = 0; i < 20 && !sheetGone; i++) {
+      sheetGone = await page.evaluate(() => !document.querySelector('[data-testid="hunter-pick-sheet"]')).catch(() => false);
+      if (!sheetGone) await sleep(500);
+    }
+    c.check('E1 "Not now" closes the pick', sheetGone);
+    await page.getByRole('button', { name: /^Collect$/ }).first().click({ timeout: 3000 }).catch(() => {});
+    const homeLive = await page.evaluate((m) => eval(m), MARKERS.HOME).catch(() => false);
+    c.check('E1 deferred account is on the live Home stage', homeLive);
+
+    await clickTab(page, 'HUNTER');
+    let hubUp = false;
+    for (let i = 0; i < 40 && !hubUp; i++) {
+      hubUp = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-section-hub"]')).catch(() => false);
+      if (!hubUp) await sleep(500);
+    }
+    c.check('E1 deferred guest reaches the Hunter hub', hubUp);
+    const hero = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="hunter-hero"]');
+      return el ? el.textContent : '';
+    });
+    c.check('E1 deferred account plays on the default hunter', /Vesper Cole/.test(hero), hero.slice(0, 80));
+    c.check('E4 the fresh account is level 1', /Level 1/.test(hero), hero.slice(0, 80));
+
+    // E2: no modal re-interrupts play in between — the sheet
+    // stayed down through the tab travel — and the pick
+    // resurfaces in place at the Roster door.
+    const sheetBack = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-pick-sheet"]'));
+    c.check('E2 no modal re-interrupts play after deferral', !sheetBack);
+    await page.locator('[data-testid="hub-door-roster"]').click({ timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('[data-testid="roster-panel"]'), null, { timeout: 15000 });
+    const pickHead = await page.evaluate(() => !!document.querySelector('[data-testid="roster-pick-head"]'));
+    c.check('E2 the deferred pick resurfaces at the Roster door', pickHead);
+
+    // E4 + E2: the level-1 guest fields Doc Sutter at the roster
+    // — any level lock would refuse or hide the switch — and
+    // the pick completes: the pick head retires.
+    await page.locator('[data-testid="roster-hunter-doc"]').click({ timeout: 15000 });
+    let fielded = false;
+    for (let i = 0; i < 30 && !fielded; i++) {
+      fielded = await page.evaluate(() => {
+        const el = document.querySelector('[data-testid="roster-hunter-doc"]');
+        return !!el && /Fielded/.test(el.textContent);
+      });
+      if (!fielded) await sleep(500);
+    }
+    c.check('E4 level-1 guest fields a non-default hunter', fielded);
+    let headGone = false;
+    for (let i = 0; i < 30 && !headGone; i++) {
+      headGone = await page.evaluate(() => !document.querySelector('[data-testid="roster-pick-head"]')).catch(() => false);
+      if (!headGone) await sleep(500);
+    }
+    c.check('E2 fielding at the roster completes the pick', headGone);
+    await shot(page, 'hunter-pick-e-roster-doc.png');
+  } finally {
+    await context.close().catch(() => {});
+  }
+  return c;
+}
+
 const CASES = {
   'enemy-presence': caseEnemyPresence,
   'tab-switch-budget': caseTabBudget,
@@ -1425,6 +1542,7 @@ const CASES = {
   'boss-stage': caseBossStage,
   'market-error-state': caseMarketError,
   'hunter-tab-slice-b': caseHunterSliceB,
+  'hunter-pick-slice-e': caseHunterPickSliceE,
 };
 
 async function main() {
