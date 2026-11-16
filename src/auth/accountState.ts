@@ -10,6 +10,23 @@ export interface AccountState {
   verificationGraceExpiresAt: string | null;
   verificationReminderLastSeenAt: string | null;
   isAnonymous: boolean;
+  /**
+   * The raw profiles.active_hunter_id (Cache Hunters slice (e)):
+   * the hunter the account has actually fielded through the
+   * server switch. Null means the account has NEVER fielded one —
+   * its stage hunter is the resolved default (Vesper Cole) and
+   * the starting-hunter pick is still pending. Optional because
+   * account states built outside the profile read (older tests,
+   * partial fixtures) do not carry it; absence means "unknown",
+   * never "pending".
+   */
+  activeHunterId?: string | null;
+  /**
+   * True once the account has fielded a hunter at least once —
+   * the starting-hunter pick is complete (slice (e)). Derived
+   * from the raw column by the profile read; see needsHunterPick.
+   */
+  hasHunterPick?: boolean;
 }
 
 export type GatedFeature =
@@ -89,6 +106,47 @@ export function shouldShowUsernamePrompt(
   now = Date.now(),
 ): boolean {
   if (!needsUsernamePrompt(account)) return false;
+  if (lastDeferredAt == null) return true;
+
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  return now - lastDeferredAt >= oneDayMs;
+}
+
+/**
+ * The population the starting-hunter pick addresses (Cache
+ * Hunters slice (e), brief §4(e) — the G-F5 deferral pattern
+ * applied to hunter choice): any signed-in account that has
+ * never fielded a hunter. Unlike the hunter-name prompt, guests
+ * are INCLUDED — a fresh guest is exactly the account the pick
+ * exists for (brief check E1 runs a fresh-guest case). "Never
+ * fielded" is server truth, not a client flag: the profile's
+ * raw active_hunter_id stays NULL from the bootstrap insert
+ * until cc_set_active_hunter stamps it, and slice (a)'s
+ * conversion backfilled every pre-reshape account — so a null
+ * column can only mean the pick was never made. An account
+ * state that does not carry the field (built outside the
+ * profile read) is unknown, and unknown never prompts.
+ */
+export function needsHunterPick(account: AccountState | null): boolean {
+  return Boolean(account && account.hasHunterPick === false);
+}
+
+/**
+ * Whether the boot-time hunter-pick invitation may show. The
+ * cadence mirrors the hunter-name invitation exactly (audit
+ * G-F5): play first — after a "Not now" deferral the invitation
+ * stays quiet for 24 hours. Completing the pick ends eligibility
+ * through the account state itself (hasHunterPick), never
+ * through this cadence. The deferred completion surface is the
+ * Hunter tab's Roster stop, not another modal (brief §4(e):
+ * no modal re-interrupts play).
+ */
+export function shouldShowHunterPick(
+  account: AccountState | null,
+  lastDeferredAt: number | null,
+  now = Date.now(),
+): boolean {
+  if (!needsHunterPick(account)) return false;
   if (lastDeferredAt == null) return true;
 
   const oneDayMs = 24 * 60 * 60 * 1000;

@@ -39,6 +39,8 @@ function TabPaneFallback({ label }: { label: string }) {
 import { BossSelectModal } from './components/fight/BossSelectModal';
 import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
 import { useUsernamePrompt } from './auth/useUsernamePrompt';
+import { HunterPickSheet } from './components/profile/HunterPickSheet';
+import { useHunterPick } from './auth/useHunterPick';
 import { useIdleWarmOnce } from './hooks/useIdleWarmOnce';
 import { isGuestAccount, isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
 
@@ -180,6 +182,16 @@ function App() {
   // tab, whose Standings stop and public profile are where a
   // hunter appears under their name.
   const usernamePrompt = useUsernamePrompt(account);
+
+  // Starting-hunter pick (Cache Hunters slice (e)): the same
+  // play-first invitation shape — a new account is already
+  // playing on the default hunter, and this boot invitation is
+  // deferrable ("Not now", 24h cadence). A deferred pick
+  // completes in place at the Hunter tab's Roster stop; no
+  // modal re-interrupts play. One invitation at a time: while
+  // the hunter-name invitation is open, the pick waits (its
+  // prompt state persists and renders when that sheet closes).
+  const hunterPick = useHunterPick(account);
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -481,6 +493,13 @@ function App() {
           dismissLabel="Not now"
           onComplete={usernamePrompt.completePrompt}
           onClose={usernamePrompt.deferPrompt}
+        />
+      )}
+
+      {hunterPick.prompt && !usernamePrompt.prompt && (
+        <HunterPickSheet
+          onPicked={hunterPick.completePrompt}
+          onClose={hunterPick.deferPrompt}
         />
       )}
 

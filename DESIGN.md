@@ -2860,3 +2860,35 @@ Doc) is preserved in the prep files
 (`~/workspace/cybercache-prep/cache-hunters/cast-ab/`) as the road not
 taken; it does not ship. Signature colors are identity: a hunter's
 color stays theirs across skins.
+
+### 2026-11-16 — Onboarding: the starting-hunter pick (reshape slice (e))
+
+The last reshape slice gives a new account its starting-hunter
+choice, on the G-F5 play-first pattern the hunter-name prompt
+established (PR #554): the pick is an invitation, never a gate.
+
+1. **Pending is server truth, not a flag.** A profile's raw
+   `active_hunter_id` stays NULL from the bootstrap insert until
+   `cc_set_active_hunter` stamps it, and slice (a)'s conversion
+   backfilled every pre-reshape account — so NULL can only mean
+   "has never fielded a hunter". No new column, no migration;
+   the pick state is identical on every device and survives the
+   guest→Google upgrade untouched (the account-sync trigger in
+   migration 0005 writes only account-type/email fields).
+2. **Deferrable by design.** The boot invitation (the four
+   plates in the Roster stop's plate grammar, one "Not now"
+   door) shows once per session with the name invitation's 24h
+   deferral cadence. A deferred account plays immediately on the
+   resolved default, Vesper Cole. Guests are in the population —
+   a fresh guest is exactly who the pick exists for.
+3. **Completion lives at the Roster door.** The pick resurfaces
+   in place on the Hunter tab's Roster stop (pick head; every
+   plate acts as the choice) and completes by fielding — the
+   switch op stamps the column unconditionally, so confirming
+   the defaulted Vesper completes the pick too. No modal ever
+   re-interrupts play to ask again; the boot sheet and the
+   hunter-name invitation never stack (one invitation at a time).
+4. **No level lock, ever** (brief §3 floor 2): the switch op
+   consults no level and no account type; a level-1 guest can
+   field any of the four, pinned in tests at the op's SQL body,
+   the memory twin, and the e2e lane's fresh-guest case.
