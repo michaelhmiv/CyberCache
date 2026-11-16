@@ -206,7 +206,7 @@ export interface WriteListingData {
   // stores normalize absent fields to the gear defaults at read time.
   // Sellable resources (0050) add the fragment/core/essence kinds and
   // the essence_id column (the essence type for essence listings).
-  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic';
+  listing_kind?: 'gear' | 'consumable' | 'material' | 'vehicle' | 'fragment' | 'core' | 'essence' | 'cosmetic' | 'skin';
   quantity?: number;
   quality_percent?: number | null;
   consumable_type?: string | null;

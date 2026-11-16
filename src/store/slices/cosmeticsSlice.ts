@@ -29,6 +29,7 @@ import {
   unequipCosmetic,
 } from '@/lib/chef/chefClient';
 import type { CosmeticSlot, CosmeticsStateView } from '@/content/skins';
+import { setOwnedSkinIds } from '@/lib/hunters/hunterSkins';
 import { headVariantPreference, isHunterHeadVariantId } from '@/lib/pixel/headParts';
 import { resolveOwnLook, type ResolvedLook } from '@/lib/pixel/lookResolution';
 
@@ -51,6 +52,14 @@ export interface CosmeticsState {
 let inFlight: Promise<void> | null = null;
 let localPickMigrated = false;
 
+/** Every held view also mirrors its whole-skin ownership into the
+ *  Wardrobe's seam (reshape slice (d)): the cosmetics view is the
+ *  server record, hunterSkins.isSkinOwned reads the mirror. */
+function holdView(view: CosmeticsStateView): Partial<CosmeticsState> {
+  setOwnedSkinIds((view.skins ?? []).map((skin) => skin.skinId));
+  return { view, loadState: 'ready' };
+}
+
 export const useCosmeticsStore = create<CosmeticsState>()((set, get) => ({
   view: null,
   loadState: 'idle',
@@ -65,7 +74,7 @@ export const useCosmeticsStore = create<CosmeticsState>()((set, get) => ({
     inFlight = Promise.resolve()
       .then(() => getCosmeticsState())
       .then(async (result) => {
-        set({ view: result.cosmetics, loadState: 'ready' });
+        set(holdView(result.cosmetics));
         // One-time device-local head-pick migration (see header).
         if (!localPickMigrated && !result.cosmetics.selectionExists) {
           localPickMigrated = true;
@@ -94,30 +103,31 @@ export const useCosmeticsStore = create<CosmeticsState>()((set, get) => ({
   refresh: async () => {
     try {
       const result = await getCosmeticsState();
-      set({ view: result.cosmetics, loadState: 'ready' });
+      set(holdView(result.cosmetics));
     } catch {
       // Keep the held view; a later load retries.
     }
   },
-  applyView: (view) => set({ view, loadState: 'ready' }),
+  applyView: (view) => set(holdView(view)),
   equip: async (itemId) => {
     const result = await equipCosmetic({ nonce: newCosmeticEquipNonce(), itemId });
-    set({ view: result.result.cosmetics, loadState: 'ready' });
+    set(holdView(result.result.cosmetics));
   },
   unequip: async (slot) => {
     const result = await unequipCosmetic({ nonce: newCosmeticUnequipNonce(), slot });
-    set({ view: result.result.cosmetics, loadState: 'ready' });
+    set(holdView(result.result.cosmetics));
   },
   setHeadVariant: async (variant) => {
     const result = await setCosmeticHeadVariant({
       nonce: newCosmeticHeadVariantNonce(),
       variant,
     });
-    set({ view: result.result.cosmetics, loadState: 'ready' });
+    set(holdView(result.result.cosmetics));
   },
   reset: () => {
     inFlight = null;
     localPickMigrated = false;
+    setOwnedSkinIds([]);
     set({ view: null, loadState: 'idle' });
   },
 }));

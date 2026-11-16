@@ -91,7 +91,7 @@ listing.)
    box and the category chips — the lane is listings-first.
 2. Narrow the list with the category chips (Weapons, Shields, Relics, Class
    Mods, Ordnance, Consumables, Materials, Cache Fragments, Legendary
-   Cores, Essences), or open the **Filters** sheet: the Filters button
+   Cores, Essences, Skins), or open the **Filters** sheet: the Filters button
    prints how many filters are active and the current sort, and the
    sheet holds the rarity chips, the weapon type and element filters
    (on weapon searches), the level range and price range, and the

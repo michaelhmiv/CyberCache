@@ -17,7 +17,11 @@
  *   - Behavior against the InMemory twins (the wire contracts the
  *     routes expose): craft → item → equip, the Standing
  *     grandfather exception, list-auto-unequip → accept at the
- *     standard fee, and the tint flow.
+ *     standard fee, and the tint flow. (Slice (d) supersession,
+ *     2026-11-16: part crafts and NEW part listings now refuse as
+ *     retired — the pins below assert the refusals and the
+ *     live-listing grandfather completion instead; whole skins
+ *     are pinned in cacheHuntersSliceD.test.ts.)
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -36,7 +40,6 @@ import { InMemoryWriteStore } from '../server/writes/memory';
 import { emptyWriteSeed, type WriteSeed } from '../server/writes/store';
 import { InMemoryChefGameplayStore } from '../server/gameplay/memory';
 import type { ProfileRowData } from '../server/reads/store';
-import type { Json } from '../server/writes/store';
 
 const MIGRATION = readFileSync(
   join(process.cwd(), 'db', 'migrations', '0053_skins_cosmetics.sql'),
@@ -308,40 +311,35 @@ function writesSeed(): WriteSeed {
 }
 
 describe('cosmetic crafting — writes twin', () => {
-  it('escrows Scrap at enqueue, refuses the tint recipe generically, and completes into a cosmetic item', async () => {
-    let nowMs = Date.parse('2026-10-29T12:00:00.000Z');
-    const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date(nowMs) });
+  it('refuses the tint recipe generically, and part crafts refuse as retired (slice (d))', async () => {
+    const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date('2026-10-29T12:00:00.000Z') });
 
     await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 2, recipeId: 'tint_craft', units: 1,
     })).rejects.toThrow(/tint/i);
 
+    // Pre-slice-(d) this test escrowed Scrap and completed a
+    // Dreadplate part craft into a cosmetic item. The reshape
+    // retired part crafting entirely (all sets delisted): the
+    // enqueue now refuses as retired and escrows nothing. The
+    // completion path itself is unchanged for jobs already in
+    // flight (heroPassH1's settle pin) and for whole skins
+    // (cacheHuntersSliceD's D1 pins).
     const recipe = getCraftRecipe(skinPartCatalog('dread-arm-upper-n')!.recipeId)!;
-    // Econ 5: the escrow draws from the unified materials['Scrap']
-    // stack (the seed's legacy scrap field folded into it).
     const scrapBefore = store.seed.profiles.find((p) => p.id === A)!.materials['Scrap'] ?? 0;
-    const job = await store.enqueueCraftJob(A, nonce(), {
+    await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 2, recipeId: recipe.id, units: 1,
-    }) as Json;
-    expect((job as { job?: Json }).job).toBeTruthy();
-    expect(store.seed.profiles.find((p) => p.id === A)!.materials['Scrap'] ?? 0)
-      .toBe(scrapBefore - (recipe.inputs.Scrap ?? 0));
-
-    // Settle past the unit duration; the workshop read settles jobs.
-    nowMs += recipe.unitDurationMs + 60_000;
-    await store.getWorkshopState(A);
-    const items = store.seed.items.filter((i) => i.owner_user_id === A && i.kind === 'cosmetic');
-    expect(items).toHaveLength(1);
-    expect((items[0].payload as { partId?: string }).partId).toBe('dread-arm-upper-n');
-    expect(items[0].runtime_state).toBe('available');
+    })).rejects.toThrow(/retired/);
+    expect(store.seed.profiles.find((p) => p.id === A)!.materials['Scrap'] ?? 0).toBe(scrapBefore);
+    expect(store.seed.items.filter((i) => i.owner_user_id === A && i.kind === 'cosmetic')).toHaveLength(0);
   });
 
-  it('maxUnits refuses a second Bulwark helm in one job', async () => {
+  it('a Bulwark helm craft refuses as retired (slice (d) supersedes the maxUnits pin)', async () => {
     const store = new InMemoryWriteStore(writesSeed(), { now: () => new Date('2026-10-29T12:00:00.000Z') });
     const recipe = getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!;
     await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 3, recipeId: recipe.id, units: 2,
-    })).rejects.toThrow(/at most|units/i);
+    })).rejects.toThrow(/retired/);
   });
 });
 
@@ -358,16 +356,20 @@ describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
   }
   const now = () => new Date('2026-10-29T12:00:00.000Z');
 
-  it('a level-1 player enqueues Dreadplate (bench 2, was L5) and Bulwark (bench 3, was L10)', async () => {
+  it('part recipes refuse at level 1 too (slice (d) delisting supersedes the 0056 enqueue pin)', async () => {
+    // The 0056 pin was that level no longer gates these recipes.
+    // Slice (d) retired the recipes themselves: Dreadplate and
+    // Bulwark part crafts now refuse as retired at EVERY level —
+    // the level question is moot for a delisted design.
     const store = new InMemoryWriteStore(levelOneSeed(3), { now });
     const dread = getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!;
     const bulwark = getCraftRecipe(skinPartCatalog('bulwark-head')!.recipeId)!;
-    await store.enqueueCraftJob(A, nonce(), {
+    await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 2, recipeId: dread.id, units: 1,
-    });
-    await store.enqueueCraftJob(A, nonce(), {
+    })).rejects.toThrow(/retired/);
+    await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 3, recipeId: bulwark.id, units: 1,
-    });
+    })).rejects.toThrow(/retired/);
   });
 
   it('a manufacturer head NO LONGER enqueues at any level (Hero Pass H1 delisting supersedes the 0056 pin)', async () => {
@@ -384,15 +386,14 @@ describe('cosmetic crafting after gate-removal step 1 (0056)', () => {
     })).rejects.toThrow(/retired/);
   });
 
-  it('no bench gate binds a cosmetic anymore (slice 9): the dread head enqueues on the one bench', async () => {
+  it('the dread head refuses as retired on the one bench (slice (d) supersedes the slice-9 pin)', async () => {
     const store = new InMemoryWriteStore(levelOneSeed(1), { now });
     const dread = getCraftRecipe(skinPartCatalog('dread-head')!.recipeId)!;
-    // Pre-collapse: 'Bench not unlocked' / 'requires bench 2 or
-    // higher'. Post-collapse the former bench-2 cosmetic runs on
-    // the single bench.
+    // The bench question is moot post-(d): the design is retired,
+    // so the refusal is the delisting sentence on any bench.
     await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 1, recipeId: dread.id, units: 1,
-    })).resolves.toBeTruthy();
+    })).rejects.toThrow(/retired/);
   });
 });
 
@@ -431,23 +432,40 @@ describe('tint jobs — writes twin', () => {
 });
 
 describe('cosmetic market — writes twin', () => {
-  it('listing a worn part auto-unequips it; accept moves it at the standard 5% fee', async () => {
-    const itemId = '88888888-8888-4888-8888-888888888888';
+  it('a NEW part listing refuses (slice (d)); a listing already live still completes at the 5% fee', async () => {
+    const wornId = '88888888-8888-4888-8888-888888888888';
+    const listedId = '88888888-8888-4888-8888-888888888887';
+    const listingId = '88888888-8888-4888-8888-888888888889';
     const seed = writesSeed();
-    seed.items.push(cosmeticItem(itemId, A, 'bulwark-torso', 'torso', 'Bulwark Siege Torso', 88));
+    seed.items.push(cosmeticItem(wornId, A, 'bulwark-torso', 'torso', 'Bulwark Siege Torso', 88));
+    const listed = cosmeticItem(listedId, A, 'bulwark-arm-upper-n', 'armUpperN', 'Bulwark Arm', 71) as unknown as { runtime_state: string };
+    listed.runtime_state = 'listed';
+    seed.items.push(listed as never);
+    // Seeded BEFORE construction (the store snapshots seed
+    // listings): a Bulwark listing that went live pre-retirement.
+    seed.listings.push({
+      id: listingId, seller_user_id: A, item_instance_id: listedId,
+      price_credits: 5000, status: 'active', listed_at: '2026-10-28T00:00:00.000Z', sold_at: null,
+      listing_kind: 'cosmetic', quantity: 1, identity_key: 'cosmetic:bulwark-arm-upper-n',
+      category: 'cosmetic', display_name: 'Bulwark Arm', part_id: 'bulwark-arm-upper-n',
+      tint_palette_id: null, quality_percent: 71, seller_type: 'player',
+    } as never);
     const store = new InMemoryWriteStore(seed, { now: () => new Date('2026-10-29T12:00:00.000Z') });
-    store.seedSkinSelection(A, { torso: itemId }, 'visor');
+    store.seedSkinSelection(A, { torso: wornId }, 'visor');
 
-    const created = await store.marketCreate(A, nonce(), itemId, 5000) as {
-      listing?: { id?: string; listing_kind?: string };
-    };
-    expect(created.listing?.listing_kind).toBe('cosmetic');
-    // Auto-unequip: the selection no longer names the part.
-    expect(store.skinSelections.get(A)?.equipped.torso).toBeUndefined();
+    // Pre-(d) this test listed the worn part (auto-unequip on
+    // create) and accepted it. Part listings are retired now:
+    // create refuses and nothing moves (the worn part stays worn).
+    await expect(store.marketCreate(A, nonce(), wornId, 5000))
+      .rejects.toThrow(/Retired designs can't be listed/);
+    expect(store.skinSelections.get(A)?.equipped.torso).toBe(wornId);
 
+    // Grandfathering: the pre-retirement listing still completes
+    // for its buyer at the standard fee — the H1 live-listing
+    // rule, carried to the sets.
     const sellerBefore = store.seed.profiles.find((p) => p.id === A)!.credits;
-    await store.acceptListing(B, nonce(), created.listing!.id!);
-    expect(store.seed.items.find((i) => i.id === itemId)!.owner_user_id).toBe(B);
+    await store.acceptListing(B, nonce(), listingId);
+    expect(store.seed.items.find((i) => i.id === listedId)!.owner_user_id).toBe(B);
     expect(store.seed.profiles.find((p) => p.id === A)!.credits).toBe(sellerBefore + 4750);
   });
 });

@@ -29,6 +29,18 @@
  *    gate — no engine or UI code hard-codes a part-id list.
  *  - Everything else is permanently available (no availability
  *    windows in wave 1; retirement happens by ruling, as above).
+ *  - Cache Hunters reshape, slice (d) (DESIGN.md §12, 2026-11-14
+ *    ruling item 3): the part SETS retire as wearables. Every
+ *    Bulwark and Dreadplate part is DELISTED below — no new
+ *    crafts, no new listings — and loose parts grandfather as
+ *    collection pieces: they stay owned and keep resolving
+ *    forever, they are simply no longer worn (the stage and the
+ *    Wardrobe wear whole paintings only). A complete owned set
+ *    converts to that set's whole skin FOR EACH HUNTER THE SET
+ *    IS PAINTED FOR — conversion is gated on the painting
+ *    existing (a set skin def in lib/hunters/hunterSkins.ts);
+ *    no set is painted for any hunter yet, so conversion grants
+ *    nothing until a painting is commissioned and approved.
  *
  * Render-side part definitions (sprites + anchors) live in
  * src/lib/pixel/skinParts.ts; this catalog refers to them by id.
@@ -142,27 +154,27 @@ function part(
 
 export const SKIN_PARTS: SkinPartCatalogDef[] = [
   // Bulwark (T3 shaped — full set, every slot)
-  part('bulwark-head', 'Bulwark Helm', 'bulwark', 'head', 'shaped'),
-  part('bulwark-torso', 'Bulwark Siege Torso', 'bulwark', 'torso', 'shaped'),
-  part('bulwark-arm-upper-n', 'Bulwark Pauldron Arm', 'bulwark', 'armUpperN', 'shaped'),
-  part('bulwark-arm-fore-n', 'Bulwark Gauntlet', 'bulwark', 'armForeN', 'shaped'),
-  part('bulwark-arm-far', 'Bulwark Support Arm', 'bulwark', 'armFar', 'shaped'),
-  part('bulwark-thigh-f', 'Bulwark Thigh (Near)', 'bulwark', 'thighF', 'shaped'),
-  part('bulwark-thigh-b', 'Bulwark Thigh (Far)', 'bulwark', 'thighB', 'shaped'),
-  part('bulwark-lower-leg-f', 'Stomper Leg (Near)', 'bulwark', 'lowerLegF', 'shaped'),
-  part('bulwark-lower-leg-b', 'Stomper Leg (Far)', 'bulwark', 'lowerLegB', 'shaped'),
-  part('bulwark-back', 'Packmaster Tank', 'bulwark', 'back', 'shaped'),
+  part('bulwark-head', 'Bulwark Helm', 'bulwark', 'head', 'shaped', { delisted: true }),
+  part('bulwark-torso', 'Bulwark Siege Torso', 'bulwark', 'torso', 'shaped', { delisted: true }),
+  part('bulwark-arm-upper-n', 'Bulwark Pauldron Arm', 'bulwark', 'armUpperN', 'shaped', { delisted: true }),
+  part('bulwark-arm-fore-n', 'Bulwark Gauntlet', 'bulwark', 'armForeN', 'shaped', { delisted: true }),
+  part('bulwark-arm-far', 'Bulwark Support Arm', 'bulwark', 'armFar', 'shaped', { delisted: true }),
+  part('bulwark-thigh-f', 'Bulwark Thigh (Near)', 'bulwark', 'thighF', 'shaped', { delisted: true }),
+  part('bulwark-thigh-b', 'Bulwark Thigh (Far)', 'bulwark', 'thighB', 'shaped', { delisted: true }),
+  part('bulwark-lower-leg-f', 'Stomper Leg (Near)', 'bulwark', 'lowerLegF', 'shaped', { delisted: true }),
+  part('bulwark-lower-leg-b', 'Stomper Leg (Far)', 'bulwark', 'lowerLegB', 'shaped', { delisted: true }),
+  part('bulwark-back', 'Packmaster Tank', 'bulwark', 'back', 'shaped', { delisted: true }),
   // Dreadplate (T2 repaint — full set, every slot)
-  part('dread-head', 'Dreadplate Helm', 'dreadplate', 'head', 'repaint'),
-  part('dread-torso', 'Dreadplate Torso', 'dreadplate', 'torso', 'repaint'),
-  part('dread-arm-upper-n', 'Dreadplate Upper Arm', 'dreadplate', 'armUpperN', 'repaint'),
-  part('dread-arm-fore-n', 'Dreadplate Forearm', 'dreadplate', 'armForeN', 'repaint'),
-  part('dread-arm-far', 'Dreadplate Support Arm', 'dreadplate', 'armFar', 'repaint'),
-  part('dread-thigh-f', 'Dreadplate Thigh (Near)', 'dreadplate', 'thighF', 'repaint'),
-  part('dread-thigh-b', 'Dreadplate Thigh (Far)', 'dreadplate', 'thighB', 'repaint'),
-  part('dread-lower-leg-f', 'Dreadplate Lower Leg (Near)', 'dreadplate', 'lowerLegF', 'repaint'),
-  part('dread-lower-leg-b', 'Dreadplate Lower Leg (Far)', 'dreadplate', 'lowerLegB', 'repaint'),
-  part('dread-back', 'Dreadplate Back Rig', 'dreadplate', 'back', 'repaint'),
+  part('dread-head', 'Dreadplate Helm', 'dreadplate', 'head', 'repaint', { delisted: true }),
+  part('dread-torso', 'Dreadplate Torso', 'dreadplate', 'torso', 'repaint', { delisted: true }),
+  part('dread-arm-upper-n', 'Dreadplate Upper Arm', 'dreadplate', 'armUpperN', 'repaint', { delisted: true }),
+  part('dread-arm-fore-n', 'Dreadplate Forearm', 'dreadplate', 'armForeN', 'repaint', { delisted: true }),
+  part('dread-arm-far', 'Dreadplate Support Arm', 'dreadplate', 'armFar', 'repaint', { delisted: true }),
+  part('dread-thigh-f', 'Dreadplate Thigh (Near)', 'dreadplate', 'thighF', 'repaint', { delisted: true }),
+  part('dread-thigh-b', 'Dreadplate Thigh (Far)', 'dreadplate', 'thighB', 'repaint', { delisted: true }),
+  part('dread-lower-leg-f', 'Dreadplate Lower Leg (Near)', 'dreadplate', 'lowerLegF', 'repaint', { delisted: true }),
+  part('dread-lower-leg-b', 'Dreadplate Lower Leg (Far)', 'dreadplate', 'lowerLegB', 'repaint', { delisted: true }),
+  part('dread-back', 'Dreadplate Back Rig', 'dreadplate', 'back', 'repaint', { delisted: true }),
   // Manufacturer heads — DELISTED (Hero Pass H1, Q2): the look
   // lives in the Standing rank-3 pick lane now. Tier is the
   // measured truth: a palette re-skin of the stock head (alpha
@@ -455,6 +467,25 @@ export function buildCosmeticPayload(partId: string, quality: number, craftedBy:
   };
 }
 
+/** One owned WHOLE skin as the API carries it (reshape slice
+ *  (d)): an item_instances row of kind 'cosmetic' whose payload
+ *  names a skin def (lib/hunters/hunterSkins.ts) instead of a
+ *  part. The Wardrobe reads these through the ownership seam;
+ *  the payload type + builder live with the skin catalog in
+ *  hunterSkins.ts. Zero stats, like every cosmetic. */
+export interface CosmeticSkinItemView {
+  id: string;
+  /** The HunterSkinDef id this item makes wearable. */
+  skinId: string;
+  hunterId: string;
+  name: string;
+  /** The part set this skin paints, when it is a set skin. */
+  setId: string | null;
+  quality: number;
+  origin: 'crafted' | 'converted';
+  runtimeState: string;
+}
+
 /** One owned cosmetic part as the API carries it. */
 export interface CosmeticPartItemView {
   id: string;
@@ -482,6 +513,9 @@ export interface CosmeticsStateView {
    *  client then offers its device-local head pick once). */
   selectionExists: boolean;
   parts: CosmeticPartItemView[];
+  /** Owned whole skins (reshape slice (d)): the server record
+   *  behind the Wardrobe's isSkinOwned seam. */
+  skins: CosmeticSkinItemView[];
   /** Head-variant ids wearable WITHOUT holding the crafted part:
    *  the four free variants + grandfathered manufacturer variants
    *  (standing rank ≥ 3, the 0043 record). */

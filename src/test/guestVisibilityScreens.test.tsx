@@ -167,6 +167,7 @@ const gearListing: Listing = {
   essenceId: null,
   partId: null,
   tintPaletteId: null,
+  skinId: null,
   itemId: weapon.id,
   itemSnapshot: weapon,
   category: 'weapon',

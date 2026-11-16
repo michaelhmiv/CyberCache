@@ -40,7 +40,7 @@ import type { GearItem } from '../../types/items';
 export type MarketCategory =
   | 'weapon' | 'shield' | 'relic' | 'classMod' | 'ordnance'
   | 'consumable' | 'material' | 'vehicle'
-  | 'fragment' | 'core' | 'essence' | 'cosmetic';
+  | 'fragment' | 'core' | 'essence' | 'cosmetic' | 'skin';
 
 export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
   weapon: 'Weapons',
@@ -55,6 +55,7 @@ export const MARKET_CATEGORY_LABELS: Record<MarketCategory, string> = {
   core: 'Legendary Cores',
   essence: 'Essences',
   cosmetic: 'Skin Parts',
+  skin: 'Skins',
 };
 
 /**
@@ -134,6 +135,14 @@ export const FRAGMENT_IDENTITY_KEY = 'frag:cache';
  *  cc_market_create stamps server-side. */
 export function cosmeticIdentityKey(partId: string): string {
   return `cosmetic:${partId}`;
+}
+
+/** Whole-skin identity (reshape slice (d)): skins trade as their
+ *  OWN listing family beside the parts — one market per skin def,
+ *  finish rides the listing card like a part's. Matches the key
+ *  cc_market_create stamps server-side for skin items. */
+export function skinIdentityKey(skinId: string): string {
+  return `skin:${skinId}`;
 }
 export const CORE_IDENTITY_KEY = 'core:legendary';
 export const FRAGMENT_DISPLAY_NAME = 'Cache Fragment';

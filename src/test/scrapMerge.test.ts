@@ -34,7 +34,6 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { MATERIAL_VISUALS } from '../constants/visualAssets';
 import { ALL_CRAFT_RECIPES, getCraftRecipe, isMaterialInput } from '../content/crafting';
-import { skinPartCatalog } from '../content/skins';
 import { MARKET_MATERIAL_IDS } from '../lib/market/identityKey';
 import { VENDOR_MATERIALS } from '../lib/vendor/catalog';
 import { MaterialType } from '../types/game';
@@ -333,11 +332,16 @@ describe('scrap merge — writes twin settles on the stack', () => {
     expect(store.seed.profiles.find((p) => p.id === A)!.credits).toBeGreaterThan(100_000);
   });
 
-  it('a cosmetic enqueue escrows Scrap from the stack; cancelling a queued job refunds it in full', async () => {
+  it('a Scrap-led enqueue escrows Scrap from the stack; cancelling a queued job refunds it in full', async () => {
     const store = new InMemoryWriteStore(writesSeed(), {
       now: () => new Date('2026-10-29T12:00:00.000Z'),
     });
-    const recipe = getCraftRecipe(skinPartCatalog('dread-arm-upper-n')!.recipeId)!;
+    // Vehicle swap (slice (d), 2026-11-16): this test's subject is
+    // the Scrap stack, and its original vehicle — a Dreadplate
+    // part recipe — is delisted now, so it can no longer enqueue.
+    // The Scrap-only refining recipe exercises the identical
+    // escrow/queue/refund path.
+    const recipe = getCraftRecipe('refine_refined_alloy')!;
     const cost = recipe.inputs.Scrap ?? 0;
     expect(cost).toBeGreaterThan(0);
     // The first job starts on the bench; the second queues behind it
@@ -361,7 +365,9 @@ describe('scrap merge — writes twin settles on the stack', () => {
     const seed = writesSeed();
     seed.profiles[0] = { ...seed.profiles[0], scrap: 0, materials: {} };
     const store = new InMemoryWriteStore(seed);
-    const recipe = getCraftRecipe(skinPartCatalog('dread-arm-upper-n')!.recipeId)!;
+    // Same slice-(d) vehicle swap as above: a Scrap-only recipe,
+    // so Scrap is the leg that fails.
+    const recipe = getCraftRecipe('refine_refined_alloy')!;
     await expect(store.enqueueCraftJob(A, nonce(), {
       bench: 2, recipeId: recipe.id, units: 1,
     })).rejects.toThrow('Insufficient material Scrap');

@@ -151,10 +151,16 @@ The unified Workshop catalog holds **88 recipes**:
 - **27 cosmetic recipes** — the [[Skins and Cosmetics]] catalog:
   26 scrap-led skin parts (no stats, ever) in the Skin Parts lane,
   plus the item-targeted **tint craft** run from the Tinting lane.
-  Six of the 26 — the manufacturer helms — are **retired**: their
-  recipes no longer start (the maker look lives in the
-  [[Manufacturer Standing]] rank-3 head pick now), though a helm
-  job already running when they retired still finishes.
+  **All 26 part recipes are retired now**: the manufacturer helms
+  went first (the maker look lives in the [[Manufacturer
+  Standing]] rank-3 head pick), and the Cache Hunters reshape
+  retired the Bulwark and Dreadplate part recipes with them —
+  none of them start anymore, though a job already running when
+  they retired still finishes. The cosmetic lane belongs to
+  **whole skins** now: a whole-skin recipe crafts one complete
+  skin for its hunter (scrap-led, zero stats), and the lane fills
+  as painted skins ship. The **tint craft** is unchanged — it
+  still recolors parts you already own.
 - **1 Chromaweave refine** — Myco-Steel Fiber + Void Essence woven
   into Chromaweave, the tint material (see [[Skins and Cosmetics]]).
 

@@ -43,6 +43,7 @@ import {
   gearCategoryFromPayload,
   gearIdentityFromPayload,
   materialIdentityKey,
+  skinIdentityKey,
   vehicleIdentityKey,
 } from '../../lib/market/identityKey.js';
 import {
@@ -4396,6 +4397,43 @@ export class InMemoryWriteStore implements WriteStore {
       // or owns. Listings already live are untouched.
       const partId = typeof payload.partId === 'string' ? payload.partId : '';
       if (partId && skinPartDelisted(partId)) throw writeError(DELISTED_COSMETIC_LISTING_REFUSAL);
+      // Whole skins (reshape slice (d)): a skin item lists in its
+      // OWN family — no part columns, no auto-unequip (wearing is
+      // the device-local wardrobe; a listed skin simply stops
+      // being owned, and the worn selection falls back server-
+      // truthfully on the seller's next cosmetics read).
+      const skinId = typeof payload.skinId === 'string' ? payload.skinId : '';
+      if (skinId) {
+        const skinListing: WriteListingData = {
+          id: this.uuid(),
+          seller_user_id: playerId,
+          item_instance_id: item.id,
+          price_credits: price,
+          status: 'active',
+          listed_at: this.nowIso(),
+          sold_at: null,
+          listing_kind: 'skin',
+          quantity: 1,
+          identity_key: skinIdentityKey(skinId),
+          category: 'skin',
+          display_name: typeof payload.name === 'string' ? payload.name : null,
+          quality_percent: typeof payload.quality === 'number' ? payload.quality : null,
+          seller_type: 'player',
+        };
+        const skinDeposit = this.chargeListingDeposit(p, await this.resolvedListingDeposit());
+        this.insertListing(skinListing);
+        this.listingDeposits.set(skinListing.id, skinDeposit);
+        item.runtime_state = 'listed';
+        this.touchItem(item);
+        this.recalcNetWorth(playerId);
+        const skinResult: Json = {
+          action_type: 'cc_market_create',
+          profile: p ? this.profileSnapshot(p) : null,
+          listing: this.listingJson(skinListing),
+          item: this.itemJson(item),
+        };
+        return this.record(playerId, 'cc_market_create', key, skinResult);
+      }
       this.unequipCosmeticIfWorn(playerId, item);
       const cosmeticListing: WriteListingData = {
         id: this.uuid(),
@@ -4721,7 +4759,7 @@ export class InMemoryWriteStore implements WriteStore {
     listing.status = 'cancelled';
     const kind = listing.listing_kind ?? 'gear';
     const item = listing.item_instance_id ? this.items.get(listing.item_instance_id) : undefined;
-    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic') {
+    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic' || kind === 'skin') {
       if (item) {
         item.runtime_state = item.is_locked ? 'locked' : 'available';
         this.touchItem(item);
@@ -4823,7 +4861,7 @@ export class InMemoryWriteStore implements WriteStore {
     };
     let foundBySeller = false;
     let craftedBySeller = false;
-    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic') {
+    if (kind === 'gear' || kind === 'vehicle' || kind === 'cosmetic' || kind === 'skin') {
       if (seller && soldItem && soldItem.supply_mode !== 'npc_market') {
         foundBySeller = this.sellerFoundItem(seller.id, soldItem);
         // House Brand gate (Fixer major, 0029): the item counts as
