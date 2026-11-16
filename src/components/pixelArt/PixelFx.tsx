@@ -415,6 +415,7 @@ const easeOutCubic = (p: number): number => 1 - Math.pow(1 - clamp01(p), 3);
  * schedule's end on — the beam's life bound to the rise schedule
  * (durationMs) instead of the standing drop event.
  */
+// eslint-disable-next-line react-refresh/only-export-components -- the beam schedule is shared with its regression tests (beamSchedule.test.ts); the FX components stay the file's export surface
 export function beamScheduleEnvelope(tMs: number, durationMs: number, fadeTailMs: number): number {
   if (fadeTailMs <= 0 || tMs <= durationMs - fadeTailMs) return tMs >= durationMs ? 0 : 1;
   if (tMs >= durationMs) return 0;
