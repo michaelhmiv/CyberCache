@@ -48,7 +48,12 @@ describe('LiveTurfDiorama — pixel conversion (P1)', () => {
     expect(screen.getByTestId('pixel-diorama-stage')).toBeTruthy();
     expect(screen.getByTestId('pixel-hunter')).toBeTruthy();
     expect(screen.getByTestId('pixel-enemy')).toBeTruthy();
-    expect(screen.getByTestId('pixel-held-weapon')).toBeTruthy();
+    // Paintings-only on stage (owner ruling, 2026-11-15, slice
+    // (c)): the hunter is the Cast B painting alone — no
+    // composited held-weapon layer rides the stage figure (the
+    // equipped weapon displays on Gear/cards/loadouts instead).
+    expect(screen.getByTestId('pixel-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     // The vector SVG scene is gone for this zone.
     expect(container.querySelector('svg[viewBox="0 0 420 286"]')).toBeNull();
     // Chrome is shared: NO area plate rides the art (owner

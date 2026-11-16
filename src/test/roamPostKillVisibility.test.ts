@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { deriveRoamScene, roamPosesAt, sampleRoamBeat } from '@/lib/pixel/roamChoreography';
 import { ENEMY_POSES } from '@/lib/pixel/rig';
 import { MOVEMENT } from '@/lib/pixel/movement';
-import { STANDARD_ISSUE } from '@/lib/pixel/standardIssue';
 import type { TickEvent } from '@/store/slices/tickSlice';
 
 /**
@@ -68,7 +67,7 @@ describe('post-kill advance: the next enemy never inherits the death state', () 
       backgroundId: 'zone-dustwaste-bg',
       areaId: 'dustwaste',
       targetMaxHp: 100,
-      hunterSet: STANDARD_ISSUE,
+      hunterId: 'vesper' as const,
       event: killEvent,
     };
     for (const beatElapsedMs of ELAPSED_SWEEP) {
