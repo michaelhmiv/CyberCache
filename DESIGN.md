@@ -2892,3 +2892,31 @@ established (PR #554): the pick is an invitation, never a gate.
    consults no level and no account type; a level-1 guest can
    field any of the four, pinned in tests at the op's SQL body,
    the memory twin, and the e2e lane's fresh-guest case.
+
+### 2026-11-16 — The makers have faces: founders + slogans (F6)
+
+The follow-on unit of the 2026-11-14 names-and-voices entry (item 2)
+lands: the six manufacturers have founders and house slogans,
+authored for this unit (the audit specified the register, not the
+names) and presented at the head of the PR for the owner's
+per-name veto.
+
+1. **The six:** Redline — **Della Voss**, "It only gets faster." ·
+   Ironwood — **Amos Thorne**, "Ironwood takes its time. Once." ·
+   BlastForge — **Hollis Brandt**, "Subtlety was not in the
+   budget." · Prismatek — **Iris Calloway**, "Every element,
+   accounted for." · ThrowTech — **Tobin Larkin**, "Built to be
+   left behind." · HelixWorks — **Ada Kessler**, "No two alike.
+   All of them calibrated." Each slogan is fitted to the maker's
+   shipped identity (ramping speed, precision crits, explosions,
+   elemental specialization, disposable tech, modular variance)
+   and runs dry per the dosage law — slogans are seen often.
+2. **One source.** Founder + slogan live on the manufacturer def
+   (`src/constants/manufacturers.ts`) and nowhere else in shipped
+   code; the surfaces render from it — the shared `MakerLine` on
+   gun cards (stat deck + inspect sheet), the standing view into
+   the Rep Desk header, and the wiki-gen Manufacturers table.
+   A census test fails if any shipped file hard-codes the strings.
+3. **Copy only.** No id, mechanic, stat bias, price, or drop logic
+   moved; the def's mechanics fields are pinned byte-identical in
+   the F6 suite.

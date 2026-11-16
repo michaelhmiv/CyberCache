@@ -1,5 +1,7 @@
 import React from 'react';
+import { MANUFACTURERS } from '@/constants/manufacturers';
 import { rollQualityLabel } from '@/constants/rarities';
+import type { Manufacturer } from '@/types/game';
 import {
   affixesOf,
   isClassMod,
@@ -26,6 +28,22 @@ export function StatLine({ label, value, tone = 'text-text-primary', width = 50 
     <div className="relative overflow-hidden border border-border bg-bg/75 px-2 py-1.5" style={slashClip}>
       <div className="absolute bottom-0 left-0 h-1 bg-amber/75" style={{ width: `${Math.max(6, Math.min(100, width))}%` }} />
       <div className="flex items-center justify-between gap-3"><span className="text-[9px] font-black uppercase tracking-wide text-text-muted">{label}</span><span className={`text-xs font-black ${tone}`}>{value}</span></div>
+    </div>
+  );
+}
+
+/**
+ * The maker's person, on the card (F6): founder + house slogan, read
+ * from the one manufacturer def — never a local copy of the strings.
+ * Shared by the stat deck and the inspect sheet so both card surfaces
+ * carry the same line.
+ */
+export function MakerLine({ manufacturer }: { manufacturer: Manufacturer }) {
+  const def = MANUFACTURERS[manufacturer];
+  if (!def) return null;
+  return (
+    <div className="mt-1.5 text-[11px] text-text-muted" data-testid="maker-line">
+      {def.founder} · “{def.slogan}”
     </div>
   );
 }
@@ -91,6 +109,7 @@ export function ItemStatDeck({ item }: { item: GearItem }) {
           <StatLine label="Element" value={item.element} tone="text-cyan" width={55} />
         </div>
       )}
+      {isWeapon(item) && <MakerLine manufacturer={item.manufacturer} />}
       <DeckSection title="Stat Poster">
         {rows.map(([label, value, tone, width]) => <StatLine key={`${label}-${value}`} label={label} value={value} tone={tone} width={width ? (width / maxRow) * 100 : 38} />)}
       </DeckSection>
