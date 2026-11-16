@@ -173,7 +173,7 @@ async function newGuestContext(browser) {
   return { context, page, responses, failures, pageErrors, consoleMsgs };
 }
 
-async function guestSignIn(page, { dismissCollect = true } = {}) {
+async function guestSignIn(page, { dismissCollect = true, dismissHunterPick = true } = {}) {
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded' });
   await page.getByText('Continue as Guest', { exact: false }).first().click({ timeout: 30000 });
   await page.waitForFunction(
@@ -187,6 +187,24 @@ async function guestSignIn(page, { dismissCollect = true } = {}) {
       .first()
       .click({ timeout: 8000 })
       .catch(() => {});
+  }
+  if (dismissHunterPick) {
+    // Slice (e): a fresh guest now meets the starting-hunter pick
+    // at boot — an overlay over Home until it is answered. A
+    // player taps "Not now" and plays; the lane does the same so
+    // the cases play the game they were written against. The
+    // pick's own case opts out and drives the sheet itself. The
+    // sheet rides the account load, so poll briefly for it; its
+    // absence inside the window is tolerated like the Collect
+    // dismissal above.
+    for (let i = 0; i < 20; i++) {
+      const up = await page.evaluate(() => !!document.querySelector('[data-testid="hunter-pick-sheet"]')).catch(() => false);
+      if (up) {
+        await page.locator('[data-testid="hunter-pick-not-now"]').first().click({ timeout: 8000 }).catch(() => {});
+        break;
+      }
+      await sleep(500);
+    }
   }
   await page.waitForFunction((m) => eval(m), MARKERS.HOME, { timeout: 30000 });
 }
@@ -1427,7 +1445,9 @@ async function caseHunterPickSliceE(browser) {
   const c = new Case('hunter-pick-slice-e');
   const { context, page } = await newGuestContext(browser);
   try {
-    await guestSignIn(page);
+    // This case drives the pick sheet itself — the shared
+    // sign-in helper must not dismiss it first.
+    await guestSignIn(page, { dismissHunterPick: false });
 
     // E1: the boot invitation offers the pick — four plates and
     // the "Not now" door — to a brand-new account.
