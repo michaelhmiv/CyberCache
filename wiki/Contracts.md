@@ -34,7 +34,7 @@ Targets below are the **base targets** (what B2 asks); other bands multiply them
 | Field Work | Combat | Roaming kills | 200 | 1,200 | B1 |
 | Elite Hunt | Combat | Named elites downed | 1 | 4 | B1 |
 | Surge Watch | Combat | Roaming events triggered | — | 100 | B1 |
-| Long Haul | Combat | Roaming XP earned | 1,000 | 8,000 | B1 |
+| Pell's Run | Combat | Roaming XP earned | 1,000 | 8,000 | B1 |
 | Gauntlet | Combat | Endless depth reached in one run | per band | per band | B1 |
 | Gauntlet Regular | Combat | Endless runs completed | — | 3 | B1 |
 | Boss Contract | Boss | Bosses defeated | 1 | 3 | B1 |
@@ -54,6 +54,8 @@ Targets below are the **base targets** (what B2 asks); other bands multiply them
 | Gathering Order | Meta | Materials and essences gathered by extraction | 40 | 240 | B1 |
 
 **Gauntlet depths by band** — daily: B1 2 · B2 3 · B3 5 · B4 4 · B5 3; weekly: B1 3 · B2 5 · B3 8 · B4 6 · B5 5. (The ladder is a fixed course, so the ask follows what a regular build honestly reaches at each band — see [[Endless Mode]].)
+
+**Pell's Run** is the one contract that belongs to a person: Pell, the wounded scavenger of the Dustwaste Frontier. While he heals, his route still needs running — the roaming XP you earn is the run being covered. Josie Lode's people owe him a debt; the board is how it gets worked off.
 
 ## Rewards — and what contracts never pay
 
