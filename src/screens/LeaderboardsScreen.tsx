@@ -11,7 +11,10 @@ import {
   type MyLeaderboardRank,
   type WeeklyLeaderboards,
 } from '@/lib/api/leaderboardService';
-import { WeeklyEarningsPanel } from '@/components/leaderboard/WeeklyEarningsPanel';
+import {
+  BoardHubPanel,
+  SettlementReadoutSheet,
+} from '@/components/leaderboard/WeeklyEarningsPanel';
 import {
   BoardConsole,
   ConsoleHead,
@@ -126,11 +129,12 @@ const RacesSection: React.FC<{
  * with a retry; the pre-gate version chained `.then()` with no
  * `.catch`, so any failure left an eternal spinner.
  *
- * One weekly fetch feeds the console head, the settlement readout
- * (the Standings badge's destination — the settled record sits at
- * the top of the page, where the signal that brought the player
- * here resolves), and the race channels; a weekly failure never
- * takes the global board down with it.
+ * One weekly fetch feeds the console head, the Board Hub panel
+ * (the Standings badge's destination — the hub stands at the top
+ * of the page, where the signal that brought the player here
+ * resolves; the settlement readout rides behind its SETTLEMENT
+ * button as a sheet), and the race channels; a weekly failure
+ * never takes the global board down with it.
  *
  * Presentation is the Instrument-panel register (owner pick B,
  * 2026-11-05): squared rack panels, inset LCD readouts, LED deltas
@@ -147,6 +151,7 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number; bareHead?: boole
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [settlementOpen, setSettlementOpen] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<PlayerPublicProfile | null>(null);
   const [fullProfileOpen, setFullProfileOpen] = useState(false);
@@ -272,12 +277,31 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number; bareHead?: boole
         fieldedHunter={`${fieldedHunter.name} · ${String(fieldedHunter.tree)}`}
       />
 
-      <WeeklyEarningsPanel
+      {/* Board hub (owner-ruled 2026-11-16): the hub stands as its
+          own panel where the settlement readout used to sit in the
+          flow; the readout itself is a receipt behind the hub's
+          SETTLEMENT button, opened as a sheet. */}
+      <BoardHubPanel
+        hub={{
+          metric,
+          period,
+          onMetricChange: setMetric,
+          onPeriodChange: setPeriod,
+          myRanks: myRankNumbers,
+        }}
+        data={weekly}
+        loading={weeklyLoading}
+        focusNonce={focusEarningsNonce}
+        onOpenSettlement={() => setSettlementOpen(true)}
+      />
+
+      <SettlementReadoutSheet
+        open={settlementOpen}
+        onClose={() => setSettlementOpen(false)}
         data={weekly}
         loading={weeklyLoading}
         error={weeklyError}
         onRetry={retryWeekly}
-        focusNonce={focusEarningsNonce}
       />
 
       {error ? (
@@ -300,6 +324,7 @@ const LeaderboardBoard: React.FC<{ focusEarningsNonce?: number; bareHead?: boole
           looks={boardLooks}
           totalPlayers={totalPlayers}
           onRowClick={openPlayer}
+          hubControlled
         />
       )}
 

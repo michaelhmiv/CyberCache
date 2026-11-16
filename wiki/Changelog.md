@@ -17,6 +17,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **New hunters choose their first hunter — whenever they're ready** — a new account starts on Vesper Cole and is offered the full roster up front, all four hunters on their plates. There is no wall: tap **Not now** and you are playing, and the choice waits at the Roster, where fielding any hunter — Vesper included — settles it. No hunter is locked behind level, so a level-1 account can open on any of the four.
 - **The Workshop's cosmetic lane belongs to whole skins now** — the Bulwark and Dreadplate part recipes have retired alongside the maker helms: no new parts can be crafted, and no new part listings can be created. Everything you own stays yours as a collection piece, a part listing that was already live still completes for its buyer, and tinting a part you own works exactly as before. In their place: **whole skins** — one painting per hunter, crafted whole in the cosmetic lane, traded on the Market under their own **Skins** category, and earned by **set conversion**: own every part of a set and the set's whole skin is yours (the parts stay in your collection). No set has been painted whole yet, so the lane and the conversion stand ready for the first painted set. A skin is paint, never power — wearing one changes no number on your hunter. Class mod listings and inspect sheets now also name the hunter a mod is bound to, next to its tree.
 - Under the hood: the standings board's kill filter now lives in the game's own code as well as its database, so the two cannot drift apart.
+- **The settlement readout is a receipt now, not a billboard** — the Standings page opens on the **Board Hub**: the ten channels and the All Time / Week / Day switch live in one deck at the top of the page, and the global board below opens straight on its rows. Last week's results no longer sit on the page around the clock — a **SETTLEMENT** button at the foot of the hub prints what the week paid, and the full readout opens as a pop-up when you tap it, unchanged inside.
 
 ## 2026-11-15 — The board counts hunters
 
@@ -396,9 +397,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 318 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 321 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-16** — 8 merges
+**2026-11-16** — 11 merges
 
 - #587 — Cache Hunters slice (b): the Hunter tab — roster, hero, per-hunter trees, whole-skin wardrobe
 - #588 — Cache Hunters slice (c): painted hunter on stage + voice pools
@@ -408,6 +409,9 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #592 — Rulings batch-3: boss panel stop transition, C1-01 forge anvil staging, crusher wedge + skimmer wreck repaints
 - #595 — Cache Hunters slice (e): the deferrable starting-hunter pick
 - #596 — Cache Hunters slice (d): Workshop whole-skin crafting + part-set conversion
+- #597 — F5: Pell — name the Wounded Scavenger, recur as Pell's Run
+- #598 — F6: manufacturer founders + slogans
+- #599 — Inkling restart: tone seam, drop-hold, DEPTH occlusion, fodder spacing (reconciled)
 
 **2026-11-15** — 2 merges
 
