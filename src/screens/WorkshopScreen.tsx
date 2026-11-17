@@ -500,6 +500,14 @@ export const WorkshopScreen: React.FC<{
   const benchJobCount = benchJobs.filter((j) => j.bench === 1).length;
   const stripRunningJob = benchJobs.find((j) => j.state === 'running');
   const stripRunningBenchJobs = benchJobs.filter((j) => j.state === 'running' && j.bench === 1);
+  // The strip names the head job's progress in every state — the
+  // same jobProgressFraction the job cards read, so the strip and
+  // the card can never disagree. A paused head reads 0/N · 0%,
+  // not absence.
+  const stripHeadJob = stripRunningJob ?? benchJobs[0];
+  const stripProgress = stripHeadJob
+    ? ` · ${stripHeadJob.unitsCompleted}/${stripHeadJob.unitsTotal} units · ${Math.round(jobProgressFraction(stripHeadJob) * 100)}%`
+    : '';
 
   // Bench time (slice 10, brief §8): the bank and the envelope from
   // the server view; the content constants stand in until the first
@@ -706,10 +714,10 @@ export const WorkshopScreen: React.FC<{
           <div className="mt-0.5 text-[11px] leading-snug text-text-muted">
             {benchJobs.length > 0
               ? stripRunningBenchJobs.length > 1
-                ? `Working · ${stripRunningBenchJobs.length} jobs running on the bench`
+                ? `Working · ${stripRunningBenchJobs.length} jobs running on the bench${stripProgress}`
                 : stripRunningJob
-                  ? `Working · ${stripRunningJob.name}`
-                  : `Paused · ${benchJobs[0]?.name ?? 'job'} — progress waits on Crafting`
+                  ? `Working · ${stripRunningJob.name}${stripProgress}`
+                  : `Paused · ${benchJobs[0]?.name ?? 'job'} — progress waits on Crafting${stripProgress}`
               : 'Idle · ready'}
           </div>
         </div>

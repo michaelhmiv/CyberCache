@@ -112,7 +112,7 @@ const benchJob: WorkshopJobView = {
 
 const FOLLOWS = 4; // Node.DOCUMENT_POSITION_FOLLOWING
 
-function seedStores(error: string | null) {
+function seedStores(error: string | null, jobs: WorkshopJobView[] = [benchJob], kind = 'roaming_loot') {
   usePlayerStore.setState({
     id: 'p1',
     level: 14,
@@ -126,9 +126,9 @@ function seedStores(error: string | null) {
     server: {
       benches: 1,
       tools: { owned: {}, fitted: {}, charges: {} },
-      jobs: [benchJob],
+      jobs,
       masteries: { ...MASTERIES },
-      activeActionKind: 'roaming_loot',
+      activeActionKind: kind,
       recentCompletions: [],
     },
     error,
@@ -138,7 +138,7 @@ function seedStores(error: string | null) {
     cancel: vi.fn(async () => true),
   });
   useActivityStore.setState({
-    current: { ...IDLE_ACTIVITY, kind: 'roaming_loot' as never },
+    current: { ...IDLE_ACTIVITY, kind: kind as never },
     pending: false,
     start: vi.fn(async () => ({} as never)) as never,
   });
@@ -179,5 +179,27 @@ describe('embedded Workshop order — queue and errors lead', { timeout: 60_000 
     expect(card).not.toBeNull();
     // The heading FOLLOWS the catalog card in the document.
     expect((card as Node).compareDocumentPosition(heading) & FOLLOWS).toBeTruthy();
+  });
+});
+
+describe('bench strip — the head job progress reads in every state', { timeout: 60_000 }, () => {
+  it('a paused head job reads 0/N units · 0%, not absence', async () => {
+    seedStores(null, [{ ...benchJob, state: 'paused' }], 'roaming_loot');
+    render(<HomeCraftBench onNavigate={vi.fn()} />);
+    const benchEl = await screen.findByTestId('home-craft-bench');
+    expect(benchEl.textContent).toContain('Paused · Med Kit — progress waits on Crafting · 0/3 units · 0%');
+  });
+
+  it('a running head job reads its units and the job-card fraction as a percent', async () => {
+    // 1 of 3 units done + half of the next accrued (30s of 60s):
+    // jobProgressFraction = (1 + 0.5) / 3 = 50%.
+    seedStores(
+      null,
+      [{ ...benchJob, state: 'running', unitsCompleted: 1, accruedMs: 30_000, remainingMs: 90_000 }],
+      'crafting',
+    );
+    render(<HomeCraftBench onNavigate={vi.fn()} />);
+    const benchEl = await screen.findByTestId('home-craft-bench');
+    expect(benchEl.textContent).toContain('Working · Med Kit · 1/3 units · 50%');
   });
 });
