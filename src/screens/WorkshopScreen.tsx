@@ -62,6 +62,8 @@ import {
 import { GateLines, RecipeInspectSheet, SourceLine } from '@/components/workshop/RecipeDetail';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
+import { QuantityPicker } from '@/components/vendor/QuantityPicker';
+import { craftUnitsMax } from '@/lib/workshop/craftQuantity';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
 import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
 import { canUseRewardedBenchTimeAds, showRewardedBenchTimeAd } from '@/lib/ads/rewardedBenchTimeAd';
@@ -1262,6 +1264,17 @@ const RecipeCard: React.FC<{
     return { key, per, need, have, enough: have >= need, short: Math.max(0, need - have) };
   });
   const catalystHave = catalystId ? (ctx.materials[catalystId] ?? 0) : 0;
+  const pickerMax = craftUnitsMax({
+    recipeMaxUnits: recipe.maxUnits,
+    inputs: inputRows,
+    catalystPerUnit: useCatalyst && catalystId != null,
+    catalystHave,
+  });
+  const [prevPickerMax, setPrevPickerMax] = useState(pickerMax);
+  if (pickerMax !== prevPickerMax) {
+    setPrevPickerMax(pickerMax);
+    if (pickerMax >= 1 && units > pickerMax) setUnits(pickerMax);
+  }
   const ticketsOwned = consumables['WorkshopRushTicket'] ?? 0;
   const laneLabel = CATEGORIES.find((c) => c.key === recipe.category)?.label ?? recipe.category;
   // No-redundant-state law (owner, 2026-11-03): the gate block
@@ -1421,18 +1434,8 @@ const RecipeCard: React.FC<{
           </div>
         )}
 
+        <QuantityPicker value={units} max={pickerMax} onChange={setUnits} testIdPrefix="craft-qty" />
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
-          <label className="flex items-center gap-1 text-text-secondary">
-            Units
-            <input
-              type="number"
-              min={1}
-              max={recipe.maxUnits ?? 500}
-              value={units}
-              onChange={(e) => setUnits(Math.max(1, Math.min(recipe.maxUnits ?? 500, Math.floor(Number(e.target.value) || 1))))}
-              className="w-14 text-[11px] font-bold border border-border bg-surface rounded px-1.5 py-1 text-text-primary"
-            />
-          </label>
           {catalystId && (
             <button
               type="button"
