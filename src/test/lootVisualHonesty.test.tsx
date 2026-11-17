@@ -114,6 +114,7 @@ describe('lootRiseVisualForEvent — the grant drives the visual', () => {
   it('material and essence finds map to their own icons', () => {
     expect(lootRiseVisualForEvent(ev({ tone: 'material', label: '+2 Scrap', value: 2 }))).toBe('material');
     expect(lootRiseVisualForEvent(ev({ tone: 'essence', label: '+1 Ember Essence', value: 1 }))).toBe('essence');
+    expect(lootRiseVisualForEvent(ev({ tone: 'consumable', label: 'MedKit expired' }))).toBe('consumable');
   });
 
   it('a kill tick (credits/scrap/XP payout) maps to the scrap rise', () => {

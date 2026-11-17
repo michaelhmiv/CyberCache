@@ -265,12 +265,13 @@ describe('LootMoment — full mode (stage surface)', () => {
 });
 
 describe('LootMoment — light mode (feed surface)', () => {
-  it('is pointer-transparent, shows beam + compact card, never dims', () => {
+  it('is pointer-transparent, shows beam + risen item + compact card, never dims', () => {
     render(<LootMoment items={[makeWeapon()]} surface="feed" testId="lm" />);
     const root = screen.getByTestId('lm');
     expect(root.getAttribute('data-mode')).toBe('light');
     expect(root.className).toContain('pointer-events-none');
     expect(screen.getByTestId('fx-loot-beam')).toBeTruthy();
+    expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
     // Light mode never dims and never shows the legendary layers.
     expect(screen.queryByTestId('loot-dim')).toBeNull();
     expect(screen.queryByTestId('fx-god-rays')).toBeNull();

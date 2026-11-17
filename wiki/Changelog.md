@@ -2,9 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
-## 2026-11-17 — The bench shows its work
+## 2026-11-17 — The bench shows its work; drops show themselves
 
 - **The bench shows its work now** — on Home's Craft workspace the **Bench Jobs** list sits at the top of the workspace, directly under the bench strip, and a refused queue or cancel prints there too, where the tap happened — no more hunting a long scroll below the catalog to learn whether a tap landed. The bench strip names the job at the head of the queue with its progress (units done and a percent) whether it is working or paused, and the head job's piece rests on the bench even while it waits under the Paused pennant. Recipe cards set their unit count with the Vendor counter's own picker — quick chips and a slider — with MAX read from the inputs you hold, your catalyst stock, and the per-job ceiling; one queue slot holds the whole batch.
+- **A drop shows itself now** — a gear drop's item rises out of its beam at every rarity, not only when a legendary lands; materials, essences, and scrap rise as their own paintings instead of a tinted marker, and a consumable firing, reloading, or running out while you roam rises as the consumable itself.
+- **One painting per item, on every surface** — the Home gain toasts and the Crack Cache door wear the wallet paintings; the consumable ledger and the belt show each consumable's own painting; and a recipe card's face shows the item it makes.
 
 ## 2026-11-16 — The Cache Hunters take the field
 

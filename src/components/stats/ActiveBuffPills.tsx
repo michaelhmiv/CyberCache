@@ -1,5 +1,6 @@
 import React, { memo, useState, useEffect, useMemo, useRef } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { CONSUMABLES, type ConsumableVisual } from '@/constants/consumables';
 import type { ConsumableType } from '@/types/game';
 import { buildEffectSummary } from '@/lib/buffs/effectSummary';
@@ -71,7 +72,7 @@ const BuffPill = memo(function BuffPill({
         className="shrink-0 text-[14px] font-black leading-none"
         style={{ color: accent }}
       >
-        {icon ? <PxIcon name={icon} size={13} /> : null}
+        {def ? <PixelConsumable type={buff.consumableId} size={20} /> : (icon ? <PxIcon name={icon} size={13} /> : null)}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-1">
@@ -170,7 +171,6 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
         {SLOT_ORDER.map((slot) => {
           const id = consumables[slot];
           const def = id ? CONSUMABLES[id] : null;
-          const accent = def ? accentClass[def.visual.accent] : '#888';
           const stockCount = id ? (inventory[id] ?? 0) : 0;
           const isActive = id ? activeConsumableIds.has(id as ConsumableType) : false;
           const slotNumber = SLOT_ORDER.indexOf(slot) + 1;
@@ -188,7 +188,7 @@ export const ActiveBuffPills = memo(function ActiveBuffPills({
               {/* Glyph or slot number */}
               <div className="flex h-7 w-7 items-center justify-center border-2 border-border bg-bg/80">
                 {def ? (
-                  <PxIcon name={def.visual.icon} size={13} style={{ color: accent }} />
+                  <PixelConsumable type={def.id} size={22} />
                 ) : (
                   <span className="text-[11px] font-black text-text-muted">{slotNumber}</span>
                 )}

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X } from 'lucide-react';
 import { useActivityStore, useAnnouncementsStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
@@ -10,7 +11,7 @@ import { ChipRail } from '@/components/common/ChipRail';
 import { MaterialUsageSheet } from '@/components/common/MaterialUsageSheet';
 import { CraftingBenchScene } from '@/components/pixelArt/ActionScenes';
 import { getVisualAsset } from '@/constants/visualAssets';
-import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
+import { getConsumableQualityBand } from '@/constants/consumables';
 import {
   ALL_CRAFT_RECIPES,
   BENCH_TIME_BANK_CAP_SECONDS,
@@ -1239,7 +1240,6 @@ const RecipeCard: React.FC<{
   const [inspectOpen, setInspectOpen] = useState(false);
 
   const catalystId = catalystForRecipe(recipe);
-  const def = recipe.consumableType ? CONSUMABLES[recipe.consumableType] : undefined;
   const evaluated = deriveRecipeReadiness(recipe, ctx, {
     units,
     rarity: isGear ? rarity : undefined,
@@ -1313,7 +1313,13 @@ const RecipeCard: React.FC<{
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded border border-border bg-bg">
-              <PxIcon name={def ? def.visual.icon : CATEGORY_ICONS[recipe.category]} size={17} />
+              {recipe.consumableType ? (
+                <PixelConsumable type={recipe.consumableType} size={26} />
+              ) : recipe.outputMaterial ? (
+                <PixelMaterial id={recipe.outputMaterial} size={26} />
+              ) : (
+                <PxIcon name={CATEGORY_ICONS[recipe.category]} size={17} />
+              )}
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
