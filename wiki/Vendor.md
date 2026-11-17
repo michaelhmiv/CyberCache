@@ -20,7 +20,10 @@ Tapping Buy opens a quantity sheet for that item: quick picks of
 1 / 20 / 50 / 100 / 1,000 / MAX, a slider, and the total with your
 credits after the purchase shown before you confirm. Stock is
 unlimited, so MAX is simply as many as your credits cover; picks
-past what you can afford stay visible but disabled.
+past what you can afford stay visible but disabled. The same
+picker sets the unit count on a Workshop recipe card — there,
+MAX is read from the inputs you hold instead of your credits
+(see [[Crafting]]).
 
 ## The staples — always in stock
 

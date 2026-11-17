@@ -50,12 +50,15 @@ describe('Field Manual (HelpScreen)', () => {
     // F5 adds +1 (Actions-and-Occupations' Roaming section
     // cross-references [[Contracts]] for Pell's Run) = 331;
     // F6 adds +1 (Gear's maker-line note cross-references
-    // [[Reference]]) = 332.
+    // [[Reference]]) = 332. The device-pass crafting pack adds +2
+    // (Vendor's shared-picker note cross-references [[Crafting]];
+    // Crafting's picker paragraph cross-references [[Vendor]])
+    // = 334.
     // Bump the pin in
     // the same change as any wiki edit that moves the census.
     await waitFor(() => expect(wikiCorpusReady()).toBe(true));
-    expect(getWikiLinkCount()).toBe(332);
-    await waitFor(() => expect(screen.getByText('332')).toBeTruthy());
+    expect(getWikiLinkCount()).toBe(334);
+    await waitFor(() => expect(screen.getByText('334')).toBeTruthy());
   });
 
   it('converges the Links LCD to whatever count the corpus itself reports', async () => {

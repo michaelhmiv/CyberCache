@@ -56,6 +56,16 @@ describe('benchSeatPlanForJob — mid-job seat resolution', () => {
     expect(benchSeatPlanForJob(job({}))).toEqual({ kind: 'consumable', consumableType: 'PatchKit' });
   });
 
+  it('a PAUSED head job seats at rest (device-pass fix, 2026-11-17) — same truthful picture, no FX implied', () => {
+    expect(benchSeatPlanForJob(job({ state: 'paused' }))).toEqual({
+      kind: 'consumable',
+      consumableType: 'PatchKit',
+    });
+    expect(
+      benchSeatPlanForJob(job({ state: 'paused', kind: 'repair', recipeId: 'repair', repairItemId: 'veh-1' })),
+    ).toEqual({ kind: 'serviceItem', itemId: 'veh-1' });
+  });
+
   it('refine job seats the real output material', () => {
     const plan = benchSeatPlanForJob(job({ kind: 'refine', recipeId: 'refine_refined_alloy' }));
     expect(plan).toEqual({ kind: 'material', materialId: 'RefinedAlloy' });
