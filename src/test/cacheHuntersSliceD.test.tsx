@@ -539,14 +539,17 @@ withFixtureSkin(() => {
     expect(stateB?.skins).toEqual([]);
   });
 
-  it('D5/D3 — a skin item is not a part: equip and tint both refuse it as one', async () => {
+  it('D5/D3 — a skin item is not a part: it reads as a skin, never a part', async () => {
+    // Pre-retirement this also asserted the equip op refused the
+    // skin ('Part has no wearable slot'); the equip op itself was
+    // retired in device-pass Batch 4, so the surviving law is the
+    // read shape: skins and parts stay in their own lists.
     const store = gameplayStore();
     const skinItemId = '66666666-6666-4666-8666-666666666666';
     store.seedItem({
       id: skinItemId, owner_user_id: A, kind: 'cosmetic', runtime_state: 'available',
       payload: buildCosmeticSkinPayload(FIXTURE_SKIN.id, 90, 'crafted', A),
     } as never);
-    await expect(store.equipCosmetic(A, nonce(), skinItemId)).rejects.toThrow('Part has no wearable slot');
     const state = await store.getCosmeticsState(A);
     expect(state?.skins.map((s) => s.id)).toContain(skinItemId);
     expect(state?.parts.map((p) => p.id)).not.toContain(skinItemId);

@@ -470,9 +470,14 @@ describe('cosmetic market — writes twin', () => {
   });
 });
 
-// ─── Behavior: gameplay twin (equip + grandfather) ──────────────
+// ─── Behavior: gameplay twin (selection record reads) ──────────
+// The equip/unequip/head-variant write ops were retired in
+// device-pass Batch 4 (2026-11-17) — the selection record has no
+// writer left, so these tests seed the record directly (the
+// store's public skinSelections map) and pin what the READ paths
+// still owe: the state view and the look projection.
 
-describe('cosmetic equip — gameplay twin', () => {
+describe('cosmetic selection reads — gameplay twin', () => {
   function gameplayStore() {
     const store = new InMemoryChefGameplayStore(() => new Date('2026-10-29T12:00:00.000Z'));
     store.seedProfile({ id: A, username: 'alpha' });
@@ -480,7 +485,7 @@ describe('cosmetic equip — gameplay twin', () => {
     return store;
   }
 
-  it('equip validates possession, unequip clears the slot, looks project worn parts only', async () => {
+  it('the state view and looks project the selection record’s worn parts only', async () => {
     const store = gameplayStore();
     const itemId = '77777777-7777-4777-8777-777777777777';
     store.seedItem({
@@ -491,8 +496,7 @@ describe('cosmetic equip — gameplay twin', () => {
       },
     } as never);
 
-    await expect(store.equipCosmetic(B, nonce(), itemId)).rejects.toThrow('Item not found');
-    await store.equipCosmetic(A, nonce(), itemId);
+    store.skinSelections.set(A, { equipped: { head: itemId }, headVariant: 'visor' });
     const state = await store.getCosmeticsState(A);
     expect(state?.selection.equipped.head).toBe(itemId);
     expect(state?.parts.map((p) => p.id)).toContain(itemId);
@@ -500,19 +504,17 @@ describe('cosmetic equip — gameplay twin', () => {
     const looks = await store.getHunterLooks([A]);
     expect(looks[A]?.parts.head?.partId).toBe('bulwark-head');
 
-    await store.unequipCosmetic(A, nonce(), 'head');
+    store.skinSelections.set(A, { equipped: {}, headVariant: 'visor' });
     const after = await store.getCosmeticsState(A);
     expect(after?.selection.equipped.head).toBeUndefined();
   });
 
-  it('manufacturer head picks are grandfathered by Standing rank ≥ 3, never below it', async () => {
+  it('manufacturer head variants read as wearable only at Standing rank ≥ 3, never below it', async () => {
     const store = gameplayStore();
-    await expect(store.setCosmeticHeadVariant(A, nonce(), 'mfr-redline'))
-      .rejects.toThrow(/earned at Redline rank 3/);
+    const below = await store.getCosmeticsState(A);
+    expect(below?.wearableVariantIds).not.toContain('mfr-redline');
     store.standingRows.set(`${A}:Redline`, { standing: 0, rank: 3 } as never);
-    await store.setCosmeticHeadVariant(A, nonce(), 'mfr-redline');
     const state = await store.getCosmeticsState(A);
-    expect(state?.selection.headVariant).toBe('mfr-redline');
     expect(state?.wearableVariantIds).toContain('mfr-redline');
   });
 });

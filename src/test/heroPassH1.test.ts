@@ -274,13 +274,16 @@ function mfrHelmItem(id: string, owner: string): never {
 }
 
 describe('H1 grandfathering — gameplay twin + look resolution', () => {
-  it('an owner of a crafted maker helm can still equip and wear it after the delisting', async () => {
+  it('a crafted maker helm worn in the selection record still reads as worn after the delisting', async () => {
+    // The equip/unequip ops that used to write this record were
+    // retired in device-pass Batch 4 (2026-11-17); the record is
+    // seeded directly and the READ paths are what this pins.
     const store = new InMemoryChefGameplayStore(() => new Date('2026-10-29T12:00:00.000Z'));
     store.seedProfile({ id: A, username: 'alpha' });
     const itemId = '66666666-6666-4666-8666-666666666666';
     store.seedItem(mfrHelmItem(itemId, A));
 
-    await store.equipCosmetic(A, nonce(), itemId);
+    store.skinSelections.set(A, { equipped: { head: itemId }, headVariant: 'visor' });
     const state = await store.getCosmeticsState(A);
     expect(state?.selection.equipped.head).toBe(itemId);
     expect(state?.parts.map((p) => p.partId)).toContain('mfr-head-redline');
@@ -288,7 +291,7 @@ describe('H1 grandfathering — gameplay twin + look resolution', () => {
     const looks = await store.getHunterLooks([A]);
     expect(looks[A]?.parts.head?.partId).toBe('mfr-head-redline');
 
-    await store.unequipCosmetic(A, nonce(), 'head');
+    store.skinSelections.set(A, { equipped: {}, headVariant: 'visor' });
     const after = await store.getCosmeticsState(A);
     expect(after?.selection.equipped.head).toBeUndefined();
   });
