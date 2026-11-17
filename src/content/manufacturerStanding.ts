@@ -266,7 +266,10 @@ export const STANDING_RECIPE_TYPES: Record<Manufacturer, { consumableType: strin
   [Manufacturer.HelixWorks]: { consumableType: 'HelixCalibrationKit', recipeId: 'recipe_helixworks_standing', name: 'Helix Calibration Kit' },
 };
 
-/** Rank-3 cosmetics: a manufacturer head variant + rig decal tint (selection is device-local). */
+/** Rank-3 cosmetics: a manufacturer head variant + rig decal tint
+ *  (the variant catalog — the Settings selection surface retired
+ *  with the parts figure in the 2026-11-17 fix round; the grant
+ *  remains a profile fact and the heads remain collection parts). */
 export const STANDING_COSMETICS: Record<Manufacturer, { headVariantId: string; spriteId: string }> = {
   [Manufacturer.Redline]: { headVariantId: 'mfr-redline', spriteId: 'hunter-head-redline' },
   [Manufacturer.Ironwood]: { headVariantId: 'mfr-ironwood', spriteId: 'hunter-head-ironwood' },
@@ -363,7 +366,7 @@ export const STANDING_UNLOCKS: StandingUnlockDef[] = STANDING_MANUFACTURERS.flat
       rank: 3,
       kind: 'cosmetic' as const,
       label: `${def.name} rig colors`,
-      detail: `${withArticle(def.name, true)} head variant and decal tint for your rig, chosen in Settings. Looks only — no stats.`,
+      detail: `${withArticle(def.name, true)} head variant and decal tint for your rig. Looks only — no stats.`,
     },
     {
       id: standingUnlockId(manufacturer, 'crate'),
@@ -416,7 +419,7 @@ export const STANDING_UNLOCK_CONSUMERS: Record<
       [
         standingUnlockId(manufacturer, 'cosmetic'),
         {
-          consumer: 'Settings head-variant list (owned rank-3 variants only)',
+          consumer: 'Head-variant catalog (manufacturer entries; the cosmetics state view lists them as wearable for grandfathered rank-3 owners)',
           file: 'src/lib/pixel/headParts.ts',
           needle: `mfr-${slug}`,
         },

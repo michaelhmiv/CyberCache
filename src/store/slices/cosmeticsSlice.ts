@@ -4,33 +4,27 @@
  * Session-scoped holder for the Chef's cosmetics state view: the
  * selection record (equipped part item per slot + the head-variant
  * pick), the owned part items, and the wearable head variants.
- * Every hunter render resolves through this state (lookResolution)
- * — stages never read selection state on their own.
  *
- * One load per session from 'idle'/'error'; ops replace the held
- * view with the op result's fresh view. The one-time migration of
- * the device-local head pick ('cc-head-variant', pre-0053 storage)
- * rides the first load: when the account has NO server selection
- * record yet and a valid local pick exists, it is posted once —
- * after that the server record is the only source.
+ * READ-ONLY since the 2026-11-17 retirements (device-pass Batch 4):
+ * the equip/unequip/head-variant write path is gone — no surface
+ * wears parts anymore (the hunters are paintings; the Wardrobe
+ * wears whole skins device-locally), so this store only loads and
+ * holds the view. The held view still feeds the whole-skin
+ * ownership mirror (hunterSkins.isSkinOwned) and the market's
+ * worn-part marker. The old device-local head pick
+ * ('cc-head-variant') is retired with the picker that wrote it:
+ * nothing reads or pushes it.
+ *
+ * One load per session from 'idle'/'error'.
  *
  * Reset by AuthProvider on every user change, like the other
  * session-scoped stores.
  */
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import {
-  equipCosmetic,
-  getCosmeticsState,
-  newCosmeticEquipNonce,
-  newCosmeticHeadVariantNonce,
-  newCosmeticUnequipNonce,
-  setCosmeticHeadVariant,
-  unequipCosmetic,
-} from '@/lib/chef/chefClient';
-import type { CosmeticSlot, CosmeticsStateView } from '@/content/skins';
+import { getCosmeticsState } from '@/lib/chef/chefClient';
+import type { CosmeticsStateView } from '@/content/skins';
 import { setOwnedSkinIds } from '@/lib/hunters/hunterSkins';
-import { headVariantPreference, isHunterHeadVariantId } from '@/lib/pixel/headParts';
 import { resolveOwnLook, type ResolvedLook } from '@/lib/pixel/lookResolution';
 
 export type CosmeticsLoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -43,14 +37,10 @@ export interface CosmeticsState {
    *  outside this store — market listing/buying a part). */
   refresh: () => Promise<void>;
   applyView: (view: CosmeticsStateView) => void;
-  equip: (itemId: string) => Promise<void>;
-  unequip: (slot: CosmeticSlot) => Promise<void>;
-  setHeadVariant: (variant: string) => Promise<void>;
   reset: () => void;
 }
 
 let inFlight: Promise<void> | null = null;
-let localPickMigrated = false;
 
 /** Every held view also mirrors its whole-skin ownership into the
  *  Wardrobe's seam (reshape slice (d)): the cosmetics view is the
@@ -73,25 +63,8 @@ export const useCosmeticsStore = create<CosmeticsState>()((set, get) => ({
     // instead of throwing through the caller's effect.
     inFlight = Promise.resolve()
       .then(() => getCosmeticsState())
-      .then(async (result) => {
+      .then((result) => {
         set(holdView(result.cosmetics));
-        // One-time device-local head-pick migration (see header).
-        if (!localPickMigrated && !result.cosmetics.selectionExists) {
-          localPickMigrated = true;
-          const local = headVariantPreference();
-          if (
-            isHunterHeadVariantId(local) &&
-            local !== result.cosmetics.selection.headVariant &&
-            result.cosmetics.wearableVariantIds.includes(local)
-          ) {
-            try {
-              await get().setHeadVariant(local);
-            } catch {
-              // The server record stays authoritative either way;
-              // a refused migration simply leaves the default.
-            }
-          }
-        }
       })
       .catch(() => {
         // Chef unreachable: renders fall back to the stock look
@@ -109,24 +82,8 @@ export const useCosmeticsStore = create<CosmeticsState>()((set, get) => ({
     }
   },
   applyView: (view) => set(holdView(view)),
-  equip: async (itemId) => {
-    const result = await equipCosmetic({ nonce: newCosmeticEquipNonce(), itemId });
-    set(holdView(result.result.cosmetics));
-  },
-  unequip: async (slot) => {
-    const result = await unequipCosmetic({ nonce: newCosmeticUnequipNonce(), slot });
-    set(holdView(result.result.cosmetics));
-  },
-  setHeadVariant: async (variant) => {
-    const result = await setCosmeticHeadVariant({
-      nonce: newCosmeticHeadVariantNonce(),
-      variant,
-    });
-    set(holdView(result.result.cosmetics));
-  },
   reset: () => {
     inFlight = null;
-    localPickMigrated = false;
     setOwnedSkinIds([]);
     set({ view: null, loadState: 'idle' });
   },
@@ -143,7 +100,9 @@ let lookCache: { view: CosmeticsStateView | null; fallback: string; look: Resolv
  *  change and loops the render. */
 export function selectOwnLook(state: CosmeticsState): ResolvedLook {
   const view = state.view;
-  const fallback = headVariantPreference();
+  // The retired device-local head pick ('cc-head-variant') used to
+  // be the fallback here; the stock visor is the standing default.
+  const fallback = 'visor';
   if (lookCache && lookCache.view === view && lookCache.fallback === fallback) {
     return lookCache.look;
   }

@@ -798,21 +798,12 @@ export interface ChefGameplayStore {
    * read is cc_cosmetics_view on the Pg store.
    */
   getCosmeticsState(playerId: string): Promise<CosmeticsStateView | null>;
-  /**
-   * Equip a cosmetic part (cc_cosmetic_equip, 0053): possession is
-   * validated server-side; equip is a selection-record write only —
-   * the item stays an ordinary available inventory item.
-   * Nonce-idempotent via the ledger.
-   */
-  equipCosmetic(playerId: string, nonce: string, itemId: string): Promise<Json>;
-  /** Unequip one cosmetic slot (cc_cosmetic_unequip, 0053). */
-  unequipCosmetic(playerId: string, nonce: string, slot: string): Promise<Json>;
-  /**
-   * Set the head-variant pick (cc_cosmetic_set_head_variant, 0053):
-   * free variants for everyone; a manufacturer variant requires the
-   * grandfathered Standing rank-3 fact.
-   */
-  setCosmeticHeadVariant(playerId: string, nonce: string, variant: string): Promise<Json>;
+  // The equip/unequip/head-variant write ops (cc_cosmetic_equip /
+  // cc_cosmetic_unequip / cc_cosmetic_set_head_variant, 0053) were
+  // retired 2026-11-17 (device-pass Batch 4): no surface wears
+  // parts since the paintings conversion and nothing called them.
+  // The SQL functions stay in the database (no migration in the
+  // retirement batch); this store surface is reads only.
   /**
    * Public hunter looks (cc_hunter_look_view, 0053) for social
    * surfaces: slot → part id / tint / quality per player, no item
@@ -1525,24 +1516,6 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       skins: raw.skins ?? [],
       wearableVariantIds,
     };
-  }
-
-  equipCosmetic(playerId: string, nonce: string, itemId: string): Promise<Json> {
-    return this.callJson('select public.cc_cosmetic_equip($1, $2, $3) as result', [
-      playerId, nonce, itemId,
-    ]);
-  }
-
-  unequipCosmetic(playerId: string, nonce: string, slot: string): Promise<Json> {
-    return this.callJson('select public.cc_cosmetic_unequip($1, $2, $3) as result', [
-      playerId, nonce, slot,
-    ]);
-  }
-
-  setCosmeticHeadVariant(playerId: string, nonce: string, variant: string): Promise<Json> {
-    return this.callJson('select public.cc_cosmetic_set_head_variant($1, $2, $3) as result', [
-      playerId, nonce, variant,
-    ]);
   }
 
   async getHunterLooks(playerIds: string[]): Promise<Record<string, HunterLookView>> {

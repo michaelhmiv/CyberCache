@@ -8,10 +8,12 @@
  * visor head's geometry (86×88, same neck-seat pivot, same 9px
  * collar skirt), so one seat serves all of them.
  *
- * The pick itself stays device-local (Settings writes the
- * 'cc-head-variant' localStorage key) — it is presentation state,
- * not inventory; the server-side selection record arrives with the
- * skins system (skins brief S2), not with this render swap.
+ * The catalog survives as DATA (the manufacturer variants are the
+ * Standing rank-3 cosmetics and feed the craftable head parts in
+ * skinParts.ts). The PICK retired 2026-11-17 (device-pass
+ * Batch 4): the Settings picker, the 'cc-head-variant' device
+ * preference, and the server selection write are all gone — the
+ * hunters are paintings now, and no surface reads a head pick.
  */
 import type { PartDef } from './parts';
 import { STANDARD_ISSUE } from './standardIssue';
@@ -24,8 +26,9 @@ export interface HunterHeadVariantDef {
   /**
    * Manufacturer Standing (0043): set when this variant is that
    * manufacturer's rank-3 cosmetic. The unlock is server state (the
-   * granted rank); Settings lists the variant only for owners and
-   * selection itself stays device-local.
+   * granted rank); the cosmetics state view lists the variant as
+   * wearable for owners. (The Settings selection list retired with
+   * the pick in the 2026-11-17 fix round.)
    */
   standingManufacturer?: string;
 }
@@ -50,19 +53,6 @@ export function isHunterHeadVariantId(value: unknown): value is HunterHeadVarian
   return typeof value === 'string' && HUNTER_HEAD_VARIANTS.some((v) => v.id === value);
 }
 
-/** The player's device-local head-variant pick (Settings writes the
- *  'cc-head-variant' localStorage key). Every stage that renders the
- *  hunter reads it through here, so the cosmetic follows the player —
- *  diorama, boss arena, and bench scenes alike. */
-export function headVariantPreference(): HunterHeadVariantId {
-  try {
-    const value = window.localStorage.getItem('cc-head-variant');
-    return isHunterHeadVariantId(value) ? value : 'visor';
-  } catch {
-    return 'visor';
-  }
-}
-
 /** The head PART for a variant: the Standard Issue head re-skinned
  *  with the variant's sprite (identical geometry — see header). */
 export function headPartForVariant(variantId: HunterHeadVariantId): PartDef {
@@ -72,9 +62,11 @@ export function headPartForVariant(variantId: HunterHeadVariantId): PartDef {
   return { ...base, id: `head-${variant.id}`, spriteId: variant.spriteId };
 }
 
-/** The hunter's part set wearing the chosen head variant — the one
- *  set every live hunter surface renders. */
-export function hunterPartSet(variantId: HunterHeadVariantId = headVariantPreference()): PartSetDef {
+/** The Standard Issue part set wearing the given head variant.
+ *  Parts-system data only since the paintings conversion: no live
+ *  surface renders a part set anymore (the look record resolves
+ *  through lookResolution for the record's own consumers). */
+export function hunterPartSet(variantId: HunterHeadVariantId = 'visor'): PartSetDef {
   const head = headPartForVariant(variantId);
   if (head === STANDARD_ISSUE.parts.head) return STANDARD_ISSUE;
   return { ...STANDARD_ISSUE, parts: { ...STANDARD_ISSUE.parts, head } };
