@@ -407,14 +407,15 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 327 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 328 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 4 merges
+**2026-11-17** — 5 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
 - #604 — Device pass batch 2: drops show the item + item-art parity
 - #605 — Portraits are paintings: look record carries hunter identity (Batch 3, migration 0100)
+- #606 — Retire the cosmetics write path, head-variant picker + pref, and WeaponCanvas (device-pass Batch 4)
 
 **2026-11-16** — 13 merges
 

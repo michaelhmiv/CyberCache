@@ -20,6 +20,10 @@
         {
           "number": 605,
           "title": "Portraits are paintings: look record carries hunter identity (Batch 3, migration 0100)"
+        },
+        {
+          "number": 606,
+          "title": "Retire the cosmetics write path, head-variant picker + pref, and WeaponCanvas (device-pass Batch 4)"
         }
       ]
     },
