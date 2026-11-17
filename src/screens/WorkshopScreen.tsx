@@ -495,6 +495,7 @@ export const WorkshopScreen: React.FC<{
   const activeCategories = useMemo(() => activeFacets.category ?? new Set<string>(), [activeFacets.category]);
   const stageBench = benchDef(1);
   const runningJob = activeJobs.find((j) => j.state === 'running');
+  const seatJob = runningJob ?? activeJobs.find((j) => j.state === 'paused');
   const runningBenchJobs = activeJobs.filter((j) => j.state === 'running' && j.bench === 1);
   const benchJobCount = benchJobs.filter((j) => j.bench === 1).length;
   const stripRunningJob = benchJobs.find((j) => j.state === 'running');
@@ -830,7 +831,7 @@ export const WorkshopScreen: React.FC<{
 
       {/* The bench stage (§2.9): the bench's station, the hunter at
           work while crafting is active; paused jobs sit idle-dark
-          under a Paused pennant. Standalone only — embedded in
+          under a Paused pennant, the head job's item seated at rest on the bench. Standalone only — embedded in
           Home's Craft workspace the one-stage law gives the scene
           to the main stage, and the paused truth rides the
           workspace's banner + the job cards' state labels. */}
@@ -846,7 +847,7 @@ export const WorkshopScreen: React.FC<{
             under an empty label.) */}
         <CraftingBenchScene
           benchSpriteId={stageBench.spriteId}
-          seatJob={runningJob ?? null}
+          seatJob={seatJob ?? null}
           unarmed={!hunterWeapon}
           working={!!runningJob}
           progress={runningJob ? jobProgressFraction(runningJob) : 0}
