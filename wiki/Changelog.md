@@ -2,6 +2,11 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-17 — Drops show themselves
+
+- **A drop shows itself now** — a gear drop's item rises out of its beam at every rarity, not only when a legendary lands; materials, essences, and scrap rise as their own paintings instead of a tinted marker, and a consumable firing, reloading, or running out while you roam rises as the consumable itself.
+- **One painting per item, on every surface** — the Home gain toasts and the Crack Cache door wear the wallet paintings; the consumable ledger and the belt show each consumable's own painting; and a recipe card's face shows the item it makes.
+
 ## 2026-11-16 — The Cache Hunters take the field
 
 - **The makers have faces now** — every manufacturer is one person's outfit, and the game finally says whose: Della Voss founded Redline ("It only gets faster."), Amos Thorne founded Ironwood ("Ironwood takes its time. Once."), Hollis Brandt founded BlastForge ("Subtlety was not in the budget."), Iris Calloway founded Prismatek ("Every element, accounted for."), Tobin Larkin founded ThrowTech ("Built to be left behind."), and Ada Kessler founded HelixWorks ("No two alike. All of them calibrated."). The founder's name and the house slogan ride every gun card of that maker's work, head the maker's card at the Rep Desk, and stand in the Field Manual's Manufacturers table. Names and words only — no gun, price, or drop changed.

@@ -84,9 +84,11 @@ Above the list, two strips print the numbers the gates read: your
 state) and **the Bench** card — the one bench, always ready, with
 the craft relics listed as its permanent modifiers (see below).
 
-A recipe card's face is lean: the item, its lane, its time, its
-materials with have/need counts, the totals for the job you are
-about to queue, and the queue controls. Anything short prints
+A recipe card's face is lean: the item — a consumable or a refined
+material pictured as itself, in the same adopted painting its cards
+and shelves draw, while a gear frame wears its lane mark — its lane,
+its time, its materials with have/need counts, the totals for the job
+you are about to queue, and the queue controls. Anything short prints
 **where it comes from** right on its line — the roaming area that
 drops it, the recipe that refines it, the Vendor rotation, or the
 [[The Market]] — each one a door. Non-material blockers (level,
