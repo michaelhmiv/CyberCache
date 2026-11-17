@@ -18,7 +18,6 @@
 import React, { useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
-import { resolveLookView } from '@/lib/pixel/lookResolution';
 import {
   LEADERBOARD_METRIC_UNITS,
   formatLeaderboardValue,
@@ -196,7 +195,7 @@ const BoardRow: React.FC<{
       <RankWell rank={entry.rank} gold={entry.rank <= 3} mine={isMe} />
       {look && (
         <span className="w-7 shrink-0" data-testid={`standings-portrait-${entry.player_id}`}>
-          <HunterPortrait look={resolveLookView(look)} className="h-9" />
+          <HunterPortrait look={look} className="h-9" />
         </span>
       )}
       <span className="min-w-0 flex-1">
@@ -527,7 +526,7 @@ const RaceChannel: React.FC<{
                 <RankWell rank={entry.rank} gold={entry.rank <= 3} mine={isMe} />
                 {looks[entry.player_id] && (
                   <span className="w-7 shrink-0" data-testid={`standings-portrait-${entry.player_id}`}>
-                    <HunterPortrait look={resolveLookView(looks[entry.player_id])} className="h-8" />
+                    <HunterPortrait look={looks[entry.player_id]} className="h-8" />
                   </span>
                 )}
                 <span
@@ -564,7 +563,7 @@ const RaceChannel: React.FC<{
           <span className="font-bold" style={{ ...monoStyle, fontSize: 15, color: INK }}>RK {race.me.rank}</span>
           {looks[myPlayerId] && (
             <span className="w-7 shrink-0" data-testid="standings-portrait-me">
-              <HunterPortrait look={resolveLookView(looks[myPlayerId])} className="h-8" />
+              <HunterPortrait look={looks[myPlayerId]} className="h-8" />
             </span>
           )}
           <span className="ml-auto whitespace-nowrap font-bold" style={{ ...monoStyle, fontSize: 14, color: INK }}>

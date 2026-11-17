@@ -1549,6 +1549,11 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
         username: typeof profile?.username === 'string' ? profile.username : null,
         headVariant: sel?.headVariant ?? 'visor',
         parts,
+        // Migration 0100 twin: the fielded hunter, resolved by the
+        // same activeHunterId() the rest of the store uses (stored
+        // id when valid, else the selection-derived default) — the
+        // SQL side resolves it in cc_hunter_look_view.
+        activeHunterId: profile ? activeHunterId(profile) : null,
       };
     }
     return looks;

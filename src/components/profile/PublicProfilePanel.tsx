@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
 import { ShowcaseWeaponRow } from './ShowcaseRows';
-import { resolveLookView } from '@/lib/pixel/lookResolution';
 import { useHunterLooks } from '@/lib/pixel/useHunterLooks';
 import { COLLECTION_TOTAL } from '@/content/collections';
 import type { PlayerPublicProfile, PlayerShowcaseData } from '@/lib/api/publicProfileService';
@@ -18,7 +17,7 @@ import type { PlayerPublicProfile, PlayerShowcaseData } from '@/lib/api/publicPr
  * — the owner tapped a hunter in Standings, got this, and could not
  * reach their profile. The redesign gives the pop-up one job — be
  * the DOOR to the full profile — and dresses it in the Sheet
- * grammar: the hunter's actual worn look up top, their Trophy
+ * grammar: the hunter they field, painted whole, up top, their Trophy
  * Shelf under it, the brag facts as chips, the full stat record
  * grouped below, and a primary View Full Profile action. Every
  * figure the old pop-up showed is still here; nothing transacts
@@ -157,7 +156,7 @@ export const PublicProfilePanel: React.FC<PublicProfilePanelProps> = ({ open, on
               <div className="flex min-w-0 items-center gap-3">
                 {look ? (
                   <div className="w-14 shrink-0 border-2 border-border bg-surface" data-testid="public-profile-portrait">
-                    <HunterPortrait look={resolveLookView(look)} className="h-16" />
+                    <HunterPortrait look={look} className="h-16" />
                   </div>
                 ) : (
                   <div className="flex h-16 w-14 shrink-0 items-center justify-center border-2 border-border bg-surface">

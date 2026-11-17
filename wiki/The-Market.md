@@ -65,7 +65,8 @@ Five kinds of things trade on the Market:
   here once; fragments were retired as a currency and can no longer
   be listed or bought.)
 - **Skin parts** — crafted [[Skins and Cosmetics]] pieces, listed one by
-  one like gear. The card shows the part worn, its finish, and its tint.
+  one like gear. The card shows the part itself — its own picture in
+  its finish and tint.
   Listing a part you are wearing takes it off your hunter in the same
   motion; locked parts and parts mid-tint can't be listed.
 

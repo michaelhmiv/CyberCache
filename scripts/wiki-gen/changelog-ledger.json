@@ -3,6 +3,23 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-17",
+      "merges": [
+        {
+          "number": 602,
+          "title": "Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker"
+        },
+        {
+          "number": 603,
+          "title": "Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)"
+        },
+        {
+          "number": 604,
+          "title": "Device pass batch 2: drops show the item + item-art parity"
+        }
+      ]
+    },
+    {
       "date": "2026-11-16",
       "merges": [
         {

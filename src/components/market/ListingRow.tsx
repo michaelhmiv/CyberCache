@@ -34,14 +34,14 @@
  * Freeze discipline, same as the Gear row: weapons compose at
  * STAGE density here, never card density.
  */
-import React, { useMemo } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { ElementBadge } from '@/components/gear/ElementBadge';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
-import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
+import { PartSpriteThumb } from '@/components/pixelArt/PartSpriteThumb';
 import { VehicleSprite } from '@/components/gear/GaragePanel';
 import { listEntranceProps } from '@/lib/animation/uiMotion';
 import { gearRowHeadline, isClassMod, priceRowHeadline } from '@/lib/gear/gearCardSummary';
@@ -50,7 +50,6 @@ import { skinById } from '@/lib/hunters/hunterSkins';
 import { getPixelSprite } from '@/lib/pixel/manifest';
 import { listingAgeLabel } from '@/lib/market/listingAge';
 import { fmtUnitPrice } from '@/lib/market/unitPriceLabel';
-import { resolveLookView } from '@/lib/pixel/lookResolution';
 import { skinPartCatalog, skinSetById } from '@/content/skins';
 import { conditionFraction, getVehicleClass } from '@/lib/vehicles/vehicles';
 import { RARITIES } from '@/constants/rarities';
@@ -94,27 +93,15 @@ function VehicleThumb({ vehicle }: { vehicle: VehicleDisplay }) {
 }
 
 function CosmeticThumb({ listing }: { listing: Listing }) {
+  // The part itself, tinted as listed — the SkinThumb read (the
+  // item for sale, as itself). The synthesized one-part mannequin
+  // retired with the parts figure (portraits conversion, Batch 3).
   const def = listing.partId ? skinPartCatalog(listing.partId) : undefined;
-  const look = useMemo(() => {
-    if (!def) return null;
-    return resolveLookView({
-      playerId: '',
-      username: null,
-      headVariant: 'visor',
-      parts: {
-        [def.slot]: {
-          partId: def.id,
-          tintPaletteId: listing.tintPaletteId ?? null,
-          quality: listing.qualityPercent ?? 50,
-        },
-      },
-    });
-  }, [def, listing.tintPaletteId, listing.qualityPercent]);
   return (
     <div className="flex w-12 shrink-0 items-center justify-center">
-      {look ? (
+      {def ? (
         <div className="w-10 overflow-hidden border border-border bg-bg">
-          <HunterPortrait look={look} className="h-[44px]" />
+          <PartSpriteThumb partId={def.id} tintPaletteId={listing.tintPaletteId} quality={listing.qualityPercent} className="h-[44px]" />
         </div>
       ) : (
         <div className="grid h-[44px] w-10 place-items-center border border-border bg-bg text-[11px] text-text-muted">?</div>
