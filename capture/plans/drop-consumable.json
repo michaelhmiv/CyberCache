@@ -1,0 +1,37 @@
+{
+ "dsf": 2,
+ "width": 412,
+ "height": 915,
+ "steps": [
+  {
+   "wait": 6000
+  },
+  {
+   "eval": "window.__seedConsumableDrop()"
+  },
+  {
+   "wait": 350
+  },
+  {
+   "shot": "drop-consumable-t1"
+  },
+  {
+   "wait": 650
+  },
+  {
+   "shot": "drop-consumable-t2"
+  },
+  {
+   "wait": 700
+  },
+  {
+   "shot": "drop-consumable-t3"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "drop-consumable-t4"
+  }
+ ]
+}

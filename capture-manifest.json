@@ -1,1 +1,99 @@
-{"captures":[{"expect":["rd-fodder","rd-runner","rd-sniper","rd-brute"],"label":"roamdom","path":"/roam-harness.html?renderer=dom","plan":"capture/plans/roam-rest.json","prefix":"rd"},{"expect":["rp-fodder","rp-runner","rp-sniper","rp-brute"],"label":"roampixi","path":"/roam-harness.html","plan":"capture/plans/roam-rest.json","prefix":"rp"}],"harnessPage":"/roam-harness.html","iter":"inkr6space","port":7143}
+{
+ "iter": "fix-round-eyeball",
+ "port": 7137,
+ "harnessPage": "/roam-harness.html",
+ "captures": [
+  {
+   "label": "gear-loadout",
+   "path": "/gear-harness.html?hunter=vesper&width=412",
+   "plan": "capture/plans/gear-loadout.json",
+   "expect": [
+    "gear-loadout"
+   ]
+  },
+  {
+   "label": "bench-home-crafting",
+   "path": "/bench-harness.html?mode=crafting&state=working&width=412",
+   "plan": "capture/plans/bench-home-crafting.json",
+   "expect": [
+    "bench-home-crafting"
+   ]
+  },
+  {
+   "label": "bench-home-salvaging",
+   "path": "/bench-harness.html?mode=salvaging&state=working&width=412",
+   "plan": "capture/plans/bench-home-salvaging.json",
+   "expect": [
+    "bench-home-salvaging"
+   ]
+  },
+  {
+   "label": "bench-home-stall",
+   "path": "/bench-harness.html?mode=marketListing&state=working&width=412",
+   "plan": "capture/plans/bench-home-stall.json",
+   "expect": [
+    "bench-home-stall"
+   ]
+  },
+  {
+   "label": "extract-stage",
+   "path": "/loot-harness.html?mode=extract&width=412",
+   "plan": "capture/plans/extract-stage.json",
+   "expect": [
+    "extract-stage"
+   ]
+  },
+  {
+   "label": "panel-craft-scene",
+   "path": "/bench-harness.html?mode=panel-craft&state=working&width=412",
+   "plan": "capture/plans/panel-craft-scene.json",
+   "expect": [
+    "panel-craft-scene"
+   ]
+  },
+  {
+   "label": "drop-weapon",
+   "path": "/roam-harness.html?scene=idle&renderer=dom&hunter=vesper&width=412",
+   "plan": "capture/plans/drop-weapon.json",
+   "expect": [
+    "drop-weapon-t1",
+    "drop-weapon-t2",
+    "drop-weapon-t3",
+    "drop-weapon-t4"
+   ]
+  },
+  {
+   "label": "drop-scrap",
+   "path": "/roam-harness.html?scene=idle&renderer=dom&hunter=vesper&width=412",
+   "plan": "capture/plans/drop-scrap.json",
+   "expect": [
+    "drop-scrap-t1",
+    "drop-scrap-t2",
+    "drop-scrap-t3",
+    "drop-scrap-t4"
+   ]
+  },
+  {
+   "label": "drop-material",
+   "path": "/roam-harness.html?scene=idle&renderer=dom&hunter=vesper&width=412",
+   "plan": "capture/plans/drop-material.json",
+   "expect": [
+    "drop-material-t1",
+    "drop-material-t2",
+    "drop-material-t3",
+    "drop-material-t4"
+   ]
+  },
+  {
+   "label": "drop-consumable",
+   "path": "/roam-harness.html?scene=idle&renderer=dom&hunter=vesper&width=412",
+   "plan": "capture/plans/drop-consumable.json",
+   "expect": [
+    "drop-consumable-t1",
+    "drop-consumable-t2",
+    "drop-consumable-t3",
+    "drop-consumable-t4"
+   ]
+  }
+ ]
+}

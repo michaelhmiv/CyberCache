@@ -1,0 +1,37 @@
+{
+ "dsf": 2,
+ "width": 412,
+ "height": 915,
+ "steps": [
+  {
+   "wait": 6000
+  },
+  {
+   "eval": "window.__seedScrapDrop()"
+  },
+  {
+   "wait": 350
+  },
+  {
+   "shot": "drop-scrap-t1"
+  },
+  {
+   "wait": 650
+  },
+  {
+   "shot": "drop-scrap-t2"
+  },
+  {
+   "wait": 700
+  },
+  {
+   "shot": "drop-scrap-t3"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "drop-scrap-t4"
+  }
+ ]
+}

@@ -40,6 +40,7 @@ const mode = params.get('mode') ?? 'crafting';
 const state = params.get('state') ?? 'working';
 const withWeapon = params.get('weapon') !== '0';
 const kindParam = params.get('kind') ?? 'consumable';
+const harnessWidth = Number(params.get('width') ?? 390) || 390;
 
 /** The crafting job per family — real catalog recipes, so the
  *  M4b seat resolution (recipeId → catalog → compositor) runs
@@ -143,7 +144,7 @@ const activityKindFor = (m: string) =>
 
 export const BenchHarnessPage: React.FC = () => (
   <div style={{ minHeight: '100vh', background: '#0B0B10', padding: 12, boxSizing: 'border-box' }}>
-    <div style={{ width: 390, margin: '0 auto' }} data-testid="bench-harness-root">
+    <div style={{ width: harnessWidth, margin: '0 auto' }} data-testid="bench-harness-root">
       {mode === 'panel-craft' ? (
         <CraftingBenchScene
           progress={0.45}

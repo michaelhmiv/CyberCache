@@ -34,6 +34,7 @@ import type { Shield, Weapon } from '@/types/items';
 const params = new URLSearchParams(window.location.search);
 const mode = params.get('mode') ?? 'boss';
 const rarityParam = (params.get('rarity') ?? 'Common') as Rarity;
+const harnessWidth = Number(params.get('width') ?? 390) || 390;
 
 const makeWeapon = (overrides: Partial<Weapon> = {}): Weapon =>
   ({
@@ -193,7 +194,7 @@ export const LootHarnessPage: React.FC = () => {
     const item = makeWeapon({ id: 'gw-1', rarity: rarityParam, sourceTag: DropSource.WorldDrop });
     return (
       <div style={{ minHeight: '100vh', background: '#0B0B10', padding: 12, boxSizing: 'border-box' }}>
-        <div style={{ width: 390, margin: '0 auto' }}>
+        <div style={{ width: harnessWidth, margin: '0 auto' }}>
           <div className="relative" style={{ height: 300, background: '#14101D' }} data-testid="loot-harness-stage">
             <LootMoment items={[item]} surface="feed" anchorXPct={66} groundYPct={82} testId="gear-loot-moment" />
           </div>
@@ -205,7 +206,7 @@ export const LootHarnessPage: React.FC = () => {
   const activityKind = mode === 'extract' ? 'extraction' : 'salvaging';
   return (
     <div style={{ minHeight: '100vh', background: '#0B0B10', padding: 12, boxSizing: 'border-box' }}>
-      <div style={{ width: 390, margin: '0 auto' }} data-testid="loot-harness-root">
+      <div style={{ width: harnessWidth, margin: '0 auto' }} data-testid="loot-harness-root">
         <LiveTurfDiorama
           area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)}
           weapon={DIORAMA_WEAPON}

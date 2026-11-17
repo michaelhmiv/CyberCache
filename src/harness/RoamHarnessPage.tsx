@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
-import { useKillCycleStore, useLoadoutStore, useTickFeedStore } from '@/store';
+import { useKillCycleStore, useLoadoutStore, useSkillStore, useTickFeedStore } from '@/store';
 import { useSurvivalStore } from '@/store/slices/survivalSlice';
 import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
@@ -141,6 +141,13 @@ export const RoamHarnessPage: React.FC = () => {
   // harness's first render — before the diorama mounts — so the
   // Pixi init's one mount-time read and the DOM plate both see it.
   useState(() => {
+    // ?hunter=vesper|silas|josie|doc: seed the fielded hunter during
+    // the harness's first render (capture-swap branch only — the
+    // fix-round eyeball pass for the painted stage figure).
+    const hunter = params.get('hunter');
+    if (hunter === 'vesper' || hunter === 'silas' || hunter === 'josie' || hunter === 'doc') {
+      useSkillStore.setState({ activeHunterId: hunter });
+    }
     const which = params.get('vehicle');
     if (which === 'bike' || which === 'buggy') {
       useVehicleStore.setState({ vehicles: [HARNESS_BIKE, HARNESS_BUGGY] });
@@ -276,6 +283,22 @@ export const RoamHarnessPage: React.FC = () => {
         economyScore: 10,
       } as unknown as Weapon;
       seedBeatEvent({ tone: 'loot', label: 'Volt Carbine', value: 1, gear });
+    };
+    // Fix-round review seams (capture-swap branch only): a kill
+    // payout — tone 'kill' resolves to the scrap rise
+    // (lootRiseVisualForEvent), which must picture the scrap
+    // wallet painting (mat-scrap), not a tinted master. The
+    // target's HP lands at 0, the way the real kill cycle lands.
+    w.__seedScrapDrop = () => {
+      seedBeatEvent({ tone: 'kill', label: 'kill', value: 1 });
+      useKillCycleStore.setState({ currentTargetHp: 0 });
+    };
+    // A roaming consumable notice — tone 'consumable' with the
+    // engine's own label shape (def id first: "MedKit expired"),
+    // resolving through parseConsumableDropId to the consumable's
+    // own painting.
+    w.__seedConsumableDrop = () => {
+      seedBeatEvent({ tone: 'consumable', label: 'MedKit expired', value: 1 });
     };
   }, [scene]);
 
