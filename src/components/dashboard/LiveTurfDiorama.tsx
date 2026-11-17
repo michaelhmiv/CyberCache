@@ -939,14 +939,18 @@ const PixelSceneLayerDom: React.FC<{
   const seatTopPct = craftZoom === 3 ? benchTopSeatPct - 2 : craftZoom > 0 ? benchTopSeatPct : workPointYPct;
   // Sink history: the fix round's 7 / 6.5 bought the climb from
   // the anvil POINT up onto the anvil's FACE (closing a measured
-  // ≈14 / ≈20 device px air band at V1 / V2). Round 3 re-bases
-  // the seat on the bench top line (benchTopSeatPct above), so
-  // the sink now buys only the 2–4 device px contact overlap off
-  // that line (sink is in scene px; screen travel = sink ×
-  // camera scale × DSF 2 → V1 ≈3.5, V2 ≈3.9 device px). V3
-  // keeps 2 — its seat is the rest disc, and the base already
-  // lands inside the disc's glow (measured in the fix round).
-  const seatSinkPx = craftZoom === 1 ? 1 : craftZoom === 2 ? 0.75 : 2;
+  // ≈14 / ≈20 device px air band at V1 / V2). Round 3's first
+  // full-screen shot (run 44178830500) re-measured the seat on
+  // the bench top line: the pack still hovered ≈21 device px
+  // (V1) / ≈33 (V2) — a shared ≈2.2 stage-point error (the item
+  // sprite's own bottom padding plus the surface-line estimate),
+  // scaling exactly with each camera. The sinks below close
+  // that band and land the base ≈3 device px INTO the bench top
+  // face (sink is in scene px; screen travel = sink × camera
+  // scale × DSF 2). V3 keeps 2 — its seat is the rest disc, its
+  // seat-to-disc geometry is round 2's unchanged, and its glow
+  // stays continuous below the base (measured, same run).
+  const seatSinkPx = craftZoom === 1 ? 7.9 : craftZoom === 2 ? 7.7 : 2;
   // Salvage completion beat (M4b): salvaging has no workshop
   // mirror, so its completions arrive on the salvage feed — the
   // store every recycle result already pushes to. A fresh settled
