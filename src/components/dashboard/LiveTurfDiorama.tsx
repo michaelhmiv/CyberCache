@@ -55,7 +55,7 @@ import {
 import { extractionPassFeedId } from '@/store/slices/extractionFeedSlice';
 import type { ChefExtractionPass } from '@/lib/chef/chefClient';
 import { BenchFx } from '@/components/pixelArt/BenchFx';
-import { BenchItemRender } from '@/components/pixelArt/BenchSeat';
+import { BenchItemRender, BenchSeatWorkMotion } from '@/components/pixelArt/BenchSeat';
 import {
   benchRisePlanForEntry,
   benchSeatPlanForJob,
@@ -1275,14 +1275,16 @@ const PixelSceneLayerDom: React.FC<{
 
       {/* Work-cycle set-piece FX (M1): glow / sparks / sweep at the
           bench's work point, executing the same spec the hunter's
-          cycle runs — silent at rest and under reduced motion. */}
+          cycle runs — silent at rest and under reduced motion.
+          Under craft-zoom the bloom anchors at the seat's bench-top
+          contact, not the historical work point. */}
       {benchSpec && (
         <BenchFx
           spec={benchSpec}
           active={benchWorking && !benchCelebrating}
           reduced={reduced}
           xPct={workPointXPct}
-          yPct={workPointYPct}
+          yPct={craftZoom > 0 ? benchTopSeatPct : workPointYPct}
           testId="bench-fx"
         />
       )}
@@ -1347,20 +1349,28 @@ const PixelSceneLayerDom: React.FC<{
               : { left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }
           }
         >
-          <div style={craftZoom > 0 ? { transform: `scale(${seatZoomScale})`, transformOrigin: '50% 100%' } : undefined}>
-            <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
-          </div>
+          {craftZoom > 0 ? (
+            <BenchSeatWorkMotion spec={benchSpec} active={benchWorking && !benchCelebrating} reduced={reduced} scale={seatZoomScale}>
+              <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+            </BenchSeatWorkMotion>
+          ) : (
+            <div style={undefined}>
+              <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+            </div>
+          )}
         </div>
       )}
       {/* Completion rise (M1): the finished unit lifts off the
           bench on the law's loot-rise duration while the hunter
-          celebrates; the panel below carries the record. */}
+          celebrates; the panel below carries the record. Under
+          craft-zoom the rise originates at the seat's base point
+          so the finished unit lifts off the spot it sat on. */}
       {benchSpec && activeBenchCompletion && (
         <StageRise
           key={benchCompletionKey(activeBenchCompletion)}
           testId="bench-completion-rise"
           xPct={workPointXPct}
-          yPct={workPointYPct}
+          yPct={craftZoom > 0 ? benchTopSeatPct : workPointYPct}
           width={46}
           height={46}
         >
