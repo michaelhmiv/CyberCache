@@ -145,7 +145,6 @@ export const ConsumableInspectSheet: React.FC<ConsumableInspectSheetProps> = ({
                 <StatRow label="Trigger" value={consumable.runtime.trigger} tone="text-cyan" />
                 <StatRow label="Consume" value={consumable.runtime.consumePolicy} tone="text-text-primary" />
                 <StatRow label="When Empty" value={consumable.runtime.zeroBehavior} tone="text-text-muted" />
-                {consumable.runtime.threshold !== undefined && <StatRow label="Threshold" value={`${(consumable.runtime.threshold * 100).toFixed(0)}%`} tone="text-green" />}
                 <StatRow label="Ledger" value={consumable.runtime.ledgerText} tone="text-text-secondary" />
               </div>
             </section>
