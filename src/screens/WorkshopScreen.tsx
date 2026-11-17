@@ -530,6 +530,36 @@ export const WorkshopScreen: React.FC<{
     }
   }, [benchEarnPending, player.id, workshop]);
 
+  // The Bench Jobs section, hoisted so each mode renders it in
+  // exactly one place: embedded (Home's Craft workspace) puts the
+  // queue at the top of the workspace, directly under the bench
+  // strip — it is the state the player just changed; standalone
+  // keeps it in flow after Fresh off the bench.
+  const benchJobsSection = benchJobs.length > 0 ? (
+    <div className="space-y-2">
+      <div className="text-xs font-bold text-text-muted uppercase">
+        Bench Jobs
+        {benchTime ? (
+          <span className="ml-1.5 font-bold normal-case text-text-muted">
+            {benchJobCount} of {benchTime.capacity} bench spaces
+            {benchTime.wideActive ? ' · widened by bench time' : ''}
+          </span>
+        ) : null}
+      </div>
+      {benchJobs.map((job) => (
+        <JobCard
+          key={job.id}
+          job={job}
+          playerLevel={player.level}
+          masteries={masteries}
+          activeActionKind={server?.activeActionKind ?? null}
+          bossPhase={activity.current.bossPhase}
+          onCancel={(id) => void workshop.cancel(id)}
+        />
+      ))}
+    </div>
+  ) : null;
+
   const openBenches = useCallback(() => {
     benchesRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }, []);
@@ -750,6 +780,9 @@ export const WorkshopScreen: React.FC<{
         </div>
       </div>
 
+      {embedded && workshop.error && <div className="text-[11px] text-red">{workshop.error}</div>}
+      {embedded && benchJobsSection}
+
       {/* Category rail — sticky, scrolls rather than shrinking. */}
       <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 py-1.5">
         <ChipRail>
@@ -880,9 +913,9 @@ export const WorkshopScreen: React.FC<{
       {/* The Workshop Activity card is the standalone page's paused
           truth + remedy. Embedded, the Craft workspace's banner at
           the top carries both — this card would only re-narrate
-          them (no-redundant-state law) — but a workshop error
-          (a refused enqueue/cancel) still prints in place. */}
-      {embedded && workshop.error && <div className="text-[11px] text-red">{workshop.error}</div>}
+          them (no-redundant-state law) — and a workshop error
+          (a refused enqueue/cancel) prints at the top of the
+          workspace, beside the bench strip, where the tap happened. */}
       {!embedded && (
       <MobileCard className="space-y-1 border-amber/30 bg-amber/5">
         <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber">
@@ -938,30 +971,7 @@ export const WorkshopScreen: React.FC<{
         </div>
       )}
 
-      {benchJobs.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs font-bold text-text-muted uppercase">
-            Bench Jobs
-            {benchTime ? (
-              <span className="ml-1.5 font-bold normal-case text-text-muted">
-                {benchJobCount} of {benchTime.capacity} bench spaces
-                {benchTime.wideActive ? ' · widened by bench time' : ''}
-              </span>
-            ) : null}
-          </div>
-          {benchJobs.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              playerLevel={player.level}
-              masteries={masteries}
-              activeActionKind={server?.activeActionKind ?? null}
-              bossPhase={activity.current.bossPhase}
-              onCancel={(id) => void workshop.cancel(id)}
-            />
-          ))}
-        </div>
-      )}
+      {!embedded && benchJobsSection}
 
       <div ref={benchesRef} id="workshop-bench" className="scroll-mt-4">
         <BenchCard />
