@@ -585,10 +585,13 @@ export function gearDropFromEvent(event: TickEvent | undefined): GearItem | null
  *   an actual Cache Box grant) → the crate rise. No roaming producer
  *   emits it today, so the crate is unreachable from roaming ticks —
  *   that is the correct outcome, not a gap to fill with an invented grant.
+ * - tone 'consumable' — a roaming consumable notice (the roaming engine's
+ *   activation / replenish / expiry feed events) → the consumable's own
+ *   adopted render (owner ruling 2026-11-17).
  * - Gear drops are the LootMoment's, and damage ticks (tone 'loot',
  *   label '-N') are not loot at all: both map to null here.
  */
-export type LootRiseVisual = 'crate' | 'fragment' | 'material' | 'essence' | 'scrap' | 'credits';
+export type LootRiseVisual = 'crate' | 'fragment' | 'material' | 'essence' | 'scrap' | 'credits' | 'consumable';
 
 export function lootRiseVisualForEvent(event: TickEvent | undefined): LootRiseVisual | null {
   if (!event || event.id === 'idle-loop-ready') return null;
@@ -602,6 +605,8 @@ export function lootRiseVisualForEvent(event: TickEvent | undefined): LootRiseVi
       return 'material';
     case 'essence':
       return 'essence';
+    case 'consumable':
+      return 'consumable';
     case 'kill':
       // Kill ticks always pay base scrap alongside credits and XP.
       return 'scrap';
