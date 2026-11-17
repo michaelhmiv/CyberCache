@@ -62,6 +62,8 @@ import {
 import { GateLines, RecipeInspectSheet, SourceLine } from '@/components/workshop/RecipeDetail';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
+import { QuantityPicker } from '@/components/vendor/QuantityPicker';
+import { craftUnitsMax } from '@/lib/workshop/craftQuantity';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
 import { resolvedRecipeInputs } from '@/lib/workshop/recipeCosts';
 import { canUseRewardedBenchTimeAds, showRewardedBenchTimeAd } from '@/lib/ads/rewardedBenchTimeAd';
@@ -493,10 +495,19 @@ export const WorkshopScreen: React.FC<{
   const activeCategories = useMemo(() => activeFacets.category ?? new Set<string>(), [activeFacets.category]);
   const stageBench = benchDef(1);
   const runningJob = activeJobs.find((j) => j.state === 'running');
+  const seatJob = runningJob ?? activeJobs.find((j) => j.state === 'paused');
   const runningBenchJobs = activeJobs.filter((j) => j.state === 'running' && j.bench === 1);
   const benchJobCount = benchJobs.filter((j) => j.bench === 1).length;
   const stripRunningJob = benchJobs.find((j) => j.state === 'running');
   const stripRunningBenchJobs = benchJobs.filter((j) => j.state === 'running' && j.bench === 1);
+  // The strip names the head job's progress in every state — the
+  // same jobProgressFraction the job cards read, so the strip and
+  // the card can never disagree. A paused head reads 0/N · 0%,
+  // not absence.
+  const stripHeadJob = stripRunningJob ?? benchJobs[0];
+  const stripProgress = stripHeadJob
+    ? ` · ${stripHeadJob.unitsCompleted}/${stripHeadJob.unitsTotal} units · ${Math.round(jobProgressFraction(stripHeadJob) * 100)}%`
+    : '';
 
   // Bench time (slice 10, brief §8): the bank and the envelope from
   // the server view; the content constants stand in until the first
@@ -526,6 +537,36 @@ export const WorkshopScreen: React.FC<{
       setBenchEarnPending(false);
     }
   }, [benchEarnPending, player.id, workshop]);
+
+  // The Bench Jobs section, hoisted so each mode renders it in
+  // exactly one place: embedded (Home's Craft workspace) puts the
+  // queue at the top of the workspace, directly under the bench
+  // strip — it is the state the player just changed; standalone
+  // keeps it in flow after Fresh off the bench.
+  const benchJobsSection = benchJobs.length > 0 ? (
+    <div className="space-y-2">
+      <div className="text-xs font-bold text-text-muted uppercase">
+        Bench Jobs
+        {benchTime ? (
+          <span className="ml-1.5 font-bold normal-case text-text-muted">
+            {benchJobCount} of {benchTime.capacity} bench spaces
+            {benchTime.wideActive ? ' · widened by bench time' : ''}
+          </span>
+        ) : null}
+      </div>
+      {benchJobs.map((job) => (
+        <JobCard
+          key={job.id}
+          job={job}
+          playerLevel={player.level}
+          masteries={masteries}
+          activeActionKind={server?.activeActionKind ?? null}
+          bossPhase={activity.current.bossPhase}
+          onCancel={(id) => void workshop.cancel(id)}
+        />
+      ))}
+    </div>
+  ) : null;
 
   const openBenches = useCallback(() => {
     benchesRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -673,10 +714,10 @@ export const WorkshopScreen: React.FC<{
           <div className="mt-0.5 text-[11px] leading-snug text-text-muted">
             {benchJobs.length > 0
               ? stripRunningBenchJobs.length > 1
-                ? `Working · ${stripRunningBenchJobs.length} jobs running on the bench`
+                ? `Working · ${stripRunningBenchJobs.length} jobs running on the bench${stripProgress}`
                 : stripRunningJob
-                  ? `Working · ${stripRunningJob.name}`
-                  : `Paused · ${benchJobs[0]?.name ?? 'job'} — progress waits on Crafting`
+                  ? `Working · ${stripRunningJob.name}${stripProgress}`
+                  : `Paused · ${benchJobs[0]?.name ?? 'job'} — progress waits on Crafting${stripProgress}`
               : 'Idle · ready'}
           </div>
         </div>
@@ -746,6 +787,9 @@ export const WorkshopScreen: React.FC<{
             : 'One job runs at a time; 5 more may queue (a Fixer keystone queues more). Quality comes from mastery, catalysts — and the relic you wear.'}
         </div>
       </div>
+
+      {embedded && workshop.error && <div className="text-[11px] text-red">{workshop.error}</div>}
+      {embedded && benchJobsSection}
 
       {/* Category rail — sticky, scrolls rather than shrinking. */}
       <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 py-1.5">
@@ -828,7 +872,7 @@ export const WorkshopScreen: React.FC<{
 
       {/* The bench stage (§2.9): the bench's station, the hunter at
           work while crafting is active; paused jobs sit idle-dark
-          under a Paused pennant. Standalone only — embedded in
+          under a Paused pennant, the head job's item seated at rest on the bench. Standalone only — embedded in
           Home's Craft workspace the one-stage law gives the scene
           to the main stage, and the paused truth rides the
           workspace's banner + the job cards' state labels. */}
@@ -844,7 +888,7 @@ export const WorkshopScreen: React.FC<{
             under an empty label.) */}
         <CraftingBenchScene
           benchSpriteId={stageBench.spriteId}
-          seatJob={runningJob ?? null}
+          seatJob={seatJob ?? null}
           unarmed={!hunterWeapon}
           working={!!runningJob}
           progress={runningJob ? jobProgressFraction(runningJob) : 0}
@@ -877,9 +921,9 @@ export const WorkshopScreen: React.FC<{
       {/* The Workshop Activity card is the standalone page's paused
           truth + remedy. Embedded, the Craft workspace's banner at
           the top carries both — this card would only re-narrate
-          them (no-redundant-state law) — but a workshop error
-          (a refused enqueue/cancel) still prints in place. */}
-      {embedded && workshop.error && <div className="text-[11px] text-red">{workshop.error}</div>}
+          them (no-redundant-state law) — and a workshop error
+          (a refused enqueue/cancel) prints at the top of the
+          workspace, beside the bench strip, where the tap happened. */}
       {!embedded && (
       <MobileCard className="space-y-1 border-amber/30 bg-amber/5">
         <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-amber">
@@ -935,30 +979,7 @@ export const WorkshopScreen: React.FC<{
         </div>
       )}
 
-      {benchJobs.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs font-bold text-text-muted uppercase">
-            Bench Jobs
-            {benchTime ? (
-              <span className="ml-1.5 font-bold normal-case text-text-muted">
-                {benchJobCount} of {benchTime.capacity} bench spaces
-                {benchTime.wideActive ? ' · widened by bench time' : ''}
-              </span>
-            ) : null}
-          </div>
-          {benchJobs.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              playerLevel={player.level}
-              masteries={masteries}
-              activeActionKind={server?.activeActionKind ?? null}
-              bossPhase={activity.current.bossPhase}
-              onCancel={(id) => void workshop.cancel(id)}
-            />
-          ))}
-        </div>
-      )}
+      {!embedded && benchJobsSection}
 
       <div ref={benchesRef} id="workshop-bench" className="scroll-mt-4">
         <BenchCard />
@@ -1262,6 +1283,17 @@ const RecipeCard: React.FC<{
     return { key, per, need, have, enough: have >= need, short: Math.max(0, need - have) };
   });
   const catalystHave = catalystId ? (ctx.materials[catalystId] ?? 0) : 0;
+  const pickerMax = craftUnitsMax({
+    recipeMaxUnits: recipe.maxUnits,
+    inputs: inputRows,
+    catalystPerUnit: useCatalyst && catalystId != null,
+    catalystHave,
+  });
+  const [prevPickerMax, setPrevPickerMax] = useState(pickerMax);
+  if (pickerMax !== prevPickerMax) {
+    setPrevPickerMax(pickerMax);
+    if (pickerMax >= 1 && units > pickerMax) setUnits(pickerMax);
+  }
   const ticketsOwned = consumables['WorkshopRushTicket'] ?? 0;
   const laneLabel = CATEGORIES.find((c) => c.key === recipe.category)?.label ?? recipe.category;
   // No-redundant-state law (owner, 2026-11-03): the gate block
@@ -1421,18 +1453,8 @@ const RecipeCard: React.FC<{
           </div>
         )}
 
+        <QuantityPicker value={units} max={pickerMax} onChange={setUnits} testIdPrefix="craft-qty" />
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
-          <label className="flex items-center gap-1 text-text-secondary">
-            Units
-            <input
-              type="number"
-              min={1}
-              max={recipe.maxUnits ?? 500}
-              value={units}
-              onChange={(e) => setUnits(Math.max(1, Math.min(recipe.maxUnits ?? 500, Math.floor(Number(e.target.value) || 1))))}
-              className="w-14 text-[11px] font-bold border border-border bg-surface rounded px-1.5 py-1 text-text-primary"
-            />
-          </label>
           {catalystId && (
             <button
               type="button"

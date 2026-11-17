@@ -300,7 +300,7 @@ describe('remedy-law source pins — G8 queue remedy + the standing rule', () =>
     // on the recipe card from that module).
     const readiness = read('lib/workshop/readiness.ts');
     expect(workshop + readiness).toContain(
-      'Bench queue full — jobs finish while Crafting is your action, or cancel one above',
+      'Bench queue full — jobs finish while Crafting is your action, or cancel one from the Bench Jobs list',
     );
     // Pre-collapse this test also pinned '(locked — unlock at
     // Benches & Tools above)': a recipe on an unowned bench pointed

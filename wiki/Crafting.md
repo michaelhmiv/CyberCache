@@ -83,6 +83,13 @@ Above the list, two strips print the numbers the gates read: your
 **standing** (Mastery per lane, and your Production Systems research
 state) and **the Bench** card — the one bench, always ready, with
 the craft relics listed as its permanent modifiers (see below).
+The Bench strip also names the job at the head of the queue with
+its progress — units done and a percent — working or paused, so a
+queue headed by an old, long job says so at a glance. On Home's
+Craft workspace the **Bench Jobs** list itself sits at the top of
+the workspace, directly under the strips, and a refused queue or
+cancel prints there too, where the tap happened; the standalone
+Workshop page keeps the list in flow below the catalog.
 
 A recipe card's face is lean: the item, its lane, its time, its
 materials with have/need counts, the totals for the job you are
@@ -97,6 +104,13 @@ The **info button** beside a recipe's name opens its detail sheet:
 what the item is for, its quality range and what the percentage
 means for that item, its effects, and the full gate and material
 detail.
+
+How many units ride the job is set with the same picker the
+[[Vendor]] counter uses: quick chips (1 / 20 / 50 / 100 / 1000 /
+MAX) and a slider. MAX there is read from your own bench, not
+your credits — the scarcest input you hold, your catalyst stock
+while the catalyst is on, and the per-job ceiling — and one queue
+slot holds the whole batch, however many units it carries.
 
 **Quick buy.** A material or essence line that is short carries one
 small **+** button. Tapping it opens the quick-buy sheet: pick how many you need — it
@@ -188,6 +202,10 @@ as that piece, not a generic glow. Gear is the one exception that
 proves the rule: a rolled gear piece does not exist until the job
 finishes, so mid-job its seat shows an empty frame in the rarity
 the job rolled, and the real piece appears the moment it lands.
+The head of the queue seats even while it waits: when another
+action holds the slot, the head job's piece rests on the bench
+under the Paused pennant, exactly where it will be worked — the
+sparks wait for Crafting, the item does not.
 Salvage gets the same ceremony — when a recycle settles while the
 crusher holds the stage, the scrap it paid rises off the crusher.
 

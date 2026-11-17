@@ -820,14 +820,17 @@ const PixelSceneLayerDom: React.FC<{
   const activeBenchCompletion = mode === 'salvaging' ? null : benchCompletion;
 
   // ── Item on the bench (Motion M4b) ────────────────────────────
-  // The running job in this mode's lane seats its truthful output
+  // The head active job in this mode's lane (running, else the FIFO-first paused job) seats its truthful output
   // picture at the work point (benchSeat.ts): the real consumable
   // / material / part / relic-form render, the slot+rarity frame
   // for gear that does not exist yet, the service target itself.
   const benchLaneJob = benchSpec && mode !== 'salvaging'
-    ? (workshopJobs ?? []).find(
+    ? ((workshopJobs ?? []).find(
         (job) => job.state === 'running' && isServiceLaneJob(job) === benchServiceLane,
-      )
+      ) ??
+      (workshopJobs ?? []).find(
+        (job) => job.state === 'paused' && isServiceLaneJob(job) === benchServiceLane,
+      ))
     : undefined;
   const seatPlan = benchSeatPlanForJob(benchLaneJob);
   // Work point (V2 set landing, 2026-11-08): the FX and the seated

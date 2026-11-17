@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-17 — The bench shows its work
+
+- **The bench shows its work now** — on Home's Craft workspace the **Bench Jobs** list sits at the top of the workspace, directly under the bench strip, and a refused queue or cancel prints there too, where the tap happened — no more hunting a long scroll below the catalog to learn whether a tap landed. The bench strip names the job at the head of the queue with its progress (units done and a percent) whether it is working or paused, and the head job's piece rests on the bench even while it waits under the Paused pennant. Recipe cards set their unit count with the Vendor counter's own picker — quick chips and a slider — with MAX read from the inputs you hold, your catalyst stock, and the per-job ceiling; one queue slot holds the whole batch.
+
 ## 2026-11-16 — The Cache Hunters take the field
 
 - **The makers have faces now** — every manufacturer is one person's outfit, and the game finally says whose: Della Voss founded Redline ("It only gets faster."), Amos Thorne founded Ironwood ("Ironwood takes its time. Once."), Hollis Brandt founded BlastForge ("Subtlety was not in the budget."), Iris Calloway founded Prismatek ("Every element, accounted for."), Tobin Larkin founded ThrowTech ("Built to be left behind."), and Ada Kessler founded HelixWorks ("No two alike. All of them calibrated."). The founder's name and the house slogan ride every gun card of that maker's work, head the maker's card at the Rep Desk, and stand in the Field Manual's Manufacturers table. Names and words only — no gun, price, or drop changed.
@@ -397,9 +401,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 321 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 323 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-16** — 11 merges
+**2026-11-16** — 13 merges
 
 - #587 — Cache Hunters slice (b): the Hunter tab — roster, hero, per-hunter trees, whole-skin wardrobe
 - #588 — Cache Hunters slice (c): painted hunter on stage + voice pools
@@ -412,6 +416,8 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #597 — F5: Pell — name the Wounded Scavenger, recur as Pell's Run
 - #598 — F6: manufacturer founders + slogans
 - #599 — Inkling restart: tone seam, drop-hold, DEPTH occlusion, fodder spacing (reconciled)
+- #600 — Decision log carry-in: the two missing 2026-11-15 rulings (DESIGN.md §12)
+- #601 — Board Hub: settlement readout becomes a pop-up (owner-ruled 2026-11-16)
 
 **2026-11-15** — 2 merges
 
