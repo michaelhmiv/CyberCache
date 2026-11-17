@@ -448,6 +448,27 @@ const BossHpOverlay: React.FC<{ active: boolean; accentColor: string; groundYPct
  * Presentation only — reads the same stores/events, produces no gameplay
  * outcomes. Reduced motion: static actors, no FX/shake/entrances.
  */
+/** Craft-zoom rendering variants (owner review, 2026-11-17 —
+ *  presentation branch only, never merged as-is): ?craftzoom=1|2|3
+ *  reframes the crafting bench branch as a hunter-less bench
+ *  close-up so the owner can pick a look before anything ships.
+ *  Absent the param, every surface is the shipped picture. */
+const craftZoomVariant = (): number => {
+  if (typeof window === 'undefined') return 0;
+  const v = Number(new URLSearchParams(window.location.search).get('craftzoom'));
+  return v === 1 || v === 2 || v === 3 ? v : 0;
+};
+
+/** The variant cameras: scale + transform-origin framing the
+ *  bench (sprite span ≈ x 45–76%, work point 52% / 63%). V1 the
+ *  bench fills the stage; V2 a tight crop on the seat; V3 a
+ *  moderate zoom whose seat treatment (a glowing rest) differs. */
+const CRAFT_ZOOM_CAMERAS: Record<number, { scale: number; origin: string }> = {
+  1: { scale: 1.75, origin: '55% 68%' },
+  2: { scale: 2.6, origin: '54% 65%' },
+  3: { scale: 1.45, origin: '54% 66%' },
+};
+
 /** Identity of one settled unit in the workshop mirror — the
  *  completion beat fires once per key, never on first sight of
  *  the mirror (everything already in it predates the stage). */
@@ -892,6 +913,17 @@ const PixelSceneLayerDom: React.FC<{
       ? (groundY - 0.23) * 100
       : (groundY - 0.17) * 100;
   const workPointXPct = mode === 'crafting' ? 52 : 60;
+  // Craft-zoom seat treatment (owner review, 2026-11-17): only
+  // the crafting lane changes. The shipped seat CENTERS the piece
+  // on the anvil point, so half the piece hangs over the anvil
+  // and the two read as stacked pictures; the variants land the
+  // piece's BASE flush on the point (a small sink into the face),
+  // grow it, and V3 raises it onto a glowing rest (rendered with
+  // the seat below). The hunter leaves the frame entirely (see
+  // the actor branch in the stage below).
+  const craftZoom = mode === 'crafting' ? craftZoomVariant() : 0;
+  const seatZoomScale = craftZoom === 1 ? 1.3 : craftZoom === 2 ? 1.25 : craftZoom === 3 ? 1.15 : 1;
+  const seatTopPct = craftZoom === 3 ? workPointYPct - 2 : workPointYPct;
   // Salvage completion beat (M4b): salvaging has no workshop
   // mirror, so its completions arrive on the salvage feed — the
   // store every recycle result already pushes to. A fresh settled
@@ -1247,13 +1279,50 @@ const PixelSceneLayerDom: React.FC<{
           FX burst from, so the sparks land on the work itself.
           It clears while a completion beat lifts the finished
           unit off the bench. */}
+      {/* Craft-zoom V3's clean seat (owner review, 2026-11-17): a
+          glowing rest on the bench top — lit disc plus its contact
+          shadow — that the piece sits IN, so piece and seat read
+          as one composed display instead of a picture stacked on
+          the anvil. Painted under the seat; BenchFx's own glow
+          joins it at the same point while the job runs. */}
+      {craftZoom === 3 && benchSpec && seatPlan && !benchCelebrating && (
+        <div
+          data-testid="bench-seat-rest"
+          className="pointer-events-none absolute z-10"
+          style={{ left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 104, height: 30, transform: 'translate(-50%, -50%)' }}
+        >
+          <div className="absolute inset-x-3 bottom-0 h-[13px] rounded-[50%] bg-black/55 blur-[3px]" />
+          <div
+            className="absolute inset-0 rounded-[50%]"
+            style={{
+              background:
+                'radial-gradient(ellipse at center, rgba(255,216,120,0.9) 0%, rgba(255,176,66,0.42) 52%, rgba(255,176,66,0) 72%)',
+              boxShadow: 'inset 0 0 0 2px rgba(255,196,96,0.5)',
+            }}
+          />
+        </div>
+      )}
       {benchSpec && seatPlan && !benchCelebrating && (
         <div
           data-testid="bench-seat"
+          data-craft-zoom={craftZoom || undefined}
           className="pointer-events-none absolute z-20 flex items-center justify-center"
-          style={{ left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+          style={
+            craftZoom > 0
+              ? {
+                  left: `${workPointXPct}%`,
+                  top: `${seatTopPct}%`,
+                  width: 48,
+                  height: 48,
+                  transform: 'translate(-50%, -100%)',
+                  marginTop: 2,
+                }
+              : { left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }
+          }
         >
-          <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+          <div style={craftZoom > 0 ? { transform: `scale(${seatZoomScale})`, transformOrigin: '50% 100%' } : undefined}>
+            <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+          </div>
         </div>
       )}
       {/* Completion rise (M1): the finished unit lifts off the
@@ -1443,13 +1512,18 @@ const PixelSceneLayerDom: React.FC<{
              completion rise itself; the retired rig's pose system
              is not recreated (owner ruling 2026-11-17: no equipped
              weapon in hand, anywhere). */
-          <PixelPaintedHunterActor
-            sprite={hunterSprite}
-            {...hunterPlacement}
-            reduced={reduced}
-            workCycle={{ spec: benchSpec, active: benchWorking && !benchCelebrating }}
-            testId="pixel-hunter"
-          />
+          craftZoom > 0 ? null : (
+            /* Craft-zoom variants (owner review, 2026-11-17): no
+               figure in frame at all — the bench is the subject.
+               The work cycle's read survives in BenchFx alone. */
+            <PixelPaintedHunterActor
+              sprite={hunterSprite}
+              {...hunterPlacement}
+              reduced={reduced}
+              workCycle={{ spec: benchSpec, active: benchWorking && !benchCelebrating }}
+              testId="pixel-hunter"
+            />
+          )
         ) : extractionSpec ? (
           /* Extraction (one-stage law, 2026-11-04; Motion M4a;
              paintings conversion 2026-11-17): the painting WORKS
@@ -1950,6 +2024,13 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
     ? (getPixelSprite(pixelBackgroundId)?.anchors.groundLine?.y ?? 0.86)
     : 0.86;
 
+  // Craft-zoom camera (owner review, 2026-11-17): wraps ONLY the
+  // scene layer — the section's chrome (count plate, controls)
+  // keeps its shipped placement, and every other mode is the
+  // shipped picture (the wrapper is transform-free without the
+  // param).
+  const craftZoomCam = mode === 'crafting' ? CRAFT_ZOOM_CAMERAS[craftZoomVariant()] : undefined;
+
   return (
     <PresentationActiveContext.Provider value={stageVisible}>
     <section ref={stageRef} className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
@@ -1989,7 +2070,13 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           />
         </div>
       ) : sceneBackgroundId ? (
-        <PixelSceneLayer backgroundId={sceneBackgroundId} bossSpriteId={mode === 'endless' ? endlessPresenceSpriteId : stageBossSpriteId} weapon={weapon} mode={mode} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
+        <div
+          className="absolute inset-0"
+          data-testid={craftZoomCam ? 'craft-zoom-camera' : undefined}
+          style={craftZoomCam ? { transform: `scale(${craftZoomCam.scale})`, transformOrigin: craftZoomCam.origin } : undefined}
+        >
+          <PixelSceneLayer backgroundId={sceneBackgroundId} bossSpriteId={mode === 'endless' ? endlessPresenceSpriteId : stageBossSpriteId} weapon={weapon} mode={mode} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
+        </div>
       ) : null}
       {/* No fallback scene (owner ruling 2026-11-07): the inline-SVG
           diorama that used to render for areas with no pixel

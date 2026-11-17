@@ -11,13 +11,18 @@
  *           unmounted in production by the one-stage law, captured
  *           here for its shell-level vista parity)
  *   state   working (a running job in the lane) | rest (no job) |
- *           complete (a unit settles ~1.8s after load)
+ *           complete (a unit settles ~1.8s after load) |
+ *           paused (the lane's head job held paused — it seats,
+ *           at rest, with no FX: the craft-zoom review seed)
  *   kind    consumable (default) | gear | relic — the crafting
  *           job's family (M4b: the seat on the bench differs per
  *           family — the real consumable, the slot+rarity frame,
  *           the named relic's form). The job carries a REAL
  *           recipe id so the seat resolution runs the production
  *           path, exactly as the live stage does.
+ *   recipe  ammo — the consumable job crafts an Ammo Pack
+ *           (recipe_ammo_pack) instead of the Patch Kit default
+ *           (craft-zoom review: the owner's own queued job).
  *   weapon  1 (default; the fixture weapon is passed — bench
  *           modes sling it, other modes hold it) | 0
  *
@@ -40,6 +45,8 @@ const mode = params.get('mode') ?? 'crafting';
 const state = params.get('state') ?? 'working';
 const withWeapon = params.get('weapon') !== '0';
 const kindParam = params.get('kind') ?? 'consumable';
+const recipeParam = params.get('recipe');
+const harnessWidth = Number(params.get('width') ?? 390) || 390;
 
 /** The crafting job per family — real catalog recipes, so the
  *  M4b seat resolution (recipeId → catalog → compositor) runs
@@ -48,6 +55,7 @@ const jobForKind = (service: boolean): Partial<WorkshopJobView> => {
   if (service) return { kind: 'repair' };
   if (kindParam === 'gear') return { kind: 'gear', recipeId: 'frame_shield', name: 'Shield Frame', gearRarity: 'Rare' };
   if (kindParam === 'relic') return { kind: 'gear', recipeId: 'tool_precision_calipers', name: 'Precision Calipers', gearRarity: 'Epic' };
+  if (recipeParam === 'ammo') return { kind: 'consumable', recipeId: 'recipe_ammo_pack', name: 'Ammo Pack' };
   return { kind: 'consumable', recipeId: 'recipe_patch_kit', name: 'Patch Kit' };
 };
 
@@ -121,6 +129,13 @@ function seedWorkshop() {
     useWorkshopStore.setState({
       server: baseView({ jobs: [harnessJob({ ...family })], activeActionKind: service ? 'workshop_service' : 'crafting' }),
     });
+  } else if (state === 'paused') {
+    useWorkshopStore.setState({
+      server: baseView({
+        jobs: [harnessJob({ ...family, state: 'paused' })],
+        activeActionKind: service ? 'workshop_service' : 'crafting',
+      }),
+    });
   } else if (state === 'rest') {
     useWorkshopStore.setState({ server: baseView({}) });
   } else if (state === 'complete') {
@@ -143,7 +158,7 @@ const activityKindFor = (m: string) =>
 
 export const BenchHarnessPage: React.FC = () => (
   <div style={{ minHeight: '100vh', background: '#0B0B10', padding: 12, boxSizing: 'border-box' }}>
-    <div style={{ width: 390, margin: '0 auto' }} data-testid="bench-harness-root">
+    <div style={{ width: harnessWidth, margin: '0 auto' }} data-testid="bench-harness-root">
       {mode === 'panel-craft' ? (
         <CraftingBenchScene
           progress={0.45}
