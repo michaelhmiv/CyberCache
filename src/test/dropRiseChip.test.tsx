@@ -53,6 +53,25 @@ describe('DropRiseIcon — the chip names the drop', () => {
   });
 });
 
+describe('DropRiseIcon — the rise shows the adopted item render', () => {
+  it('renders the adopted material sprite for a material rise', () => {
+    const { container } = render(<DropRiseIcon tone="material" label="+1 TechFragments" />);
+    expect(container.querySelector('[data-material-id="TechFragments"]')).toBeTruthy();
+    expect(container.querySelector('[data-drop-rise-master]')).toBeNull();
+  });
+
+  it('renders the adopted wallet sprite for a scrap rise', () => {
+    const { container } = render(<DropRiseIcon tone="cash" label="scrap" />);
+    expect(container.querySelector('[data-wallet-id="scrap"]')).toBeTruthy();
+  });
+
+  it('renders the adopted consumable sprite for a consumable rise', () => {
+    const { container } = render(<DropRiseIcon tone="consumable" label="MedKit expired" />);
+    expect(container.querySelector('[data-consumable-id="MedKit"]')).toBeTruthy();
+    expect(container.textContent).toContain('MedKit expired');
+  });
+});
+
 describe('DropRiseMasterIcon — the icon keeps trying until the tint exists', () => {
   const mockedTint = vi.mocked(tintedDropRiseCanvas);
 
