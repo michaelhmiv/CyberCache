@@ -20,12 +20,10 @@
  * Reset by AuthProvider on every user change, like the other
  * session-scoped stores.
  */
-import { useEffect } from 'react';
 import { create } from 'zustand';
 import { getCosmeticsState } from '@/lib/chef/chefClient';
 import type { CosmeticsStateView } from '@/content/skins';
 import { setOwnedSkinIds } from '@/lib/hunters/hunterSkins';
-import { resolveOwnLook, type ResolvedLook } from '@/lib/pixel/lookResolution';
 
 export type CosmeticsLoadState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -67,8 +65,9 @@ export const useCosmeticsStore = create<CosmeticsState>()((set, get) => ({
         set(holdView(result.cosmetics));
       })
       .catch(() => {
-        // Chef unreachable: renders fall back to the stock look
-        // (the pre-0053 behavior) and a later mount retries.
+        // Chef unreachable: the held view stays empty (the
+        // ownership mirror reads it as owning nothing) and a
+        // later mount retries.
         set({ loadState: 'error' });
       });
     return inFlight;
@@ -88,46 +87,3 @@ export const useCosmeticsStore = create<CosmeticsState>()((set, get) => ({
     set({ view: null, loadState: 'idle' });
   },
 }));
-
-let lookCache: { view: CosmeticsStateView | null; fallback: string; look: ResolvedLook } | null = null;
-
-/** The local player's resolved look (parts set + per-part
- *  palettes) from the held cosmetics view — the stock Standard
- *  Issue look until the view lands or when nothing is worn.
- *  Memoized on the view's identity: as a zustand selector this
- *  MUST return a stable reference between store changes, or
- *  React's snapshot check reads a fresh object as a perpetual
- *  change and loops the render. */
-export function selectOwnLook(state: CosmeticsState): ResolvedLook {
-  const view = state.view;
-  // The retired device-local head pick ('cc-head-variant') used to
-  // be the fallback here; the stock visor is the standing default.
-  const fallback = 'visor';
-  if (lookCache && lookCache.view === view && lookCache.fallback === fallback) {
-    return lookCache.look;
-  }
-  const partsById = new Map((view?.parts ?? []).map((p) => [p.id, p]));
-  const look = resolveOwnLook({
-    selection: view?.selection ?? null,
-    partsById,
-    fallbackHeadVariant: fallback,
-  });
-  lookCache = { view, fallback, look };
-  return look;
-}
-
-/** Hook form of selectOwnLook for stage components. */
-export function useOwnLook(): ResolvedLook {
-  return useCosmeticsStore(selectOwnLook);
-}
-
-/** useOwnLook + the once-per-session state load, for stage
- *  components that render the hunter without a Wardrobe nearby. */
-export function useOwnLookWithLoad(): ResolvedLook {
-  const look = useOwnLook();
-  const load = useCosmeticsStore((s) => s.load);
-  useEffect(() => {
-    void load();
-  }, [load]);
-  return look;
-}
