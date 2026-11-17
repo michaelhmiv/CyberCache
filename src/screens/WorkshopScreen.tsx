@@ -11,7 +11,7 @@ import { ChipRail } from '@/components/common/ChipRail';
 import { MaterialUsageSheet } from '@/components/common/MaterialUsageSheet';
 import { CraftingBenchScene } from '@/components/pixelArt/ActionScenes';
 import { getVisualAsset } from '@/constants/visualAssets';
-import { CONSUMABLES, getConsumableQualityBand } from '@/constants/consumables';
+import { getConsumableQualityBand } from '@/constants/consumables';
 import {
   ALL_CRAFT_RECIPES,
   BENCH_TIME_BANK_CAP_SECONDS,
@@ -1219,7 +1219,6 @@ const RecipeCard: React.FC<{
   const [inspectOpen, setInspectOpen] = useState(false);
 
   const catalystId = catalystForRecipe(recipe);
-  const def = recipe.consumableType ? CONSUMABLES[recipe.consumableType] : undefined;
   const evaluated = deriveRecipeReadiness(recipe, ctx, {
     units,
     rarity: isGear ? rarity : undefined,
