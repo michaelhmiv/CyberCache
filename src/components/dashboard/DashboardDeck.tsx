@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ChevronRight,
@@ -14,7 +15,6 @@ import { Rarity, type Manufacturer } from '@/types/game';
 import { WorldPulseFeed } from '@/components/profile/WorldPulseFeed';
 import { useNow } from '@/hooks/useNow';
 import { getActivityVisual } from '@/constants/activityVisuals';
-import { getResourceVisual } from '@/constants/visualAssets';
 import type { TickEvent, TickEventTone } from '@/store/slices/tickSlice';
 // DisplayGainEvent + gainFeed are still needed by GainToast (the floating
 // fixed-position toasts at the bottom of the screen).
@@ -143,10 +143,9 @@ const RewardIcon: React.FC<{ tone?: string; compact?: boolean }> = ({ tone, comp
           : null;
   const boxClass = compact ? 'h-6 w-6' : 'h-8 w-8';
   if (resourceId) {
-    const visual = getResourceVisual(resourceId);
     return (
       <div className={`flex ${boxClass} shrink-0 items-center justify-center border-2 border-border ${color.bg}`}>
-        <span className="shrink-0 font-black" style={{ color: visual.color, fontSize: compact ? '12px' : '15px' }}>{visual.mark}</span>
+        <PixelWalletIcon id={resourceId} size={compact ? 18 : 24} />
       </div>
     );
   }
@@ -346,7 +345,7 @@ export const DashboardDeck: React.FC<DashboardDeckProps> = ({ onNavigate }) => {
   // Bench shortcut left the deck — see the header note).
   const actions: LauncherAction[] = [
     { id: 'dispatch', label: 'Dispatch', desc: 'Timed contracts for spare loadouts and spare vehicles', icon: <PxIcon name="signal" size={17} className="text-cyan" />, tone: 'cyan' as Tone, stat: 'Contract board', primary: true, onClick: () => onNavigate('dispatch') },
-    { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <span className="shrink-0 font-black" style={{ color: getResourceVisual('cacheKey').color, fontSize: '16px' }}>{getResourceVisual('cacheKey').mark}</span>, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, primary: true, onClick: () => onNavigate('chest') },
+    { id: 'chest', label: 'Crack Cache', desc: 'Spend keys for server-rolled gear.', icon: <PixelWalletIcon id="cacheKey" size={22} />, tone: 'green' as Tone, stat: `${player.cacheKeys} keys`, primary: true, onClick: () => onNavigate('chest') },
   ];
 
   return (
