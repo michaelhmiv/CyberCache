@@ -924,6 +924,17 @@ const PixelSceneLayerDom: React.FC<{
   const craftZoom = mode === 'crafting' ? craftZoomVariant() : 0;
   const seatZoomScale = craftZoom === 1 ? 1.3 : craftZoom === 2 ? 1.25 : craftZoom === 3 ? 1.15 : 1;
   const seatTopPct = craftZoom === 3 ? workPointYPct - 2 : workPointYPct;
+  // Fix round (owner review, 2026-11-17): flush-on-the-point still
+  // hovered — the anvil POINT sits below the anvil sprite's top
+  // face and the item sprite carries its own bottom padding, so
+  // the piece floated above the face (≈14 device px at V1's
+  // camera, column-profile measured on the paused frame). The
+  // per-variant sink closes that gap and lands the base 2–4
+  // device px INTO the face at each camera (the sink is in scene
+  // px; screen travel = sink × camera scale × DSF 2). V3 keeps
+  // the original 2 — its seat is the rest disc, and the base
+  // already lands inside the disc's glow (measured, same round).
+  const seatSinkPx = craftZoom === 1 ? 7 : craftZoom === 2 ? 6.5 : 2;
   // Salvage completion beat (M4b): salvaging has no workshop
   // mirror, so its completions arrive on the salvage feed — the
   // store every recycle result already pushes to. A fresh settled
@@ -1315,7 +1326,7 @@ const PixelSceneLayerDom: React.FC<{
                   width: 48,
                   height: 48,
                   transform: 'translate(-50%, -100%)',
-                  marginTop: 2,
+                  marginTop: seatSinkPx,
                 }
               : { left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }
           }

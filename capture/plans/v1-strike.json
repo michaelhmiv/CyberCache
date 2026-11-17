@@ -10,46 +10,70 @@
    "shot": "v1-strike-s1"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v1-strike-s2"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v1-strike-s3"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v1-strike-s4"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v1-strike-s5"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v1-strike-s6"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v1-strike-s7"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v1-strike-s8"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v1-strike-s9"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v1-strike-s10"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v1-strike-s11"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v1-strike-s12"
   }
  ]
 }

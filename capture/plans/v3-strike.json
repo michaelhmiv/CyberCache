@@ -10,34 +10,70 @@
    "shot": "v3-strike-s1"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v3-strike-s2"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v3-strike-s3"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v3-strike-s4"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v3-strike-s5"
   },
   {
-   "wait": 260
+   "wait": 300
   },
   {
    "shot": "v3-strike-s6"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v3-strike-s7"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v3-strike-s8"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v3-strike-s9"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v3-strike-s10"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v3-strike-s11"
+  },
+  {
+   "wait": 300
+  },
+  {
+   "shot": "v3-strike-s12"
   }
  ]
 }
