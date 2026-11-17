@@ -311,7 +311,7 @@ describe('H1 grandfathering — gameplay twin + look resolution', () => {
     expect(worn.set.parts.head?.spriteId).toBe('hunter-head-redline');
 
     const view = resolveLookView({
-      playerId: A, username: 'alpha', headVariant: 'mfr-ironwood',
+      playerId: A, username: 'alpha', headVariant: 'mfr-ironwood', activeHunterId: null,
       parts: { head: { partId: 'mfr-head-redline', tintPaletteId: null, quality: 82 } },
     });
     expect(view.set.parts.head?.spriteId).toBe('hunter-head-redline');

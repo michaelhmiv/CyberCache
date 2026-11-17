@@ -267,7 +267,7 @@ describe('wave-1 skin content', () => {
 
   it('public look views resolve the same way (Standings parity)', () => {
     const look = resolveLookView({
-      playerId: B, username: 'bravo', headVariant: 'fin',
+      playerId: B, username: 'bravo', headVariant: 'fin', activeHunterId: null,
       parts: { head: { partId: 'dread-head', tintPaletteId: 'void', quality: 40 } },
     });
     expect(look.set.parts.head?.spriteId).toBe(SKIN_PART_DEFS['dread-head'].spriteId);

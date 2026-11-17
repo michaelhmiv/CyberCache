@@ -1,14 +1,18 @@
 /**
- * CosmeticMiniCard (skins slice, 0053) — a skin part's market
- * card: the part rendered on a hunter (its own slot swapped over
- * the stock frame, its tint + finish applied) beside its facts.
- * Used by the Buy lane (from a Listing) and the Sell lane (from an
- * owned part view) so a part reads identically on both sides of
- * the market. Pure render.
+ * CosmeticMiniCard (skins slice, 0053; portraits conversion,
+ * device-pass Batch 3) — a skin part's market card: the part
+ * rendered as itself (its own sprite, its tint + finish applied)
+ * beside its facts. Used by the Buy lane (from a Listing) and the
+ * Sell lane (from an owned part view) so a part reads identically
+ * on both sides of the market. Pure render.
+ *
+ * The card used to dress a parts figure in just this part; the
+ * segmented figure no longer renders on market surfaces, so the
+ * thumb shows the item itself — the same read as every other
+ * market thumb.
  */
-import React, { useMemo } from 'react';
-import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
-import { resolveLookView } from '@/lib/pixel/lookResolution';
+import React from 'react';
+import { PartSpriteThumb } from '@/components/pixelArt/PartSpriteThumb';
 import {
   FINISH_LABELS,
   finishTierForQuality,
@@ -26,27 +30,12 @@ export const CosmeticMiniCard: React.FC<{
   testId?: string;
 }> = ({ partId, name, qualityPercent, tintPaletteId, right, testId }) => {
   const def = partId ? skinPartCatalog(partId) : undefined;
-  const look = useMemo(() => {
-    if (!def) return null;
-    return resolveLookView({
-      playerId: '',
-      username: null,
-      headVariant: 'visor',
-      parts: {
-        [def.slot]: {
-          partId: def.id,
-          tintPaletteId: tintPaletteId ?? null,
-          quality: qualityPercent ?? 50,
-        },
-      },
-    });
-  }, [def, tintPaletteId, qualityPercent]);
   const tint = tintPaletteById(tintPaletteId);
   return (
     <div className="flex items-center gap-2" data-testid={testId ?? 'cosmetic-mini-card'}>
-      {look ? (
+      {def ? (
         <div className="w-14 shrink-0 border border-border bg-bg">
-          <HunterPortrait look={look} className="h-16" />
+          <PartSpriteThumb partId={def.id} tintPaletteId={tintPaletteId} quality={qualityPercent} className="h-16" />
         </div>
       ) : (
         <div className="grid h-16 w-14 shrink-0 place-items-center border border-border bg-bg text-[11px] text-text-muted">

@@ -3,7 +3,6 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AnimatePresence, motion } from 'framer-motion';
 import { HunterPortrait } from '@/components/pixelArt/HunterPortrait';
 import { PublicProfileStats, PublicShowcase } from './PublicProfilePanel';
-import { resolveLookView } from '@/lib/pixel/lookResolution';
 import { useHunterLooks } from '@/lib/pixel/useHunterLooks';
 import type { PlayerPublicProfile } from '@/lib/api/publicProfileService';
 
@@ -59,11 +58,12 @@ export const PlayerProfileSheet: React.FC<{
               </button>
             </div>
 
-            {/* The stage: the hunter's actual worn look, stage size —
-                the same parts render their own Hunter tab uses. */}
+            {/* The stage: the hunter they field, painted whole at
+                stage size — the same painting their Hunter tab and
+                the Home stage show (portraits conversion, Batch 3). */}
             <div className="border-2 border-border bg-surface" data-testid="player-profile-stage">
               {look ? (
-                <HunterPortrait look={resolveLookView(look)} className="h-60" testId="player-profile-portrait" />
+                <HunterPortrait look={look} className="h-60" testId="player-profile-portrait" />
               ) : (
                 <div className="flex h-60 items-center justify-center">
                   <PxIcon name="person" size={34} className="text-amber" />
@@ -84,7 +84,7 @@ export const PlayerProfileSheet: React.FC<{
             <PublicProfileStats profile={profile} />
 
             <div className="text-[11px] text-text-muted">
-              Read-only — this is {name}&apos;s public record: the shelf they pinned, the look they wear, and the
+              Read-only — this is {name}&apos;s public record: the shelf they pinned, the hunter they field, and the
               stats the game keeps for everyone to see.
             </div>
           </div>

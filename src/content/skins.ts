@@ -524,12 +524,21 @@ export interface CosmeticsStateView {
 
 /** Another hunter's look, as public surfaces (Standings) read it:
  *  part ids + tints by slot — facts only, resolved to sprites
- *  client-side. */
+ *  client-side. Since migration 0100 the record also carries the
+ *  player's fielded hunter identity, which is what the portrait
+ *  surfaces render (the hunter's painting); the parts payload
+ *  remains for the readers that still consume it. */
 export interface HunterLookView {
   playerId: string;
   username: string | null;
   headVariant: string;
   parts: Partial<Record<CosmeticSlot, { partId: string; tintPaletteId: string | null; quality: number }>>;
+  /** The fielded Cache Hunter (migration 0100, resolved server-side
+   *  by cc_profile_active_hunter: the stored id when valid, else the
+   *  selection-derived default). Null only for records produced
+   *  before 0100 or a missing profile — portrait surfaces fall back
+   *  to the default hunter's painting, never to the parts figure. */
+  activeHunterId: string | null;
 }
 
 export const DEFAULT_HEAD_VARIANT = 'visor';

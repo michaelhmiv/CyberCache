@@ -1551,6 +1551,10 @@ export class PgChefGameplayStore implements ChefGameplayStore {
       const view = (await this.callJson('select public.cc_hunter_look_view($1) as result', [id])) as unknown as {
         headVariant: string;
         parts: HunterLookView['parts'];
+        // Migration 0100: the view also resolves the fielded hunter.
+        // Absent on a pre-0100 database — reads as null, and portrait
+        // surfaces fall back to the default hunter's painting.
+        activeHunterId?: string | null;
       };
       const profile = await this.one(
         `select username from public.profiles where id = $1`,
@@ -1562,6 +1566,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
         username: profile?.username ?? null,
         headVariant: view.headVariant,
         parts: view.parts,
+        activeHunterId: typeof view.activeHunterId === 'string' ? view.activeHunterId : null,
       };
     }
     return looks;

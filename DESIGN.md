@@ -3015,3 +3015,35 @@ extends from the combat stage to every painted surface.
    converts separately: the server look record learns hunter
    identity first, then those surfaces paint the fielded
    hunter's painting like everywhere else.
+
+### 2026-11-17 — Portraits are paintings (device-pass Batch 3)
+
+The slice point 3 above pointed at lands. The public portrait
+family no longer assembles a figure from worn parts anywhere.
+
+1. **The look record carries hunter identity.** Migration 0100
+   restates `cc_hunter_look_view` (0053 body plus one marked
+   insertion): the record gains `activeHunterId`, resolved by
+   0097's `cc_profile_active_hunter` — the stored id when valid,
+   else the selection-derived default — so a portrait always
+   names a real hunter. The parts payload is unchanged; parts
+   stay grandfathered collection data.
+2. **Portraits paint the fielded hunter.** Standings rows and
+   MY READING, the profile pop-up, and the full public record
+   render the record's hunter's Cast B painting — another
+   player's included. A record with no identity (pre-0100 data)
+   falls back to the default hunter's painting, never to the
+   parts figure.
+3. **No worn skin on portraits — there is no server fact for
+   it.** Wearing a whole skin is device-local state; the server
+   holds ownership records only. Portraits therefore paint the
+   hunter's base painting, which is also the only painting per
+   hunter in today's catalog. If worn selections ever become a
+   server record, the look view grows the field then.
+4. **Market part thumbs show the part itself.** The cosmetic
+   listing thumb and mini card used to synthesize a one-part
+   mannequin (a parts figure wearing just the listed part, head
+   hard-coded); those surfaces preview the part for sale and
+   never held a seller portrait. They now render the part's own
+   sprite in its tint and finish — the read every other market
+   thumb gives its item.

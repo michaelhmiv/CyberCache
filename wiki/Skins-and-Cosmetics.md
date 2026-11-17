@@ -208,6 +208,15 @@ from before the retirement still exist and wear as items the
 same way; no new ones can be crafted or listed. A worn head part
 overrides the pick while it's on.
 
+## How other hunters see you
+
+On the public surfaces — the portrait beside your Standings rows
+and the figure on your public profile — you appear as the Cache
+Hunter you field, painted whole: the same painting that stands
+on your Home stage. Worn parts no longer draw your figure
+anywhere public; parts are collection pieces now, and a part for
+sale shows the part itself.
+
 ## How the figure is jointed
 
 Your hunter is assembled from his parts on a jointed rig every

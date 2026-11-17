@@ -27,7 +27,7 @@ At the top of the Standings page stands the **Board Hub** — the screen's contr
 
 ### Visiting another hunter
 
-Every name on the standings — weekly races and the all-time boards alike — is a door. Tap a hunter and a pop-up introduces them: the look they wear, their Trophy Shelf (hand-pinned trophies marked), their best depth, Cache Rank, and collection progress, and their headline stats. **View Full Profile** opens the whole public record: the hunter at stage size in the look they wear, the full shelf, and every public stat — level, kills, boss tiers, mastery, collection. Profiles are read-only and open to everyone, guests included: a hunter's public record is the brag surface — what they pinned, what they wear, and what the game itself keeps score of. Nothing private travels with it: no balances beyond net worth, no account details, no history folds.
+Every name on the standings — weekly races and the all-time boards alike — is a door. Tap a hunter and a pop-up introduces them: the hunter they field, painted whole, their Trophy Shelf (hand-pinned trophies marked), their best depth, Cache Rank, and collection progress, and their headline stats. **View Full Profile** opens the whole public record: the hunter at stage size, painted whole, the full shelf, and every public stat — level, kills, boss tiers, mastery, collection. Profiles are read-only and open to everyone, guests included: a hunter's public record is the brag surface — what they pinned, the hunter they field, and what the game itself keeps score of. Nothing private travels with it: no balances beyond net worth, no account details, no history folds.
 
 ### Settlement and rewards
 
