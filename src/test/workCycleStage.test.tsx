@@ -249,7 +249,11 @@ describe('Panel bay scenes — the same spec drives the bay (M1)', () => {
       <CraftingBenchScene progress={0.4} causeLabel="Tempering" working />,
     );
     expect(screen.getByTestId('crafting-bench-fx').getAttribute('data-bench-fx')).toBe('forge');
-    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-work-cycle')).toBe('forge');
+    // The hunter is the fielded painting now (2026-11-17): the
+    // spec drives the BenchFx only — the painting carries no
+    // work-cycle attribute and no rig poses are recreated.
+    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-work-cycle')).toBeNull();
     rerender(<CraftingBenchScene progress={0} causeLabel="The Bench" working={false} />);
     expect(screen.queryByTestId('crafting-bench-fx')).toBeNull();
   });
@@ -264,13 +268,15 @@ describe('Panel bay scenes — the same spec drives the bay (M1)', () => {
   it('repair bay scene runs the assembly accent', () => {
     render(<RepairBayScene progress={0.4} causeLabel="Repairing" working />);
     expect(screen.getByTestId('repair-bay-fx').getAttribute('data-bench-fx')).toBe('assembly');
-    expect(screen.getByTestId('repair-bay-hunter').getAttribute('data-work-cycle')).toBe('assembly');
+    expect(screen.getByTestId('repair-bay-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(screen.getByTestId('repair-bay-hunter').getAttribute('data-work-cycle')).toBeNull();
   });
 
   it('shield-tech bay scene runs the calibration accent (its own family)', () => {
     render(<ShieldTechBayScene progress={0.4} causeLabel="Calibrating" working />);
     expect(screen.getByTestId('shieldtech-bay-fx').getAttribute('data-bench-fx')).toBe('calibration');
-    expect(screen.getByTestId('shieldtech-bay-hunter').getAttribute('data-work-cycle')).toBe('calibration');
+    expect(screen.getByTestId('shieldtech-bay-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(screen.getByTestId('shieldtech-bay-hunter').getAttribute('data-work-cycle')).toBeNull();
   });
 
   it('reduced motion silences the bay FX while working', () => {

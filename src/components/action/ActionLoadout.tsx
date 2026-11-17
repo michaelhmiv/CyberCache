@@ -39,10 +39,9 @@ import { HelpHint } from '@/components/common/HelpHint';
 import { SlotGearPicker } from '@/components/action/SlotGearPicker';
 import { PresetSwitcher } from '@/components/action/PresetSwitcher';
 import { SwapUndoToast } from '@/components/action/SwapUndoToast';
-import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
+import { PixelPaintedHunterActor } from '@/components/pixelArt/PixelPaintedHunterActor';
 import { PixelWeapon } from '@/components/pixelArt/PixelWeapon';
-import { hunterPartSet, headVariantPreference } from '@/lib/pixel/headParts';
-import { mountedGearForLoadout } from '@/lib/pixel/gearMounts';
+import { pixelHunterSpriteForHunter, requirePixelSprite } from '@/lib/pixel/manifest';
 import { useCharacterStatSummary } from '@/hooks/useCharacterStatSummary';
 import { verifiedOps } from '@/lib/api/verifiedOps';
 import { formatRpcError } from '@/lib/api/rpcError';
@@ -476,6 +475,8 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
   // Subscribe to skill tree DPS changes — the summary below reads
   // spent points, so we must force a re-render when they change.
   const spent = useSkillStore((s) => s.spent);
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const hunterSprite = requirePixelSprite(pixelHunterSpriteForHunter(activeHunterId) ?? 'hunter-vesper-cole');
   // HP is the panel's second headline number (the mock's header line:
   // DPS · HP). The survival store owns the live max — the same read
   // the Home deck uses. The Strip prints neither, so no duplication.
@@ -492,23 +493,9 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
   const { summary } = useCharacterStatSummary();
   const dps = summary.all.find((entry) => entry.key === 'dps')?.value ?? 0;
 
-  // The figure: the parts actor wearing the ACTUAL equipped
-  // instances — primary weapon held grip-to-grip, shield / relic /
-  // class-mod pauldron / belt consumables mounted via the shared
-  // gearMounts derivation (the same one the Home stage uses, M3).
-  // Unarmed hunters stand relaxed with empty hands (real-item
-  // invariant: no phantom weapon layer exists).
-  const figureWeapon = loadout.getWeapon('primary');
-  const figureGear = useMemo(
-    () =>
-      mountedGearForLoadout({
-        shield: loadout.getShield(),
-        relic: loadout.getRelic(),
-        classMod: loadout.getClassMod(),
-        consumables: [loadout.consumables.PreFight, loadout.consumables.MidFight, loadout.consumables.Emergency],
-      }),
-    [loadout],
-  );
+  // The figure is the fielded hunter's painting (paintings-only
+  // ruling): equipped weapons and gear show in the slots, cards and
+  // inspect — never in the figure's hands.
   // CONS-04: gear slots only (7) via the shared loadout read model —
   // the vehicle slot in the raw map is not gear.
   const equippedCount = countEquippedLoadoutSlots(buildLoadoutRows(loadout.slots, inventory.items));
@@ -775,18 +762,13 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
               data-testid="loadout-figure"
               className="relative mt-3 h-[176px] overflow-hidden border border-border/60 bg-[radial-gradient(ellipse_at_50%_100%,rgba(255,144,0,0.13),rgba(0,0,0,0.25)_70%)]"
             >
-              <PixelPartsActor
-                set={hunterPartSet(headVariantPreference())}
-                fitMode="doll"
+              <PixelPaintedHunterActor
+                sprite={hunterSprite}
                 xPct={50}
                 heightPct={96}
                 groundY={0.97}
                 reduced={reduceMotion ?? false}
-                pose={figureWeapon ? 'idle' : 'relaxed'}
-                weapon={figureWeapon}
-                weaponTestId="loadout-held-weapon"
                 testId="loadout-hunter"
-                gear={figureGear}
               />
             </div>
 
@@ -830,18 +812,13 @@ export const ActionLoadout: React.FC<ActionLoadoutProps> = ({
                 data-testid="loadout-figure"
                 className="relative h-[257px] w-[152px] shrink-0 overflow-hidden border border-border/60 bg-[radial-gradient(ellipse_at_50%_100%,rgba(255,144,0,0.13),rgba(0,0,0,0.25)_70%)]"
               >
-                <PixelPartsActor
-                  set={hunterPartSet(headVariantPreference())}
-                  fitMode="doll"
+                <PixelPaintedHunterActor
+                  sprite={hunterSprite}
                   xPct={50}
                   heightPct={91}
                   groundY={0.97}
                   reduced={reduceMotion ?? false}
-                  pose={figureWeapon ? 'idle' : 'relaxed'}
-                  weapon={figureWeapon}
-                  weaponTestId="loadout-held-weapon"
                   testId="loadout-hunter"
-                  gear={figureGear}
                 />
                 {onOpenWardrobe && (
                   <button

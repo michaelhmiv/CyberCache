@@ -1,27 +1,37 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { PixelStage, PixelActor } from './PixelStage';
-import { PixelPartsActor } from './PixelPartsActor';
+import { PixelPaintedHunterActor } from './PixelPaintedHunterActor';
 import { BenchFx } from './BenchFx';
 import { BenchItemRender } from './BenchSeat';
 import { benchSeatPlanForJob } from '@/lib/pixel/benchSeat';
 import type { WorkshopJobView } from '@/store/slices/workshopSlice';
 import { WORK_CYCLE_SPECS, WORK_CYCLE_SPEC_BY_SCENE, type WorkCycleSpec } from '@/lib/pixel/workCycle';
-import { useOwnLookWithLoad } from '@/store/slices/cosmeticsSlice';
+import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
+import { useSkillStore } from '@/store';
 import { GRAMMAR } from '@/lib/pixel/grammar';
-import { getPixelSprite, requirePixelSprite } from '@/lib/pixel/manifest';
+import { getPixelSprite, requirePixelSprite, pixelHunterSpriteForHunter } from '@/lib/pixel/manifest';
 import { requireSetSeat, seatPointBottomPct, seatPointTopPct } from '@/lib/pixel/setSeats';
 import { vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 
 /**
  * Action scenes (visual overhaul brief §5/§6, gate G4) — every system
- * speaks the shared grammar: G-4 the hunter rig at work, G-5 the
+ * speaks the shared grammar: G-4 the fielded hunter's painting at work
+ * (paintings-only, owner ruling 2026-11-17), G-5 the
  * system's set dressing, G-3 a progress bar that names its cause, G-6
  * the two-beat result flash. The crafting bench scene dresses the
  * diorama's crafting mode; the repair bay scene ships here complete —
  * its screen wiring belongs to the mechanics & repair slice, which
  * mounts this component unchanged.
  */
+
+/** Once-per-session cosmetics load, preserved from the parts-actor
+ *  era: sibling surfaces rely on the load firing even though the
+ *  scenes no longer read the parts look. */
+const useCosmeticsLoad = () => {
+  const load = useCosmeticsStore((s) => s.load);
+  useEffect(() => { void load(); }, [load]);
+};
 
 export interface ActionSceneProps {
   /** 0..1 progress of the current job. */
@@ -121,7 +131,9 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
   reduced = false,
   ...rest
 }) => {
-  const look = useOwnLookWithLoad();
+  useCosmeticsLoad();
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const hunterSprite = requirePixelSprite(pixelHunterSpriteForHunter(activeHunterId) ?? 'hunter-vesper-cole');
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
   const spec = sceneSpec('craftingBench');
   const active = sceneWorking({ ...rest, working });
@@ -147,15 +159,12 @@ export const CraftingBenchScene: React.FC<ActionSceneProps & { backgroundId?: st
         </div>
       )}
       <BenchFx spec={spec} active={active} reduced={reduced} xPct={50} yPct={(groundY - 0.25) * 100} testId="crafting-bench-fx" />
-      <PixelPartsActor
-        set={look.set}
-        partPalettes={look.partPalettes}
+      <PixelPaintedHunterActor
+        sprite={hunterSprite}
         xPct={30}
         heightPct={57}
         groundY={groundY}
         reduced={reduced}
-        pose="work"
-        workCycle={{ spec, active }}
         testId="crafting-bench-hunter"
       />
     </SceneShell>
@@ -179,8 +188,8 @@ export interface ExtractionSceneProps extends ActionSceneProps {
 /**
  * Extraction scene (0033): the hunter WORKING the site — the stake
  * line marks the claim, the sift rig does the sorting, and the
- * crates fill as passes land. The pose is `work`, the weapon slung
- * (no held weapon is drawn — this is gathering, not combat), and NO
+ * crates fill as passes land. The fielded hunter's painting works
+ * the scene (paintings-only, owner ruling 2026-11-17), and NO
  * vehicle is in frame by law (vehicles do not apply to extraction
  * in v1). Deep Delve drops the light and scales the rig up; a
  * paused site sits idle-dark with its pennant up.
@@ -193,21 +202,21 @@ export const ExtractionScene: React.FC<ExtractionSceneProps> = ({
   reduced = false,
   ...rest
 }) => {
-  const look = useOwnLookWithLoad();
+  useCosmeticsLoad();
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const hunterSprite = requirePixelSprite(pixelHunterSpriteForHunter(activeHunterId) ?? 'hunter-vesper-cole');
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
   return (
     <SceneShell backgroundId={backgroundId} testId="extraction-scene" reduced={reduced} {...rest}>
       <PixelActor spriteId="set-extract-stakes" xPct={14} heightPct={26} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-stakes" />
       <PixelActor spriteId="set-extract-rig" xPct={58} heightPct={deep ? 44 : 36} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-rig" />
       <PixelActor spriteId="set-extract-crates" xPct={86} heightPct={24} groundY={groundY} reduced={reduced} breathe={false} testId="extraction-crates" />
-      <PixelPartsActor
-        set={look.set}
-        partPalettes={look.partPalettes}
+      <PixelPaintedHunterActor
+        sprite={hunterSprite}
         xPct={32}
         heightPct={57}
         groundY={groundY}
         reduced={reduced}
-        pose={paused ? 'relaxed' : 'work'}
         testId="extraction-hunter"
       />
       {deep && <div className="pointer-events-none absolute inset-0 z-10 bg-indigo-950/35" data-testid="extraction-deep-shade" />}
@@ -231,7 +240,9 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
   reduced = false,
   ...rest
 }) => {
-  const look = useOwnLookWithLoad();
+  useCosmeticsLoad();
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const hunterSprite = requirePixelSprite(pixelHunterSpriteForHunter(activeHunterId) ?? 'hunter-vesper-cole');
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
   const spec = sceneSpec('repairBay');
   const active = sceneWorking({ ...rest, working });
@@ -260,15 +271,12 @@ export const RepairBayScene: React.FC<ActionSceneProps & { backgroundId?: string
       )}
       <PixelActor spriteId="set-bay-tray" xPct={34} heightPct={16} groundY={groundY} reduced={reduced} breathe={false} />
       <BenchFx spec={spec} active={active} reduced={reduced} xPct={62} yPct={seatPointTopPct(liftSeat, liftHeightPct, groundY)} testId="repair-bay-fx" />
-      <PixelPartsActor
-        set={look.set}
-        partPalettes={look.partPalettes}
+      <PixelPaintedHunterActor
+        sprite={hunterSprite}
         xPct={24}
         heightPct={57}
         groundY={groundY}
         reduced={reduced}
-        pose="work"
-        workCycle={{ spec, active }}
         testId="repair-bay-hunter"
       />
     </SceneShell>
@@ -292,7 +300,9 @@ export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: st
   reduced = false,
   ...rest
 }) => {
-  const look = useOwnLookWithLoad();
+  useCosmeticsLoad();
+  const activeHunterId = useSkillStore((s) => s.activeHunterId);
+  const hunterSprite = requirePixelSprite(pixelHunterSpriteForHunter(activeHunterId) ?? 'hunter-vesper-cole');
   const groundY = requirePixelSprite(backgroundId).anchors.groundLine?.y ?? 0.86;
   const spec = sceneSpec('shieldTechBay');
   const active = sceneWorking({ ...rest, working });
@@ -331,15 +341,12 @@ export const ShieldTechBayScene: React.FC<ActionSceneProps & { backgroundId?: st
       {/* The calibration sweep walks its arc around the rig's
           emitter ring — the glyph's own center, from the seat. */}
       <BenchFx spec={spec} active={active} reduced={reduced} xPct={62} yPct={seatPointTopPct(rigSeat, rigHeightPct, groundY)} testId="shieldtech-bay-fx" />
-      <PixelPartsActor
-        set={look.set}
-        partPalettes={look.partPalettes}
+      <PixelPaintedHunterActor
+        sprite={hunterSprite}
         xPct={24}
         heightPct={57}
         groundY={groundY}
         reduced={reduced}
-        pose="work"
-        workCycle={{ spec, active }}
         testId="shieldtech-bay-hunter"
       />
     </SceneShell>

@@ -24,7 +24,7 @@ import { act, render, screen } from '@testing-library/react';
 import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { CraftingBenchScene } from '@/components/pixelArt/ActionScenes';
 import { DEFAULT_ROAMING_AREA_ID, getRoamingArea } from '@/constants/roamingAreas';
-import { useInventoryStore, useSalvageFeedStore, useWorkshopStore } from '@/store';
+import { useInventoryStore, useSalvageFeedStore, useSkillStore, useWorkshopStore } from '@/store';
 import type { WorkshopJobView, WorkshopServerView } from '@/store/slices/workshopSlice';
 import type { SalvageYield } from '@/lib/gear/salvageAward';
 import { getPixelSprite, pixelBackgroundForArea } from '@/lib/pixel/manifest';
@@ -123,6 +123,7 @@ afterEach(() => {
     useWorkshopStore.setState({ server: null });
     useInventoryStore.setState({ items: [] });
     useSalvageFeedStore.setState({ events: [] });
+    useSkillStore.setState({ activeHunterId: 'vesper' });
   });
 });
 
@@ -409,5 +410,21 @@ describe('the panel bench scene seats the caller’s job', () => {
   it('no job handed in: no seat', () => {
     render(<CraftingBenchScene progress={0.4} causeLabel="Tempering" working />);
     expect(screen.queryByTestId('crafting-bench-seat')).toBeNull();
+  });
+});
+
+describe('the bench figure — the fielded hunter’s painting (owner ruling 2026-11-17)', () => {
+  it('CraftingBenchScene seats the fielded hunter’s painting, not the parts rig', () => {
+    render(<CraftingBenchScene progress={0.4} causeLabel="Tempering" working seatJob={job({})} />);
+    const hunter = screen.getByTestId('crafting-bench-hunter');
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+  });
+
+  it('the bench scene follows the fielded hunter', () => {
+    act(() => {
+      useSkillStore.setState({ activeHunterId: 'doc' });
+    });
+    render(<CraftingBenchScene progress={0.4} causeLabel="Tempering" working seatJob={job({})} />);
+    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-painted-hunter')).toBe('hunter-doc-sutter');
   });
 });

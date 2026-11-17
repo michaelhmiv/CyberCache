@@ -51,8 +51,13 @@ vi.mock('@/lib/feedback/sfx', () => ({
  * stage figure — armed and unarmed render the identical
  * painting, and no weapon layer exists on a stage surface. The
  * parts-edition describes below still govern the surfaces that
- * keep the rig (bench scenes, panel bays, the compositor
- * itself).
+ * keep the rig (the compositor itself and its remaining
+ * consumers).
+ *
+ * Second succession (owner ruling 2026-11-17): the bench scenes
+ * and panel bays converted too — their hunter is the fielded
+ * hunter's painting, and the ActionScenes describe below pins
+ * that contract (painting present, no rig, armed flag or not).
  */
 
 const spriteCache = new Map<string, RgbaImage | undefined>();
@@ -278,23 +283,26 @@ describe('BossFightStage — unarmed hunter', () => {
 });
 
 describe('ActionScenes — bench + repair bay audit', () => {
-  it('crafting bench: the hunter is the part set, armed flag or not (bench scenes hold no weapon)', () => {
+  it('crafting bench: the hunter is the fielded painting, armed flag or not (bench scenes hold no weapon)', () => {
     const { unmount } = render(<CraftingBenchScene progress={0.5} causeLabel="Tempering" unarmed />);
-    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-rig')).toBe('standard-issue');
+    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-rig')).toBeNull();
     unmount();
     render(<CraftingBenchScene progress={0.5} causeLabel="Tempering" />);
-    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-rig')).toBe('standard-issue');
+    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(screen.getByTestId('crafting-bench-hunter').getAttribute('data-rig')).toBeNull();
   });
 
   it('repair bay: NO vehicle renders when none is assigned (no stand-in buggy)', () => {
     render(<RepairBayScene progress={0} causeLabel="Repair bay" />);
     expect(screen.queryByTestId('repair-bay-vehicle')).toBeNull();
-    expect(screen.getByTestId('repair-bay-hunter').getAttribute('data-rig')).toBe('standard-issue');
+    expect(screen.getByTestId('repair-bay-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
   });
 
-  it('repair bay: the assigned vehicle renders; the hunter is the part set', () => {
+  it('repair bay: the assigned vehicle renders; the hunter is the painting', () => {
     render(<RepairBayScene progress={0.4} causeLabel="Dune Buggy" vehicleSpriteId="vehicle-dune-buggy" unarmed />);
     expect(screen.getByTestId('repair-bay-vehicle')).toBeTruthy();
-    expect(screen.getByTestId('repair-bay-hunter').getAttribute('data-rig')).toBe('standard-issue');
+    expect(screen.getByTestId('repair-bay-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+    expect(screen.getByTestId('repair-bay-hunter').getAttribute('data-rig')).toBeNull();
   });
 });
