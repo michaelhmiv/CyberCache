@@ -40,7 +40,6 @@ import {
   type TravelRunState,
 } from '@/lib/pixel/travelChoreography';
 import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
-import { PixelPartsActor } from '@/components/pixelArt/PixelPartsActor';
 import { PixelPaintedHunterActor } from '@/components/pixelArt/PixelPaintedHunterActor';
 import { RoamHunterVoice } from '@/components/pixelArt/HunterVoiceChip';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
@@ -65,7 +64,7 @@ import { SET_SEATS, seatPointTopPct } from '@/lib/pixel/setSeats';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import type { WorkshopCompletionView } from '@/store/slices/workshopSlice';
 import { ENEMY_POSES, enemyRig, type RigPose } from '@/lib/pixel/rig';
-import { useCosmeticsStore, useOwnLook } from '@/store/slices/cosmeticsSlice';
+import { useCosmeticsStore } from '@/store/slices/cosmeticsSlice';
 import { paintedPlacement } from '@/lib/pixel/paintedStage';
 import { areaVisuals, bossArena } from '@/content/areaPalettes';
 import { isHotArea } from '@/content/hotArea';
@@ -744,14 +743,13 @@ const PixelSceneLayerDom: React.FC<{
         }),
       )
     : enemyPose;
-  // The hunter's part set survives ONLY on the bench / work
-  // branches below (work poses have no painting equivalent); the
-  // combat and standby figures are the active hunter's painting
-  // (slice (c) — see the FX-point block for the seating law).
-  const look = useOwnLook();
+  // Every stage figure is the active hunter's painting (slice
+  // (c); the bench / extraction / stall branches converted
+  // 2026-11-17 — see the FX-point block for the seating law).
+  // The cosmetics load stays: the worn-look store still feeds
+  // surfaces off this stage.
   const loadCosmetics = useCosmeticsStore((s) => s.load);
   useEffect(() => { void loadCosmetics(); }, [loadCosmetics]);
-  const hunterSet = look.set;
 
   // ── Work cycle (Motion Reboot M1; extraction M4a) ────────────
   // Bench modes run the work cycle: the hunter WORKS the set piece
@@ -1395,60 +1393,53 @@ const PixelSceneLayerDom: React.FC<{
             testId="pixel-hunter"
           />
         ) : benchSpec ? (
-          /* Bench modes (Motion Reboot M1): the hunter WORKS the
-             set piece — pose 'work', weapon slung (the extraction
-             precedent: no held weapon is drawn while he works),
-             the mode's work-cycle spec executing while a job runs
-             in his lane. Between jobs he holds the work pose at
-             the bench — present at his station, not idling with a
-             gun in front of a forge. A settling unit switches him
-             to the celebrate beat for the rise's duration. */
-          <PixelPartsActor
-            set={hunterSet}
-            partPalettes={look.partPalettes}
+          /* Bench modes (Motion Reboot M1; paintings conversion
+             2026-11-17): the fielded hunter's PAINTING works the
+             set piece — the work cycle survives as the painting's
+             bob treatment on the mode's spec while a job runs in
+             his lane, and BenchFx carries the strike read at the
+             work point. Between jobs the painting stands at his
+             station. A settling unit's celebration is the
+             completion rise itself; the retired rig's pose system
+             is not recreated (owner ruling 2026-11-17: no equipped
+             weapon in hand, anywhere). */
+          <PixelPaintedHunterActor
+            sprite={hunterSprite}
             {...hunterPlacement}
             reduced={reduced}
-            pose={benchCelebrating ? 'celebrate' : 'work'}
             workCycle={{ spec: benchSpec, active: benchWorking && !benchCelebrating }}
             testId="pixel-hunter"
           />
         ) : extractionSpec ? (
-          /* Extraction (one-stage law, 2026-11-04; Motion M4a):
-             the hunter WORKS the site on the stage — pose 'work',
-             weapon slung (no held weapon is drawn; this is
-             gathering, not combat) — and the sift cycle executes
-             while the occupation holds the stage: unlike the
-             bench lanes there is no job mirror to read, so the
-             mode holding the stage IS the work (the salvaging
-             precedent). A pass settling mid-watch switches him
-             to the celebrate beat while its finds rise off the
-             rig; reduced motion holds the work pose, the pre-M4a
-             picture exactly. */
-          <PixelPartsActor
-            set={hunterSet}
-            partPalettes={look.partPalettes}
+          /* Extraction (one-stage law, 2026-11-04; Motion M4a;
+             paintings conversion 2026-11-17): the painting WORKS
+             the site on the stage — the sift cycle runs as the
+             painting's bob while the occupation holds the stage:
+             unlike the bench lanes there is no job mirror to
+             read, so the mode holding the stage IS the work (the
+             salvaging precedent). A pass settling mid-watch fires
+             its finds rise; the cycle pauses for that beat.
+             Reduced motion holds the painting at rest. */
+          <PixelPaintedHunterActor
+            sprite={hunterSprite}
             {...hunterPlacement}
             reduced={reduced}
-            pose={extractionCelebrating ? 'celebrate' : 'work'}
             workCycle={{ spec: extractionSpec, active: !extractionCelebrating }}
             testId="pixel-hunter"
           />
         ) : stallSpec ? (
-          /* Market listing (M4c): the hunter TENDS his stall —
-             pose 'work', weapon slung (the bench/extraction
-             precedent: no held weapon is drawn while he works),
-             the stall's low-amplitude cycle executing while the
-             listing holds the stage: unlike the bench lanes there
-             is no job mirror to read, so the mode holding the
-             stage IS the work (the salvaging precedent). No
-             BenchFx — nothing is struck at a stall. Reduced
-             motion holds the work pose. */
-          <PixelPartsActor
-            set={hunterSet}
-            partPalettes={look.partPalettes}
+          /* Market listing (M4c; paintings conversion
+             2026-11-17): the painting TENDS his stall — the
+             stall's low-amplitude cycle running as the painting's
+             bob while the listing holds the stage: unlike the
+             bench lanes there is no job mirror to read, so the
+             mode holding the stage IS the work (the salvaging
+             precedent). No BenchFx — nothing is struck at a
+             stall. Reduced motion holds the painting at rest. */
+          <PixelPaintedHunterActor
+            sprite={hunterSprite}
             {...hunterPlacement}
             reduced={reduced}
-            pose="work"
             workCycle={{ spec: stallSpec, active: true }}
             testId="pixel-hunter"
           />

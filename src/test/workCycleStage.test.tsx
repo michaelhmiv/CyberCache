@@ -20,6 +20,16 @@
  * listing runs the low-amplitude stall cycle (the hunter tends
  * his stall, unarmed; no bench FX — nothing is struck there).
  * Panel bay scenes assert the same contract per family.
+ *
+ * Paintings conversion (2026-11-17, owner ruling: no equipped
+ * weapon in hand, anywhere): the stage figure in every bench
+ * mode is now the fielded hunter's whole painting. The cycle
+ * contract is unchanged — data-work-cycle names the spec, the
+ * FX gating is identical — but the painting carries no armed
+ * state at all (data-armed is null on a painting; the concept
+ * retired with the rig), so the bench assertions pin
+ * data-painted-hunter + data-armed null where the rig era
+ * pinned data-armed 'false'.
  */
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -132,7 +142,8 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     setWorkshop(serverView({ jobs: [job({})] }));
     renderDiorama('crafting');
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-armed')).toBeNull();
+    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
     expect(hunter.getAttribute('data-work-cycle')).toBe('forge');
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     // Working: the forge FX run at the bench.
@@ -143,7 +154,7 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     setWorkshop(serverView({ jobs: [] }));
     renderDiorama('crafting');
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-armed')).toBeNull();
     expect(hunter.getAttribute('data-work-cycle')).toBe('forge');
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     expect(screen.queryByTestId('bench-fx')).toBeNull();
@@ -159,7 +170,7 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     setWorkshop(serverView({ jobs: [job({ kind: 'repair' })] }));
     renderDiorama('workshop_service');
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-armed')).toBeNull();
     expect(hunter.getAttribute('data-work-cycle')).toBe('assembly');
     expect(screen.getByTestId('bench-fx').getAttribute('data-bench-fx')).toBe('assembly');
   });
@@ -174,7 +185,7 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     setWorkshop(null);
     renderDiorama('salvaging');
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-armed')).toBeNull();
     expect(hunter.getAttribute('data-work-cycle')).toBe('crush');
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     expect(screen.getByTestId('bench-fx').getAttribute('data-bench-fx')).toBe('crush');
@@ -206,14 +217,14 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     setWorkshop(serverView({ jobs: [job({})] }));
     renderDiorama('crafting');
     expect(screen.queryByTestId('bench-fx')).toBeNull();
-    expect(screen.getByTestId('pixel-hunter').getAttribute('data-armed')).toBe('false');
+    expect(screen.getByTestId('pixel-hunter').getAttribute('data-armed')).toBeNull();
     expect(screen.getByTestId('pixel-hunter').getAttribute('data-cycle-active')).toBeNull();
   });
 
   it('market listing (M4c): the hunter tends his stall — stall cycle bound, unarmed, no bench FX', () => {
     renderDiorama('market_listing');
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-armed')).toBeNull();
     expect(hunter.getAttribute('data-work-cycle')).toBe('stall');
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     // Nothing is struck at a stall: the bench FX kit never mounts.
@@ -225,7 +236,7 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     motionHoist.reducedMotion = true;
     renderDiorama('market_listing');
     const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-armed')).toBe('false');
+    expect(hunter.getAttribute('data-armed')).toBeNull();
     expect(hunter.getAttribute('data-work-cycle')).toBe('stall');
     expect(hunter.getAttribute('data-cycle-active')).toBeNull();
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();

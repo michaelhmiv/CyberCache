@@ -10,6 +10,12 @@ import {
   strideEnvelopeStartMs,
   type StrideSpec,
 } from '@/lib/pixel/strideCycle';
+import {
+  WORK_CYCLE_PERIOD_MS,
+  WORK_CYCLE_START_DELAY_MS,
+  sampleWorkCycle,
+  type WorkCycleSpec,
+} from '@/lib/pixel/workCycle';
 import { usePresentationActive } from '@/hooks/usePresentationActive';
 
 /**
@@ -42,6 +48,17 @@ import { usePresentationActive } from '@/hooks/usePresentationActive';
  * the 850 ms window can open and close inside one batched render
  * in the test environment while the pose state the parts actor
  * exposed always committed.
+ *
+ * The work cycle (bench / extraction / stall modes) gets the same
+ * treatment: a painting has no arm to articulate, so the cycle
+ * survives as the sampled spec's torso channel driving the same
+ * bob element — wind-up rise, strike sink — on the parts actor's
+ * own engagement shape (start delay, one-period ramp, one-period
+ * decay on disengage). BenchFx carries the strike read at the
+ * work point; the rig's pose system is NOT recreated (device-pass
+ * fix round, 2026-11-17). The root carries data-work-cycle /
+ * data-cycle-active with the parts actor's semantics, and a bound
+ * work cycle suppresses the stride, exactly as on the rig.
  */
 export interface PixelPaintedHunterActorProps {
   sprite: PixelSprite;
@@ -52,6 +69,7 @@ export interface PixelPaintedHunterActorProps {
   breathe?: boolean;
   breatheDuration?: number;
   strideCycle?: { spec: StrideSpec; active: boolean };
+  workCycle?: { spec: WorkCycleSpec; active: boolean };
   zIndex?: number;
   testId?: string;
 }
@@ -65,6 +83,7 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
   breathe = true,
   breatheDuration = 2.7,
   strideCycle,
+  workCycle,
   zIndex = 10,
   testId,
 }) => {
@@ -88,6 +107,8 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
   // observability commits like the parts actor's does.
   const [strideDriving, setStrideDriving] = useState(false);
   const strideDrivingRef = useRef(false);
+  const wcSpec = workCycle?.spec;
+  const wcActive = workCycle?.active ?? false;
   useEffect(() => {
     const bobEl = bobRef.current;
     if (!presentationActive || !bobEl) return;
@@ -97,7 +118,10 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
         setStrideDriving(v);
       }
     };
-    if (!strideSpec || reduced) {
+    // A bound work cycle suppresses the stride entirely (the
+    // parts actor's law: bench modes own the figure; the two
+    // choreographies never stack).
+    if (!strideSpec || wcSpec || reduced) {
       strideRunRef.current = { start: null, stopAt: null, ampAtStop: 0 };
       bobEl.style.transform = '';
       markDriving(false);
@@ -150,7 +174,81 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [strideSpec, strideActive, reduced, presentationActive]);
+  }, [strideSpec, strideActive, wcSpec, reduced, presentationActive]);
+
+  // ── Work cycle ──────────────────────────────────────────────
+  // The parts actor's engagement shape, sampled onto the bob:
+  // start delay while the figure settles at the station, a
+  // one-period amplitude ramp in, a one-period decay out on
+  // disengage (the held stance between jobs is the painting at
+  // rest — BenchFx and the bench seat carry the work read).
+  const cycleRunRef = useRef<{ start: number | null; stopAt: number | null; ampAtStop: number }>({
+    start: null,
+    stopAt: null,
+    ampAtStop: 0,
+  });
+  const [cycleDriving, setCycleDriving] = useState(false);
+  const cycleDrivingRef = useRef(false);
+  useEffect(() => {
+    const bobEl = bobRef.current;
+    if (!presentationActive || !bobEl) return;
+    const markDriving = (v: boolean) => {
+      if (cycleDrivingRef.current !== v) {
+        cycleDrivingRef.current = v;
+        setCycleDriving(v);
+      }
+    };
+    if (!wcSpec || reduced) {
+      cycleRunRef.current = { start: null, stopAt: null, ampAtStop: 0 };
+      if (!strideSpec) bobEl.style.transform = '';
+      markDriving(false);
+      return;
+    }
+    let raf = 0;
+    const run = cycleRunRef.current;
+    const applyBob = (torsoY: number) => {
+      const boxH = boxRef.current?.clientHeight ?? 0;
+      const bobPx = (torsoY * boxH) / SKELETON.frameHeight;
+      bobEl.style.transform = bobPx ? `translateY(${bobPx.toFixed(2)}px)` : '';
+    };
+    const tick = (now: number) => {
+      if (wcActive) {
+        run.stopAt = null;
+        if (run.start === null) run.start = now + WORK_CYCLE_START_DELAY_MS;
+        if (now >= run.start) {
+          const elapsed = now - run.start;
+          const amp = Math.min(1, elapsed / WORK_CYCLE_PERIOD_MS);
+          applyBob(sampleWorkCycle(wcSpec, elapsed, amp).poseDelta.torso?.y ?? 0);
+          markDriving(true);
+        }
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      if (run.start === null || now < run.start) {
+        run.start = null;
+        bobEl.style.transform = '';
+        markDriving(false);
+        return;
+      }
+      if (run.stopAt === null) {
+        run.stopAt = now;
+        run.ampAtStop = Math.min(1, (now - run.start) / WORK_CYCLE_PERIOD_MS);
+      }
+      const amp = run.ampAtStop * Math.max(0, 1 - (now - run.stopAt) / WORK_CYCLE_PERIOD_MS);
+      if (amp <= 0) {
+        run.start = null;
+        run.stopAt = null;
+        bobEl.style.transform = '';
+        markDriving(false);
+        return;
+      }
+      applyBob(sampleWorkCycle(wcSpec, now - run.start, amp).poseDelta.torso?.y ?? 0);
+      markDriving(true);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [wcSpec, wcActive, strideSpec, reduced, presentationActive]);
 
   return (
     <div
@@ -161,6 +259,8 @@ export const PixelPaintedHunterActor: React.FC<PixelPaintedHunterActorProps> = (
       data-painted-hunter={sprite.id}
       data-stride-cycle={strideSpec?.id}
       data-stride-active={strideDriving && !reduced ? 'true' : undefined}
+      data-work-cycle={wcSpec?.id}
+      data-cycle-active={cycleDriving && !reduced ? 'true' : undefined}
       style={{
         height: `${placement.heightPct}%`,
         aspectRatio: `${sprite.width} / ${sprite.height}`,
