@@ -7,9 +7,10 @@
  *     header carries only what the Strip doesn't print (DPS, HP,
  *     the equipped count).
  *  2. The constellation leads with the equipped hunter himself —
- *     the parts actor wearing the actual instances (held weapon
- *     layer present iff a primary is equipped) — not a sprawled
- *     diagram in an aspect-ratio box of air.
+ *     not a sprawled diagram in an aspect-ratio box of air.
+ *     (The figure itself was re-ruled 2026-11-17: it is the
+ *     fielded hunter's PAINTING — no parts actor, no held-weapon
+ *     layer, armed or not; equipped weapons show in their slots.)
  *  3. Slot chips print at the §5 floor and item names WRAP whole —
  *     the old chips ran 7–10px type and truncated the name.
  *  4. The Garage's vehicle cards carry the v1 content design
@@ -35,6 +36,7 @@ import { SyncedLoadoutScreen } from '@/screens/SyncedLoadoutScreen';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useLoadoutStore } from '@/store/slices/loadoutSlice';
 import { usePlayerStore } from '@/store/slices/playerSlice';
+import { useSkillStore } from '@/store/slices/skillSlice';
 import { useVehicleStore, type VehicleDisplay } from '@/store/slices/vehicleSlice';
 import { Rarity, WeaponType, Manufacturer, Element, DropSource } from '@/types/game';
 import type { Weapon } from '@/types/items';
@@ -115,6 +117,7 @@ beforeEach(() => {
   useLoadoutStore.setState({ slots: { ...EMPTY_SLOTS } });
   useVehicleStore.setState({ vehicles: [] });
   usePlayerStore.setState({ consumables: {}, vehicleFuel: 0 });
+  useSkillStore.setState({ activeHunterId: 'vesper' });
 });
 
 describe('F5 — the panel does not re-print the wallet', () => {
@@ -140,14 +143,24 @@ describe('F5 — the doll leads the constellation', () => {
     expect(screen.getByTestId('loadout-figure')).toBeTruthy();
     expect(screen.getByTestId('loadout-hunter')).toBeTruthy();
     expect(screen.queryByTestId('loadout-held-weapon')).toBeNull();
+    // The figure is the fielded hunter's painting (2026-11-17).
+    expect(screen.getByTestId('loadout-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
   });
 
-  it('an equipped primary renders as the held instance on the figure', () => {
+  it('an equipped primary stays OFF the figure — no held-weapon layer (owner ruling 2026-11-17)', () => {
     const weapon = makeWeapon('w-fig', 'Figure Pistol');
     useInventoryStore.setState({ items: [weapon] });
     useLoadoutStore.setState((s) => ({ slots: { ...s.slots, primary: 'w-fig' } }));
     render(<ActionLoadout />);
-    expect(screen.getByTestId('loadout-held-weapon')).toBeTruthy();
+    // The weapon shows in its slot; the painting never holds it.
+    expect(screen.queryByTestId('loadout-held-weapon')).toBeNull();
+    expect(screen.getByTestId('loadout-hunter').getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
+  });
+
+  it('the doll is the FIELDED hunter’s painting — field Silas and the figure changes', () => {
+    useSkillStore.setState({ activeHunterId: 'silas' });
+    render(<ActionLoadout />);
+    expect(screen.getByTestId('loadout-hunter').getAttribute('data-painted-hunter')).toBe('hunter-silas-boone');
   });
 });
 

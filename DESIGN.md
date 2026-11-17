@@ -2990,3 +2990,28 @@ real-code rendering (hub v2, QC-passed) the same day.
    focus landing moves to the hub panel; opening the settlement
    sheet with earnings on it marks the week seen, exactly as
    viewing the in-flow panel did. A closed sheet marks nothing.
+
+### 2026-11-17 — No equipped weapon in hand, anywhere (owner-ruled)
+
+The owner, reviewing the everything-build on his Pixel: "with the
+painting route we have officially decided we won't show the
+equipped weapon in hand." The 2026-11-15 paintings-only ruling
+extends from the combat stage to every painted surface.
+
+1. **No grip-anchor overlay.** The Gear tab loadout doll — the
+   one surface still drawing the equipped weapon in hand on the
+   retired segmented rig — swaps to the fielded hunter's whole
+   painting with no weapon overlay; the overlay option was
+   presented and declined. Equipped weapons show in slots, cards,
+   and inspect, exactly as ruled 2026-11-15.
+2. **Every stale-rig stage surface converts.** The Home stage's
+   bench, extraction, and market-stall branches and the four
+   Workshop action scenes render the fielded hunter's painting.
+   The work cycle survives as the painting's bob treatment on
+   the mode's spec, with BenchFx carrying the strike read; the
+   rig's pose system is not recreated.
+3. **Portraits follow under their own slice.** The parts-based
+   portrait family (Standings rows, market rows, profile panels)
+   converts separately: the server look record learns hunter
+   identity first, then those surfaces paint the fielded
+   hunter's painting like everywhere else.
