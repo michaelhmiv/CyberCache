@@ -94,11 +94,9 @@ export function namedRelicSeatInput(name: string, rarity: Rarity, jobId: string)
   };
 }
 
-/** What sits on the bench for a job — null when nothing truthful
- *  can be pictured (no running job, an unknown recipe, a tint job
- *  whose target the mirror view does not carry). */
+/** What sits on the bench for a job — null when nothing truthful can be pictured (no active job, an unknown recipe, a tint job whose target the mirror view does not carry). The lane's head ACTIVE job seats: running, or paused at rest under the stage's Paused pennant; a merely queued job seats nothing. */
 export function benchSeatPlanForJob(job: WorkshopJobView | null | undefined): BenchSeatPlan | null {
-  if (!job || job.state !== 'running') return null;
+  if (!job || (job.state !== 'running' && job.state !== 'paused')) return null;
   if (job.kind === 'repair') {
     return job.repairItemId ? { kind: 'serviceItem', itemId: job.repairItemId } : null;
   }

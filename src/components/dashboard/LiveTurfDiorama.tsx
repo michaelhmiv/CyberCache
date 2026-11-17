@@ -28,7 +28,8 @@ import {
 import { getPixelSprite, pixelBackgroundForArea, pixelBossSpriteForBoss, pixelEnemySpriteForArchetype, pixelHunterSpriteForHunter, requirePixelSprite } from '@/lib/pixel/manifest';
 import { CAMP_VISTA_SCENE, vistaSceneForBackground } from '@/lib/pixel/vistaScenes';
 import { MOVEMENT, actorAnchorPoint, classifyTickBeat, lootRiseTotalMs, type ActorPlacement, type CombatBeatKind } from '@/lib/pixel/movement';
-import { dropAssetColor, dropRiseBeamColor, parseDropType } from '@/lib/pixel/dropColors';
+import { dropAssetColor, dropRiseBeamColor, parseDropType, parseConsumableDropId } from '@/lib/pixel/dropColors';
+import { materialSpriteId, consumableSpriteId, walletSpriteId } from '@/lib/pixel/itemArt';
 import { StageRise, ROAM_DROP_LIFT_PX } from '@/components/pixelArt/StageRise';
 import { ROAM_ELITE_FLAT_HEIGHT_PCT, ROAM_ELITE_RIG_HEIGHT_PCT, ROAM_ENEMY_PLACEMENT, ROAM_HUNTER_PLACEMENT, approachOffsetXPct, enemyDropHold, roamEnemyPlacementFor, sampleEnemyWalkPose, roamPoseRecoveryTimes, roamPosesAt } from '@/lib/pixel/roamChoreography';
 import {
@@ -43,6 +44,8 @@ import { PixelRigActor } from '@/components/pixelArt/PixelRigActor';
 import { PixelPaintedHunterActor } from '@/components/pixelArt/PixelPaintedHunterActor';
 import { RoamHunterVoice } from '@/components/pixelArt/HunterVoiceChip';
 import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
+import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
+import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
 import {
   EXTRACTION_RISE_STAGGER_MS,
   extractionBeatDurationMs,
@@ -242,8 +245,15 @@ export const DropRiseMasterIcon: React.FC<{ kind: DropRiseKind; base: string }> 
   );
 };
 
+/**
+ * Item-kind rises resolve the adopted itemArt render first
+ * (PixelMaterial / PixelWalletIcon / PixelConsumable); the tinted
+ * master remains only as the fallback for an id the resolver does
+ * not map.
+ */
 export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, label }) => {
   const isScrap = label.toLowerCase().includes('scrap');
+  const isConsumable = tone === 'consumable';
   const kind: DropRiseKind =
     tone === 'material' || tone === 'essence' || tone === 'fragment'
       ? tone
@@ -251,9 +261,12 @@ export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, 
         ? isScrap
           ? 'scrap'
           : 'credits'
-        : 'crate';
-  const base =
-    kind === 'fragment'
+        : isConsumable
+          ? 'material'
+          : 'crate';
+  const base = isConsumable
+    ? dropRiseBeamColor('consumable', label)
+    : kind === 'fragment'
       ? '#2196F3'
       : kind === 'scrap'
         ? '#FF5722'
@@ -267,10 +280,34 @@ export const DropRiseIcon: React.FC<{ tone: string; label: string }> = ({ tone, 
   // kinds nothing. Cash rises stay icon-only: a payout is not an
   // item, and its amount already prints in the feed.
   const nameLine =
-    kind === 'material' || kind === 'essence' || kind === 'fragment' ? label : null;
+    kind === 'material' || kind === 'essence' || kind === 'fragment' || isConsumable ? label : null;
+  let icon: React.ReactNode;
+  if (tone === 'material' || tone === 'essence') {
+    const dropType = parseDropType(label);
+    icon = materialSpriteId(dropType) ? (
+      <PixelMaterial id={dropType} size={34} />
+    ) : (
+      <DropRiseMasterIcon kind={kind} base={base} />
+    );
+  } else if (kind === 'scrap') {
+    icon = walletSpriteId('scrap') ? (
+      <PixelWalletIcon id="scrap" size={34} />
+    ) : (
+      <DropRiseMasterIcon kind={kind} base={base} />
+    );
+  } else if (isConsumable) {
+    const consumableId = parseConsumableDropId(label);
+    icon = consumableId && consumableSpriteId(consumableId) ? (
+      <PixelConsumable type={consumableId} size={34} />
+    ) : (
+      <DropRiseMasterIcon kind="material" base={dropRiseBeamColor('consumable', label)} />
+    );
+  } else {
+    icon = <DropRiseMasterIcon kind={kind} base={base} />;
+  }
   return (
     <div className="flex h-full flex-col items-center" style={{ paddingTop: 9 }}>
-      <DropRiseMasterIcon kind={kind} base={base} />
+      {icon}
       {nameLine ? (
         <span
           style={{
@@ -818,14 +855,17 @@ const PixelSceneLayerDom: React.FC<{
   const activeBenchCompletion = mode === 'salvaging' ? null : benchCompletion;
 
   // ── Item on the bench (Motion M4b) ────────────────────────────
-  // The running job in this mode's lane seats its truthful output
+  // The head active job in this mode's lane (running, else the FIFO-first paused job) seats its truthful output
   // picture at the work point (benchSeat.ts): the real consumable
   // / material / part / relic-form render, the slot+rarity frame
   // for gear that does not exist yet, the service target itself.
   const benchLaneJob = benchSpec && mode !== 'salvaging'
-    ? (workshopJobs ?? []).find(
+    ? ((workshopJobs ?? []).find(
         (job) => job.state === 'running' && isServiceLaneJob(job) === benchServiceLane,
-      )
+      ) ??
+      (workshopJobs ?? []).find(
+        (job) => job.state === 'paused' && isServiceLaneJob(job) === benchServiceLane,
+      ))
     : undefined;
   const seatPlan = benchSeatPlanForJob(benchLaneJob);
   // Work point (V2 set landing, 2026-11-08): the FX and the seated

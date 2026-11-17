@@ -717,8 +717,8 @@ export const LootMoment: React.FC<LootMomentProps> = ({
         </>
       ) : (
         <>
-          {/* In-scene risen item + card stack (feed-full and light). */}
-          {legendaryShowing && (
+          {/* In-scene risen item + card stack (feed-full and light). The risen item mounts on the celebration's weaponRise (true at every rarity); only the dim, god rays and shockwave stay legendary-only. */}
+          {currentStep.celebration.weaponRise && (
             <RisenItemScene step={currentStep} xPct={anchorXPct} groundYPct={groundYPct} reduced={reduced} staticIn={settledLike} />
           )}
           <div className={`absolute z-40 flex flex-col items-end gap-1.5 ${full ? 'right-3 top-3' : 'right-2 top-2'}`} data-testid="loot-card-stack">

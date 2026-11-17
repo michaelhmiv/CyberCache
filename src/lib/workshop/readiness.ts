@@ -362,7 +362,7 @@ export function deriveRecipeReadiness(
       gates.push({
         family: 'queue',
         met: false,
-        label: 'Bench queue full — jobs finish while Crafting is your action, or cancel one above.',
+        label: 'Bench queue full — jobs finish while Crafting is your action, or cancel one from the Bench Jobs list.',
       });
     }
   }

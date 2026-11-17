@@ -15,15 +15,14 @@
  * rail's chip grammar (active = amber fill); the confirm rides the
  * vendor CTA geometry. All figures are labels and numbers only.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { PickerSheet } from '@/components/common/PickerSheet';
+import { QuantityPicker } from '@/components/vendor/QuantityPicker';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { usePlayerStore } from '@/store';
 import type { VendorOffer } from '@/lib/vendor/catalog';
 
 const vendorCtaCls = 'border-2 border-black bg-amber text-bg shadow-[4px_4px_0_rgba(0,0,0,0.72)]';
-
-const QUICK_PICKS = [1, 20, 50, 100, 1000];
 
 export interface VendorBuySheetTarget {
   offer: VendorOffer;
@@ -76,18 +75,6 @@ export const VendorBuySheet: React.FC<VendorBuySheetProps> = ({ target, busy, on
 
   const total = qty * unitPrice;
   const creditsAfter = credits - total;
-  const sliderPct = useMemo(() => {
-    if (maxQty <= 1) return 100;
-    return ((qty - 1) / (maxQty - 1)) * 100;
-  }, [qty, maxQty]);
-
-  const chipCls = (selected: boolean, disabled: boolean) =>
-    `flex min-h-[44px] items-center justify-center border px-1 text-[11px] font-black transition-colors ${
-      selected
-        ? 'border-amber bg-amber text-bg'
-        : 'border-border bg-surface-raised text-text-secondary'
-    } ${disabled ? 'opacity-40' : ''}`;
-
   if (!target) return null;
 
   return (
@@ -114,66 +101,7 @@ export const VendorBuySheet: React.FC<VendorBuySheetProps> = ({ target, busy, on
           </div>
         </div>
 
-        {/* Quantity readout */}
-        <div className="flex items-end justify-between">
-          <div className="text-[11px] font-black uppercase text-text-secondary">Quantity</div>
-          <div className="text-[23px] font-black leading-none text-text-primary" data-testid="vendor-qty-value">
-            {qty.toLocaleString()}
-          </div>
-        </div>
-
-        {/* Quick-pick chips: 1 / 20 / 50 / 100 / 1000 / MAX. A chip
-            past the player's MAX is disabled, never hidden — the
-            ladder stays put and the wallet says why. */}
-        <div className="grid grid-cols-6 gap-1.5" data-testid="vendor-qty-chips">
-          {QUICK_PICKS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              disabled={value > maxQty || busy}
-              onClick={() => setQty(value)}
-              className={chipCls(qty === value, value > maxQty)}
-              data-testid={`vendor-qty-chip-${value}`}
-            >
-              {value.toLocaleString()}
-            </button>
-          ))}
-          <button
-            type="button"
-            disabled={maxQty < 1 || busy}
-            onClick={() => setQty(maxQty)}
-            className={chipCls(qty === maxQty && maxQty > 1, maxQty < 1)}
-            data-testid="vendor-qty-chip-max"
-          >
-            MAX
-          </button>
-        </div>
-
-        {/* Slider: 1 .. MAX on a drawn track (amber fill to the
-            selection), the native input riding transparent above
-            it with the full 44px row as its tap target. */}
-        <div>
-          <div className="relative flex h-11 items-center">
-            <div className="absolute left-0 right-0 h-2 bg-surface-raised" />
-            <div className="absolute left-0 h-2 bg-amber" style={{ width: `${sliderPct}%` }} />
-            <input
-              type="range"
-              min={1}
-              max={Math.max(1, maxQty)}
-              step={1}
-              value={qty}
-              disabled={maxQty <= 1 || busy}
-              onChange={(e) => setQty(Number(e.target.value))}
-              aria-label="Quantity"
-              data-testid="vendor-qty-slider"
-              className="absolute inset-0 h-11 w-full cursor-pointer appearance-none bg-transparent disabled:opacity-40 [&::-moz-range-thumb]:h-[26px] [&::-moz-range-thumb]:w-[26px] [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-black [&::-moz-range-thumb]:bg-amber [&::-moz-range-thumb]:shadow-[3px_3px_0_rgba(0,0,0,0.72)] [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:h-[26px] [&::-webkit-slider-thumb]:w-[26px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black [&::-webkit-slider-thumb]:bg-amber [&::-webkit-slider-thumb]:shadow-[3px_3px_0_rgba(0,0,0,0.72)]"
-            />
-          </div>
-          <div className="flex justify-between text-[11px] text-text-muted">
-            <span>1</span>
-            <span>{maxQty.toLocaleString()}</span>
-          </div>
-        </div>
+        <QuantityPicker value={qty} max={maxQty} onChange={setQty} disabled={busy} testIdPrefix="vendor-qty" />
 
         {/* Totals */}
         <div className="space-y-1.5 border-t border-border/50 pt-3">

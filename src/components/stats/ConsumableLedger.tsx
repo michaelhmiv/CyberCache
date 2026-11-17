@@ -140,7 +140,7 @@ export const ConsumableLedger: React.FC<{
                 const tone = def ? (accentClass[def.visual.accent] ?? 'text-text-primary border-border bg-bg/80') : 'text-text-muted border-border bg-bg/60';
                 return (
                   <div key={buff.id} data-testid="active-consumable-row" data-state={buff.displayState} className={`relative flex items-center gap-3 border-2 p-2 ${tone}`} style={panelClip}>
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-bg/80"><PxIcon name={def?.visual.icon ?? 'clock'} size={17} /></div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-bg/80">{def ? <PixelConsumable type={buff.consumableId} size={30} /> : <PxIcon name="clock" size={17} />}</div>
                     <div className="min-w-0 flex-1">
                       <div className="text-[9px] font-black uppercase tracking-wide text-text-muted">{buff.displayState === 'recent' ? 'Recently Triggered' : 'Active Effect'}</div>
                       <div className="truncate text-sm font-black text-text-primary">{def?.name ?? buff.consumableId}</div>
@@ -204,7 +204,7 @@ export const ConsumableLedger: React.FC<{
                         onClick={() => handlePick(focusedSlotKey, c.id)}
                         className={`flex w-full items-center gap-2 px-2 py-1.5 text-left transition-colors hover:bg-amber/10 ${isEquippedHere ? 'bg-amber/10' : ''}`}
                       >
-                        <PxIcon name={c.visual.icon} size={13} style={{ color: accentToHex[c.visual.accent] ?? '#888' }} />
+                        <PixelConsumable type={c.id} size={20} />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[11px] font-black text-text-primary">{c.name}</div>
                           <div className="truncate text-[8px] text-text-muted">{c.tacticalRole}</div>
@@ -247,7 +247,7 @@ export const ConsumableLedger: React.FC<{
                     >
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-border bg-bg/80 text-lg">
                         {def ? (
-                          <PxIcon name={def.visual.icon} size={17} />
+                          <PixelConsumable type={def.id} size={30} />
                         ) : (
                           <span className="font-black text-text-muted" style={{ fontSize: '18px' }}>+</span>
                         )}
@@ -294,7 +294,7 @@ export const ConsumableLedger: React.FC<{
                                 onClick={() => handlePick(slot, c.id)}
                                 className={`flex w-full items-center gap-2 px-2 py-1.5 text-left transition-colors hover:bg-amber/10 ${isEquippedHere ? 'bg-amber/10' : ''}`}
                               >
-                                <PxIcon name={c.visual.icon} size={13} style={{ color: accentClass[c.visual.accent]?.split(' ')[0].replace('text-', '') ?? '#888' }} />
+                                <PixelConsumable type={c.id} size={20} />
                                 <div className="min-w-0 flex-1">
                                   <div className="truncate text-[11px] font-black text-text-primary">{c.name}</div>
                                   <div className="truncate text-[8px] text-text-muted">{c.tacticalRole}</div>
