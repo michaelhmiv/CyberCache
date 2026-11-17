@@ -1,1 +1,89 @@
-{"captures": [{"expect": ["v1-strike-s1", "v1-strike-s2", "v1-strike-s3", "v1-strike-s4", "v1-strike-s5", "v1-strike-s6", "v1-strike-s7", "v1-strike-s8", "v1-strike-s9", "v1-strike-s10", "v1-strike-s11", "v1-strike-s12"], "label": "v1-strike", "path": "/bench-harness.html?mode=crafting&state=working&recipe=ammo&craftzoom=1&width=412", "plan": "capture/plans/v1-strike.json"}, {"expect": ["v1-paused"], "label": "v1-paused", "path": "/bench-harness.html?mode=crafting&state=paused&recipe=ammo&craftzoom=1&width=412", "plan": "capture/plans/v1-paused.json"}, {"expect": ["v2-strike-s1", "v2-strike-s2", "v2-strike-s3", "v2-strike-s4", "v2-strike-s5", "v2-strike-s6", "v2-strike-s7", "v2-strike-s8", "v2-strike-s9", "v2-strike-s10", "v2-strike-s11", "v2-strike-s12"], "label": "v2-strike", "path": "/bench-harness.html?mode=crafting&state=working&recipe=ammo&craftzoom=2&width=412", "plan": "capture/plans/v2-strike.json"}, {"expect": ["v2-paused"], "label": "v2-paused", "path": "/bench-harness.html?mode=crafting&state=paused&recipe=ammo&craftzoom=2&width=412", "plan": "capture/plans/v2-paused.json"}, {"expect": ["v3-strike-s1", "v3-strike-s2", "v3-strike-s3", "v3-strike-s4", "v3-strike-s5", "v3-strike-s6", "v3-strike-s7", "v3-strike-s8", "v3-strike-s9", "v3-strike-s10", "v3-strike-s11", "v3-strike-s12"], "label": "v3-strike", "path": "/bench-harness.html?mode=crafting&state=working&recipe=ammo&craftzoom=3&width=412", "plan": "capture/plans/v3-strike.json"}, {"expect": ["v3-paused"], "label": "v3-paused", "path": "/bench-harness.html?mode=crafting&state=paused&recipe=ammo&craftzoom=3&width=412", "plan": "capture/plans/v3-paused.json"}], "harnessPage": "/bench-harness.html", "iter": "craft-zoom-render", "port": 7137}
+{
+ "iter": "craft-zoom-render-r3",
+ "port": 7137,
+ "harnessPage": "/home-harness.html",
+ "viteConfig": "vite.home.config.ts",
+ "captures": [
+  {
+   "label": "r3-v1-burst",
+   "path": "/home-harness.html?state=working&recipe=ammo&craftzoom=1",
+   "plan": "capture/plans/r3-v1-burst.json",
+   "expect": [
+    "r3-v1-burst-s1",
+    "r3-v1-burst-s2",
+    "r3-v1-burst-s3",
+    "r3-v1-burst-s4",
+    "r3-v1-burst-s5",
+    "r3-v1-burst-s6",
+    "r3-v1-burst-s7",
+    "r3-v1-burst-s8",
+    "r3-v1-burst-s9",
+    "r3-v1-burst-s10",
+    "r3-v1-burst-s11",
+    "r3-v1-burst-s12"
+   ]
+  },
+  {
+   "label": "r3-v1-paused",
+   "path": "/home-harness.html?state=paused&recipe=ammo&craftzoom=1",
+   "plan": "capture/plans/r3-v1-paused.json",
+   "expect": [
+    "r3-v1-paused"
+   ]
+  },
+  {
+   "label": "r3-v2-burst",
+   "path": "/home-harness.html?state=working&recipe=ammo&craftzoom=2",
+   "plan": "capture/plans/r3-v2-burst.json",
+   "expect": [
+    "r3-v2-burst-s1",
+    "r3-v2-burst-s2",
+    "r3-v2-burst-s3",
+    "r3-v2-burst-s4",
+    "r3-v2-burst-s5",
+    "r3-v2-burst-s6",
+    "r3-v2-burst-s7",
+    "r3-v2-burst-s8",
+    "r3-v2-burst-s9",
+    "r3-v2-burst-s10",
+    "r3-v2-burst-s11",
+    "r3-v2-burst-s12"
+   ]
+  },
+  {
+   "label": "r3-v2-paused",
+   "path": "/home-harness.html?state=paused&recipe=ammo&craftzoom=2",
+   "plan": "capture/plans/r3-v2-paused.json",
+   "expect": [
+    "r3-v2-paused"
+   ]
+  },
+  {
+   "label": "r3-v3-burst",
+   "path": "/home-harness.html?state=working&recipe=ammo&craftzoom=3",
+   "plan": "capture/plans/r3-v3-burst.json",
+   "expect": [
+    "r3-v3-burst-s1",
+    "r3-v3-burst-s2",
+    "r3-v3-burst-s3",
+    "r3-v3-burst-s4",
+    "r3-v3-burst-s5",
+    "r3-v3-burst-s6",
+    "r3-v3-burst-s7",
+    "r3-v3-burst-s8",
+    "r3-v3-burst-s9",
+    "r3-v3-burst-s10",
+    "r3-v3-burst-s11",
+    "r3-v3-burst-s12"
+   ]
+  },
+  {
+   "label": "r3-v3-paused",
+   "path": "/home-harness.html?state=paused&recipe=ammo&craftzoom=3",
+   "plan": "capture/plans/r3-v3-paused.json",
+   "expect": [
+    "r3-v3-paused"
+   ]
+  }
+ ]
+}

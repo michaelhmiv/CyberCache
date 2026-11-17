@@ -923,18 +923,30 @@ const PixelSceneLayerDom: React.FC<{
   // the actor branch in the stage below).
   const craftZoom = mode === 'crafting' ? craftZoomVariant() : 0;
   const seatZoomScale = craftZoom === 1 ? 1.3 : craftZoom === 2 ? 1.25 : craftZoom === 3 ? 1.15 : 1;
-  const seatTopPct = craftZoom === 3 ? workPointYPct - 2 : workPointYPct;
-  // Fix round (owner review, 2026-11-17): flush-on-the-point still
-  // hovered — the anvil POINT sits below the anvil sprite's top
-  // face and the item sprite carries its own bottom padding, so
-  // the piece floated above the face (≈14 device px at V1's
-  // camera, column-profile measured on the paused frame). The
-  // per-variant sink closes that gap and lands the base 2–4
-  // device px INTO the face at each camera (the sink is in scene
-  // px; screen travel = sink × camera scale × DSF 2). V3 keeps
-  // the original 2 — its seat is the rest disc, and the base
-  // already lands inside the disc's glow (measured, same round).
-  const seatSinkPx = craftZoom === 1 ? 7 : craftZoom === 2 ? 6.5 : 2;
+  // Round 3 (owner correction, 2026-11-17): the anvil is GONE in
+  // the zoom variants — the bench renders the anvil-free set piece
+  // (set-bench-forge-noanvil, review branch only) and the seat
+  // lands on the BENCH TOP surface where the anvil stood, never on
+  // the anvil. The surface line derives from the sprite itself:
+  // the anvil's feet met the slab at sprite row ≈605/1344 and the
+  // piece spans stage (groundY − 34)…groundY, so the surface
+  // rides at (groundY − 0.34 + (605/1344)×0.34)×100 ≈
+  // (groundY − 0.187)×100. V3 keeps its −2 raise relative to the
+  // anchor and its rest disc moves down to the same line (see the
+  // disc render below). BenchFx keeps the historical work point —
+  // its burst wash still covers the piece at this seat.
+  const benchTopSeatPct = (groundY - 0.187) * 100;
+  const seatTopPct = craftZoom === 3 ? benchTopSeatPct - 2 : craftZoom > 0 ? benchTopSeatPct : workPointYPct;
+  // Sink history: the fix round's 7 / 6.5 bought the climb from
+  // the anvil POINT up onto the anvil's FACE (closing a measured
+  // ≈14 / ≈20 device px air band at V1 / V2). Round 3 re-bases
+  // the seat on the bench top line (benchTopSeatPct above), so
+  // the sink now buys only the 2–4 device px contact overlap off
+  // that line (sink is in scene px; screen travel = sink ×
+  // camera scale × DSF 2 → V1 ≈3.5, V2 ≈3.9 device px). V3
+  // keeps 2 — its seat is the rest disc, and the base already
+  // lands inside the disc's glow (measured in the fix round).
+  const seatSinkPx = craftZoom === 1 ? 1 : craftZoom === 2 ? 0.75 : 2;
   // Salvage completion beat (M4b): salvaging has no workshop
   // mirror, so its completions arrive on the salvage feed — the
   // store every recycle result already pushes to. A fresh settled
@@ -1219,7 +1231,7 @@ const PixelSceneLayerDom: React.FC<{
       {/* Set dressing in non-combat modes (grammar G-5): the system's
           set pieces behind the actor; the camp crate is the fallback. */}
       {!showEnemy && mode === 'crafting' && (
-        <PixelActor spriteId="set-bench-forge" xPct={60} heightPct={34} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-bench-set" />
+        <PixelActor spriteId={craftZoom > 0 ? 'set-bench-forge-noanvil' : 'set-bench-forge'} xPct={60} heightPct={34} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-bench-set" />
       )}
       {!showEnemy && mode === 'workshopService' && (
         <PixelActor spriteId="set-bay-lift" xPct={60} heightPct={36} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-bay-set" />
@@ -1300,7 +1312,7 @@ const PixelSceneLayerDom: React.FC<{
         <div
           data-testid="bench-seat-rest"
           className="pointer-events-none absolute z-10"
-          style={{ left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 104, height: 30, transform: 'translate(-50%, -50%)' }}
+          style={{ left: `${workPointXPct}%`, top: `${benchTopSeatPct}%`, width: 104, height: 30, transform: 'translate(-50%, -50%)' }}
         >
           <div className="absolute inset-x-3 bottom-0 h-[13px] rounded-[50%] bg-black/55 blur-[3px]" />
           <div
