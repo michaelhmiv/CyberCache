@@ -180,33 +180,21 @@ Crafting mastery raise the ceiling. The finish names itself:
 Finish is looks only. A Worn Bulwark helm and a Pristine one are
 the same item wearing different light.
 
-## Wearing parts: the Wardrobe
+## Wearing parts: retired
 
-The **Wardrobe** has its own stop on the Hunter tab, behind the
-Wardrobe door at the foot of the Hunter menu: a showcase stage
-with your hunter wearing his current look (weapon included), your
-owned parts by slot, and the full craftable catalog with its
-costs. The weapon on that stage — and on every stage — is the
-item's own full-detail drawing, the same picture as its Gear
-card with the display furniture folded away (see [[Gear]] § How
-a weapon looks). Those costs are live: a part's Scrap price is tuned per
-recipe (see [[Economy]]), and the Wardrobe always quotes the
-price that will actually be charged. Each craftable row also
-prints the part's real craft time beside its inputs — the same
-duration the Workshop job will run. A shortcut door also sits on the figure stage of the Gear
-tab's Loadout page — it lands here, on the Wardrobe panel. Tap **Wear** and the part replaces the stock piece for that
-slot — parts replace, they never layer over the stock frame. One
-part per slot; equipping a second part for a slot swaps the first
-back to your inventory.
-
-The **head pick** works alongside parts: the four free head
-variants (Visor, Optic, Hood, Fin) apply whenever no head *part*
-is worn. Manufacturer heads earned through [[Manufacturer
-Standing]] (rank 3 on a maker's ladder) stay wearable as picks
-forever — earning one is never revoked. Crafted helm *parts*
-from before the retirement still exist and wear as items the
-same way; no new ones can be crafted or listed. A worn head part
-overrides the pick while it's on.
+The parts-era Wardrobe — a showcase stage where you tapped
+**Wear** and a part replaced the stock piece for its slot — is
+retired, and so is the **head pick** that stood beside it (the
+four free head variants, and the maker heads earned through
+[[Manufacturer Standing]] at rank 3, were chosen in Settings;
+that choice is gone, and the Settings card with it). There is no
+equip surface for parts anymore: the figure on every stage, the
+Gear tab included, is the fielded hunter's painting (see
+[[Gear]] for how your equipped weapon is drawn — on its card,
+never in the painting's hands). Parts remain what the sections
+above say they are: collection pieces, kept in your
+[[Collections]], still tintable, and still the road to a set's
+whole skin through set conversion.
 
 ## How other hunters see you
 
@@ -217,17 +205,14 @@ on your Home stage. Worn parts no longer draw your figure
 anywhere public; parts are collection pieces now, and a part for
 sale shows the part itself.
 
-## How the figure is jointed
+## One figure: the painting
 
-Your hunter is assembled from his parts on a jointed rig every
-time he appears — Wardrobe, Gear, and the Home stage all draw the
-same figure from the same parts. The legs are jointed at the knee
-now, the same way the arms have always been jointed at the elbow:
-the shin hangs off the thigh's knee instead of being pinned to
-the ground, so the legs can genuinely articulate. Every part
-renders exactly as before — same pictures, same anchors, same
-poses — the joint is groundwork for the hunter's stride, which
-arrives with the travel beat it belongs to.
+Your hunter is one painting every time he appears — Wardrobe,
+Gear, and the Home stage all draw the same whole figure, never
+an assembly of parts. The jointed parts rig that once posed the
+figure is retired with the wearing system above; the parts
+themselves remain as the collection pieces and catalog plates
+this page documents.
 
 ## Tinting and Chromaweave
 

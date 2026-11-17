@@ -9,6 +9,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **One painting per item, on every surface** — the Home gain toasts and the Crack Cache door wear the wallet paintings; the consumable ledger and the belt show each consumable's own painting; and a recipe card's face shows the item it makes.
 - **Your hunter is the same painting everywhere now** — the figure on the Gear tab, at the Home stage's bench, sift rig, and market stall, and working the Workshop's bench, extraction, repair, and calibration scenes used to be the old assembled suit of parts. They are your fielded Cache Hunter's painting now, the same one that stands on the Home stage — and the painting never holds your equipped weapon: weapons show in their slots, on their cards, and in inspect, exactly as before.
 - **Every portrait is a painting now** — the hunter beside each Standings row, on the profile pop-up, and at the top of the full public record used to be assembled from worn skin parts. Those portraits are the fielded Cache Hunter's own painting now, the same one that stands on the Home stage. A skin part for sale on the Market shows the part itself, in its finish and tint, instead of a figure wearing it.
+- **The old parts wardrobe is fully retired now** — the Settings head-variant picker is gone (it claimed to change the head your hunter wears on the roaming stage; since the paintings arrived, nothing read it), and the equip machinery behind the old parts figure is removed with it. Nothing you own changes: parts stay in your collection, whole skins still wear in the Wardrobe, and every figure and portrait is the painting it already was.
 
 ## 2026-11-16 — The Cache Hunters take the field
 
@@ -405,13 +406,14 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 326 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 327 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 3 merges
+**2026-11-17** — 4 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
 - #604 — Device pass batch 2: drops show the item + item-art parity
+- #605 — Portraits are paintings: look record carries hunter identity (Batch 3, migration 0100)
 
 **2026-11-16** — 13 merges
 
