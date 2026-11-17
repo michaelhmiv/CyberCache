@@ -1,0 +1,367 @@
+{
+ "dsf": 2,
+ "width": 412,
+ "height": 915,
+ "steps": [
+  {
+   "wait": 12000
+  },
+  {
+   "shot": "anim-v1-jolt-s1"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s2"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s3"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s4"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s5"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s6"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s7"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s8"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s9"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s10"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s11"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s12"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s13"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s14"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s15"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s16"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s17"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s18"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s19"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s20"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s21"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s22"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s23"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s24"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s25"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s26"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s27"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s28"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s29"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s30"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s31"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s32"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s33"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s34"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s35"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s36"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s37"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s38"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s39"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s40"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s41"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s42"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s43"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s44"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s45"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s46"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s47"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s48"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s49"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s50"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s51"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s52"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s53"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s54"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s55"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s56"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s57"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s58"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s59"
+  },
+  {
+   "wait": 75
+  },
+  {
+   "shot": "anim-v1-jolt-s60"
+  }
+ ]
+}
