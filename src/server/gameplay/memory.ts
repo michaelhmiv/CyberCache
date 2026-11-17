@@ -184,7 +184,6 @@ import { isHotArea } from '../../content/hotArea';
 import {
   FREE_HEAD_VARIANTS,
   HEAD_VARIANT_MANUFACTURERS,
-  isCosmeticSlot,
   type CosmeticPartItemView,
   type CosmeticSkinItemView,
   type CosmeticsStateView,
@@ -1453,77 +1452,12 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return this.cosmeticsView(playerId);
   }
 
-  async equipCosmetic(playerId: string, nonce: string, itemId: string): Promise<Json> {
-    if (!nonce) throw new GameplayStoreError('cc_cosmetic_equip requires a nonce');
-    const key = `cc_cosmetic_equip:${nonce}`;
-    const prior = this.ledger.get(key);
-    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true } as Json;
-    this.requireProfile(playerId);
-    const item = this.items.get(itemId);
-    if (!item || item.owner_user_id !== playerId) throw new GameplayStoreError('Item not found');
-    if (item.kind !== 'cosmetic') throw new GameplayStoreError('Item is not a cosmetic part');
-    if (item.runtime_state !== 'available') {
-      throw new GameplayStoreError('Part is not available to equip');
-    }
-    const tintActive = this.craftJobs.some(
-      (j) => j.owner_user_id === playerId && j.status === 'active'
-        && j.kind === 'cosmetic' && j.snapshot.tint?.itemId === item.id,
-    );
-    if (tintActive) throw new GameplayStoreError('Part is being tinted');
-    const slot = (item.payload ?? {}).slot;
-    if (!isCosmeticSlot(slot)) throw new GameplayStoreError('Part has no wearable slot');
-    const sel = this.skinSelections.get(playerId) ?? { equipped: {}, headVariant: 'visor' };
-    sel.equipped[slot] = item.id;
-    this.skinSelections.set(playerId, sel);
-    const result = {
-      action_type: 'cc_cosmetic_equip',
-      cosmetics: this.cosmeticsView(playerId),
-    } as unknown as Json;
-    this.ledger.set(key, result);
-    return result;
-  }
-
-  async unequipCosmetic(playerId: string, nonce: string, slot: string): Promise<Json> {
-    if (!nonce) throw new GameplayStoreError('cc_cosmetic_unequip requires a nonce');
-    const key = `cc_cosmetic_unequip:${nonce}`;
-    const prior = this.ledger.get(key);
-    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true } as Json;
-    if (!isCosmeticSlot(slot)) throw new GameplayStoreError('Unknown cosmetic slot');
-    this.requireProfile(playerId);
-    const sel = this.skinSelections.get(playerId) ?? { equipped: {}, headVariant: 'visor' };
-    delete sel.equipped[slot];
-    this.skinSelections.set(playerId, sel);
-    const result = {
-      action_type: 'cc_cosmetic_unequip',
-      cosmetics: this.cosmeticsView(playerId),
-    } as unknown as Json;
-    this.ledger.set(key, result);
-    return result;
-  }
-
-  async setCosmeticHeadVariant(playerId: string, nonce: string, variant: string): Promise<Json> {
-    if (!nonce) throw new GameplayStoreError('cc_cosmetic_set_head_variant requires a nonce');
-    const key = `cc_cosmetic_set_head_variant:${nonce}`;
-    const prior = this.ledger.get(key);
-    if (prior) return { ...(prior as Record<string, unknown>), idempotent_replay: true } as Json;
-    const manufacturer = HEAD_VARIANT_MANUFACTURERS[variant];
-    if (!FREE_HEAD_VARIANTS.includes(variant) && !manufacturer) {
-      throw new GameplayStoreError('Unknown head variant');
-    }
-    this.requireProfile(playerId);
-    if (manufacturer && (this.standingRows.get(`${playerId}:${manufacturer}`)?.rank ?? 0) < 3) {
-      throw new GameplayStoreError(`That head is earned at ${manufacturer} rank 3`);
-    }
-    const sel = this.skinSelections.get(playerId) ?? { equipped: {}, headVariant: 'visor' };
-    sel.headVariant = variant;
-    this.skinSelections.set(playerId, sel);
-    const result = {
-      action_type: 'cc_cosmetic_set_head_variant',
-      cosmetics: this.cosmeticsView(playerId),
-    } as unknown as Json;
-    this.ledger.set(key, result);
-    return result;
-  }
+  // The equip/unequip/head-variant write ops were retired
+  // 2026-11-17 (device-pass Batch 4) with their routes — this twin
+  // is reads only on the cosmetics surface, like the Pg store.
+  // skinSelections remains as the record the reads project (tests
+  // seed it directly; the write-store twin keeps its own mirror
+  // for the market/salvage auto-unequip bookkeeping).
 
   async getHunterLooks(playerIds: string[]): Promise<Record<string, HunterLookView>> {
     const looks: Record<string, HunterLookView> = {};

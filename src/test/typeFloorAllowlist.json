@@ -16,7 +16,7 @@
     "text-[10px]": 2
   },
   "src/screens/SettingsScreen.tsx": {
-    "text-[10px]": 25,
+    "text-[10px]": 23,
     "text-[8px]": 1
   },
   "src/components/action/ConsumablesChips.tsx": {

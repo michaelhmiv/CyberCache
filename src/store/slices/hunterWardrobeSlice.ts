@@ -2,8 +2,7 @@
  * The whole-skin wardrobe selection (Cache Hunters reshape,
  * slice (b)) — which painted whole each hunter currently wears.
  *
- * Device-local presentation state, the same shape as the head
- * variant preference ('cc-head-variant'): skins are pure cosmetic,
+ * Device-local presentation state: skins are pure cosmetic,
  * so the worn choice needs no server record. Slice (d) added
  * server ownership for crafted/converted skins: wearing still
  * lives in this selection, but the selection is gated on the

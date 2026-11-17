@@ -70,12 +70,6 @@ vi.mock('@/lib/chef/chefClient', () => ({
   startEndlessRun: vi.fn(async () => { throw new Error('not in QB-4 tests'); }),
   newEndlessNonce: (kind: string) => `endless-${kind}-test-nonce`,
   getCosmeticsState: vi.fn(async () => { throw new Error('not in QB-4 tests'); }),
-  equipCosmetic: vi.fn(async () => ({})),
-  unequipCosmetic: vi.fn(async () => ({})),
-  setCosmeticHeadVariant: vi.fn(async () => ({})),
-  newCosmeticEquipNonce: () => 'cosmetic-equip-test-nonce',
-  newCosmeticUnequipNonce: () => 'cosmetic-unequip-test-nonce',
-  newCosmeticHeadVariantNonce: () => 'cosmetic-head-test-nonce',
 }));
 
 vi.mock('framer-motion', async (importOriginal) => {

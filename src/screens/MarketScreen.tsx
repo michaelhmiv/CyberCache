@@ -161,8 +161,8 @@ function ListingDepositLabel() {
 
 /** Compact card for consumable/material/resource stack listings (0019, 0050). */
 function StackMiniCard({ listing, right, onShowUsage }: { listing: Listing; right?: React.ReactNode; onShowUsage?: (materialId: string) => void }) {
-  // Materials and essences render as their STUFF object (materialArt);
-  // consumables render as their formed-object sprite (consumableArt);
+  // Materials and essences render as their adopted painting
+  // (PixelMaterial); consumables as theirs (PixelConsumable);
   // fragment/core kinds keep their §7 sheet glyph.
   const stuffId = listing.kind === 'material' ? listing.materialId
     : listing.kind === 'essence' ? listing.essenceId
