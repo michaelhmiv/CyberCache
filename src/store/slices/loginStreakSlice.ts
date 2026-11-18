@@ -37,12 +37,12 @@
  *    `alreadyClaimed = true`, so a stale on-device flag could
  *    only ever suppress a grant the server says is fresh.
  *  - DAY-BOUNDARY REVALIDATION (D3). `revalidate()` re-reads
- *    when the client UTC day has rolled since the held result
- *    landed, so a session kept alive across 00:00 UTC records
- *    the new day's check-in instead of showing yesterday. The
- *    client day is a STALENESS HEURISTIC ONLY — it decides when
- *    to re-ask the Chef; every day, streak, and amount the UI
- *    prints remains the Chef's.
+ *    when the client streak day has rolled since the held result
+ *    landed, so a session kept alive across the 08:00 UTC
+ *    boundary (0101) records the new day's check-in instead of
+ *    showing yesterday. The client day is a STALENESS HEURISTIC
+ *    ONLY — it decides when to re-ask the Chef; every day,
+ *    streak, and amount the UI prints remains the Chef's.
  *  - WALLET TICK. `tickedGrantKey` records which grant the
  *    Strip's count-up beat has already played for, so the beat
  *    fires once per grant and never replays on remount. It is
@@ -79,7 +79,7 @@ import {
   getLoginStreakState,
   type ChefLoginStreakResult,
 } from '@/lib/chef/chefClient';
-import { loginStreakUtcDay } from '@/content/loginStreak';
+import { loginStreakDay } from '@/content/loginStreak';
 import { syncVerifiedResult } from '@/lib/api/verifiedStateSync';
 
 export type PanelLoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -87,8 +87,8 @@ export type PanelLoadState = 'idle' | 'loading' | 'ready' | 'error';
 export interface LoginStreakPanelState {
   result: ChefLoginStreakResult | null;
   loadState: PanelLoadState;
-  /** Client UTC day captured when the held result landed (D3
-   *  staleness heuristic only — never a displayed fact). */
+  /** Client streak day captured when the held result landed
+   *  (D3 staleness heuristic only — never a displayed fact). */
   resultDay: string | null;
   /** Key of the fresh grant the player has acknowledged (D2). */
   seenGrantKey: string | null;
@@ -107,8 +107,9 @@ export interface LoginStreakPanelState {
   seenClaimKey: string | null;
   /** Fetch the state view once per session (the daily check-in). */
   load: () => Promise<void>;
-  /** Re-read when a live session crossed the UTC day boundary
-   *  since the held result landed (D3); a no-op otherwise. */
+  /** Re-read when a live session crossed the streak-day
+   *  boundary since the held result landed (D3); a no-op
+   *  otherwise. */
   revalidate: () => Promise<void>;
   /** Mark the held fresh grant seen — ends its announcement. */
   acknowledge: () => void;
@@ -212,7 +213,7 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
     set({ loadState: 'loading' });
     inFlight = getLoginStreakState()
       .then((next) => {
-        set({ result: next, loadState: 'ready', resultDay: loginStreakUtcDay(new Date()) });
+        set({ result: next, loadState: 'ready', resultDay: loginStreakDay(new Date()) });
         if (next.profile) {
           syncVerifiedResult(next as unknown as Record<string, unknown>);
         }
@@ -250,7 +251,7 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
       if (loadState !== 'ready') return get().load();
       // Same client day as the held result: nothing can have
       // rolled — the Chef's answer would be the same replay.
-      if (resultDay === loginStreakUtcDay(new Date())) return Promise.resolve();
+      if (resultDay === loginStreakDay(new Date())) return Promise.resolve();
       return fetchStreak();
     },
     acknowledge: () => {
@@ -276,7 +277,7 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
         set({
           result: next,
           loadState: 'ready',
-          resultDay: loginStreakUtcDay(new Date()),
+          resultDay: loginStreakDay(new Date()),
           claiming: false,
           lastClaimedGrantKey: claimedKey,
         });
@@ -291,7 +292,7 @@ export const useLoginStreakStore = create<LoginStreakPanelState>()((set, get) =>
       }
     },
     applyResult: (result) =>
-      set({ result, loadState: 'ready', resultDay: loginStreakUtcDay(new Date()) }),
+      set({ result, loadState: 'ready', resultDay: loginStreakDay(new Date()) }),
     reset: () => {
       inFlight = null;
       set({

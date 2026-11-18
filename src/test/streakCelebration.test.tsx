@@ -64,6 +64,7 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
 
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { ResourceBar } from '@/components/layout/ResourceBar';
+import { loginStreakDayStartLocalLabel } from '@/content/loginStreak';
 import { getLoginStreakState } from '@/lib/chef/chefClient';
 import { usePlayerStore } from '@/store';
 import { useLoginStreakStore } from '@/store/slices/loginStreakSlice';
@@ -234,7 +235,9 @@ describe('Streak poster plate — the fresh-grant celebration', () => {
     }
     // Next + the rules, in words, boundary stated.
     expect(panel.textContent).toContain('Streak day 4 — 250 credits');
-    expect(panel.textContent).toContain('A new streak day starts at 00:00 UTC.');
+    expect(panel.textContent).toContain(
+      `A new streak day starts at ${loginStreakDayStartLocalLabel(new Date())} your time.`,
+    );
   }, 20000);
 
   it('day 7 carries the cycle prize: key row tagged Cycle prize, plate stamped Cycle complete', async () => {
@@ -382,7 +385,8 @@ describe('Streak poster plate — day-boundary revalidation (D3)', () => {
     expect(mockStreak).toHaveBeenCalledTimes(1);
 
     // The held result now predates today (a session kept alive
-    // across 00:00 UTC): returning to the foreground re-reads.
+    // across the streak-day boundary): returning to the
+    // foreground re-reads.
     act(() => {
       useLoginStreakStore.setState({ resultDay: '2000-01-01' });
     });

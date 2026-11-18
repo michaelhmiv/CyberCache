@@ -13,12 +13,25 @@
  *
  *  - THE ANCHOR IS A SERVER-RECORDED DAY, NEVER A CLIENT CLOCK.
  *    A streak day is earned when the server records the player's
- *    first authenticated check-in of a UTC day
+ *    first authenticated check-in of a streak day
  *    (cc_record_login_streak_day, invoked by the observe-and-record
  *    GET /api/login-streak/me — the Cache Rank pattern). The day
  *    comes from the database clock; no request body field can name
  *    a day, a streak length, or an amount.
- *  - EXACTLY ONCE PER UTC DAY, IN TWO HALVES (0079, the TRUE
+ *  - THE STREAK DAY STARTS AT 08:00 UTC (migration 0101, owner
+ *    ruling 2026-11-17). Through 0082 the day was the plain UTC
+ *    calendar day, so the boundary fell at 19:00 Eastern and an
+ *    evening player straddled two game days in one local day —
+ *    consecutive local-day sessions could land two game days
+ *    apart and reset the streak, and a morning reward expired
+ *    mid-evening. The day key is now the UTC date of
+ *    (now − 8 hours) — 3 AM Eastern / midnight Pacific — derived
+ *    identically by the SQL chain (0101), the Pg facts read, the
+ *    in-memory twin, and the client's staleness heuristic
+ *    (loginStreakDay). The other daily systems (contracts,
+ *    dispatch, vendor, cache lane) keep their own UTC days; this
+ *    offset belongs to the streak alone.
+ *  - EXACTLY ONCE PER STREAK DAY, IN TWO HALVES (0079, the TRUE
  *    CLAIM — owner decision 2026-11-04, overruling the 0036
  *    observe-and-grant model). The login_streak_claims row keyed
  *    (player, day) is recorded by the check-in: a replayed
@@ -31,8 +44,9 @@
  *    a previous day is expired by construction (the claim only
  *    ever pays today's row), while the streak itself reads
  *    recorded days only — an expired reward never breaks one.
- *  - CONSECUTIVE OR RESET. A claim on the UTC day after the last
- *    claim extends the streak; any larger gap restarts it at 1.
+ *  - CONSECUTIVE OR RESET. A claim on the streak day after the
+ *    last claim extends the streak; any larger gap restarts it
+ *    at 1.
  *    The longest streak is kept forever (login_streak_state +
  *    max(streak_length) over the claims — the profile fold's
  *    record, in its own style).
@@ -127,11 +141,52 @@ export const LOGIN_STREAK_REWARD_TABLE: LoginStreakReward[] = (() => {
   return rows;
 })();
 
-// ─── Streak arithmetic (UTC days as YYYY-MM-DD strings) ─────────────
+// ─── Streak arithmetic (streak days as YYYY-MM-DD strings) ──────────
 
 /** UTC day (YYYY-MM-DD) of a Date — the codebase's UTC-day convention. */
 export function loginStreakUtcDay(now: Date): string {
   return now.toISOString().slice(0, 10);
+}
+
+/**
+ * The UTC hour the streak day starts (migration 0101, owner
+ * ruling 2026-11-17): 08:00 UTC — 3 AM Eastern / midnight
+ * Pacific. The SQL chain derives the day with the same shift
+ * (((now − interval '8 hours') at time zone 'UTC')::date); the
+ * two must never disagree.
+ */
+export const LOGIN_STREAK_DAY_START_UTC_HOUR = 8;
+
+/**
+ * The streak day (YYYY-MM-DD) an instant belongs to: the UTC
+ * date of the instant shifted back by the day-start hour. Every
+ * streak surface derives its day through here — the in-memory
+ * twin, the client's staleness heuristic — and the SQL/Pg side
+ * derives the same day from the database clock.
+ */
+export function loginStreakDay(now: Date): string {
+  return loginStreakUtcDay(
+    new Date(now.getTime() - LOGIN_STREAK_DAY_START_UTC_HOUR * 3_600_000),
+  );
+}
+
+/**
+ * The day start in the PLAYER's local time, for sheet copy
+ * ("3:00 AM"): the local rendering of the 08:00 UTC boundary.
+ * It follows the rule, never a hard-coded hour — daylight
+ * saving moves the local reading (3 AM EST / 4 AM EDT), and
+ * the printed value moves with it.
+ */
+export function loginStreakDayStartLocalLabel(now: Date): string {
+  const start = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      LOGIN_STREAK_DAY_START_UTC_HOUR,
+    ),
+  );
+  return start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 /** Shift a YYYY-MM-DD day by whole UTC days. */
@@ -268,7 +323,16 @@ export interface LoginStreakFacts {
   todayClaim: LoginStreakClaim | null;
 }
 
-export type LoginStreakDayState = 'earned' | 'today' | 'upcoming';
+/**
+ * Ladder cell states. 'earned-today' is today, PAID (0101, the
+ * check-mark fix — owner report 2026-11-17): through 0082 the
+ * ladder derived its states from cycle position alone, so the
+ * paid flag never reached the track and a successful claim
+ * changed nothing on it — today's cell stayed the bare 'today'
+ * cell and only gained its check the next day. A paid today now
+ * reads as earned (the check) while keeping the today fill.
+ */
+export type LoginStreakDayState = 'earned' | 'today' | 'earned-today' | 'upcoming';
 
 export interface LoginStreakDayView extends LoginStreakReward {
   state: LoginStreakDayState;
@@ -342,7 +406,13 @@ export function loginStreakStateView(
       cacheKeys: claim.cacheKeysAwarded,
     };
     ladderStates = Array.from({ length: LOGIN_STREAK_CYCLE_DAYS }, (_, i) =>
-      i + 1 < claim.cycleDay ? 'earned' : i + 1 === claim.cycleDay ? 'today' : 'upcoming',
+      i + 1 < claim.cycleDay
+        ? 'earned'
+        : i + 1 === claim.cycleDay
+          ? claim.paid
+            ? 'earned-today'
+            : 'today'
+          : 'upcoming',
     );
     nextStreakLength = claim.streakLength + 1;
   } else {

@@ -165,7 +165,7 @@ import {
   loginStreakGrantFor,
   loginStreakLengthAfter,
   loginStreakPositionFor,
-  loginStreakUtcDay,
+  loginStreakDay,
   resolveLoginStreakLevers,
   type LoginStreakLeverValues,
 } from '../../content/loginStreak';
@@ -1074,17 +1074,19 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     return result;
   }
 
-  // ─── Login streak (0036 + 0079) ────────────────────────────────
+  // ─── Login streak (0036 + 0079 + 0101) ─────────────────────────
   // Mirrors cc_record_login_streak_day (records the day, holds the
   // reward unpaid) and cc_claim_login_streak_day (pays it once):
   // same streak arithmetic, same ladder + lever scalars, same
   // claim-row idempotency, same ledger payload shape — written at
-  // claim time, not record time.
+  // claim time, not record time. The day is the STREAK day
+  // (loginStreakDay: the 08:00 UTC start, 0101), exactly as the
+  // SQL chain derives it from the database clock.
 
   async getLoginStreakFacts(playerId: string): Promise<LoginStreakFacts | null> {
     const p = this.profiles.get(playerId);
     if (!p) return null;
-    const today = loginStreakUtcDay(this.now());
+    const today = loginStreakDay(this.now());
     const state = this.loginStreakStates.get(playerId);
     const claim = this.loginStreakClaims.get(`${playerId}:${today}`);
     return {
@@ -1101,7 +1103,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
    *  the reward waits on the row until claimLoginStreakDay pays it. */
   async recordLoginStreakDay(playerId: string): Promise<Json> {
     const p = this.requireProfile(playerId);
-    const today = loginStreakUtcDay(this.now());
+    const today = loginStreakDay(this.now());
     const claimKey = `${playerId}:${today}`;
     const prior = this.loginStreakClaims.get(claimKey);
     if (prior) {
@@ -1169,7 +1171,7 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
    *  day is expired. The ledger entry lands here, at claim time. */
   async claimLoginStreakDay(playerId: string): Promise<Json> {
     const p = this.requireProfile(playerId);
-    const today = loginStreakUtcDay(this.now());
+    const today = loginStreakDay(this.now());
     const claimKey = `${playerId}:${today}`;
     const claim = this.loginStreakClaims.get(claimKey);
     if (!claim) throw new Error('No streak reward recorded today');
