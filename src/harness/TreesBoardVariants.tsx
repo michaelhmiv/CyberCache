@@ -225,7 +225,7 @@ const CompactInspect: React.FC<TreesBoardVariantProps> = (p) => {
           aria-disabled={!spendable}
           className="bl-primary min-h-[44px] shrink-0 px-3 py-2 text-[11px] font-black disabled:opacity-50"
         >
-          {p.pendingNodeId === node.id ? 'Training…' : `Spend ${node.cost} Pt${node.cost === 1 ? '' : 's'}`}
+          {p.pendingNodeId === node.id ? 'Training…' : `Spend ${node.cost} Point${node.cost === 1 ? '' : 's'}`}
         </button>
       </div>
       <PlateFootStrip color={p.activeTreeDef.color} height={3} />
@@ -245,7 +245,7 @@ const NodeButton: React.FC<TreesBoardVariantProps & { node: SkillNode; density: 
   const isPending = p.pendingNodeId === node.id;
   const size =
     p.density === 'compact'
-      ? node.type === 'keystone' ? 'min-h-[60px]' : node.type === 'major' ? 'min-h-[54px]' : 'min-h-[50px]'
+      ? node.type === 'keystone' ? 'min-h-[62px]' : node.type === 'major' ? 'min-h-[56px]' : 'min-h-[52px]'
       : p.density === 'trim'
         ? node.type === 'keystone' ? 'min-h-[76px]' : node.type === 'major' ? 'min-h-[68px]' : 'min-h-[60px]'
         : node.type === 'keystone' ? 'min-h-[84px]' : node.type === 'major' ? 'min-h-[76px]' : 'min-h-[68px]';
@@ -254,7 +254,7 @@ const NodeButton: React.FC<TreesBoardVariantProps & { node: SkillNode; density: 
     <motion.button
       whileTap={isAvailable ? { scale: 0.96 } : { scale: 0.98 }}
       onClick={() => p.onSpend(node.id)}
-      className={`relative border-2 p-2 text-left shadow-[4px_4px_0_rgba(0,0,0,0.65)] ${size} ${nodeTone(node, isAvailable, isMaxed)} ${isSelected ? 'ring-2 ring-amber/70' : ''}`}
+      className={`relative border-2 p-2 text-left shadow-[4px_4px_0_rgba(0,0,0,0.65)] ${size} ${p.density === 'compact' ? 'pb-[15px]' : ''} ${nodeTone(node, isAvailable, isMaxed)} ${isSelected ? 'ring-2 ring-amber/70' : ''}`}
       style={{ clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' }}
     >
       <div className="flex items-center justify-between gap-2">
@@ -504,7 +504,7 @@ export const TreesBoardVariant: React.FC<TreesBoardVariantProps> = (p) => {
           </div>
           {next && (
             <div
-              className="flex items-baseline justify-between gap-2 border-y py-1.5"
+              className="flex items-baseline justify-between gap-2 border-y py-1.5 text-[11px]"
               style={{ borderColor: 'rgba(163,152,134,0.28)' }}
               data-testid="trees-next-unlock"
             >
