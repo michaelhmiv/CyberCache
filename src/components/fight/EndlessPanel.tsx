@@ -22,10 +22,11 @@ import { syncEndlessResult } from '../../lib/api/verifiedStateSync';
 import type { ActionSkillStateView } from '@/content/actionSkills';
 import type { SkillTreeType } from '@/types/game';
 import { ActionSkillCard } from './ActionSkillCard';
+import { PrepActionBar } from './PrepActionBar';
 import { QuickBuyPlus } from '@/components/quickbuy/QuickBuyPlus';
 import { endlessDepthBand, endlessEncounterForDepth } from '../../content/endless';
 import { cacheRankBonuses } from '@/content/cacheRank';
-import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore } from '../../store';
+import { useActivityStore, useBossStore, useEndlessRunStore, useLoadoutStore, usePlayerStore } from '../../store';
 import { MobileCard } from '../layout/MobileCard';
 import { LootMoment } from '../pixelArt/LootMoment';
 import { GhostHpBar } from '../pixelArt/PixelFx';
@@ -127,6 +128,8 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
     const store = useBossStore.getState();
     store.clearEndlessPresentation();
     store.clearEndlessPresence();
+    // The lifted run view (R2) retires with the panel too.
+    useEndlessRunStore.getState().publish(null);
   }, []);
 
   // Promise-chain shape (the RepairBoard idiom): state lands in
@@ -417,6 +420,46 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
     }
   }, [stage, run, nextEncounter, nextDepth, band]);
 
+  // First-screen fix R2 — the run view lift. While a run is live,
+  // publish its facts for the stage zone (ChamberRundown): depth
+  // cleared, the escrow at risk, the death payout, the bank
+  // totals. The zone's BANK & LEAVE travels back as a bank request
+  // (below) and executes through this panel's own handleBank — the
+  // panel stays the sole owner of the run flow (end summary, stage
+  // transitions, error surface); the slice is a read model plus an
+  // intent counter, never a second driver. No new server data:
+  // every field is copied from this panel's Chef responses.
+  const publishEndlessRun = useEndlessRunStore((s) => s.publish);
+  useEffect(() => {
+    if ((stage === 'run' || stage === 'fighting') && run) {
+      publishEndlessRun({
+        runId: run.id,
+        depthReached: run.depth_reached,
+        startLevel: run.start_level,
+        escrowCredits: run.escrow_credits,
+        escrowXp: run.escrow_xp,
+        escrowScrap: run.escrow_scrap,
+        deathPayoutPercent: deathPct,
+        bestDepth: me?.bestDepth ?? run.depth_reached,
+        busy,
+      });
+    } else {
+      publishEndlessRun(null);
+    }
+  }, [stage, run, deathPct, me, busy, publishEndlessRun]);
+
+  const bankRequests = useEndlessRunStore((s) => s.bankRequests);
+  const seenBankRequestsRef = useRef(bankRequests);
+  const handleBankRef = useRef(handleBank);
+  useEffect(() => {
+    handleBankRef.current = handleBank;
+  });
+  useEffect(() => {
+    if (bankRequests === seenBankRequestsRef.current) return;
+    seenBankRequestsRef.current = bankRequests;
+    void handleBankRef.current();
+  }, [bankRequests]);
+
   return (
     <div className="space-y-3" data-testid="endless-panel">
       {/* Header */}
@@ -637,19 +680,6 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
             chargeSourceNote="Charge carries across encounters inside a run and resets when the run ends."
           />
 
-          <button
-            type="button"
-            data-testid="endless-start"
-            onClick={handleStart}
-            disabled={!canAfford || busy}
-            className="bl-primary w-full py-3 text-xs font-black uppercase tracking-wider disabled:opacity-50"
-          >
-            {busy
-              ? 'Entering…'
-              : fee > 0
-                ? `Enter the Chamber — ${fee.toLocaleString()}cr entry`
-                : 'Enter the Chamber — Free Entry'}
-          </button>
           {!canAfford && (
             <div className="text-center text-[10px] text-red">You hold {player.credits.toLocaleString()}cr — the {fee.toLocaleString()}cr entry fee is out of reach.</div>
           )}
@@ -658,6 +688,34 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
               Entry fee escalated ×{intel.entry.feeMultiplier} — {intel.entry.runsStartedToday} {intel.entry.runsStartedToday === 1 ? 'run' : 'runs'} started today. Resets at 00:00 UTC.
             </div>
           )}
+
+          {/* The prep action bar (first-screen fix R2): the entry
+              decision pinned at the fold as the prep fragment's last
+              element — fragment children are DOM children of the
+              panel root, so the bar's sticky range is the whole
+              panel. The fee line reads this panel's own locals
+              (fee / intel.entry.feeMultiplier / canAfford), the same
+              numbers the notes above print. The in-flow start button
+              it replaces is gone. */}
+          <PrepActionBar
+            testId="endless-prep-bar"
+            buttonTestId="endless-start"
+            title="Chaos Chamber"
+            detail={
+              fee > 0 ? (
+                <>
+                  Entry <span className="text-text-primary">{fee.toLocaleString()} cr</span>
+                  {intel.entry.feeMultiplier > 1 && <span className="text-amber"> · escalated ×{intel.entry.feeMultiplier} today</span>}
+                  {!canAfford && <span className="text-red"> · you hold {player.credits.toLocaleString()} cr</span>}
+                </>
+              ) : (
+                'Free entry'
+              )
+            }
+            buttonLabel={busy ? 'Entering…' : 'Enter Chamber'}
+            onAction={handleStart}
+            disabled={!canAfford || busy}
+          />
         </>
       )}
 
