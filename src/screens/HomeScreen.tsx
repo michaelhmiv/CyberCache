@@ -52,7 +52,12 @@ interface HomeScreenProps {
  */
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSelect, craftBenchIntent = null }) => {
   return (
-    <div className="bl-page relative overflow-hidden p-2 pb-16">
+    // overflow-clip, not overflow-hidden (R2 enabler, 2026-11-17):
+    // a hidden root is a scroll container and cages every sticky
+    // descendant inside itself — the prep action bars could never
+    // ride the viewport fold. Clip keeps the same no-overflow
+    // rendering without creating the cage.
+    <div className="bl-page relative overflow-clip p-2 pb-16">
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
         {/* The Strip — the wallet prints exactly once on Home, with
