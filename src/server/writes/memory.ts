@@ -3123,6 +3123,7 @@ export class InMemoryWriteStore implements WriteStore {
       masteries,
       activeActionKind: this.activities.get(playerId)?.active_action ?? null,
       recipeScrapCosts: levers.recipeScrapCosts,
+      craftTimeScalar: levers.craftTimeScalar,
       benchTime: {
         bankedSeconds: view.bench_time_banked_seconds ?? 0,
         capSeconds: levers.benchTimeBankCapSeconds ?? BENCH_TIME_BANK_CAP_SECONDS,

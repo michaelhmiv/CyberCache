@@ -2153,6 +2153,14 @@ export function buildWorkshopStateView(parts: {
    */
   recipeScrapCosts?: Record<string, number>;
   /**
+   * Skill-routing fix F4 (migration 0102): the resolved craftTimeScalar
+   * lever, shipped beside recipeScrapCosts on the same Econ-7 logic —
+   * the Workshop's effective-rate quote composes base × skill × tool ×
+   * THIS scalar, so the number shown is the number the enqueue stores.
+   * Optional so older payloads stay valid; both stores supply it.
+   */
+  craftTimeScalar?: number;
+  /**
    * Economy slice 10 (brief §8.2/§8.3): the bench-time bank as the
    * server reads it — the balance, the cap and per-ad grant (the
    * resolved levers), and the player's own Fixer queue bonus (the
@@ -2208,6 +2216,7 @@ export function buildWorkshopStateView(parts: {
     activeActionKind: parts.activeActionKind,
     recentCompletions,
     ...(parts.recipeScrapCosts ? { recipeScrapCosts: parts.recipeScrapCosts } : {}),
+    ...(typeof parts.craftTimeScalar === 'number' ? { craftTimeScalar: parts.craftTimeScalar } : {}),
     ...(benchTime ? { benchTime } : {}),
   };
 }
