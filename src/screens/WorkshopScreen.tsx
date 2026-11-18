@@ -7,6 +7,7 @@ import { Clock, ChevronDown, Search, X } from 'lucide-react';
 import { useActivityStore, useAnnouncementsStore, useLoadoutStore, usePlayerStore, useSkillStore, useWorkshopStore } from '@/store';
 import { computeHunterSkillBonuses } from '@/lib/hunters/hunters';
 import { effectiveCraftUnitDurationMs } from '@/lib/workshop/effectiveCraftTime';
+import { formatDuration, formatDurationShort } from '@/lib/workshop/durationFormat';
 import { TintPanel } from '@/components/workshop/TintPanel';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
@@ -116,16 +117,6 @@ const SECTIONS: Array<{ key: RecipeClassification; title: string; hint: string; 
   { key: 'locked', title: 'Locked', hint: 'every failing gate is printed — nothing hides', tone: 'text-red' },
 ];
 
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const mins = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  if (mins > 0) return `${mins}m ${secs.toString().padStart(2, '0')}s`;
-  return `${secs}s`;
-}
-
 /** Banked bench time in the game's compact hand: 7 h 25 m · 25 m · 0 m. */
 function formatBankTime(totalSeconds: number): string {
   const s = Math.max(0, Math.floor(totalSeconds));
@@ -133,17 +124,6 @@ function formatBankTime(totalSeconds: number): string {
   const mins = Math.floor((s % 3600) / 60);
   if (hours > 0) return `${hours} h ${mins} m`;
   return `${mins} m`;
-}
-
-/** Compact per-unit / totals durations in the mock's hand: 12m, 1h30, 4h. */
-function formatDurationShort(ms: number): string {
-  const mins = Math.max(0, Math.round(ms / 60000));
-  if (mins >= 60) {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return m ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
-  }
-  return `${mins}m`;
 }
 
 function pausedReason(activeActionKind: string | null, bossPhase?: string | null): string {
