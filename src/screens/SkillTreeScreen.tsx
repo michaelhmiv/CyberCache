@@ -30,6 +30,7 @@ import {
   STEEL,
   plateShell,
 } from '@/components/profile/hunterPlateTheme';
+import { TreesBoardVariant } from '@/harness/TreesBoardVariants';
 
 /**
  * ActionSkillPicker — the FIELDED hunter's signature plate (0030,
@@ -154,7 +155,13 @@ const nodeTone = (node: SkillNode, isAvailable: boolean, isMaxed: boolean) => {
 };
 
 export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // CAPTURE SEAM (dash/trees-render, presentation only): the
+  // stills harness pre-selects a node with ?sel=<nodeId> so the
+  // inspect plate is populated in frame. Absent the param this is
+  // exactly the shipped initial state (null).
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('sel') : null,
+  );
   const [pendingNodeId, setPendingNodeId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const player = usePlayerStore();
@@ -330,6 +337,40 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
       </div>
     </div>
   );
+
+  // CAPTURE SEAM (dash/trees-render, presentation only): with
+  // ?trees=1|2|3 the stop renders a first-screen variant layout
+  // fed by this screen's own derived state — same stores, same
+  // handlers, same node defs. Absent the param, the shipped
+  // composition below renders byte for byte.
+  const treesVariantParam = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('trees')
+    : null;
+  if (treesVariantParam === '1' || treesVariantParam === '2' || treesVariantParam === '3') {
+    return (
+      <TreesBoardVariant
+        variant={Number(treesVariantParam) as 1 | 2 | 3}
+        nodes={nodes}
+        tiers={tiers}
+        spent={skillStore.spent}
+        pointsAvailable={pointsAvailable}
+        pointsSpent={pointsSpent}
+        pointsEarned={pointsEarned}
+        level={player.level}
+        selectedNode={selectedNode}
+        onSpend={spendPoint}
+        canSpend={canSpend}
+        spendReason={spendReason}
+        pendingNodeId={pendingNodeId}
+        respecButton={respecButton}
+        actionSkillPlate={<ActionSkillPicker />}
+        activeHunter={activeHunter}
+        activeTree={activeTree}
+        activeTreeDef={activeTreeDef}
+        errorMessage={errorMessage}
+      />
+    );
+  }
 
   return (
     <div className={embedded ? 'space-y-4' : 'bl-page space-y-4 p-4 pb-20'}>
