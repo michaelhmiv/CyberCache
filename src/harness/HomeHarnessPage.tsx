@@ -103,6 +103,10 @@ function seedStores() {
   } as never);
   useSurvivalStore.setState({
     currentHp: 194,
+    // maxHp rides along: the max-hp sync preserves the current/max
+    // fraction when it recomputes, so the wound alone (194 against
+    // the slice's 700 default) would rescale to 493 on first sync.
+    maxHp: 1780,
     shieldHp: 0,
     isDead: false,
   } as never);
