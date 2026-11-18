@@ -49,6 +49,44 @@ async function simctl(args, opts = {}) {
   return run('xcrun', ['simctl', ...args], { maxBuffer: 16 * 1024 * 1024, ...opts });
 }
 
+/** execFile's error.message drops the child's output — fold it back in so a
+ *  failure record carries the actual simctl/xcodebuild complaint. */
+function errText(error) {
+  const parts = [error.message || String(error), error.stdout || '', error.stderr || '']
+    .map((s) => String(s).trim())
+    .filter(Boolean);
+  return parts.join('\n').slice(0, 1200);
+}
+
+/**
+ * Wait until the simulator finishes booting. A single `bootstatus -b` call
+ * is not enough on a cold CI runner: the first boot of a fresh runtime can
+ * run well past any one call's timeout (run 44418576052: still on the Apple
+ * logo at ~80% after 6 minutes). bootstatus is only an observer — killing
+ * it does not disturb the boot — so poll it until it reports completion,
+ * with `simctl list` state as a fallback signal, under one overall deadline.
+ */
+async function waitForBoot(udid, deadlineMs = 15 * 60 * 1000) {
+  const deadline = Date.now() + deadlineMs;
+  let last = '';
+  while (Date.now() < deadline) {
+    try {
+      await simctl(['bootstatus', udid, '-b'], { timeout: 120000 });
+      return;
+    } catch (error) {
+      last = errText(error);
+    }
+    try {
+      const { stdout } = await simctl(['list', 'devices', '--json']);
+      const groups = JSON.parse(stdout).devices || {};
+      const device = Object.values(groups).flat().find((d) => d.udid === udid);
+      if (device && device.state === 'Booted') return;
+    } catch { /* keep polling on bootstatus alone */ }
+    await sleep(10000);
+  }
+  throw new Error(`simulator did not finish booting within ${Math.round(deadlineMs / 60000)} minutes; last bootstatus output: ${last}`);
+}
+
 async function pickDevice() {
   const { stdout } = await simctl(['list', 'devices', 'available', '--json']);
   const groups = JSON.parse(stdout).devices || {};
@@ -145,8 +183,8 @@ async function main() {
     const device = await pickDevice();
     udid = device.udid;
     console.log(`Simulator: ${device.name} (${udid})`);
-    await simctl(['boot', udid]).catch(() => {});
-    await simctl(['bootstatus', udid, '-b'], { timeout: 360000 });
+    await simctl(['boot', udid]).catch((error) => console.log(`simctl boot: ${errText(error)}`));
+    await waitForBoot(udid);
 
     await simctl(['install', udid, APP_PATH]);
     const container = await simctl(['get_app_container', udid, BUNDLE_ID]);
@@ -215,7 +253,7 @@ async function main() {
       await simctl(['io', udid, 'screenshot', '--type=png', marketShot]).catch(() => {});
     }
   } catch (error) {
-    record('smoke-run', false, String(error.message || error));
+    record('smoke-run', false, errText(error));
     if (udid) {
       await simctl(['io', udid, 'screenshot', '--type=png', path.join(OUT_DIR, 'failure-screen.png')]).catch(() => {});
     }
