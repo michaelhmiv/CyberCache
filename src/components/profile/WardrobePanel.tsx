@@ -216,8 +216,6 @@ export const WardrobePanel: React.FC = () => {
           <LedMeter filled={counts.worn} total={Math.max(1, counts.owned)} color={MUT} height={10} />
         </div>
       </Panel>
-
-      </Panel>
     </div>
   );
 };
