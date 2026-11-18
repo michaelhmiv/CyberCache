@@ -30,6 +30,7 @@ import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { HotFlameMark } from '@/components/dashboard/HotFlameMark';
 import { isHotArea } from '@/content/hotArea';
 import { HeroRundown } from '@/components/dashboard/HeroRundown';
+import { CraftInfoRundown, craftInfoVariant } from '@/harness/CraftInfoRundown';
 import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -836,7 +837,16 @@ export const ActionScreenContextual: React.FC<{
           endlessRunId={currentKind === 'endless_run' ? activity.current.targetId : undefined}
           stageControls={stageControls}
         />
-        <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
+        {/* Craft-info render round (branch-only review gate):
+            with ?craftinfo=1|2|3 and Crafting holding the slot,
+            the black zone renders the bench rundown variants
+            instead of the combat rundown. Absent the param this
+            is the shipped picture, byte for byte. */}
+        {craftInfoVariant() > 0 && currentKind === 'crafting' ? (
+          <CraftInfoRundown variant={craftInfoVariant()} />
+        ) : (
+          <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
+        )}
       </div>
 
       {/* 3. Consumable belt (§4) — in the mode rail's vacated
