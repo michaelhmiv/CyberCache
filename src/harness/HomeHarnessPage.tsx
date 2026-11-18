@@ -43,6 +43,7 @@ import { IDLE_ACTIVITY } from '@/types/activity';
 import {
   useActivityStore,
   useBossStore,
+  useIdleStore,
   useInventoryStore,
   useLoadoutStore,
   usePlayerStore,
@@ -154,7 +155,14 @@ function seedStores() {
   } else if (state === 'endless-run') {
     useBossStore.setState({ preparedConsumables: { AmmoPack: 1 } } as never);
     seedActivity({ kind: 'endless_run', targetId: 'run-harness-1' });
-  } else if (state === 'extract') {
+  } else if (state === 'extract' || state === 'extract2') {
+    // extract2 (extract-repaint frame 2): the same extraction
+    // slot, but the stage area is Throwtech Dumpnet — the stage
+    // vista follows the idle store's selected roaming area, and
+    // homeMain's stub serves the Throwtech surface payload.
+    if (state === 'extract2') {
+      useIdleStore.setState({ selectedRoamingAreaId: 'throwtech_dumpnet' } as never);
+    }
     useWorkshopStore.setState({
       server: baseView({
         jobs: [

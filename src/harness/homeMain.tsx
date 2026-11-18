@@ -23,7 +23,7 @@ import '../index.css';
 // imported by the app bundle.
 import { endlessIntel } from '@/content/endless';
 import type { ChefEndlessMeResult, ChefEndlessRun } from '@/lib/chef/chefClient';
-import { BARS_ENDLESS_RUN, BARS_EXTRACTION_STATE } from './barsSeed';
+import { BARS_ENDLESS_RUN, BARS_EXTRACTION_STATE, BARS_EXTRACTION_STATE_2 } from './barsSeed';
 
 const pageParams = new URLSearchParams(window.location.search);
 const pageState = pageParams.get('state') ?? 'boss';
@@ -112,7 +112,8 @@ const realFetch = window.fetch.bind(window);
 window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   if (url.includes('/endless/me')) return json(endlessMe());
-  if (url.includes('/extraction/state')) return json({ verified: true, extraction: BARS_EXTRACTION_STATE });
+  if (url.includes('/extraction/state'))
+    return json({ verified: true, extraction: pageState === 'extract2' ? BARS_EXTRACTION_STATE_2 : BARS_EXTRACTION_STATE });
   if (url.includes('/api/')) {
     return json({ error: 'harness offline' }, 503);
   }

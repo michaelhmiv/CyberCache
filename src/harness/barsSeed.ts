@@ -64,3 +64,40 @@ export const BARS_EXTRACTION_STATE: ChefExtractionState = {
   },
   settled: { advancedMs: 0, xpAwarded: 0, materials: {}, essences: {}, passes: [] },
 };
+
+/** extract-repaint frame 2: an ACTIVE Surface Sweep at
+ *  Throwtech Dumpnet — the second-area frame for the repainted
+ *  extraction set. Same player (pool 1,780, mastery Lv.6);
+ *  factor ×0.91 → expected pass damage ≈ 1,780 / 0.91 ≈ 1,956.
+ *  drawsPerPass follows the content formula (extraction.ts):
+ *  32 base × 0.91 factor × 1.025 mastery ≈ 30. Served by
+ *  homeMain's stub when ?state=extract2; the stage area comes
+ *  from the idle store seed in HomeHarnessPage. */
+export const BARS_EXTRACTION_STATE_2: ChefExtractionState = {
+  active: true,
+  hasState: true,
+  areaId: 'throwtech_dumpnet',
+  method: 'surface',
+  passAreaId: 'throwtech_dumpnet',
+  passMethod: 'surface',
+  accruedMs: 264_000,
+  passMs: 600_000,
+  pendingPasses: 0,
+  finalizedPasses: 11,
+  totalXpAwarded: 2640,
+  mastery: { level: 6, xp: 4120 },
+  preview: {
+    areaId: 'throwtech_dumpnet',
+    areaName: 'Throwtech Dumpnet',
+    method: 'surface',
+    gearFactor: 0.91,
+    survivalPool: 1780,
+    expectedPassDamage: 1956,
+    drawsPerPass: 30,
+    xpPerPass: 180,
+    deepDegraded: false,
+    deepUnlocked: true,
+    isHot: false,
+  },
+  settled: { advancedMs: 0, xpAwarded: 0, materials: {}, essences: {}, passes: [] },
+};
