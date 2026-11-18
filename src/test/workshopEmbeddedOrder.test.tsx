@@ -1,13 +1,20 @@
 /**
- * Embedded Workshop order (device-pass fix round, 2026-11-17) —
- * in Home's Craft workspace the queue is the state the player just
- * changed, so it leads:
+ * Embedded Workshop order (device-pass fix round, 2026-11-17;
+ * first-screen audit fix, 2026-11-17) — in Home's Craft workspace
+ * the queue is the state the player just changed, so it leads:
  *
  *  - Bench Jobs renders ABOVE the catalog (it used to sit below
  *    the whole catalog + TintPanel, invisible on the first
  *    screenful — a queued job read as "nothing happened");
+ *  - Bench Jobs is the embedded panel's FIRST content — above the
+ *    filter controls, the standing strip, and the bench strip
+ *    (the audit found ~380 px of panel preamble still preceding
+ *    the queue after the first hoist). The bench strip stays as
+ *    the glance read below it;
+ *  - TintPanel renders AHEAD of the catalog (it used to trail all
+ *    64 recipes);
  *  - a workshop error (a refused enqueue/cancel) prints at the top
- *    of the workspace, beside the bench strip, exactly once;
+ *    of the workspace, directly above the queue, exactly once;
  *  - the standalone Workshop page keeps its shipped order
  *    (Bench Jobs stays in flow below the catalog).
  */
@@ -158,6 +165,32 @@ describe('embedded Workshop order — queue and errors lead', { timeout: 60_000 
     expect(heading.compareDocumentPosition(card as Node) & FOLLOWS).toBeTruthy();
     // And the section itself carries the queued job.
     expect(heading.parentElement?.textContent).toContain('Med Kit');
+  });
+
+  it('Bench Jobs is the panel\u2019s first content — above filters, standing, and the bench strip', async () => {
+    render(<HomeCraftBench onNavigate={vi.fn()} />);
+    const heading = await screen.findByText('Bench Jobs');
+    // Filter controls follow the queue.
+    const chip = screen.getByTestId('craftable-now-chip');
+    expect(heading.compareDocumentPosition(chip) & FOLLOWS).toBeTruthy();
+    // The standing strip follows the queue.
+    const standing = screen.getByText(/Your standing — the gates read these/);
+    expect(heading.compareDocumentPosition(standing) & FOLLOWS).toBeTruthy();
+    // The bench strip + bench-time panel follow the queue (the
+    // strip stays — it is the glance read; the section manages).
+    const benchTime = screen.getByTestId('bench-time-panel');
+    expect(heading.compareDocumentPosition(benchTime) & FOLLOWS).toBeTruthy();
+  });
+
+  it('TintPanel renders ahead of the catalog in the embedded workspace', async () => {
+    render(<HomeCraftBench onNavigate={vi.fn()} />);
+    const tint = await screen.findByTestId('tint-panel');
+    const card = document.getElementById('workshop-recipe-recipe_medkit');
+    expect(card).not.toBeNull();
+    // The first catalog card FOLLOWS the tinting lane.
+    expect(tint.compareDocumentPosition(card as Node) & FOLLOWS).toBeTruthy();
+    const section = screen.getByTestId('workshop-section-craftable');
+    expect(tint.compareDocumentPosition(section) & FOLLOWS).toBeTruthy();
   });
 
   it('a workshop error prints once, at the top of the workspace', async () => {

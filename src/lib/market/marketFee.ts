@@ -41,6 +41,7 @@
  * from the uplift as well (no fee branch runs for them).
  */
 import { computeSkillBonuses, type ClassModBoosts } from '../skills/skillBonuses';
+import { activeHunterId, computeHunterSkillBonuses, type HunterId } from '../hunters/hunters';
 import { DropSource } from '../../types/game';
 
 /** Fee charged on a completed player-market sale, as a fraction of price. */
@@ -186,11 +187,27 @@ export function marketFeeForSeller(input: {
    * applied additively under the ≤ 1 clamp. Absent = 0.
    */
   researchFeeReduction?: number;
+  /**
+   * The seller's hunter context (skill-routing fix F5, migration
+   * 0102): with it, the fee terms derive through the HUNTER-GATED
+   * derivation — Darknet Broker / Market Manipulator pay only while
+   * Josie Lode is fielded, House Brand only while Doc Sutter is —
+   * exactly as cc_accept_listing zeroes them in SQL (0097/0099).
+   * Server callers pass the seller's profile row (or its hunter id);
+   * every server call site does. Absent only for callers that hold
+   * no seller record, which keep the legacy full-map derivation.
+   */
+  sellerHunter?: HunterId | { active_hunter_id?: string | null; action_skill_selection?: string | null } | null;
 }): MarketFeeBreakdown {
-  const bonuses = computeSkillBonuses(
-    input.skillSpends,
-    input.classModBoosts ?? { nodeBoosts: {} },
-  );
+  const boosts = input.classModBoosts ?? { nodeBoosts: {} };
+  const bonuses =
+    input.sellerHunter != null
+      ? computeHunterSkillBonuses(
+          input.skillSpends,
+          boosts,
+          typeof input.sellerHunter === 'string' ? input.sellerHunter : activeHunterId(input.sellerHunter),
+        )
+      : computeSkillBonuses(input.skillSpends, boosts);
   return marketFeeForPrice(
     input.price,
     marketFeeReduction(

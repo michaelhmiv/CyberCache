@@ -782,6 +782,10 @@ describe('cache rank consumers — market fee composition', () => {
     const sale = marketFeeForSeller({
       price: 10_000,
       skillSpends: { scav_fee_1: 5 }, // Darknet Broker: 25% fee reduction
+      // Skill-routing fix F5: the reduction is hunter-gated — the
+      // seller fields Josie, so her Scavenger terms are live (the
+      // gated-off contrast is pinned in skillRoutingFix.test.ts).
+      sellerHunter: 'josie',
       foundBySeller: true,
       craftedBySeller: false,
       cacheRankProceedsBonus: 0.05,
@@ -876,6 +880,10 @@ describe('cache rank consumers — writes store', () => {
       s.profiles = [
         writeProfile({
           id: A, credits: 0, skill_spends: { scav_fee_1: 5 },
+          // Skill-routing fix F5: Darknet Broker is hunter-gated —
+          // the seller fields Josie, so her Scavenger terms are live
+          // at the sale (the composition order is what this test pins).
+          active_hunter_id: 'josie', action_skill_selection: 'Scavenger',
           cache_rank_spends: { marketProceeds: 10 },
           materials: { Scrap: 1000 }, // T3: A's listing posts the 25-Scrap deposit
         } as Partial<ProfileRowData> & { id: string }),
