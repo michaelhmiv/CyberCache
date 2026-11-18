@@ -204,7 +204,11 @@ describe('F2 completion — a job keeps the terms snapshotted at its enqueue', (
       bench: 1, recipeId: 'recipe_ammo_pack', units: 1,
     });
     if (completeHunter && completeHunter !== enqueueHunter) {
-      const row = store.seed.profiles.find((p) => p.id === P)!;
+      // The write seed's profile rows carry the hunter columns as
+      // extension fields (the read-side ProfileRowData predates them).
+      const row = store.seed.profiles.find((p) => p.id === P)! as ProfileRowData & {
+        active_hunter_id?: string; action_skill_selection?: string;
+      };
       row.active_hunter_id = HUNTERS[completeHunter].active_hunter_id;
       row.action_skill_selection = HUNTERS[completeHunter].action_skill_selection;
     }
