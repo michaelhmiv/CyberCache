@@ -74,8 +74,8 @@ export const PlayerProfileSheet: React.FC<{
             <div>
               <div className="bl-title break-words text-2xl leading-tight text-text-primary">{name}</div>
               <div className="mt-1 text-xs font-bold text-text-muted">
-                Level {profile.level} hunter · Hunting since {monthYear(profile.joined_at)} · Last active{' '}
-                {shortDay(profile.last_active_at)}
+                Level {profile.level} hunter · Net worth {profile.net_worth.toLocaleString()} cr · Hunting
+                since {monthYear(profile.joined_at)} · Last active {shortDay(profile.last_active_at)}
               </div>
             </div>
 
