@@ -3103,6 +3103,57 @@ the landing of all of it.
    crafting-bench scene inherits the sharper envelope; that is
    intended consistency, disclosed here.
 
+### 2026-11-17 — The bench rundown: in Craft mode the zone answers for the bench (owner-ruled)
+
+The owner, on the device-pass build: while crafting, the black
+zone under the stage still printed the combat rundown — DPS
+"No weapon equipped," shield, mitigation — while the one thing
+he was doing (the bench job, its units, its queue) lived only
+in the Workshop panel below the fold. Renderings first (three
+zone variants, real code, full screens, seeded with his own
+bench state), then his pick: **V1, "Bench rundown."** This
+entry is the landing of it, and the zone law for Craft mode.
+
+1. **The zone answers for the current mode.** While Crafting
+   holds the Home slot — the same activity kind the stage's own
+   mode map calls `crafting` — the black zone is the bench
+   rundown (`BenchRundown`). Every other mode (Roam, Boss,
+   Endless, Extract, and the rest) renders the combat rundown
+   exactly as before; the gate is the one mode state, and the
+   consumables belt below the zone is untouched in all modes.
+2. **The bench read, in the shipped block's grammar.** A
+   WORKING row: the head job's own picture (resolved as the
+   bench seat resolves it), its name, its state word (Running /
+   Paused, in the JobCard state colors), units done/total, and
+   the bench strip's progress bar. Three fact cells: PER UNIT —
+   the head job's **stored** unit duration, its enqueue-time
+   snapshot rate, so a job queued before a skill spend honestly
+   reads its own rate here; THIS UNIT — the accrued share of
+   the unit on the bench; LEFT — the head job's remaining
+   time. A NEXT row when the queue is non-empty: the queued
+   jobs named with their remaining counts, the queue count,
+   and the queue's combined remaining time.
+3. **HP never leaves the first screen.** One slim vitals line
+   closes the zone: HP with its bar, and Shield — the shipped
+   rundown's own model (`buildHeroRundown`), so the numbers are
+   the shipped numbers. DPS, Mitigation, and Shield Break do
+   not render in Craft mode. (The crafting-stage entry above
+   kept the rundown's "No weapon equipped" line as the honest
+   unarmed read; in Craft mode that line now leaves with the
+   rest of the combat cells — the unarmed read lives in the
+   other modes and in Gear.)
+4. **The empty bench keeps the shape.** With no active or
+   queued job, the WORKING slot carries a BENCH IDLE row (the
+   bench banner's own idle word, the anvil tile) over the same
+   vitals line — no fact cells with nothing to measure.
+5. **Display only, client mirror only.** Every datum comes
+   from the client bench mirror, filtered exactly as the bench
+   seat filters it (service-lane jobs never head this zone);
+   nothing new comes from the server, and the per-unit figure
+   reads the job's stored duration — never the recipe's base
+   rate. The buff line under the zone is the shipped one,
+   shared, so mode-true buffs (Crafting Calm included) read
+   identically in both zones.
 ### 2026-11-17 — The streak day starts at 3 AM Eastern, and a paid today shows its check (owner-ruled)
 
 The owner, playing the fix-round build in the evening: "my two
