@@ -3446,6 +3446,46 @@ layout") and it ships as rendered:
    other sticky descendant or clipping behavior under either
    root relied on the hidden value.
 
+### 2026-11-17 — The inspect sheet leads with the read: the effect in the header, The Trade first, and the Market sheet carries its listing (owner-ruled)
+
+The first-screen audit found the gear inspect sheet's two
+decision reads buried: a legendary weapon's effect sat ~1,690px
+into the scroll and The Trade ~1,040px, both behind the 16-row
+Stat Poster; and the Market's inspect sheet printed the listing's
+own price nowhere and offered no way to buy — buying meant
+closing the sheet and re-finding the row. Renderings were built
+from the real sheet and reviewed; the owner picked trade-first
+over poster-split and approved folding in the roaming-DPS fix
+the renderings exposed.
+
+1. **The effect leads.** The shipped LegendaryEffectBlock
+   renders inside the header card under the maker line, carrying
+   its own "Legendary Effect" label; the standalone Legendary
+   Effect tape is retired. The block is moved, not rewritten.
+2. **Trade-first for weapons.** The Trade renders directly
+   under the header card; the Stat Poster follows whole — never
+   split, never shrunk (§6). Non-weapon sheets keep the shipped
+   poster-first order; their poster is six rows.
+3. **The Market sheet carries its listing.** In Market context
+   the Market Intelligence tape lifts to directly under the
+   header card, and the sheet's existing sticky actions slot
+   carries the listing's price as the hero, the seller under it,
+   and Buy Now. The button is the row's own: the same
+   guardTransact('buy') gate into the same handleBuy, with the
+   same pending / locked / can't-afford states — no second buy
+   path exists. The host derives the LIVE listing from the
+   loaded lane by id, so a listing that leaves the market
+   retires its bar instead of offering a dead Buy. Gear-context
+   actions are unchanged; Mine-lane and Sell-candidate inspects
+   keep the shipped no-actions shape.
+4. **The roaming-DPS misprint is fixed at the source.**
+   buildSwapComparison priced roamingDps in its modifier branch,
+   printing the raw difference ×100 as a percent (+83602% on the
+   review fixture's swap). Roaming DPS is a DPS-scale value, so
+   it joins the ratio set beside dps; a pin in
+   buildSwapComparison.test.ts prices the roaming line from the
+   staged ratio and rejects the misprint form.
+
 ### 2026-11-18 — The extraction set is repainted: timber, canvas, and rope (owner-ruled)
 
 The extraction stage's three set pieces — the claim stakes

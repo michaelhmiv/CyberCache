@@ -75,9 +75,14 @@ export interface SwapComparisonFacts {
 /**
  * Metrics whose delta reads as a percentage OF the current value:
  * the combat core keys from the single registry (headlineMetrics)
- * plus the two trade-local ratio metrics — armorBreak and ordnance.
+ * plus the trade-local ratio metrics — armorBreak, ordnance, and
+ * roamingDps. Roaming DPS is a raw DPS-scale value like `dps`
+ * itself, NOT a percentage-point modifier: leaving it out of this
+ * set printed the raw difference ×100 as a percent (a 190.6 →
+ * 1,026.6 swap read "+83602%") until 2026-11-17; the pin in
+ * buildSwapComparison.test.ts holds it in the ratio set.
  */
-const RATIO_METRIC_KEYS: ReadonlySet<string> = new Set([...COMBAT_CORE_METRIC_KEYS, 'armorBreak', 'ordnance']);
+const RATIO_METRIC_KEYS: ReadonlySet<string> = new Set([...COMBAT_CORE_METRIC_KEYS, 'armorBreak', 'ordnance', 'roamingDps']);
 
 function metricKey(metric: StatMetric): string {
   return metric.sourceActivity ? `${metric.key}:${metric.sourceActivity}` : metric.key;
