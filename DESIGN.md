@@ -3103,6 +3103,50 @@ the landing of all of it.
    crafting-bench scene inherits the sharper envelope; that is
    intended consistency, disclosed here.
 
+### 2026-11-17 — Skill effects belong to the fielded hunter (owner-ruled)
+
+The owner, playing the fix-round build: skill points spent to
+reduce crafting time, and the screen still said 10 minutes per
+unit. The audit that followed found the deeper rot — whole
+families of nodes displayed as owned but never reached gameplay
+(consumableEfficiency dead in the production store since the
+reshape landed; Doc Sutter's base perk absent from the SQL
+derivations; half the economy's functions reading the full
+skill_spends map ungated). The owner approved the full repair
+program, including the gating decision, the same evening.
+
+1. **One law, everywhere.** A hunter's tree effects are live
+   only while that hunter is fielded — the APPROVAL-BRIEF §2.2
+   law, now enforced in every derivation that reads skill terms:
+   the craft enqueue and completion, repairs, the vendor sale,
+   the cache draw, the market fee, salvage, and the store-side
+   derivations that feed them, in SQL and in the TS twin alike.
+   The Pg store derivations carry the player's active-hunter
+   context (F1); Doc Sutter's base perk (craft speed +0.025,
+   craft quality +1, while fielded) exists in the SQL craft
+   derivations with the TS semantics (F3, migration 0102).
+2. **Gating prices at the action instant.** Enqueue, sale,
+   repair start, and draw read the fielded hunter's terms at
+   that moment. A job's completion never re-reads live skills
+   against terms priced at enqueue: the enqueue snapshots its
+   quality/temper terms onto the job (snapshot.skillQualityBonus
+   / skillTemperBonus) beside the stored unit duration, and
+   completion consumes the snapshot.
+3. **Surfaces quote the stored truth.** The recipe card prints
+   the player's EFFECTIVE per-unit time — the exact duration a
+   new enqueue will store for the player's current state, from
+   the client's own gated derivation plus the equipped relic and
+   the server's resolved time scalar — with the base time as the
+   muted comparator when the two differ; XP prices off the same
+   stored duration. Bench surfaces show each job's own stored
+   rate, so a job queued before a respec honestly reads its
+   queued rate while new quotes read the new one.
+4. **Copy promises only what the formula delivers.** The
+   Demolition supply nodes share the quantized efficiency
+   formula with the Scavenger's: unit time falls in 2% steps as
+   points accumulate across the family, reaching −20% only with
+   all five maxed. Their descriptions say exactly that now; the
+   old "−2% per point" wording overpromised ~2.5×.
 ### 2026-11-17 — The bench rundown: in Craft mode the zone answers for the bench (owner-ruled)
 
 The owner, on the device-pass build: while crafting, the black
@@ -3215,6 +3259,192 @@ the state view land both.
    ledger idempotency keys keep their historical day strings —
    exactly-once rides on paid_at, never on re-derived keys.
    Cases are pinned in the drill pack (mig0101/CASES.md).
+
+### 2026-11-17 — First screen first: the queue leads the Workshop panel, tinting ahead of the catalog (owner-ruled)
+
+The owner's first-screen audit (every screen: is the most
+important information visible without scrolling?) found the
+Craft workspace's panel still burying its first job: #602 had
+hoisted Bench Jobs to the top of the panel, but ~380 px of
+preamble — recipe filter controls, the standing strip, the
+bench strip with its bench-time panel — still preceded it, so
+the queue began ~1.5 screens from the top of the workspace;
+and the Tinting lane rendered after the entire 64-recipe
+catalog. Owner approved the audit's fix program wholesale
+("everything you recommend"). For the Workshop panel:
+
+1. **Bench Jobs is the embedded panel's first content.** In
+   Home's Craft workspace the error line and the Bench Jobs
+   section render above the filter controls, the standing
+   strip, and the bench strip. Both bench reads are kept, by
+   design: the bench strip is the glance (head job + progress
+   in one line), Bench Jobs is the manage surface (every job,
+   its state, its Cancel) — they read differently, so neither
+   is a duplicate to cut. A refused enqueue or cancel prints
+   directly above the queue it concerns. The standalone
+   Workshop page (unmounted; every door routes to the Craft
+   workspace) keeps its shipped order.
+2. **Tinting leads the catalog.** TintPanel renders directly
+   ahead of the catalog, before the sticky category rail,
+   instead of after all 64 recipes. It is a position, not a
+   new door: the panel's chips filter rather than navigate,
+   so there is no lane-door grammar to extend, and the fix
+   stays a render-order move inside the shipped panel.
+
+Render order only: no section's contents, data, or behavior
+changed, and the order is pinned in
+workshopEmbeddedOrder.test.tsx (queue above filters/standing/
+bench strip; tint ahead of the first recipe card; standalone
+order unchanged).
+
+### 2026-11-17 — First-screen lifts: the datum leads its surface (owner-ruled)
+
+The first-screen audit census (prep: cache-hunters/
+first-screen-audit/CENSUS.md) measured, stop by stop, where the
+datum each surface exists for actually sits. A pattern repeated:
+the reason-to-exist block rendered last — below the unbounded
+list, the informational tape, the preview painting — while the
+chrome around it pointed at it. The owner adopted the audit's
+small-lifts batch ("everything you recommend", 2026-11-17).
+Pure re-seating inside the existing grammar unless noted; no
+datum changed, only its seat.
+
+1. **The datum leads.** Standings: the pinned MY READING block
+   sits directly under the Global Board's column datum (it was
+   the panel's foot, below the fold exactly when the viewer
+   ranked outside the shown rows). Profiles: View Full Profile
+   — the pop-up's main action — pins to the sheet's sticky foot
+   (PickerSheet grammar), and Net Worth joins the full sheet's
+   meta line. Vendor: the staples family rail + search + sort
+   lead the buy mode above Today's Rotation (one useFilterSort
+   state; a sticky header was rejected — the screen is one page
+   flow under the Market stop rail). Repair + Shield Tech:
+   My workbench renders directly under the bay scene when
+   non-empty; empty, the shipped order stands. Cache Rank:
+   Bonus Channels above the Milestone Tape. Wardrobe: the
+   Whole Skins list above the showcase (the showcase is NOT
+   shrunk — the 248px painting presentation stands; the list
+   leads and the showcase follows as its preview).
+2. **The Roam rundown's fourth cell is TARGET HP.** Shield
+   Break is a build stat the player cannot engage with during
+   a roam; the engaged target's remaining HP — held by the
+   kill cycle all along — takes the cell in the HP cell's own
+   grammar (cur/max, stepping type, the thin rail), as a static
+   stage fact with no breakdown door. It holds its seat on an
+   em dash between spawns so the row never changes shape.
+   Every other mode keeps Shield Break exactly as shipped;
+   kills-this-area stays off the cell (the value already
+   triggers the long-value step-down; a second number crowds).
+3. **Dispatch offers print their pay.** The offer payload
+   carried no payout (verified by trace) — the board priced
+   every offer only inside the preview behind a pick. The
+   payload now carries the baseline lines from
+   dispatchOfferFacePayout: the departure preview's own
+   formula at strength 1.0 for foot; for courier, the same
+   lines with the credit premium and WITHOUT the cargo bonus,
+   which belongs to the vehicle the player commits, not the
+   offer. The server computes it under the departure seed
+   (`${playerId}:${offer.id}`); the face prints it in the
+   preview's own format. No second payout formula exists.
+
+### 2026-11-17 — First-screen fix program, Gear batch: jump chips, a compare strip for every kind, a windowed slot picker (owner-ruled)
+
+The owner's first-screen audit — every screen checked for
+whether its most important information is visible without
+scrolling — found the Gear tab's loadout panel exemplary and
+three burials around it. This batch fixes the three, all
+inside the existing grammar, with no new data:
+
+1. **Jump chips on the Gear page.** The Inventory section
+   starts below the whole loadout panel (~700px down), so its
+   search box and first rows sit under the fold on arrival,
+   and Belt & Stacks sits under the entire windowed inventory.
+   A chip row under the ResourceBar — Loadout · Inventory ·
+   Belt — rides the page's existing scrollToAnchor
+   machinery and its section ids. Additive only: the doll does
+   not shrink, and there is no collapse toggle (INVENTORY L4
+   stands).
+2. **The Compare sheet reads for every kind.** The hub's
+   Compare Gear sheet printed PWR / DMG / Crit for weapon
+   pairs and NO stats at all for shield, class mod, ordnance,
+   or relic pairs — two pictures and two names. The second
+   card now carries the shared all-kind GearCompare strip
+   (the same deltas the slot picker rows print) whenever the
+   pair is not two weapons; weapon pairs keep their block
+   unchanged. The strip renders nothing for a cross-kind
+   pair, so any armed pair stays safe.
+3. **The slot picker windows its candidates.** SlotGearPicker
+   mapped every compatible item into the sheet — ~1,000+ rows
+   at the owner's scale, the un-windowed mount-cost class the
+   2026-11-11 latency program fixed in the hub. It now runs
+   the hub's useWindowedList with the same threshold behavior
+   (inert at or below 72 candidates); search, facets, and sort
+   keep reading the full candidate array, and the Currently
+   Equipped card stays outside the window.
+
+The inspect sheet's own reordering (the Legendary Effect into
+the header card, The Trade above the Stat Poster) is a
+separate rendering track and is not in this batch.
+
+### 2026-11-17 — Decisions ride at the fold: prep bars, and the zone answers for the run and the delve (owner-ruled)
+
+The first-screen audit (item 39, census item 2 plus the
+endless-bank lift) found the same burial three times: the boss
+prep's start button at the bottom of a long scroll, the Chamber
+entry priced only in its panel, and — worst — a live run's bank
+decision and a paused delve's warning living only below the
+fold. The owner approved the rendered package ("I'm fine with
+layout") and it ships as rendered:
+
+1. **Prep action bars.** Boss prep and Chamber entry carry a
+   sticky action bar: the subject's name, the true price line,
+   and the start button, pinned at the fold. Placement law: the
+   bar is a DIRECT CHILD of the panel root — the prep content
+   animates inside a motion wrapper whose transform creates a
+   containing block, and a sticky element inside it can never
+   travel. The fee line is composed from the panel's own locals
+   (the boss panel's entryFee / feeMultiplier / canAfford; the
+   Chamber panel's intel fee) — no second fee derivation exists
+   anywhere in the bar path. The in-flow start buttons are
+   removed; their fee notes stay in flow. Locked bosses get no
+   bar: the lock card owns them. Intel Law unchanged: the bar
+   prints price and state, never a win chance.
+2. **Run state lifts into slices; panels stay sole owners.**
+   Endless run state and extraction state were panel-local
+   useState, unreachable from the fold. Each panel now PUBLISHES
+   a derived view to a slice (endlessRunSlice /
+   extractionRunSlice, on the extractionFeedSlice precedent) and
+   executes zone intents — bank, resume — through its own
+   shipped handlers, requested via monotonic counters on the
+   slices. The extraction panel's rendered output is unchanged;
+   the lift is additive publication only. No new server data:
+   every zone figure is copied from a panel's Chef responses.
+3. **The zone answers for the run and the delve.** In the bench
+   rundown's grammar: a live Chamber run gets the chamber
+   rundown (depth cleared, escrow AT RISK as the hero, death
+   payout at the intel's percent, next milestone, the next
+   encounter named, BANK & LEAVE carrying the full payout); the
+   extraction view gets the extract rundown (site + method, the
+   pass countdown, gear factor, mastery, Resume of the SAVED
+   delve while paused). Zone precedence on Home: endless run,
+   then extraction view over a delve on the books, then Craft's
+   bench, then the combat rundown. The stage itself always shows
+   the running occupation; the zone answers for the open view.
+4. **The Deep Delve warning's zone rule.** The extract zone
+   prints "Deep Delve paying as Surface — factor below ×0.80"
+   whenever the pass method is deep and the gear factor is below
+   0.80 — INCLUDING PAUSED, which is exactly when the panel's
+   own warning never prints (it requires the delve active) and
+   exactly when the player weighs resuming. The panel's line is
+   unchanged; the zone's rule is deliberately wider.
+5. **The enabler: overflow-clip.** Both .bl-page roots
+   (HomeScreen, ActionScreenContextual) trade overflow-hidden
+   for overflow-clip: a hidden root is a scroll container and
+   caged every sticky descendant inside itself, so the bars
+   could never ride the viewport fold. Clip renders identically
+   (paint still clips) without creating the cage. Verified: no
+   other sticky descendant or clipping behavior under either
+   root relied on the hidden value.
 
 ### 2026-11-17 — The inspect sheet leads with the read: the effect in the header, The Trade first, and the Market sheet carries its listing (owner-ruled)
 

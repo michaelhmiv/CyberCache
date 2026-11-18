@@ -56,12 +56,17 @@ describe('Field Manual (HelpScreen)', () => {
     // = 334. Composing the login-streak pass (#609) with the
     // bench-rundown pass (#610) moves the census 334 -> 335:
     // each branch measures 334 alone; the composed corpus
-    // reports 335.
+    // reports 335. Composing the bars pass (#615) onto that
+    // master moves the census 335 -> 337: +1 The-Board (the
+    // chamber rundown cross-references
+    // [[Endless Mode|Chaos Chamber]]) and +1 Bosses (the
+    // prep-bar note cross-references
+    // [[Endless Mode|Chaos Chamber]]).
     // Bump the pin in
     // the same change as any wiki edit that moves the census.
     await waitFor(() => expect(wikiCorpusReady()).toBe(true));
-    expect(getWikiLinkCount()).toBe(335);
-    await waitFor(() => expect(screen.getByText('335')).toBeTruthy());
+    expect(getWikiLinkCount()).toBe(337);
+    await waitFor(() => expect(screen.getByText('337')).toBeTruthy());
   });
 
   it('converges the Links LCD to whatever count the corpus itself reports', async () => {

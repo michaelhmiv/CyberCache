@@ -1567,25 +1567,44 @@ export class PgWriteStore implements WriteStore {
   }
   // ── Crafting-as-occupation (migration 0024) ──────────────────────
   /**
-   * The §2.7 skill consumer's input, derived from server records:
-   * profiles.skill_spends + the equipped class mod's boosts through
-   * skillBonusesFromRecords — the same derivation the Chef routes
-   * use. Passed into cc_enqueue_craft_job as a trusted server
-   * parameter; the request body never carries it.
+   * The player's full skill-bonus record from server records, WITH
+   * the active-hunter context (skill-routing fix F1, migration
+   * 0102): the profile query carries active_hunter_id +
+   * action_skill_selection and the row goes to
+   * skillBonusesFromRecords as its hunter argument, so the
+   * derivation gates to the fielded hunter's tree (+ base perk) —
+   * the §2.2 law. Omitting the profile silently defaults the
+   * derivation to Vesper Cole's subset: that omission is the defect
+   * that left consumableEfficiency dead in production (the enqueue
+   * parameter was always 0 for every non-Gunslinger point) and
+   * zeroed the workshop-queue and repair-reader displays fed from
+   * this file. Every derivation in this store goes through here.
+   */
+  private async skillBonusesForPlayer(playerId: string): Promise<Record<string, number>> {
+    const { rows } = await this.pool.query(
+      'select skill_spends, active_hunter_id, action_skill_selection from public.profiles where id = $1',
+      [playerId],
+    );
+    const profile = rows[0] ?? {};
+    const spends = (profile.skill_spends ?? {}) as Record<string, number>;
+    const { rows: itemRows } = await this.pool.query(
+      "select payload from public.item_instances where owner_user_id = $1 and runtime_state = 'equipped'",
+      [playerId],
+    );
+    const gear = itemRows.map((r) => r.payload as unknown as GearItem);
+    return skillBonusesFromRecords(gear, spends, profile);
+  }
+
+  /**
+   * The §2.7 skill consumer's input, derived from server records
+   * through skillBonusesForPlayer (hunter-gated since the F1 fix) —
+   * the same derivation the Chef routes use. Passed into
+   * cc_enqueue_craft_job as a trusted server parameter; the request
+   * body never carries it.
    */
   private async consumableEfficiencyBonus(playerId: string): Promise<number> {
     try {
-      const { rows } = await this.pool.query(
-        'select skill_spends from public.profiles where id = $1',
-        [playerId],
-      );
-      const spends = (rows[0]?.skill_spends ?? {}) as Record<string, number>;
-      const { rows: itemRows } = await this.pool.query(
-        "select payload from public.item_instances where owner_user_id = $1 and runtime_state = 'equipped'",
-        [playerId],
-      );
-      const gear = itemRows.map((r) => r.payload as unknown as GearItem);
-      return skillBonusesFromRecords(gear, spends).consumableEfficiency ?? 0;
+      return (await this.skillBonusesForPlayer(playerId)).consumableEfficiency ?? 0;
     } catch (err) {
       return translatePgError(err);
     }
@@ -1656,17 +1675,9 @@ export class PgWriteStore implements WriteStore {
    */
   private async fixerQueueBonus(playerId: string): Promise<number> {
     try {
-      const { rows } = await this.pool.query(
-        'select skill_spends from public.profiles where id = $1',
-        [playerId],
-      );
-      const spends = (rows[0]?.skill_spends ?? {}) as Record<string, number>;
-      const { rows: itemRows } = await this.pool.query(
-        "select payload from public.item_instances where owner_user_id = $1 and runtime_state = 'equipped'",
-        [playerId],
-      );
-      const gear = itemRows.map((r) => r.payload as unknown as GearItem);
-      return Math.max(0, Math.floor(skillBonusesFromRecords(gear, spends).workshopQueueBonus ?? 0));
+      // Hunter-gated since the F1 fix (skillBonusesForPlayer): the
+      // keystone's queue bonus pays only while Doc Sutter is fielded.
+      return Math.max(0, Math.floor((await this.skillBonusesForPlayer(playerId)).workshopQueueBonus ?? 0));
     } catch (err) {
       return translatePgError(err);
     }
@@ -1727,6 +1738,7 @@ export class PgWriteStore implements WriteStore {
         masteries,
         activeActionKind: actionRows[0] ? String(actionRows[0].active_action) : null,
         recipeScrapCosts: resolveRecipeScrapCosts(storedConfig),
+        craftTimeScalar: resolvedConfig.craftTimeScalar,
         benchTime: {
           bankedSeconds: Number(profileRows[0].bench_time_banked_seconds ?? 0),
           capSeconds: resolvedConfig.benchTimeBankCapSeconds,
@@ -1873,20 +1885,9 @@ export class PgWriteStore implements WriteStore {
       const myLevel = Number(masteryRows[0]?.mastery_level ?? 1);
       // Requirements facts: the reader's Fixer terms through the
       // same derivation the accept snapshot uses (skillBonusesFrom
-      // Records over server records), plus their kit supply.
-      const { rows: spendRows } = await this.pool.query(
-        'select skill_spends from public.profiles where id = $1',
-        [playerId],
-      );
-      const spends = (spendRows[0]?.skill_spends ?? {}) as Record<string, number>;
-      const { rows: gearRows } = await this.pool.query(
-        "select payload from public.item_instances where owner_user_id = $1 and runtime_state = 'equipped'",
-        [playerId],
-      );
-      const bonuses = skillBonusesFromRecords(
-        gearRows.map((r) => r.payload as unknown as GearItem),
-        spends,
-      );
+      // Records over server records, hunter-gated since the F1 fix),
+      // plus their kit supply.
+      const bonuses = await this.skillBonusesForPlayer(playerId);
       const supply = await this.serviceReaderSupply(playerId, REPAIR_KIT_TYPES);
       const reader: ServiceReaderFacts = {
         verified: supply.verified,

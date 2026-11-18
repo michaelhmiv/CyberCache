@@ -279,11 +279,14 @@ export const BoardConsole: React.FC<{
   // runs to the fetch limit (100 rows) and buried the weekly races
   // below it under a long scroll. On All Time it now opens on the
   // top 10 with an in-place expand control; WEEK / DAY keep their
-  // full list. The pinned MY READING foot keys off the SHOWN rows,
+  // full list. The pinned MY READING block keys off the SHOWN rows,
   // so a viewer cut off by the collapse still sees their standing.
   // Expansion is keyed to the channel+period it was opened on, so
   // switching channel or period lands back on the collapsed top 10
-  // without an effect resetting state.
+  // without an effect resetting state. (The MY READING block's
+  // seat moved from the panel foot to under the column datum in
+  // the 2026-11-17 first-screen pass; its shown-rows keying is
+  // unchanged.)
   const boardKey = `${metric}:${period}`;
   const [expansion, setExpansion] = useState<{ key: string; open: boolean }>({ key: '', open: false });
   const expanded = expansion.key === boardKey && expansion.open;
@@ -385,6 +388,42 @@ export const BoardConsole: React.FC<{
         <span>RK · HUNTER · Δ</span>
         <span>{unit ? `OUTPUT · ${unit.toUpperCase()} · VS LEADER` : 'OUTPUT · VS LEADER'}</span>
       </div>
+      {/* My reading, pinned directly under the column datum when
+          the shown entries exclude the viewer — the real
+          /leaderboard/me payload. First-screen audit (2026-11-17):
+          at the panel foot it sat ~570px below the fold, buried
+          exactly when the viewer is outside the shown rows — the
+          case it exists for. Same block, same payload (myRank was
+          already a prop); only the seat moved. */}
+      {myRank && !meInEntries && (
+        <div
+          data-testid="standings-board-my-reading"
+          className="mt-2 px-2 py-2"
+          style={{
+            border: `1px solid rgba(255,144,0,0.55)`,
+            background: 'linear-gradient(180deg, #0A0703 0%, #070503 100%)',
+            boxShadow: 'inset 0 2px 7px rgba(0,0,0,0.9)',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <Led lit color={AMBER} size={8} />
+            <span style={{ ...monoStyle, fontSize: 11, color: '#FFB03A', letterSpacing: '0.1em' }}>MY READING</span>
+            <span className="ml-auto font-bold" style={{ ...monoStyle, fontSize: 19, color: INK }}>
+              RK {myRank.rank}
+              <span style={{ fontSize: 11, color: FAINT }}> OF {myRank.total_players}</span>
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="font-bold" style={{ ...monoStyle, fontSize: 14, color: MUT }}>
+              {formatLeaderboardValue(metric, myRank.value)}
+              {unit ? ` ${unit}` : null}
+            </span>
+            <span className="ml-auto">
+              <DeltaReadout trend={myRank.trend} hasPrior={myRank.previous_value != null} />
+            </span>
+          </div>
+        </div>
+      )}
       <div>
         {loading ? (
           <div className="space-y-2 py-2" data-testid="standings-board-loading">
@@ -434,37 +473,6 @@ export const BoardConsole: React.FC<{
             {expanded ? `SHOW TOP ${ALL_TIME_COLLAPSED_ROWS}` : `SHOW ALL ${entries.length} HUNTERS`}
           </span>
         </button>
-      )}
-      {/* My reading, pinned at the foot when the shown entries
-          exclude the viewer — the real /leaderboard/me payload. */}
-      {myRank && !meInEntries && (
-        <div
-          data-testid="standings-board-my-reading"
-          className="mt-2 px-2 py-2"
-          style={{
-            border: `1px solid rgba(255,144,0,0.55)`,
-            background: 'linear-gradient(180deg, #0A0703 0%, #070503 100%)',
-            boxShadow: 'inset 0 2px 7px rgba(0,0,0,0.9)',
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <Led lit color={AMBER} size={8} />
-            <span style={{ ...monoStyle, fontSize: 11, color: '#FFB03A', letterSpacing: '0.1em' }}>MY READING</span>
-            <span className="ml-auto font-bold" style={{ ...monoStyle, fontSize: 19, color: INK }}>
-              RK {myRank.rank}
-              <span style={{ fontSize: 11, color: FAINT }}> OF {myRank.total_players}</span>
-            </span>
-          </div>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="font-bold" style={{ ...monoStyle, fontSize: 14, color: MUT }}>
-              {formatLeaderboardValue(metric, myRank.value)}
-              {unit ? ` ${unit}` : null}
-            </span>
-            <span className="ml-auto">
-              <DeltaReadout trend={myRank.trend} hasPrior={myRank.previous_value != null} />
-            </span>
-          </div>
-        </div>
       )}
     </Panel>
   );

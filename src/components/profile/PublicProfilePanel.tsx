@@ -146,10 +146,13 @@ export const PublicProfilePanel: React.FC<PublicProfilePanelProps> = ({ open, on
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="max-h-[92vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.75)]"
+            className="flex max-h-[92vh] w-full max-w-[480px] flex-col border-t-2 border-border bg-bg shadow-[0_-12px_32px_rgba(0,0,0,0.75)]"
             style={panelClip}
             onClick={(event) => event.stopPropagation()}
           >
+            {/* Fixed head (PickerSheet grammar): grab handle +
+                identity + Close never scroll away. */}
+            <div className="shrink-0 px-3 pt-3">
             <div className="mb-3 flex justify-center"><div className="h-1.5 w-12 rounded-full bg-border" /></div>
 
             <div className="mb-3 flex items-start justify-between gap-3">
@@ -183,22 +186,35 @@ export const PublicProfilePanel: React.FC<PublicProfilePanelProps> = ({ open, on
               </button>
             </div>
 
+            </div>
+
+            {/* Scrolling body — shelf + stat record. */}
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
             {!profile ? (
               <div className="h-32 animate-pulse rounded bg-bg" />
             ) : (
               <div className="space-y-3">
                 {profile.showcase && <PublicShowcase showcase={profile.showcase} />}
                 <PublicProfileStats profile={profile} />
-                {onViewFull && (
-                  <button
-                    type="button"
-                    onClick={onViewFull}
-                    data-testid="public-profile-view-full"
-                    className="bl-primary min-h-[44px] w-full px-4 py-3 text-xs font-black uppercase tracking-wide"
-                  >
-                    View Full Profile
-                  </button>
-                )}
+              </div>
+            )}
+            </div>
+
+            {/* Sticky foot (first-screen audit, 2026-11-17): View
+                Full Profile is this pop-up's main action — it used
+                to be the LAST element of the scrolling body, at or
+                past the sheet's visible edge. It now pins to the
+                foot, always in the first view. */}
+            {profile && onViewFull && (
+              <div className="shrink-0 border-t border-border/50 px-3 py-3">
+                <button
+                  type="button"
+                  onClick={onViewFull}
+                  data-testid="public-profile-view-full"
+                  className="bl-primary min-h-[44px] w-full px-4 py-3 text-xs font-black uppercase tracking-wide"
+                >
+                  View Full Profile
+                </button>
               </div>
             )}
           </motion.div>

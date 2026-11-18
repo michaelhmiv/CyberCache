@@ -149,6 +149,33 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ onNavigate, ta
         <ResourceBar onOpenSettings={() => onNavigate('settings')} />
       </div>
 
+      {/* Jump chips (first-screen audit, cluster B §2/§3,
+          2026-11-17): the Inventory section starts ~700px down
+          this page — below the whole loadout panel — so its
+          search box and first rows sit under the fold on arrival,
+          and Belt & Stacks sits under the entire windowed
+          inventory. One tap rides the page's existing
+          scrollToAnchor machinery to the section instead of a
+          blind scroll. Additive only: the doll keeps its size
+          and there is NO collapse toggle (INVENTORY L4). */}
+      <div className="flex gap-1.5 px-4" data-testid="gear-jump-chips">
+        {([
+          { id: 'gear-loadout-section', label: 'Loadout' },
+          { id: 'gear-inventory-section', label: 'Inventory' },
+          { id: 'gear-belt-section', label: 'Belt' },
+        ] as const).map((chip) => (
+          <button
+            key={chip.id}
+            type="button"
+            onClick={() => scrollToAnchor(chip.id)}
+            data-testid={`gear-jump-chip-${chip.id}`}
+            className="bl-secondary min-h-[44px] px-3 text-[11px] font-black uppercase tracking-wider text-text-secondary"
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
       {/* The merged Gear page (Exec C, 2026-11-03; Workshop stop
           retired by the crafting consolidation, 2026-11-04): ONE
           scroll — the Split doll zone + Garage, then § Inventory

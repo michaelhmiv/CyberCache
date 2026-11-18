@@ -154,10 +154,12 @@ describe('DispatchPanel — courier fuel quick-buy mount', () => {
   const courierOffer = {
     id: 'offer-courier-1', family: 'courier' as const, areaId: 'dustwaste',
     durationHours: 4, areaName: 'Dustwaste Frontier', dangerRating: 'High',
+    payout: null,
   };
   const footOffer = {
     id: 'offer-foot-1', family: 'foot' as const, areaId: 'dustwaste',
     durationHours: 2, areaName: 'Dustwaste Frontier', dangerRating: 'Low',
+    payout: null,
   };
   const vehicle = {
     id: 'veh-1', kind: 'vehicle', name: 'Trusty Hauler', itemLevel: 10,

@@ -307,29 +307,13 @@ export const VendorScreen: React.FC = () => {
             <PxIcon name="chevR" size={17} className="shrink-0 text-amber" />
           </button>
 
-          {/* F3: the Item of the Day keeps its own card directly
-              under the buyback row; its label row is folded into
-              the card (amber name + ITEM OF THE DAY −25% chip on
-              the card's face — same datum, one row higher). */}
-          {itemOfTheDayDef && itemOfTheDayOffer && consumableCard(itemOfTheDayDef, itemOfTheDayOffer)}
-
-          <div className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <div className="text-[11px] font-black uppercase text-text-secondary">Today&apos;s Rotation</div>
-              <div className="text-[11px] text-text-muted">New stock at 00:00 UTC</div>
-            </div>
-            {rotation.consumables.map((id) => {
-              const def = CONSUMABLES[id as keyof typeof CONSUMABLES];
-              return def ? consumableCard(def, offerByKey.get(id)) : null;
-            })}
-            {rotation.materials.map((id) => {
-              const offer = offerByKey.get(id);
-              return offer ? materialRow(offer) : null;
-            })}
-          </div>
-
-          <div className="text-[11px] font-black uppercase text-text-secondary">Staples — always in stock</div>
-
+          {/* First-screen lift (audit, 2026-11-17): the staples
+              family rail + search + sort used to sit below the whole
+              rotation (~900px down) — the stop's only search was a
+              full scroll away. The controls now lead the buy mode,
+              directly under the buyback row; same useFilterSort
+              state, and the Staples header below still introduces
+              the (filtered) list they drive. */}
           <ChipRail>
             {(Object.keys(FAMILY_LABELS) as Array<keyof typeof FAMILY_LABELS>)
               .filter((family) => (familyCounts[family] ?? 0) > 0)
@@ -385,6 +369,31 @@ export const VendorScreen: React.FC = () => {
               </button>
             )}
           </div>
+
+          {/* F3: the Item of the Day keeps its own card at the
+              head of the stock (under the lifted staples controls
+              since the 2026-11-17 first-screen pass); its label
+              row is folded into the card (amber name + ITEM OF THE
+              DAY −25% chip on the card's face — same datum, one
+              row higher). */}
+          {itemOfTheDayDef && itemOfTheDayOffer && consumableCard(itemOfTheDayDef, itemOfTheDayOffer)}
+
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <div className="text-[11px] font-black uppercase text-text-secondary">Today&apos;s Rotation</div>
+              <div className="text-[11px] text-text-muted">New stock at 00:00 UTC</div>
+            </div>
+            {rotation.consumables.map((id) => {
+              const def = CONSUMABLES[id as keyof typeof CONSUMABLES];
+              return def ? consumableCard(def, offerByKey.get(id)) : null;
+            })}
+            {rotation.materials.map((id) => {
+              const offer = offerByKey.get(id);
+              return offer ? materialRow(offer) : null;
+            })}
+          </div>
+
+          <div className="text-[11px] font-black uppercase text-text-secondary">Staples — always in stock</div>
 
           <div className="space-y-2">
             {filtered.length === 0 ? (
