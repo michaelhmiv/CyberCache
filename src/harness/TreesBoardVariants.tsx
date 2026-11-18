@@ -245,11 +245,23 @@ const NodeButton: React.FC<TreesBoardVariantProps & { node: SkillNode; density: 
   const isPending = p.pendingNodeId === node.id;
   const size =
     p.density === 'compact'
-      ? node.type === 'keystone' ? 'min-h-[54px]' : node.type === 'major' ? 'min-h-[48px]' : 'min-h-[44px]'
+      ? node.type === 'keystone' ? 'min-h-[64px]' : node.type === 'major' ? 'min-h-[58px]' : 'min-h-[54px]'
       : p.density === 'trim'
         ? node.type === 'keystone' ? 'min-h-[76px]' : node.type === 'major' ? 'min-h-[68px]' : 'min-h-[60px]'
         : node.type === 'keystone' ? 'min-h-[84px]' : node.type === 'major' ? 'min-h-[76px]' : 'min-h-[68px]';
   const artSize = p.density === 'compact' ? 22 : p.density === 'trim' ? 26 : 30;
+  const pointsColor = isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280';
+  const art = (
+    <SkillKeystoneArt
+      tree={p.activeTree}
+      nodeType={node.type}
+      unlocked={prerequisitesMet || currentPoints > 0 || isMaxed}
+      spentPoints={currentPoints}
+      locked={!prerequisitesMet && currentPoints === 0 && !isMaxed}
+      size={artSize}
+      animate={node.type === 'keystone' && currentPoints > 0}
+    />
+  );
   return (
     <motion.button
       whileTap={isAvailable ? { scale: 0.96 } : { scale: 0.98 }}
@@ -257,27 +269,34 @@ const NodeButton: React.FC<TreesBoardVariantProps & { node: SkillNode; density: 
       className={`relative border-2 p-2 text-left shadow-[4px_4px_0_rgba(0,0,0,0.65)] ${size} ${nodeTone(node, isAvailable, isMaxed)} ${isSelected ? 'ring-2 ring-amber/70' : ''}`}
       style={{ clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1">
-          <SkillKeystoneArt
-            tree={p.activeTree}
-            nodeType={node.type}
-            unlocked={prerequisitesMet || currentPoints > 0 || isMaxed}
-            spentPoints={currentPoints}
-            locked={!prerequisitesMet && currentPoints === 0 && !isMaxed}
-            size={artSize}
-            animate={node.type === 'keystone' && currentPoints > 0}
-          />
-          <div className={`truncate text-[11px] font-black text-text-primary`}>{node.name}</div>
+      {p.density === 'compact' ? (
+        <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 flex-col items-center gap-0.5">
+            {art}
+            <span className="text-[11px] font-black leading-none" style={{ color: pointsColor }}>
+              {isPending ? '…' : `${currentPoints}/${node.maxPoints}`}
+            </span>
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-1">
+            <div className="min-w-0 flex-1 truncate text-[11px] font-black text-text-primary">{node.name}</div>
+            {isMaxed && <Lock size={11} className="shrink-0 text-green" />}
+          </div>
         </div>
-        {isMaxed && <Lock size={11} className="shrink-0 text-green" />}
-      </div>
-      {p.density !== 'compact' && (
-        <div className={`mt-1 pr-8 text-[11px] leading-snug text-text-muted ${p.density === 'trim' ? 'line-clamp-2' : ''}`}>{node.description}</div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1">
+              {art}
+              <div className="truncate text-[11px] font-black text-text-primary">{node.name}</div>
+            </div>
+            {isMaxed && <Lock size={11} className="shrink-0 text-green" />}
+          </div>
+          <div className={`mt-1 pr-8 text-[11px] leading-snug text-text-muted ${p.density === 'trim' ? 'line-clamp-2' : ''}`}>{node.description}</div>
+          <div className="absolute bottom-1 right-2 text-[11px] font-black" style={{ color: pointsColor }}>
+            {isPending ? '…' : `${currentPoints}/${node.maxPoints}`}
+          </div>
+        </>
       )}
-      <div className="absolute bottom-1 right-2 text-[11px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
-        {isPending ? '…' : `${currentPoints}/${node.maxPoints}`}
-      </div>
     </motion.button>
   );
 };
