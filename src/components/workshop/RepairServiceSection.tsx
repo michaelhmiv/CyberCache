@@ -6,6 +6,7 @@ import { MobileCard } from '@/components/layout/MobileCard';
 import { useActivityStore, useInventoryStore, useWorkshopStore } from '@/store';
 import { buildWorkshopServiceActivity } from '@/lib/activity/activityBuilders';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
+import { formatDuration } from '@/lib/workshop/durationFormat';
 import { chipClip } from '@/lib/ui/clips';
 import { isServiceLaneJob } from '@/components/workshop/serviceLane';
 import type { WorkshopJobView } from '@/store/slices/workshopSlice';
@@ -31,16 +32,6 @@ import type { WorkshopJobView } from '@/store/slices/workshopSlice';
  * Display only: every number here is the server's workshop view;
  * the Chef remains the authority.
  */
-
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const mins = Math.floor((totalSeconds % 3600) / 60);
-  const secs = totalSeconds % 60;
-  if (hours > 0) return `${hours}h ${mins}m`;
-  if (mins > 0) return `${mins}m ${secs.toString().padStart(2, '0')}s`;
-  return `${secs}s`;
-}
 
 const ServiceJobRow: React.FC<{
   job: WorkshopJobView;

@@ -10,10 +10,9 @@
  *   formatDuration(243,960,000) -> "67h 46m"; (600,000) -> "10m 00s"
  *   formatDurationShort(600,000) -> "10m"; (54,000,000) -> "15h"
  *
- * WorkshopScreen and RepairServiceSection still carry file-local
- * copies of formatDuration; adopting this module there is a
- * mechanical follow-up, kept out of the port PR so the Workshop
- * panel's files stay untouched while a parallel PR works them.
+ * WorkshopScreen and RepairServiceSection adopted this module in
+ * the duration-format dedupe follow-up (2026-11-18); their former
+ * file-local copies were byte-identical and are gone.
  */
 
 export function formatDuration(ms: number): string {
