@@ -3164,3 +3164,40 @@ the state view land both.
    ledger idempotency keys keep their historical day strings —
    exactly-once rides on paid_at, never on re-derived keys.
    Cases are pinned in the drill pack (mig0101/CASES.md).
+
+### 2026-11-17 — First screen first: the queue leads the Workshop panel, tinting ahead of the catalog (owner-ruled)
+
+The owner's first-screen audit (every screen: is the most
+important information visible without scrolling?) found the
+Craft workspace's panel still burying its first job: #602 had
+hoisted Bench Jobs to the top of the panel, but ~380 px of
+preamble — recipe filter controls, the standing strip, the
+bench strip with its bench-time panel — still preceded it, so
+the queue began ~1.5 screens from the top of the workspace;
+and the Tinting lane rendered after the entire 64-recipe
+catalog. Owner approved the audit's fix program wholesale
+("everything you recommend"). For the Workshop panel:
+
+1. **Bench Jobs is the embedded panel's first content.** In
+   Home's Craft workspace the error line and the Bench Jobs
+   section render above the filter controls, the standing
+   strip, and the bench strip. Both bench reads are kept, by
+   design: the bench strip is the glance (head job + progress
+   in one line), Bench Jobs is the manage surface (every job,
+   its state, its Cancel) — they read differently, so neither
+   is a duplicate to cut. A refused enqueue or cancel prints
+   directly above the queue it concerns. The standalone
+   Workshop page (unmounted; every door routes to the Craft
+   workspace) keeps its shipped order.
+2. **Tinting leads the catalog.** TintPanel renders directly
+   ahead of the catalog, before the sticky category rail,
+   instead of after all 64 recipes. It is a position, not a
+   new door: the panel's chips filter rather than navigate,
+   so there is no lane-door grammar to extend, and the fix
+   stays a render-order move inside the shipped panel.
+
+Render order only: no section's contents, data, or behavior
+changed, and the order is pinned in
+workshopEmbeddedOrder.test.tsx (queue above filters/standing/
+bench strip; tint ahead of the first recipe card; standalone
+order unchanged).
