@@ -5,6 +5,7 @@ import { DISPLAY_CALENDAR_MASTER } from '@/lib/pixel/iconMasters';
 import { ClaimPulse } from '@/components/common/ClaimPulse';
 import {
   formatLoginStreakReward,
+  loginStreakDayStartLocalLabel,
   loginStreakPositionFor,
   loginStreakTierMultiplier,
   type LoginStreakReward,
@@ -115,13 +116,17 @@ function ladderLines(day: LoginStreakReward): string[] {
 }
 
 /** The 7-day ladder as a track: earned days checked, today
- *  filled solid, every reward line at the type floor. */
+ *  filled solid, every reward line at the type floor. A PAID
+ *  today ('earned-today', 0101) is both at once: the solid fill
+ *  stays and the check lands on it — the claim's visible receipt
+ *  on the track the player is watching. */
 function StreakLadder({ view }: { view: LoginStreakStateView }) {
   return (
     <div className="grid grid-cols-7 gap-1.5" aria-label="Seven day streak ladder">
       {view.ladder.map((day) => {
-        const isToday = day.state === 'today';
+        const isToday = day.state === 'today' || day.state === 'earned-today';
         const earned = day.state === 'earned';
+        const checked = earned || day.state === 'earned-today';
         return (
           <div
             key={day.cycleDay}
@@ -147,8 +152,12 @@ function StreakLadder({ view }: { view: LoginStreakStateView }) {
                 {line}
               </div>
             ))}
-            {earned && (
-              <div className="mt-auto flex justify-center pt-0.5" style={{ color: STREAK_ACCENT }}>
+            {checked && (
+              <div
+                data-testid={`streak-ladder-check-${day.cycleDay}`}
+                className="mt-auto flex justify-center pt-0.5"
+                style={{ color: day.state === 'earned-today' ? DARK_TEXT : STREAK_ACCENT }}
+              >
                 <PxIcon name="check" size={13} />
               </div>
             )}
@@ -180,14 +189,14 @@ function FactLine({ label, children }: { label: string; children: React.ReactNod
  *
  * The flow truth (0079): the check-in is the state read itself —
  * GET /api/login-streak/me records the first authenticated
- * check-in of the UTC day server-side and stamps the ladder
+ * check-in of the streak day server-side and stamps the ladder
  * reward on the claim row, UNPAID. Nothing banks on arrival.
  * The sheet's CLAIM button is the act that pays it (POST
  * /api/login-streak/claim, exactly-once on the row's paid
  * stamp); an unclaimed reward expires when the next streak day
- * starts at 00:00 UTC, while the recorded day still counts.
- * Everything rendered is the Chef's state view; the client
- * computes no streak, no day, no amount.
+ * starts (08:00 UTC since 0101), while the recorded day still
+ * counts. Everything rendered is the Chef's state view; the
+ * client computes no streak, no day, no amount.
  *
  * The sheet's states:
  *
@@ -219,13 +228,15 @@ function FactLine({ label, children }: { label: string; children: React.ReactNod
  * There is no 'pending' presentation (D6): the shipped route
  * records before it reads, so a held result always has its day
  * recorded. The day boundary is stated in words on the sheet —
- * a new streak day starts at 00:00 UTC.
+ * in the player's local time (the streak day starts at
+ * 08:00 UTC since 0101).
  *
  * The read lives in the shared login-streak store: the
  * Dashboard mount performs it (the check-in is never gated on
  * opening this sheet), this panel's mount revalidates it when
- * a live session has crossed the UTC boundary (D3), and the
- * profile syncs happen in the store — at load, and at the claim.
+ * a live session has crossed the streak-day boundary (D3), and
+ * the profile syncs happen in the store — at load, and at the
+ * claim.
  */
 export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) => {
   const result = useLoginStreakStore((s) => s.result);
@@ -250,6 +261,10 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
   if (!result) return null;
   const view = result.loginStreak;
   const granted = result.granted;
+  // The streak day's start in the player's own time (0101: the
+  // day starts at 08:00 UTC; the label follows that rule through
+  // DST rather than naming a fixed hour).
+  const dayStartLabel = loginStreakDayStartLocalLabel(new Date());
   // The state machine, claimable first: CLAIMABLE (recorded,
   // unpaid — the sheet's one job is the claim) → JUST CLAIMED
   // (this session's claim landed, unacknowledged — the landing
@@ -456,11 +471,11 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
             onClick={() => onDone?.()}
             className="w-full px-4 py-1 text-[11px] font-bold uppercase tracking-wide text-text-muted"
           >
-            Later — it waits until 00:00 UTC
+            Later — it waits until {dayStartLabel}
           </button>
 
           <div className="text-center text-[11px] leading-snug text-text-muted">
-            <div>Unclaimed rewards expire when the new streak day starts at 00:00 UTC.</div>
+            <div>Unclaimed rewards expire when the new streak day starts at {dayStartLabel} your time.</div>
             <div>{view.missRule}</div>
           </div>
         </>
@@ -594,7 +609,7 @@ export const LoginStreakPanel: React.FC<{ onDone?: () => void }> = ({ onDone }) 
       {!claimable && (
         <div className="text-center text-[11px] leading-snug text-text-muted">
           <div>{view.missRule}</div>
-          <div>A new streak day starts at 00:00 UTC.</div>
+          <div>A new streak day starts at {dayStartLabel} your time.</div>
         </div>
       )}
     </div>

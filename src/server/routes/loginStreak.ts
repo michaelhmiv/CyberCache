@@ -9,7 +9,7 @@
  * The streak rides the daily loop exactly like Cache Rank rides
  * its read: the GET first records today's check-in
  * (cc_record_login_streak_day — the first authenticated check-in
- * of the UTC day records the day and stamps the ladder reward on
+ * of the streak day records the day and stamps the ladder reward on
  * the claim row; the (player, day) row makes the record
  * exactly-once and any replay returns the stored row), then
  * reads the facts and renders the content module's state view.
@@ -17,8 +17,9 @@
  * claimable, until the player taps Claim — the POST pays it
  * exactly once (cc_claim_login_streak_day; the row's paid_at
  * stamp is the anchor). Only today's row can be paid, so an
- * unclaimed reward expires at the 00:00 UTC rollover while the
- * streak day itself still counts.
+ * unclaimed reward expires at the streak-day rollover (the day
+ * starts at 08:00 UTC since 0101) while the streak day itself
+ * still counts.
  *
  * Trust model (the #207 pattern): identity comes from the JWT
  * only; there is no body and nothing in a query can name a day, a
@@ -113,7 +114,7 @@ export function createGetLoginStreakHandler(store: ChefGameplayStore, config: Lo
     try {
       const playerId = getAuthenticatedChefPlayer(config, req);
       // Observe-and-record: the first authenticated check-in of the
-      // UTC day records the day (and its held reward) before the
+      // streak day records the day (and its held reward) before the
       // state is read, so the view always shows today's day as
       // earned and its reward as claimable until claimed.
       let granted: Json;

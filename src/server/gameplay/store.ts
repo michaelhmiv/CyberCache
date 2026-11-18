@@ -1275,11 +1275,15 @@ export class PgChefGameplayStore implements ChefGameplayStore {
   }
 
   async getLoginStreakFacts(playerId: string): Promise<LoginStreakFacts | null> {
+    // The streak day (0101): the UTC date of (now − 8 hours) —
+    // the day starts at 08:00 UTC, the same derivation the SQL
+    // chain (cc_record/cc_claim_login_streak_day) and the
+    // content module's LOGIN_STREAK_DAY_START_UTC_HOUR encode.
     const state = await this.one(
       `select coalesce(s.current_streak, 0) as current_streak,
               coalesce(s.longest_streak, 0) as longest_streak,
               s.last_claim_day::text as last_claim_day,
-              ((now() at time zone 'UTC')::date)::text as today
+              (((now() - interval '8 hours') at time zone 'UTC')::date)::text as today
          from public.profiles p
          left join public.login_streak_state s on s.player_id = p.id
         where p.id = $1`,
@@ -1297,7 +1301,7 @@ export class PgChefGameplayStore implements ChefGameplayStore {
               credits_awarded, fragments_awarded, cache_keys_awarded,
               (paid_at is not null) as paid
          from public.login_streak_claims
-        where player_id = $1 and claim_day = (now() at time zone 'UTC')::date`,
+        where player_id = $1 and claim_day = ((now() - interval '8 hours') at time zone 'UTC')::date`,
       [playerId],
       (row) => ({
         day: typeof row.day === 'string' ? row.day.slice(0, 10) : '',
