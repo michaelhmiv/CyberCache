@@ -3103,6 +3103,101 @@ the landing of all of it.
    crafting-bench scene inherits the sharper envelope; that is
    intended consistency, disclosed here.
 
+### 2026-11-17 — Skill effects belong to the fielded hunter (owner-ruled)
+
+The owner, playing the fix-round build: skill points spent to
+reduce crafting time, and the screen still said 10 minutes per
+unit. The audit that followed found the deeper rot — whole
+families of nodes displayed as owned but never reached gameplay
+(consumableEfficiency dead in the production store since the
+reshape landed; Doc Sutter's base perk absent from the SQL
+derivations; half the economy's functions reading the full
+skill_spends map ungated). The owner approved the full repair
+program, including the gating decision, the same evening.
+
+1. **One law, everywhere.** A hunter's tree effects are live
+   only while that hunter is fielded — the APPROVAL-BRIEF §2.2
+   law, now enforced in every derivation that reads skill terms:
+   the craft enqueue and completion, repairs, the vendor sale,
+   the cache draw, the market fee, salvage, and the store-side
+   derivations that feed them, in SQL and in the TS twin alike.
+   The Pg store derivations carry the player's active-hunter
+   context (F1); Doc Sutter's base perk (craft speed +0.025,
+   craft quality +1, while fielded) exists in the SQL craft
+   derivations with the TS semantics (F3, migration 0102).
+2. **Gating prices at the action instant.** Enqueue, sale,
+   repair start, and draw read the fielded hunter's terms at
+   that moment. A job's completion never re-reads live skills
+   against terms priced at enqueue: the enqueue snapshots its
+   quality/temper terms onto the job (snapshot.skillQualityBonus
+   / skillTemperBonus) beside the stored unit duration, and
+   completion consumes the snapshot.
+3. **Surfaces quote the stored truth.** The recipe card prints
+   the player's EFFECTIVE per-unit time — the exact duration a
+   new enqueue will store for the player's current state, from
+   the client's own gated derivation plus the equipped relic and
+   the server's resolved time scalar — with the base time as the
+   muted comparator when the two differ; XP prices off the same
+   stored duration. Bench surfaces show each job's own stored
+   rate, so a job queued before a respec honestly reads its
+   queued rate while new quotes read the new one.
+4. **Copy promises only what the formula delivers.** The
+   Demolition supply nodes share the quantized efficiency
+   formula with the Scavenger's: unit time falls in 2% steps as
+   points accumulate across the family, reaching −20% only with
+   all five maxed. Their descriptions say exactly that now; the
+   old "−2% per point" wording overpromised ~2.5×.
+### 2026-11-17 — The bench rundown: in Craft mode the zone answers for the bench (owner-ruled)
+
+The owner, on the device-pass build: while crafting, the black
+zone under the stage still printed the combat rundown — DPS
+"No weapon equipped," shield, mitigation — while the one thing
+he was doing (the bench job, its units, its queue) lived only
+in the Workshop panel below the fold. Renderings first (three
+zone variants, real code, full screens, seeded with his own
+bench state), then his pick: **V1, "Bench rundown."** This
+entry is the landing of it, and the zone law for Craft mode.
+
+1. **The zone answers for the current mode.** While Crafting
+   holds the Home slot — the same activity kind the stage's own
+   mode map calls `crafting` — the black zone is the bench
+   rundown (`BenchRundown`). Every other mode (Roam, Boss,
+   Endless, Extract, and the rest) renders the combat rundown
+   exactly as before; the gate is the one mode state, and the
+   consumables belt below the zone is untouched in all modes.
+2. **The bench read, in the shipped block's grammar.** A
+   WORKING row: the head job's own picture (resolved as the
+   bench seat resolves it), its name, its state word (Running /
+   Paused, in the JobCard state colors), units done/total, and
+   the bench strip's progress bar. Three fact cells: PER UNIT —
+   the head job's **stored** unit duration, its enqueue-time
+   snapshot rate, so a job queued before a skill spend honestly
+   reads its own rate here; THIS UNIT — the accrued share of
+   the unit on the bench; LEFT — the head job's remaining
+   time. A NEXT row when the queue is non-empty: the queued
+   jobs named with their remaining counts, the queue count,
+   and the queue's combined remaining time.
+3. **HP never leaves the first screen.** One slim vitals line
+   closes the zone: HP with its bar, and Shield — the shipped
+   rundown's own model (`buildHeroRundown`), so the numbers are
+   the shipped numbers. DPS, Mitigation, and Shield Break do
+   not render in Craft mode. (The crafting-stage entry above
+   kept the rundown's "No weapon equipped" line as the honest
+   unarmed read; in Craft mode that line now leaves with the
+   rest of the combat cells — the unarmed read lives in the
+   other modes and in Gear.)
+4. **The empty bench keeps the shape.** With no active or
+   queued job, the WORKING slot carries a BENCH IDLE row (the
+   bench banner's own idle word, the anvil tile) over the same
+   vitals line — no fact cells with nothing to measure.
+5. **Display only, client mirror only.** Every datum comes
+   from the client bench mirror, filtered exactly as the bench
+   seat filters it (service-lane jobs never head this zone);
+   nothing new comes from the server, and the per-unit figure
+   reads the job's stored duration — never the recipe's base
+   rate. The buff line under the zone is the shipped one,
+   shared, so mode-true buffs (Crafting Calm included) read
+   identically in both zones.
 ### 2026-11-17 — The streak day starts at 3 AM Eastern, and a paid today shows its check (owner-ruled)
 
 The owner, playing the fix-round build in the evening: "my two

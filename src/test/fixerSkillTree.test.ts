@@ -915,13 +915,21 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
   const ITEM_1 = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1';
 
   it('market: House Brand fires on crafted sales only; Manipulator on found sales only', async () => {
+    // Skill-routing fix (0102): the fee terms are hunter-gated — a
+    // term pays only while its tree's hunter is fielded, so the
+    // pre-law combined cases (Darknet + House Brand in one sale)
+    // split by the seller's fielded hunter. Same-tree terms still
+    // stack (Darknet + Manipulator under Josie = 0.40).
+    const JOSIE = { active_hunter_id: 'josie', action_skill_selection: 'Scavenger' };
+    const DOC = { active_hunter_id: 'doc', action_skill_selection: 'Fixer' };
     const runSale = async (
       spends: Record<string, number>,
       payload: Record<string, unknown>,
+      hunter: { active_hunter_id: string; action_skill_selection: string },
     ) => {
       const store = makeStore((s) => {
         s.profiles = [
-          profile({ id: P, credits: 0, skill_spends: spends, materials: { Scrap: 1000 } }), // T3: the sale posts the listing deposit
+          profile({ id: P, credits: 0, skill_spends: spends, materials: { Scrap: 1000 }, ...hunter }), // T3: the sale posts the listing deposit
           profile({ id: Q, credits: 100_000 }),
         ];
         s.items = [gearData(ITEM_1, P, payload)];
@@ -935,23 +943,37 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
       };
     };
 
-    // Crafted item, seller holds Darknet (maxed) + House Brand:
-    // 0.25 + 0.15 = 0.40, found_item false — the terms are disjoint.
+    // Crafted item, Josie fielded, seller holds Darknet (maxed) +
+    // House Brand: Darknet fires (0.25); House Brand is Fixer's and
+    // stays gated off — the terms are disjoint AND tree-gated.
     const crafted = await runSale(
       { scav_fee_1: 5, fix_major_3: 1 },
       { origin: 'crafted', sourceTag: 'Crafted', name: 'Crafted Gun' },
+      JOSIE,
     );
     expect(crafted.crafted_item).toBe(true);
     expect(crafted.found_item).toBe(false);
-    expect(crafted.fee_reduction).toBeCloseTo(0.4, 10);
-    expect(crafted.fee_credits).toBe(300);
-    expect(crafted.seller_proceeds).toBe(9700);
+    expect(crafted.fee_reduction).toBeCloseTo(0.25, 10);
+    expect(crafted.fee_credits).toBe(375);
+    expect(crafted.seller_proceeds).toBe(9625);
 
-    // Found item, seller holds Darknet + Manipulator + House Brand:
-    // House Brand stays silent; 0.25 + 0.15 (Manipulator) = 0.40.
+    // Crafted item, Doc fielded: House Brand fires alone (0.15).
+    const branded = await runSale(
+      { fix_major_3: 1 },
+      { origin: 'crafted', sourceTag: 'Crafted', name: 'Crafted Gun' },
+      DOC,
+    );
+    expect(branded.crafted_item).toBe(true);
+    expect(branded.fee_reduction).toBeCloseTo(0.15, 10);
+    expect(branded.fee_credits).toBe(425);
+
+    // Found item, Josie fielded, seller holds Darknet + Manipulator
+    // + House Brand: House Brand stays silent (wrong item AND wrong
+    // tree); 0.25 + 0.15 (Manipulator) = 0.40.
     const found = await runSale(
       { scav_fee_1: 5, scav_major_3: 1, fix_major_3: 1 },
       { sourceTag: 'World Drop', name: 'Found Gun' },
+      JOSIE,
     );
     expect(found.found_item).toBe(true);
     expect(found.crafted_item).toBe(false);
@@ -961,6 +983,7 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
     const noBrand = await runSale(
       { scav_fee_1: 5 },
       { origin: 'crafted', sourceTag: 'Crafted', name: 'Crafted Gun' },
+      JOSIE,
     );
     expect(noBrand.crafted_item).toBe(true);
     expect(noBrand.fee_reduction).toBeCloseTo(0.25, 10);
@@ -969,7 +992,7 @@ describe('vendor and market — Appraiser\'s Eye and House Brand', () => {
   it('market: House Brand applies to crafted consumable batches (batch_origin rule)', async () => {
     const store = makeStore((s) => {
       s.profiles = [
-        profile({ id: P, credits: 0, consumables: { MedKit: 2 }, skill_spends: { fix_major_3: 1 }, materials: { Scrap: 1000 } }), // T3: deposit
+        profile({ id: P, credits: 0, consumables: { MedKit: 2 }, skill_spends: { fix_major_3: 1 }, materials: { Scrap: 1000 }, active_hunter_id: 'doc', action_skill_selection: 'Fixer' }), // T3: deposit; Doc fielded so House Brand is live (0102)
         profile({ id: Q, credits: 100_000 }),
       ];
       s.consumableBatches = [{

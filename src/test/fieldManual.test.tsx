@@ -53,12 +53,15 @@ describe('Field Manual (HelpScreen)', () => {
     // [[Reference]]) = 332. The device-pass crafting pack adds +2
     // (Vendor's shared-picker note cross-references [[Crafting]];
     // Crafting's picker paragraph cross-references [[Vendor]])
-    // = 334.
+    // = 334. Composing the login-streak pass (#609) with the
+    // bench-rundown pass (#610) moves the census 334 -> 335:
+    // each branch measures 334 alone; the composed corpus
+    // reports 335.
     // Bump the pin in
     // the same change as any wiki edit that moves the census.
     await waitFor(() => expect(wikiCorpusReady()).toBe(true));
-    expect(getWikiLinkCount()).toBe(334);
-    await waitFor(() => expect(screen.getByText('334')).toBeTruthy());
+    expect(getWikiLinkCount()).toBe(335);
+    await waitFor(() => expect(screen.getByText('335')).toBeTruthy());
   });
 
   it('converges the Links LCD to whatever count the corpus itself reports', async () => {

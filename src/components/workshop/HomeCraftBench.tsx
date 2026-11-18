@@ -9,6 +9,7 @@ import { useActivityStore, useWorkshopStore } from '@/store';
 import { ALL_CRAFT_RECIPES } from '@/content/crafting';
 import { buildCraftingActivity } from '@/lib/activity/activityBuilders';
 import { humanizeWorkshopError } from '@/lib/workshop/errors';
+import { formatCraftTime } from '@/lib/workshop/recipeCosts';
 
 /**
  * Home's Craft workspace — the whole Workshop, consolidated onto
@@ -140,7 +141,7 @@ export const HomeCraftBench: React.FC<{
           {isCrafting && runningJob && runningPct !== null && (
             <span className="text-right leading-none">
               <span className="text-[20px] font-black text-text-primary">{runningJob.unitsCompleted}/{runningJob.unitsTotal}</span>
-              <span className="block text-[11px] font-bold text-text-muted">units · {runningPct}%</span>
+              <span className="block text-[11px] font-bold text-text-muted">units · {runningPct}% · {formatCraftTime(runningJob.unitDurationMs)}/unit</span>
             </span>
           )}
           {!isCrafting && !isService && benchJobs.length > 0 && (

@@ -505,13 +505,24 @@ describe('migration 0075 — provenance and shape pins', () => {
   };
 
   it('0075 is the chain head for every function it restates', () => {
-    for (const name of ['cc_enqueue_craft_job', 'cc_settle_craft_jobs']) {
+    for (const name of ['cc_settle_craft_jobs']) {
       const definers = readdirSync(dir)
         .filter((f) => f.endsWith('.sql'))
         .filter((f) => readFileSync(join(dir, f), 'utf8').includes(`create or replace function public.${name}(`))
         .sort();
       expect(definers[definers.length - 1]).toBe('0075_bench_time.sql');
     }
+    // Superseded for cc_enqueue_craft_job by migration 0102
+    // (skill-routing fix): 0102 restates the craft enqueue for the
+    // hunter gating + Doc-perk + completion-snapshot terms; its body
+    // carries 0075's bench-bank gates verbatim (the bank reads and
+    // the envelope composition survive — pinned in
+    // skillRoutingFix.test.ts).
+    const craftDefiners = readdirSync(dir)
+      .filter((f) => f.endsWith('.sql'))
+      .filter((f) => readFileSync(join(dir, f), 'utf8').includes('create or replace function public.cc_enqueue_craft_job('))
+      .sort();
+    expect(craftDefiners[craftDefiners.length - 1]).toBe('0102_skill_routing.sql');
     // Superseded for cc_enqueue_tint_job by migration 0099 (slice (d)):
     // 0099 restates the tint enqueue for the delisted-part discipline;
     // its body carries 0075's bench-bank gates verbatim (8 bench refs,

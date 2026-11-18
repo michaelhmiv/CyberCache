@@ -192,6 +192,15 @@ Lab — and every recipe now runs on the one bench.) It runs **1 job
 at a time with 5 queued** behind it; a Fixer keystone raises the
 queue. The crusher and the furnace are stations on the same bench.
 
+The time a recipe card quotes is **your** rate: the per-unit time
+a new job will actually run at, with your fielded hunter's craft
+skills counted in (Doc Sutter's own hand with time counts too,
+while he is fielded) — the base time rides beside it when the two
+differ. A job already on the bench keeps the rate it was queued
+at, and its row and the bench strip say that rate plainly, so a
+job queued before you spent points still reads its old time while
+new quotes read the new one.
+
 When a job finishes while you are somewhere else in the game, Home
 announces it — a **Bench ready** chip under the claim chips, naming the
 job (or counting several). Tap it to come straight here and collect. If

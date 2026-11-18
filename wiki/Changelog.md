@@ -12,6 +12,8 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The old parts wardrobe is fully retired now** — the Settings head-variant picker is gone (it claimed to change the head your hunter wears on the roaming stage; since the paintings arrived, nothing read it), and the equip machinery behind the old parts figure is removed with it. Nothing you own changes: parts stay in your collection, whole skins still wear in the Wardrobe, and every figure and portrait is the painting it already was.
 - **The consumable inspect sheet drops its Threshold row** — the Runtime Contract on a consumable's inspect sheet printed a Threshold percentage for the Med Kit, Shield Cell, and their kin, as if those items fired when your HP or shield crossed a line. They never did — the Med Kit is a stocked buffer that soaks damage first, and the Shield Cell restores your shield when it fires — so the row is gone, and the sheet now shows only the contract the items actually keep.
 - **Crafting is the bench's close-up now** — while Craft holds the Home stage, the hunter steps out of frame and the stage closes in on the bench itself: the anvil is gone, and the job's piece rests on the bench top where the anvil stood. The work reads in the strike light swelling and darkening over the piece, and in the piece's own small dip as each strike lands; a finished unit rises off the bench top. The Workshop's own bench scene keeps its anvil, exactly as before. And the stage no longer prints its tilted **Unarmed** tag when no weapon is equipped — the rundown under the stage still says so plainly.
+- **Your skills count where they say they count** — a skill tree belongs to the hunter who earned it: its effects are live while that hunter is fielded, priced at the moment you act. Recipe cards now quote your effective time per unit with your fielded hunter's craft skills counted in — Doc Sutter's own hand with time included while he is fielded — with the base time beside it when the two differ; a job already on the bench keeps the rate it was queued at, and its strip and row say so. The Demolition supply nodes' wording now matches what they deliver: unit time falls in steps as you invest across the five nodes, up to a fifth off with all five maxed.
+- **The zone under the stage answers for the bench while you craft** — while Craft holds the stage, the black rundown under it is the bench's own read instead of your combat numbers: the job being worked, pictured, with its state and its units done of total; the time each unit takes at the rate that job was queued at; how far the unit on the bench has come; how long the job has left; and what waits behind it, named, with the queue's combined time. Your HP and shield stay on a slim line at the zone's foot — the damage figures step aside only while you craft, and every other mode keeps the combat rundown exactly as before. An idle bench says so in the same place, over the same vitals line.
 - **The streak day starts at 3 AM Eastern now — and a claimed day shows its check** — the login-streak day used to roll over at 7 PM Eastern, so an evening session and the next morning's counted as two different days (and a reward recorded in the morning expired that same evening). A streak day now runs 3 AM Eastern to 3 AM Eastern (08:00 UTC; the sheet prints the start in your own local time), so playing at night and again in the morning is one day, and an unclaimed reward lives until 3 AM. Your recorded history was re-keyed onto the new day — no streak day or paid reward was lost in the move. And claiming today's reward now puts its check on the ladder's today cell immediately, instead of the check only appearing the next day.
 - **The queue leads the Workshop panel now** — on Home's Craft workspace, **Bench Jobs** is the panel's first content: above the recipe filters, your standing, and the bench strip, with a refused queue or cancel printed directly above it. The bench strip still names the head job and its progress at a glance — the list is where you manage the queue. And the **Tinting** lane now sits ahead of the recipe catalog instead of below all 64 recipes, so a tint no longer waits on a full scroll of the catalog.
 
@@ -410,9 +412,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 329 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 330 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 6 merges
+**2026-11-17** — 7 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
@@ -420,6 +422,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #605 — Portraits are paintings: look record carries hunter identity (Batch 3, migration 0100)
 - #606 — Retire the cosmetics write path, head-variant picker + pref, and WeaponCanvas (device-pass Batch 4)
 - #607 — Two small things: drop the false Threshold row; delete dead look selectors
+- #608 — Crafting stage: V1 zoom composition, anvil-free bench, Inkling animation treatment, Unarmed tag removed
 
 **2026-11-16** — 13 merges
 
