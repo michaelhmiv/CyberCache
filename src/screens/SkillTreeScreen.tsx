@@ -31,6 +31,7 @@ import {
   plateShell,
 } from '@/components/profile/hunterPlateTheme';
 import { TreesBoardVariant } from '@/harness/TreesBoardVariants';
+import { applyTreesCopy } from '@/harness/treesCopyOverrides';
 
 /**
  * ActionSkillPicker — the FIELDED hunter's signature plate (0030,
@@ -346,18 +347,32 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   const treesVariantParam = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('trees')
     : null;
+  // CAPTURE SEAM (dash/trees-v3copy, presentation only): ?copy=1
+  // lays the owner-ruled tightened node descriptions over the
+  // variant's nodes — harness-only data overrides, the shipped
+  // defs untouched. Absent the param, defs render as shipped.
+  const treesCopyParam = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('copy')
+    : null;
   if (treesVariantParam === '1' || treesVariantParam === '2' || treesVariantParam === '3') {
+    const copyNodes = treesCopyParam === '1' ? applyTreesCopy(nodes) : nodes;
+    const copyTiers = treesCopyParam === '1'
+      ? tiers.map(([tier, tierNodes]) => [tier, applyTreesCopy(tierNodes)] as [number, SkillNode[]])
+      : tiers;
+    const copySelected = treesCopyParam === '1'
+      ? (applyTreesCopy([selectedNode])[0] ?? selectedNode)
+      : selectedNode;
     return (
       <TreesBoardVariant
         variant={Number(treesVariantParam) as 1 | 2 | 3}
-        nodes={nodes}
-        tiers={tiers}
+        nodes={copyNodes}
+        tiers={copyTiers}
         spent={skillStore.spent}
         pointsAvailable={pointsAvailable}
         pointsSpent={pointsSpent}
         pointsEarned={pointsEarned}
         level={player.level}
-        selectedNode={selectedNode}
+        selectedNode={copySelected}
         onSpend={spendPoint}
         canSpend={canSpend}
         spendReason={spendReason}
