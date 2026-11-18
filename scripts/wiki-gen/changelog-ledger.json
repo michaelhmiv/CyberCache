@@ -24,6 +24,10 @@
         {
           "number": 606,
           "title": "Retire the cosmetics write path, head-variant picker + pref, and WeaponCanvas (device-pass Batch 4)"
+        },
+        {
+          "number": 607,
+          "title": "Two small things: drop the false Threshold row; delete dead look selectors"
         }
       ]
     },
