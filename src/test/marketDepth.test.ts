@@ -267,7 +267,7 @@ function writeSeed(): WriteSeed {
   s.profiles = [
     profile({ id: S, username: 'seller', credits: 0, consumables: { MedKit: 10 }, materials: { Scrap: 200, VoidDust: 3 } }), // Scrap 200 (T3): the sequence below posts five deposits — two cancel-burns, one sale refund, one cancel-burn, then the material listing
     profile({ id: B, username: 'buyer', credits: 100_000 }),
-    profile({ id: K, username: 'skilled', credits: 0, consumables: { ShieldCell: 2 }, skill_spends: { scav_fee_1: 5 }, materials: { Scrap: 100 } }), // T3: K's listing posts the 25-Scrap deposit
+    profile({ id: K, username: 'skilled', credits: 0, consumables: { ShieldCell: 2 }, skill_spends: { scav_fee_1: 5 }, active_hunter_id: 'josie', action_skill_selection: 'Scavenger', materials: { Scrap: 100 } }), // T3: K's listing posts the 25-Scrap deposit; gating law: Darknet Broker is Scavenger-tree, so K fields Josie for her fee terms to be live at the sale
     profile({ id: G, username: 'guest', account_type: 'guest', email_verified_at: null, consumables: { MedKit: 5 } }),
   ];
   s.consumableBatches = [
