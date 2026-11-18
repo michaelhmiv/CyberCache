@@ -5,13 +5,14 @@
  * consistent across the app. Still uses gearCardSummary for display and
  * GearCompare for deltas vs the currently equipped item.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Search, ArrowUpDown, X, LayoutGrid, List } from 'lucide-react';
 import { useInventoryStore } from '@/store';
 import { Element, Rarity, Manufacturer, WeaponType } from '@/types/game';
 import type { GearLoadoutSlot, LoadoutSlot } from '@/store/slices/loadoutSlice';
 import type { GearItem, Weapon } from '@/types/items';
 import { GearCompare } from '@/components/gear/GearCompare';
+import { useWindowedList } from '@/components/gear/useWindowedList';
 import { gearCardSummary } from '@/lib/gear/gearCardSummary';
 import { isItemCompatibleWithSlot } from '@/lib/loadout/loadoutSlotCompat';
 import { PickerSheet } from '@/components/common/PickerSheet';
@@ -328,6 +329,32 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
 
   const candidateItems = filtered.filter((item) => item.id !== currentItemId);
 
+  // Scroll windowing (first-screen audit, cluster B §5 scale
+  // flag, 2026-11-17): the picker used to map EVERY compatible
+  // item into the sheet — at the owner's 2,366-item inventory a
+  // weapon slot can hold ~1,000+ candidates, the same un-windowed
+  // mount-cost class the 2026-11-11 latency program fixed in
+  // GearHub. Same hook, same threshold behavior (a no-op at or
+  // below 72 candidates): only the on-screen slice mounts, and
+  // search / facets / sort keep reading the full candidate array.
+  // The reset key tracks every input that reorders or replaces
+  // the set wholesale (slot, view, search, sort, facet picks).
+  const facetSignature = Object.entries(activeFacets)
+    .map(([key, values]) => `${key}:${[...values].sort().join(',')}`)
+    .join('|');
+  const pickerContainerRef = useRef<HTMLDivElement | null>(null);
+  const pickerWindow = useWindowedList({
+    containerRef: pickerContainerRef,
+    count: candidateItems.length,
+    cols: viewMode === 'grid' ? 2 : 1,
+    estimate: viewMode === 'grid' ? 150 : 96,
+    gap: viewMode === 'grid' ? 8 : 6,
+    resetKey: `${slot}|${viewMode}|${search}|${sortKey}|${facetSignature}`,
+  });
+  const visibleCandidates = pickerWindow.windowed
+    ? candidateItems.slice(pickerWindow.start, pickerWindow.end)
+    : candidateItems;
+
   return (
     <PickerSheet
       title={SLOT_LABEL[slot]}
@@ -366,14 +393,22 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
           {hasActiveFilters ? 'No items match your search or filters.' : `No compatible ${SLOT_LABEL[slot].toLowerCase()} items in your inventory.`}
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-2 gap-2">
-          {candidateItems.map((item) => {
+        <div
+          ref={pickerContainerRef}
+          className="grid grid-cols-2 gap-2"
+          data-windowed={pickerWindow.windowed || undefined}
+        >
+          {pickerWindow.windowed && pickerWindow.topSpacer > 0 && (
+            <div aria-hidden style={{ height: pickerWindow.topSpacer }} className="col-span-2" />
+          )}
+          {visibleCandidates.map((item, i) => {
             const accent = RARITY_COLORS[item.rarity] ?? '#A5A7B5';
             const summary = gearCardSummary(item);
             const topStat = summary.primaryStats[0];
             return (
               <button
                 key={item.id}
+                data-widx={pickerWindow.start + i}
                 type="button"
                 disabled={busy}
                 onClick={() => onEquip(item.id)}
@@ -399,15 +434,26 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
               </button>
             );
           })}
+          {pickerWindow.windowed && pickerWindow.bottomSpacer > 0 && (
+            <div aria-hidden style={{ height: pickerWindow.bottomSpacer }} className="col-span-2" />
+          )}
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {candidateItems.map((item) => {
+        <div
+          ref={pickerContainerRef}
+          className="space-y-1.5"
+          data-windowed={pickerWindow.windowed || undefined}
+        >
+          {pickerWindow.windowed && pickerWindow.topSpacer > 0 && (
+            <div aria-hidden style={{ height: pickerWindow.topSpacer }} />
+          )}
+          {visibleCandidates.map((item, i) => {
             const accent = RARITY_COLORS[item.rarity] ?? '#A5A7B5';
             const summary = gearCardSummary(item);
             return (
               <button
                 key={item.id}
+                data-widx={pickerWindow.start + i}
                 type="button"
                 disabled={busy}
                 onClick={() => onEquip(item.id)}
@@ -442,6 +488,9 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
               </button>
             );
           })}
+          {pickerWindow.windowed && pickerWindow.bottomSpacer > 0 && (
+            <div aria-hidden style={{ height: pickerWindow.bottomSpacer }} />
+          )}
         </div>
       )}
     </PickerSheet>

@@ -13,6 +13,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The consumable inspect sheet drops its Threshold row** — the Runtime Contract on a consumable's inspect sheet printed a Threshold percentage for the Med Kit, Shield Cell, and their kin, as if those items fired when your HP or shield crossed a line. They never did — the Med Kit is a stocked buffer that soaks damage first, and the Shield Cell restores your shield when it fires — so the row is gone, and the sheet now shows only the contract the items actually keep.
 - **Crafting is the bench's close-up now** — while Craft holds the Home stage, the hunter steps out of frame and the stage closes in on the bench itself: the anvil is gone, and the job's piece rests on the bench top where the anvil stood. The work reads in the strike light swelling and darkening over the piece, and in the piece's own small dip as each strike lands; a finished unit rises off the bench top. The Workshop's own bench scene keeps its anvil, exactly as before. And the stage no longer prints its tilted **Unarmed** tag when no weapon is equipped — the rundown under the stage still says so plainly.
 - **The streak day starts at 3 AM Eastern now — and a claimed day shows its check** — the login-streak day used to roll over at 7 PM Eastern, so an evening session and the next morning's counted as two different days (and a reward recorded in the morning expired that same evening). A streak day now runs 3 AM Eastern to 3 AM Eastern (08:00 UTC; the sheet prints the start in your own local time), so playing at night and again in the morning is one day, and an unclaimed reward lives until 3 AM. Your recorded history was re-keyed onto the new day — no streak day or paid reward was lost in the move. And claiming today's reward now puts its check on the ladder's today cell immediately, instead of the check only appearing the next day.
+- **The Gear tab gets jump chips, and comparing works for every kind of gear** — three chips under the strip — Loadout, Inventory, Belt — take you straight to that part of the page, so the inventory's search box and your belt are one tap away instead of a long scroll past the doll and the whole item list. The Compare sheet now prints real numbers for shields, class mods, ordnance, and relics too (it used to show two pictures and two names for anything that wasn't a weapon) — the same gain-and-loss strip the slot picker rows carry. And the slot picker itself opens instantly on a deep inventory now: it loads its candidate list in windows as you scroll, the way the inventory already did.
 
 ## 2026-11-16 — The Cache Hunters take the field
 
@@ -409,9 +410,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 329 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 330 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 6 merges
+**2026-11-17** — 7 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
@@ -419,6 +420,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #605 — Portraits are paintings: look record carries hunter identity (Batch 3, migration 0100)
 - #606 — Retire the cosmetics write path, head-variant picker + pref, and WeaponCanvas (device-pass Batch 4)
 - #607 — Two small things: drop the false Threshold row; delete dead look selectors
+- #608 — Crafting stage: V1 zoom composition, anvil-free bench, Inkling animation treatment, Unarmed tag removed
 
 **2026-11-16** — 13 merges
 
