@@ -67,7 +67,7 @@ flipped — there is nothing to claim.
 
 ## Finding what you can make
 
-The Workshop opens on the catalog, sorted by **readiness**:
+The catalog sorts by **readiness**:
 
 - **Craftable now** — materials in hand, every gate met. The
   **Craftable now** chip at the top of the page carries the live
@@ -79,17 +79,19 @@ The Workshop opens on the catalog, sorted by **readiness**:
 - **Locked** — two or more kinds of blockers; the card prints every
   one of them.
 
-Above the list, two strips print the numbers the gates read: your
-**standing** (Mastery per lane, and your Production Systems research
-state) and **the Bench** card — the one bench, always ready, with
-the craft relics listed as its permanent modifiers (see below).
-The Bench strip also names the job at the head of the queue with
-its progress — units done and a percent — working or paused, so a
+Two strips print the numbers the gates read: your **standing**
+(Mastery per lane, and your Production Systems research state) and
+**the Bench** card — the one bench, always ready, with the craft
+relics listed as its permanent modifiers (see below). The Bench
+strip also names the job at the head of the queue with its
+progress — units done and a percent — working or paused, so a
 queue headed by an old, long job says so at a glance. On Home's
-Craft workspace the **Bench Jobs** list itself sits at the top of
-the workspace, directly under the strips, and a refused queue or
-cancel prints there too, where the tap happened; the standalone
-Workshop page keeps the list in flow below the catalog.
+Craft workspace the **Bench Jobs** list itself leads the panel —
+above the recipe filters, the standing strip, and the Bench
+strip — and a refused queue or cancel prints directly above it,
+where the tap happened; the standalone Workshop page keeps the
+list in flow below the catalog. The **Tinting** lane sits ahead
+of the catalog, before the first recipe card.
 
 A recipe card's face is lean: the item — a consumable or a refined
 material pictured as itself, in the same adopted painting its cards
