@@ -53,11 +53,11 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 5 | **Siege Mode** | small | 1 | 5 | +15% Heavy Weapon Burst | — |
 | 6 | **Ion Surge** | small | 1 | 5 | +10% Shield Break Contribution from Ordnance | — |
 | 6 | **Ion Cascade** | small | 1 | 5 | +10% Shield Break Contribution from Ordnance | — |
-| 1 | **Field Kitchen** | small | 1 | 5 | Workshop craft jobs run faster: unit time falls in 2% steps as you invest across the five supply nodes — up to −20% with all five maxed (server-side, snapshotted at enqueue). | — |
-| 2 | **Powder Stores** | small | 1 | 5 | Workshop craft jobs run faster: unit time falls in 2% steps as you invest across the five supply nodes — up to −20% with all five maxed (server-side, snapshotted at enqueue). | — |
-| 3 | **Grease and Wicks** | small | 1 | 5 | Workshop craft jobs run faster: unit time falls in 2% steps as you invest across the five supply nodes — up to −20% with all five maxed (server-side, snapshotted at enqueue). | — |
-| 4 | **Spares Cache** | small | 1 | 5 | Workshop craft jobs run faster: unit time falls in 2% steps as you invest across the five supply nodes — up to −20% with all five maxed (server-side, snapshotted at enqueue). | — |
-| 5 | **Forward Stockpile** | small | 1 | 5 | Workshop craft jobs run faster: unit time falls in 2% steps as you invest across the five supply nodes — up to −20% with all five maxed (server-side, snapshotted at enqueue). | — |
+| 1 | **Field Kitchen** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
+| 2 | **Powder Stores** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
+| 3 | **Grease and Wicks** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
+| 4 | **Spares Cache** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
+| 5 | **Forward Stockpile** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
 | 7 | **Breaching Charge** | major | 3 | 1 | Ordnance strips an additional 20% shield before the DPS phase. | Ion Surge, Payload Expansion |
 | 7 | **Concussive Payload** | major | 3 | 1 | Stagger effects last 30% longer and reduce boss damage output by 15% while active. | Concussion, Impact Force |
 | 8 | **Scorched Earth** | major | 3 | 1 | If you bring a Launcher as Heavy Weapon, gain +20% armor break and +10% boss DPS. | Penetrator Rounds, Crack Core |

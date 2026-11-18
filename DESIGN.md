@@ -3602,6 +3602,10 @@ trees", 2026-11-18):
    copy is dormant-but-synced by law. Landing that rewrite
    takes a companion migration updating the seed copy and
    repointing the pin; the other 13 rewrites land here.
+   **Landed 2026-11-18:** migration 0103 carries the
+   demo_cons rewrite into `skill_node_definitions`, the defs
+   carry the same words, and the F6 pin reads 0103 — the
+   withheld row is closed, all eighteen rewrites in.
    Costs, prerequisites, effects, and the spend math do
    not change — this is presentation and one spend
    surface, not a rebalance.

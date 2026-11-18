@@ -314,8 +314,8 @@ describe('F6 — the quantized formula the corrected copy promises', () => {
     expect(consumableEfficiencyDurationMultiplier(1.0)).toBeCloseTo(0.8, 10);
   });
 
-  it('the TS node copy and the 0102 description update carry the same words', () => {
-    const sql = readFileSync(join(process.cwd(), 'db/migrations/0102_skill_routing.sql'), 'utf8');
+  it('the TS node copy and the 0103 description update carry the same words', () => {
+    const sql = readFileSync(join(process.cwd(), 'db/migrations/0103_demo_cons_copy.sql'), 'utf8');
     for (const id of ['demo_cons_1', 'demo_cons_2', 'demo_cons_3', 'demo_cons_4', 'demo_cons_5']) {
       const node = SKILL_NODES.find((n) => n.id === id)!;
       expect(sql).toContain(node.description);
