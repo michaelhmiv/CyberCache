@@ -416,9 +416,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 331 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 330 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 8 merges
+**2026-11-17** — 7 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
@@ -427,7 +427,6 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #606 — Retire the cosmetics write path, head-variant picker + pref, and WeaponCanvas (device-pass Batch 4)
 - #607 — Two small things: drop the false Threshold row; delete dead look selectors
 - #608 — Crafting stage: V1 zoom composition, anvil-free bench, Inkling animation treatment, Unarmed tag removed
-- #609 — Login streak: paid today shows its check; streak day starts at 08:00 UTC (0101)
 
 **2026-11-16** — 13 merges
 
