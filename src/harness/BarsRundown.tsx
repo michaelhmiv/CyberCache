@@ -28,9 +28,13 @@ import { BARS_ENDLESS_RUN, BARS_EXTRACTION_STATE } from './barsSeed';
  *   ExtractRundown (Extraction view) — the paused delve's
  *     facts ride the zone: next-pass countdown as the hero,
  *     gear factor / per-pass draws / mastery as fact cells,
- *     and the Deep Delve ×0.80 warning as its own line (the
- *     panel prints it only while the delve is active; a paused
- *     delve is exactly when the player weighs resuming).
+ *     the Deep Delve ×0.80 warning as its own line (the panel
+ *     prints it only while the delve is active; a paused delve
+ *     is exactly when the player weighs resuming), and a
+ *     Resume button as the zone's foot — Extraction is a view
+ *     over another occupation's screen, so its first screen is
+ *     the zone's, and a sticky bar inside the panel cannot
+ *     reach it (the panel head starts below the fold there).
  *
  * Data: both read ./barsSeed — today the panels hold this
  * state in component useState (from getEndlessMe /
@@ -94,9 +98,9 @@ const VitalsLine: React.FC<{ model: HeroRundownModel }> = ({ model }) => (
 );
 
 const FactCell: React.FC<{ label: string; value: string; valueCls?: string }> = ({ label, value, valueCls }) => (
-  <div className="flex min-h-[44px] min-w-0 flex-1 items-center justify-between gap-1 border-l border-border/60 px-2 py-1.5 first:border-l-0">
-    <span className="truncate text-[11px] font-black uppercase text-text-muted">{label}</span>
-    <span className={`whitespace-nowrap text-[15px] font-black leading-tight ${valueCls ?? 'text-text-primary'}`}>{value}</span>
+  <div className="min-h-[44px] min-w-0 flex-1 border-l border-border/60 px-2 py-1.5 first:border-l-0">
+    <span className="block truncate text-[11px] font-black uppercase text-text-muted">{label}</span>
+    <span className={`block truncate whitespace-nowrap text-[15px] font-black leading-tight ${valueCls ?? 'text-text-primary'}`}>{value}</span>
   </div>
 );
 
@@ -209,6 +213,22 @@ export const ExtractRundown: React.FC = () => {
         </div>
       )}
       <VitalsLine model={vitals} />
+      {/* The zone carries the action on this surface (the
+          chamber zone's BANK precedent): Extraction is a view
+          over another occupation's screen, so its first screen
+          is the zone's — a sticky bar inside the panel cannot
+          reach it (the panel head starts below the fold). The
+          button resumes the SAVED delve as-is; changing method
+          or site stays with the panel's own start button beside
+          the method doors. Affordance study — no action wired. */}
+      <div className="border-t border-border/60 px-2 py-2">
+        <button
+          type="button"
+          className="bl-primary min-h-[48px] w-full px-4 text-[11px] font-black uppercase tracking-wider"
+        >
+          Resume — Pass {(state.finalizedPasses ?? 0) + (state.pendingPasses ?? 0) + 1} · {formatClock(state.passMs - state.accruedMs)} left
+        </button>
+      </div>
     </div>
   );
 };
