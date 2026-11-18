@@ -421,9 +421,15 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 333 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 337 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 10 merges
+**2026-11-18** — 3 merges
+
+- #613 — First-screen lifts (B2): the datum leads its surface — 8 small lifts from the audit census
+- #614 — First-screen Gear batch: jump chips, all-kind compare strip, windowed slot picker
+- #615 — R2 bars: prep action bars, chamber + extract rundown zones, run-state lift (item 40)
+
+**2026-11-17** — 11 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
@@ -435,6 +441,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #609 — Login streak: paid today shows its check; streak day starts at 08:00 UTC (0101)
 - #610 — Craft-info V1: the bench rundown takes the Home zone in Craft mode
 - #611 — Skill-routing fix: every skill tree reaches gameplay (F1–F8, migration 0102)
+- #612 — First-screen fix (Workshop): Bench Jobs leads the embedded panel; TintPanel ahead of the catalog
 
 **2026-11-16** — 13 merges
 
