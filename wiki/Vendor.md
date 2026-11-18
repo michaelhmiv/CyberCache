@@ -25,6 +25,11 @@ picker sets the unit count on a Workshop recipe card — there,
 MAX is read from the inputs you hold instead of your credits
 (see [[Crafting]]).
 
+The counter's family rail, search, and sort lead the buy side,
+above the Item of the Day and Today's Rotation: they filter the
+staples list below, so the staple you came for is a search away,
+not a scroll.
+
 ## The staples — always in stock
 
 Nine consumables are stocked every day, in unlimited quantity:

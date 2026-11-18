@@ -96,6 +96,8 @@ Cache Rank is the permanent-bonus ladder that sits on top of levels. Its rules a
 - Maxing one track costs 30 tokens; maxing all seven would cost 210 — more than the 174 a full climb earns. **Choices are permanent and matter.**
 - There is **no respec** for Cache Rank. That is deliberate: the bonuses are small and broad, and level-bound tokens cannot be farmed by re-spending.
 
+On the panel itself, the seven bonus channels sit above the milestone tape: the spending surface first, the record of level bundles below it.
+
 Cache Rank is a separate currency from skill points — spending tokens never touches your level − 1 skill budget, and retraining your skills never touches Cache Rank.
 
 ## Mastery

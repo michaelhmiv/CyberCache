@@ -7,8 +7,9 @@ whole, never in pieces, and **pure cosmetic — zero stats**.
 
 ## Whole skins: the Wardrobe
 
-Open **Hunter → Wardrobe** to see your fielded hunter's painting
-and their skins. Every hunter starts with their **Standard Issue**
+Open **Hunter → Wardrobe** to see your fielded hunter's skins —
+the list leads, with their painting below it as the preview.
+Every hunter starts with their **Standard Issue**
 skin — the painting itself:
 
 - **Vesper Cole** — the cache-touched gunslinger: outlaw brim,
