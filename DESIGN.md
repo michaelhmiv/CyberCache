@@ -3445,3 +3445,26 @@ layout") and it ships as rendered:
    (paint still clips) without creating the cage. Verified: no
    other sticky descendant or clipping behavior under either
    root relied on the hidden value.
+
+### 2026-11-18 — The extraction set is repainted: timber, canvas, and rope (owner-ruled)
+
+The extraction stage's three set pieces — the claim stakes
+(set-extract-stakes), the sift rig (set-extract-rig), and the
+crates (set-extract-crates) — shipped in a neon-glass handling
+that clashed with the game's painterly set family. The owner
+reviewed the repainted set on rendered stage frames and adopted
+it ("Adopt the new extraction set", 2026-11-18):
+
+1. **The repainted pieces are the set.** All three pieces are
+   repainted painterly — timber frames, canvas, and rope — in
+   the handling of the bench family. The neon-glass originals
+   are retired for these three pieces.
+2. **Nothing else moves.** The repaint lands at identical file
+   dimensions (stakes 2000×1200, rig 1280×1920, crates
+   1600×1600); the stage composition — stakes at xPct 14, the
+   rig at 58, crates at 86 — the anchors, and the placement
+   are unchanged. Art only: no layout, mechanic, or number
+   changes.
+3. **Scope is the trio.** The adoption covers the extraction
+   set only; the game's other set pieces keep their current
+   paintings under their own rulings.

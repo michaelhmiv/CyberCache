@@ -3,6 +3,23 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-18",
+      "merges": [
+        {
+          "number": 613,
+          "title": "First-screen lifts (B2): the datum leads its surface — 8 small lifts from the audit census"
+        },
+        {
+          "number": 614,
+          "title": "First-screen Gear batch: jump chips, all-kind compare strip, windowed slot picker"
+        },
+        {
+          "number": 615,
+          "title": "R2 bars: prep action bars, chamber + extract rundown zones, run-state lift (item 40)"
+        }
+      ]
+    },
+    {
       "date": "2026-11-17",
       "merges": [
         {
@@ -44,6 +61,10 @@
         {
           "number": 611,
           "title": "Skill-routing fix: every skill tree reaches gameplay (F1–F8, migration 0102)"
+        },
+        {
+          "number": 612,
+          "title": "First-screen fix (Workshop): Bench Jobs leads the embedded panel; TintPanel ahead of the catalog"
         }
       ]
     },

@@ -7,6 +7,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The thing you came for is at the top now** — a pass over every stop put each surface's main event back in the first screen: your own standing pins right under the Standings board's header instead of at its foot; **View Full Profile** stays pinned to the foot of a hunter's pop-up instead of scrolling away; the Vendor's search and sort sit at the top of the buy mode instead of below the whole rotation; on the Repair and Shield Tech boards, **My workbench** — the jobs you are working — leads the page whenever you have one going; Cache Rank's **Bonus Channels** come before the Milestone Tape; and the Wardrobe's skin list comes before the big showcase painting, so **Wear** is the first thing you reach. Nothing about what any of these do changed — they just stopped making you scroll for them.
 - **Dispatch offers show their pay, and the roam rundown counts the target down** — every offer on the Contract Board now prints what it pays right on its face, so you can compare the board without opening each preview (the preview still refines the number for the exact loadout or vehicle you commit). And while you roam, the rundown's fourth cell reads **Target HP** — the current target's remaining health, counting down as you work it — in place of Shield Break, which no roam can use; the other modes keep Shield Break as they were.
 - **The decision rides at the fold now** — boss prep and Chamber entry pin a bar at the fold with the true price and the start button, so the fee you will pay is on the first screen, not at the bottom of the scroll. While a Chamber run is live, the zone under the stage answers for the run: your depth, the escrow at risk, what dying would pay, the next milestone — and **Bank & Leave** with the full payout, right there. And while you are looking at a delve, the zone answers for the extraction: the site and method, the time to the next pass, your gear factor — including the **Deep Delve paying as Surface** warning whenever a deep delve's factor sits below ×0.80, even while the delve is paused, with **Resume** beside it to set the saved delve working again as-is.
+- **Extraction sites wear their new painted set** — the claim stakes, the sift rig, and the crates at every extraction site are painted in timber, canvas, and rope now, matching the workshop's bench family; the old neon-glass set is retired. The work itself is unchanged — same sites, same passes, same finds — it just belongs to the same world as the rest of the set dressing now.
 
 ## 2026-11-17 — The bench shows its work; drops show themselves; the painting, everywhere the hunter stands
 
@@ -421,9 +422,15 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 333 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 337 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 10 merges
+**2026-11-18** — 3 merges
+
+- #613 — First-screen lifts (B2): the datum leads its surface — 8 small lifts from the audit census
+- #614 — First-screen Gear batch: jump chips, all-kind compare strip, windowed slot picker
+- #615 — R2 bars: prep action bars, chamber + extract rundown zones, run-state lift (item 40)
+
+**2026-11-17** — 11 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
@@ -435,6 +442,7 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #609 — Login streak: paid today shows its check; streak day starts at 08:00 UTC (0101)
 - #610 — Craft-info V1: the bench rundown takes the Home zone in Craft mode
 - #611 — Skill-routing fix: every skill tree reaches gameplay (F1–F8, migration 0102)
+- #612 — First-screen fix (Workshop): Bench Jobs leads the embedded panel; TintPanel ahead of the catalog
 
 **2026-11-16** — 13 merges
 

@@ -422,6 +422,15 @@ describe('performance + payload budgets (§4.9)', () => {
     // No existing sprite is modified or removed. Manifest total
     // 36,739,007 → 37,026,461 B; the ceiling literal follows the
     // total +1.
-    expect(total).toBeLessThan(37_026_461 + 1);  });
+    // Extraction set repaint (2026-11-18): the three extraction
+    // set pieces are repainted in the painterly timber / canvas /
+    // rope handling of the bench family, replacing the neon-glass
+    // originals at identical file dimensions (owner ruling
+    // 2026-11-18, DESIGN.md §12): set-extract-rig 406,505 ->
+    // 564,266 B, set-extract-crates 470,637 -> 564,207 B,
+    // set-extract-stakes 466,403 -> 229,565 B — trio +14,493 B
+    // net (+1.1% on the family). Manifest total 37,026,461 →
+    // 37,040,954 B; the ceiling literal follows the total +1.
+    expect(total).toBeLessThan(37_040_954 + 1);  });
 
 });
