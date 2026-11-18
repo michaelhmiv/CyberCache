@@ -34,7 +34,6 @@ const SDK_ERROR_MESSAGE =
   "Publisher misconfiguration: Failed to read publisher's account configuration; no form(s) configured for the input app ID. Verify that you have configured one or more forms for this application and try again. Received app ID: ca-app-pub-2708638041809482~7527406300";
 
 const GAME_NOTICE = 'No ad is available right now, so the cache stayed closed — try again later.';
-const TEST_AD_UNIT_ID = 'ca-app-pub-3940256099942544/5224354917';
 
 // ---------------------------------------------------------------------------
 // Screen level: the cache surface maps an ad-step failure to the
