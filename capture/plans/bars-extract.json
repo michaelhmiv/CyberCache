@@ -1,0 +1,16 @@
+{
+ "dsf": 2,
+ "width": 412,
+ "height": 915,
+ "steps": [
+  {
+   "wait": 12000
+  },
+  {
+   "dump": "(() => { const bar = document.querySelector('[data-testid=\"extract-bar\"]'); if (!bar) return 'BAR ABSENT'; const r = bar.getBoundingClientRect(); return JSON.stringify({ top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight }); })()"
+  },
+  {
+   "shot": "extract-bar-zone"
+  }
+ ]
+}

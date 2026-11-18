@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
+import { barsEnabled } from '@/harness/barsSeam';
+import { PrepActionBar } from '@/harness/PrepActionBar';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Lock } from 'lucide-react';
 import type { PhaseAnalysis } from '../../types/boss';
@@ -637,6 +639,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
             chargeSourceNote="Charge carries across encounters inside a run and resets when the run ends."
           />
 
+          {!barsEnabled() && (
           <button
             type="button"
             data-testid="endless-start"
@@ -650,6 +653,7 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
                 ? `Enter the Chamber — ${fee.toLocaleString()}cr entry`
                 : 'Enter the Chamber — Free Entry'}
           </button>
+          )}
           {!canAfford && (
             <div className="text-center text-[10px] text-red">You hold {player.credits.toLocaleString()}cr — the {fee.toLocaleString()}cr entry fee is out of reach.</div>
           )}
@@ -657,6 +661,28 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
             <div className="text-center text-[10px] text-amber">
               Entry fee escalated ×{intel.entry.feeMultiplier} — {intel.entry.runsStartedToday} {intel.entry.runsStartedToday === 1 ? 'run' : 'runs'} started today. Resets at 00:00 UTC.
             </div>
+          )}
+          {/* R2 bars-render variant: the sticky prep action bar —
+              last element of the prep fragment, so its sticky
+              range is the panel root. Replaces the in-flow Enter
+              button above while ?bars=1. */}
+          {barsEnabled() && (
+            <PrepActionBar
+              testId="endless-prep-bar"
+              title="Chaos Chamber"
+              buttonLabel="Enter Chamber"
+              onAction={handleStart}
+              disabled={!canAfford || busy}
+              detail={fee > 0 ? (
+                <>
+                  Entry <span className="text-text-primary">{fee.toLocaleString()} cr</span>
+                  {intel.entry.feeMultiplier > 1 && <span className="text-amber"> · escalated ×{intel.entry.feeMultiplier} today</span>}
+                  {!canAfford && <span className="text-red"> · you hold {player.credits.toLocaleString()} cr</span>}
+                </>
+              ) : (
+                'Free entry'
+              )}
+            />
           )}
         </>
       )}

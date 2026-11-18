@@ -4,6 +4,7 @@ import { ResourceBar } from '@/components/layout/ResourceBar';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { DashboardDeck } from '@/components/dashboard/DashboardDeck';
 import { ActionScreenContextual } from '@/screens/ActionScreenContextual';
+import { barsEnabled } from '@/harness/barsSeam';
 import { useActivityStore } from '@/store';
 
 /** The occupation displacement strip (audit H-02) — see HomeScreen. */
@@ -52,7 +53,7 @@ interface HomeScreenProps {
  */
 export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate, onOpenBossSelect, craftBenchIntent = null }) => {
   return (
-    <div className="bl-page relative overflow-hidden p-2 pb-16">
+    <div className="bl-page relative overflow-hidden p-2 pb-16" style={barsEnabled() ? { overflow: 'clip' } : undefined}>
       <div className="pointer-events-none absolute inset-0 opacity-70"><div className="absolute left-5 top-20 h-48 w-48 rounded-full bg-amber/10 blur-3xl" /><div className="absolute right-2 top-72 h-48 w-48 rounded-full bg-red/10 blur-3xl" /></div>
       <div className="relative space-y-2">
         {/* The Strip — the wallet prints exactly once on Home, with

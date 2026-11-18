@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
+import { barsEnabled } from '@/harness/barsSeam';
+import { PrepActionBar } from '@/harness/PrepActionBar';
 import { AlertTriangle, CheckCircle, Lock, RefreshCw } from 'lucide-react';
 import {
   getExtractionState,
@@ -314,6 +316,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
               {deepUnlocked ? 'Deep Delve ×1.5' : <><Lock size={10} className="mr-1 inline" /> Deep Delve</>}
             </button>
           </div>
+          {!barsEnabled() && (
           <button
             type="button"
             onClick={() => void startExtraction()}
@@ -331,6 +334,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
                     ? 'Resume extraction here'
                     : 'Start extraction'}
           </button>
+          )}
         </div>
         {/* Assumption-gaps G7: the Deep Delve lock reason and
             terms used to live only in the button's title=
@@ -411,6 +415,34 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
             {state?.finalizedPasses ?? 0} passes all-time · {state?.totalXpAwarded ?? 0} XP banked from extraction
           </p>
         </MobileCard>
+      )}
+
+      {/* R2 bars-render variant: the sticky action bar — last
+          child of the panel root so its sticky range spans the
+          whole panel. Replaces the in-flow start button above
+          while ?bars=1; the ×0.80 warning rides the rundown
+          zone (ExtractRundown), not this bar. */}
+      {barsEnabled() && state && (
+        <PrepActionBar
+          testId="extract-bar"
+          title={`${selectedArea.name} — ${methodChoice === 'deep' ? 'Deep Delve' : 'Surface Sweep'}`}
+          buttonLabel={starting
+            ? 'Claiming…'
+            : active && state?.areaId === selectedArea.id && state?.method === methodChoice
+              ? 'Site Claimed'
+              : active
+                ? 'Move Site'
+                : state?.hasState
+                  ? 'Resume'
+                  : 'Start'}
+          onAction={() => void startExtraction()}
+          disabled={starting}
+          detail={state.hasState
+            ? active
+              ? causeLabel
+              : `Pass ${passNumber} · paused at ${formatClock(state.passMs - state.accruedMs)} left`
+            : 'No site claimed'}
+        />
       )}
     </div>
   );

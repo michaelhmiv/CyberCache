@@ -30,6 +30,8 @@ import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { HotFlameMark } from '@/components/dashboard/HotFlameMark';
 import { isHotArea } from '@/content/hotArea';
 import { HeroRundown } from '@/components/dashboard/HeroRundown';
+import { barsEnabled, barsPanel } from '@/harness/barsSeam';
+import { ChamberRundown, ExtractRundown } from '@/harness/BarsRundown';
 import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -173,8 +175,8 @@ export const ActionScreenContextual: React.FC<{
   const [showAreaSelect, setShowAreaSelect] = useState(false);
   const [showBossPicker, setShowBossPicker] = useState(false);
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
-  const [showEndless, setShowEndless] = useState(false);
-  const [showExtraction, setShowExtraction] = useState(false);
+  const [showEndless, setShowEndless] = useState(() => barsPanel() === 'endless');
+  const [showExtraction, setShowExtraction] = useState(() => barsPanel() === 'extract');
   // The Craft bench as a view (consolidation, 2026-11-04): like the
   // Endless/Extraction prep panels, the bench workspace can open
   // WITHOUT claiming the action slot — looking at the bench never
@@ -759,7 +761,7 @@ export const ActionScreenContextual: React.FC<{
   ) : null;
 
   return (
-    <div className="bl-page relative flex flex-col gap-3 overflow-hidden">
+    <div className="bl-page relative flex flex-col gap-3 overflow-hidden" style={barsEnabled() ? { overflow: 'clip' } : undefined}>
       {/* Section-gap law (owner, 2026-11-05): this block is a
           stack of Home sections (rail → stage → belt →
           workspace → feed) on the ONE 8px section gap
@@ -836,7 +838,17 @@ export const ActionScreenContextual: React.FC<{
           endlessRunId={currentKind === 'endless_run' ? activity.current.targetId : undefined}
           stageControls={stageControls}
         />
-        <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
+        {/* R2 bars-render variant: behind ?bars=1 the zone
+            answers for the endless run (ChamberRundown) and
+            for the extraction view (ExtractRundown); every
+            other mode keeps the shipped rundown. */}
+        {barsEnabled() && currentKind === 'endless_run' ? (
+          <ChamberRundown />
+        ) : barsEnabled() && (currentKind === 'extraction' || showExtraction) ? (
+          <ExtractRundown />
+        ) : (
+          <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
+        )}
       </div>
 
       {/* 3. Consumable belt (§4) — in the mode rail's vacated

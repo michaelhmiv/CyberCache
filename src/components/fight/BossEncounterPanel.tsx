@@ -18,6 +18,8 @@ import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import type { SkillTreeType } from '@/types/game';
 import { ActionSkillCard } from './ActionSkillCard';
 import { bossFeeMultiplier, bossBaseFee, escalatedBossFee } from '../../lib/bossFees';
+import { barsEnabled } from '@/harness/barsSeam';
+import { PrepActionBar } from '@/harness/PrepActionBar';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
 import { useActivityStore, useBossStore, useLoadoutStore, usePlayerStore, useSurvivalStore } from '../../store';
@@ -772,7 +774,7 @@ export const BossEncounterPanel: React.FC<{
               <Lock size={14} className="mt-0.5 shrink-0 text-amber" />
               Locked — defeat the previous boss to unlock {boss.name}.
             </div>
-          ) : (
+          ) : barsEnabled() ? null : (
             <button
               type="button"
               data-testid="boss-start"
@@ -878,6 +880,30 @@ export const BossEncounterPanel: React.FC<{
         </motion.div>
       ) : null}
       </AnimatePresence>
+
+      {/* R2 bars-render variant: the sticky prep action bar —
+          a direct child of the panel root so its sticky range
+          spans the whole panel (the prep motion.div starts
+          below the workspace fold and would cage it). Replaces
+          the in-flow Start button above while ?bars=1. */}
+      {stage === 'prep' && barsEnabled() && unlocked && (
+        <PrepActionBar
+          testId="boss-prep-bar"
+          title={boss.name}
+          buttonLabel="Start Encounter"
+          onAction={handleStart}
+          disabled={!canAfford || activity.pending}
+          detail={entryFee > 0 ? (
+            <>
+              {defeated ? 'Rematch' : 'Entry'} <span className="text-text-primary">{entryFee.toLocaleString()} cr</span>
+              {feeMultiplier > 1 && <span className="text-amber"> · escalated ×{feeMultiplier} today</span>}
+              {!canAfford && <span className="text-red"> · you hold {player.credits.toLocaleString()} cr</span>}
+            </>
+          ) : (
+            'Free entry'
+          )}
+        />
+      )}
 
       {/* Boss LootMoment over the victory result — the rarity ladder
           for the drops the Chef actually awarded (already synced to
