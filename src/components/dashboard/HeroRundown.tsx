@@ -4,6 +4,7 @@ import {
   useActiveBuffsStore,
   useActivityStore,
   useInventoryStore,
+  useKillCycleStore,
   useLoadoutStore,
   usePlayerStore,
   useSurvivalStore,
@@ -22,6 +23,7 @@ import {
 import { CharacterStatBreakdownModal } from '@/components/stats/CharacterStatBreakdownModal';
 import { buildEffectSummary } from '@/lib/buffs/effectSummary';
 import { statToneRailClass, statToneTextClass } from '@/components/stats/statToneStyles';
+import { formatWhole } from '@/lib/stats/formatStat';
 import { CONSUMABLES } from '@/constants/consumables';
 import { sumActivityModifier } from '@/lib/stats/activityModifiers';
 import { getActivityModuleStatLabel } from '@/lib/activity/activityStatMetadata';
@@ -74,6 +76,14 @@ export const HeroRundown: React.FC<{
   const playerLevel = usePlayerStore((s) => s.level);
   const shieldHp = useLoadoutStore((s) => s.getShield()?.hp ?? 0);
   const bossContext = kind === 'boss_fight';
+  // Roam rundown's fourth cell (first-screen pass, 2026-11-17):
+  // the engaged target's HP out of the kill cycle — the number a
+  // roam actually turns on. Read unconditionally, rendered only
+  // in roam (see row 2 below).
+  const isRoaming = kind === 'roaming_loot';
+  const targetId = useKillCycleStore((s) => s.currentTargetId);
+  const targetHp = useKillCycleStore((s) => s.currentTargetHp);
+  const targetHpMax = useKillCycleStore((s) => s.currentTargetHpMax);
   const { summary, snapshot, weapons, primary, skillBonuses } = useCharacterStatSummary(bossContext ? boss : null);
   const [focus, setFocus] = useState<FocusKey | null>(null);
 
@@ -235,8 +245,45 @@ export const HeroRundown: React.FC<{
             at phone width on the old shares, while 'Mit' — three
             letters over a short percent — held nearly as much room.
             The shares now follow the labels: Mit yields, Shield
-            Break gains, the total is unchanged. */}
-        {model.shieldBreak && heroButton(model.shieldBreak, 'flex-[1.2]')}
+            Break gains, the total is unchanged.
+            First-screen pass (2026-11-17): in ROAM the cell is
+            TARGET HP instead — a mob's shield state cannot be
+            engaged with during a roam, so the build stat read as
+            noise in the one mode where the target's remaining HP
+            is the live number. The cell is a static stage fact
+            (no breakdown door — target HP has no sources to break
+            down), in the HP cell's own grammar: label, cur/max in
+            the same stepping type, and the thin rail under it. It
+            holds its seat showing an em dash in the brief gap
+            between spawns so the row never changes shape. Every
+            other mode keeps Shield Break exactly as shipped. */}
+        {isRoaming ? (
+          <div
+            data-testid="hero-stat-targetHp"
+            className="min-h-[56px] min-w-0 flex-[1.2] px-1.5 py-1.5 text-left"
+          >
+            <span className="flex items-center justify-between gap-0.5">
+              <span className="truncate text-[11px] font-black uppercase tracking-normal text-text-muted">Target HP</span>
+            </span>
+            <span
+              className={`mt-0.5 block whitespace-nowrap font-black leading-tight text-text-primary ${
+                targetId && targetHpMax > 0 && `${formatWhole(targetHp)}/${formatWhole(targetHpMax)}`.length > 16
+                  ? 'text-[13px]'
+                  : 'text-[15px]'
+              }`}
+            >
+              {targetId && targetHpMax > 0 ? `${formatWhole(targetHp)}/${formatWhole(targetHpMax)}` : '—'}
+            </span>
+            <span className="mt-1 block h-1 w-full bg-bg" aria-hidden>
+              <span
+                className="block h-full bg-red"
+                style={{ width: `${targetId && targetHpMax > 0 ? Math.round((targetHp / targetHpMax) * 100) : 0}%` }}
+              />
+            </span>
+          </div>
+        ) : (
+          model.shieldBreak && heroButton(model.shieldBreak, 'flex-[1.2]')
+        )}
       </div>
       <HeroBuffLine activityKind={kind} />
       {focus && focusMetric && (
