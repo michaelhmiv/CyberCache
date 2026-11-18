@@ -102,7 +102,7 @@
   },
   "src/components/gear/GearInspectSheet.tsx": {
     "text-[9px]": 1,
-    "text-[10px]": 3
+    "text-[10px]": 4
   },
   "src/components/gear/ReforgePanel.tsx": {
     "text-[10px]": 8,
