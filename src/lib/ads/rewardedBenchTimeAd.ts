@@ -46,9 +46,19 @@ async function initializeAdMob(): Promise<void> {
   if (initialized) return;
 
   await AdMob.initialize();
-  const consentInfo = await AdMob.requestConsentInfo();
-  if (!consentInfo.canRequestAds && consentInfo.status === AdmobConsentStatus.REQUIRED) {
-    await AdMob.showConsentForm();
+
+  // Consent is best-effort, never a gate on the ad attempt —
+  // same ruling as the cache lane (rewardedCacheAd.ts): a failed
+  // UMP info/form request (e.g. no form configured for the app)
+  // is logged and the flow proceeds to the ad; only a failed ad
+  // itself is a player-facing event.
+  try {
+    const consentInfo = await AdMob.requestConsentInfo();
+    if (!consentInfo.canRequestAds && consentInfo.status === AdmobConsentStatus.REQUIRED) {
+      await AdMob.showConsentForm();
+    }
+  } catch (err) {
+    console.warn('[ads] consent step failed; continuing to the ad attempt', err);
   }
 
   initialized = true;

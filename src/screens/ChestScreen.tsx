@@ -9,7 +9,7 @@ import { SwapUndoToast } from '@/components/action/SwapUndoToast';
 import { RARITIES } from '@/constants/rarities';
 import { verifiedOps, type VerifiedResult } from '@/lib/api/verifiedOps';
 import { fetchCacheLane, type CacheLaneState } from '@/lib/api/cacheLaneService';
-import { canUseRewardedCacheAds, showRewardedCacheAd } from '@/lib/ads/rewardedCacheAd';
+import { canUseRewardedCacheAds, showRewardedCacheAd, type RewardedCacheAdResult } from '@/lib/ads/rewardedCacheAd';
 import { CACHE_LANE_RULE } from '@/content/cacheLane';
 import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/serverItemAdapter';
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
@@ -227,12 +227,20 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   const handleOpenAd = async () => {
     if (opening) return;
     setError(null);
+    // The ad step stands alone: ANY failure in it — no fill,
+    // dismissed, the ad stack not serving — lands as the game's
+    // own notice. The raw SDK error text never reaches the
+    // player (owner hit AdMob's publisher-misconfiguration
+    // string verbatim through this catch, 2026-11-18). The open
+    // op below keeps its own error handling.
+    let reward: RewardedCacheAdResult;
     try {
-      const reward = await showRewardedCacheAd(player.id);
-      await openWith('ad', reward.adUnitId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to open cache.');
+      reward = await showRewardedCacheAd(player.id);
+    } catch {
+      setError('No ad is available right now, so the cache stayed closed — try again later.');
+      return;
     }
+    await openWith('ad', reward.adUnitId);
   };
 
   const adsReady = canUseRewardedCacheAds();
