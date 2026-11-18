@@ -6,7 +6,7 @@ Dispatch sends what you are *not* using. A **foot contract** commits a spare, un
 
 ## The daily board
 
-The board is re-dealt every UTC day and is the same for every hunter: **6 offers — 4 foot, 2 courier** — each naming a destination area and a duration of **2, 8, or 24 hours**. You pick which offers to staff from your spares; unstaffed offers simply wait for tomorrow's board. Every number on a contract — payout, fuel, wear — is **fixed at departure** and shown before anything leaves. Nothing about a running contract is ever repriced.
+The board is re-dealt every UTC day and is the same for every hunter: **6 offers — 4 foot, 2 courier** — each naming a destination area and a duration of **2, 8, or 24 hours**. Each offer also prints its pay on the board: the baseline lines (a foot contract at matched strength; a courier with its credit premium, before the chosen vehicle's cargo bonus) — the preview refines the number for the exact loadout or vehicle you commit. You pick which offers to staff from your spares; unstaffed offers simply wait for tomorrow's board. Every number on a contract — payout, fuel, wear — is **fixed at departure** and shown before anything leaves. Nothing about a running contract is ever repriced.
 
 An offer, once departed, is **spent for the day** — it does not come back on any board, even after its contract settles or is recalled.
 

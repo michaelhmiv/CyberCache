@@ -165,7 +165,10 @@ function fnBody(text: string, fn: string): string {
 describe('migration 0078 — chain heads and conversion pins', () => {
   it('0078 is the chain head for cc_vendor_catalog, cc_enqueue_repair_job and cc_cancel_craft_job', () => {
     expect(definersOf('cc_vendor_catalog').at(-1)).toBe('0078_wiring_package.sql');
-    expect(definersOf('cc_enqueue_repair_job').at(-1)).toBe('0078_wiring_package.sql');
+    // cc_enqueue_repair_job's chain head moved to 0102 (skill-routing
+    // fix: the repair enqueue gains the Fixer-tree gate); 0078 remains
+    // the head for the rest of its package.
+    expect(definersOf('cc_enqueue_repair_job').at(-1)).toBe('0102_skill_routing.sql');
     expect(definersOf('cc_cancel_craft_job').at(-1)).toBe('0078_wiring_package.sql');
   });
 

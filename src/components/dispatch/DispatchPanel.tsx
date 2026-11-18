@@ -338,8 +338,23 @@ export const DispatchPanel: React.FC = () => {
             onClick={() => { setOfferId(offerId === o.id ? null : o.id); setPickedItems([]); setPickedVehicle(null); setPreview(null); setReasons([]); setPrefillReport(null); }}
             className={`flex w-full items-center justify-between gap-2 border px-2 py-2 text-left ${offerId === o.id ? 'border-amber bg-amber/10' : 'border-border/60'}`}
           >
-            <span className="text-xs font-bold text-text-primary">
-              {o.family === 'courier' ? <span className="inline-flex items-center gap-1"><PxIcon name="truck" size={13} /> Courier</span> : <span className="inline-flex items-center gap-1"><PxIcon name="boot" size={13} /> Foot</span>} — {o.areaName} · {o.durationHours}h
+            <span className="min-w-0">
+              <span className="block text-xs font-bold text-text-primary">
+                {o.family === 'courier' ? <span className="inline-flex items-center gap-1"><PxIcon name="truck" size={13} /> Courier</span> : <span className="inline-flex items-center gap-1"><PxIcon name="boot" size={13} /> Foot</span>} — {o.areaName} · {o.durationHours}h
+              </span>
+              {/* Face payout (first-screen pass, 2026-11-17): the
+                  board priced every offer only inside the preview
+                  you open after picking it — comparison shopping
+                  meant opening each one. The payload's baseline
+                  lines now print on the face, in the preview's own
+                  format; the preview still refines them (foot
+                  scales with the staffed loadout, courier adds the
+                  vehicle's cargo bonus). */}
+              {o.payout && (
+                <span className="block text-[11px] font-bold text-text-muted">
+                  Pays: {o.payout.credits} cr · {o.payout.scrap} scrap{o.payout.materialId ? ` · ${o.payout.materialUnits} ${o.payout.materialId}` : ''}
+                </span>
+              )}
             </span>
             <span className="text-[10px] font-bold text-text-muted">
               {`${o.dangerRating} danger`}
