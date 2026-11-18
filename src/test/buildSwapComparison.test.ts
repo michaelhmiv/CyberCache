@@ -15,6 +15,7 @@ import { buildSwapComparison, type TradeMetricLine } from '@/lib/stats/buildSwap
 import { assembleStatSummaryInput, type StatSummaryAssemblyState } from '@/lib/stats/assembleStatSummaryInput';
 import { buildCharacterStatSummary } from '@/lib/stats/characterStats';
 import { stageStatDelta } from '@/lib/stats/heroRundown';
+import { formatSignedPct } from '@/lib/stats/formatStat';
 import { classModBoostsOf } from '@/lib/skills/skillBonuses';
 import { qualifiedActionSkillTrees } from '@/content/actionSkills';
 import { legendaryEffectName } from '@/constants/legendaryEffects';
@@ -220,5 +221,30 @@ describe('buildSwapComparison', () => {
     const noBoss = tradeFor(state({ weapons: [worn] }), 'primary', candidate, worn);
     expect(metricLine([...noBoss.gains, ...noBoss.losses], 'DPS')).toBeUndefined();
     expect(metricLine([...noBoss.gains, ...noBoss.losses], 'Eff. DPS')).toBeUndefined();
+  });
+
+  it('roaming DPS prices as a ratio of the current value, never the raw difference', () => {
+    // Regression pin (2026-11-17): roamingDps once fell into the
+    // modifier branch, which prints formatSignedPct(cand − cur)
+    // over raw DPS values — a 190.6 → 1,026.6 swap read "+83602%".
+    // The roaming line must price exactly like DPS itself: the
+    // staged ratio of the two summaries' roaming values.
+    const worn = weapon('worn-gun');
+    const candidate = weapon('candidate-gun', { baseDamage: 90 });
+    const s = state({ weapons: [worn] });
+    const trade = tradeFor(s, 'primary', candidate, worn);
+    const currentSummary = buildCharacterStatSummary(assembleStatSummaryInput(s));
+    const postSwapSummary = buildCharacterStatSummary(assembleStatSummaryInput(state({ weapons: [candidate] })));
+    const curRoam = currentSummary.all.find((m) => m.key === 'roamingDps');
+    const postRoam = postSwapSummary.all.find((m) => m.key === 'roamingDps');
+    expect(curRoam).toBeDefined();
+    expect(postRoam).toBeDefined();
+    expect(postRoam!.value).toBeGreaterThan(curRoam!.value);
+    const roamLine = metricLine([...trade.gains, ...trade.losses], 'Roaming DPS');
+    expect(roamLine).toBeDefined();
+    expect(roamLine?.hero).toBe(postRoam?.display);
+    expect(roamLine?.delta).toBe(stageStatDelta(curRoam!.value, postRoam!.value)?.display);
+    expect(roamLine?.delta).not.toBe(formatSignedPct(postRoam!.value - curRoam!.value));
+    expect(roamLine?.tone).toBe('gain');
   });
 });
