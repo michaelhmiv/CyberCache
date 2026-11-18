@@ -28,6 +28,7 @@ import {
   courierPayoutLines,
   courierProjection,
   courierTierAnchorClass,
+  dispatchOfferFacePayout,
   dispatchOffersForBoard,
   dispatchRerollPrice,
   dispatchRerollsRemaining,
@@ -349,6 +350,14 @@ async function dispatchStateView(store: ChefGameplayStore, config: DispatchConfi
         ...offer,
         areaName: area?.name ?? offer.areaId,
         dangerRating: area?.dangerRating ?? 'Medium',
+        // Face payout (first-screen pass, 2026-11-17): the offer
+        // card prints what the run pays without opening the
+        // preview. Same seed the departure prices under
+        // (`${playerId}:${offer.id}`), same content formula —
+        // dispatchOfferFacePayout is the preview's baseline, not
+        // a second math path. Null only if the area ever fails
+        // to resolve (the face then simply omits the line).
+        payout: area ? dispatchOfferFacePayout(offer, area, levers, `${playerId}:${offer.id}`) : null,
       };
     });
   const rerollsRemaining = dispatchRerollsRemaining(boardState.rerollsUsed, levers);

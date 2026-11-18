@@ -1137,6 +1137,19 @@ export interface ChefDispatchOffer {
   durationHours: number;
   areaName: string;
   dangerRating: string;
+  // Face payout (first-screen pass, 2026-11-17): the board state's
+  // baseline lines for this offer — foot at strength 1.0, courier
+  // with the credit premium — computed server-side by
+  // dispatchOfferFacePayout (the preview's own formula at its
+  // baseline; the preview then scales foot by the staffed loadout
+  // and adds the chosen vehicle's cargo bonus). Null only if the
+  // server could not resolve the offer's area.
+  payout: {
+    credits: number;
+    scrap: number;
+    materialId: string | null;
+    materialUnits: number;
+  } | null;
   // No area level gate (owner ruling 2026-11-02): dispatch offers no
   // longer carry areaUnlockLevel / areaLocked — destinations are open.
 }

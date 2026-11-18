@@ -43,6 +43,10 @@ so a well-crafted core is visibly worth more. Cores are burned
    Cores**, so your price is cores plus labor, all-in.
 5. Unaccepted postings expire after **7 days** and refund in full.
 
+Jobs you have accepted collect in **My workbench**, seated at the
+top of the board directly under the bay scene — ahead of posting
+and the open board — whenever you have one in progress.
+
 ## Browsing the board
 
 The open postings browse like the [[The Market|Buy tab]] — the search,

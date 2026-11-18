@@ -344,6 +344,99 @@ export const RepairBoard: React.FC<{
         </div>
       )}
 
+      {/* My workbench — seated directly under the bay scene
+          (first-screen lift, 2026-11-17): the jobs YOU are working
+          used to render last, below the unbounded open-postings
+          list; when the workbench is non-empty it now leads the
+          sections, where the scene already points. Empty, this
+          block renders nothing and the shipped order stands. */}
+      {board && board.work.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-sm font-black text-text-primary">My workbench</div>
+          {board.work
+            .filter((j) => j.status === 'active')
+            .map((job) => (
+              <div key={job.id} className="border border-border bg-surface/95 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-bold text-text-primary">
+                    {vehicleLabel(job)}
+                    {job.queuePosition != null && job.queuePosition > 1 && (
+                      <span className="ml-2 text-[11px] font-normal text-text-muted">
+                        queue #{job.queuePosition}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-text-muted">
+                    {job.kitType ? KIT_LABELS[job.kitType] ?? job.kitType : ''} · {job.priceCredits} cr
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-[11px] text-text-muted">
+                    <span>Restored</span>
+                    <span>
+                      {Math.floor(job.pointsRestored)} / {job.targetPoints} points ·{' '}
+                      {job.kitsConsumed.length} kits used
+                    </span>
+                  </div>
+                  <div className="h-2 bg-background border border-border">
+                    <div
+                      className="h-full bg-emerald-500"
+                      style={{ width: `${Math.round(job.progress * 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        await activity.start(
+                          buildWorkshopServiceActivity({
+                            id: job.id,
+                            label: `Repairing ${vehicleLabel(job)}`,
+                          }),
+                        );
+                      })
+                    }
+                    className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
+                  >
+                    Work on it
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => runTransact('manage this job', () => verifiedOps.finishRepairJob(job.id))}
+                    className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-emerald-400 disabled:opacity-40"
+                  >
+                    Deliver now
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => runTransact('manage this job', () => verifiedOps.cancelRepairJob(job.id))}
+                    className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
+                  >
+                    Quit job
+                  </button>
+                </div>
+                <div className="text-[11px] text-text-muted">
+                  Delivering early pays pro-rata for points restored so far — full price only at
+                  the full target.
+                </div>
+              </div>
+            ))}
+          {completedWork.slice(0, 5).map((job) => (
+            <div key={job.id} className="border border-border bg-surface/60 p-2 text-[11px] text-text-muted">
+              {vehicleLabel(job)} — {job.outcome ?? job.status}: restored{' '}
+              {Math.floor(job.pointsRestored)}/{job.targetPoints} pts, earned {job.paidCredits ?? 0} cr
+              (fee {job.feeCredits ?? 0})
+              {job.xpAwarded != null ? ` · +${job.xpAwarded} XP` : ''}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Post a job */}
       <div className="border border-border bg-surface/95 p-3 space-y-2">
         <div className="text-sm font-black text-text-primary">Post a repair job</div>
@@ -615,94 +708,6 @@ export const RepairBoard: React.FC<{
                   )}
                 </div>
               )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* My workbench */}
-      {board && board.work.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-sm font-black text-text-primary">My workbench</div>
-          {board.work
-            .filter((j) => j.status === 'active')
-            .map((job) => (
-              <div key={job.id} className="border border-border bg-surface/95 p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-bold text-text-primary">
-                    {vehicleLabel(job)}
-                    {job.queuePosition != null && job.queuePosition > 1 && (
-                      <span className="ml-2 text-[11px] font-normal text-text-muted">
-                        queue #{job.queuePosition}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-text-muted">
-                    {job.kitType ? KIT_LABELS[job.kitType] ?? job.kitType : ''} · {job.priceCredits} cr
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-[11px] text-text-muted">
-                    <span>Restored</span>
-                    <span>
-                      {Math.floor(job.pointsRestored)} / {job.targetPoints} points ·{' '}
-                      {job.kitsConsumed.length} kits used
-                    </span>
-                  </div>
-                  <div className="h-2 bg-background border border-border">
-                    <div
-                      className="h-full bg-emerald-500"
-                      style={{ width: `${Math.round(job.progress * 100)}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        await activity.start(
-                          buildWorkshopServiceActivity({
-                            id: job.id,
-                            label: `Repairing ${vehicleLabel(job)}`,
-                          }),
-                        );
-                      })
-                    }
-                    className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
-                  >
-                    Work on it
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => runTransact('manage this job', () => verifiedOps.finishRepairJob(job.id))}
-                    className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-emerald-400 disabled:opacity-40"
-                  >
-                    Deliver now
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => runTransact('manage this job', () => verifiedOps.cancelRepairJob(job.id))}
-                    className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
-                  >
-                    Quit job
-                  </button>
-                </div>
-                <div className="text-[11px] text-text-muted">
-                  Delivering early pays pro-rata for points restored so far — full price only at
-                  the full target.
-                </div>
-              </div>
-            ))}
-          {completedWork.slice(0, 5).map((job) => (
-            <div key={job.id} className="border border-border bg-surface/60 p-2 text-[11px] text-text-muted">
-              {vehicleLabel(job)} — {job.outcome ?? job.status}: restored{' '}
-              {Math.floor(job.pointsRestored)}/{job.targetPoints} pts, earned {job.paidCredits ?? 0} cr
-              (fee {job.feeCredits ?? 0})
-              {job.xpAwarded != null ? ` · +${job.xpAwarded} XP` : ''}
             </div>
           ))}
         </div>
