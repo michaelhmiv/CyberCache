@@ -321,7 +321,7 @@ const Variant2: React.FC<{ bench: BenchModel; vitals: HeroRundownModel }> = ({ b
       <div className="flex border-t border-border/60">
         <FactCell label="Left" value={fmtDur(head.remainingMs)} flex="flex-[1.3]" />
         <FactCell label="Per unit" value={fmtShort(head.unitDurationMs)} />
-        <FactCell label="Units queued" value={String(bench.totalUnits)} />
+        <FactCell label="Queued" value={String(bench.totalUnits)} />
       </div>
       <VitalsRow model={vitals} />
     </div>
