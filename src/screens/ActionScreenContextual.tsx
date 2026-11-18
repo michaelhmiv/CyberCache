@@ -30,6 +30,7 @@ import { LiveTurfDiorama } from '@/components/dashboard/LiveTurfDiorama';
 import { HotFlameMark } from '@/components/dashboard/HotFlameMark';
 import { isHotArea } from '@/content/hotArea';
 import { HeroRundown } from '@/components/dashboard/HeroRundown';
+import { BenchRundown } from '@/components/dashboard/BenchRundown';
 import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -836,7 +837,17 @@ export const ActionScreenContextual: React.FC<{
           endlessRunId={currentKind === 'endless_run' ? activity.current.targetId : undefined}
           stageControls={stageControls}
         />
-        <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
+        {/* The zone answers for the current mode (owner ruling
+            2026-11-17): while Crafting holds the slot — the same
+            kind the stage's own mode map calls 'crafting' — the
+            black zone is the bench rundown (working job, per-unit
+            rate, queue, slim vitals); every other mode keeps the
+            combat rundown. */}
+        {currentKind === 'crafting' ? (
+          <BenchRundown />
+        ) : (
+          <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
+        )}
       </div>
 
       {/* 3. Consumable belt (§4) — in the mode rail's vacated

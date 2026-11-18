@@ -365,7 +365,8 @@ replace the canonical one. (Tap depths are governed by §9.)
   — and the sheet shows the reward face-up behind its one primary action,
   the Claim button; claiming pays it and the landing celebration plays in
   the sheet (§10) as the wallet answers. An unclaimed reward expires at the
-  00:00 UTC rollover (the streak day still counts); the claimed state
+  streak-day rollover (the day starts at 08:00 UTC — 3 AM Eastern — since
+  0101; the streak day still counts); the claimed state
   renders quiet — "Claimed …", no pulse, no badge (§9).
 - **The deck** (below the fold, fixed order — §4): launcher cards (Dispatch ·
   Crack Cache), Now feed. (The Slots launcher, the Loadout shortcut, the
@@ -1746,7 +1747,8 @@ read records the day and holds the reward unpaid, so its pulse is a
 true **claim signal** at last: CLAIM badge on the chip, the reward
 face-up in the sheet, **Banked** tags only once the claim has paid
 them, and the claimed state quiet with no pulse at all. An unclaimed
-reward expires at the 00:00 UTC rollover; the streak day still counts.
+reward expires at the streak-day rollover (08:00 UTC since 0101);
+the streak day still counts.
 Consolidation must never silently demote any of them; the chips and
 badges exist to prevent exactly that, and their languages stay
 distinct — a pulse and the word "claim" belong only to rewards the
@@ -3145,3 +3147,115 @@ program, including the gating decision, the same evening.
    points accumulate across the family, reaching −20% only with
    all five maxed. Their descriptions say exactly that now; the
    old "−2% per point" wording overpromised ~2.5×.
+### 2026-11-17 — The bench rundown: in Craft mode the zone answers for the bench (owner-ruled)
+
+The owner, on the device-pass build: while crafting, the black
+zone under the stage still printed the combat rundown — DPS
+"No weapon equipped," shield, mitigation — while the one thing
+he was doing (the bench job, its units, its queue) lived only
+in the Workshop panel below the fold. Renderings first (three
+zone variants, real code, full screens, seeded with his own
+bench state), then his pick: **V1, "Bench rundown."** This
+entry is the landing of it, and the zone law for Craft mode.
+
+1. **The zone answers for the current mode.** While Crafting
+   holds the Home slot — the same activity kind the stage's own
+   mode map calls `crafting` — the black zone is the bench
+   rundown (`BenchRundown`). Every other mode (Roam, Boss,
+   Endless, Extract, and the rest) renders the combat rundown
+   exactly as before; the gate is the one mode state, and the
+   consumables belt below the zone is untouched in all modes.
+2. **The bench read, in the shipped block's grammar.** A
+   WORKING row: the head job's own picture (resolved as the
+   bench seat resolves it), its name, its state word (Running /
+   Paused, in the JobCard state colors), units done/total, and
+   the bench strip's progress bar. Three fact cells: PER UNIT —
+   the head job's **stored** unit duration, its enqueue-time
+   snapshot rate, so a job queued before a skill spend honestly
+   reads its own rate here; THIS UNIT — the accrued share of
+   the unit on the bench; LEFT — the head job's remaining
+   time. A NEXT row when the queue is non-empty: the queued
+   jobs named with their remaining counts, the queue count,
+   and the queue's combined remaining time.
+3. **HP never leaves the first screen.** One slim vitals line
+   closes the zone: HP with its bar, and Shield — the shipped
+   rundown's own model (`buildHeroRundown`), so the numbers are
+   the shipped numbers. DPS, Mitigation, and Shield Break do
+   not render in Craft mode. (The crafting-stage entry above
+   kept the rundown's "No weapon equipped" line as the honest
+   unarmed read; in Craft mode that line now leaves with the
+   rest of the combat cells — the unarmed read lives in the
+   other modes and in Gear.)
+4. **The empty bench keeps the shape.** With no active or
+   queued job, the WORKING slot carries a BENCH IDLE row (the
+   bench banner's own idle word, the anvil tile) over the same
+   vitals line — no fact cells with nothing to measure.
+5. **Display only, client mirror only.** Every datum comes
+   from the client bench mirror, filtered exactly as the bench
+   seat filters it (service-lane jobs never head this zone);
+   nothing new comes from the server, and the per-unit figure
+   reads the job's stored duration — never the recipe's base
+   rate. The buff line under the zone is the shipped one,
+   shared, so mode-true buffs (Crafting Calm included) read
+   identically in both zones.
+### 2026-11-17 — The streak day starts at 3 AM Eastern, and a paid today shows its check (owner-ruled)
+
+The owner, playing the fix-round build in the evening: "my two
+day streak hasn't been increasing and when I click claim the
+day doesn't get a check mark." The investigation
+(streak-audit-2026-11-17) traced both halves to shipped design,
+not malfunction — his claim had paid; the display and the
+calendar were the defects. He ruled: build the check-mark fix
+and move the day boundary to 3 AM Eastern. Migration 0101 and
+the state view land both.
+
+1. **The check mark (Fix A).** The ladder derived its day
+   states from cycle position alone, so the paid flag never
+   reached the track: a successful claim changed nothing on it,
+   and today's cell gained its check only the next day. The
+   state view now derives a fourth ladder state, 'earned-today'
+   — today, paid — and the ladder renders it as both: the solid
+   today fill stays, and the check lands on it in the dark ink
+   (the accent check on the accent fill would be invisible).
+   An unpaid today keeps the bare 'today' cell; no other
+   ladder behavior changes.
+2. **The boundary.** The streak day was the plain UTC calendar
+   date, so the day rolled at 19:00 Eastern: an evening player
+   straddled two game days in one local day, consecutive
+   local-day sessions could land two game days apart and reset
+   the streak, and a morning reward expired mid-evening (the
+   owner's Nov 17 reward expired 45 minutes before his claim
+   tap). The day key is now the UTC date of (now − 8 hours) —
+   the day starts at 08:00 UTC, 3 AM Eastern / midnight
+   Pacific — derived identically by the SQL record/claim
+   chain (0101, restated verbatim from the 0082/0079 heads
+   apart from the day line), the Pg facts read, the in-memory
+   twin, and the client's staleness heuristic. Expiry moves
+   with the boundary; reward amounts, the miss rule, and the
+   exactly-once paid stamp do not change. The offset belongs
+   to the streak alone — contracts, dispatch, vendor, and the
+   cache lane keep their own UTC days.
+3. **The sheet tells the truth in the player's time.** Every
+   "00:00 UTC" statement on the sheet (the Later line, the
+   expiry footer, the banked footer) now renders the day start
+   in the player's local time, computed from the 08:00 UTC
+   rule — "3:00 AM your time" in EST, moving to 4:00 AM under
+   EDT, because the rendered value follows the rule, never a
+   hard-coded hour. The miss rule named no hour and is
+   unchanged.
+4. **The transition loses nobody a day.** Existing rows were
+   keyed under the old derivation; 0101 §3 re-keys them from
+   the recorded-at instant (claimed_at): rows recorded
+   00:00–08:00 UTC belong to the previous streak day. When two
+   rows land on one new day, one survives — the paid row if
+   exactly one is paid (a payment already made stays the day's
+   record; deleting it would reopen the day to a second
+   claim), else the earliest recorded — and the loser's day is
+   not lost: it IS the survivor's day. State is rebuilt from
+   the re-keyed rows with the current streak FLOORED at its
+   pre-migration value, so a merge inside a run can never
+   shorten a streak the old rules had counted. The re-key is
+   idempotent (its condition matches only old-keyed rows), and
+   ledger idempotency keys keep their historical day strings —
+   exactly-once rides on paid_at, never on re-derived keys.
+   Cases are pinned in the drill pack (mig0101/CASES.md).

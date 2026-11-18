@@ -21,10 +21,14 @@
  *    the celebration to the quiet banked sheet.
  *  - FAILED CLAIM: the reward stays claimable, the button
  *    stays live, the failure names its remedy.
- *  - EXPIRED: a claimable left over the 00:00 UTC rollover
- *    is simply gone — the next read returns the NEW day
- *    (streak continued on recorded days), its own reward
- *    claimable; yesterday's amounts are never payable.
+ *  - EXPIRED: a claimable left over the streak-day rollover
+ *    (08:00 UTC since 0101) is simply gone — the next read
+ *    returns the NEW day (streak continued on recorded days),
+ *    its own reward claimable; yesterday's amounts are
+ *    never payable.
+ *  - THE CHECK (0101): a PAID today shows its check on the
+ *    ladder the moment the claim lands ('earned-today'); an
+ *    unpaid today shows none.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -63,6 +67,7 @@ vi.mock('@/lib/notifications/pushNotifications', () => ({
 
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { ResourceBar } from '@/components/layout/ResourceBar';
+import { loginStreakDayStartLocalLabel } from '@/content/loginStreak';
 import { claimLoginStreakDay, getLoginStreakState } from '@/lib/chef/chefClient';
 import { usePlayerStore } from '@/store';
 import { loginStreakClaimable, useLoginStreakStore } from '@/store/slices/loginStreakSlice';
@@ -125,7 +130,9 @@ function claimableDay3() {
   } as never;
 }
 
-/** Day 3 after the claim landed: same amounts, no longer claimable. */
+/** Day 3 after the claim landed: same amounts, no longer
+ *  claimable — and today reads 'earned-today' (0101): the paid
+ *  day carries its check on the ladder. */
 function claimedDay3() {
   return {
     verified: true,
@@ -139,7 +146,10 @@ function claimedDay3() {
       todayReward: { credits: 200, fragments: 0, cacheKeys: 0 },
       nextReward: { credits: 250, fragments: 0, cacheKeys: 0 },
       nextStreakLength: 4,
-      ladder: LADDER,
+      ladder: LADDER.map((d) => ({
+        ...d,
+        state: d.cycleDay === 3 ? 'earned-today' : d.state,
+      })),
       missRule: MISS_RULE,
     },
     granted: {
@@ -156,7 +166,7 @@ function claimedDay3() {
   } as never;
 }
 
-/** The next UTC day: day 3's reward expired unclaimed; the streak
+/** The next streak day: day 3's reward expired unclaimed; the streak
  *  continued on the recorded day and day 4's reward is claimable. */
 function claimableDay4() {
   return {
@@ -238,7 +248,16 @@ describe('Streak true claim — claimable', () => {
     // The one primary action, and the honest expiry terms.
     expect(screen.getByTestId('streak-claim-button').textContent).toContain('Claim Day 3 reward');
     expect(screen.getByTestId('streak-later-button')).toBeTruthy();
-    expect(panel.textContent).toContain('Unclaimed rewards expire when the new streak day starts at 00:00 UTC.');
+    // The expiry terms name the day start in the player's local
+    // time (0101: 08:00 UTC, rendered from the rule).
+    expect(panel.textContent).toContain(
+      `Unclaimed rewards expire when the new streak day starts at ${loginStreakDayStartLocalLabel(new Date())} your time.`,
+    );
+    // The ladder before the claim (0101): days 1–2 checked,
+    // today NOT — the check is the claim's receipt.
+    expect(screen.getByTestId('streak-ladder-check-1')).toBeTruthy();
+    expect(screen.getByTestId('streak-ladder-check-2')).toBeTruthy();
+    expect(screen.queryByTestId('streak-ladder-check-3')).toBeNull();
     // The acknowledgement CTA of the auto-grant era is absent:
     // there is an act to take, not just news to acknowledge.
     expect(screen.queryByTestId('streak-done-button')).toBeNull();
@@ -293,6 +312,10 @@ describe('Streak true claim — posting → landing → banked', () => {
     await openStreakSheet();
     await waitFor(() => expect(screen.queryByText('Claimed just now')).toBeNull());
     expect(screen.queryByTestId('streak-claim-button')).toBeNull();
+    // The paid today carries its check on the ladder (0101) —
+    // the fix for "I claimed and the day got no check mark".
+    expect(screen.getByTestId('streak-ladder-check-3')).toBeTruthy();
+    expect(screen.queryByTestId('streak-ladder-check-4')).toBeNull();
   });
 
   it('a failed claim keeps the reward claimable, the button live, and names the remedy', async () => {
