@@ -3347,3 +3347,42 @@ datum changed, only its seat.
    (`${playerId}:${offer.id}`); the face prints it in the
    preview's own format. No second payout formula exists.
 
+### 2026-11-17 — First-screen fix program, Gear batch: jump chips, a compare strip for every kind, a windowed slot picker (owner-ruled)
+
+The owner's first-screen audit — every screen checked for
+whether its most important information is visible without
+scrolling — found the Gear tab's loadout panel exemplary and
+three burials around it. This batch fixes the three, all
+inside the existing grammar, with no new data:
+
+1. **Jump chips on the Gear page.** The Inventory section
+   starts below the whole loadout panel (~700px down), so its
+   search box and first rows sit under the fold on arrival,
+   and Belt & Stacks sits under the entire windowed inventory.
+   A chip row under the ResourceBar — Loadout · Inventory ·
+   Belt — rides the page's existing scrollToAnchor
+   machinery and its section ids. Additive only: the doll does
+   not shrink, and there is no collapse toggle (INVENTORY L4
+   stands).
+2. **The Compare sheet reads for every kind.** The hub's
+   Compare Gear sheet printed PWR / DMG / Crit for weapon
+   pairs and NO stats at all for shield, class mod, ordnance,
+   or relic pairs — two pictures and two names. The second
+   card now carries the shared all-kind GearCompare strip
+   (the same deltas the slot picker rows print) whenever the
+   pair is not two weapons; weapon pairs keep their block
+   unchanged. The strip renders nothing for a cross-kind
+   pair, so any armed pair stays safe.
+3. **The slot picker windows its candidates.** SlotGearPicker
+   mapped every compatible item into the sheet — ~1,000+ rows
+   at the owner's scale, the un-windowed mount-cost class the
+   2026-11-11 latency program fixed in the hub. It now runs
+   the hub's useWindowedList with the same threshold behavior
+   (inert at or below 72 candidates); search, facets, and sort
+   keep reading the full candidate array, and the Currently
+   Equipped card stays outside the window.
+
+The inspect sheet's own reordering (the Legendary Effect into
+the header card, The Trade above the Stat Poster) is a
+separate rendering track and is not in this batch.
+

@@ -32,6 +32,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
+import { GearCompare } from '@/components/gear/GearCompare';
 import { useWindowedList } from '@/components/gear/useWindowedList';
 import { SalvageThresholdSheet } from '@/components/gear/SalvageThresholdSheet';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
@@ -1236,7 +1237,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                   </div>
                   <div className="text-[11px] font-black" style={{ color: colorOf(compareItemB) }}>{compareItemB.name}</div>
                   <div className="text-[11px] text-text-muted">{compareItemB.rarity} · Lv.{compareItemB.level}</div>
-                  {isWeapon(compareItemB) && isWeapon(compareItemA) && (
+                  {isWeapon(compareItemB) && isWeapon(compareItemA) ? (
                     <div className="mt-1 space-y-0.5 text-[11px]">
                       <div className={compareItemB.combatPower > compareItemA.combatPower ? 'text-green' : compareItemB.combatPower < compareItemA.combatPower ? 'text-red' : 'text-text-muted'}>
                         PWR: {compareItemB.combatPower} ({compareDiff(compareItemA.combatPower, compareItemB.combatPower)})
@@ -1248,6 +1249,16 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
                         Crit: {Math.round(compareItemB.critChance * 100)}% ({compareDiff(compareItemA.critChance, compareItemB.critChance)})
                       </div>
                     </div>
+                  ) : (
+                    // Non-weapon pairs (first-screen audit, cluster
+                    // B §6, 2026-11-17): the cards used to print NO
+                    // stats at all for shields, mods, ordnance and
+                    // relics — two pictures and two names. The
+                    // shared all-kind GearCompare strip computes
+                    // the deltas from the same two items; it
+                    // renders nothing for a cross-kind pair, so
+                    // this stays safe for any armed pair.
+                    <GearCompare current={compareItemA} candidate={compareItemB} />
                   )}
                 </div>
               </div>

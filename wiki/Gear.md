@@ -178,6 +178,12 @@ Loadout page. Everything below is on it, in one scroll:
 
 *The Loadout page on day one: your hunter on the doll stage, the three gun rows down the right, the accessory band beneath, and the inventory below.*
 
+Three **jump chips** under the strip — **Loadout · Inventory ·
+Belt** — take you straight to that section of the page.
+The inventory begins below the whole doll and the belt sits
+under the inventory, so the chips are the fast way down (and
+back up) instead of a long scroll.
+
 - **The doll zone** — the equip surface: your hunter stands on a
   compact stage wearing your actual equipped gear — your primary
   weapon in his hands, shield, relic, and belt mounted on the
@@ -195,7 +201,11 @@ Loadout page. Everything below is on it, in one scroll:
   so on. Rarity and element are read by color — the name's color
   is the rarity, the icon's tint is the element — never spelled
   out in the line. Tap any block to open the **slot picker** for
-  that slot. Your vehicle slot lives here too: it is the
+  that slot. The picker windows its candidate list the way the
+  inventory does: past a few dozen candidates, only the rows
+  around your scroll position are mounted, so even a deep
+  inventory opens instantly — search, filters, and sort still
+  cover every candidate. Your vehicle slot lives here too: it is the
   **button** in the panel's top-right corner — equipped vehicle,
   yield, tank, condition — and it opens the **Garage**, which
   expands in place under the panel with everything vehicle:
@@ -218,7 +228,12 @@ Loadout page. Everything below is on it, in one scroll:
   the rest of its stats — is on its inspect sheet, one tap away.
   The ⇄ button on a row starts a comparison: tap it on one item,
   then on another, and the two open side by side (tap it again on
-  the same item to cancel).
+  the same item to cancel). For weapons the cards print power,
+  damage, and crit with their differences; for every other kind
+  the second card carries the same delta strip the slot picker
+  rows use — shield HP and mitigation, ordnance payload, a class
+  mod's node boosts by name, a relic's affixes gained and lost —
+  so a comparison reads the same on either surface.
 - **Sorting** — one dropdown at the top of the inventory. The
   **General** group comes first — Best Overall, Rarity, Item
   Level, Newest, Name, Activity Value, Affix Count, Salvage
