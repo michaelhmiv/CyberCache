@@ -17,8 +17,10 @@
  *             endless-prep (Chaos Chamber prep, real intel
  *             from /endless/me) | endless-run (depth 7, escrow
  *             1,240 cr / 3,860 XP / 412 scrap at risk) |
- *             extract (a paused Deep Delve at Dustwaste while
- *             Crafting holds the slot — the owner's evening)
+ *             extract (a paused Deep Delve at Dustwaste with
+ *             extraction holding the slot — the stage carries
+ *             the rig scene; corrected 2026-11-17, see the
+ *             bars-render CORRECTION.md)
  *   panel     endless | extract — read by the view-state seam
  *             in ActionScreenContextual, not by this page.
  *   bars      1 — read by the R2 seams (bars, zones, overflow
@@ -180,7 +182,7 @@ function seedStores() {
             remainingMs: 36_000_000,
           }),
         ],
-        activeActionKind: 'crafting',
+        activeActionKind: 'extraction',
       }),
       error: null,
       loading: false,
@@ -188,7 +190,7 @@ function seedStores() {
       enqueue: async () => true,
       cancel: async () => true,
     } as never);
-    seedActivity({ kind: 'crafting' });
+    seedActivity({ kind: 'extraction' });
   }
 }
 

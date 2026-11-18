@@ -29,8 +29,8 @@ export const BARS_ENDLESS_RUN = {
   bestDepth: 9,
 } as const;
 
-/** A paused Deep Delve at Dustwaste Frontier: another
- *  occupation holds the Home slot, the pass sits at 6:48 of
+/** A paused Deep Delve at Dustwaste Frontier: extraction
+ *  holds the Home slot, the pass sits at 6:48 of
  *  10:00 (3:12 left), and the gear factor ×0.72 is below the
  *  ×0.80 Deep Delve floor — the warning the panel only prints
  *  while the delve is active. Pool 1,780 vs ~2,460 expected
