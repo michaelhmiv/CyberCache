@@ -271,6 +271,11 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
   const [sellSegment, setSellSegment] = useState<SellSegment>('sell');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [inspectItem, setInspectItem] = useState<GearItem | null>(null);
+  // The listing behind a Buy-lane inspect (first-screen fix R3):
+  // the sheet's sticky bar prices and buys THIS listing. Only the
+  // Buy lane sets it — Mine-lane and Sell-candidate inspects carry
+  // no listing, so their sheets keep the shipped no-actions shape.
+  const [inspectListing, setInspectListing] = useState<Listing | null>(null);
   const [loadingListings, setLoadingListings] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [buyListings, setBuyListings] = useState<Listing[]>([]);
@@ -765,6 +770,41 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
     }
   };
 
+  // First-screen fix R3 (owner-ruled 2026-11-17): the Market
+  // inspect sheet carries the listing itself — its price as the
+  // hero and a Buy Now in the sheet's sticky actions slot — so
+  // buying never means closing the sheet and re-finding the row.
+  // The bar derives the LIVE listing from the loaded Buy lane by
+  // id: once the listing leaves the market (bought — including
+  // from this bar — sold to someone else, or cancelled) the bar
+  // retires instead of offering a dead Buy. The button is the
+  // row's own button — same guardTransact('buy') gate, same
+  // handleBuy path, same pending / locked / can't-afford states;
+  // there is no second buy implementation.
+  const liveInspectListing = inspectListing
+    ? buyListings.find((l) => l.id === inspectListing.id) ?? null
+    : null;
+  const inspectShortfall = liveInspectListing ? liveInspectListing.price - player.credits : 0;
+  const inspectCantAfford = !!liveInspectListing && !marketLocked && pendingBuyId !== liveInspectListing.id && inspectShortfall > 0;
+  const inspectSheetActions = liveInspectListing ? (
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-black uppercase tracking-wide text-text-muted">Listing price</div>
+        <div className="mt-0.5 text-xl font-black leading-none text-amber">{liveInspectListing.price.toLocaleString()} cr</div>
+        <div className="mt-1 truncate text-[11px] text-text-muted">{sellerDisplayName(liveInspectListing, currentUserId)}</div>
+      </div>
+      {inspectCantAfford ? (
+        <button onClick={() => guardTransact('buy', () => void handleBuy(liveInspectListing))} aria-label={`Not enough credits — short by ${inspectShortfall.toLocaleString()} cr`} className="flex h-11 shrink-0 items-center justify-center rounded-lg border border-red-400/50 bg-red-400/10 px-2 text-center text-[11px] font-bold leading-tight text-red-300">
+          Short by {inspectShortfall.toLocaleString()} cr
+        </button>
+      ) : (
+        <button onClick={() => guardTransact('buy', () => void handleBuy(liveInspectListing))} disabled={pendingBuyId === liveInspectListing.id} className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber px-4 text-[13px] font-black text-bg disabled:opacity-40">
+          {pendingBuyId === liveInspectListing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
+        </button>
+      )}
+    </div>
+  ) : undefined;
+
   const handleCancelListing = async (listing: Listing) => {
     setPendingCancelId(listing.id);
     try {
@@ -950,7 +990,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
                   now={getNow()}
                   sellerLabel={<>Seller · {seller}</>}
                   stats={stats}
-                  onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => setInspectItem(listing.itemSnapshot) : undefined}
+                  onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => { setInspectItem(listing.itemSnapshot); setInspectListing(listing); } : undefined}
                   onShowUsage={setUsageMaterialId}
                   action={cantAfford ? (
                     <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} aria-label={`Not enough credits — short by ${shortfall.toLocaleString()} cr`} className="flex h-11 shrink-0 items-center justify-center rounded-lg border border-red-400/50 bg-red-400/10 px-2 text-center text-[11px] font-bold leading-tight text-red-300">
@@ -1034,7 +1074,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
             const stats = priceStats[gearIdentityKeyForItem(item)];
             return (
               <div key={item.id} className="bl-card space-y-2 p-2.5" style={{ borderLeftColor: rarityColor(item.rarity), borderLeftWidth: 4 }}>
-                <GearCandidateRow item={item} onInspect={() => setInspectItem(item)} />
+                <GearCandidateRow item={item} onInspect={() => { setInspectItem(item); setInspectListing(null); }} />
                 <div className="flex items-center gap-2">
                   <input type="number" value={price} onChange={(e) => setListingPrice((p) => ({ ...p, [item.id]: Number(e.target.value) }))} className="flex-1 rounded-lg border border-border bg-surface-raised px-2 py-1.5 text-xs text-text-primary" />
                   <button onClick={() => guardTransact('sell', () => void handleList(item.id))} disabled={pendingListId === item.id} className="rounded-lg bg-amber px-3 py-1.5 text-xs font-bold text-bg disabled:opacity-50">
@@ -1317,7 +1357,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
                 reduceMotion={reduceMotion}
                 now={getNow()}
                 netLine={`Net ${preview.sellerProceeds.toLocaleString()}cr after the ${preview.pctLabel}% fee`}
-                onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => setInspectItem(listing.itemSnapshot) : undefined}
+                onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => { setInspectItem(listing.itemSnapshot); setInspectListing(null); } : undefined}
                 onShowUsage={setUsageMaterialId}
                 action={(
                   <button onClick={() => void handleCancelListing(listing)} disabled={pendingCancelId === listing.id} className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-red-600 px-3 text-[11px] font-bold text-bg hover:bg-red-500 disabled:opacity-50">
@@ -1429,7 +1469,7 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
         </PickerSheet>
       )}
 
-      <GearInspectSheet item={inspectItem} open={!!inspectItem} onClose={() => setInspectItem(null)} contextLabel="Market Inspect" />
+      <GearInspectSheet item={inspectItem} open={!!inspectItem} onClose={() => { setInspectItem(null); setInspectListing(null); }} contextLabel="Market Inspect" actions={inspectSheetActions} />
 
       <MaterialUsageSheet materialId={usageMaterialId} onClose={() => setUsageMaterialId(null)} />
 
