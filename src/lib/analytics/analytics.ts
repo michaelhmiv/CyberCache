@@ -61,7 +61,7 @@ export type ScreenName =
   | 'Workshop' | 'Boss' | 'Endless' | 'Garage' | 'Standings' | 'Cache'
   | 'Dispatch' | 'Collections' | 'Settings' | 'Help' | 'Activity Log';
 
-export type SignInMethod = 'google' | 'email';
+export type SignInMethod = 'google' | 'email' | 'apple';
 export type AccountTypeProperty = 'guest' | 'linked';
 export type CacheOpenSource = 'free' | 'ad' | 'key';
 export type BossAttemptResult = 'victory' | 'defeat';

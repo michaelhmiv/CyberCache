@@ -3,7 +3,7 @@
  * same function surface the Supabase authService exposed.
  *
  * Chef surface (B1/B1.5): POST /api/auth/guest | register | login |
- * refresh | logout | google, GET /api/auth/me. Sessions are Chef
+ * refresh | logout | google | apple, GET /api/auth/me. Sessions are Chef
  * tokens owned by `src/lib/api/session.ts`; this module is the
  * action layer AuthProvider calls.
  *
@@ -15,10 +15,10 @@
  * Dormant-by-design flows: email/password endpoints exist server-side
  * (tests/dev), but password reset/update have no Chef endpoint — the
  * spec defers reset-by-email until a mail provider is chosen, and the
- * product surface is guest + Google. Those two functions throw a clear
+ * product surface is guest + Google (+ Apple on iOS). Those two functions throw a clear
  * error instead of pretending to work.
  */
-import { getGoogleIdTokenNative } from '../nativeAuth';
+import { getAppleIdTokenNative, getGoogleIdTokenNative } from '../nativeAuth';
 import { trackGuestStart, trackSignIn } from '../analytics/analytics';
 import { apiRequest } from './http';
 import {
@@ -134,6 +134,22 @@ export async function signInWithGoogle(): Promise<ApiUser> {
   });
   const user = await adoptSession(body);
   trackSignIn('google');
+  return user;
+}
+
+export async function signInWithApple(): Promise<ApiUser> {
+  const idToken = await getAppleIdTokenNative();
+  // Same one-surface contract as Google: with a live session the
+  // bearer rides along and the Chef links the Apple identity to the
+  // current account (guest keeps its id and progress); without one
+  // it is a find-or-create sign-in, and the Chef resolves a verified
+  // email an identity-backed account already owns to that account.
+  const body = await apiRequest<AuthSessionBody>('/auth/apple', {
+    method: 'POST',
+    body: { idToken },
+  });
+  const user = await adoptSession(body);
+  trackSignIn('apple');
   return user;
 }
 

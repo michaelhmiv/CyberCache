@@ -3613,3 +3613,34 @@ trees", 2026-11-18):
    2,621,575 B; the sprite ceiling in overhaulVisuals moves
    35,584,578 → 38,206,153 B, recomputed from the tree with
    all icons in place.
+
+### 2026-11-18 — CyberCache ships on iOS: Sign in with Apple beside Google (owner-ruled)
+
+CyberCache gets an iOS version alongside the Play open beta
+(owner directive, 2026-11-18; brief
+~/workspace/cybercache-prep/ios-launch/brief-v1.md). Android is
+not held back for it — the tracks run independently. This entry
+records the sign-in ruling (Track 3); the platform scaffold and
+CI lanes land as their own tracks.
+
+1. **The sign-in surface is platform-branched, one surface.**
+   On iOS the sign-in screen, the locked-action prompt, and the
+   profile link rows offer Google AND Apple; on Android they
+   offer Google only, exactly as shipped. The guest flow and the
+   Guest Visibility Law are untouched, and both providers run
+   through the one Chef auth surface — no parallel Apple stack.
+2. **The account rule: same verified email = same hunter.**
+   An Apple identity and a Google identity carrying the same
+   verified email resolve to the SAME player account (the second
+   identity links to the account that owns the address).
+   Differing emails are never merged silently, an unverified
+   email never claims an owned address, and a password-only
+   account keeps the audit A-13 refusal. Apple private-relay
+   emails are first-class account emails, stored exactly as
+   Apple returns them.
+3. **Verification is the Chef's, same as Google's.** Apple
+   identity tokens are verified server-side — RS256 against
+   Apple's JWKS, issuer, audience (the bundle id), expiry —
+   before any account resolution; identity comes from the
+   verified token and the Chef session JWT, never from a
+   client-supplied player id.

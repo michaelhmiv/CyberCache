@@ -13,6 +13,7 @@ import type { Express, Request, Response } from 'express';
 import { AuthStoreError, type AuthStore, type Session } from './store';
 import { issueAccessToken, verifyAccessToken } from './tokens';
 import { GoogleTokenError, verifyGoogleIdToken, type JwksFetcher } from './google';
+import { AppleTokenError, verifyAppleIdToken, type AppleJwksFetcher } from './apple';
 
 export interface AuthConfig {
   jwtSecret: string;
@@ -20,6 +21,10 @@ export interface AuthConfig {
   googleClientIds?: string[];
   /** Injectable for tests; defaults to Google's live JWKS endpoint. */
   googleJwksFetcher?: JwksFetcher;
+  /** Audiences accepted for Apple identity tokens (the iOS bundle id, plus any Services ids). Empty = Apple route off. */
+  appleClientIds?: string[];
+  /** Injectable for tests; defaults to Apple's live JWKS endpoint. */
+  appleJwksFetcher?: AppleJwksFetcher;
 }
 
 function sessionBody(secret: string, session: Session) {
@@ -154,6 +159,43 @@ export function mountAuthRoutes(app: Express, store: AuthStore, config: AuthConf
           } catch { /* keep 'unparseable' */ }
           console.warn(`[chef-auth] google sign-in rejected: ${err.reason} (${claims})`);
           res.status(401).json({ error: 'invalid_google_token', message: 'Google sign-in could not be verified' });
+          return;
+        }
+        fail(res, err);
+      }
+    });
+  }
+
+  if (config.appleClientIds && config.appleClientIds.length > 0) {
+    const appleClientIds = config.appleClientIds;
+    app.post('/api/auth/apple', async (req, res) => {
+      // Same shape as the Google route: idToken read before the try so
+      // the AppleTokenError path can log the rejected token's public
+      // aud/iss claims — only those claims, never the token itself.
+      const { idToken } = req.body ?? {};
+      try {
+        if (typeof idToken !== 'string') {
+          res.status(400).json({ error: 'validation', message: 'An Apple identity token is required' });
+          return;
+        }
+        const identity = await verifyAppleIdToken(idToken, appleClientIds, config.appleJwksFetcher);
+        // Signed-in callers (e.g. a guest session) link the identity to
+        // their existing account; anonymous callers get find-or-create,
+        // with the store's cross-provider rule resolving a verified
+        // email that an identity-backed account already owns to that
+        // same account (brief account rule, Track 3).
+        const linkId = chefPlayerId(config, req) ?? undefined;
+        const session = await store.loginWithIdentity('apple', identity, new Date(), linkId);
+        res.json(sessionBody(config.jwtSecret, session));
+      } catch (err) {
+        if (err instanceof AppleTokenError) {
+          let claims = 'unparseable';
+          try {
+            const payload = JSON.parse(Buffer.from(String(idToken).split('.')[1], 'base64url').toString('utf8')) as { aud?: unknown; iss?: unknown };
+            claims = `aud=${String(payload.aud)} iss=${String(payload.iss)}`;
+          } catch { /* keep 'unparseable' */ }
+          console.warn(`[chef-auth] apple sign-in rejected: ${err.reason} (${claims})`);
+          res.status(401).json({ error: 'invalid_apple_token', message: 'Apple sign-in could not be verified' });
           return;
         }
         fail(res, err);

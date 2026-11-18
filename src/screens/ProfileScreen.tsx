@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon, type PxIconName } from '@/components/pixelArt/PxIcon';
 
@@ -133,7 +134,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const inventory = useInventoryStore();
   const skillStore = useSkillStore();
   const deathLog = useSurvivalStore((s) => s.deathLog);
-  const { account, user, signOut, signInWithGoogle, actionLoading, refreshAccount } = useAuth();
+  const { account, user, signOut, signInWithGoogle, signInWithApple, actionLoading, refreshAccount } = useAuth();
   // Slice (e): a deferred starting-hunter pick completes at the
   // Roster stop below; the account refresh after a completing
   // fielding is what retires the pick head.
@@ -698,9 +699,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
             linking upgrades the guest in place server-side, keeping
             all progress. Before this row the only link entry points
             were the sign-in screen a signed-in guest never sees again
-            and the locked-feature wall. */}
+            and the locked-feature wall. On iOS the same row offers
+            Apple beside Google (iOS launch Track 3). */}
         {isGuestAccount(account) && (
           <ActionRow glyph="G" label={actionLoading ? 'Linking…' : 'Link Google'} desc="Keep your progress — upgrade this guest account in place and unlock trading, services, and leaderboards" onClick={() => signInWithGoogle()} tone="#5AA7FF" />
+        )}
+        {isGuestAccount(account) && Capacitor.getPlatform() === 'ios' && (
+          <ActionRow icon="key" label={actionLoading ? 'Linking…' : 'Link Apple'} desc="Keep your progress — upgrade this guest account in place and unlock trading, services, and leaderboards" onClick={() => signInWithApple()} tone="#5AA7FF" />
         )}
         <ActionRow icon="cog" label="Settings" desc="Preferences, display, and local save controls" onClick={() => onNavigate?.('settings')} tone="#9CA3AF" />
         <ActionRow glyph="?" label="Field Manual" desc="Mechanics, progression, caches, combat, and economy rules" onClick={() => onNavigate?.('help')} tone="#F7D20B" />

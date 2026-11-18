@@ -6,11 +6,14 @@ import { useAuth } from '../auth/AuthProvider';
 import { AuthHero } from '@/components/common/AuthHero';
 
 /**
- * Sign-in is Google + guest only (product decision, 2026-10-30).
+ * Sign-in is Google + guest only (product decision, 2026-10-30) —
+ * extended on iOS by the iOS launch (Track 3, 2026-11-18): the iOS
+ * app offers Sign in with Apple beside Google, through the same
+ * one-surface Chef flow. Android is unchanged (Google only).
  * Email/password auth stays dormant in the provider and on the Chef —
  * there is deliberately no email form anywhere in the app UI. A guest
- * session links to Google in place (progress kept) from this screen or
- * from any feature gate.
+ * session links to Google (or Apple, on iOS) in place (progress kept)
+ * from this screen or from any feature gate.
  *
  * Platform honesty (QC B3, completed by audit A-02): Google sign-in
  * exists only in the app — the native flow has no web counterpart
@@ -27,6 +30,7 @@ export const AuthScreen: React.FC = () => {
   const auth = useAuth();
   const reduceMotion = useReducedMotion();
   const isNative = Capacitor.isNativePlatform();
+  const isIos = Capacitor.getPlatform() === 'ios';
 
   const message = auth.authError;
   const diagnosticText = auth.authDiagnostic ? JSON.stringify(auth.authDiagnostic, null, 2) : null;
@@ -50,7 +54,7 @@ export const AuthScreen: React.FC = () => {
           <div className="text-xs leading-relaxed text-text-muted">
             {isNative ? (
               <>
-                Jump in as a guest and play right away — the vendor yard is open to everyone. Sign in with Google to unlock the player market and services, and to keep your hunter on any device.
+                Jump in as a guest and play right away — the vendor yard is open to everyone. Sign in with {isIos ? 'Google or Apple' : 'Google'} to unlock the player market and services, and to keep your hunter on any device.
               </>
             ) : (
               <>
@@ -75,6 +79,7 @@ export const AuthScreen: React.FC = () => {
             </details>
           )}
           {isNative ? (
+          <>
           <button
             onClick={() => auth.signInWithGoogle()}
             disabled={auth.actionLoading}
@@ -88,6 +93,16 @@ export const AuthScreen: React.FC = () => {
             </svg>
             Continue with Google
           </button>
+          {isIos && (
+            <button
+              onClick={() => auth.signInWithApple()}
+              disabled={auth.actionLoading}
+              className="bl-secondary flex min-h-11 w-full items-center justify-center gap-2 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
+            >
+              Continue with Apple
+            </button>
+          )}
+          </>
           ) : (
             <div className="text-xs leading-relaxed text-text-muted" data-testid="auth-web-signin-note">
               Sign-in happens in the CyberCache app — open the app to sign in with Google and keep

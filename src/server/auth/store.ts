@@ -205,6 +205,29 @@ export class InMemoryAuthStore implements AuthStore {
       account.isGuest = false;
       return this.issueSession(account, now);
     }
+    // Cross-provider resolution (iOS launch Track 3, brief account
+    // rule): a bare identity sign-in whose VERIFIED email matches an
+    // existing identity-backed account resolves to THAT account —
+    // an Apple identity and a Google identity with the same verified
+    // email are the same player, so the new identity links to the
+    // account that already owns the address. The guards keep audit
+    // A-13 intact: the owner must itself be identity-backed (a
+    // password-only account is never claimed this way — it still
+    // refuses below) and its email must be verified on the account,
+    // and the incoming email must be verified by its provider.
+    // Differing or unverified emails never reach this branch.
+    if (identity.email && identity.emailVerified) {
+      const ownerId = this.byEmail.get(identity.email);
+      const owner = ownerId ? this.accounts.get(ownerId) : undefined;
+      if (
+        owner &&
+        owner.emailVerifiedAt &&
+        [...this.identities.values()].includes(owner.id)
+      ) {
+        this.identities.set(key, owner.id);
+        return this.issueSession(owner, now);
+      }
+    }
     // No silent merge (audit A-13): the Postgres store refuses this
     // exact case — its insert hits the email unique constraint and
     // surfaces email_taken. This twin previously just overwrote
@@ -398,22 +421,61 @@ export class PgAuthStore implements AuthStore {
       }
       return this.issueSession(account, now);
     }
-    const { rows } = await this.db.query(
+    // Find-or-create. The insert runs first, exactly as it always
+    // has: a free email creates its account here. A unique violation
+    // proves the email is already owned, and only then does the
+    // cross-provider resolution get its chance (below).
+    const inserted = await this.db.query(
       `insert into auth_accounts (email, is_guest, password_hash, email_verified_at) values ($1, false, null, $2)
        returning id, email, is_guest, email_verified_at, created_at`,
       [identity.email, identity.emailVerified && identity.email ? now : null],
     ).catch((err: { code?: string }) => {
-      if (err.code === '23505') {
-        throw new AuthStoreError('email_taken', 'That email already has an account; sign in and link Google from inside the app');
-      }
+      if (err.code === '23505') return null;
       throw err;
     });
-    const account = rowToAccount(rows[0] as unknown as PgAccountRow);
-    await this.db.query(
-      'insert into auth_identities (provider, provider_subject, account_id) values ($1, $2, $3)',
-      [provider, identity.subject, account.id],
-    );
-    return this.issueSession(account, now);
+    if (inserted) {
+      const account = rowToAccount(inserted.rows[0] as unknown as PgAccountRow);
+      await this.db.query(
+        'insert into auth_identities (provider, provider_subject, account_id) values ($1, $2, $3)',
+        [provider, identity.subject, account.id],
+      );
+      return this.issueSession(account, now);
+    }
+    // Cross-provider resolution (iOS launch Track 3, brief account
+    // rule) — the in-memory twin carries the same rule as a
+    // pre-create check: a bare identity sign-in whose VERIFIED email
+    // matches an existing identity-backed, email-verified account
+    // links the new identity to that account instead of failing —
+    // an Apple identity and a Google identity with the same verified
+    // email are the same player. Resolution is best-effort on top of
+    // an established ownership conflict: a password-only owner, an
+    // unverified owner or incoming email, or any failure to prove
+    // eligibility keeps the audit A-13 email_taken refusal below.
+    if (identity.email && identity.emailVerified) {
+      try {
+        const ownerRows = await this.db.query(
+          'select id, email, is_guest, email_verified_at, created_at from auth_accounts where email = $1',
+          [identity.email],
+        );
+        if (ownerRows.rows.length > 0) {
+          const owner = rowToAccount(ownerRows.rows[0] as unknown as PgAccountRow);
+          if (owner.emailVerifiedAt) {
+            const linkRows = await this.db.query(
+              'select 1 as one from auth_identities where account_id = $1 limit 1',
+              [owner.id],
+            );
+            if (linkRows.rows.length > 0) {
+              await this.db.query(
+                'insert into auth_identities (provider, provider_subject, account_id) values ($1, $2, $3) on conflict do nothing',
+                [provider, identity.subject, owner.id],
+              );
+              return this.issueSession(owner, now);
+            }
+          }
+        }
+      } catch { /* eligibility unproven — the A-13 refusal stands */ }
+    }
+    throw new AuthStoreError('email_taken', 'That email already has an account; sign in and link Google from inside the app');
   }
 
   async logout(refreshToken: string): Promise<void> {

@@ -29,8 +29,9 @@ export function SignInLockPrompt({
   reason?: string;
   onDismiss?: () => void;
 }) {
-  const { account, signInWithGoogle, actionLoading } = useAuth();
+  const { account, signInWithGoogle, signInWithApple, actionLoading } = useAuth();
   const isNative = Capacitor.isNativePlatform();
+  const isIos = Capacitor.getPlatform() === 'ios';
   return (
     <div className="relative rounded-2xl border-2 border-border bg-surface p-5 space-y-3 text-center">
       {onDismiss && (
@@ -48,13 +49,24 @@ export function SignInLockPrompt({
       {reason && <div className="text-xs text-text-muted leading-relaxed">{reason}</div>}
       {isGuestAccount(account) &&
         (isNative ? (
-          <button
-            onClick={() => signInWithGoogle()}
-            disabled={actionLoading}
-            className="w-full py-2.5 rounded-xl bg-amber text-bg font-black text-xs border-2 border-amber disabled:opacity-50"
-          >
-            Sign in with Google — keep your progress
-          </button>
+          <>
+            <button
+              onClick={() => signInWithGoogle()}
+              disabled={actionLoading}
+              className="w-full py-2.5 rounded-xl bg-amber text-bg font-black text-xs border-2 border-amber disabled:opacity-50"
+            >
+              Sign in with Google — keep your progress
+            </button>
+            {isIos && (
+              <button
+                onClick={() => signInWithApple()}
+                disabled={actionLoading}
+                className="w-full py-2.5 rounded-xl bg-bg text-text-primary font-black text-xs border-2 border-border disabled:opacity-50"
+              >
+                Sign in with Apple — keep your progress
+              </button>
+            )}
+          </>
         ) : (
           <div className="text-xs text-text-muted leading-relaxed" data-testid="signin-lock-web-note">
             Sign-in happens in the CyberCache app — open the app to sign in with Google and keep
