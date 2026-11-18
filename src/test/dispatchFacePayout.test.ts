@@ -63,7 +63,7 @@ type OfferView = {
   id: string;
   family: 'foot' | 'courier';
   areaId: string;
-  durationHours: number;
+  durationHours: 2 | 8 | 24;
   payout: { credits: number; scrap: number; materialId: string | null; materialUnits: number } | null;
 };
 
