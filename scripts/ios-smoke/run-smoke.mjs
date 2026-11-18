@@ -147,29 +147,81 @@ async function fetchJson(url) {
   return response.json();
 }
 
-/** Poll the debug proxy until our app's WebView page appears; return its WebSocket URL. */
-async function waitForPage(timeoutMs = 120000) {
-  const deadline = Date.now() + timeoutMs;
-  let lastError = 'proxy not up yet';
-  while (Date.now() < deadline) {
-    try {
-      const devices = await fetchJson('http://127.0.0.1:9221/json');
-      for (const device of devices) {
-        if (!device.url) continue;
-        const pages = await fetchJson(`${device.url}/json`).catch(() => []);
-        for (const page of pages) {
-          if (page.webSocketDebuggerUrl && page.url && !page.url.startsWith('about:')) {
-            return page.webSocketDebuggerUrl;
-          }
-        }
-        lastError = `device ${device.deviceId || '?'} listed, ${pages.length} page(s), none inspectable yet`;
+/**
+ * Start ios-webkit-debug-proxy in listing mode (device list on :9221, one
+ * port per device from :9222). Output streams to this process's log live —
+ * the first real run (44421693207) failed the DOM leg with an empty proxy
+ * log and an undiagnosable "proxy not up yet", so the transport now reports
+ * on itself. Resolves with the child process once spawned.
+ */
+const proxyLogChunks = [];
+function startProxy(args) {
+  const child = spawn('ios_webkit_debug_proxy', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  const tee = (prefix) => (d) => {
+    const text = `${prefix} ${d}`;
+    proxyLogChunks.push(text);
+    process.stdout.write(text.endsWith('\n') ? text : `${text}\n`);
+  };
+  child.stdout.on('data', tee('[proxy]'));
+  child.stderr.on('data', tee('[proxy:err]'));
+  child.on('error', (error) => console.log(`[proxy] spawn error: ${error.message}`));
+  child.on('exit', (code, signal) => console.log(`[proxy] exited code=${code} signal=${signal}`));
+  return child;
+}
+
+/** One probe of a proxy base URL; returns { wsUrl } or { state } for diagnosis. */
+async function probeProxy(base) {
+  let targets;
+  try {
+    targets = await fetchJson(`${base}/json`);
+  } catch (error) {
+    return { state: `${base}/json unreachable: ${error.message || error}` };
+  }
+  if (!Array.isArray(targets)) return { state: `${base}/json answered with a non-list` };
+  // Listing mode answers with devices (each carrying its own url); per-device
+  // mode answers with the device's pages directly. Handle both shapes.
+  const pagesHere = targets.filter((t) => t.webSocketDebuggerUrl);
+  for (const page of pagesHere) {
+    if (page.url && !page.url.startsWith('about:')) return { wsUrl: page.webSocketDebuggerUrl };
+  }
+  let pageCount = pagesHere.length;
+  for (const device of targets) {
+    if (!device.url) continue;
+    const pages = await fetchJson(`${device.url}/json`).catch(() => []);
+    pageCount += pages.length;
+    for (const page of pages) {
+      if (page.webSocketDebuggerUrl && page.url && !page.url.startsWith('about:')) {
+        return { wsUrl: page.webSocketDebuggerUrl };
       }
-    } catch (error) {
-      lastError = String(error.message || error);
     }
+  }
+  return { state: `${base}/json answered: ${targets.length} entr(ies), ${pageCount} page(s), none inspectable` };
+}
+
+/**
+ * Poll the debug proxy until our app's WebView page appears; return its
+ * WebSocket URL. Two transports, one run: listing mode first (45s), then a
+ * per-device proxy (`-c <udid>:9222`) — the shape most CI recipes use for a
+ * known simulator. The failure message names the last probe state of each.
+ */
+async function waitForPage(udid, restartProxyPerDevice, timeoutMs = 150000) {
+  const deadline = Date.now() + timeoutMs;
+  const listingWindowMs = 45000;
+  let lastState = 'no probe yet';
+  let perDevice = false;
+  while (Date.now() < deadline) {
+    if (!perDevice && Date.now() > deadline - timeoutMs + listingWindowMs) {
+      console.log('[smoke] listing mode produced no page in 45s — restarting proxy per-device');
+      restartProxyPerDevice();
+      perDevice = true;
+    }
+    const base = perDevice ? 'http://127.0.0.1:9222' : 'http://127.0.0.1:9221';
+    const probe = await probeProxy(base);
+    if (probe.wsUrl) return probe.wsUrl;
+    lastState = `${perDevice ? 'per-device' : 'listing'}: ${probe.state}`;
     await sleep(3000);
   }
-  throw new Error(`WebView page never appeared in the debug proxy (${lastError})`);
+  throw new Error(`WebView page never appeared in the debug proxy (last probe — ${lastState})`);
 }
 
 async function main() {
@@ -191,11 +243,12 @@ async function main() {
     record('install', true, `container: ${container.stdout.trim().split('\n')[0]}`);
 
     // Start the WebInspector proxy before launch so it sees the page early.
-    proxy = spawn('ios_webkit_debug_proxy', [], { stdio: ['ignore', 'pipe', 'pipe'] });
-    const proxyLog = [];
-    proxy.stdout.on('data', (d) => proxyLog.push(String(d)));
-    proxy.stderr.on('data', (d) => proxyLog.push(String(d)));
-    process.on('exit', () => writeFileSync(path.join(OUT_DIR, 'proxy.log'), proxyLog.join('')));
+    proxy = startProxy([]);
+    process.on('exit', () => writeFileSync(path.join(OUT_DIR, 'proxy.log'), proxyLogChunks.join('')));
+    const restartProxyPerDevice = () => {
+      try { proxy.kill('SIGTERM'); } catch { /* already gone */ }
+      proxy = startProxy(['-c', `${udid}:9222`]);
+    };
 
     const launched = await simctl(['launch', udid, BUNDLE_ID]);
     record('launch', true, launched.stdout.trim());
@@ -217,7 +270,7 @@ async function main() {
       record('first-screen-rendered', false, `${error.stdout || ''} ${error.stderr || ''}`.trim());
     }
 
-    const wsUrl = await waitForPage();
+    const wsUrl = await waitForPage(udid, restartProxyPerDevice);
     cdp = new Cdp(wsUrl);
     await cdp.connect();
     await cdp.call('Runtime.enable');
