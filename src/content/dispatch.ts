@@ -504,6 +504,49 @@ export function courierPayoutLines(
   };
 }
 
+/**
+ * The FACE payout an offer advertises on the board (first-screen
+ * pass, 2026-11-17): the same lines the departure preview computes,
+ * at the baseline the preview itself starts from — foot at strength
+ * 1.0 (the preview then scales by the staffed loadout's strength,
+ * clamped 0.5–1.5), courier as its own baseline (foot lines at 1.0
+ * with the credit premium applied). The one term left out is the
+ * courier cargo bonus: it is a property of the VEHICLE the player
+ * commits, not of the offer, and the preview adds it once a vehicle
+ * is chosen. This is not a second formula — it calls footPayoutLines
+ * and restates courierPayoutLines' credit/scrap/material lines
+ * verbatim, minus only that vehicle term.
+ */
+export interface DispatchOfferPayout {
+  credits: number;
+  scrap: number;
+  materialId: string | null;
+  materialUnits: number;
+}
+
+export function dispatchOfferFacePayout(
+  offer: DispatchOffer,
+  area: RoamingAreaDef,
+  levers: DispatchLeverValues,
+  seed: string,
+): DispatchOfferPayout {
+  const foot = footPayoutLines(area, offer.durationHours, 1, levers, seed);
+  if (offer.family === 'courier') {
+    return {
+      credits: Math.round(foot.credits * levers.courierPremiumMultiplier),
+      scrap: foot.scrap,
+      materialId: foot.materialId,
+      materialUnits: foot.materialUnits,
+    };
+  }
+  return {
+    credits: foot.credits,
+    scrap: foot.scrap,
+    materialId: foot.materialId,
+    materialUnits: foot.materialUnits,
+  };
+}
+
 // ─── Settlement fractions ────────────────────────────────────────────
 
 /**
