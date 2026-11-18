@@ -431,6 +431,24 @@ describe('performance + payload budgets (§4.9)', () => {
     // set-extract-stakes 466,403 -> 229,565 B — trio +14,493 B
     // net (+1.1% on the family). Manifest total 37,026,461 →
     // 37,040,954 B; the ceiling literal follows the total +1.
-    expect(total).toBeLessThan(37_040_954 + 1);  });
+    // Glow set repaint (2026-11-18): the nine glow-clash set
+    // pieces are replaced by the generation-led v3 set — each
+    // piece generated for its own scene's light and judged
+    // in-scene (owner ruling 2026-11-18, DESIGN.md §12; the v1
+    // isolated generation and the v2 photometric grading pass
+    // were both rejected on the way). Identical file dimensions,
+    // art only: set-bench-lab 232,825 -> 319,645 B,
+    // set-calibration-rig 190,750 -> 282,509 B,
+    // set-dispatch-pad 417,377 -> 165,919 B,
+    // set-dispatch-route 444,327 -> 189,317 B,
+    // set-research-shelf 573,975 -> 433,794 B,
+    // set-research-terminal 480,154 -> 376,828 B,
+    // set-resurrection-pod 516,066 -> 214,327 B,
+    // set-vendor-sign 528,943 -> 248,739 B,
+    // set-war-room-table 499,465 -> 196,428 B — the nine
+    // −1,456,376 B net (−37.5% on the family). Manifest total
+    // 37,040,954 → 35,584,578 B; the ceiling literal follows
+    // the total +1.
+    expect(total).toBeLessThan(35_584_578 + 1);  });
 
 });

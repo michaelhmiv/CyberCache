@@ -3508,3 +3508,46 @@ it ("Adopt the new extraction set", 2026-11-18):
 3. **Scope is the trio.** The adoption covers the extraction
    set only; the game's other set pieces keep their current
    paintings under their own rulings.
+
+### 2026-11-18 — The glow set is repainted in its scenes: the generation-led v3 set (owner-ruled)
+
+Nine set pieces — the lab bench (set-bench-lab), the
+calibration rig (set-calibration-rig), the dispatch pad
+(set-dispatch-pad), the dispatch route marker
+(set-dispatch-route), the research shelf (set-research-shelf),
+the research terminal (set-research-terminal), the
+resurrection pod (set-resurrection-pod), the vendor sign
+(set-vendor-sign), and the war-room table
+(set-war-room-table) — shipped in a neon-glow handling that
+clashed with the scenes they stand in. The owner reviewed the
+v3 set on rendered stage frames and adopted it ("Adopt the
+v3 nine", 2026-11-18):
+
+1. **The v3 pieces are the set.** Each piece was generated
+   for its own scene — the scene's frame as its primary style
+   reference, so the piece is painted in the light it stands
+   in — captured in the real scene, and judged in-scene round
+   by round until it sat. The glow handling is retired for
+   these nine pieces.
+2. **Two earlier attempts are rejected and stay rejected.**
+   The v1 set, generated in isolation, did not blend with the
+   environment; the v2 pass, which graded the v1 paintings
+   photometrically instead of repainting them, was rejected
+   outright. The grading route is dead: these pieces are
+   repainted, never graded.
+3. **Nothing else moves.** The swap lands at identical file
+   dimensions for all nine; stage composition, anchors, and
+   placement are unchanged. Art only: no layout, mechanic, or
+   number changes.
+4. **Two limits are carried plainly.** The dispatch route
+   marker renders about 110 px wide floating in a luminous
+   sky; at that seat, etched map detail cannot read without
+   the retired glow, so the v3 marker is deliberately quiet.
+   The research shelf keeps its shipped frame — only its
+   contents were de-glowed — so it remains the darkest object
+   in the game's brightest room; re-authoring that frame is a
+   separate ruling, not part of this adoption.
+5. **Scope is the nine.** The dispatch board is not part of
+   this set and is untouched (the owner ruled it out of scope
+   explicitly). The game's other set pieces keep their
+   current paintings under their own rulings.
