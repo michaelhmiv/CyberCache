@@ -15,6 +15,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Your skills count where they say they count** — a skill tree belongs to the hunter who earned it: its effects are live while that hunter is fielded, priced at the moment you act. Recipe cards now quote your effective time per unit with your fielded hunter's craft skills counted in — Doc Sutter's own hand with time included while he is fielded — with the base time beside it when the two differ; a job already on the bench keeps the rate it was queued at, and its strip and row say so. The Demolition supply nodes' wording now matches what they deliver: unit time falls in steps as you invest across the five nodes, up to a fifth off with all five maxed.
 - **The zone under the stage answers for the bench while you craft** — while Craft holds the stage, the black rundown under it is the bench's own read instead of your combat numbers: the job being worked, pictured, with its state and its units done of total; the time each unit takes at the rate that job was queued at; how far the unit on the bench has come; how long the job has left; and what waits behind it, named, with the queue's combined time. Your HP and shield stay on a slim line at the zone's foot — the damage figures step aside only while you craft, and every other mode keeps the combat rundown exactly as before. An idle bench says so in the same place, over the same vitals line.
 - **The streak day starts at 3 AM Eastern now — and a claimed day shows its check** — the login-streak day used to roll over at 7 PM Eastern, so an evening session and the next morning's counted as two different days (and a reward recorded in the morning expired that same evening). A streak day now runs 3 AM Eastern to 3 AM Eastern (08:00 UTC; the sheet prints the start in your own local time), so playing at night and again in the morning is one day, and an unclaimed reward lives until 3 AM. Your recorded history was re-keyed onto the new day — no streak day or paid reward was lost in the move. And claiming today's reward now puts its check on the ladder's today cell immediately, instead of the check only appearing the next day.
+- **The decision rides at the fold now** — boss prep and Chamber entry pin a bar at the fold with the true price and the start button, so the fee you will pay is on the first screen, not at the bottom of the scroll. While a Chamber run is live, the zone under the stage answers for the run: your depth, the escrow at risk, what dying would pay, the next milestone — and **Bank & Leave** with the full payout, right there. And while you are looking at a delve, the zone answers for the extraction: the site and method, the time to the next pass, your gear factor — including the **Deep Delve paying as Surface** warning whenever a deep delve's factor sits below ×0.80, even while the delve is paused, with **Resume** beside it to set the saved delve working again as-is.
 
 ## 2026-11-16 — The Cache Hunters take the field
 
@@ -411,9 +412,9 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 330 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 333 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 7 merges
+**2026-11-17** — 10 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
@@ -422,6 +423,9 @@ _Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merge
 - #606 — Retire the cosmetics write path, head-variant picker + pref, and WeaponCanvas (device-pass Batch 4)
 - #607 — Two small things: drop the false Threshold row; delete dead look selectors
 - #608 — Crafting stage: V1 zoom composition, anvil-free bench, Inkling animation treatment, Unarmed tag removed
+- #609 — Login streak: paid today shows its check; streak day starts at 08:00 UTC (0101)
+- #610 — Craft-info V1: the bench rundown takes the Home zone in Craft mode
+- #611 — Skill-routing fix: every skill tree reaches gameplay (F1–F8, migration 0102)
 
 **2026-11-16** — 13 merges
 

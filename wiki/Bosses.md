@@ -64,6 +64,8 @@ Every attempt costs an entry fee, charged win or lose. The first boss is free to
 
 **Rematch escalation:** each victory you score over a boss doubles that boss's next fee for the rest of the day (UTC), up to **8× the base fee**. Beating the same boss a fourth time today means the fifth attempt costs eight times the sticker price. The escalation resets at the day boundary, and the fee shown at prep is the fee you will be charged.
 
+**The prep bar:** the price and the launch ride the first screen. A bar pinned at the fold of the prep panel carries the boss's name, the exact fee for this attempt — entry or rematch, with the day's escalation named when it applies, and your balance when the fee is out of reach — and the **Start Encounter** button itself. The [[Endless Mode|Chaos Chamber]]'s entry prep carries the same bar: the Chamber's name, its entry fee under the day's escalation, and **Enter Chamber**.
+
 ## Winning: XP, credits, and the dedicated drop
 
 A victory pays:
