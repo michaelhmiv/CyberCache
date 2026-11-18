@@ -17,6 +17,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **The compliance pages answer again** — the privacy policy, data deletion, and support pages are back at their usual addresses on the production service, because the store listings and the ads consent form point at them. They are plain documents — the game page itself stays retired and the service is still app-only; nothing else about the web surface changed.
 - **A public test track is plumbed in** — the release line gains an open testing workflow beside the closed one, same signed bundle and same safeguards, so a build can go out to anyone who wants to try it instead of only invited testers. Nothing about the game itself changes.
 - **CyberCache is coming to iPhone** — the iOS version's foundations are in: the same game and the same account, built to sit beside the Android app, with its own icon and splash drawn from the same paintings. Android players see no change.
+- **The iPhone app can sign you in with Apple now** — the app itself carries the Sign in with Apple capability, so the native Apple sign-in flow has what it needs to run on a real phone, beside the Google sign-in the game already had. Nothing changes on Android.
 
 ## 2026-11-17 — The bench shows its work; drops show themselves; the painting, everywhere the hunter stands
 
