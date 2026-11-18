@@ -90,7 +90,9 @@ if (chefJwtSecret && databaseUrl) {
       const pool = new Pool({ connectionString: databaseUrl });
       const googleClientIds = (process.env.GOOGLE_OAUTH_CLIENT_IDS ?? '')
         .split(',').map((v) => v.trim()).filter(Boolean);
-      mountAuthRoutes(app, new PgAuthStore(pool), { jwtSecret: chefJwtSecret, googleClientIds });
+      const appleClientIds = (process.env.APPLE_OAUTH_CLIENT_IDS ?? '')
+        .split(',').map((v) => v.trim()).filter(Boolean);
+      mountAuthRoutes(app, new PgAuthStore(pool), { jwtSecret: chefJwtSecret, googleClientIds, appleClientIds });
       console.log('[chef-auth] /api/auth/* mounted (Route B identity)');
       // Route B read APIs (slice B2) — same gate as identity: they are
       // useless without Chef JWTs to authenticate them.

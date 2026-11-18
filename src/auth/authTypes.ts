@@ -28,6 +28,7 @@ export interface AuthContextValue {
   continueAsGuest: () => Promise<AuthActionResult>;
   signInWithEmail: (email: string, password: string) => Promise<AuthActionResult>;
   signInWithGoogle: () => Promise<AuthActionResult>;
+  signInWithApple: () => Promise<AuthActionResult>;
   registerWithEmail: (email: string, password: string, username: string) => Promise<AuthActionResult>;
   sendPasswordReset: (email: string) => Promise<AuthActionResult>;
   updatePassword: (password: string) => Promise<AuthActionResult>;

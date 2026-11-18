@@ -268,6 +268,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { ok: true };
   }), [loadUser, run]);
 
+  const signInWithApple = useCallback(() => run(async () => {
+    const nextUser = await authService.signInWithApple();
+    await loadUser(nextUser);
+    return { ok: true };
+  }), [loadUser, run]);
+
   const registerWithEmail = useCallback((email: string, secret: string, username: string) => run(async () => {
     const nextUser = await authService.registerWithEmail(email, secret, username);
     if (nextUser) {
@@ -323,6 +329,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     continueAsGuest,
     signInWithEmail,
     signInWithGoogle,
+    signInWithApple,
     registerWithEmail,
     sendPasswordReset,
     updatePassword,
@@ -331,7 +338,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshAccount,
     bootstrapError,
     retryBootstrap,
-  }), [user, account, loading, actionLoading, authMode, authMessage, authError, authDiagnostic, clearAuthStatus, continueAsGuest, signInWithEmail, signInWithGoogle, registerWithEmail, sendPasswordReset, updatePassword, markVerificationReminderSeen, signOut, refreshAccount, bootstrapError, retryBootstrap]);
+  }), [user, account, loading, actionLoading, authMode, authMessage, authError, authDiagnostic, clearAuthStatus, continueAsGuest, signInWithEmail, signInWithGoogle, signInWithApple, registerWithEmail, sendPasswordReset, updatePassword, markVerificationReminderSeen, signOut, refreshAccount, bootstrapError, retryBootstrap]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

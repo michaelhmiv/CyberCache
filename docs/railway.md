@@ -52,6 +52,7 @@ Build from this repo; the start command runs the Express server
 | `CHEF_JWT_SECRET` | Fresh random secret (≥32 bytes), generated at provisioning time. Signs the Chef access/refresh tokens. |
 | `CHEF_JOB_SECRET` | Fresh random secret, generated at provisioning time. Shared with the cron services (header `x-chef-job-secret`). |
 | `GOOGLE_OAUTH_CLIENT_IDS` | Comma-separated OAuth client IDs for the Android (and later iOS) app, from the Google Cloud console for the CyberCache project. Used to verify Google ID tokens at sign-in. |
+| `APPLE_OAUTH_CLIENT_IDS` | Comma-separated audiences accepted for Apple identity tokens: the iOS bundle id (`com.michaelhmiv.cybercache`) for the native Sign in with Apple flow, plus any Services IDs if a web flow is ever added. Used to verify Apple identity tokens at sign-in; the `/api/auth/apple` route stays off until this is set. |
 | `FIREBASE_ADMIN_JSON` | The Firebase service-account JSON (single line), from the Firebase console. Enables FCM test pushes (`POST /api/push/test`); optional — push sending is disabled without it. |
 | `PORT` | Provided by Railway. |
 | `SERVE_WEB_CLIENT` | Optional. Leave unset everywhere except production. Production sets it to `false`: the Chef then serves the API only — `/`, `/index.html` and static asset paths return 404 while `/api/*` and `/health` respond exactly as before — so crawlers get no page to execute and cannot mint guest accounts. Any value other than `false`/`0`/`off`/`no` (or unset) serves the web client. |

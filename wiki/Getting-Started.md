@@ -8,9 +8,9 @@ You can start playing **instantly as a guest** — no account, no sign-in wall, 
 
 ## Signing in
 
-When you're ready, sign in with **Google** from the sign-in screen. There is no password form anywhere in the app, and sign-in is never through Play Games Services.
+When you're ready, sign in with **Google** — or, in the iOS app, **Apple** — from the sign-in screen. There is no password form anywhere in the app, and sign-in is never through Play Games Services.
 
-Signing in **upgrades your guest account in place**: you keep the same account, the same hunter, and every credit, item, and streak day you earned as a guest. Nothing restarts and nothing is transferred — the account simply gains a Google identity, which also lets you pick the hunter up on another device. Everything account-shaped — including your [[Skins-and-Cosmetics|wardrobe]] of skin parts and the look you have equipped — belongs to the account and loads fresh for whoever is signed in.
+Signing in **upgrades your guest account in place**: you keep the same account, the same hunter, and every credit, item, and streak day you earned as a guest. Nothing restarts and nothing is transferred — the account simply gains a sign-in identity, which also lets you pick the hunter up on another device. The two identities are one hunter: if your Google and Apple sign-ins share the same verified email, signing in with either lands on this same account. (If you hide your email behind Apple's private relay, that relay address is your account email, exactly as Apple returns it — the game never asks you to reveal a personal address.) Everything account-shaped — including your [[Skins-and-Cosmetics|wardrobe]] of skin parts and the look you have equipped — belongs to the account and loads fresh for whoever is signed in.
 
 **Your hunter name can wait.** Signing in offers you the name other hunters will see, but nothing waits on it: claim it when you're ready, or tap **Not now** and play. The game asks again when you first reach the [[Leaderboards-and-Streaks|standings]] — the name matters there, because it's the name on the board.
 
@@ -46,7 +46,7 @@ Only **transacting** requires signing in:
 - Claiming contract rewards on [[The Board]]
 - Working an extraction site — its finds flow into crafting and trade, so its start gate asks for sign-in like the rest
 
-When a guest taps a locked action, the game says so and offers the Google sign-in right there — with your progress carrying over, per the rule above.
+When a guest taps a locked action, the game says so and offers sign-in right there — with your progress carrying over, per the rule above.
 
 One platform note: sign-in exists **only in the CyberCache app**. The web build is a guest preview — browsing everything works exactly as described above, but its sign-in buttons and locked-action prompts will point you at the app instead of signing you in, because there is no web sign-in flow.
 
@@ -63,7 +63,7 @@ The Workshop — crafting's home, on the Home tab's Craft workspace — is fully
 
 Guests also earn daily login streak rewards on exactly the same terms as signed-in players — see [[Leaderboards and Streaks]].
 
-Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|Parts Crate or Signature Order]] is claimable, Home's Weekly chip shows it with its real price — claiming is a locked action that asks for Google sign-in, per the rule above.
+Guests also **see the weekly Rep Desk offers**: while a [[Manufacturer Standing|Parts Crate or Signature Order]] is claimable, Home's Weekly chip shows it with its real price — claiming is a locked action that asks for sign-in, per the rule above.
 
 ## Your first hour
 

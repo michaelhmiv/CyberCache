@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { SocialLogin } from '@capgo/capacitor-social-login';
-import type { GoogleLoginResponseOnline } from '@capgo/capacitor-social-login';
+import type { AppleProviderResponse, GoogleLoginResponseOnline } from '@capgo/capacitor-social-login';
 
 export const GOOGLE_WEB_CLIENT_ID_ENV = 'VITE_GOOGLE_WEB_CLIENT_ID';
 export const ANDROID_GOOGLE_SIGN_IN_BLOCKED_MESSAGE =
@@ -158,6 +158,13 @@ export async function initializeNativeAuth(): Promise<void> {
         webClientId: getGoogleWebClientId(),
         mode: 'online',
       },
+      // Apple is configured on iOS only: the native ASAuthorization
+      // flow needs no client id (the bundle id is the audience) and
+      // an empty redirectUrl keeps the flow on-device. Android never
+      // offers Apple sign-in, so it never initializes the provider.
+      ...(Capacitor.getPlatform() === 'ios'
+        ? { apple: { redirectUrl: '' } }
+        : {}),
     });
     initialized = true;
     debugNativeAuth('SocialLogin.initialize succeeded');
@@ -176,9 +183,9 @@ export async function initializeNativeAuth(): Promise<void> {
  * JWKS verification checks issuer/audience/expiry.
  *
  * Web has no equivalent flow: CyberCache is app-only (guest + Google
- * on Android, Apple later), and the old Supabase web-OAuth redirect
- * has no Chef counterpart, so non-native calls fail with a clear
- * message instead of a dead redirect.
+ * on Android, Google + Apple on iOS), and the old Supabase web-OAuth
+ * redirect has no Chef counterpart, so non-native calls fail with a
+ * clear message instead of a dead redirect.
  */
 export async function getGoogleIdTokenNative(): Promise<string> {
   debugNativeAuth('getGoogleIdTokenNative called', { isNative: Capacitor.isNativePlatform() });
@@ -220,6 +227,70 @@ export async function getGoogleIdTokenNative(): Promise<string> {
 
   if (!idToken) {
     throw new Error('Google native sign-in did not return an ID token.');
+  }
+
+  return idToken;
+}
+
+export function toNativeAppleSignInError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/cancel/i.test(message)) {
+    const wrapped = new Error('Sign in with Apple was cancelled.', { cause: error }) as NativeAuthDiagnosticError;
+    wrapped.nativeAuthDiagnostic = createNativeAuthDiagnostic('SocialLogin.login.apple', error);
+    return wrapped;
+  }
+
+  const normalized = (error instanceof Error ? error : new Error(message)) as NativeAuthDiagnosticError;
+  normalized.nativeAuthDiagnostic = createNativeAuthDiagnostic('SocialLogin.login.apple', error);
+  return normalized;
+}
+
+/**
+ * Obtain an Apple identity token from the native sign-in flow (iOS
+ * launch, Track 3) — the Apple twin of getGoogleIdTokenNative. The
+ * token is verified server-side by the Chef (POST /api/auth/apple):
+ * RS256 against Apple's JWKS, issuer, audience (the bundle id), and
+ * expiry. The hashed-nonce binding matches the Google flow.
+ *
+ * iOS only by design: Sign in with Apple is offered nowhere else —
+ * Android keeps Google only, and the web build is a guest preview —
+ * so any other platform fails with a clear message instead of a
+ * dead flow.
+ */
+export async function getAppleIdTokenNative(): Promise<string> {
+  debugNativeAuth('getAppleIdTokenNative called', { platform: Capacitor.getPlatform() });
+
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
+    throw new Error('Sign in with Apple is only available in the CyberCache app on iOS.');
+  }
+
+  await initializeNativeAuth();
+  debugNativeAuth('calling SocialLogin.login (apple)');
+
+  let result;
+  const rawNonce = generateNonce();
+  const nonceDigest = await sha256Hex(rawNonce);
+
+  try {
+    result = await SocialLogin.login({
+      provider: 'apple',
+      options: {
+        nonce: nonceDigest,
+        scopes: ['name', 'email'],
+      },
+    });
+    debugNativeAuth('SocialLogin.login (apple) succeeded', { provider: result.provider });
+  } catch (error) {
+    debugNativeAuth('SocialLogin.login (apple) failed', error);
+    throw toNativeAppleSignInError(error);
+  }
+
+  const appleResult = result.result as AppleProviderResponse;
+  const idToken = appleResult.idToken;
+  debugNativeAuth('apple idToken present', { hasIdToken: Boolean(idToken) });
+
+  if (!idToken) {
+    throw new Error('Apple native sign-in did not return an identity token.');
   }
 
   return idToken;
