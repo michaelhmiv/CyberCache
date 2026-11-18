@@ -172,7 +172,12 @@ describe('ResearchPanel — course detail (QC A7)', () => {
   });
 });
 
-// ─── A7: Skill node detail always shows the spend affordance ────────
+// ─── A7: Skill node sheet always shows the spend affordance ───────
+// Icon-tree build (2026-11-18): the spend lives in the node sheet —
+// tap a node to open it. The A7 law is unchanged: the sheet's Spend
+// button always renders, disabled with its reason when the spend is
+// not possible, so a player with no points can still learn how a
+// point is spent.
 
 describe('SkillTreeScreen — spend affordance (QC A7)', () => {
   it('a player with no points sees the Spend button, disabled, with the reason', async () => {
@@ -180,7 +185,9 @@ describe('SkillTreeScreen — spend affordance (QC A7)', () => {
     useSkillStore.setState({ spent: {}, classModBoosts: { nodeBoosts: {} } });
     render(<SkillTreeScreen embedded />);
 
-    // Calibrated Iron is the default inspected node (Gunslinger, tier 1).
+    // Calibrated Iron is the first node (Gunslinger, tier 1): tap
+    // it to open its sheet.
+    fireEvent.click(screen.getByRole('button', { name: 'Calibrated Iron' }));
     const unavailable = await screen.findByTestId('skill-spend-unavailable');
     expect((unavailable as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/Needs 1 point — you have 0/)).toBeTruthy();
@@ -195,6 +202,7 @@ describe('SkillTreeScreen — spend affordance (QC A7)', () => {
     useSkillStore.setState({ spent: {}, classModBoosts: { nodeBoosts: {} } });
     render(<SkillTreeScreen embedded />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Calibrated Iron' }));
     const spend = await screen.findByRole('button', { name: 'Spend 1 Point' });
     expect((spend as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(spend);

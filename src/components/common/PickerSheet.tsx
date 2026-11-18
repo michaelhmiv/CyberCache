@@ -29,6 +29,14 @@ import { sheetMotionProps } from '@/lib/animation/uiMotion';
 interface PickerSheetProps {
   title: string;
   subtitle?: string;
+  /**
+   * Subtitle class override: the shared chrome's subtitle renders
+   * at 10px (dense picker lists); a caller whose subtitle is
+   * player-read state text (the skill node sheet — type · tier)
+   * passes an 11px-floor class instead. Scoped per caller, like
+   * overlayZClass — the other sheets keep the shipped size.
+   */
+  subtitleClassName?: string;
   /** Optional right-side header content (e.g. a count badge). */
   headerRight?: React.ReactNode;
   /** Sticky header slot for search bar, filter chips, sort row. */
@@ -57,6 +65,7 @@ interface PickerSheetProps {
 export const PickerSheet: React.FC<PickerSheetProps> = ({
   title,
   subtitle,
+  subtitleClassName = 'text-[10px] text-text-muted truncate',
   headerRight,
   header,
   children,
@@ -87,7 +96,7 @@ export const PickerSheet: React.FC<PickerSheetProps> = ({
             <div className="min-w-0">
               <div className="bl-title text-2xl text-text-primary">{title}</div>
               {subtitle && (
-                <div className="text-[10px] text-text-muted truncate">{subtitle}</div>
+                <div className={subtitleClassName}>{subtitle}</div>
               )}
             </div>
             <div className="flex items-center gap-2">
