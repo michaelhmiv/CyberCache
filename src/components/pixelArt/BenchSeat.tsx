@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { PixelGear } from '@/components/pixelArt/PixelGear';
@@ -8,6 +8,12 @@ import { RARITY_FRAME_STYLES } from '@/constants/weaponVisuals';
 import { GEAR_SLOT_ICONS, type BenchRisePlan, type BenchSeatPlan } from '@/lib/pixel/benchSeat';
 import { getPixelSprite } from '@/lib/pixel/manifest';
 import { relicGrammar } from '@/lib/pixel/relicGrammar';
+import {
+  sampleWorkCycle,
+  WORK_CYCLE_PERIOD_MS,
+  WORK_CYCLE_START_DELAY_MS,
+  type WorkCycleSpec,
+} from '@/lib/pixel/workCycle';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
 
@@ -115,3 +121,60 @@ export const BenchItemRender: React.FC<{
     </div>
   );
 });
+
+/** The seated piece's strike dip in scene px — small on purpose;
+ *  this is an idle-game bench, not a cartoon. */
+const SEAT_JOLT_PX = 2;
+
+/**
+ * BenchSeatWorkMotion (Motion S3) — the seat's half of the work
+ * cycle: the piece is inert stock until the strike lands on it.
+ * The dip is derived from the same sampler BenchFx executes
+ * (sampleWorkCycle on the same start delay), never a private
+ * timer, so the jolt, the glow crest, and the spark burst are
+ * one instant by construction. Transform order puts the dip in
+ * scene px (parent space) so it does not scale with the seat's
+ * own zoom.
+ */
+export const BenchSeatWorkMotion: React.FC<{
+  spec: WorkCycleSpec;
+  /** Cycle running (a running job, not celebrating). Inactive or
+   *  reduced renders the plain scaled seat — today's picture. */
+  active: boolean;
+  reduced?: boolean;
+  /** The seat's zoom scale (the diorama's seatZoomScale). */
+  scale: number;
+  children: React.ReactNode;
+}> = ({ spec, active, reduced = false, scale, children }) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!active || reduced) return undefined;
+    const el = ref.current;
+    if (!el) return undefined;
+    let raf = 0;
+    let stopped = false;
+    const startedAt = performance.now();
+    const paint = () => {
+      if (stopped) return;
+      const local = performance.now() - startedAt - WORK_CYCLE_START_DELAY_MS;
+      let dip = 0;
+      if (local >= 0) {
+        const amplitude = Math.max(0, Math.min(1, local / WORK_CYCLE_PERIOD_MS));
+        const frame = sampleWorkCycle(spec, local, amplitude);
+        dip = Math.pow(frame.strike, 1.5) * SEAT_JOLT_PX;
+      }
+      el.style.transform = `translateY(${dip.toFixed(2)}px) scale(${scale})`;
+      raf = requestAnimationFrame(paint);
+    };
+    raf = requestAnimationFrame(paint);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [spec, active, reduced, scale]);
+  return (
+    <div ref={ref} style={{ transform: `scale(${scale})`, transformOrigin: '50% 100%' }}>
+      {children}
+    </div>
+  );
+};

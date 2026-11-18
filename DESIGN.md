@@ -3047,3 +3047,56 @@ family no longer assembles a figure from worn parts anywhere.
    never held a seller portrait. They now render the part's own
    sprite in its tint and finish — the read every other market
    thumb gives its item.
+
+### 2026-11-17 — The crafting stage: no character, the bench fills the stage (owner-ruled)
+
+The owner, reviewing the device-pass fix-round build: "for
+crafting, don't even show the character. Zoom in on the crafting
+thing and iterate better with the animations with Inkling. Like
+the material is on top but I still see the anvil behind it and it
+looks sloppy." Renderings first (three zoom variants, real code,
+full screens), then his pick and two corrections; this entry is
+the landing of all of it.
+
+1. **No character in crafting.** While Crafting holds the Home
+   stage, no figure stands in frame at all — the bench is the
+   subject. This supersedes the paintings-at-the-bench treatment
+   of the entry above for the crafting surface only; extraction,
+   the stall, salvaging, workshop service, and combat keep the
+   painting.
+2. **The V1 camera.** The scene layer takes a 1.75× camera
+   (origin 55% 68%) — "Bench fills the stage," the variant the
+   owner picked over the tight crop and the lit-disc seat. The
+   transform wraps the scene layer only; stage chrome and
+   everything below the stage are untouched, and mode switches
+   cut, as every stage-content swap in that section does.
+3. **The anvil is removed.** "Just remove the anvil. Don't put
+   the item on top of the anvil." The anvil was baked into the
+   bench painting, so the crafting bench renders
+   `set-bench-forge-noanvil` — the same painting with the anvil
+   painted out and the tabletop extended across its footprint.
+   The shipped `set-bench-forge` keeps its anvil everywhere else,
+   the Workshop panel's bench scene included. The head job's
+   piece rests on the bench TOP where the anvil stood
+   (bench-top seat ≈67.3% of stage height, base sunk the
+   measured last pixels to true contact), at 1.3× seat scale.
+4. **The "Unarmed" stage tag is removed.** The rotated
+   no-weapon state word that floated over the scene was a pure
+   display label on the weapon prop; nothing consumed it. The
+   hero rundown's "No weapon equipped" line remains the one
+   honest read of the unarmed state.
+5. **The work read is FX and the piece itself (Inkling
+   treatment).** With no figure to bob, the strike reads three
+   ways, all driven by the work cycle's own sampler: the forge
+   glow envelope sharpens into an event (near-zero trough, steep
+   attack — expressed as spec-row data, `glowWindupFrom` 0.03 /
+   `glowHoldTo` 0.45 / `glowTrough` 0.03 on the forge row only;
+   every other family samples byte-identically); BenchFx anchors
+   at the seat's bench-top contact instead of the historical
+   work point; and the seated piece dips at the strike
+   (`BenchSeatWorkMotion`, dip = strike^1.5 × 2 scene px). The
+   completion rise originates at the seat. The 900 ms work cycle
+   and all work timing are unchanged — presentation only. The
+   forge envelope is per-family data, so the Workshop panel's
+   crafting-bench scene inherits the sharper envelope; that is
+   intended consistency, disclosed here.

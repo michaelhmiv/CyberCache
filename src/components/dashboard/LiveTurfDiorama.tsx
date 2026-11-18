@@ -55,7 +55,7 @@ import {
 import { extractionPassFeedId } from '@/store/slices/extractionFeedSlice';
 import type { ChefExtractionPass } from '@/lib/chef/chefClient';
 import { BenchFx } from '@/components/pixelArt/BenchFx';
-import { BenchItemRender } from '@/components/pixelArt/BenchSeat';
+import { BenchItemRender, BenchSeatWorkMotion } from '@/components/pixelArt/BenchSeat';
 import {
   benchRisePlanForEntry,
   benchSeatPlanForJob,
@@ -892,6 +892,30 @@ const PixelSceneLayerDom: React.FC<{
       ? (groundY - 0.23) * 100
       : (groundY - 0.17) * 100;
   const workPointXPct = mode === 'crafting' ? 52 : 60;
+  // Crafting-stage composition (owner rulings 2026-11-17, DESIGN.md
+  // §12): while Crafting holds the stage there is NO figure in frame
+  // at all — the camera closes on the bench (the wrapper in
+  // LiveTurfDiorama below), the bench wears its anvil-free painting,
+  // and the seated piece rests on the bench TOP where the anvil
+  // stood, never on an anvil. Every other bench lane (salvaging,
+  // workshop service) keeps the shipped picture exactly: craftZoom
+  // is 0 there by construction.
+  const craftZoom = mode === 'crafting' ? 1 : 0;
+  const seatZoomScale = craftZoom > 0 ? 1.3 : 1;
+  // The bench-top surface line at the work point, derived from the
+  // set piece itself: the anvil's feet met the slab at sprite row
+  // ≈605/1344 and the piece spans stage (groundY − 34)…groundY, so
+  // the surface rides at (groundY − 0.34 + (605/1344)×0.34)×100 ≈
+  // (groundY − 0.187)×100 ≈ 67.3% of stage height.
+  const benchTopSeatPct = (groundY - 0.187) * 100;
+  const seatTopPct = craftZoom > 0 ? benchTopSeatPct : workPointYPct;
+  // The sink lands the piece's base ≈3 device px INTO the bench
+  // top face (measured on the owner's review captures, 2026-11-17:
+  // the item sprite's own bottom padding plus the surface-line
+  // estimate otherwise leave a ≈21 device px air band at this
+  // camera; sink is in scene px, screen travel = sink × camera
+  // scale × DSF 2). Air band after: 0, overlap ≈1–2 device px.
+  const seatSinkPx = 7.9;
   // Salvage completion beat (M4b): salvaging has no workshop
   // mirror, so its completions arrive on the salvage feed — the
   // store every recycle result already pushes to. A fresh settled
@@ -1176,7 +1200,14 @@ const PixelSceneLayerDom: React.FC<{
       {/* Set dressing in non-combat modes (grammar G-5): the system's
           set pieces behind the actor; the camp crate is the fallback. */}
       {!showEnemy && mode === 'crafting' && (
-        <PixelActor spriteId="set-bench-forge" xPct={60} heightPct={34} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-bench-set" />
+        /* The crafting bench wears the anvil-free painting
+           (owner ruling 2026-11-17): the anvil was baked into
+           set-bench-forge, so the zoom composition renders
+           set-bench-forge-noanvil — the same painting with the
+           anvil painted out and the tabletop extended across its
+           footprint. The shipped sprite keeps the anvil on every
+           other surface (the Workshop bench scene included). */
+        <PixelActor spriteId={craftZoom > 0 ? 'set-bench-forge-noanvil' : 'set-bench-forge'} xPct={60} heightPct={34} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-bench-set" />
       )}
       {!showEnemy && mode === 'workshopService' && (
         <PixelActor spriteId="set-bay-lift" xPct={60} heightPct={36} groundY={groundY} reduced={reduced} breathe={false} testId="pixel-bay-set" />
@@ -1216,14 +1247,18 @@ const PixelSceneLayerDom: React.FC<{
 
       {/* Work-cycle set-piece FX (M1): glow / sparks / sweep at the
           bench's work point, executing the same spec the hunter's
-          cycle runs — silent at rest and under reduced motion. */}
+          cycle runs — silent at rest and under reduced motion.
+          Under the crafting composition the bloom anchors at the
+          seat's bench-top contact, not the historical work point,
+          so the strike lands on the piece (x is 52 at both points
+          in the crafting lane). */}
       {benchSpec && (
         <BenchFx
           spec={benchSpec}
           active={benchWorking && !benchCelebrating}
           reduced={reduced}
           xPct={workPointXPct}
-          yPct={workPointYPct}
+          yPct={craftZoom > 0 ? benchTopSeatPct : workPointYPct}
           testId="bench-fx"
         />
       )}
@@ -1250,21 +1285,50 @@ const PixelSceneLayerDom: React.FC<{
       {benchSpec && seatPlan && !benchCelebrating && (
         <div
           data-testid="bench-seat"
+          data-craft-zoom={craftZoom || undefined}
           className="pointer-events-none absolute z-20 flex items-center justify-center"
-          style={{ left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }}
+          style={
+            craftZoom > 0
+              ? {
+                  /* The zoom seat: the piece's BASE rests on the
+                     bench top at the work point (box bottom on the
+                     surface line, sunk the measured last pixels) —
+                     not centered on the old anvil point, which left
+                     half the piece hanging over the anvil as two
+                     stacked pictures. */
+                  left: `${workPointXPct}%`,
+                  top: `${seatTopPct}%`,
+                  width: 48,
+                  height: 48,
+                  transform: 'translate(-50%, -100%)',
+                  marginTop: seatSinkPx,
+                }
+              : { left: `${workPointXPct}%`, top: `${workPointYPct}%`, width: 48, height: 48, transform: 'translate(-50%, -50%)' }
+          }
         >
-          <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+          {craftZoom > 0 ? (
+            /* The piece is worked, not parked: its strike dip runs
+               on the same sampler BenchFx executes (BenchSeat). */
+            <BenchSeatWorkMotion spec={benchSpec} active={benchWorking && !benchCelebrating} reduced={reduced} scale={seatZoomScale}>
+              <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+            </BenchSeatWorkMotion>
+          ) : (
+            <BenchItemRender plan={seatPlan} testId="bench-seat-render" />
+          )}
         </div>
       )}
       {/* Completion rise (M1): the finished unit lifts off the
           bench on the law's loot-rise duration while the hunter
-          celebrates; the panel below carries the record. */}
+          celebrates; the panel below carries the record. Under
+          the crafting composition the rise originates at the
+          seat's base point so the finished unit lifts off the
+          spot it sat on. */}
       {benchSpec && activeBenchCompletion && (
         <StageRise
           key={benchCompletionKey(activeBenchCompletion)}
           testId="bench-completion-rise"
           xPct={workPointXPct}
-          yPct={workPointYPct}
+          yPct={craftZoom > 0 ? benchTopSeatPct : workPointYPct}
           width={46}
           height={46}
         >
@@ -1442,14 +1506,22 @@ const PixelSceneLayerDom: React.FC<{
              station. A settling unit's celebration is the
              completion rise itself; the retired rig's pose system
              is not recreated (owner ruling 2026-11-17: no equipped
-             weapon in hand, anywhere). */
-          <PixelPaintedHunterActor
-            sprite={hunterSprite}
-            {...hunterPlacement}
-            reduced={reduced}
-            workCycle={{ spec: benchSpec, active: benchWorking && !benchCelebrating }}
-            testId="pixel-hunter"
-          />
+             weapon in hand, anywhere).
+             CRAFTING is the exception (owner ruling 2026-11-17,
+             DESIGN.md §12): under the crafting-stage composition
+             NO figure stands in frame at all — the zoomed bench
+             is the subject, and the work read survives in BenchFx
+             and the seated piece's own strike dip. Salvaging and
+             workshop service keep the painting as shipped. */
+          mode === 'crafting' ? null : (
+            <PixelPaintedHunterActor
+              sprite={hunterSprite}
+              {...hunterPlacement}
+              reduced={reduced}
+              workCycle={{ spec: benchSpec, active: benchWorking && !benchCelebrating }}
+              testId="pixel-hunter"
+            />
+          )
         ) : extractionSpec ? (
           /* Extraction (one-stage law, 2026-11-04; Motion M4a;
              paintings conversion 2026-11-17): the painting WORKS
@@ -1862,6 +1934,17 @@ const RoamHunterHpPlate: React.FC<{ groundY: number }> = ({ groundY }) => {
 
 // ── Main Diorama Component ───────────────────────────────────────────────────────
 
+/** The crafting-stage camera (owner ruling 2026-11-17, DESIGN.md
+ *  §12 — the V1 composition from the owner's rendering review):
+ *  scale + transform-origin framing the bench (sprite span
+ *  ≈ x 45–76%, work point 52% / 63%). It wraps ONLY the scene
+ *  layer — the section's chrome (count plate, controls) keeps its
+ *  shipped placement, and every other mode is the shipped picture
+ *  (the wrapper is transform-free outside crafting). Mode switches
+ *  CUT, like every other stage-content swap in this section — the
+ *  stage has no crossfade grammar to match. */
+const CRAFT_ZOOM_CAMERA = { scale: 1.75, origin: '55% 68%' };
+
 export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, bossName, boss, playerLevel: _playerLevel, equippedCount, activityKind = 'idle_standby', bossPhase, endlessRunId, stageControls }) => {
   const stageRef = useRef<HTMLElement | null>(null);
   const stageVisible = useStageVisible(stageRef);
@@ -1950,6 +2033,12 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
     ? (getPixelSprite(pixelBackgroundId)?.anchors.groundLine?.y ?? 0.86)
     : 0.86;
 
+  // Crafting camera (see CRAFT_ZOOM_CAMERA): wraps ONLY the scene
+  // layer — the section's chrome (count plate, controls) keeps its
+  // shipped placement, and every other mode is the shipped picture
+  // (the wrapper is transform-free outside crafting).
+  const craftZoomCam = mode === 'crafting' ? CRAFT_ZOOM_CAMERA : undefined;
+
   return (
     <PresentationActiveContext.Provider value={stageVisible}>
     <section ref={stageRef} className="relative h-[286px] overflow-hidden border-2 border-border bg-bg shadow-[0_10px_22px_rgba(0,0,0,0.6)]" style={panelClip}>
@@ -1989,7 +2078,13 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
           />
         </div>
       ) : sceneBackgroundId ? (
-        <PixelSceneLayer backgroundId={sceneBackgroundId} bossSpriteId={mode === 'endless' ? endlessPresenceSpriteId : stageBossSpriteId} weapon={weapon} mode={mode} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
+        <div
+          className="absolute inset-0"
+          data-testid={craftZoomCam ? 'craft-zoom-camera' : undefined}
+          style={craftZoomCam ? { transform: `scale(${craftZoomCam.scale})`, transformOrigin: craftZoomCam.origin } : undefined}
+        >
+          <PixelSceneLayer backgroundId={sceneBackgroundId} bossSpriteId={mode === 'endless' ? endlessPresenceSpriteId : stageBossSpriteId} weapon={weapon} mode={mode} event={latestEvent} reduced={reduced} areaId={area.id} hot={isHotArea(area.id, new Date())} />
+        </div>
       ) : null}
       {/* No fallback scene (owner ruling 2026-11-07): the inline-SVG
           diorama that used to render for areas with no pixel
@@ -2016,14 +2111,12 @@ export const LiveTurfDiorama: React.FC<LiveTurfDioramaProps> = ({ area, weapon, 
       <div className="absolute inset-x-2 top-2 z-20 flex items-start justify-end gap-2">
         <div className="pointer-events-none shrink-0 border-2 border-border bg-bg/85 px-2 py-1 text-right shadow-[4px_4px_0_rgba(0,0,0,0.62)]" style={signClip}><div className="text-xs font-black text-amber">{equippedCount}/7 gear</div></div>
       </div>
-      {!weapon ? (
-        <div
-          className="pointer-events-none absolute left-[82px] top-[108px] z-10 -rotate-6 border-2 border-border bg-bg/85 px-2 py-1 text-[11px] font-black uppercase tracking-wide text-text-muted shadow-[4px_4px_0_rgba(0,0,0,0.62)]"
-          data-testid="diorama-unarmed-state"
-        >
-          Unarmed
-        </div>
-      ) : null}
+      {/* No "Unarmed" stage tag (owner ruling 2026-11-17): the
+          rotated no-weapon state word that floated over the scene
+          is removed — it was a pure display label on the weapon
+          prop (nothing consumed it), and the hero rundown's
+          "No weapon equipped" line below the stage remains the
+          one honest read of the unarmed state. */}
       {/* No status ribbon (Home consolidation, owner steer
           2026-11-03): the mode word and the stats band left the
           stage — the hero rundown attaches to the stage's foot

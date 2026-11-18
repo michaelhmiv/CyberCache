@@ -11,6 +11,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 - **Every portrait is a painting now** — the hunter beside each Standings row, on the profile pop-up, and at the top of the full public record used to be assembled from worn skin parts. Those portraits are the fielded Cache Hunter's own painting now, the same one that stands on the Home stage. A skin part for sale on the Market shows the part itself, in its finish and tint, instead of a figure wearing it.
 - **The old parts wardrobe is fully retired now** — the Settings head-variant picker is gone (it claimed to change the head your hunter wears on the roaming stage; since the paintings arrived, nothing read it), and the equip machinery behind the old parts figure is removed with it. Nothing you own changes: parts stay in your collection, whole skins still wear in the Wardrobe, and every figure and portrait is the painting it already was.
 - **The consumable inspect sheet drops its Threshold row** — the Runtime Contract on a consumable's inspect sheet printed a Threshold percentage for the Med Kit, Shield Cell, and their kin, as if those items fired when your HP or shield crossed a line. They never did — the Med Kit is a stocked buffer that soaks damage first, and the Shield Cell restores your shield when it fires — so the row is gone, and the sheet now shows only the contract the items actually keep.
+- **Crafting is the bench's close-up now** — while Craft holds the Home stage, the hunter steps out of frame and the stage closes in on the bench itself: the anvil is gone, and the job's piece rests on the bench top where the anvil stood. The work reads in the strike light swelling and darkening over the piece, and in the piece's own small dip as each strike lands; a finished unit rises off the bench top. The Workshop's own bench scene keeps its anvil, exactly as before. And the stage no longer prints its tilted **Unarmed** tag when no weapon is equipped — the rundown under the stage still says so plainly.
 
 ## 2026-11-16 — The Cache Hunters take the field
 
@@ -407,15 +408,16 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 328 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 329 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-17** — 5 merges
+**2026-11-17** — 6 merges
 
 - #602 — Device-pass fix: Crafting Pack — queue leads, seat takes the paused head, shared QuantityPicker
 - #603 — Batch 1 — paintings swap: Gear doll + Workshop scenes (device-pass fix round)
 - #604 — Device pass batch 2: drops show the item + item-art parity
 - #605 — Portraits are paintings: look record carries hunter identity (Batch 3, migration 0100)
 - #606 — Retire the cosmetics write path, head-variant picker + pref, and WeaponCanvas (device-pass Batch 4)
+- #607 — Two small things: drop the false Threshold row; delete dead look selectors
 
 **2026-11-16** — 13 merges
 

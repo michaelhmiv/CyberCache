@@ -30,6 +30,20 @@
  * retired with the rig), so the bench assertions pin
  * data-painted-hunter + data-armed null where the rig era
  * pinned data-armed 'false'.
+ *
+ * Crafting-stage composition (2026-11-17, owner rulings,
+ * DESIGN.md §12) — SUPERSEDES the tenancy above for CRAFTING
+ * only: while Crafting holds the stage there is no figure in
+ * frame at all. The camera closes on the bench (craft-zoom-
+ * camera, scale 1.75), the bench wears the anvil-free painting
+ * (set-bench-forge-noanvil), and the seated piece rests on the
+ * bench top, dipping at the strike on the cycle's own sampler.
+ * The cycle contract survives without the figure: BenchFx still
+ * runs the forge spec while a craft-lane job runs, gated
+ * exactly as before. Salvaging, workshop service, and market
+ * listing keep the painting tenancy pinned below. The crafting
+ * tests were re-pointed to the composition in the same change
+ * that shipped it — their FX/lane assertions are unchanged.
  */
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -138,26 +152,33 @@ afterEach(() => {
 });
 
 describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
-  it('crafting: the hunter works the bench unarmed — no held weapon, forge spec bound', () => {
+  it('crafting: NO figure at the bench — the zoomed, anvil-free bench is the subject; forge FX run', () => {
     setWorkshop(serverView({ jobs: [job({})] }));
     renderDiorama('crafting');
-    const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-armed')).toBeNull();
-    expect(hunter.getAttribute('data-painted-hunter')).toBe('hunter-vesper-cole');
-    expect(hunter.getAttribute('data-work-cycle')).toBe('forge');
+    // The composition (owner ruling 2026-11-17): no hunter in
+    // frame in crafting — the tenancy this test pinned before
+    // the ruling is retired for this lane only.
+    expect(screen.queryByTestId('pixel-hunter')).toBeNull();
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
+    // The camera wraps the scene layer at the V1 framing.
+    const cam = screen.getByTestId('craft-zoom-camera');
+    expect(cam.style.transform).toBe('scale(1.75)');
+    expect(cam.style.transformOrigin).toBe('55% 68%');
+    // The bench wears the anvil-free painting.
+    expect(screen.getByTestId('pixel-bench-set').getAttribute('data-sprite')).toBe('set-bench-forge-noanvil');
     // Working: the forge FX run at the bench.
     expect(screen.getByTestId('bench-fx').getAttribute('data-bench-fx')).toBe('forge');
   });
 
-  it('crafting at rest: no job in the lane, no cycle FX — but still at the bench, unarmed', () => {
+  it('crafting at rest: no job in the lane, no cycle FX — and still no figure', () => {
     setWorkshop(serverView({ jobs: [] }));
     renderDiorama('crafting');
-    const hunter = screen.getByTestId('pixel-hunter');
-    expect(hunter.getAttribute('data-armed')).toBeNull();
-    expect(hunter.getAttribute('data-work-cycle')).toBe('forge');
+    expect(screen.queryByTestId('pixel-hunter')).toBeNull();
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     expect(screen.queryByTestId('bench-fx')).toBeNull();
+    // At rest the composition still holds: camera + anvil-free bench.
+    expect(screen.getByTestId('craft-zoom-camera')).toBeTruthy();
+    expect(screen.getByTestId('pixel-bench-set').getAttribute('data-sprite')).toBe('set-bench-forge-noanvil');
   });
 
   it('crafting ignores a running SERVICE-lane job (lane discipline)', () => {
@@ -212,13 +233,34 @@ describe('LiveTurfDiorama — bench modes run the work cycle (M1)', () => {
     expect(screen.getByTestId('bench-completion-rise')).toBeTruthy();
   });
 
-  it('reduced motion: the bench is the held pose — no FX even with a job running', () => {
+  it('reduced motion: no FX even with a job running; crafting still shows no figure', () => {
     motionHoist.reducedMotion = true;
     setWorkshop(serverView({ jobs: [job({})] }));
     renderDiorama('crafting');
     expect(screen.queryByTestId('bench-fx')).toBeNull();
-    expect(screen.getByTestId('pixel-hunter').getAttribute('data-armed')).toBeNull();
-    expect(screen.getByTestId('pixel-hunter').getAttribute('data-cycle-active')).toBeNull();
+    // Pre-composition this pinned the painting's held pose; under
+    // the composition there is no figure to hold (2026-11-17).
+    expect(screen.queryByTestId('pixel-hunter')).toBeNull();
+    // The camera is framing, not motion: it still applies.
+    expect(screen.getByTestId('craft-zoom-camera')).toBeTruthy();
+  });
+
+  it('no weapon equipped: the stage carries no "Unarmed" tag (owner ruling 2026-11-17)', () => {
+    // The rotated no-weapon state word floated over the scene in
+    // every mode; the owner removed it. The rundown below the
+    // stage keeps the honest "No weapon equipped" line — that
+    // surface is not this component. Nothing else consumed the
+    // tag: it was a pure display label on the weapon prop.
+    render(
+      <LiveTurfDiorama
+        area={getRoamingArea(DEFAULT_ROAMING_AREA_ID)}
+        playerLevel={5}
+        equippedCount={0}
+        activityKind="roaming_loot"
+      />,
+    );
+    expect(screen.queryByTestId('diorama-unarmed-state')).toBeNull();
+    expect(screen.queryByText('Unarmed')).toBeNull();
   });
 
   it('market listing (M4c): the hunter tends his stall — stall cycle bound, unarmed, no bench FX', () => {
