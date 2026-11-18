@@ -1,0 +1,13 @@
+{
+ "dsf": 2,
+ "width": 412,
+ "height": 915,
+ "steps": [
+  {
+   "wait": 12000
+  },
+  {
+   "shot": "glow-resurrection"
+  }
+ ]
+}

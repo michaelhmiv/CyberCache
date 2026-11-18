@@ -1,1 +1,64 @@
-{"captures": [{"expect": ["extract-repaint-throwtech"], "label": "extract-repaint-throwtech", "path": "/home-harness.html?state=extract2&panel=extract", "plan": "capture/plans/extract-repaint-throwtech.json"}], "harnessPage": "/home-harness.html", "iter": "extract-repaint", "port": 7145, "viteConfig": "vite.home.config.ts"}
+{
+ "captures": [
+  {
+   "expect": [
+    "glow-shieldtech"
+   ],
+   "label": "glow-shieldtech",
+   "path": "/bench-harness.html?mode=panel-shield&state=working",
+   "plan": "capture/plans/glow-shieldtech.json"
+  },
+  {
+   "expect": [
+    "glow-bench-lab"
+   ],
+   "label": "glow-bench-lab",
+   "path": "/glow-harness.html?scene=bench-lab",
+   "plan": "capture/plans/glow-bench-lab.json"
+  },
+  {
+   "expect": [
+    "glow-research"
+   ],
+   "label": "glow-research",
+   "path": "/glow-harness.html?scene=research",
+   "plan": "capture/plans/glow-research.json"
+  },
+  {
+   "expect": [
+    "glow-dispatch"
+   ],
+   "label": "glow-dispatch",
+   "path": "/glow-harness.html?scene=dispatch",
+   "plan": "capture/plans/glow-dispatch.json"
+  },
+  {
+   "expect": [
+    "glow-rep-desk"
+   ],
+   "label": "glow-rep-desk",
+   "path": "/glow-harness.html?scene=rep-desk",
+   "plan": "capture/plans/glow-rep-desk.json"
+  },
+  {
+   "expect": [
+    "glow-collections"
+   ],
+   "label": "glow-collections",
+   "path": "/glow-harness.html?scene=collections",
+   "plan": "capture/plans/glow-collections.json"
+  },
+  {
+   "expect": [
+    "glow-resurrection"
+   ],
+   "label": "glow-resurrection",
+   "path": "/glow-harness.html?scene=resurrection",
+   "plan": "capture/plans/glow-resurrection.json"
+  }
+ ],
+ "harnessPage": "/glow-harness.html?scene=research",
+ "iter": "glow-repaint",
+ "port": 7145,
+ "viteConfig": "vite.home.config.ts"
+}
