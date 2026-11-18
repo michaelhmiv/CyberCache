@@ -16,6 +16,10 @@
         {
           "number": 615,
           "title": "R2 bars: prep action bars, chamber + extract rundown zones, run-state lift (item 40)"
+        },
+        {
+          "number": 616,
+          "title": "Item 40 R3: inspect sheet first screen — trade-first, effect in header, Market price/Buy bar, roaming-DPS percent fix"
         }
       ]
     },
