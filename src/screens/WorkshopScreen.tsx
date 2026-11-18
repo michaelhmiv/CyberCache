@@ -541,8 +541,10 @@ export const WorkshopScreen: React.FC<{
 
   // The Bench Jobs section, hoisted so each mode renders it in
   // exactly one place: embedded (Home's Craft workspace) puts the
-  // queue at the top of the workspace, directly under the bench
-  // strip — it is the state the player just changed; standalone
+  // queue at the very top of the panel — above the filter
+  // controls, the standing strip, and the bench strip (first-
+  // screen audit fix, 2026-11-17: the queue is the panel's first
+  // job, and ~380 px of preamble used to precede it); standalone
   // keeps it in flow after Fresh off the bench.
   const benchJobsSection = benchJobs.length > 0 ? (
     <div className="space-y-2">
@@ -612,6 +614,19 @@ export const WorkshopScreen: React.FC<{
           </div>
         </>
       )}
+
+      {/* First-screen fix (2026-11-17 audit): embedded, the queue
+          LEADS the panel — Bench Jobs is the panel's first content,
+          above the filter controls, the standing strip, and the
+          bench strip. The two reads are kept deliberately: the
+          bench strip below is the glance (head job + progress in
+          one line), this section is the manage surface (every job,
+          its state, its Cancel). A workshop error (a refused
+          enqueue/cancel) prints directly above the queue it
+          concerns. Standalone keeps its shipped order — its
+          Bench Jobs render sits after Fresh off the bench. */}
+      {embedded && workshop.error && <div className="text-[11px] text-red">{workshop.error}</div>}
+      {embedded && benchJobsSection}
 
       {/* The first controls (Direction A): what can I make, right
           now — the craftable filter, the whole catalog, and search
@@ -789,8 +804,15 @@ export const WorkshopScreen: React.FC<{
         </div>
       </div>
 
-      {embedded && workshop.error && <div className="text-[11px] text-red">{workshop.error}</div>}
-      {embedded && benchJobsSection}
+      {/* First-screen fix (2026-11-17 audit): the tinting lane
+          leads the catalog instead of trailing all 64 recipes —
+          a player who comes to tint reaches it before the first
+          recipe card, and the catalog's sticky rail still leads
+          the catalog itself. (Not a head door: this panel's chips
+          filter rather than navigate — there is no lane-door
+          grammar here to extend, and a render-order move keeps
+          the fix inside the shipped panel.) */}
+      <TintPanel onNavigate={onNavigate} onRefineFocus={focusRefineRecipe} />
 
       {/* Category rail — sticky, scrolls rather than shrinking. */}
       <div className="sticky top-0 z-20 -mx-4 bg-bg px-4 py-1.5">
@@ -864,8 +886,6 @@ export const WorkshopScreen: React.FC<{
           ))
         )}
       </div>
-
-      <TintPanel onNavigate={onNavigate} onRefineFocus={focusRefineRecipe} />
 
       <div className="text-[11px] text-text-muted">
         {catalogRecipes.length} recipes in the catalog · sorted Craftable → One gate away → Locked. Sorts: Level · Time · Name.
