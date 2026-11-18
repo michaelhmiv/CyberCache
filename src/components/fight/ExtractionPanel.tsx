@@ -187,7 +187,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
     seenResumeRequestsRef.current = resumeRequests;
     const saved = publishedStateRef.current;
     if (!saved?.hasState) return;
-    const area = getRoamingArea(saved.passAreaId ?? saved.areaId);
+    const area = getRoamingArea(saved.passAreaId ?? saved.areaId ?? undefined);
     const method = saved.passMethod === 'deep' ? 'deep' : 'surface';
     setSelectedArea(area.id);
     setMethodChoice(method);

@@ -117,8 +117,8 @@ export const ExtractRundown: React.FC = () => {
 
   const { state } = view;
   const preview = state.preview;
-  const area = getRoamingArea(state.passAreaId ?? state.areaId);
-  const signature = signatureMaterialForArea(state.passAreaId ?? state.areaId);
+  const area = getRoamingArea(state.passAreaId ?? state.areaId ?? undefined);
+  const signature = signatureMaterialForArea(area.id);
   const methodLabel = state.passMethod === 'deep' ? 'Deep Delve' : 'Surface Sweep';
   const degraded = state.passMethod === 'deep' && (preview?.gearFactor ?? 1) < 0.8;
   // The panel's own interpolation: accrued time advances between
@@ -139,7 +139,7 @@ export const ExtractRundown: React.FC = () => {
           <PixelMaterial id={signature.materialId} size={30} />
         ) : (
           <span className="flex items-center justify-center border border-border bg-bg text-amber" style={{ width: 30, height: 30 }}>
-            <PxIcon name="layers" size={19} />
+            <PxIcon name="pick" size={19} />
           </span>
         )}
         <div className="min-w-0 flex-1">
