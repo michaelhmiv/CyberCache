@@ -351,10 +351,17 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   // lays the owner-ruled tightened node descriptions over the
   // variant's nodes — harness-only data overrides, the shipped
   // defs untouched. Absent the param, defs render as shipped.
+  // CAPTURE SEAM (dash/trees-icons, presentation only): ?trees=4
+  // renders the icon-tree board (owner direction 2026-11-18);
+  // ?sheet=1 opens the selected node's sheet in frame. onSelect
+  // below is the select-half of spendPoint, exposed so the icon
+  // board's tap can select + open the sheet without spending —
+  // the spend itself still fires from the sheet's button through
+  // spendPoint, exactly as the shipped inspect does.
   const treesCopyParam = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('copy')
     : null;
-  if (treesVariantParam === '1' || treesVariantParam === '2' || treesVariantParam === '3') {
+  if (treesVariantParam === '1' || treesVariantParam === '2' || treesVariantParam === '3' || treesVariantParam === '4') {
     const copyNodes = treesCopyParam === '1' ? applyTreesCopy(nodes) : nodes;
     const copyTiers = treesCopyParam === '1'
       ? tiers.map(([tier, tierNodes]) => [tier, applyTreesCopy(tierNodes)] as [number, SkillNode[]])
@@ -364,7 +371,8 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
       : selectedNode;
     return (
       <TreesBoardVariant
-        variant={Number(treesVariantParam) as 1 | 2 | 3}
+        variant={Number(treesVariantParam) as 1 | 2 | 3 | 4}
+        onSelect={(id) => setSelectedNodeId(id)}
         nodes={copyNodes}
         tiers={copyTiers}
         spent={skillStore.spent}
