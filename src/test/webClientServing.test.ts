@@ -5,10 +5,15 @@ import type { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { isWebClientEnabled, mountWebClient } from '../server/webClient';
+import { COMPLIANCE_PAGES, isWebClientEnabled, mountWebClient } from '../server/webClient';
 
 const INDEX_HTML = '<!doctype html><html><body>CYBERCACHE-WEB-CLIENT</body></html>';
 const ASSET_JS = 'console.log("CYBERCACHE-ASSET");';
+const COMPLIANCE_FIXTURES: Array<[string, string]> = [
+  ['privacy-policy.html', 'CYBERCACHE-PRIVACY-POLICY'],
+  ['data-deletion.html', 'CYBERCACHE-DATA-DELETION'],
+  ['support.html', 'CYBERCACHE-SUPPORT'],
+];
 
 let distDir: string;
 
@@ -48,6 +53,12 @@ beforeAll(() => {
   fs.mkdirSync(path.join(distDir, 'assets'));
   fs.writeFileSync(path.join(distDir, 'index.html'), INDEX_HTML);
   fs.writeFileSync(path.join(distDir, 'assets', 'app.js'), ASSET_JS);
+  for (const [file, marker] of COMPLIANCE_FIXTURES) {
+    fs.writeFileSync(
+      path.join(distDir, file),
+      `<!doctype html><html><body>${marker}</body></html>`,
+    );
+  }
 });
 
 afterAll(async () => {
@@ -98,6 +109,14 @@ describe('web client served (flag on — the default everywhere but production)'
     expect(await res.text()).toContain('CYBERCACHE-ASSET');
   });
 
+  it('serves the three compliance pages', async () => {
+    for (const [file, marker] of COMPLIANCE_FIXTURES) {
+      const res = await fetch(`${base}/${file}`);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toContain(marker);
+    }
+  });
+
   it('serves index.html for SPA routes (fallback)', async () => {
     const res = await fetch(`${base}/some/deep/route`);
     expect(res.status).toBe(200);
@@ -138,6 +157,28 @@ describe('web client off (production app-only mode)', () => {
 
   it('404s static asset paths', async () => {
     const res = await fetch(`${base}/assets/app.js`);
+    expect(res.status).toBe(404);
+  });
+
+  it('keeps the carve-out to exactly the three compliance pages', () => {
+    expect([...COMPLIANCE_PAGES]).toEqual([
+      'privacy-policy.html',
+      'data-deletion.html',
+      'support.html',
+    ]);
+  });
+
+  it('still serves the three compliance pages as HTML', async () => {
+    for (const [file, marker] of COMPLIANCE_FIXTURES) {
+      const res = await fetch(`${base}/${file}`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/html');
+      expect(await res.text()).toContain(marker);
+    }
+  });
+
+  it('404s a POST to a compliance page (documents are read-only)', async () => {
+    const res = await fetch(`${base}/privacy-policy.html`, { method: 'POST' });
     expect(res.status).toBe(404);
   });
 

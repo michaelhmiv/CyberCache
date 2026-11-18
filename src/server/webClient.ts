@@ -19,6 +19,21 @@ import path from 'node:path';
 
 export const WEB_CLIENT_ENV_VAR = 'SERVE_WEB_CLIENT';
 
+/**
+ * The static compliance pages that stay public even in app-only mode.
+ * The Play Console listings and AdMob's UMP consent form point at these
+ * URLs (see docs/PLAY_CONSOLE_REQUIREMENTS.md), so the privacy URL has
+ * to resolve for either to work. They are plain documents — no game
+ * client, nothing executes — so serving them cannot mint the junk
+ * guest accounts the gate exists to stop. Exactly these three; the
+ * list is pinned by test so the carve-out cannot quietly grow.
+ */
+export const COMPLIANCE_PAGES = [
+  'privacy-policy.html',
+  'data-deletion.html',
+  'support.html',
+] as const;
+
 const OFF_VALUES = new Set(['false', '0', 'off', 'no']);
 
 /**
@@ -43,9 +58,12 @@ export function isWebClientEnabled(env: NodeJS.ProcessEnv = process.env): boolea
  * Disabled (production app-only mode): the API is untouched — requests
  * under /api fall through to the API routes (including the ones that
  * mount after this call, as Route B's do) — and /health keeps answering
- * 200 so health probes keep working. Everything else (/, /index.html,
- * static asset paths, SPA routes) is a plain 404: there is no page for
- * a crawler to execute, so no guest account gets minted.
+ * 200 so health probes keep working. The three static compliance pages
+ * (COMPLIANCE_PAGES) keep serving: plain documents the store listings
+ * point at, with nothing for a crawler to execute. Everything else
+ * (/, /index.html, static asset paths, SPA routes) is a plain 404:
+ * there is no page for a crawler to execute, so no guest account
+ * gets minted.
  */
 export function mountWebClient(app: Express, distDir: string, enabled: boolean): void {
   if (enabled) {
@@ -69,6 +87,15 @@ export function mountWebClient(app: Express, distDir: string, enabled: boolean):
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', chef: 'ready' });
   });
+
+  // The compliance pages stay public in app-only mode (see
+  // COMPLIANCE_PAGES above): plain static documents from the same dist
+  // build the client ships in, served at their exact paths.
+  for (const page of COMPLIANCE_PAGES) {
+    app.get(`/${page}`, (_req, res) => {
+      res.sendFile(path.join(distDir, page));
+    });
+  }
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path === '/api' || req.path.startsWith('/api/')) {
