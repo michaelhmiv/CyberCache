@@ -422,13 +422,14 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 337 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 338 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-18** — 3 merges
+**2026-11-18** — 4 merges
 
 - #613 — First-screen lifts (B2): the datum leads its surface — 8 small lifts from the audit census
 - #614 — First-screen Gear batch: jump chips, all-kind compare strip, windowed slot picker
 - #615 — R2 bars: prep action bars, chamber + extract rundown zones, run-state lift (item 40)
+- #616 — Item 40 R3: inspect sheet first screen — trade-first, effect in header, Market price/Buy bar, roaming-DPS percent fix
 
 **2026-11-17** — 11 merges
 
