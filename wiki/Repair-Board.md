@@ -59,6 +59,10 @@ bigger kits are crafted (see [[Crafting]]).
 5. The mechanic works the job as their active activity. Unaccepted
    postings expire after **7 days** and refund in full.
 
+Jobs you have accepted collect in **My workbench**, seated at the
+top of the board directly under the bay scene — ahead of posting
+and the open board — whenever you have one in progress.
+
 ## Browsing the board
 
 The open postings browse like the [[The Market|Buy tab]] — the search,

@@ -518,7 +518,11 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
     <div className="space-y-3">
       <ConsoleHead state={state} />
       <ChargeGauge state={state} />
-      <MilestoneTape state={state} />
+      {/* Bonus channels — the spending surface — lead the tape
+          (first-screen lift, 2026-11-17): the Milestone Tape is
+          informational and used to seat the channels ~570px down,
+          with Thick Skin below the fold. Channels now follow the
+          charge gauge directly; the tape rides below them. */}
       <div className="px-0.5 pt-1">
         <PanelLabel label="Bonus channels" right="7 TRACKS · 30 TOK TO MAX ONE" />
       </div>
@@ -537,6 +541,7 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
         />
       ))}
       {error && <div className="text-[11px] font-bold text-red">{error}</div>}
+      <MilestoneTape state={state} />
       <OutputBank state={state} />
       {readOnly && (
         <div className="px-0.5 text-[11px] leading-snug" style={{ color: MUT }}>

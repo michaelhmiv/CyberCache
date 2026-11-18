@@ -255,10 +255,12 @@ describe('computeBuildPrefill — the flag matrix', () => {
 const FOOT_OFFER = {
   id: 'offer-foot-1', family: 'foot' as const, areaId: 'dustwaste',
   durationHours: 2, areaName: 'Dustwaste Frontier', dangerRating: 'Low',
+  payout: { credits: 120, scrap: 45, materialId: 'scrap_metal', materialUnits: 3 },
 };
 const COURIER_OFFER = {
   id: 'offer-courier-1', family: 'courier' as const, areaId: 'dustwaste',
   durationHours: 4, areaName: 'Dustwaste Frontier', dangerRating: 'High',
+  payout: null,
 };
 
 const PANEL_CANDIDATES: ChefDispatchCandidate[] = [
