@@ -343,9 +343,12 @@ describe('audit UX-07 + COPY-03 — Skill Trees board', () => {
     expect(screen.getByText(/Respec returns every spent point and costs 100cr per point spent/)).toBeTruthy();
 
     // COPY-03: the Gunslinger keystone tier is a single index-1 node;
-    // it renders once, not once per matched grid slot.
+    // it renders once on the board, not once per matched grid slot.
+    // (Icon-tree build: the board node carries a per-node testid —
+    // the Next Unlock shortcut card also names the keystone, and it
+    // is not a board rendering.)
     expect(screen.getByText('Gunslinger Board')).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: /Death by a Thousand Cuts/ })).toHaveLength(1);
+    expect(screen.getAllByTestId('trees-icon-node-gs_keystone')).toHaveLength(1);
   }, 30_000);
 });
 

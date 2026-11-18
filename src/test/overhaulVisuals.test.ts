@@ -449,6 +449,14 @@ describe('performance + payload budgets (§4.9)', () => {
     // −1,456,376 B net (−37.5% on the family). Manifest total
     // 37,040,954 → 35,584,578 B; the ceiling literal follows
     // the total +1.
-    expect(total).toBeLessThan(35_584_578 + 1);  });
+    // Icon skill tree (2026-11-18): the board's medallion icon
+    // set lands — 88 NEW manifest sprites, one generated
+    // 128×128 icon per skill node across all four trees (kind
+    // skill-icon; owner ruling 2026-11-18, DESIGN.md §12):
+    // Gunslinger 22, Demolition 22, Scavenger 22, Fixer 22 =
+    // +2,621,575 B total. No existing sprite is modified or
+    // removed. Manifest total 35,584,578 → 38,206,153 B; the
+    // ceiling literal follows the total +1.
+    expect(total).toBeLessThan(38_206_153 + 1);  });
 
 });

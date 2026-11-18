@@ -3551,3 +3551,61 @@ v3 nine", 2026-11-18):
    this set and is untouched (the owner ruled it out of scope
    explicitly). The game's other set pieces keep their
    current paintings under their own rulings.
+
+### 2026-11-18 — The skill trees are icon trees: medallion board, sheet-only spend (owner-ruled)
+
+The four trees rendered as text cards — a name, a paragraph,
+and a rank counter per node — and a board tap spent the point
+immediately. The owner asked for a tree that looks like a skill
+tree ("any way we could have logos shown for all of it to make
+it look more like a skill tree… then users can click to get a
+description to confirm and from there spend points?"),
+reviewed the rendering (the dash/trees-icons frames, QC'd
+against the shipped board), and approved the build for all
+four trees ("Approve — build the icon tree for all four
+trees", 2026-11-18):
+
+1. **The board is medallions.** One generated 128×128 icon per
+   node — 88 icons, 22 per tree, registered in the sprite
+   manifest as kind `skill-icon` and resolved by node id —
+   laid out in tier rows. Connector lines are exactly the
+   defs' `requires` edges: amber when the prerequisite holds
+   points, faint when not. Rank pips sit under each node (five
+   dots for a small, one diamond for a major or keystone).
+   States: maxed wears a green aura and green pips, owned
+   reads amber, ready is plain, locked is greyscale-dimmed
+   with a lock badge. No description text on the board; every
+   node's tap area is at least 44dp.
+2. **The sheet is the only spend surface.** A board tap (or
+   the pinned Next Unlock card, which is a shortcut, not a
+   second spend path) opens the node's PickerSheet brief:
+   icon large, name, type and tier, rank, cost, requirements,
+   the concise description, and the Spend button — disabled
+   with its reason line when the spend is impossible, per the
+   QC A7 law. The old tap-card-to-spend board and the
+   below-board inspect plate are retired. The skill sheet's
+   subtitle rides at the 11px type floor (a scoped
+   PickerSheet prop; other sheets keep the shared chrome).
+3. **The pinned head stays.** Available / Spent / Respec cost
+   and the Next Unlock card stick while the board scrolls
+   under them. Respec, the points explainer, and the Action
+   Skill picker keep their shipped behavior and wording.
+4. **The V3 concise copy is the sheet text.** The audited
+   V3 copy table lands in the defs (numbers mechanically
+   identical to the copy replaced, verified against the
+   defs before writing). One table row is withheld:
+   demo_cons_1–5's rewrite cannot land in the defs alone,
+   because the F6 pin (skillRoutingFix) holds the TS copy
+   and migration 0102's seed-copy update to the same words —
+   the corrected quantized-formula wording was written into
+   both places at once in 2026-11-17's fix, and the seed
+   copy is dormant-but-synced by law. Landing that rewrite
+   takes a companion migration updating the seed copy and
+   repointing the pin; the other 13 rewrites land here.
+   Costs, prerequisites, effects, and the spend math do
+   not change — this is presentation and one spend
+   surface, not a rebalance.
+5. **Payload is pinned, not drifted.** The 88 icons add
+   2,621,575 B; the sprite ceiling in overhaulVisuals moves
+   35,584,578 → 38,206,153 B, recomputed from the tree with
+   all icons in place.

@@ -29,13 +29,13 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 7 | **Focus Fire** | major | 3 | 1 | +15% Boss Damage when using Sniper or Pistol. | Target Priority, High-Value Execution |
 | 7 | **Speedloader** | major | 3 | 1 | +20% Attack Speed for first 10 seconds of boss fight. | Quick Cycle, Rapid Servos |
 | 8 | **Weakspot Analysis** | major | 3 | 1 | +25% Crit Damage against bosses below 50% HP. | Terminal Ballistics, Overpenetration |
-| 8 | **Elemental Overclock** | major | 3 | 1 | Equipping a weapon matching the boss weakness grants +10% overall damage. | Procedural Loads |
+| 8 | **Elemental Overclock** | major | 3 | 1 | A weapon matching the boss's weakness grants +10% damage. | Procedural Loads |
 | 5 | **Tracer Loads** | small | 1 | 5 | +5% Status Chance | — |
 | 6 | **Breaching Loads** | small | 1 | 5 | +5% Shield Damage | — |
 | 4 | **Fast Hands** | small | 1 | 5 | +8% Attack Speed | — |
 | 3 | **Hair Trigger** | small | 1 | 5 | +8% Attack Speed | — |
 | 8 | **The Long Hunt** | major | 3 | 1 | +15% Shield Damage and +10% Status Chance — the roaming hunter’s edge. | Tracer Loads, Breaching Loads |
-| 9 | **Death by a Thousand Cuts** | keystone | 5 | 1 | Critical hits increase the DPS check score by an additional +25%. If crit chance exceeds 50%, gain +10% boss damage. | Focus Fire, Speedloader, Weakspot Analysis |
+| 9 | **Death by a Thousand Cuts** | keystone | 5 | 1 | Critical hits increase your DPS by an additional +25%. If crit chance exceeds 50%, gain +10% boss damage. | Focus Fire, Speedloader, Weakspot Analysis |
 
 ### Demolition
 
@@ -58,11 +58,11 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 3 | **Grease and Wicks** | small | 1 | 5 | Workshop craft jobs run faster: unit time falls in 2% steps as you invest across the five supply nodes — up to −20% with all five maxed (server-side, snapshotted at enqueue). | — |
 | 4 | **Spares Cache** | small | 1 | 5 | Workshop craft jobs run faster: unit time falls in 2% steps as you invest across the five supply nodes — up to −20% with all five maxed (server-side, snapshotted at enqueue). | — |
 | 5 | **Forward Stockpile** | small | 1 | 5 | Workshop craft jobs run faster: unit time falls in 2% steps as you invest across the five supply nodes — up to −20% with all five maxed (server-side, snapshotted at enqueue). | — |
-| 7 | **Breaching Charge** | major | 3 | 1 | Ordnance attacks strip an additional 20% shield before DPS phase. | Ion Surge, Payload Expansion |
+| 7 | **Breaching Charge** | major | 3 | 1 | Ordnance strips an additional 20% shield before the DPS phase. | Ion Surge, Payload Expansion |
 | 7 | **Concussive Payload** | major | 3 | 1 | Stagger effects last 30% longer and reduce boss damage output by 15% while active. | Concussion, Impact Force |
 | 8 | **Scorched Earth** | major | 3 | 1 | If you bring a Launcher as Heavy Weapon, gain +20% armor break and +10% boss DPS. | Penetrator Rounds, Crack Core |
 | 8 | **Cluster Bombs** | major | 3 | 1 | Ordnance has a 25% chance to trigger twice (second trigger at 50% damage). | Volatile Mix, Blast Radius |
-| 9 | **Unstable Power** | keystone | 5 | 1 | Explosive damage contributes directly to Armor Break check. When armor is broken, next heavy weapon burst deals +50% damage. | Breaching Charge, Concussive Payload, Scorched Earth |
+| 9 | **Unstable Power** | keystone | 5 | 1 | Explosive damage counts toward Armor Break. When armor is broken, your next heavy weapon burst deals +50% damage. | Breaching Charge, Concussive Payload, Scorched Earth |
 
 ### Scavenger
 
@@ -76,7 +76,7 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 3 | **Parallel Download** | small | 1 | 5 | +10% Loot Quantity | — |
 | 4 | **Decompiler** | small | 1 | 5 | +20% Scrap Yield | — |
 | 4 | **Compression** | small | 1 | 5 | +20% Scrap Yield | — |
-| 5 | **Efficient Routines** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (server-side, snapshotted at enqueue). | — |
+| 5 | **Efficient Routines** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point, set at queue time. | — |
 | 5 | **Conservation** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (−20% across both nodes). | — |
 | 6 | **Encrypted Payloads** | small | 1 | 5 | +5% Cache Quality Modifier | — |
 | 6 | **Darknet Broker** | small | 1 | 5 | +5% Marketplace Listing Fee Reduction | — |
@@ -95,21 +95,21 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 
 | Tier | Node | Type | Cost | Max points | Effect | Requires |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | **Assembly Rhythm** | small | 1 | 5 | Workshop craft jobs run faster: −2.5% unit time per point (server-side, snapshotted at enqueue). | — |
+| 1 | **Assembly Rhythm** | small | 1 | 5 | Workshop craft jobs run faster: −2.5% unit time per point, set at queue time. | — |
 | 1 | **Parallel Hands** | small | 1 | 5 | Workshop craft jobs run faster: −2.5% unit time per point (−25% across both nodes). | — |
-| 2 | **Calibrated Eye** | small | 1 | 5 | +1 crafted quality shift per point (server-side, applied when a unit completes). | — |
+| 2 | **Calibrated Eye** | small | 1 | 5 | +1 crafted quality shift per point, counted when a unit completes. | — |
 | 2 | **Tolerance Stacking** | small | 1 | 5 | +1 crafted quality shift per point (+10 across both nodes). | — |
-| 3 | **Torque Discipline** | small | 1 | 5 | Repair work runs faster: −3% unit time per point (snapshotted at enqueue/accept). | — |
+| 3 | **Torque Discipline** | small | 1 | 5 | Repair work runs faster: −3% unit time per point, set when the job starts. | — |
 | 3 | **Bay Choreography** | small | 1 | 5 | Repair work runs faster: −3% unit time per point (−30% across both nodes). | — |
 | 4 | **Kit Stretching** | small | 1 | 5 | Patch kits restore +2.5% more condition per point (multiplies repair efficiency). | — |
 | 4 | **Salvage Solder** | small | 1 | 5 | Patch kits restore +2.5% more condition per point (+25% across both nodes). | — |
-| 5 | **Rig Tuning** | small | 1 | 5 | +2% vehicle yield bonus per point (adds into the yield affix bracket). | — |
+| 5 | **Rig Tuning** | small | 1 | 5 | +2% vehicle yield per point (stacks with yield affixes). | — |
 | 5 | **Aero Fairings** | small | 1 | 5 | +2% vehicle yield bonus per point (+20% across both nodes). | — |
-| 6 | **Lean Burn** | small | 1 | 5 | Vehicles burn −3% fuel per point (applied after fuel-efficiency affixes). | — |
-| 6 | **Appraiser's Eye** | small | 1 | 5 | +1% vendor buyback rate per point (added to the buyback lever; the rate caps at 90%). | — |
+| 6 | **Lean Burn** | small | 1 | 5 | Vehicles burn −3% fuel per point, after fuel-efficiency affixes. | — |
+| 6 | **Appraiser's Eye** | small | 1 | 5 | +1% vendor buyback rate per point. Buyback rate caps at 90%. | — |
 | 7 | **Master Artificer** | major | 3 | 1 | Crafted gear temper chance +5%. | Calibrated Eye, Tolerance Stacking |
-| 7 | **Fleet Engineer** | major | 3 | 1 | Vehicles lose 25% less condition per fueled tick. | Rig Tuning, Aero Fairings |
-| 8 | **House Brand** | major | 3 | 1 | Marketplace listing fees reduced an additional 15% for Workshop-crafted items you sell. | Appraiser's Eye |
+| 7 | **Fleet Engineer** | major | 3 | 1 | Vehicles lose 25% less condition while fueled. | Rig Tuning, Aero Fairings |
+| 8 | **House Brand** | major | 3 | 1 | Listing fees reduced an additional 15% for Workshop-crafted items you sell. | Appraiser's Eye |
 | 8 | **Second Shift** | major | 3 | 1 | +1 concurrent self-repair job. | Torque Discipline, Bay Choreography |
 | 1 | **Proof Loads** | small | 1 | 5 | +10% Ordnance Damage | — |
 | 2 | **Bench-Tested** | small | 1 | 5 | +10% Ordnance Damage | — |

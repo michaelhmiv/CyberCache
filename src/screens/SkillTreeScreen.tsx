@@ -1,13 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { motion } from 'framer-motion';
-import { Lock, RotateCcw } from 'lucide-react';
-import { getSkillTreeNodes, SKILL_NODES } from '@/constants/skillTrees';
+import { RotateCcw } from 'lucide-react';
+import { getSkillTreeNodes } from '@/constants/skillTrees';
 import { SkillTreeType } from '@/types/game';
 import { SkillNode } from '@/types/skill';
 import { usePlayerStore, useSkillStore } from '@/store';
 import { verifiedOps } from '@/lib/api/verifiedOps';
-import { SkillKeystoneArt } from '@/components/common/SkillKeystoneArt';
+import {
+  NextUnlockCard,
+  SkillIconBoard,
+  SkillNodeSheet,
+  type SkillTreeBoardProps,
+} from '@/components/skills/SkillIconBoard';
+import { nextUnlock } from '@/lib/skillNextUnlock';
 import {
   getActionSkillState,
   newActionSkillNonce,
@@ -26,7 +31,6 @@ import {
   AMBER_GLOW,
   BONE,
   BONE_FAINT,
-  BONE_MUTED,
   STEEL,
   plateShell,
 } from '@/components/profile/hunterPlateTheme';
@@ -145,16 +149,9 @@ const TREES = [
   { id: SkillTreeType.Fixer, label: 'Fixer', color: '#2EC4B6', desc: 'Crafting, repair, vehicles, trade' },
 ];
 
-const nodeTone = (node: SkillNode, isAvailable: boolean, isMaxed: boolean) => {
-  if (isMaxed) return 'border-green/70 bg-green/10 text-green';
-  if (isAvailable) return 'border-amber bg-amber/12 text-amber';
-  if (node.type === 'keystone') return 'border-purple/45 bg-purple/10 text-purple opacity-80';
-  if (node.type === 'major') return 'border-amber/30 bg-surface text-text-secondary opacity-80';
-  return 'border-border bg-surface text-text-muted opacity-65';
-};
-
 export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [pendingNodeId, setPendingNodeId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const player = usePlayerStore();
@@ -241,6 +238,33 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
     } finally {
       setPendingNodeId(null);
     }
+  };
+
+  // Icon-tree selection (owner-approved 2026-11-18): a board tap
+  // (or the Next Unlock shortcut) selects the node and opens its
+  // sheet — the spend itself fires only from the sheet's button
+  // through spendPoint above. One spend surface.
+  const openNodeSheet = (nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    setSheetOpen(true);
+  };
+
+  const next = nextUnlock(nodes, skillStore.spent, pointsAvailable);
+
+  const boardProps: SkillTreeBoardProps = {
+    nodes,
+    tiers,
+    spent: skillStore.spent,
+    pointsAvailable,
+    selectedNode,
+    onSelect: openNodeSheet,
+    onSpend: spendPoint,
+    canSpend,
+    spendReason,
+    pendingNodeId,
+    errorMessage,
+    activeHunter: { name: activeHunter.name, basePerkName: activeHunter.basePerkName },
+    activeTreeDef: { label: activeTreeDef.label, color: activeTreeDef.color },
   };
 
   // Two-step respec (audit HTR-07): the first tap only ARMS the
@@ -334,12 +358,23 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   return (
     <div className={embedded ? 'space-y-4' : 'bl-page space-y-4 p-4 pb-20'}>
       {header}
-      {stats}
+      {/* The pinned head (owner-approved icon-tree design,
+          2026-11-18): the points summary + the Next Unlock card
+          stick while the board scrolls under them. The card is a
+          shortcut — it opens that node's sheet; the sheet is the
+          only place points are spent. */}
+      <div className="sticky top-0 z-20 space-y-2 bg-bg pb-2">
+        {stats}
+        {next && <NextUnlockCard next={next} onOpen={openNodeSheet} />}
+      </div>
+
+      <SkillIconBoard {...boardProps} />
+
       {/* Audit UX-07: the board never said where points come from or
           what spending costs before the tap. One explainer line in
           both render modes, matching the shipped math exactly:
           pointsEarned = level − 1 (1 per level), a node's cost is
-          spent from its inspect panel, and cc_retrain returns this
+          spent from its sheet, and cc_retrain returns this
           hunter's spent points at a cost of pointsSpent × 100cr. */}
       <div className="text-[11px] leading-snug text-text-muted">
         Skill points come from levels — 1 per level ({pointsEarned} earned at level {player.level}). Tap a node to inspect it and spend its listed cost. Respec returns every spent point and costs 100cr per point spent. Each hunter holds their own pool — switch hunters at the Roster.
@@ -353,144 +388,8 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
 
       <ActionSkillPicker />
 
-      <div className="relative" style={plateShell}>
-        <Bolts />
-        <div className="relative flex items-center justify-between px-4 py-3" style={{ borderBottom: '2px solid rgba(163,152,134,0.28)' }}>
-          <div>
-            <div className="text-[13px] font-black uppercase tracking-wide" style={{ color: activeTreeDef.color }}>{activeTreeDef.label} Board</div>
-            <div className="mt-0.5 text-[11px]" style={{ color: BONE_FAINT }}>{activeHunter.name}&apos;s tree · {activeHunter.basePerkName} base perk · tap a node to inspect or spend</div>
-          </div>
-          {/* The tree sigil is decorative (QC A7: an unexplained red
-              glyph at the board's top-right read as a button). It now
-              carries an accessible name saying what it is. */}
-          <span
-            role="img"
-            aria-label={`${activeTreeDef.label} tree sigil`}
-            title={`${activeTreeDef.label} tree sigil`}
-            className="inline-flex shrink-0"
-          >
-            <PxIcon name="star" size={17} style={{ color: activeTreeDef.color }} />
-          </span>
-        </div>
-
-        {errorMessage && (
-          <div
-            role="alert"
-            className="relative border-b-2 border-red/40 bg-red/10 px-4 py-2 text-[11px] font-black uppercase text-red"
-          >
-            {errorMessage}
-          </div>
-        )}
-
-        <div className="relative overflow-x-auto p-3">
-          <div className="min-w-[520px] space-y-3">
-            {tiers.map(([tier, tierNodes], tierIndex) => (
-              <div key={tier} className="relative">
-                {tierIndex > 0 && <div className="absolute -top-3 left-1/2 h-3 w-[2px] bg-amber/30" />}
-                <div className="grid grid-cols-[58px_1fr] items-center gap-2">
-                  <div className="text-[11px] font-black uppercase tracking-wide" style={{ color: BONE_FAINT }}>Tier {tier}</div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {Array.from({ length: 3 }).map((_, idx) => {
-                      // Audit COPY-03: a single-node tier renders its
-                      // node exactly once, centered. The old expression
-                      // matched an index-1 lone node (every keystone
-                      // tier) at column 0 via find AND at column 1 via
-                      // the centering fallback — the keystone listed
-                      // twice on its own board.
-                      const node = tierNodes.length === 1
-                        ? (idx === 1 ? tierNodes[0] : undefined)
-                        : tierNodes.find((n) => n.index === idx + 1);
-                      if (!node) return <div key={`empty-${tier}-${idx}`} />;
-
-                      const currentPoints = skillStore.spent[node.id] || 0;
-                      const isMaxed = currentPoints >= node.maxPoints;
-                      const prerequisitesMet = !node.requires || node.requires.every((req) => (skillStore.spent[req] || 0) > 0);
-                      const isAvailable = canSpend(node.id) && pendingNodeId === null;
-                      const isSelected = selectedNode?.id === node.id;
-                      const isPending = pendingNodeId === node.id;
-                      const size = node.type === 'keystone' ? 'min-h-[84px]' : node.type === 'major' ? 'min-h-[76px]' : 'min-h-[68px]';
-
-                      return (
-                        <motion.button
-                          key={node.id}
-                          whileTap={isAvailable ? { scale: 0.96 } : { scale: 0.98 }}
-                          onClick={() => spendPoint(node.id)}
-                          className={`relative border-2 p-2 text-left shadow-[4px_4px_0_rgba(0,0,0,0.65)] ${size} ${nodeTone(node, isAvailable, isMaxed)} ${isSelected ? 'ring-2 ring-amber/70' : ''}`}
-                          style={{ clipPath: 'polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)' }}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex min-w-0 items-center gap-1">
-                              <SkillKeystoneArt
-                                tree={activeTree}
-                                nodeType={node.type}
-                                unlocked={prerequisitesMet || currentPoints > 0 || isMaxed}
-                                spentPoints={currentPoints}
-                                locked={!prerequisitesMet && currentPoints === 0 && !isMaxed}
-                                size={30}
-                                animate={node.type === 'keystone' && currentPoints > 0}
-                              />
-                              <div className="truncate text-[11px] font-black text-text-primary">{node.name}</div>
-                            </div>
-                            {isMaxed && <Lock size={11} className="shrink-0 text-green" />}
-                          </div>
-                          <div className="mt-1 pr-8 text-[11px] leading-snug text-text-muted">{node.description}</div>
-                          <div className="absolute bottom-1 right-2 text-[11px] font-black" style={{ color: isMaxed ? '#22C55E' : isAvailable ? '#F59E0B' : '#6B7280' }}>
-                            {isPending ? '…' : `${currentPoints}/${node.maxPoints}`}
-                          </div>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <PlateFootStrip color={activeTreeDef.color} height={3} />
-      </div>
-
-      {selectedNode && (
-        <div className="relative overflow-hidden p-4" style={plateShell}>
-          <Bolts />
-          <div className="relative space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[15px] font-black uppercase tracking-wide" style={{ color: BONE }}>{selectedNode.name}</div>
-                <div className="mt-0.5 text-[11px] font-bold uppercase" style={{ color: BONE_FAINT }}>{selectedNode.type} · Tier {selectedNode.tier}</div>
-              </div>
-              <div className="text-sm font-black" style={{ color: AMBER }}>{skillStore.spent[selectedNode.id] || 0}/{selectedNode.maxPoints}</div>
-            </div>
-            <div className="text-xs leading-snug" style={{ color: BONE_MUTED }}>{selectedNode.description}</div>
-            {selectedNode.requires && selectedNode.requires.length > 0 && (
-              <div className="text-[11px]" style={{ color: BONE_FAINT }}>Requires: {selectedNode.requires.map((reqId) => SKILL_NODES.find((n) => n.id === reqId)?.name ?? reqId).join(', ')}</div>
-            )}
-            {canSpend(selectedNode.id) ? (
-              <button
-                onClick={() => spendPoint(selectedNode.id)}
-                disabled={pendingNodeId !== null}
-                className="bl-primary min-h-[44px] w-full py-3 text-xs font-black disabled:opacity-50"
-              >
-                {pendingNodeId === selectedNode.id ? 'Training…' : `Spend ${selectedNode.cost} Point${selectedNode.cost === 1 ? '' : 's'}`}
-              </button>
-            ) : (
-              <>
-                <button
-                  disabled
-                  aria-disabled="true"
-                  data-testid="skill-spend-unavailable"
-                  className="bl-primary min-h-[44px] w-full py-3 text-xs font-black disabled:opacity-50"
-                >
-                  {pendingNodeId === selectedNode.id ? 'Training…' : `Spend ${selectedNode.cost} Point${selectedNode.cost === 1 ? '' : 's'}`}
-                </button>
-                <div className="text-[11px] leading-snug" style={{ color: BONE_FAINT }}>
-                  {spendReason(selectedNode) ?? 'Not spendable right now.'}
-                </div>
-              </>
-            )}
-          </div>
-          {/* The tree's color rides the inspect plate's foot strip. */}
-          <PlateFootStrip color={activeTreeDef.color} height={3} />
-        </div>
+      {sheetOpen && selectedNode && (
+        <SkillNodeSheet {...boardProps} node={selectedNode} onClose={() => setSheetOpen(false)} />
       )}
     </div>
   );

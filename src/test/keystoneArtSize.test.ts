@@ -17,6 +17,16 @@
  *    the marks that were mushing;
  *  - the four trees' sigils are four distinct glyphs whose rect
  *    data hashes distinctly, in four distinct tree colors.
+ *
+ * SUCCESSION (icon-tree build, owner-approved 2026-11-18): the
+ * board's node art is now the medallion icon set — one generated
+ * 128×128 icon per node, registered in the sprite manifest and
+ * rendered at 68/80/92px on the board and 104px in the node sheet.
+ * Every display size is a DOWNSCALE of the authored 128, so the
+ * HTR-08 mush failure (rendering authored art above its native
+ * resolution) cannot recur on the board. The first case below now
+ * pins that call site; the grid/sigil data cases survive verbatim
+ * (the grids still back SkillKeystoneArt's other surfaces).
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -29,14 +39,18 @@ import { SkillTreeType } from '@/types/game';
 const TREES = [SkillTreeType.Gunslinger, SkillTreeType.Demolition, SkillTreeType.Scavenger, SkillTreeType.Fixer];
 
 describe('keystone art ships at native size (audit HTR-08)', () => {
-  it('the skill board call site renders SkillKeystoneArt at size 30', () => {
-    const src = readFileSync(join(process.cwd(), 'src/screens/SkillTreeScreen.tsx'), 'utf8');
-    const blocks = src.match(/<SkillKeystoneArt[\s\S]*?\/>/g) ?? [];
-    expect(blocks.length).toBeGreaterThan(0);
-    for (const block of blocks) {
-      expect(block).toContain('size={30}');
-      expect(block).not.toMatch(/size=\{(?!30\})[0-9]+\}/);
-    }
+  it('the board renders the 128px medallion icons at downscale sizes only', () => {
+    const board = readFileSync(join(process.cwd(), 'src/components/skills/SkillIconBoard.tsx'), 'utf8');
+    // Icons resolve through the sprite registry (never a raw path).
+    expect(board).toContain('skillNodeIconUrl(node.id)');
+    // The board display sizes (small 68 / major 80 / keystone 92)
+    // and the sheet's large icon (104) — all below the authored
+    // 128px, so authored art is never upscaled into mush.
+    expect(board).toContain("node.type === 'keystone' ? 92 : node.type === 'major' ? 80 : 68");
+    expect(board).toContain('width={104}');
+    // And the old sub-native call site is gone from the screen.
+    const screen = readFileSync(join(process.cwd(), 'src/screens/SkillTreeScreen.tsx'), 'utf8');
+    expect(screen).not.toContain('SkillKeystoneArt');
   });
 
   it('the authored grids are 30×30 and every node type carries accent texels', () => {

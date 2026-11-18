@@ -41,6 +41,10 @@ const REQUIRED_ANCHORS: Record<string, string[]> = {
   character: ['feet', 'centerMass', 'muzzle', 'lootPoint', 'grip'],
   enemy: ['feet', 'centerMass', 'lootPoint'],
   prop: ['feet', 'centerMass', 'lootPoint'],
+  // Skill-node medallion icons (icon-tree build, 2026-11-18): UI art
+  // registered through the same pixel-key anchor set; the board only
+  // positions by center, but the registry carries the full set.
+  'skill-icon': ['feet', 'centerMass', 'lootPoint'],
   background: ['groundLine'],
   // Top-Choice item sprites (INT-4): produced by
   // scripts/topchoice-items-key.py with pixel-key.py's anchor set.

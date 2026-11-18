@@ -18,6 +18,7 @@ export type PixelSpriteKind =
   | 'weapon-legendary'
   | 'weapon-base'
   | 'background'
+  | 'skill-icon'
   | 'item';
 
 export interface PixelAnchor {
