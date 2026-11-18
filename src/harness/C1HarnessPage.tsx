@@ -25,7 +25,7 @@ import {
   loginStreakClaimKey,
   useLoginStreakStore,
 } from '@/store/slices/loginStreakSlice';
-import { loginStreakUtcDay } from '@/content/loginStreak';
+import { loginStreakDay } from '@/content/loginStreak';
 import { useOfflineRecapStore } from '@/store/slices/offlineRecapSlice';
 import { usePlayerStore, useSurvivalStore } from '@/store';
 import { Rarity } from '@/types/game';
@@ -103,12 +103,12 @@ function seed() {
     useLoginStreakStore.setState({
       result: streakResult(3, true),
       loadState: 'ready',
-      resultDay: loginStreakUtcDay(new Date()),
+      resultDay: loginStreakDay(new Date()),
     });
   } else if (surface === 'streak-claimed' || surface === 'streak-day7') {
     const day = surface === 'streak-day7' ? 7 : 3;
     const result = streakResult(day, false);
-    const resultDay = loginStreakUtcDay(new Date());
+    const resultDay = loginStreakDay(new Date());
     useLoginStreakStore.setState({
       result,
       loadState: 'ready',

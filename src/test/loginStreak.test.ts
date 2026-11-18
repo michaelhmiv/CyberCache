@@ -14,10 +14,17 @@
  *    across tiers. Sizing reference: baseline roaming pays
  *    ~15 credits/minute, so a tier-1 week ≈ 2 hours of roaming
  *    spread over 7 days.
- *  - STREAK ARITHMETIC: consecutive UTC days increment; a missed
+ *  - STREAK ARITHMETIC: consecutive streak days increment; a missed
  *    day restarts at 1; the longest streak is kept. Cycle position
  *    derives purely from the streak length (day 8 = tier 2 day 1;
  *    day 36+ stays at the tier-5 ceiling).
+ *  - THE BOUNDARY (0101, owner ruling 2026-11-17): the streak day
+ *    starts at 08:00 UTC, not 00:00 — the day key is the UTC date
+ *    of (now − 8h) in the SQL chain, the Pg facts read, the
+ *    in-memory twin, and the client's staleness heuristic. A paid
+ *    today also reads as earned on the ladder ('earned-today'):
+ *    through 0082 the paid flag never entered the derivation and
+ *    a successful claim showed no check until the next day.
  *  - EXACTLY ONCE, TWICE OVER (0079, the TRUE CLAIM): the
  *    (player, day) claim row is the RECORD anchor — a replayed
  *    check-in returns the stored row and records nothing again,
@@ -54,6 +61,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   LOGIN_STREAK_CYCLE_DAYS,
+  LOGIN_STREAK_DAY_START_UTC_HOUR,
   LOGIN_STREAK_LEVER_CLAMPS,
   LOGIN_STREAK_LEVER_DEFAULTS,
   LOGIN_STREAK_MISS_RULE,
@@ -61,6 +69,8 @@ import {
   LOGIN_STREAK_TIER_CEILING,
   formatLoginStreakReward,
   loginStreakAddDays,
+  loginStreakDay,
+  loginStreakDayStartLocalLabel,
   loginStreakGrantFor,
   loginStreakLengthAfter,
   loginStreakPositionFor,
@@ -210,6 +220,40 @@ describe('login streak levers', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 2b. The streak day boundary (0101) — the day starts at 08:00 UTC
+// ---------------------------------------------------------------------------
+
+describe('login streak day boundary (0101)', () => {
+  it('the day-start hour is pinned at 08:00 UTC', () => {
+    expect(LOGIN_STREAK_DAY_START_UTC_HOUR).toBe(8);
+  });
+
+  it('loginStreakDay: before 08:00 UTC is the previous day; at 08:00 the new day starts', () => {
+    expect(loginStreakDay(new Date('2026-11-01T00:30:00.000Z'))).toBe('2026-10-31');
+    expect(loginStreakDay(new Date('2026-11-01T07:59:59.000Z'))).toBe('2026-10-31');
+    expect(loginStreakDay(new Date('2026-11-01T08:00:00.000Z'))).toBe('2026-11-01');
+    expect(loginStreakDay(new Date('2026-11-01T19:00:00.000Z'))).toBe('2026-11-01');
+    expect(loginStreakDay(new Date('2026-11-01T23:59:59.000Z'))).toBe('2026-11-01');
+    // The plain UTC day is unchanged — the offset is the streak's alone.
+    expect(loginStreakUtcDay(new Date('2026-11-01T07:59:59.000Z'))).toBe('2026-11-01');
+  });
+
+  it('the day-start label renders 08:00 UTC in local time and follows DST, never a fixed hour', () => {
+    const prev = process.env.TZ;
+    process.env.TZ = 'America/New_York';
+    try {
+      // EST (winter): 08:00 UTC is 3:00 AM local.
+      expect(loginStreakDayStartLocalLabel(new Date('2026-11-17T12:00:00.000Z'))).toBe('3:00 AM');
+      // EDT (summer): the same rule reads 4:00 AM local.
+      expect(loginStreakDayStartLocalLabel(new Date('2026-07-01T12:00:00.000Z'))).toBe('4:00 AM');
+    } finally {
+      if (prev === undefined) delete process.env.TZ;
+      else process.env.TZ = prev;
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 3. State view derivation
 // ---------------------------------------------------------------------------
 
@@ -239,7 +283,7 @@ describe('login streak state view', () => {
     expect(view.missRule).toBe(LOGIN_STREAK_MISS_RULE);
   });
 
-  it('claimed today at streak 3: earned through today, day 4 is next', () => {
+  it('claimed today at streak 3: earned through today — a PAID today carries its check (0101), day 4 is next', () => {
     const view = loginStreakStateView(
       facts({
         currentStreak: 3,
@@ -259,13 +303,33 @@ describe('login streak state view', () => {
     expect(view.todayClaimable).toBe(false);
     expect(view.todayReward?.credits).toBe(200);
     expect(view.ladder.map((d) => d.state)).toEqual([
-      'earned', 'earned', 'today', 'upcoming', 'upcoming', 'upcoming', 'upcoming',
+      'earned', 'earned', 'earned-today', 'upcoming', 'upcoming', 'upcoming', 'upcoming',
     ]);
     expect(view.nextStreakLength).toBe(4);
     expect(view.nextReward).toEqual(loginStreakReward(4, 1));
   });
 
-  it('recorded but UNPAID today (0079): the day is earned, the reward claimable and face-up', () => {
+  it('paid on day 7 (0101): the key day itself reads earned-today, not bare today', () => {
+    const view = loginStreakStateView(
+      facts({
+        currentStreak: 7,
+        longestStreak: 7,
+        lastClaimDay: TODAY,
+        todayClaim: {
+          day: TODAY, streakLength: 7, cycleDay: 7, tier: 1,
+          creditsAwarded: 500, fragmentsAwarded: 0, cacheKeysAwarded: 1,
+          paid: true,
+        },
+      }),
+      LEVERS,
+      TODAY,
+    );
+    expect(view.ladder.map((d) => d.state)).toEqual([
+      'earned', 'earned', 'earned', 'earned', 'earned', 'earned', 'earned-today',
+    ]);
+  });
+
+  it('recorded but UNPAID today (0079): the day is earned, the reward claimable and face-up — and today shows NO check until it is paid (0101)', () => {
     const view = loginStreakStateView(
       facts({
         currentStreak: 3,
@@ -335,7 +399,7 @@ describe('login streak state view', () => {
     expect(view.tier).toBe(2);
     expect(view.ladder[0].credits).toBe(150);
     expect(view.ladder[6].credits).toBe(750);
-    expect(view.ladder.map((d) => d.state)[0]).toBe('today');
+    expect(view.ladder.map((d) => d.state)[0]).toBe('earned-today');
     expect(formatLoginStreakReward(view.ladder[6])).toBe('750 credits · cache key');
   });
 });
@@ -471,6 +535,57 @@ describe('login streak record + claim — in-memory gameplay store', () => {
     const facts = await store.getLoginStreakFacts(A);
     expect(facts?.current_streak).toBe(2);
     expect(facts?.longest_streak).toBe(2);
+  });
+
+  it('the streak day starts at 08:00 UTC (0101): a 07:59 check-in belongs to the previous day', async () => {
+    const { store } = makeStore('2026-11-01T07:59:00.000Z');
+    store.seedProfile({ id: A });
+    const recorded = await store.recordLoginStreakDay(A) as Json;
+    expect(recorded.day).toBe('2026-10-31');
+    expect(recorded.streak_length).toBe(1);
+    const facts = await store.getLoginStreakFacts(A);
+    expect(facts?.today).toBe('2026-10-31');
+    expect(facts?.today_claim?.day).toBe('2026-10-31');
+  });
+
+  it('an evening check-in and the next morning’s are ONE streak day (0101); 08:00 opens the next', async () => {
+    const { store, setNow } = makeStore('2026-11-01T19:00:00.000Z');
+    store.seedProfile({ id: A });
+    const evening = await store.recordLoginStreakDay(A) as Json;
+    expect(evening.day).toBe('2026-11-01');
+    expect(evening.streak_length).toBe(1);
+    // 02:00 UTC the next calendar day is still streak day Nov 1:
+    // the check-in is a replay of the same day, not a new one.
+    setNow('2026-11-02T02:00:00.000Z');
+    const replay = await store.recordLoginStreakDay(A) as Json;
+    expect(replay.already_claimed).toBe(true);
+    expect(replay.day).toBe('2026-11-01');
+    expect(replay.streak_length).toBe(1);
+    // At 08:00 UTC the new streak day starts and extends.
+    setNow('2026-11-02T08:00:00.000Z');
+    const next = await store.recordLoginStreakDay(A) as Json;
+    expect(next.already_claimed).toBe(false);
+    expect(next.day).toBe('2026-11-02');
+    expect(next.streak_length).toBe(2);
+  });
+
+  it('expiry moved with the boundary (0101): yesterday’s reward is claimable until 08:00 UTC, never after', async () => {
+    const { store, setNow } = makeStore('2026-11-01T08:00:00.000Z');
+    store.seedProfile({ id: A });
+    await store.recordLoginStreakDay(A); // streak day Nov 1, unclaimed
+    // 07:59 UTC on Nov 2 is still streak day Nov 1 — the claim pays.
+    setNow('2026-11-02T07:59:00.000Z');
+    const paid = await store.claimLoginStreakDay(A) as Json;
+    expect(paid.credits_awarded).toBe(100);
+    expect(store.profiles.get(A)?.credits).toBe(100);
+
+    const late = makeStore('2026-11-01T08:00:00.000Z');
+    late.store.seedProfile({ id: A });
+    await late.store.recordLoginStreakDay(A);
+    // At 08:00 UTC the day has rolled: Nov 1's reward is expired.
+    late.setNow('2026-11-02T08:00:00.000Z');
+    await expect(late.store.claimLoginStreakDay(A)).rejects.toThrow('No streak reward recorded today');
+    expect(late.store.profiles.get(A)?.credits).toBe(0);
   });
 
   it('a missed day restarts the streak at 1 but keeps the longest', async () => {
@@ -789,5 +904,57 @@ describe('migration 0079 textual pins', () => {
     expect(claimFn).toContain("'login-streak:'");
     expect(claimFn).toContain('cache_token_parts = cache_token_parts + c.fragments_awarded');
     expect(claimFn).toContain('cache_tokens = cache_tokens + c.cache_keys_awarded');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9. Migration 0101 — textual pins (the boundary move + transition)
+// ---------------------------------------------------------------------------
+
+describe('migration 0101 textual pins', () => {
+  const sql = readFileSync(join(process.cwd(), 'db/migrations/0101_login_streak_day_boundary.sql'), 'utf8');
+  const sql82 = readFileSync(join(process.cwd(), 'db/migrations/0082_cache_lane_rebuild.sql'), 'utf8');
+  const sql79 = readFileSync(join(process.cwd(), 'db/migrations/0079_login_streak_true_claim.sql'), 'utf8');
+  const NEW_DAY = "((p_now - interval '8 hours') at time zone 'UTC')::date";
+  const OLD_DAY = "(p_now at time zone 'UTC')::date";
+  const fn = (text: string, name: string): string => {
+    const start = text.indexOf(`create or replace function public.${name}(`);
+    expect(start).toBeGreaterThan(-1);
+    return text.slice(start, text.indexOf('$$;', start) + 3);
+  };
+
+  it('both functions derive the streak day from (p_now − 8 hours) — and NOTHING else changed', () => {
+    const recordFn = fn(sql, 'cc_record_login_streak_day');
+    const claimFn = fn(sql, 'cc_claim_login_streak_day');
+    expect(recordFn).toContain(`v_today date := ${NEW_DAY};`);
+    expect(claimFn).toContain(`v_today date := ${NEW_DAY};`);
+    // Verbatim discipline: swapping the day expression back
+    // reproduces the chain heads byte-for-byte — 0082 §10 for the
+    // record function, 0079 §3 for the claim — so the boundary is
+    // the ONLY behavioral delta in the restatement.
+    expect(recordFn.replace(NEW_DAY, OLD_DAY)).toBe(fn(sql82, 'cc_record_login_streak_day'));
+    expect(claimFn.replace(NEW_DAY, OLD_DAY)).toBe(fn(sql79, 'cc_claim_login_streak_day'));
+  });
+
+  it('the transition re-keys only old-keyed rows recorded before 08:00 UTC (the idempotency guard)', () => {
+    // A row still keyed under the old rule: claim_day = the UTC
+    // date of its record instant. Re-keyed rows — and rows the
+    // new functions record before 08:00 UTC — fail this pairing
+    // and never shift twice.
+    expect(sql).toContain("claim_day = (claimed_at at time zone 'UTC')::date");
+    expect(sql).toContain("extract(hour from (claimed_at at time zone 'UTC')) < 8");
+    // Two-phase shift: park at −100000 days, land at +99999 (net −1),
+    // so the (player_id, claim_day) key never collides transiently.
+    expect(sql).toContain('claim_day = claim_day - 100000');
+    expect(sql).toContain('claim_day = claim_day + 99999');
+  });
+
+  it('collisions resolve paid-first, then earliest recorded; the state rebuild floors the streak', () => {
+    expect(sql).toContain('o.paid_at is not null and c.paid_at is null');
+    expect(sql).toContain('o.claimed_at < c.claimed_at');
+    // No-loss floor: a merge inside a run can never shorten a
+    // streak the old rules had already counted.
+    expect(sql).toContain('greatest(s.current_streak, r.run_length)');
+    expect(sql).toContain('greatest(s.longest_streak,');
   });
 });

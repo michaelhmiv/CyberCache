@@ -106,7 +106,9 @@ function streakResult(alreadyClaimed: boolean) {
       ladder: [
         { cycleDay: 1, credits: 100, fragments: 0, cacheKeys: 0, state: 'earned' },
         { cycleDay: 2, credits: 150, fragments: 0, cacheKeys: 0, state: 'earned' },
-        { cycleDay: 3, credits: 200, fragments: 1, cacheKeys: 0, state: 'today' },
+        // 0101: a paid today reads 'earned-today' (check shown);
+        // the unpaid read keeps the bare 'today' cell.
+        { cycleDay: 3, credits: 200, fragments: 1, cacheKeys: 0, state: alreadyClaimed ? 'earned-today' : 'today' },
         { cycleDay: 4, credits: 250, fragments: 1, cacheKeys: 0, state: 'upcoming' },
         { cycleDay: 5, credits: 300, fragments: 2, cacheKeys: 0, state: 'upcoming' },
         { cycleDay: 6, credits: 400, fragments: 2, cacheKeys: 0, state: 'upcoming' },
