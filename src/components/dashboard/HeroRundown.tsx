@@ -262,7 +262,7 @@ export const HeroRundown: React.FC<{
  * It is the deltas' legend; when nothing is active it renders
  * nothing and the heroes print plain.
  */
-const HeroBuffLine: React.FC<{ activityKind: ActivityKind }> = ({ activityKind }) => {
+export const HeroBuffLine: React.FC<{ activityKind: ActivityKind }> = ({ activityKind }) => {
   const buffs = useActiveBuffsStore((s) => s.buffs);
   const loadout = useLoadoutStore();
   const inventory = useInventoryStore();
