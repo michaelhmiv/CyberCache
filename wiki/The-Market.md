@@ -170,7 +170,10 @@ carry real sales data for the same kind of item:
 - on the sell form, the full guidance line: median, last sale price,
   and how many have sold; the inspect sheet carries the item's whole
   market picture (comparable supply, lowest and median asks, recent
-  sales).
+  sales), printed directly under the item's header — and the sheet's
+  foot carries the listing's own price with a **Buy Now** button, so
+  the listing you are inspecting is the listing you can buy, without
+  closing the sheet and finding its row again.
 
 An item with no recent sales shows none of this — the game never invents a
 price history. Use the median as your anchor: pricing far above it usually
