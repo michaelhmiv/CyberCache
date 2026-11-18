@@ -32,6 +32,18 @@
         {
           "number": 608,
           "title": "Crafting stage: V1 zoom composition, anvil-free bench, Inkling animation treatment, Unarmed tag removed"
+        },
+        {
+          "number": 609,
+          "title": "Login streak: paid today shows its check; streak day starts at 08:00 UTC (0101)"
+        },
+        {
+          "number": 610,
+          "title": "Craft-info V1: the bench rundown takes the Home zone in Craft mode"
+        },
+        {
+          "number": 611,
+          "title": "Skill-routing fix: every skill tree reaches gameplay (F1–F8, migration 0102)"
         }
       ]
     },

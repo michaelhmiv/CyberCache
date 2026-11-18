@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { AlertTriangle, CheckCircle, Lock, RefreshCw } from 'lucide-react';
 import {
@@ -11,7 +11,7 @@ import { buildExtractionActivity } from '../../lib/activity/activityBuilders';
 import { ROAMING_AREAS, getRoamingArea } from '../../constants/roamingAreas';
 import { signatureMaterialForArea } from '../../content/roamingEvents';
 import { pixelBackgroundForArea, requirePixelSprite } from '../../lib/pixel/manifest';
-import { useExtractionFeedStore, useIdleStore } from '../../store';
+import { useExtractionFeedStore, useExtractionRunStore, useIdleStore } from '../../store';
 import { useNow } from '../../hooks/useNow';
 import { AreaPickerList, CurrentAreaChip } from '../common/AreaPicker';
 import { MobileCard } from '../layout/MobileCard';
@@ -116,6 +116,23 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
     void refresh();
   }, [refresh]);
 
+  // First-screen fix R2 — the extraction view lift. The panel
+  // publishes the state it already reads so the stage zone
+  // (ExtractRundown) can carry the delve's facts — site, method,
+  // pass clock, gear factor, the Deep Delve below-×0.80 warning —
+  // on the first screen, including while the delve is PAUSED
+  // (exactly when the warning below never prints, because this
+  // panel's own degraded line requires the delve to be active).
+  // Additive only: this panel's rendered output is unchanged, and
+  // it stays the flow's sole owner — a zone resume request
+  // executes through this panel's own start path with the SAVED
+  // site and method (see startWith below).
+  const publishExtractionRun = useExtractionRunStore((s) => s.publish);
+  useEffect(() => {
+    publishExtractionRun(state ? { state, readAt, starting } : null);
+  }, [state, readAt, starting, publishExtractionRun]);
+  useEffect(() => () => publishExtractionRun(null), [publishExtractionRun]);
+
   const selectedArea = getRoamingArea(selectedAreaId);
   const preview = state?.preview ?? null;
   const active = state?.active ?? false;
@@ -137,18 +154,45 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
     }
   }, [state, active, now, readAt, refresh]);
 
-  const startExtraction = useCallback(async () => {
-    setStarting(true);
-    setStartError(null);
-    try {
-      await startActiveActivity(buildExtractionActivity(selectedArea, methodChoice));
-      await refresh();
-    } catch (err) {
-      setStartError(err instanceof Error ? err.message : 'Could not start extraction');
-    } finally {
-      setStarting(false);
-    }
-  }, [selectedArea, methodChoice, refresh]);
+  const startWith = useCallback(
+    async (area: { id: string; name: string }, method: 'surface' | 'deep') => {
+      setStarting(true);
+      setStartError(null);
+      try {
+        await startActiveActivity(buildExtractionActivity(area, method));
+        await refresh();
+      } catch (err) {
+        setStartError(err instanceof Error ? err.message : 'Could not start extraction');
+      } finally {
+        setStarting(false);
+      }
+    },
+    [refresh],
+  );
+
+  const startExtraction = useCallback(() => startWith(selectedArea, methodChoice), [startWith, selectedArea, methodChoice]);
+
+  // Zone resume intent (R2): resume the SAVED delve as-is — the
+  // pass's own site and method from the published state, never the
+  // picker's current selection — through the same start path the
+  // panel's own Start button rides.
+  const resumeRequests = useExtractionRunStore((s) => s.resumeRequests);
+  const seenResumeRequestsRef = useRef(resumeRequests);
+  const publishedStateRef = useRef(state);
+  useEffect(() => {
+    publishedStateRef.current = state;
+  }, [state]);
+  useEffect(() => {
+    if (resumeRequests === seenResumeRequestsRef.current) return;
+    seenResumeRequestsRef.current = resumeRequests;
+    const saved = publishedStateRef.current;
+    if (!saved?.hasState) return;
+    const area = getRoamingArea(saved.passAreaId ?? saved.areaId ?? undefined);
+    const method = saved.passMethod === 'deep' ? 'deep' : 'surface';
+    setSelectedArea(area.id);
+    setMethodChoice(method);
+    void startWith(area, method);
+  }, [resumeRequests, startWith, setSelectedArea]);
 
   if (loading && !state) {
     return (

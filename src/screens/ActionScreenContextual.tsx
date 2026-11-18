@@ -5,6 +5,8 @@ import {
   useActivityStore,
   useBossStore,
   useCombatStatsStore,
+  useEndlessRunStore,
+  useExtractionRunStore,
   useIdleStore,
   useInventoryStore,
   useLoadoutStore,
@@ -31,6 +33,8 @@ import { HotFlameMark } from '@/components/dashboard/HotFlameMark';
 import { isHotArea } from '@/content/hotArea';
 import { HeroRundown } from '@/components/dashboard/HeroRundown';
 import { BenchRundown } from '@/components/dashboard/BenchRundown';
+import { ChamberRundown } from '@/components/dashboard/ChamberRundown';
+import { ExtractRundown } from '@/components/dashboard/ExtractRundown';
 import { useOfflineCapHours } from '@/hooks/useOfflineCapHours';
 import { useActionHeartbeat } from '@/components/activity/useActionHeartbeat';
 import { REGION_1_BOSSES } from '@/constants/bosses';
@@ -203,6 +207,12 @@ export const ActionScreenContextual: React.FC<{
 
   const selectedArea = getRoamingArea(idle.selectedRoamingAreaId);
   const currentKind = activity.current.kind;
+  // R2 zone lifts: the fight panels publish their run views to
+  // slices (endlessRunSlice / extractionRunSlice); this screen
+  // subscribes to BOOLEANS only, so a republished view never
+  // re-renders the screen — the zones read the views themselves.
+  const endlessRunLive = useEndlessRunStore((s) => s.view !== null);
+  const extractionDelveKnown = useExtractionRunStore((s) => s.view?.state.hasState ?? false);
   // The hot-area flame mark beside the Active Area name stills under
   // reduced motion (the mark reads the same preference the stage does).
   const reducedMotion = !!useReducedMotion();
@@ -760,7 +770,13 @@ export const ActionScreenContextual: React.FC<{
   ) : null;
 
   return (
-    <div className="bl-page relative flex flex-col gap-3 overflow-hidden">
+    // overflow-clip, not overflow-hidden (R2 enabler, 2026-11-17):
+    // a hidden root is a scroll container and cages every sticky
+    // descendant inside itself — the prep action bars could never
+    // ride the viewport fold. Clip keeps the same no-overflow
+    // rendering without creating the cage. Nothing else on this
+    // page relied on the hidden behavior.
+    <div className="bl-page relative flex flex-col gap-3 overflow-clip">
       {/* Section-gap law (owner, 2026-11-05): this block is a
           stack of Home sections (rail → stage → belt →
           workspace → feed) on the ONE 8px section gap
@@ -837,13 +853,23 @@ export const ActionScreenContextual: React.FC<{
           endlessRunId={currentKind === 'endless_run' ? activity.current.targetId : undefined}
           stageControls={stageControls}
         />
-        {/* The zone answers for the current mode (owner ruling
-            2026-11-17): while Crafting holds the slot — the same
-            kind the stage's own mode map calls 'crafting' — the
-            black zone is the bench rundown (working job, per-unit
-            rate, queue, slim vitals); every other mode keeps the
-            combat rundown. */}
-        {currentKind === 'crafting' ? (
+        {/* The zone answers for the current mode (owner rulings
+            2026-11-17): a live endless run gets the chamber
+            rundown (escrow at risk, death payout, BANK & LEAVE);
+            the extraction view gets the extract rundown (site,
+            pass clock, gear factor, the paused Deep Delve
+            warning, Resume) whenever a delve is on the books;
+            Crafting holding the slot — the same kind the stage's
+            own mode map calls 'crafting' — gets the bench
+            rundown (working job, per-unit rate, queue, slim
+            vitals); every other mode keeps the combat rundown.
+            The stage itself always shows the running occupation;
+            the zone answers for the open view. */}
+        {currentKind === 'endless_run' && endlessRunLive ? (
+          <ChamberRundown />
+        ) : (currentKind === 'extraction' || showExtraction) && extractionDelveKnown ? (
+          <ExtractRundown />
+        ) : currentKind === 'crafting' ? (
           <BenchRundown />
         ) : (
           <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />

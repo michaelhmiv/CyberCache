@@ -17,6 +17,7 @@ import { cacheRankBonuses } from '@/content/cacheRank';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import type { SkillTreeType } from '@/types/game';
 import { ActionSkillCard } from './ActionSkillCard';
+import { PrepActionBar } from './PrepActionBar';
 import { bossFeeMultiplier, bossBaseFee, escalatedBossFee } from '../../lib/bossFees';
 import { applyBossConsumableDisplayEvents } from '../../lib/chef/bossResultAdapter';
 import { syncBossAttemptResult } from '../../lib/api/verifiedStateSync';
@@ -767,25 +768,11 @@ export const BossEncounterPanel: React.FC<{
             </div>
           )}
 
-          {!unlocked ? (
+          {!unlocked && (
             <div className="flex items-start gap-2 border-2 border-border bg-bg/70 p-3 text-[11px] text-text-secondary" style={slashClip}>
               <Lock size={14} className="mt-0.5 shrink-0 text-amber" />
               Locked — defeat the previous boss to unlock {boss.name}.
             </div>
-          ) : (
-            <button
-              type="button"
-              data-testid="boss-start"
-              onClick={handleStart}
-              disabled={!canAfford || activity.pending}
-              className="bl-primary w-full py-3 text-xs font-black uppercase tracking-wider disabled:opacity-50"
-            >
-              {activity.pending
-                ? 'Staging…'
-                : entryFee > 0
-                  ? `Start Boss Encounter — ${entryFee.toLocaleString()}cr ${defeated ? 'rematch' : 'entry'}`
-                  : 'Start Boss Encounter — Free Entry'}
-            </button>
           )}
           {unlocked && !canAfford && (
             <div className="text-center text-[10px] text-red">You hold {player.credits.toLocaleString()}cr — the {entryFee.toLocaleString()}cr fee is out of reach.</div>
@@ -878,6 +865,41 @@ export const BossEncounterPanel: React.FC<{
         </motion.div>
       ) : null}
       </AnimatePresence>
+
+      {/* The prep action bar (first-screen fix R2, owner-approved
+          2026-11-17): the start decision pinned at the fold as a
+          DIRECT CHILD of this panel root. The prep content above
+          animates inside a motion wrapper whose transform creates a
+          containing block — a sticky element in there could never
+          travel — so the bar lives out here, where its sticky range
+          is the whole panel. The fee line is composed from this
+          panel's own locals (entryFee / feeMultiplier / canAfford):
+          the same numbers the in-flow prep notes print, no second
+          derivation. Intel Law: price and mechanics only, never a
+          win chance. The in-flow start button it replaces is gone;
+          locked bosses get no bar — the lock card above owns them. */}
+      {stage === 'prep' && unlocked && (
+        <PrepActionBar
+          testId="boss-prep-bar"
+          buttonTestId="boss-start"
+          title={boss.name}
+          detail={
+            entryFee > 0 ? (
+              <>
+                {defeated ? 'Rematch' : 'Entry'}{' '}
+                <span className="text-text-primary">{entryFee.toLocaleString()} cr</span>
+                {feeMultiplier > 1 && <span className="text-amber"> · escalated ×{feeMultiplier} today</span>}
+                {!canAfford && <span className="text-red"> · you hold {player.credits.toLocaleString()} cr</span>}
+              </>
+            ) : (
+              'Free entry'
+            )
+          }
+          buttonLabel={activity.pending ? 'Staging…' : 'Start Encounter'}
+          onAction={handleStart}
+          disabled={!canAfford || activity.pending}
+        />
+      )}
 
       {/* Boss LootMoment over the victory result — the rarity ladder
           for the drops the Chef actually awarded (already synced to

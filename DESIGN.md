@@ -3386,3 +3386,62 @@ The inspect sheet's own reordering (the Legendary Effect into
 the header card, The Trade above the Stat Poster) is a
 separate rendering track and is not in this batch.
 
+### 2026-11-17 — Decisions ride at the fold: prep bars, and the zone answers for the run and the delve (owner-ruled)
+
+The first-screen audit (item 39, census item 2 plus the
+endless-bank lift) found the same burial three times: the boss
+prep's start button at the bottom of a long scroll, the Chamber
+entry priced only in its panel, and — worst — a live run's bank
+decision and a paused delve's warning living only below the
+fold. The owner approved the rendered package ("I'm fine with
+layout") and it ships as rendered:
+
+1. **Prep action bars.** Boss prep and Chamber entry carry a
+   sticky action bar: the subject's name, the true price line,
+   and the start button, pinned at the fold. Placement law: the
+   bar is a DIRECT CHILD of the panel root — the prep content
+   animates inside a motion wrapper whose transform creates a
+   containing block, and a sticky element inside it can never
+   travel. The fee line is composed from the panel's own locals
+   (the boss panel's entryFee / feeMultiplier / canAfford; the
+   Chamber panel's intel fee) — no second fee derivation exists
+   anywhere in the bar path. The in-flow start buttons are
+   removed; their fee notes stay in flow. Locked bosses get no
+   bar: the lock card owns them. Intel Law unchanged: the bar
+   prints price and state, never a win chance.
+2. **Run state lifts into slices; panels stay sole owners.**
+   Endless run state and extraction state were panel-local
+   useState, unreachable from the fold. Each panel now PUBLISHES
+   a derived view to a slice (endlessRunSlice /
+   extractionRunSlice, on the extractionFeedSlice precedent) and
+   executes zone intents — bank, resume — through its own
+   shipped handlers, requested via monotonic counters on the
+   slices. The extraction panel's rendered output is unchanged;
+   the lift is additive publication only. No new server data:
+   every zone figure is copied from a panel's Chef responses.
+3. **The zone answers for the run and the delve.** In the bench
+   rundown's grammar: a live Chamber run gets the chamber
+   rundown (depth cleared, escrow AT RISK as the hero, death
+   payout at the intel's percent, next milestone, the next
+   encounter named, BANK & LEAVE carrying the full payout); the
+   extraction view gets the extract rundown (site + method, the
+   pass countdown, gear factor, mastery, Resume of the SAVED
+   delve while paused). Zone precedence on Home: endless run,
+   then extraction view over a delve on the books, then Craft's
+   bench, then the combat rundown. The stage itself always shows
+   the running occupation; the zone answers for the open view.
+4. **The Deep Delve warning's zone rule.** The extract zone
+   prints "Deep Delve paying as Surface — factor below ×0.80"
+   whenever the pass method is deep and the gear factor is below
+   0.80 — INCLUDING PAUSED, which is exactly when the panel's
+   own warning never prints (it requires the delve active) and
+   exactly when the player weighs resuming. The panel's line is
+   unchanged; the zone's rule is deliberately wider.
+5. **The enabler: overflow-clip.** Both .bl-page roots
+   (HomeScreen, ActionScreenContextual) trade overflow-hidden
+   for overflow-clip: a hidden root is a scroll container and
+   caged every sticky descendant inside itself, so the bars
+   could never ride the viewport fold. Clip renders identically
+   (paint still clips) without creating the cage. Verified: no
+   other sticky descendant or clipping behavior under either
+   root relied on the hidden value.
