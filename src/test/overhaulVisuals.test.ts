@@ -414,6 +414,14 @@ describe('performance + payload budgets (§4.9)', () => {
     // 6,375 -> 493 B (−5,882). Net +15,063 B on top of the
     // hunters' total: 36,723,944 → 36,739,007 B; the ceiling
     // literal follows the total +1.
-    expect(total).toBeLessThan(36_739_007 + 1);  });
+    // Crafting-stage composition (2026-11-17): the anvil-free
+    // bench painting lands — set-bench-forge-noanvil, 287,454 B,
+    // the shipped set-bench-forge with the anvil painted out and
+    // the tabletop extended across its footprint (same 1792×1344
+    // file dimensions, anchors identical to set-bench-forge).
+    // No existing sprite is modified or removed. Manifest total
+    // 36,739,007 → 37,026,461 B; the ceiling literal follows the
+    // total +1.
+    expect(total).toBeLessThan(37_026_461 + 1);  });
 
 });

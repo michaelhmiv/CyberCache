@@ -58,14 +58,17 @@ describe('LiveTurfDiorama — visualization-only surface', () => {
     );
     // crafting metrics now live in DashboardScreen — not inside the diorama
     expect(screen.queryByTestId('hud-metric-craftingSpeed')).not.toBeInTheDocument();
-    // Diorama still renders its core pixel scene: stage + hunter.
+    // Diorama still renders its core pixel scene: the stage.
     // (Motion Reboot M1: this assertion used to count role="img"
     // elements — the one it found was the held weapon's image.
-    // The bench hunter is unarmed by design now — he works the
-    // bench — so the scene's presence is asserted by its testids,
-    // and the weapon's absence is pinned outright.)
+    // Crafting-stage composition, owner ruling 2026-11-17: the
+    // crafting stage carries NO figure at all now — the zoomed
+    // bench is the subject — so the scene's presence is asserted
+    // by the stage + camera testids, the hunter's absence is
+    // pinned outright, and the weapon's absence with it.)
     expect(screen.getByTestId('pixel-diorama-stage')).toBeTruthy();
-    expect(screen.getByTestId('pixel-hunter')).toBeTruthy();
+    expect(screen.getByTestId('craft-zoom-camera')).toBeTruthy();
+    expect(screen.queryByTestId('pixel-hunter')).toBeNull();
     expect(screen.queryByTestId('pixel-held-weapon')).toBeNull();
     // No in-stage action bar in any mode (drift-fix F2).
     expect(screen.queryAllByRole('button')).toHaveLength(0);

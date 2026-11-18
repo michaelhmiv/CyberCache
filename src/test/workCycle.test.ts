@@ -186,12 +186,12 @@ describe('work cycle — the sampler', () => {
     expect(sampleWorkCycle(WORK_CYCLE_SPECS.forge, 450).sweepStep).toBe(-1);
   });
 
-  it('glow crests at the strike at the spec peak', () => {
+  it('glow crests at the strike at the spec peak; phase-0 level is the row\'s own glowWindupFrom (default 0.35)', () => {
     for (const spec of ALL_SPECS) {
       const atStrike = sampleWorkCycle(spec, spec.strikeAt * WORK_CYCLE_PERIOD_MS);
       expect(atStrike.glow).toBeCloseTo(spec.glowPeak, 6);
       const atRest = sampleWorkCycle(spec, 0);
-      expect(atRest.glow).toBeCloseTo(spec.glowPeak * 0.35, 6);
+      expect(atRest.glow).toBeCloseTo(spec.glowPeak * (spec.glowWindupFrom ?? 0.35), 6);
     }
   });
 

@@ -76,6 +76,12 @@ export interface WorkCycleSpec {
   glowColor: string;
   /** Peak glow opacity (0..1) at the strike. */
   glowPeak: number;
+  /** Envelope level at phase 0 (wind-up start). Default 0.35. */
+  glowWindupFrom?: number;
+  /** Envelope level at the end of the hold. Default 0.7. */
+  glowHoldTo?: number;
+  /** Envelope level at the end of the release (the cycle's floor). Default 0.2. */
+  glowTrough?: number;
   /** Number of sweep steps the cycle walks (calibration's arc
    *  positions); 0 = no sweep for this family. */
   sweepSteps: number;
@@ -106,6 +112,8 @@ export interface WorkCycleSpec {
  *   hunter is present at his stall; nothing is being made.
  */
 export const WORK_CYCLE_SPECS: Record<string, WorkCycleSpec> = {
+  // The zoomed crafting stage reads the strike as an event: a dark
+  // trough between strikes and a steep attack into the crest.
   forge: {
     id: 'forge',
     liftAt: 0.30,
@@ -121,6 +129,9 @@ export const WORK_CYCLE_SPECS: Record<string, WorkCycleSpec> = {
     sparks: { color: '#FFC65C' },
     glowColor: '#FF8A3C',
     glowPeak: 0.5,
+    glowWindupFrom: 0.03,
+    glowHoldTo: 0.45,
+    glowTrough: 0.03,
     sweepSteps: 0,
   },
   crush: {
@@ -289,21 +300,28 @@ function armDeltaAt(spec: WorkCycleSpec, p: number): number {
 }
 
 /** Glow envelope shape (pre-peak): brightens through the wind-up,
- *  crests at the strike, cools through the hold and release. */
+ *  crests at the strike, cools through the hold and release.
+ *  The wind-up start, hold end, and release floor are spec data
+ *  (glowWindupFrom / glowHoldTo / glowTrough); absent fields
+ *  reproduce the original 0.35 → 0.75 → 1 → 0.7 → 0.2 curve. */
 function glowShapeAt(spec: WorkCycleSpec, p: number): number {
   const { liftAt, strikeAt, holdFrac } = spec;
-  if (p < liftAt) return 0.35 + 0.4 * clamp01(p / liftAt);
+  const from = spec.glowWindupFrom ?? 0.35;
+  const driveFrom = from + 0.4;
+  const holdTo = spec.glowHoldTo ?? 0.7;
+  const trough = spec.glowTrough ?? 0.2;
+  if (p < liftAt) return from + 0.4 * clamp01(p / liftAt);
   if (p < strikeAt) {
     const u = clamp01((p - liftAt) / Math.max(1e-6, strikeAt - liftAt));
-    return 0.75 + 0.25 * u;
+    return driveFrom + (1 - driveFrom) * u;
   }
   const holdEnd = strikeAt + holdFrac;
   if (p < holdEnd) {
     const u = clamp01((p - strikeAt) / Math.max(1e-6, holdFrac));
-    return 1 - 0.3 * u;
+    return 1 - (1 - holdTo) * u;
   }
   const u = clamp01((p - holdEnd) / Math.max(1e-6, 1 - holdEnd));
-  return 0.7 - 0.5 * u;
+  return holdTo - (holdTo - trough) * u;
 }
 
 /**

@@ -344,23 +344,33 @@ describe('the salvage beat — salvaging celebrates its settlements', () => {
 });
 
 describe('the forge work point — C1-01 staging (rulings batch-3)', () => {
-  it('home stage: seat and FX sit on the anvil point, not the old fallback', () => {
-    // The bench actor stands at xPct 60 (feet anchor 0.4972), so
-    // its left edge is ≈45.0 and the anvil (centre ≈0.235 of the
-    // sprite) stands at stage x ≈52; its top face sits ≈6
-    // points above the pre-C1-01 fallback point.
+  it('home stage: seat and FX sit on the bench top where the anvil stood (crafting composition, 2026-11-17)', () => {
+    // Supersession (owner ruling 2026-11-17): the C1-01 anvil
+    // point this test used to pin — (groundY − 0.23), the anvil's
+    // top face — is retired with the anvil itself. Under the
+    // crafting-stage composition the seat's BASE rests on the
+    // bench top surface line at the same x (52%): (groundY −
+    // 0.187), derived from the set piece's slab contact row; the
+    // FX bloom anchors at the same contact so the strike lands
+    // on the piece. The seat box now bottoms on the line
+    // (translate −50%,−100%) with the measured 7.9px sink.
     const groundY = getPixelSprite(pixelBackgroundForArea(DEFAULT_ROAMING_AREA_ID)!)?.anchors.groundLine?.y ?? 0.86;
     setWorkshop(serverView({ jobs: [job({})] }));
     renderDiorama('crafting');
     const seat = screen.getByTestId('bench-seat');
     expect(seat.style.left).toBe('52%');
-    expect(seat.style.top).toBe(`${(groundY - 0.23) * 100}%`);
+    expect(seat.style.top).toBe(`${(groundY - 0.187) * 100}%`);
+    expect(seat.style.transform).toBe('translate(-50%, -100%)');
+    expect(seat.style.marginTop).toBe('7.9px');
+    expect(seat.getAttribute('data-craft-zoom')).toBe('1');
     const fx = screen.getByTestId('bench-fx');
     expect(fx.style.left).toBe('52%');
-    expect(fx.style.top).toBe(`${(groundY - 0.23) * 100}%`);
+    expect(fx.style.top).toBe(`${(groundY - 0.187) * 100}%`);
   });
 
-  it('home stage: the crafting completion rise lifts off the anvil point', () => {
+  it('home stage: the crafting completion rise lifts off the bench top seat', () => {
+    // Same supersession: the rise originates at the seat's base
+    // point on the bench top, not the retired anvil point.
     const groundY = getPixelSprite(pixelBackgroundForArea(DEFAULT_ROAMING_AREA_ID)!)?.anchors.groundLine?.y ?? 0.86;
     const doneJob = job({ state: 'complete', unitsCompleted: 1 });
     setWorkshop(serverView({ jobs: [doneJob], recentCompletions: [] }));
@@ -371,13 +381,16 @@ describe('the forge work point — C1-01 staging (rulings batch-3)', () => {
     }));
     const rise = screen.getByTestId('bench-completion-rise');
     expect(rise.style.left).toBe('52%');
-    expect(rise.style.top).toBe(`${(groundY - 0.23) * 100}%`);
+    expect(rise.style.top).toBe(`${(groundY - 0.187) * 100}%`);
   });
 
-  it('panel scene: the seat rides the same anvil, mirrored for its bench mark', () => {
-    // Panel bench at xPct 58 / heightPct 36: left edge ≈42.1,
-    // anvil at stage x ≈50, top face ≈6 points above the old
-    // (groundY − 0.19) point.
+  it('panel scene: the seat rides its anvil, mirrored for its bench mark', () => {
+    // The Workshop panel's own bench scene is NOT under the
+    // crafting-stage composition (owner ruling 2026-11-17 scopes
+    // the anvil removal to the Home stage): its bench keeps the
+    // shipped painting and its anvil point. Panel bench at xPct
+    // 58 / heightPct 36: left edge ≈42.1, anvil at stage x ≈50,
+    // top face ≈6 points above the old (groundY − 0.19) point.
     const groundY = getPixelSprite('zone-blastforge-bg')?.anchors.groundLine?.y ?? 0.86;
     render(<CraftingBenchScene progress={0.4} causeLabel="Tempering" working seatJob={job({})} />);
     const seat = screen.getByTestId('crafting-bench-seat');
