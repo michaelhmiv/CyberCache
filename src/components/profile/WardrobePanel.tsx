@@ -7,12 +7,15 @@
  * What changed: the subject. The console no longer fits skin
  * PARTS on a segmented rig — a skin is one painted whole for the
  * fielded hunter, worn whole or not at all. The console head
- * reads the fielded hunter and the whole-skin counts; the
- * viewport seats their painting under the same measurement glass
- * the rig used; the bay lists the hunter's skins with Wear /
- * Remove. No part-wearing surface remains on this stop (brief
- * check B3) — parts are collection pieces now, and their catalog
- * lives on in Collections until slice (d) converts complete sets.
+ * reads the fielded hunter and the whole-skin counts; the bay
+ * lists the hunter's skins with Wear / Remove; the viewport
+ * below seats their painting under the same measurement glass
+ * the rig used — the list leads since the 2026-11-17
+ * first-screen pass put the stop's only action (Wear) ahead of
+ * its preview. No part-wearing surface remains on this stop
+ * (brief check B3) — parts are collection pieces now, and their
+ * catalog lives on in Collections until slice (d) converts
+ * complete sets.
  *
  * Wearing is a device-local selection at this slice (the worn
  * choice is presentation state, like the head-variant preference
@@ -96,57 +99,6 @@ export const WardrobePanel: React.FC = () => {
         </div>
       </Panel>
 
-      {/* ── SHOWCASE — the fielded hunter's painting ─────────────── */}
-      <Panel testId="wardrobe-rig">
-        <PanelLabel
-          label="Painting — live"
-          right={wornSkin ? wornSkin.name.toUpperCase() : 'BASE'}
-          rightColor={wornSkin ? AMBER : FAINT}
-        />
-        <div
-          className="relative overflow-hidden"
-          style={{
-            border: `1px solid ${STEEL_DARK}`,
-            background: 'linear-gradient(180deg, #050403 0%, #0A0806 100%)',
-            boxShadow: 'inset 0 2px 9px rgba(0,0,0,0.9)',
-          }}
-          data-testid="wardrobe-showcase"
-        >
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-10"
-            style={{
-              backgroundImage:
-                'repeating-linear-gradient(0deg, rgba(245,239,230,0.03) 0px, rgba(245,239,230,0.03) 1px, transparent 1px, transparent 3px)',
-            }}
-          />
-          {/* Measurement ticks seated on the viewport's top edge. */}
-          <div aria-hidden="true" className="absolute inset-x-3 top-0 z-10 flex justify-between">
-            {Array.from({ length: 11 }, (_, i) => (
-              <span key={i} style={{ width: 1, height: i % 5 === 0 ? 9 : 5, backgroundColor: 'rgba(201,187,166,0.4)' }} />
-            ))}
-          </div>
-          <div className="flex h-[264px] items-end justify-center">
-            {showcase && (
-              <img
-                src={showcase.url}
-                alt={hunter.name}
-                data-testid="wardrobe-showcase-painting"
-                className="h-[248px] w-auto select-none"
-                style={{ imageRendering: 'pixelated' }}
-              />
-            )}
-          </div>
-        </div>
-        <div className="mt-3 space-y-1.5">
-          <Readout label="Worn skin" value={wornSkin ? wornSkin.name : 'None — base painting'} valueColor={wornSkin ? INK : FAINT} />
-          <Readout label="Hunter" value={hunter.name} />
-        </div>
-        <div className="mt-2.5">
-          <LedMeter filled={counts.worn} total={Math.max(1, counts.owned)} color={MUT} height={10} />
-        </div>
-      </Panel>
-
       {/* ── WHOLE SKINS ──────────────────────────────────────────── */}
       <Panel testId="wardrobe-skins">
         <PanelLabel label="Whole skins" right={`${counts.owned} owned`} />
@@ -212,6 +164,59 @@ export const WardrobePanel: React.FC = () => {
         <div className="mt-2 text-[11px] font-bold uppercase leading-relaxed" style={{ ...monoStyle, color: FAINT }}>
           Skin parts — collection pieces now, no longer worn
         </div>
+      </Panel>
+
+      {/* ── SHOWCASE — the fielded hunter's painting ─────────────── */}
+      <Panel testId="wardrobe-rig">
+        <PanelLabel
+          label="Painting — live"
+          right={wornSkin ? wornSkin.name.toUpperCase() : 'BASE'}
+          rightColor={wornSkin ? AMBER : FAINT}
+        />
+        <div
+          className="relative overflow-hidden"
+          style={{
+            border: `1px solid ${STEEL_DARK}`,
+            background: 'linear-gradient(180deg, #050403 0%, #0A0806 100%)',
+            boxShadow: 'inset 0 2px 9px rgba(0,0,0,0.9)',
+          }}
+          data-testid="wardrobe-showcase"
+        >
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-10"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(0deg, rgba(245,239,230,0.03) 0px, rgba(245,239,230,0.03) 1px, transparent 1px, transparent 3px)',
+            }}
+          />
+          {/* Measurement ticks seated on the viewport's top edge. */}
+          <div aria-hidden="true" className="absolute inset-x-3 top-0 z-10 flex justify-between">
+            {Array.from({ length: 11 }, (_, i) => (
+              <span key={i} style={{ width: 1, height: i % 5 === 0 ? 9 : 5, backgroundColor: 'rgba(201,187,166,0.4)' }} />
+            ))}
+          </div>
+          <div className="flex h-[264px] items-end justify-center">
+            {showcase && (
+              <img
+                src={showcase.url}
+                alt={hunter.name}
+                data-testid="wardrobe-showcase-painting"
+                className="h-[248px] w-auto select-none"
+                style={{ imageRendering: 'pixelated' }}
+              />
+            )}
+          </div>
+        </div>
+        <div className="mt-3 space-y-1.5">
+          <Readout label="Worn skin" value={wornSkin ? wornSkin.name : 'None — base painting'} valueColor={wornSkin ? INK : FAINT} />
+          <Readout label="Hunter" value={hunter.name} />
+        </div>
+        <div className="mt-2.5">
+          <LedMeter filled={counts.worn} total={Math.max(1, counts.owned)} color={MUT} height={10} />
+        </div>
+      </Panel>
+
       </Panel>
     </div>
   );
