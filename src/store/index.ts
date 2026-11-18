@@ -16,6 +16,8 @@ import { useKillCycleStore } from './slices/killCycleSlice';
 import { useLoadoutPresetsStore } from './slices/loadoutPresetsSlice';
 import { useSalvageFeedStore } from './slices/salvageFeedSlice';
 import { useExtractionFeedStore } from './slices/extractionFeedSlice';
+import { useEndlessRunStore } from './slices/endlessRunSlice';
+import { useExtractionRunStore } from './slices/extractionRunSlice';
 import { useBulkScrapStore } from './slices/bulkScrapSlice';
 import { useOfflineRecapStore } from './slices/offlineRecapSlice';
 import { useLoginStreakStore } from './slices/loginStreakSlice';
@@ -45,6 +47,8 @@ export {
   useLoadoutPresetsStore,
   useSalvageFeedStore,
   useExtractionFeedStore,
+  useEndlessRunStore,
+  useExtractionRunStore,
   useBulkScrapStore,
   useOfflineRecapStore,
   useLoginStreakStore,
