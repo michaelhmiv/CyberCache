@@ -152,6 +152,17 @@ export interface CraftJobSnapshot {
    *  at enqueue beside coreCatalyst: core-catalyst gear units draw
    *  CORE_CATALYST_DRAWS_BONUS + this many generation candidates. */
   coreCatalystDrawBonus?: number;
+  /** Skill-routing fix (migration 0102): the Fixer craft-quality term
+   *  (Calibrated Eye / Tolerance Stacking totals + Doc Sutter's base
+   *  perk when he is fielded), computed HUNTER-GATED at enqueue and
+   *  consumed by completion — a job priced under one hunter never
+   *  re-prices when the player swaps hunters mid-job (gating applies
+   *  at the action instant). Absent on pre-0102 snapshots: completion
+   *  falls back to the live (itself gated) derivation. */
+  skillQualityBonus?: number;
+  /** Skill-routing fix (0102): the Fixer temper term (fix_major_1),
+   *  snapshotted at enqueue under the same law as skillQualityBonus. */
+  skillTemperBonus?: number;
   gearRarity: string | null;
   /** Repair jobs only (kind 'repair', mechanics slice 0025): the
    *  vehicle being restored, the patch kits escrowed at enqueue (one
@@ -926,6 +937,28 @@ function completeShieldTechUnit(
   return output;
 }
 
+/**
+ * The craft skill term a completing unit consumes (skill-routing
+ * fix, migration 0102): the value SNAPSHOTTED onto the job at
+ * enqueue — gating applies at the action instant, so a hunter swap
+ * mid-job never re-prices the job's quality/temper terms (the same
+ * law unit_duration_ms already follows). Jobs whose snapshot
+ * predates the keys fall back to the live derivation, which is
+ * itself hunter-gated (adapter.skillBonus resolves through
+ * computeHunterSkillBonuses), so no ungated read survives on either
+ * path. Mirrors cc_complete_craft_unit's snapshot-first read.
+ */
+function jobSkillTerm(
+  job: CraftJobRecord,
+  adapter: CraftAdapter,
+  snapshotKey: 'skillQualityBonus' | 'skillTemperBonus',
+  bonusKey: 'craftQualityBonus' | 'craftTemperBonus',
+): number {
+  const snapshotted = job.snapshot?.[snapshotKey];
+  if (typeof snapshotted === 'number' && Number.isFinite(snapshotted)) return snapshotted;
+  return adapter.skillBonus?.(job.owner_user_id, bonusKey) ?? 0;
+}
+
 function completeCraftUnit(
   adapter: CraftAdapter,
   profile: CraftProfileView,
@@ -959,11 +992,12 @@ function completeCraftUnit(
       catalyst: !!job.snapshot.catalystMaterialId,
       relicMinQualityBonus: job.snapshot.relicMinQualityBonus ?? 0,
       // The composed shift (0029): lever + the Fixer craftQualityBonus
-      // total, read from the crafter's records at completion, under
-      // the one [−10, +20] clamp (composedCraftQualityShift).
+      // total under the one [−10, +20] clamp (composedCraftQualityShift).
+      // Since 0102 the skill term is the job's ENQUEUE SNAPSHOT
+      // (jobSkillTerm), not a live read at completion.
       qualityShift: composedCraftQualityShift(
         levers.craftQualityShift,
-        adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+        jobSkillTerm(job, adapter, 'skillQualityBonus', 'craftQualityBonus'),
         adapter.researchBonus?.(playerId, 'craftQualityShift') ?? 0,
       ),
     });
@@ -1003,7 +1037,7 @@ function completeCraftUnit(
       : adapter.rng() < gearTemperChance(
           gearLevel,
           levers.gearTemperBaseChance,
-          (adapter.skillBonus?.(playerId, 'craftTemperBonus') ?? 0)
+          jobSkillTerm(job, adapter, 'skillTemperBonus', 'craftTemperBonus')
             + (adapter.researchBonus?.(playerId, 'gearTemperBonus') ?? 0),
         );
     // Material catalyst (economy brief §9.1, 0067): a gear job that
@@ -1024,7 +1058,7 @@ function completeCraftUnit(
           relicMinQualityBonus: job.snapshot.relicMinQualityBonus ?? 0,
           qualityShift: composedCraftQualityShift(
             levers.craftQualityShift,
-            adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+            jobSkillTerm(job, adapter, 'skillQualityBonus', 'craftQualityBonus'),
             adapter.researchBonus?.(playerId, 'craftQualityShift') ?? 0,
           ),
         })
@@ -1090,7 +1124,7 @@ function completeCraftUnit(
       toolQualityMultiplier: job.snapshot.toolQualityMultiplier,
       shift: composedCraftQualityShift(
         levers.craftQualityShift,
-        adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+        jobSkillTerm(job, adapter, 'skillQualityBonus', 'craftQualityBonus'),
         adapter.researchBonus?.(playerId, 'craftQualityShift') ?? 0,
       ),
       masteryLevel,
@@ -1113,7 +1147,7 @@ function completeCraftUnit(
       toolQualityMultiplier: job.snapshot.toolQualityMultiplier,
       shift: composedCraftQualityShift(
         levers.craftQualityShift,
-        adapter.skillBonus?.(playerId, 'craftQualityBonus') ?? 0,
+        jobSkillTerm(job, adapter, 'skillQualityBonus', 'craftQualityBonus'),
         adapter.researchBonus?.(playerId, 'craftQualityShift') ?? 0,
       ),
       masteryLevel,
@@ -1146,6 +1180,11 @@ export interface FixerEnqueueBonuses {
   workshopQueueBonus: number;
   rushReductionCapBonus: number;
   coreCatalystDrawBonus: number;
+  /** Skill-routing fix (0102): the completion-side Fixer terms,
+   *  snapshotted onto the job at enqueue (see CraftJobSnapshot).
+   *  Optional: absent reads as zero, as the whole record does. */
+  craftQualityBonus?: number;
+  craftTemperBonus?: number;
 }
 
 export interface EnqueueCraftJobInput {
@@ -1394,6 +1433,8 @@ export function enqueueCraftJob(
       relicMinQualityBonus: relicEffects.minQualityBonus,
       namedRelic: r.namedRelic ?? null,
       skillDurationMultiplier: skillMultiplier,
+      skillQualityBonus: Math.max(0, fixer?.craftQualityBonus ?? 0),
+      skillTemperBonus: Math.max(0, fixer?.craftTemperBonus ?? 0),
       rushReduction,
       craftTimeScalar: levers.craftTimeScalar,
       catalystMaterialId,

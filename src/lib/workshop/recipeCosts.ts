@@ -50,11 +50,22 @@ export function formatCraftTime(ms: number): string {
  * since the Econ 9 collapse, so a bench number carries no
  * information).
  */
-export function recipeCostLine(recipeId: string, recipeScrapCosts?: Record<string, number>): string {
+export function recipeCostLine(
+  recipeId: string,
+  recipeScrapCosts?: Record<string, number>,
+  effectiveDurationMs?: number,
+): string {
   const recipe = getCraftRecipe(recipeId);
   if (!recipe) return 'Craft in the Workshop';
   const inputs = Object.entries(resolvedRecipeInputs(recipe, recipeScrapCosts))
     .map(([key, qty]) => `${qty.toLocaleString('en-US')} ${key === 'Scrap' ? 'Scrap' : key}`)
     .join(' + ');
-  return `${inputs} · ${formatCraftTime(recipe.unitDurationMs)}`;
+  // Skill-routing fix F4: a caller holding the player's effective
+  // rate (lib/workshop/effectiveCraftTime) prints THAT duration —
+  // the number a new enqueue will store — never the raw base.
+  const durationMs =
+    typeof effectiveDurationMs === 'number' && Number.isFinite(effectiveDurationMs)
+      ? effectiveDurationMs
+      : recipe.unitDurationMs;
+  return `${inputs} · ${formatCraftTime(durationMs)}`;
 }

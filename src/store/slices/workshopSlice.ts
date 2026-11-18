@@ -89,6 +89,13 @@ export interface WorkshopServerView {
    */
   recipeScrapCosts?: Record<string, number>;
   /**
+   * Skill-routing fix F4: the server's resolved craftTimeScalar
+   * lever, shipped beside recipeScrapCosts — the last input of the
+   * Workshop's effective-rate quote (lib/workshop/effectiveCraftTime).
+   * Absent on older payloads (quotes then read the scalar as 1).
+   */
+  craftTimeScalar?: number;
+  /**
    * Econ 10 (brief §8.2/§8.3): the bench-time bank and the envelope
    * it puts in force, resolved server-side (buildWorkshopStateView):
    * the balance and cap in seconds, the per-ad grant, and the
