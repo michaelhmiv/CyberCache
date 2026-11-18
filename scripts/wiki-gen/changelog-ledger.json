@@ -28,6 +28,10 @@
         {
           "number": 607,
           "title": "Two small things: drop the false Threshold row; delete dead look selectors"
+        },
+        {
+          "number": 608,
+          "title": "Crafting stage: V1 zoom composition, anvil-free bench, Inkling animation treatment, Unarmed tag removed"
         }
       ]
     },

@@ -141,6 +141,11 @@ function baseSeed(): WriteSeed {
   const maxed = {
     skill_spends: { scav_fee_1: 5 },
     cache_rank_spends: { marketProceeds: 10 },
+    // Skill-routing gating law: Darknet Broker is Scavenger-tree —
+    // the seller fields Josie, so her fee terms are live at the sale
+    // (the gated-off contrast is pinned in skillRoutingFix.test.ts).
+    active_hunter_id: 'josie',
+    action_skill_selection: 'Scavenger',
   } as Partial<ProfileRowData>;
   s.profiles = [
     profile({ id: S, username: 'tongue', credits: 0, materials: { Scrap: 100 }, ...maxed }), // T3: the gear listing in test 1 posts the 25-Scrap deposit (refunded on its sale; credit conservation below is untouched)

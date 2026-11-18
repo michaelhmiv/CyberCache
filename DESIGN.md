@@ -3103,6 +3103,50 @@ the landing of all of it.
    crafting-bench scene inherits the sharper envelope; that is
    intended consistency, disclosed here.
 
+### 2026-11-17 — Skill effects belong to the fielded hunter (owner-ruled)
+
+The owner, playing the fix-round build: skill points spent to
+reduce crafting time, and the screen still said 10 minutes per
+unit. The audit that followed found the deeper rot — whole
+families of nodes displayed as owned but never reached gameplay
+(consumableEfficiency dead in the production store since the
+reshape landed; Doc Sutter's base perk absent from the SQL
+derivations; half the economy's functions reading the full
+skill_spends map ungated). The owner approved the full repair
+program, including the gating decision, the same evening.
+
+1. **One law, everywhere.** A hunter's tree effects are live
+   only while that hunter is fielded — the APPROVAL-BRIEF §2.2
+   law, now enforced in every derivation that reads skill terms:
+   the craft enqueue and completion, repairs, the vendor sale,
+   the cache draw, the market fee, salvage, and the store-side
+   derivations that feed them, in SQL and in the TS twin alike.
+   The Pg store derivations carry the player's active-hunter
+   context (F1); Doc Sutter's base perk (craft speed +0.025,
+   craft quality +1, while fielded) exists in the SQL craft
+   derivations with the TS semantics (F3, migration 0102).
+2. **Gating prices at the action instant.** Enqueue, sale,
+   repair start, and draw read the fielded hunter's terms at
+   that moment. A job's completion never re-reads live skills
+   against terms priced at enqueue: the enqueue snapshots its
+   quality/temper terms onto the job (snapshot.skillQualityBonus
+   / skillTemperBonus) beside the stored unit duration, and
+   completion consumes the snapshot.
+3. **Surfaces quote the stored truth.** The recipe card prints
+   the player's EFFECTIVE per-unit time — the exact duration a
+   new enqueue will store for the player's current state, from
+   the client's own gated derivation plus the equipped relic and
+   the server's resolved time scalar — with the base time as the
+   muted comparator when the two differ; XP prices off the same
+   stored duration. Bench surfaces show each job's own stored
+   rate, so a job queued before a respec honestly reads its
+   queued rate while new quotes read the new one.
+4. **Copy promises only what the formula delivers.** The
+   Demolition supply nodes share the quantized efficiency
+   formula with the Scavenger's: unit time falls in 2% steps as
+   points accumulate across the family, reaching −20% only with
+   all five maxed. Their descriptions say exactly that now; the
+   old "−2% per point" wording overpromised ~2.5×.
 ### 2026-11-17 — The bench rundown: in Craft mode the zone answers for the bench (owner-ruled)
 
 The owner, on the device-pass build: while crafting, the black

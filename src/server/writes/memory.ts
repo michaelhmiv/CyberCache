@@ -1345,6 +1345,7 @@ export class InMemoryWriteStore implements WriteStore {
           feeRate: await this.feeRateProvider(),
           cacheRankProceedsBonus: this.cacheRankBonusesFor(seller).marketProceeds,
           researchFeeReduction: this.researchBonusesFor(seller.id).marketFeeReduction,
+          sellerHunter: seller,
         });
       }
       if (seller) {
@@ -2792,6 +2793,11 @@ export class InMemoryWriteStore implements WriteStore {
       workshopQueueBonus: bonuses.workshopQueueBonus ?? 0,
       rushReductionCapBonus: bonuses.rushReductionCapBonus ?? 0,
       coreCatalystDrawBonus: bonuses.coreCatalystDrawBonus ?? 0,
+      // Skill-routing fix (0102): the completion-side terms ride the
+      // same gated derivation into the enqueue snapshot — the record
+      // already carries Doc Sutter's base perk when he is fielded.
+      craftQualityBonus: bonuses.craftQualityBonus ?? 0,
+      craftTemperBonus: bonuses.craftTemperBonus ?? 0,
     };
   }
 
@@ -3123,6 +3129,7 @@ export class InMemoryWriteStore implements WriteStore {
       masteries,
       activeActionKind: this.activities.get(playerId)?.active_action ?? null,
       recipeScrapCosts: levers.recipeScrapCosts,
+      craftTimeScalar: levers.craftTimeScalar,
       benchTime: {
         bankedSeconds: view.bench_time_banked_seconds ?? 0,
         capSeconds: levers.benchTimeBankCapSeconds ?? BENCH_TIME_BANK_CAP_SECONDS,
@@ -4884,6 +4891,7 @@ export class InMemoryWriteStore implements WriteStore {
           cacheRankProceedsBonus: this.cacheRankBonusesFor(seller).marketProceeds,
           // Syndicate Ledger (0038): the seller's research fee term.
           researchFeeReduction: this.researchBonusesFor(seller.id).marketFeeReduction,
+          sellerHunter: seller,
         });
       }
     } else if (seller) {
@@ -4906,6 +4914,7 @@ export class InMemoryWriteStore implements WriteStore {
         cacheRankProceedsBonus: this.cacheRankBonusesFor(seller).marketProceeds,
         // Syndicate Ledger (0038): the seller's research fee term.
         researchFeeReduction: this.researchBonusesFor(seller.id).marketFeeReduction,
+        sellerHunter: seller,
       });
     }
     if (seller) {

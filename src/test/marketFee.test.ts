@@ -91,13 +91,23 @@ function baseSeed(): WriteSeed {
   const s = emptyWriteSeed();
   s.profiles = [
     profile({ id: S, username: 'seller', credits: 0, materials: { Scrap: 1000 } }), // T3: listings post a 25-Scrap deposit
-    profile({ id: B, username: 'buyer', credits: 100_000, skill_spends: { scav_major_3: 1 }, materials: { Scrap: 1000 } }), // T3: B relists in the bought-and-relisted test
+    profile({ id: B, username: 'buyer', credits: 100_000, skill_spends: { scav_major_3: 1 }, active_hunter_id: 'josie', action_skill_selection: 'Scavenger', materials: { Scrap: 1000 } }), // T3: B relists in the bought-and-relisted test; gating law: B fields Josie so Manipulator is live there and the found-item denial is what the test exercises
     profile({
       id: K, username: 'skilled', credits: 0,
       skill_spends: { scav_fee_1: 5, scav_major_3: 1 },
+      // Gating law: both fee nodes are Scavenger-tree — K fields
+      // Josie, so her fee terms are live at the sale.
+      active_hunter_id: 'josie', action_skill_selection: 'Scavenger',
       materials: { Scrap: 1000 },
     }),
-    profile({ id: M, username: 'modded', credits: 0, materials: { Scrap: 1000 } }),
+    profile({
+      id: M, username: 'modded', credits: 0,
+      // Gating law: M's equipped class mod carries the Scavenger
+      // treeBonus, and class mods bind to their hunter — M fields
+      // Josie, so the mod's fee-node boosts are live at the sale.
+      active_hunter_id: 'josie', action_skill_selection: 'Scavenger',
+      materials: { Scrap: 1000 },
+    }),
     profile({ id: C2, username: 'second', credits: 100_000, materials: { Scrap: 1000 } }),
     profile({ id: NPC, username: 'npc-market', credits: 0 }),
   ];

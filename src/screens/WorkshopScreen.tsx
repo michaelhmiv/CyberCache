@@ -4,7 +4,9 @@ import { PixelMaterial } from '@/components/pixelArt/PixelMaterial';
 import { PixelConsumable } from '@/components/pixelArt/PixelConsumable';
 import { motion } from 'framer-motion';
 import { Clock, ChevronDown, Search, X } from 'lucide-react';
-import { useActivityStore, useAnnouncementsStore, useLoadoutStore, usePlayerStore, useWorkshopStore } from '@/store';
+import { useActivityStore, useAnnouncementsStore, useLoadoutStore, usePlayerStore, useSkillStore, useWorkshopStore } from '@/store';
+import { computeHunterSkillBonuses } from '@/lib/hunters/hunters';
+import { effectiveCraftUnitDurationMs } from '@/lib/workshop/effectiveCraftTime';
 import { TintPanel } from '@/components/workshop/TintPanel';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { ChipRail } from '@/components/common/ChipRail';
@@ -24,6 +26,7 @@ import {
   REFINE_BASE_YIELD_DEFAULT,
   benchDef,
   catalystForRecipe,
+  composeCraftRelicEffects,
   craftQualityBounds,
   craftUnitXp,
   isDelistedRecipe,
@@ -285,6 +288,18 @@ export const WorkshopScreen: React.FC<{
   }, [setBenchInView]);
   const activity = useActivityStore();
   const loadout = useLoadoutStore();
+  // Skill-routing fix F4: the effective-rate quote's client inputs —
+  // the skill store's own state, derived through the same hunter
+  // derivation the Hunter tab reads (fielded hunter's nodes + base
+  // perk), plus the equipped relic's composed duration multiplier.
+  const skillSpent = useSkillStore((s) => s.spent);
+  const skillClassModBoosts = useSkillStore((s) => s.classModBoosts);
+  const skillActiveHunterId = useSkillStore((s) => s.activeHunterId);
+  const quoteBonuses = computeHunterSkillBonuses(skillSpent, skillClassModBoosts, skillActiveHunterId);
+  const quoteRelic = loadout.getRelic();
+  const quoteToolDuration = quoteRelic
+    ? composeCraftRelicEffects(quoteRelic.affixes).durationMultiplier
+    : 1;
   // Real-item invariant: the bench hunter carries the player's actual
   // weapon state — unequipped renders the gun-free rig.
   const hunterWeapon = loadout.getWeapon('primary') ?? loadout.getWeapon('secondary') ?? loadout.getWeapon('heavy');
@@ -413,11 +428,21 @@ export const WorkshopScreen: React.FC<{
       // Econ 7: readiness + card costs resolve through the server's
       // per-recipe Scrap map (§4.4 of the economy brief).
       recipeScrapCosts: server?.recipeScrapCosts,
+      // Skill-routing fix F4: the effective-rate quote (the scalar
+      // resolves server-side like the Scrap map; the skill totals
+      // and the relic multiplier are the player's own, derived
+      // above) — recipe cards quote what an enqueue will store.
+      craftQuote: {
+        consumableEfficiency: quoteBonuses.consumableEfficiency ?? 0,
+        craftSpeedBonus: quoteBonuses.craftSpeedBonus ?? 0,
+        toolDurationMultiplier: quoteToolDuration,
+        craftTimeScalar: server?.craftTimeScalar ?? 1,
+      },
       // Econ 10: the queue gate reads the server's live envelope
       // capacity (bench time widens it), not the baseline constant.
       benchCapacity: server?.benchTime?.capacity,
     }),
-    [player.level, player.scrap, player.materials, player.essences, player.consumables, benchesOwned, masteries, standingRanks, researchCompletedIds, activeJobs, server],
+    [player.level, player.scrap, player.materials, player.essences, player.consumables, benchesOwned, masteries, standingRanks, researchCompletedIds, activeJobs, server, quoteBonuses, quoteToolDuration],
   );
 
   // The browsable catalog: delisted recipes (Hero Pass H1 — the
@@ -1253,7 +1278,14 @@ const RecipeCard: React.FC<{
     : isGear
       ? (recipe.durationByRarityMs?.[rarity as keyof typeof recipe.durationByRarityMs] ?? 0)
       : recipe.unitDurationMs;
-  const xpPerUnit = craftUnitXp(baseDurationMs, ctx.playerLevel, CRAFT_XP_RATE_DEFAULT);
+  // Skill-routing fix F4: the rate a new job will actually store
+  // for this player — the card quotes the EFFECTIVE figure (the
+  // base rides as the muted comparator only when the two differ),
+  // and XP prices off the same stored duration the server uses.
+  const quoteFor = (base: number) =>
+    ctx.craftQuote ? effectiveCraftUnitDurationMs(base, ctx.craftQuote) : base;
+  const effectiveDurationMs = quoteFor(baseDurationMs);
+  const xpPerUnit = craftUnitXp(effectiveDurationMs, ctx.playerLevel, CRAFT_XP_RATE_DEFAULT);
   const refineOut =
     recipe.kind === 'refine'
       ? refineOutputCount(recipe, ctx.masteries['crafting.refining']?.level ?? 1, REFINE_BASE_YIELD_DEFAULT)
@@ -1348,7 +1380,10 @@ const RecipeCard: React.FC<{
             </div>
           </div>
           <span className="shrink-0 text-right text-[11px] text-text-muted">
-            <span className="font-black text-text-primary">{formatDurationShort(baseDurationMs)}</span> per unit
+            <span className="font-black text-text-primary">{formatDurationShort(effectiveDurationMs)}</span> per unit
+            {effectiveDurationMs !== baseDurationMs && (
+              <> · base {formatDurationShort(baseDurationMs)}</>
+            )}
           </span>
         </div>
 
@@ -1503,12 +1538,12 @@ const RecipeCard: React.FC<{
         {/* Pre-queue totals for the chosen units. */}
         <div className="text-[11px] text-text-secondary">
           Total for <span className="font-black text-text-primary">{units} unit{units === 1 ? '' : 's'}</span>:{' '}
-          <span className="font-black text-text-primary">{formatDurationShort(baseDurationMs * units)}</span> · ≈{xpPerUnit * units} XP · inputs held when you queue
+          <span className="font-black text-text-primary">{formatDurationShort(effectiveDurationMs * units)}</span> · ≈{xpPerUnit * units} XP · inputs held when you queue
           {makesLabel ? ` · ${makesLabel}` : ''}
         </div>
         {isGear && recipe.durationByRarityMs && (
           <div className="text-[11px] text-text-muted">
-            Common {formatDurationShort(recipe.durationByRarityMs[Rarity.Common] ?? 0)} · Rare {formatDurationShort(recipe.durationByRarityMs[Rarity.Rare] ?? 0)} · Epic {formatDurationShort(recipe.durationByRarityMs[Rarity.Epic] ?? 0)} — pick the rarity when you queue
+            Common {formatDurationShort(quoteFor(recipe.durationByRarityMs[Rarity.Common] ?? 0))} · Rare {formatDurationShort(quoteFor(recipe.durationByRarityMs[Rarity.Rare] ?? 0))} · Epic {formatDurationShort(quoteFor(recipe.durationByRarityMs[Rarity.Epic] ?? 0))} — pick the rarity when you queue
           </div>
         )}
 

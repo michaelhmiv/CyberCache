@@ -105,6 +105,16 @@ export interface WorkshopPlayerContext {
    */
   recipeScrapCosts?: Record<string, number>;
   /**
+   * Skill-routing fix F4: the inputs of the player's EFFECTIVE craft
+   * rate (lib/workshop/effectiveCraftTime) — the gated skill totals
+   * from the client's own hunter derivation, the equipped relic's
+   * duration multiplier, and the server's resolved craftTimeScalar
+   * from the Workshop snapshot. Recipe cards quote durations through
+   * it so the number shown is the number a new enqueue stores.
+   * Absent = base rate (stale payloads / pre-fix behavior).
+   */
+  craftQuote?: import('./effectiveCraftTime').CraftRateQuote;
+  /**
    * Econ 10 (brief §8.3): the bench's live job capacity from the
    * Workshop snapshot — the server's benchEnvelope for this player
    * (banked bench time widens it from the baseline 6 to 18, the
