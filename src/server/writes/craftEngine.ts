@@ -1433,8 +1433,18 @@ export function enqueueCraftJob(
       relicMinQualityBonus: relicEffects.minQualityBonus,
       namedRelic: r.namedRelic ?? null,
       skillDurationMultiplier: skillMultiplier,
-      skillQualityBonus: Math.max(0, fixer?.craftQualityBonus ?? 0),
-      skillTemperBonus: Math.max(0, fixer?.craftTemperBonus ?? 0),
+      // Skill-routing fix (0102): the gated quality/temper terms
+      // ride the snapshot so completion consumes the enqueue's terms
+      // (owner's action-instant refinement). Written only when the
+      // caller supplies them — the store paths always do (their
+      // gated derivation); a caller pricing no such terms leaves
+      // the keys absent and completion keeps its live read.
+      ...(fixer?.craftQualityBonus !== undefined
+        ? { skillQualityBonus: Math.max(0, fixer.craftQualityBonus) }
+        : {}),
+      ...(fixer?.craftTemperBonus !== undefined
+        ? { skillTemperBonus: Math.max(0, fixer.craftTemperBonus) }
+        : {}),
       rushReduction,
       craftTimeScalar: levers.craftTimeScalar,
       catalystMaterialId,
