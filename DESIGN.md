@@ -3164,3 +3164,53 @@ the state view land both.
    ledger idempotency keys keep their historical day strings —
    exactly-once rides on paid_at, never on re-derived keys.
    Cases are pinned in the drill pack (mig0101/CASES.md).
+
+### 2026-11-17 — First-screen lifts: the datum leads its surface (owner-ruled)
+
+The first-screen audit census (prep: cache-hunters/
+first-screen-audit/CENSUS.md) measured, stop by stop, where the
+datum each surface exists for actually sits. A pattern repeated:
+the reason-to-exist block rendered last — below the unbounded
+list, the informational tape, the preview painting — while the
+chrome around it pointed at it. The owner adopted the audit's
+small-lifts batch ("everything you recommend", 2026-11-17).
+Pure re-seating inside the existing grammar unless noted; no
+datum changed, only its seat.
+
+1. **The datum leads.** Standings: the pinned MY READING block
+   sits directly under the Global Board's column datum (it was
+   the panel's foot, below the fold exactly when the viewer
+   ranked outside the shown rows). Profiles: View Full Profile
+   — the pop-up's main action — pins to the sheet's sticky foot
+   (PickerSheet grammar), and Net Worth joins the full sheet's
+   meta line. Vendor: the staples family rail + search + sort
+   lead the buy mode above Today's Rotation (one useFilterSort
+   state; a sticky header was rejected — the screen is one page
+   flow under the Market stop rail). Repair + Shield Tech:
+   My workbench renders directly under the bay scene when
+   non-empty; empty, the shipped order stands. Cache Rank:
+   Bonus Channels above the Milestone Tape. Wardrobe: the
+   Whole Skins list above the showcase (the showcase is NOT
+   shrunk — the 248px painting presentation stands; the list
+   leads and the showcase follows as its preview).
+2. **The Roam rundown's fourth cell is TARGET HP.** Shield
+   Break is a build stat the player cannot engage with during
+   a roam; the engaged target's remaining HP — held by the
+   kill cycle all along — takes the cell in the HP cell's own
+   grammar (cur/max, stepping type, the thin rail), as a static
+   stage fact with no breakdown door. It holds its seat on an
+   em dash between spawns so the row never changes shape.
+   Every other mode keeps Shield Break exactly as shipped;
+   kills-this-area stays off the cell (the value already
+   triggers the long-value step-down; a second number crowds).
+3. **Dispatch offers print their pay.** The offer payload
+   carried no payout (verified by trace) — the board priced
+   every offer only inside the preview behind a pick. The
+   payload now carries the baseline lines from
+   dispatchOfferFacePayout: the departure preview's own
+   formula at strength 1.0 for foot; for courier, the same
+   lines with the credit premium and WITHOUT the cargo bonus,
+   which belongs to the vehicle the player commits, not the
+   offer. The server computes it under the departure seed
+   (`${playerId}:${offer.id}`); the face prints it in the
+   preview's own format. No second payout formula exists.
