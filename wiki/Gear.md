@@ -265,7 +265,9 @@ back up) instead of a long scroll.
 
 Tap any item to open its **inspect sheet**: full stats, affixes, source,
 and your options — equip or unequip it, lock it (locked items are
-protected from salvage), or salvage it. A class mod's sheet names the
+protected from salvage), or salvage it. A legendary weapon's effect —
+its name and what it does — prints at the top of its sheet, inside the
+item's own header card. A class mod's sheet names the
 hunter it belongs to (Vesper Cole · Gunslinger, and so on) — a mod only
 works on its own hunter. The stat deck is one shared
 rendering everywhere it appears: the inspect sheet and the
@@ -280,8 +282,10 @@ later, word for word.
 
 ### The Trade: what a swap does to your build
 
-Under the stat poster, the inspect sheet prints **The Trade** — the
-item weighed against the piece it would replace. Two groups, and
+For a weapon, the inspect sheet prints **The Trade** directly under
+the item's header card, above the stat poster — the item weighed
+against the piece it would replace. (Other gear reads its poster
+first, as before.) Two groups, and
 only the numbers that actually change: **You gain** and **You give
 up**, each line showing the value your hunter ends up with and the
 signed change beside it — DPS, HP, shield and armor break, rare
