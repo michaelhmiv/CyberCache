@@ -39,9 +39,24 @@ async function initializeAdMob(): Promise<void> {
   if (initialized) return;
 
   await AdMob.initialize();
-  const consentInfo = await AdMob.requestConsentInfo();
-  if (!consentInfo.canRequestAds && consentInfo.status === AdmobConsentStatus.REQUIRED) {
-    await AdMob.showConsentForm();
+
+  // Consent is best-effort, never a gate on the ad attempt. The
+  // UMP info request fails outright when the publisher account
+  // has no form configured for the app, and that failure used to
+  // reject the whole flow before an ad was even attempted — with
+  // the SDK's raw error text landing on the cache screen (owner
+  // hit it live, 2026-11-18). Per the UMP pattern, a failed
+  // consent step is not a precondition failure for requesting an
+  // ad: log it and proceed. Only a failed ad itself is a
+  // player-facing event, and the surface maps that to the game's
+  // own notice.
+  try {
+    const consentInfo = await AdMob.requestConsentInfo();
+    if (!consentInfo.canRequestAds && consentInfo.status === AdmobConsentStatus.REQUIRED) {
+      await AdMob.showConsentForm();
+    }
+  } catch (err) {
+    console.warn('[ads] consent step failed; continuing to the ad attempt', err);
   }
 
   initialized = true;

@@ -55,6 +55,7 @@ The opening itself is a moment: the cache sits at the base of a pillar of light 
 - Never block progress: everything a cache gives can be matched or beaten by gear earned in play.
 - Never expire your keys: keys are yours until spent.
 - Never leave you hanging: an opening always finishes — if the connection stalls mid-open, the decrypt ends with an error you can retry instead of shaking forever.
+- Never hand you the ad machinery's insides: if an ad can't play — none available, dismissed, the ad service not answering — the cache simply stays closed and the screen tells you so in plain words; the ad network's own error text is never shown to you.
 
 ## Caches vs. drops, in one paragraph
 
