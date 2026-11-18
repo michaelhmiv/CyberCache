@@ -72,7 +72,30 @@ function Visual({ item }: { item: GearItem }) {
   );
 }
 
-export function GearInspectSheet({ item, open, onClose, actions, contextLabel = 'Gear Inspect', allowReforge = false }: { item: GearItem | null; open: boolean; onClose: () => void; actions?: React.ReactNode; contextLabel?: string; allowReforge?: boolean }) {
+/**
+ * First-screen layout seam (RENDER-ONLY, dash/inspect-render —
+ * owner-review renderings for the first-screen fix program, R3;
+ * this prop is never passed in production and nothing here is a
+ * shipped change). When `inspectLayout` is set, the sheet applies
+ * the approved first-screen ordering:
+ *  - the Legendary Effect block moves into the header card, under
+ *    the maker line (it is the thing the sheet is opened to read);
+ *  - 'trade-first': The Trade tape renders above the Stat Poster;
+ *  - 'poster-split': the poster's headline rows (Combat Power,
+ *    DPS, Boss Power, Damage, Crit Chance) lead, then The Trade,
+ *    then the remaining rows as "Modifiers & Detail";
+ *  - in Market context (contextLabel "Market Inspect"), the
+ *    Market Intelligence tape lifts to directly under the header
+ *    card.
+ * Absent the prop, the composition is the shipped order, element
+ * for element.
+ */
+export type InspectLayout = 'trade-first' | 'poster-split';
+
+const HEADLINE_ROW_LABELS = new Set(['Combat Power', 'Boss Power', 'Damage', 'Crit Chance']);
+const isHeadlineRow = (label: string) => HEADLINE_ROW_LABELS.has(label) || label.startsWith('DPS (vs ');
+
+export function GearInspectSheet({ item, open, onClose, actions, contextLabel = 'Gear Inspect', allowReforge = false, inspectLayout }: { item: GearItem | null; open: boolean; onClose: () => void; actions?: React.ReactNode; contextLabel?: string; allowReforge?: boolean; inspectLayout?: InspectLayout }) {
   const inventory = useInventoryStore();
   const sheet = sheetMotionProps(useReducedMotion());
   const loadout = useLoadoutStore();
@@ -115,5 +138,91 @@ export function GearInspectSheet({ item, open, onClose, actions, contextLabel = 
   const rows = statRows(shownItem, bossRelativeDps, currentBoss?.name);
   const maxRow = Math.max(1, ...rows.map(([, value]) => typeof value === 'number' ? value : 0));
 
-  return <SheetPortal><AnimatePresence>{open && <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/85" {...sheet.backdrop} onClick={onClose}><motion.div {...sheet.panel} className="max-h-[92vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.75)]" style={panelClip} onClick={(event) => event.stopPropagation()}><div className="mb-3 flex justify-center"><div className="h-1.5 w-12 rounded-full bg-border" /></div><div className="relative overflow-hidden border-2 border-border bg-surface p-3" style={panelClip}><div className="absolute -right-10 top-3 h-8 w-36 rotate-12 bg-amber/10" /><div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">{contextLabel}</div><div className="truncate bl-title text-3xl leading-none" style={{ color }}>{item.name}</div><div className="mt-1 text-[10px] font-black uppercase tracking-wide text-text-muted">{item.rarity} · Lv.{item.level} · {kindOf(item)} · {item.sourceTag}</div></div><button type="button" onClick={onClose} className="bl-secondary shrink-0 p-2 text-text-muted"><X size={15} /></button></div><div className="mt-3 border-2 border-border bg-bg/80" style={panelClip}><Visual item={shownItem} /></div><div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5"><StatLine label="Qty" value={`Unique x${Math.max(1, ownedExact)}`} tone="text-amber" width={55} /><StatLine label="Owned" value={ownedSimilar} tone="text-cyan" width={45} /><StatLine label="State" value={equipped ? 'Equipped' : item.isLocked ? 'Locked' : 'Tradeable'} tone={equipped ? 'text-green' : item.isLocked ? 'text-red' : 'text-amber'} width={65} />{isClassMod(item) && classModBindingLabel(item) && <StatLine label="Bound" value={classModBindingLabel(item)!} tone="text-purple" width={65} />}</div>{isWeapon(item) && <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5"><StatLine label="Roll" value={`${item.rollQuality} ${rollQualityLabel(item.rollQuality)}`} tone="text-amber" width={item.rollQuality} /><StatLine label="Maker" value={item.manufacturer} width={55} /><StatLine label="Element" value={item.element} tone="text-cyan" width={55} /></div>}{isWeapon(item) && <MakerLine manufacturer={item.manufacturer} />}</div><Tape title="Stat Poster" px="diamondIn"><div className="space-y-1.5">{rows.map(([label, value, tone, width]) => <StatLine key={`${label}-${value}`} label={label} value={value} tone={tone} width={width ? width / maxRow * 100 : 38} />)}</div></Tape><GearTradeTape candidate={shownItem} boss={currentBoss} />{isWeapon(item) && item.parts.length > 0 && <Tape title="Roll Parts" px="crosshair"><div className="space-y-1.5">{item.parts.map((part) => <PartLine key={part.slot} part={part} />)}</div></Tape>}{isClassMod(item) && Object.keys(item.nodeBoosts).length > 0 && <Tape title="Skill Node Boosts" px="cross"><div className="space-y-1.5">{Object.entries(item.nodeBoosts).map(([node, boost]) => <StatLine key={node} label={skillNodeName(node)} value={`+${boost}`} tone="text-purple" width={boost * 18} />)}</div></Tape>}{allowReforge ? <ReforgePanel key={shownItem.id} item={shownItem} equipped={equipped} onReforged={setReforgedItem} /> : affixes.length > 0 && <Tape title={`Affixes (${affixes.length})`} px="star"><div className="space-y-1.5">{affixes.map((affix) => <AffixLine key={affix.id} affix={affix} />)}</div></Tape>}{isWeapon(item) && item.legendaryEffectId && <Tape title="Legendary Effect" px="star"><LegendaryEffectBlock item={item} /></Tape>}<Tape title="Market Intelligence" px="coin"><div className="space-y-1.5"><StatLine label="Comparable Supply" value={intel.active} tone="text-amber" width={intel.active * 10} /><StatLine label="Lowest Ask" value={intel.lowest ? `${n(intel.lowest)}cr` : 'None'} tone="text-green" width={60} /><StatLine label="Median Ask" value={intel.median ? `${n(intel.median)}cr` : 'None'} width={50} /><StatLine label="Recent Sales" value={intel.recent} width={intel.recent * 10} /><StatLine label="Mine Listed" value={intel.mine} tone="text-cyan" width={intel.mine * 30} /></div><div className="mt-2 border border-border bg-bg/70 p-2 text-[10px] text-text-muted" style={slashClip}>Comparable supply is same type, rarity, and nearby level. Unique rolled gear is quantity one; stack counts belong to materials, consumables, and essences.</div></Tape><Tape title="Salvage Forecast" px="bolt"><div className="space-y-1.5"><StatLine label="Scrap" value={salvage.scrapValue} tone="text-orange" width={salvage.scrapValue} />{(salvage.legendaryCores ?? 0) > 0 && <StatLine label="Legendary Cores" value={salvage.legendaryCores} tone="text-amber" width={(salvage.legendaryCores ?? 0) * 25} />}{salvage.bonusMaterialId && <StatLine label="King of Scrap" value={`${pct(salvage.bonusMaterialChance ?? 0)} chance · +1 ${getVisualAsset('material', salvage.bonusMaterialId).label}`} tone="text-green" width={55} />}</div><div className="mt-2 border border-border bg-bg/70 p-2 text-[10px] text-text-muted" style={slashClip}>Salvage pays Scrap — plus legendary cores from Legendaries. Crafting materials come back only as the occasional King of Scrap bonus on Commons, rolled when the salvage settles; essences never come from salvage.</div></Tape>{allowReforge && <TurnInPanel key={`turnin-${shownItem.id}`} item={shownItem} equipped={equipped} onDone={onClose} />}{item.isLocked && <div className="mt-3 flex items-center gap-2 border border-red/30 bg-red/10 p-2 text-xs font-bold text-red" style={slashClip}><Lock size={13} />Locked gear cannot be listed or bulk-scrapped without unlocking.</div>}{actions && <div className="sticky bottom-0 mt-4 border-t-2 border-border bg-bg/95 pt-3 backdrop-blur">{actions}</div>}</motion.div></motion.div>}</AnimatePresence></SheetPortal>;
+  // ── First-screen layout seam (see the prop note above) ──────
+  const lifted = inspectLayout !== undefined;
+  const legendaryInHeader = lifted && isWeapon(shownItem) && !!shownItem.legendaryEffectId;
+  const marketLift = lifted && contextLabel === 'Market Inspect';
+  const headlineRows = rows.filter(([label]) => isHeadlineRow(label));
+  const detailRows = rows.filter(([label]) => !isHeadlineRow(label));
+  const posterSplit = inspectLayout === 'poster-split' && isWeapon(shownItem) && headlineRows.length > 0 && detailRows.length > 0;
+
+  const statPosterTape = (
+    <Tape title="Stat Poster" px="diamondIn"><div className="space-y-1.5">{rows.map(([label, value, tone, width]) => <StatLine key={`${label}-${value}`} label={label} value={value} tone={tone} width={width ? width / maxRow * 100 : 38} />)}</div></Tape>
+  );
+  const posterHeadlineTape = (
+    <Tape title="Stat Poster" px="diamondIn"><div className="space-y-1.5">{headlineRows.map(([label, value, tone, width]) => <StatLine key={`${label}-${value}`} label={label} value={value} tone={tone} width={width ? width / maxRow * 100 : 38} />)}</div></Tape>
+  );
+  const posterDetailTape = (
+    <Tape title="Modifiers & Detail" px="diamondIn"><div className="space-y-1.5">{detailRows.map(([label, value, tone, width]) => <StatLine key={`${label}-${value}`} label={label} value={value} tone={tone} width={width ? width / maxRow * 100 : 38} />)}</div></Tape>
+  );
+  const tradeTape = <GearTradeTape candidate={shownItem} boss={currentBoss} />;
+  const intelTape = (
+    <Tape title="Market Intelligence" px="coin"><div className="space-y-1.5"><StatLine label="Comparable Supply" value={intel.active} tone="text-amber" width={intel.active * 10} /><StatLine label="Lowest Ask" value={intel.lowest ? `${n(intel.lowest)}cr` : 'None'} tone="text-green" width={60} /><StatLine label="Median Ask" value={intel.median ? `${n(intel.median)}cr` : 'None'} width={50} /><StatLine label="Recent Sales" value={intel.recent} width={intel.recent * 10} /><StatLine label="Mine Listed" value={intel.mine} tone="text-cyan" width={intel.mine * 30} /></div><div className="mt-2 border border-border bg-bg/70 p-2 text-[10px] text-text-muted" style={slashClip}>Comparable supply is same type, rarity, and nearby level. Unique rolled gear is quantity one; stack counts belong to materials, consumables, and essences.</div></Tape>
+  );
+  const legendaryTape = isWeapon(item) && item.legendaryEffectId ? (
+    <Tape title="Legendary Effect" px="star"><LegendaryEffectBlock item={item} /></Tape>
+  ) : null;
+
+  return (
+    <SheetPortal>
+      <AnimatePresence>
+        {open && (
+          <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/85" {...sheet.backdrop} onClick={onClose}>
+            <motion.div {...sheet.panel} className="max-h-[92vh] w-full max-w-[480px] overflow-y-auto border-t-2 border-border bg-bg p-3 shadow-[0_-12px_32px_rgba(0,0,0,0.75)]" style={panelClip} onClick={(event) => event.stopPropagation()}>
+              <div className="mb-3 flex justify-center"><div className="h-1.5 w-12 rounded-full bg-border" /></div>
+              <div className="relative overflow-hidden border-2 border-border bg-surface p-3" style={panelClip}>
+                <div className="absolute -right-10 top-3 h-8 w-36 rotate-12 bg-amber/10" />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-black uppercase tracking-[0.24em] text-amber">{contextLabel}</div>
+                    <div className="truncate bl-title text-3xl leading-none" style={{ color }}>{item.name}</div>
+                    <div className="mt-1 text-[10px] font-black uppercase tracking-wide text-text-muted">{item.rarity} · Lv.{item.level} · {kindOf(item)} · {item.sourceTag}</div>
+                  </div>
+                  <button type="button" onClick={onClose} className="bl-secondary shrink-0 p-2 text-text-muted"><X size={15} /></button>
+                </div>
+                <div className="mt-3 border-2 border-border bg-bg/80" style={panelClip}><Visual item={shownItem} /></div>
+                <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+                  <StatLine label="Qty" value={`Unique x${Math.max(1, ownedExact)}`} tone="text-amber" width={55} />
+                  <StatLine label="Owned" value={ownedSimilar} tone="text-cyan" width={45} />
+                  <StatLine label="State" value={equipped ? 'Equipped' : item.isLocked ? 'Locked' : 'Tradeable'} tone={equipped ? 'text-green' : item.isLocked ? 'text-red' : 'text-amber'} width={65} />
+                  {isClassMod(item) && classModBindingLabel(item) && <StatLine label="Bound" value={classModBindingLabel(item)!} tone="text-purple" width={65} />}
+                </div>
+                {isWeapon(item) && (
+                  <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+                    <StatLine label="Roll" value={`${item.rollQuality} ${rollQualityLabel(item.rollQuality)}`} tone="text-amber" width={item.rollQuality} />
+                    <StatLine label="Maker" value={item.manufacturer} width={55} />
+                    <StatLine label="Element" value={item.element} tone="text-cyan" width={55} />
+                  </div>
+                )}
+                {isWeapon(item) && <MakerLine manufacturer={item.manufacturer} />}
+                {legendaryInHeader && (
+                  <div className="mt-3 border-t border-border pt-2.5">
+                    <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-amber">Legendary Effect</div>
+                    <LegendaryEffectBlock item={shownItem} />
+                  </div>
+                )}
+              </div>
+              {marketLift && intelTape}
+              {posterSplit ? (
+                <>{posterHeadlineTape}{tradeTape}{posterDetailTape}</>
+              ) : inspectLayout === 'trade-first' ? (
+                <>{tradeTape}{statPosterTape}</>
+              ) : (
+                <>{statPosterTape}{tradeTape}</>
+              )}
+              {isWeapon(item) && item.parts.length > 0 && <Tape title="Roll Parts" px="crosshair"><div className="space-y-1.5">{item.parts.map((part) => <PartLine key={part.slot} part={part} />)}</div></Tape>}
+              {isClassMod(item) && Object.keys(item.nodeBoosts).length > 0 && <Tape title="Skill Node Boosts" px="cross"><div className="space-y-1.5">{Object.entries(item.nodeBoosts).map(([node, boost]) => <StatLine key={node} label={skillNodeName(node)} value={`+${boost}`} tone="text-purple" width={boost * 18} />)}</div></Tape>}
+              {allowReforge ? <ReforgePanel key={shownItem.id} item={shownItem} equipped={equipped} onReforged={setReforgedItem} /> : affixes.length > 0 && <Tape title={`Affixes (${affixes.length})`} px="star"><div className="space-y-1.5">{affixes.map((affix) => <AffixLine key={affix.id} affix={affix} />)}</div></Tape>}
+              {!legendaryInHeader && legendaryTape}
+              {!marketLift && intelTape}
+              <Tape title="Salvage Forecast" px="bolt"><div className="space-y-1.5"><StatLine label="Scrap" value={salvage.scrapValue} tone="text-orange" width={salvage.scrapValue} />{(salvage.legendaryCores ?? 0) > 0 && <StatLine label="Legendary Cores" value={salvage.legendaryCores} tone="text-amber" width={(salvage.legendaryCores ?? 0) * 25} />}{salvage.bonusMaterialId && <StatLine label="King of Scrap" value={`${pct(salvage.bonusMaterialChance ?? 0)} chance · +1 ${getVisualAsset('material', salvage.bonusMaterialId).label}`} tone="text-green" width={55} />}</div><div className="mt-2 border border-border bg-bg/70 p-2 text-[10px] text-text-muted" style={slashClip}>Salvage pays Scrap — plus legendary cores from Legendaries. Crafting materials come back only as the occasional King of Scrap bonus on Commons, rolled when the salvage settles; essences never come from salvage.</div></Tape>
+              {allowReforge && <TurnInPanel key={`turnin-${shownItem.id}`} item={shownItem} equipped={equipped} onDone={onClose} />}
+              {item.isLocked && <div className="mt-3 flex items-center gap-2 border border-red/30 bg-red/10 p-2 text-xs font-bold text-red" style={slashClip}><Lock size={13} />Locked gear cannot be listed or bulk-scrapped without unlocking.</div>}
+              {actions && <div className="sticky bottom-0 mt-4 border-t-2 border-border bg-bg/95 pt-3 backdrop-blur">{actions}</div>}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </SheetPortal>
+  );
 }
