@@ -1,0 +1,72 @@
+name: iOS CI signing (App Store Connect API)
+description: >-
+  Mint a fresh distribution certificate + App Store provisioning profile via
+  the App Store Connect API (the PitTech pattern: the runner signs itself,
+  no local-device steps, no stored signing material), install them into a
+  throwaway keychain, and stage the ASC API key for xcodebuild export.
+  The calling job must expose the ASC_KEY_ID, ASC_ISSUER_ID and
+  ASC_PRIVATE_KEY secrets as job-level environment variables.
+
+runs:
+  using: composite
+  steps:
+    - name: Require App Store Connect API key
+      shell: bash
+      run: |
+        set -euo pipefail
+        missing=0
+        for secret_name in ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+          if [[ -z "${!secret_name:-}" ]]; then
+            echo "::error::Configure ${secret_name} in this repository's Actions secrets before requesting a signed iOS build."
+            missing=1
+          fi
+        done
+        exit "$missing"
+
+    - name: Generate signing material with the App Store Connect API
+      shell: bash
+      run: |
+        set -euo pipefail
+        export SIGN_DIR="$RUNNER_TEMP/cybercache-signing"
+        mkdir -p "$SIGN_DIR"
+        python3 "$GITHUB_WORKSPACE/scripts/ios-signing/generate_signing_material.py"
+
+    - name: Install signing certificate and provisioning profile
+      shell: bash
+      run: |
+        set -euo pipefail
+        bundle_id="com.michaelhmiv.cybercache"
+        keychain_path="$RUNNER_TEMP/cybercache-signing.keychain-db"
+        keychain_password="$(uuidgen)"
+        cp "$CYBERCACHE_P12_PATH" "$RUNNER_TEMP/distribution.p12"
+        cp "$CYBERCACHE_PROFILE_PATH" "$RUNNER_TEMP/CyberCache.mobileprovision"
+        security create-keychain -p "$keychain_password" "$keychain_path"
+        security set-keychain-settings -lut 21600 "$keychain_path"
+        security unlock-keychain -p "$keychain_password" "$keychain_path"
+        security import "$RUNNER_TEMP/distribution.p12" -P "$CYBERCACHE_P12_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+        security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain_path"
+        security list-keychains -d user -s "$keychain_path"
+        security default-keychain -d user -s "$keychain_path"
+        mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+        security cms -D -i "$RUNNER_TEMP/CyberCache.mobileprovision" > "$RUNNER_TEMP/CyberCache-profile.plist"
+        profile_uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/CyberCache-profile.plist")
+        profile_name=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/CyberCache-profile.plist")
+        team_id=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$RUNNER_TEMP/CyberCache-profile.plist")
+        app_identifier=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/CyberCache-profile.plist")
+        if [[ "$app_identifier" != "${team_id}.${bundle_id}" ]]; then
+          echo "::error::The provisioning profile must match bundle ID ${bundle_id}. Got application-identifier: $app_identifier"
+          exit 1
+        fi
+        cp "$RUNNER_TEMP/CyberCache.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+        echo "CYBERCACHE_PROFILE_NAME=$profile_name" >> "$GITHUB_ENV"
+        echo "CYBERCACHE_KEYCHAIN_PATH=$keychain_path" >> "$GITHUB_ENV"
+        echo "CYBERCACHE_TEAM_ID=$team_id" >> "$GITHUB_ENV"
+
+    - name: Install the App Store Connect API key
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$HOME/.appstoreconnect/private_keys" "$RUNNER_TEMP/asc"
+        printf '%s' "$ASC_PRIVATE_KEY" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+        cp "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+        echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
