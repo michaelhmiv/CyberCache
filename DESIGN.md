@@ -3644,3 +3644,44 @@ CI lanes land as their own tracks.
    before any account resolution; identity comes from the
    verified token and the Chef session JWT, never from a
    client-supplied player id.
+
+### 2026-11-19 — iOS goes straight to production: no TestFlight tester phase (owner-ruled)
+
+CyberCache iOS skips the TestFlight tester phase and goes to a
+full App Store submission (owner directive, 2026-11-19: "Let's
+just go straight to production"). This supersedes
+open-beta-first for iOS only.
+
+1. **iOS ships to the whole store at once.** The App Store
+   version is submitted for review carrying the production
+   build — real AdMob IDs wired in, export compliance declared
+   in the build itself — and releases publicly on approval.
+   There is no external-tester phase to graduate from first;
+   TestFlight remains only the CI delivery lane that carries
+   builds up to App Store Connect.
+2. **Android is unchanged.** Open-beta-first still holds on
+   Android: the Play open beta stays the live posture and the
+   production track stays parked, exactly as before.
+
+### 2026-11-19 — Ads stay personalized on both platforms (owner-ruled)
+
+CyberCache serves personalized ads on both platforms (owner
+ruling, 2026-11-19). The choice was put plainly — switch to
+non-personalized ads only, or keep personalized ads with the
+tracking declared — and the owner picked personalized: "Keep
+personalized ads (tracking declared) and ship."
+
+1. **Personalized ads stay on.** The AdMob code sets no
+   non-personalized-ads flag on either platform, so
+   personalized ads can run. Rewarded ads remain the only
+   format, in the two existing lanes (cache-open and
+   bench-time), and no ads ever appear on the play screen.
+2. **The App Store privacy label declares the tracking.** The
+   published label lists Device ID under "Data Used to Track
+   You" (Third-Party Advertising) — the label tells the truth
+   about what the ad SDK does rather than the code pretending
+   otherwise.
+3. **This ruling is CyberCache's alone.** Non-personalized-only
+   was considered and declined for CyberCache. Munch's
+   non-personalized-only ruling is a separate app's ruling and
+   stands untouched for Munch.
