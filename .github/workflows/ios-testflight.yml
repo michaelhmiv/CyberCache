@@ -60,6 +60,9 @@ jobs:
         run: npm ci
 
       - name: Build web app
+        env:
+          VITE_ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID: ${{ secrets.ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID_IOS }}
+          VITE_ADMOB_TEST_ADS: "false"
         run: npm run build
 
       - name: Sync Capacitor iOS project
@@ -85,6 +88,7 @@ jobs:
           -archivePath build/CyberCache.xcarchive
           -derivedDataPath build/ios-release
           CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER"
+          CYBERCACHE_ADMOB_APP_ID=${{ secrets.ADMOB_APP_ID_IOS }}
           CODE_SIGNING_KEYCHAIN="$CYBERCACHE_KEYCHAIN_PATH"
           CODE_SIGNING_ALLOWED=YES
 
