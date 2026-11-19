@@ -41,6 +41,9 @@ concurrency:
 jobs:
   ios-build:
     name: ios-build
+    concurrency:
+      group: cybercache-ios-signing
+      cancel-in-progress: false
     runs-on: macos-26
     timeout-minutes: 60
     env:
