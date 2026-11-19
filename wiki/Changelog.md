@@ -5,6 +5,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 ## 2026-11-19 — The ads file answers now
 
 - **The ads file answers now** — the ad network's store link landed, but its check of the developer site came back empty: the app-ads.txt file the network needs at the site's root was missing, so the app stayed limited. The file is there now, carrying the one line the network was given, and it answers even with the game page retired — the service is still app-only, and nothing else about the web surface changed.
+- **The iPhone build's signing moved into the app itself** — the first signed iPhone build got past Apple's signing step, then the archive failed: the signing settings were passed on the build command, which hands them to every library the app bundles, and those libraries refuse provisioning profiles. The settings now live only in the app's own Release settings, the way the PitTech build does it, so the archive signs just the app. Nothing about the game changes.
 
 ## 2026-11-18 — The thing you came for is at the top
 
