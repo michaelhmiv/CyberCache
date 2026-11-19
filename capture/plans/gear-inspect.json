@@ -1,0 +1,1 @@
+{"dsf":3,"height":912,"steps":[{"wait":12000},{"dump":"JSON.stringify({ legendary: (document.body.innerText || '').includes('Ricochet Gospel'), text: (document.body.innerText || '').slice(0, 300) })","shot":"gear-inspect"}],"width":420}

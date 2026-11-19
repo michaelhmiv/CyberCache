@@ -1,0 +1,1 @@
+{"dsf":3,"height":912,"steps":[{"wait":12000},{"dump":"JSON.stringify({ ammoPack: (document.body.innerText || '').includes('Ammo Pack'), text: (document.body.innerText || '').slice(0, 300) })","shot":"craft"}],"width":420}
