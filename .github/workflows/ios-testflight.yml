@@ -25,6 +25,9 @@ concurrency:
 jobs:
   testflight:
     name: Build and upload to TestFlight
+    concurrency:
+      group: cybercache-ios-signing
+      cancel-in-progress: false
     runs-on: macos-26
     timeout-minutes: 60
     env:
