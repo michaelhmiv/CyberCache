@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-19 — The ads file answers now
+
+- **The ads file answers now** — the ad network's store link landed, but its check of the developer site came back empty: the app-ads.txt file the network needs at the site's root was missing, so the app stayed limited. The file is there now, carrying the one line the network was given, and it answers even with the game page retired — the service is still app-only, and nothing else about the web surface changed.
+
 ## 2026-11-18 — The thing you came for is at the top
 
 - **The thing you came for is at the top now** — a pass over every stop put each surface's main event back in the first screen: your own standing pins right under the Standings board's header instead of at its foot; **View Full Profile** stays pinned to the foot of a hunter's pop-up instead of scrolling away; the Vendor's search and sort sit at the top of the buy mode instead of below the whole rotation; on the Repair and Shield Tech boards, **My workbench** — the jobs you are working — leads the page whenever you have one going; Cache Rank's **Bonus Channels** come before the Milestone Tape; and the Wardrobe's skin list comes before the big showcase painting, so **Wear** is the first thing you reach. Nothing about what any of these do changed — they just stopped making you scroll for them.

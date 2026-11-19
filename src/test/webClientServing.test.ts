@@ -5,10 +5,14 @@ import type { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { COMPLIANCE_PAGES, isWebClientEnabled, mountWebClient } from '../server/webClient';
+import { APP_ADS_TXT_FILE, APP_ADS_TXT_LINE, COMPLIANCE_PAGES, isWebClientEnabled, mountWebClient } from '../server/webClient';
 
 const INDEX_HTML = '<!doctype html><html><body>CYBERCACHE-WEB-CLIENT</body></html>';
 const ASSET_JS = 'console.log("CYBERCACHE-ASSET");';
+// The AdMob-required line, byte for byte: AdMob's store-link
+// verification failed while this file 404'd at the production root,
+// so the served body is pinned exactly (line + one trailing LF).
+const APP_ADS_TXT_BODY = `${APP_ADS_TXT_LINE}\n`;
 const COMPLIANCE_FIXTURES: Array<[string, string]> = [
   ['privacy-policy.html', 'CYBERCACHE-PRIVACY-POLICY'],
   ['data-deletion.html', 'CYBERCACHE-DATA-DELETION'],
@@ -59,6 +63,7 @@ beforeAll(() => {
       `<!doctype html><html><body>${marker}</body></html>`,
     );
   }
+  fs.writeFileSync(path.join(distDir, APP_ADS_TXT_FILE), APP_ADS_TXT_BODY);
 });
 
 afterAll(async () => {
@@ -115,6 +120,16 @@ describe('web client served (flag on — the default everywhere but production)'
       expect(res.status).toBe(200);
       expect(await res.text()).toContain(marker);
     }
+  });
+
+  it('serves app-ads.txt at the root with the exact AdMob line', async () => {
+    expect(APP_ADS_TXT_LINE).toBe(
+      'google.com, pub-2708638041809482, DIRECT, f08c47fec0942fa0',
+    );
+    const res = await fetch(`${base}/${APP_ADS_TXT_FILE}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/plain');
+    expect(await res.text()).toBe(APP_ADS_TXT_BODY);
   });
 
   it('serves index.html for SPA routes (fallback)', async () => {
@@ -175,6 +190,13 @@ describe('web client off (production app-only mode)', () => {
       expect(res.headers.get('content-type')).toContain('text/html');
       expect(await res.text()).toContain(marker);
     }
+  });
+
+  it('still serves app-ads.txt as text/plain with the exact AdMob line', async () => {
+    const res = await fetch(`${base}/${APP_ADS_TXT_FILE}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/plain');
+    expect(await res.text()).toBe(APP_ADS_TXT_BODY);
   });
 
   it('404s a POST to a compliance page (documents are read-only)', async () => {

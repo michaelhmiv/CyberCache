@@ -34,6 +34,21 @@ export const COMPLIANCE_PAGES = [
   'support.html',
 ] as const;
 
+/**
+ * The AdMob app-ads.txt verification file. AdMob requires this exact
+ * line served at the developer-website root
+ * (https://chef-production.up.railway.app/app-ads.txt) before it will
+ * lift the "store not linked / app-ads.txt not detected" limit on the
+ * Android app (ca-app-pub-2708638041809482~7527406300). It is a plain
+ * text file, not a compliance page, so it lives outside
+ * COMPLIANCE_PAGES — but like them it must answer in app-only mode,
+ * served as text/plain from the same dist build. The single line is
+ * pinned by test so it cannot drift from what AdMob was given.
+ */
+export const APP_ADS_TXT_FILE = 'app-ads.txt';
+export const APP_ADS_TXT_LINE =
+  'google.com, pub-2708638041809482, DIRECT, f08c47fec0942fa0';
+
 const OFF_VALUES = new Set(['false', '0', 'off', 'no']);
 
 /**
@@ -60,10 +75,11 @@ export function isWebClientEnabled(env: NodeJS.ProcessEnv = process.env): boolea
  * mount after this call, as Route B's do) — and /health keeps answering
  * 200 so health probes keep working. The three static compliance pages
  * (COMPLIANCE_PAGES) keep serving: plain documents the store listings
- * point at, with nothing for a crawler to execute. Everything else
- * (/, /index.html, static asset paths, SPA routes) is a plain 404:
- * there is no page for a crawler to execute, so no guest account
- * gets minted.
+ * point at, with nothing for a crawler to execute. The AdMob
+ * app-ads.txt file keeps serving too, as text/plain at the root.
+ * Everything else (/, /index.html, static asset paths, SPA routes) is
+ * a plain 404: there is no page for a crawler to execute, so no guest
+ * account gets minted.
  */
 export function mountWebClient(app: Express, distDir: string, enabled: boolean): void {
   if (enabled) {
@@ -96,6 +112,14 @@ export function mountWebClient(app: Express, distDir: string, enabled: boolean):
       res.sendFile(path.join(distDir, page));
     });
   }
+
+  // app-ads.txt stays public in app-only mode too (see APP_ADS_TXT_FILE
+  // above): AdMob's crawler fetches it from the developer-website root
+  // to verify the app's publisher, so it must answer 200 as text/plain
+  // even with the game page retired.
+  app.get(`/${APP_ADS_TXT_FILE}`, (_req, res) => {
+    res.type('text/plain').sendFile(path.join(distDir, APP_ADS_TXT_FILE));
+  });
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path === '/api' || req.path.startsWith('/api/')) {
