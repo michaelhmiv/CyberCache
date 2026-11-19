@@ -218,7 +218,9 @@ async function waitForPage(udid, restartProxyPerDevice, timeoutMs = 150000) {
     const base = perDevice ? 'http://127.0.0.1:9222' : 'http://127.0.0.1:9221';
     const probe = await probeProxy(base);
     if (probe.wsUrl) return probe.wsUrl;
-    lastState = `${perDevice ? 'per-device' : 'listing'}: ${probe.state}`;
+    const state = `${perDevice ? 'per-device' : 'listing'}: ${probe.state}`;
+    if (state !== lastState) console.log(`[smoke] probe — ${state}`);
+    lastState = state;
     await sleep(3000);
   }
   throw new Error(`WebView page never appeared in the debug proxy (last probe — ${lastState})`);
@@ -243,11 +245,14 @@ async function main() {
     record('install', true, `container: ${container.stdout.trim().split('\n')[0]}`);
 
     // Start the WebInspector proxy before launch so it sees the page early.
-    proxy = startProxy([]);
+    // -d: debug logging — the proxy is otherwise nearly silent, and its
+    // stdout is block-buffered when piped (its banner only flushed when the
+    // first run's proxy was killed), so every line of output matters.
+    proxy = startProxy(['-d']);
     process.on('exit', () => writeFileSync(path.join(OUT_DIR, 'proxy.log'), proxyLogChunks.join('')));
     const restartProxyPerDevice = () => {
       try { proxy.kill('SIGTERM'); } catch { /* already gone */ }
-      proxy = startProxy(['-c', `${udid}:9222`]);
+      proxy = startProxy(['-d', '-c', `${udid}:9222`]);
     };
 
     const launched = await simctl(['launch', udid, BUNDLE_ID]);
