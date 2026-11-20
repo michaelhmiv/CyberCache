@@ -298,7 +298,7 @@ export function endlessEncounterForDepth(
     mechanic: {
       id: 'none',
       name: 'No Special Mechanic',
-      description: 'A Chamber war pack. No special requirement — the escalation is the mechanic.',
+      description: 'A Chamber war pack. No special requirement — the escalation IS the mechanic.',
       checkType: 'mechanic',
     },
     tags: ['simple'],
@@ -306,7 +306,7 @@ export function endlessEncounterForDepth(
       {
         id: 'pack_assault',
         name: 'Pack Assault',
-        description: 'The pack presses in waves. Raw survival and damage carry the depth.',
+        description: 'The pack presses in waves. Raw survival and damage carry you deeper.',
         type: 'survival',
         targetValue: 0.6,
         recommendedCounters: ['sustained DPS', 'Med Kit', 'Shield Cell'],

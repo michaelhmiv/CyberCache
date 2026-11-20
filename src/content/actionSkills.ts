@@ -69,33 +69,33 @@ export const ACTION_SKILL_DEFS: Record<SkillTreeType, ActionSkillDef> = {
     tree: SkillTreeType.Gunslinger,
     keystoneNodeId: 'gs_keystone',
     name: 'Deadeye Salvo',
-    summary: 'A concentrated burst that burns a share of the boss’s health outright.',
+    summary: 'One concentrated burst that burns a share of the boss’s health clean off.',
     description:
-      'When charged, fire Deadeye Salvo inside a boss attempt or endless encounter: a single concentrated burst that deals damage equal to a levered share of the target’s maximum health, resolved inside the fight simulation — it shortens the kill clock, and because the fight ends sooner, the boss deals that share less damage over the fight.',
+      'When charged, fire Deadeye Salvo inside a boss attempt or endless encounter: a single concentrated burst that deals damage equal to a levered share of the target’s maximum health, resolved inside the fight simulation — the kill clock shrinks, and because the fight ends sooner, the boss deals that share less damage over the fight.',
   },
   [SkillTreeType.Demolition]: {
     tree: SkillTreeType.Demolition,
     keystoneNodeId: 'demo_keystone',
     name: 'Saturation Strike',
-    summary: 'Ordnance saturation: flat damage plus shield/armor break and a stagger window.',
+    summary: 'Rain ordnance: flat damage plus shield/armor break and a stagger window.',
     description:
-      'When charged, fire Saturation Strike inside a boss attempt or endless encounter: ordnance saturates the target through the simulation’s existing machinery — flat damage, bonus shield break and armor break, and a stagger window that cuts the damage the boss deals while it lasts. No parallel combat math.',
+      'When charged, fire Saturation Strike inside a boss attempt or endless encounter: ordnance saturates the target through the simulation’s existing machinery — flat damage, bonus shield break and armor break, and a stagger window that cuts the damage the boss deals while it lasts. No parallel combat math — just a lot of explosions.',
   },
   [SkillTreeType.Scavenger]: {
     tree: SkillTreeType.Scavenger,
     keystoneNodeId: 'scav_keystone',
     name: 'Cache Surge',
-    summary: 'Extra drop rolls on victory, rolled hot — Epic and Legendary odds bent by a clamped lever.',
+    summary: 'Extra drop rolls on victory, rolled hot — Epic and Legendary odds bent upward, hard-capped.',
     description:
-      'When charged, fire Cache Surge inside a boss attempt or endless encounter: on victory the attempt gains extra drop rolls through the normal drop pipeline, with Epic and Legendary rarity weights multiplied by levered, hard-clamped factors. The dedicated boss drop roll is never touched, and nothing is minted outside the drop pipeline.',
+      'When charged, fire Cache Surge inside a boss attempt or endless encounter: on victory the loot faucet opens wider — extra drop rolls through the normal drop pipeline, with Epic and Legendary rarity weights multiplied by levered, hard-clamped factors. The dedicated boss drop roll is never touched, and nothing is minted outside the drop pipeline.',
   },
   [SkillTreeType.Fixer]: {
     tree: SkillTreeType.Fixer,
     keystoneNodeId: 'fix_keystone',
     name: 'Overclock',
-    summary: 'Combat: prepared consumables read at quality ×1.25. Workshop: instantly completes the unit on every bench.',
+    summary: 'Combat: prepared consumables read at quality ×1.25. Workshop: instantly completes the in-progress unit on every bench.',
     description:
-      'Overclock has two fires on one charge pool (Fixer brief §3.7). In a boss attempt or endless encounter, the attempt’s prepared consumables are read at quality × the overclock multiplier for that attempt. At the Workshop, firing instantly completes the in-progress unit on every active bench through the normal settler — same outputs, same quality roll, same XP; it buys time, never output.',
+      'Overclock is two fires on one charge pool (Fixer brief §3.7). In a boss attempt or endless encounter, the attempt’s prepared consumables are read at quality × the overclock multiplier for that attempt. At the Workshop, firing instantly completes the in-progress unit on every active bench through the normal settler — same outputs, same quality roll, same XP. It buys time, never output.',
   },
 };
 
@@ -399,7 +399,7 @@ export interface ActionSkillStateView {
 }
 
 export const NO_KEYSTONE_NOTE =
-  'No action skill yet — own any skill tree’s keystone to unlock its signature ability.';
+  'No action skill yet — own any skill tree’s keystone and its signature ability is yours to fire.';
 
 export function actionSkillStateView(input: {
   spent: Record<string, number>;

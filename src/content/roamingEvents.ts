@@ -201,13 +201,13 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'dustwaste_buried_cache', areaId: 'dustwaste_frontier', name: 'Buried Cache', family: 'find',
     weight: 2, propId: 'prop-buried-cache', expectedValueCredits: 37.5,
-    blurb: 'A half-buried crate glints under the silt.',
+    blurb: 'A half-buried crate glints in the silt. Dibs.',
     resolution: { kind: 'cacheFind' },
   }),
   ev({
     id: 'dustwaste_crashed_convoy', areaId: 'dustwaste_frontier', name: 'Crashed Convoy', family: 'find',
     weight: 3, propId: 'prop-convoy-wreck', expectedValueCredits: 21,
-    blurb: 'A wrecked convoy still has salvage worth taking.',
+    blurb: 'A wrecked convoy, still stuffed with salvage worth taking.',
     resolution: {
       kind: 'salvageFind',
       entries: [
@@ -220,7 +220,7 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'dustwaste_silt_storm', areaId: 'dustwaste_frontier', name: 'Silt Storm Front', family: 'hazard',
     weight: 2, propId: 'prop-storm-front', expectedValueCredits: -32,
-    blurb: 'A silt storm front rolls in — brutal going, but buried things shake loose.',
+    blurb: 'A silt storm front rolls in — brutal going, but it shakes buried things loose.',
     resolution: { kind: 'stormWindow' },
   }),
   ev({
@@ -234,7 +234,7 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'redline_pileup_wreck', areaId: 'redline_circuit', name: 'Pileup Wreck', family: 'find',
     weight: 3, propId: 'prop-convoy-wreck', expectedValueCredits: 15,
-    blurb: 'A fresh pileup — the crews have not stripped it yet.',
+    blurb: 'A fresh pileup — and the crews haven\'t stripped it yet. Move.',
     resolution: {
       kind: 'salvageFind',
       entries: [{ type: 'Scrap', kind: 'material', min: 1, max: 1 }],
@@ -244,19 +244,19 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'redline_pursuit_pack', areaId: 'redline_circuit', name: 'Pursuit Pack', family: 'fight',
     weight: 2, propId: 'prop-pack-marker', expectedValueCredits: 24,
-    blurb: 'A pursuit pack runs you down — three runners, one stand.',
+    blurb: 'A pursuit pack runs you down — three runners, one last stand.',
     resolution: { kind: 'bountyTarget', payout: 'gear' },
   }),
   ev({
     id: 'redline_overheat_vent', areaId: 'redline_circuit', name: 'Overheat Vent', family: 'hazard',
     weight: 3, propId: 'prop-vent-stack', expectedValueCredits: 4,
-    blurb: 'A vent blows — rich pickings in the heat wash, if you can stand it.',
+    blurb: 'A vent blows — rich pickings in the heat wash, if your boots hold.',
     resolution: { kind: 'overheatWindow' },
   }),
   ev({
     id: 'redline_streak_run', areaId: 'redline_circuit', name: 'Streak Run', family: 'objective',
     weight: 3, propId: 'prop-streak-marker', expectedValueCredits: 12,
-    blurb: 'Clean line ahead — string five kills untouched and the circuit pays.',
+    blurb: 'Clean line ahead — string five kills untouched and the circuit pays out.',
     resolution: { kind: 'streakObjective' },
   }),
 
@@ -264,25 +264,25 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'ironwood_elite_patrol', areaId: 'ironwood_bastion', name: 'Elite Patrol', family: 'fight',
     weight: 1, propId: 'prop-patrol-marker', expectedValueCredits: 38,
-    blurb: 'Bastion elite patrol on the ridge — the Commander is with them.',
+    blurb: 'Bastion elite patrol on the ridge — and the Commander\'s with them. Lucky you.',
     resolution: { kind: 'elitePatrol' },
   }),
   ev({
     id: 'ironwood_sentry_nest', areaId: 'ironwood_bastion', name: 'Sentry Nest', family: 'fight',
     weight: 3, propId: 'prop-sentry-nest', expectedValueCredits: 21,
-    blurb: 'A sentry nest has the sightline. Take it out and the ridge is yours.',
+    blurb: 'A sentry nest owns the sightline. Knock it out and the ridge is yours.',
     resolution: { kind: 'bountyTarget', payout: 'gear' },
   }),
   ev({
     id: 'ironwood_weakpoint_contract', areaId: 'ironwood_bastion', name: 'Weakpoint Contract', family: 'objective',
     weight: 3, propId: 'prop-contract-marker', expectedValueCredits: 12,
-    blurb: 'Contract posted: drop the marked target fast for a quality bounty.',
+    blurb: 'Contract posted: drop the marked target fast, collect a quality bounty.',
     resolution: { kind: 'weakpointContract' },
   }),
   ev({
     id: 'ironwood_thornwind', areaId: 'ironwood_bastion', name: 'Thornwind', family: 'hazard',
     weight: 2, propId: 'prop-storm-front', expectedValueCredits: -25,
-    blurb: 'A thornwind squall tears through the treeline — spines in every gust.',
+    blurb: 'A thornwind squall rips through the treeline — every gust is full of spines.',
     resolution: { kind: 'stormWindow' },
   }),
 
@@ -290,7 +290,7 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'blastforge_slag_pocket', areaId: 'blastforge_yards', name: 'Slag Pocket', family: 'find',
     weight: 3, propId: 'prop-slag-pocket', expectedValueCredits: 19,
-    blurb: 'A slag pocket cools with reactive stock trapped inside.',
+    blurb: 'A slag pocket cools with reactive stock trapped inside. Free candy.',
     resolution: {
       kind: 'salvageFind',
       entries: [
@@ -309,13 +309,13 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'blastforge_armor_break_window', areaId: 'blastforge_yards', name: 'Armor-Break Window', family: 'objective',
     weight: 3, propId: 'prop-break-marker', expectedValueCredits: 8,
-    blurb: 'A furnace cycle exposes every plate seam in the yard.',
+    blurb: 'A furnace cycle lays every plate seam in the yard wide open.',
     resolution: { kind: 'breakWindow' },
   }),
   ev({
     id: 'blastforge_coolant_find', areaId: 'blastforge_yards', name: 'Coolant Find', family: 'find',
     weight: 2, propId: 'prop-coolant-rig', expectedValueCredits: 15,
-    blurb: 'An intact coolant rig — shield tonic and reactive stock.',
+    blurb: 'An intact coolant rig — shield tonic and reactive stock, just sitting there.',
     resolution: {
       kind: 'salvageFind',
       entries: [{ type: 'ReactiveComponents', kind: 'material', min: 1, max: 1 }],
@@ -327,13 +327,13 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'prismatek_reactor_leak', areaId: 'prismatek_reactor', name: 'Reactor Leak', family: 'hazard',
     weight: 3, propId: 'prop-reactor-leak', expectedValueCredits: 4,
-    blurb: 'The reactor leaks — one element surges through the whole sector.',
+    blurb: 'The reactor\'s leaking — one element surges through the whole sector.',
     resolution: { kind: 'elementSurge' },
   }),
   ev({
     id: 'prismatek_anomaly_bloom', areaId: 'prismatek_reactor', name: 'Anomaly Bloom', family: 'find',
     weight: 3, propId: 'prop-anomaly-bloom', expectedValueCredits: 12,
-    blurb: 'An anomaly blooms and condenses into raw essence.',
+    blurb: 'An anomaly blooms and sweats out raw essence.',
     resolution: {
       kind: 'salvageFind',
       entries: [
@@ -346,13 +346,13 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'prismatek_phase_rift', areaId: 'prismatek_reactor', name: 'Phase Rift', family: 'find',
     weight: 1, propId: 'prop-rift', expectedValueCredits: 45, major: true,
-    blurb: 'A phase rift tears open — something better waits on the other side.',
+    blurb: 'A phase rift tears open — better loot waits on the other side.',
     resolution: { kind: 'gearFind', qualityBoost: true },
   }),
   ev({
     id: 'prismatek_resonance_trial', areaId: 'prismatek_reactor', name: 'Resonance Trial', family: 'objective',
     weight: 3, propId: 'prop-resonance-pylon', expectedValueCredits: 14,
-    blurb: 'The reactor tests your attunement. Match its elements and it pays.',
+    blurb: 'The reactor wants to test your attunement. Match its elements and it pays.',
     resolution: { kind: 'resonanceTrial' },
   }),
 
@@ -360,13 +360,13 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'throwtech_turret_nest', areaId: 'throwtech_dumpnet', name: 'Turret Nest', family: 'fight',
     weight: 2, propId: 'prop-turret', expectedValueCredits: 26,
-    blurb: 'A turret nest wakes up in the junk grid. Kill it for its tech.',
+    blurb: 'A turret nest wakes up in the junk grid. Kill it, keep its tech.',
     resolution: { kind: 'bountyTarget', payout: 'materials' },
   }),
   ev({
     id: 'throwtech_drone_salvage', areaId: 'throwtech_dumpnet', name: 'Drone Salvage', family: 'find',
     weight: 3, propId: 'prop-drone-wreck', expectedValueCredits: 16,
-    blurb: 'A downed drone swarm, ripe for stripping.',
+    blurb: 'A downed drone swarm, just begging to be stripped.',
     resolution: {
       kind: 'salvageFind',
       entries: [
@@ -378,13 +378,13 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'throwtech_signal_trap', areaId: 'throwtech_dumpnet', name: 'Signal Trap', family: 'objective',
     weight: 2, propId: 'prop-signal-spike', expectedValueCredits: 20,
-    blurb: 'A jammed cache squawks on a dead channel. The right gear talks back.',
+    blurb: 'A jammed cache squawks on a dead channel. Bring the right gear and talk back.',
     resolution: { kind: 'signalTrap' },
   }),
   ev({
     id: 'throwtech_minefield_sweep', areaId: 'throwtech_dumpnet', name: 'Minefield Sweep', family: 'hazard',
     weight: 2, propId: 'prop-minefield', expectedValueCredits: -18,
-    blurb: 'The shortcut crosses a live minefield. What lies beyond it is worth the risk.',
+    blurb: 'The shortcut crosses a live minefield. What\'s beyond it is worth the risk.',
     resolution: { kind: 'minefield' },
   }),
 
@@ -392,13 +392,13 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'helix_prototype_escape', areaId: 'helixworks_labyrinth', name: 'Prototype Escape', family: 'fight',
     weight: 2, propId: 'prop-prototype-pod', expectedValueCredits: 30,
-    blurb: 'A prototype construct tears out of its pod. Its parts are worth a fortune.',
+    blurb: 'A prototype construct tears out of its pod — and its parts are worth a fortune.',
     resolution: { kind: 'bountyTarget', payout: 'gearQuality' },
   }),
   ev({
     id: 'helix_fusion_leak', areaId: 'helixworks_labyrinth', name: 'Fusion Leak', family: 'find',
     weight: 3, propId: 'prop-fusion-leak', expectedValueCredits: 15,
-    blurb: 'A fusion leak dusts the corridor in void residue.',
+    blurb: 'A fusion leak dusts the whole corridor in void residue.',
     resolution: {
       kind: 'salvageFind',
       entries: [{ type: 'VoidDust', kind: 'material', min: 1, max: 2 }],
@@ -407,13 +407,13 @@ export const ROAMING_EVENTS: readonly RoamingEventDef[] = [
   ev({
     id: 'helix_shifting_walls', areaId: 'helixworks_labyrinth', name: 'Shifting Walls', family: 'objective',
     weight: 3, propId: 'prop-wall-panel', expectedValueCredits: 4,
-    blurb: 'The labyrinth reroutes — the loot profile of the place changes with it.',
+    blurb: 'The labyrinth reroutes itself — and the place\'s loot profile changes with it.',
     resolution: { kind: 'wallsShift' },
   }),
   ev({
     id: 'helix_specimen_release', areaId: 'helixworks_labyrinth', name: 'Specimen Release', family: 'fight',
     weight: 3, propId: 'prop-specimen-tank', expectedValueCredits: 10,
-    blurb: 'A test specimen breaks containment and comes straight at you.',
+    blurb: 'Containment fails: one test specimen, coming straight at you.',
     resolution: { kind: 'bountyTarget', payout: 'xp' },
   }),
 ];

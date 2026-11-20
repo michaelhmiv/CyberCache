@@ -3685,3 +3685,38 @@ personalized ads (tracking declared) and ship."
    was considered and declined for CyberCache. Munch's
    non-personalized-only ruling is a separate app's ruling and
    stands untouched for Munch.
+
+### 2026-11-20 — The game's text gets its Borderlands flare: full sweep, all categories (owner-ruled)
+
+The owner directed a tone pass over the game's player-facing text
+on 2026-11-20: first a samples pass (agy Neon produced a text
+inventory, a tone assessment, and 14 before/after sample rewrites,
+which the owner reviewed), then — on the owner's tap of "Full
+sweep, all categories" — a full Borderlands-flare sweep of all
+player-facing game text in that sample voice: loud, irreverent,
+self-aware, jokes that still describe the thing. This entry
+records the ruling; the sweep lands in three track PRs (content
+files, constants + flavor, voice + UI).
+
+1. **All categories are in scope.** Content files, constants,
+   flavor text, dispatch and contract copy, UI notices, and the
+   hunter voice lines — the previously locked voice lines v2 are
+   included by this all-categories ruling (the owner saw the two
+   sample voice-line rewrites before ruling). Every changed voice
+   line is listed separately in its PR body so the owner can veto
+   individual lines at review.
+2. **Numbers stay exact.** Every number, percentage, duration,
+   price, and count in a rewritten string is digit-for-digit
+   identical to the original, proven per file by a number-token
+   audit (multiset of numeric tokens, before vs after) run by the
+   builder and re-run at review.
+3. **Meaning stays exact.** No dropping meaning-bearing words to
+   fit a joke (the samples' trims of "multiplier" and "basic" are
+   explicitly not the sweep's standard). Where a joke cannot fit
+   without losing meaning, the plainer line ships.
+4. **Copy fields only.** The sweep rewrites human-readable string
+   copy only — never numeric literals outside strings, ids, keys,
+   enum values, or data. Length stays the same or shorter by
+   default; the copy law (complete but concise, player language
+   only, no paragraphs on screens, no emojis) still binds every
+   rewritten line.

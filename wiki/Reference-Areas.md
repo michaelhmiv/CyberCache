@@ -16,18 +16,18 @@ Every roaming area, pictured in its own backdrop painting — the art the Action
 
 <img src="images/areas/dustwaste-frontier.jpg" alt="Dustwaste Frontier" width="480">
 
-Open scrapland routes where new runners learn the roaming loop.
+Open scrapland routes where new runners learn the ropes — and the roaming loop.
 
 - **Danger:** Low · **Enemies:** Raiders, scrap drones, and scavengers
 - **Signature materials:** Scrap, Ballistic Parts · **Signature loot:** Balanced gear, early salvage
 - **Influence:** Mixed · **Named elite:** Silt Marshal
-- Need general early loot? Stay in Dustwaste Frontier.
+- Need general early loot? Dustwaste Frontier has you.
 
 ### Redline Circuit
 
 <img src="images/areas/redline-circuit.jpg" alt="Redline Circuit" width="480">
 
-Burned highway loops owned by speed crews and pursuit drones.
+Burned highway loops ruled by speed crews and pursuit drones.
 
 - **Danger:** Medium · **Enemies:** Fast raiders, pursuit drones, and overheating runners
 - **Signature materials:** Scrap, Ballistic Parts · **Signature loot:** SMGs, pistols, attack speed, reload and ramp affixes
@@ -38,7 +38,7 @@ Burned highway loops owned by speed crews and pursuit drones.
 
 <img src="images/areas/ironwood-bastion.jpg" alt="Ironwood Bastion" width="480">
 
-Fortified ridge posts where precision crews hold long sightlines.
+Fortified ridge posts where precision crews hold the long sightlines.
 
 - **Danger:** Medium/High · **Enemies:** Marksmen, armored captains, and sentry posts
 - **Signature materials:** Ballistic Parts, Tech Fragments · **Signature loot:** Snipers, pistols, crit rolls, weakpoint and boss-damage flavor
@@ -49,7 +49,7 @@ Fortified ridge posts where precision crews hold long sightlines.
 
 <img src="images/areas/blastforge-yards.jpg" alt="BlastForge Yards" width="480">
 
-Industrial breaker yards packed with refinery bots and live ordnance.
+Industrial breaker yards packed with refinery bots and extremely live ordnance.
 
 - **Danger:** Medium/High · **Enemies:** Armored machines, refinery bots, and demolition crews
 - **Signature materials:** Scrap, Ballistic Parts, Reactive Components, Ignition Fluid · **Signature loot:** Launchers, shotguns, armor break, stagger and explosive flavor
@@ -60,7 +60,7 @@ Industrial breaker yards packed with refinery bots and live ordnance.
 
 <img src="images/areas/prismatek-reactor.jpg" alt="Prismatek Reactor" width="480">
 
-A leaking test reactor where elemental anomalies rewrite the battlefield.
+A leaking test reactor where elemental anomalies keep rewriting the battlefield.
 
 - **Danger:** Variable · **Enemies:** Elemental anomalies, shielded test subjects, and reactor constructs
 - **Signature materials:** Tech Fragments, Ignition Fluid, Conduit Wire, Acid Compound, Cryo Gel, Void Essence · **Signature loot:** Beams, elemental weapons, status affixes, weakness exploitation
@@ -71,7 +71,7 @@ A leaking test reactor where elemental anomalies rewrite the battlefield.
 
 <img src="images/areas/throwtech-dumpnet.jpg" alt="ThrowTech Dumpnet" width="480">
 
-A hacked junk-grid of turret nests, signal traps, and cheap disposable tech.
+A hacked junk-grid of turret nests, signal traps, and gloriously disposable tech.
 
 - **Danger:** Medium · **Enemies:** Hacked drones, turret nests, minefields, and signal traps
 - **Signature materials:** Tech Fragments, Reactive Components, Conduit Wire · **Signature loot:** Deployable-flavored gear, ordnance, utility drops, drone parts
@@ -82,7 +82,7 @@ A hacked junk-grid of turret nests, signal traps, and cheap disposable tech.
 
 <img src="images/areas/helixworks-labyrinth.jpg" alt="HelixWorks Labyrinth" width="480">
 
-A shifting prototype complex where modular test rigs rebuild themselves.
+A shifting prototype complex where the test rigs rebuild themselves. Rude.
 
 - **Danger:** High · **Enemies:** Prototype constructs, unstable test rigs, and shifting lab defenses
 - **Signature materials:** Tech Fragments, Void Dust, Scrap, Reactive Components, Void Essence · **Signature loot:** HelixWorks gear, higher roll quality flavor, modular parts

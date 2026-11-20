@@ -116,7 +116,7 @@ Every part below is pictured twice over: the part itself, and — for the two fu
 
 ### Bulwark
 
-Heavy plate, shaped new: an oversized helm, a siege torso, and Stomper legs. The silhouette is the statement.
+Heavy plate, shaped new — oversized helm, siege torso, Stomper legs. The silhouette is the statement.
 
 <img src="images/skins/sets/bulwark.png" alt="Bulwark — full set" width="200">
 
@@ -135,7 +135,7 @@ Heavy plate, shaped new: an oversized helm, a siege torso, and Stomper legs. The
 
 ### Dreadplate
 
-Standard Issue silhouettes repainted in bone plate and crimson trim, with a red visor glow.
+Standard Issue silhouettes, repainted in bone plate and crimson trim with a red visor glow.
 
 <img src="images/skins/sets/dreadplate.png" alt="Dreadplate — full set" width="200">
 
@@ -154,7 +154,7 @@ Standard Issue silhouettes repainted in bone plate and crimson trim, with a red 
 
 ### Manufacturer Heads
 
-The six maker helmets now live in one lane: the Standing rank-3 head pick, earned at the Rep Desk. Crafted copies from the old pool are retired — no new crafts, no new listings — and copies already owned wear forever.
+The six maker helmets live in one lane now: the Standing rank-3 head pick, earned at the Rep Desk. Crafted copies from the old pool are retired — no new crafts, no new listings — and copies already owned wear forever.
 
 The heads are single parts, so each is shown worn on the standard frame — the second column is the first column on a hunter.
 
