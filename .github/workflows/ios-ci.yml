@@ -1,12 +1,16 @@
 name: iOS CI
 
 # iOS gate, mirroring Android CI (android-ci.yml) lane for lane: ios-build
-# archives the Capacitor app with CI-minted signing (the runner creates its
-# own distribution certificate + profile through the App Store Connect API —
-# the PitTech pattern; no local-device steps anywhere), and ios-simulator
-# boots the app on a simulator and runs the smoke assertions in
-# scripts/ios-smoke/. Runs on every PR and on pushes to master that touch
-# the app, the web build, or the iOS shell.
+# archives the Capacitor app with the shared CI distribution certificate
+# plus a per-app profile created through the App Store Connect API (no
+# local-device steps anywhere), and ios-simulator boots the app on a
+# simulator and runs the smoke assertions in scripts/ios-smoke/. Runs on
+# every PR and on pushes to master that touch the app, the web build, or
+# the iOS shell.
+#
+# Shared CI distribution certificate per Michael's 2026-11-20 ruling
+# (team cert cap; mint-per-build retired) — the cert lives in the
+# IOS_DIST_CERT_* secrets.
 #
 # Both jobs need the iOS target from the launch brief's Track 1
 # (feat/ios-scaffold). Until it lands they fail fast at the target guard —
@@ -50,6 +54,9 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+      IOS_DIST_CERT_P12_PASSWORD: ${{ secrets.IOS_DIST_CERT_P12_PASSWORD }}
+      IOS_DIST_CERT_ID: ${{ secrets.IOS_DIST_CERT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,7 +91,7 @@ jobs:
       - name: Sync Capacitor iOS project
         run: npx cap sync ios
 
-      - name: Mint CI signing material (App Store Connect API)
+      - name: Prepare CI signing material (shared distribution certificate)
         uses: ./.github/actions/ios-signing
 
       - name: Resolve Swift packages

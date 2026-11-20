@@ -1,16 +1,21 @@
 name: iOS TestFlight
 
 # Manual-dispatch delivery lane, mirroring Android's Firebase App
-# Distribution flow: build the app from master, sign it with CI-minted
-# material (App Store Connect API — the PitTech pattern; no local-device
-# steps), and upload to App Store Connect, where the build lands in
-# TestFlight after Apple's processing. Dani's iPhone 15 Plus is the iOS
-# test device.
+# Distribution flow: build the app from master, sign it with the shared
+# CI distribution certificate (App Store Connect API for the per-app
+# profile; no local-device steps), and upload to App Store Connect,
+# where the build lands in TestFlight after Apple's processing. Dani's
+# iPhone 15 Plus is the iOS test device.
+#
+# Shared CI distribution certificate per Michael's 2026-11-20 ruling
+# (team cert cap; mint-per-build retired) — the cert lives in the
+# IOS_DIST_CERT_* secrets.
 #
 # Prerequisites, in order: the iOS target (launch brief Track 1), the
-# ASC_KEY_ID / ASC_ISSUER_ID / ASC_PRIVATE_KEY Actions secrets, and the
-# App Store Connect app record for com.michaelhmiv.cybercache (Track 4) —
-# the signing step names whichever is missing.
+# ASC_KEY_ID / ASC_ISSUER_ID / ASC_PRIVATE_KEY and IOS_DIST_CERT_*
+# Actions secrets, and the App Store Connect app record for
+# com.michaelhmiv.cybercache (Track 4) — the signing step names
+# whichever is missing.
 
 on:
   workflow_dispatch:
@@ -34,6 +39,9 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+      IOS_DIST_CERT_P12_PASSWORD: ${{ secrets.IOS_DIST_CERT_P12_PASSWORD }}
+      IOS_DIST_CERT_ID: ${{ secrets.IOS_DIST_CERT_ID }}
     steps:
       - name: Check out master
         uses: actions/checkout@v4
@@ -71,7 +79,7 @@ jobs:
       - name: Sync Capacitor iOS project
         run: npx cap sync ios
 
-      - name: Mint CI signing material (App Store Connect API)
+      - name: Prepare CI signing material (shared distribution certificate)
         uses: ./.github/actions/ios-signing
 
       - name: Resolve Swift packages
