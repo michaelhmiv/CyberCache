@@ -161,7 +161,7 @@ export const HomeCraftBench: React.FC<{
               ? <>Workshop Service is your current action — <span className="font-bold text-text-primary">{activity.current.targetLabel ?? 'service work'}</span> is progressing in Repairs &amp; Service below. The craft bench is paused meanwhile.</>
               : benchJobs.length > 0
                 ? <>Bench paused — {bannerReason(kind, activity.current.bossPhase)}. {benchJobs.length} job{benchJobs.length === 1 ? '' : 's'} waiting; jobs progress only while Crafting holds the action slot.</>
-                : 'The bench is idle. Queue a recipe below — jobs run while Crafting is your action.'}
+                : 'The bench is idle and getting cold. Queue a recipe below — jobs run while Crafting is your action.'}
         </div>
 
         {!isCrafting && (

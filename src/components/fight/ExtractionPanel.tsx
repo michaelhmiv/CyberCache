@@ -289,7 +289,7 @@ export const ExtractionPanel: React.FC<{ onLeave?: () => void }> = ({ onLeave })
                 ? 'Working the site. Passes land every 10 minutes while Extraction holds the action slot.'
                 : state?.hasState
                   ? 'Paused — extraction only accrues while it is the active action.'
-                  : 'Claim a site to start gathering materials for the crafter economy.'}
+                  : 'Claim a site and start digging up materials for the crafter economy.'}
             </div>
           </div>
           <button

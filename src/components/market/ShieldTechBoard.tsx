@@ -586,7 +586,7 @@ export const ShieldTechBoard: React.FC<{
           <div className="text-[11px] text-text-muted">
             {browseActive
               ? 'No jobs match those filters. Loosen a band or clear the search.'
-              : 'No open jobs. Post yours above — or check back after the next roam.'}
+              : "Board's empty. Post yours above — or check back after the next roam."}
           </div>
         )}
         {openJobs.map((job, index) => {
