@@ -210,7 +210,7 @@ export interface TurnInItemShape {
  * equipped, listed, and escrowed items all refuse), vehicles out.
  */
 export function standingTurnInRefusal(item: TurnInItemShape): string | null {
-  if (item.kind === 'vehicle') return 'The Rep Desk doesn’t take vehicles — no turning them in for standing';
+  if (item.kind === 'vehicle') return 'Vehicles cannot be turned in for standing';
   if (!isStandingManufacturer(item.manufacturer)) return 'Item has no manufacturer standing';
   if (item.isLocked) return 'Locked item';
   if (item.equippedSlot) return 'Unequip the item before turning it in';

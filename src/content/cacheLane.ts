@@ -56,7 +56,7 @@ export const CACHE_BOX_PAYMENTS: readonly CacheBoxPayment[] = ['ad', 'key'];
 
 /** Player-facing rule line for the cache surface. */
 export const CACHE_LANE_RULE =
-  'Every cache box costs 1 cache key or one short ad — no daily limit. Keys are rare: roaming drops one now and then, and the login streak, contracts, and leaderboards cough them up too.';
+  'Every cache box costs 1 cache key or one short ad — no daily limit. Keys are rare: roaming drops one now and then, and the login streak, contracts, and leaderboards pay them too.';
 
 // ─── UTC day helper (the codebase's UTC-day convention) ────────────
 

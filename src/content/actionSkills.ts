@@ -95,7 +95,7 @@ export const ACTION_SKILL_DEFS: Record<SkillTreeType, ActionSkillDef> = {
     name: 'Overclock',
     summary: 'Combat: prepared consumables read at quality ×1.25. Workshop: instantly completes the in-progress unit on every bench.',
     description:
-      'Overclock is two fires on one charge pool. In a boss attempt or endless encounter, the attempt’s prepared consumables are read at quality × the overclock multiplier for that attempt. At the Workshop, firing instantly completes the in-progress unit on every active bench through the normal settler — same outputs, same quality roll, same XP. It buys time, never output.',
+      'Overclock is two fires on one charge pool (Fixer brief §3.7). In a boss attempt or endless encounter, the attempt’s prepared consumables are read at quality × the overclock multiplier for that attempt. At the Workshop, firing instantly completes the in-progress unit on every active bench through the normal settler — same outputs, same quality roll, same XP. It buys time, never output.',
   },
 };
 
