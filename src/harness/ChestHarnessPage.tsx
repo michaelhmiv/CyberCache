@@ -6,9 +6,12 @@
  * by chestMain's fetch backstop (the open grants one fixed
  * Legendary — Emberfall), and the capture plan clicks the real
  * OPEN WITH KEY button, waits out the Sample B Legendary step
- * (2600 ms), and photographs the reveal HOLDING at settled: beam,
- * risen item, full deck, and (after a short scroll of the reveal
- * overlay) the Collect / Open Another row.
+ * (2600 ms), and photographs the reveal HOLDING at settled.
+ * Round 2 (2026-11-20): the reveal is ONE screen — no scrolling
+ * anywhere on it — so the plan photographs the hold as it lands
+ * (beam, risen item, full deck, and all three actions: Details /
+ * Open Another / Collect), then clicks the real Details button
+ * for the GearInspectSheet frame.
  *
  * Auth resolves through the harness stub (vite.shots.config.ts).
  * Nothing here is imported by the app bundle; chest-harness.html
@@ -34,12 +37,13 @@ usePlayerStore.setState({
 });
 useSkillStore.setState({ spent: {}, classModBoosts: { nodeBoosts: {} } });
 
-// Capture-plan seams: click the real open button; scroll the
-// reveal overlay (the fixed, scrollable layer ChestScreen mounts).
+// Capture-plan seams: click the real open button; click the held
+// reveal's real Details button (round 2). The round-1 scroll seam
+// is gone — the revised reveal has no scrollable layer.
 declare global {
   interface Window {
     __chestOpen?: () => boolean;
-    __scrollReveal?: (px: number) => number;
+    __chestDetails?: () => boolean;
   }
 }
 
@@ -52,13 +56,13 @@ window.__chestOpen = () => {
   return true;
 };
 
-window.__scrollReveal = (px: number) => {
-  const overlay = [...document.querySelectorAll('div')].find(
-    (d) => d.className.includes('overflow-y-auto') && d.className.includes('z-50'),
+window.__chestDetails = () => {
+  const button = [...document.querySelectorAll('button')].find(
+    (b) => (b.textContent ?? '').trim() === 'Details',
   );
-  if (!overlay) return -1;
-  overlay.scrollTo(0, px);
-  return overlay.scrollTop;
+  if (!button || (button as HTMLButtonElement).disabled) return false;
+  (button as HTMLButtonElement).click();
+  return true;
 };
 
 export const ChestHarnessPage: React.FC = () => (

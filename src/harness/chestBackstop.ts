@@ -6,9 +6,11 @@
 // and the open itself (POST /ops/make-item) with one fixed
 // Legendary grant — Emberfall, the named legendary the component
 // suites use, carrying its bespoke painting, the Glass Sun effect
-// banner, its hand-written flavor line, and two affix lines, so the
-// held reveal's deck is the full read. Every other /api/ call 503s
-// fast (the offline pattern from the store-shots round); the op's
+// banner, its hand-written flavor line, and (round 2, 2026-11-20)
+// the LARGEST deck shape the reveal can show: an activity module
+// strip plus four regular affix lines, so the one-screen fit proof
+// runs against the worst case. Every other /api/ call 503s fast
+// (the offline pattern from the store-shots round); the op's
 // fire-and-forget runtime snapshot save fails silently by design.
 import { DropSource, Element, Manufacturer, Rarity, WeaponType } from '@/types/game';
 import type { Weapon } from '@/types/items';
@@ -46,6 +48,16 @@ export const CAPTURE_LEGENDARY: Weapon = {
   affixes: [
     { id: 'af-1', category: 'combat', stat: 'critChance', value: 0.12, displayText: '+12% Crit Chance' },
     { id: 'af-2', category: 'boss', stat: 'bossDamageMod', value: 0.09, displayText: '+9% Boss Damage' },
+    { id: 'af-3', category: 'combat', stat: 'attackSpeed', value: 0.07, displayText: '+7% Attack Speed' },
+    { id: 'af-4', category: 'idle', stat: 'scrapYieldMod', value: 0.1, displayText: '+10% Scrap Yield' },
+    {
+      id: 'activity_salvaging_weapon',
+      category: 'activity',
+      stat: 'salvagingModule',
+      value: 0.97,
+      subStats: { salvageYield: 0.227, rareMaterialChance: 0.075, essenceExtraction: 0.097 },
+      displayText: 'Salvage Module [97%] · +22.7% Salvage Yield · +7.5% Rare Material · +9.7% Essence Yield',
+    },
   ],
   legendaryEffectId: 'glass_sun',
   sourceTag: DropSource.WorldDrop,
