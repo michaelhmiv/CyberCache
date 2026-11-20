@@ -133,12 +133,12 @@ respec — ranks are permanent.
 | Track | Bonus applies to | Per rank | Max ranks | Tokens to max |
 | --- | --- | --- | --- | --- |
 | **Greed** | Credits earned from roaming, bosses, and the Chamber | +1% | 10 | 30 |
-| **Fast Learner** | XP earned from every source | +1% | 10 | 30 |
+| **Fast Learner** | XP from every source there is | +1% | 10 | 30 |
 | **Salvage Hound** | Scrap earned from roaming and the Chamber | +1% | 10 | 30 |
 | **Heavy Hand** | Damage in roaming, boss fights, and the Chamber | +0.5% | 10 | 30 |
 | **Thick Skin** | Maximum hunter HP | +1% | 10 | 30 |
-| **Cache Optimizer** | Cache quality — Epic and Legendary cache draws weigh heavier | +2% | 10 | 30 |
-| **Silver Tongue** | Rebates the market fee on your sales, up to the full fee | +0.5% | 10 | 30 |
+| **Cache Optimizer** | Cache quality — Epic and Legendary cache draws land heavier | +2% | 10 | 30 |
+| **Silver Tongue** | Rebates the market fee on your sales — up to the whole fee back | +0.5% | 10 | 30 |
 <!-- /wiki-gen:cache-rank -->
 
 ---

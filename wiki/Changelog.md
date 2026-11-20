@@ -442,14 +442,40 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 338 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 358 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-18** — 4 merges
+**2026-11-20** — 2 merges
+
+- #636 — Cache reveal holds at settled until Collect
+- #638 — Add GitHub Releases workflow
+
+**2026-11-19** — 6 merges
+
+- #629 — Serve app-ads.txt at the root in app-only mode
+- #630 — Move iOS manual signing off the xcodebuild command line
+- #631 — Wire real AdMob iOS IDs into iOS CI builds
+- #632 — Decision log: iOS straight to production + personalized ads stay (2026-11-19 rulings)
+- #633 — Serialize iOS signing jobs (shared concurrency group) to stop the cert-revocation race
+- #635 — Fix dead cache-open "Watch Ad to Open" button (pending state + show settlement)
+
+**2026-11-18** — 16 merges
 
 - #613 — First-screen lifts (B2): the datum leads its surface — 8 small lifts from the audit census
 - #614 — First-screen Gear batch: jump chips, all-kind compare strip, windowed slot picker
 - #615 — R2 bars: prep action bars, chamber + extract rundown zones, run-state lift (item 40)
 - #616 — Item 40 R3: inspect sheet first screen — trade-first, effect in header, Market price/Buy bar, roaming-DPS percent fix
+- #617 — Extraction set repaint: painterly stakes, sift rig, and crates replace the neon-glass set
+- #618 — Dedupe bench duration formatters onto lib/workshop/durationFormat
+- #619 — Glow set v3 swap: nine set pieces repainted in their scenes (owner-adopted)
+- #620 — Icon skill tree: medallion board, sheet-only spend, V3 copy, 88 node icons
+- #621 — Rewarded ads: no raw SDK error ever reaches the player
+- #622 — demo_cons copy: the withheld concise rewrite lands with migration 0103
+- #623 — Restore the three compliance pages in app-only mode
+- #624 — iOS launch Track 2: iOS CI lanes (signed archive + simulator smoke) + TestFlight delivery
+- #625 — Add Play open testing release workflow (track beta, draft-first)
+- #626 — iOS platform scaffold: Capacitor iOS target, CI signing shape, AdMob config seam (Track 1)
+- #627 — Sign in with Apple beside Google on iOS (iOS launch Track 3)
+- #628 — iOS: Sign in with Apple entitlement for the App target (Track 3 follow-on)
 
 **2026-11-17** — 11 merges
 
