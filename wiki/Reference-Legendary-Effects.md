@@ -39,7 +39,7 @@ rather than inventing stats for it.
 <!-- wiki-gen:legendary-effects -->
 | Plate | Effect | What it does | Weapon type | Source | Min boss tier | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| <img src="images/weapons/legendary/debt-collector.png" alt="Debt Collector" width="240"> | **Debt Collector** | The boss owes you: each failed attempt vs. the same boss grants +3% win chance next time, stacking to a cap of +30%. | Pistol | Boss Drop | 1 | Fully live |
+| <img src="images/weapons/legendary/debt-collector.png" alt="Debt Collector" width="240"> | **Debt Collector** | Each failed attempt vs. the same boss grants +3% win chance next time, stacking to a cap of +30%. | Pistol | Boss Drop | 1 | Fully live |
 | <img src="images/weapons/legendary/warranty-void.png" alt="Warranty Void" width="240"> | **Warranty Void** | Each failed boss attempt permanently increases this weapon's base damage by +2%, up to +20%. The factory regrets everything. | SMG | Boss Drop | 1 | Fully live |
 | <img src="images/weapons/legendary/ricochet-gospel.png" alt="Ricochet Gospel" width="240"> | **Ricochet Gospel** | Crits bounce to an additional target. Against a single boss, the bounce returns 40% damage — spread the word. | Sniper | Boss Drop | 1 | Fully live |
 | <img src="images/weapons/legendary/bad-decision.png" alt="Bad Decision" width="240"> | **Bad Decision** | Win chance estimate is hidden, but victory reward multiplier is +25%. No peeking — just profit. | Shotgun | Boss Drop | 1 | Fully live |
