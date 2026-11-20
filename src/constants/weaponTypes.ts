@@ -26,7 +26,7 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
   [WeaponType.Pistol]: {
     id: WeaponType.Pistol,
     name: 'Pistol',
-    description: 'Balanced and flexible. Good general progression.',
+    description: 'Balanced, flexible, good for general progression. Never the wrong answer.',
     baseStats: {
       baseDamage: 80,
       attackSpeed: 1.2,
@@ -47,7 +47,7 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
   [WeaponType.SMG]: {
     id: WeaponType.SMG,
     name: 'SMG',
-    description: 'Fast attack speed and ramping damage. Good for status and long fights.',
+    description: 'Fast attack speed and ramping damage. Good for status and long fights that need a hose.',
     baseStats: {
       baseDamage: 45,
       attackSpeed: 2.0,
@@ -68,7 +68,7 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
   [WeaponType.Shotgun]: {
     id: WeaponType.Shotgun,
     name: 'Shotgun',
-    description: 'Burst and multi-hit. Good for wave clearing and close-range.',
+    description: 'Burst and multi-hit. Good for wave clearing and close-range arguments.',
     baseStats: {
       baseDamage: 140,
       attackSpeed: 0.7,
@@ -89,7 +89,7 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
   [WeaponType.Sniper]: {
     id: WeaponType.Sniper,
     name: 'Sniper',
-    description: 'High crit and precision. Good for boss killing.',
+    description: 'High crit and precision. Good for boss killing — one careful hole at a time.',
     baseStats: {
       baseDamage: 200,
       attackSpeed: 0.5,
@@ -110,7 +110,7 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
   [WeaponType.Launcher]: {
     id: WeaponType.Launcher,
     name: 'Launcher',
-    description: 'Slow but powerful. Good for explosive burst, armor break, stagger.',
+    description: 'Slow but powerful. Explosive burst, armor break, stagger — subtlety sold separately.',
     baseStats: {
       baseDamage: 300,
       attackSpeed: 0.35,
@@ -131,7 +131,7 @@ export const WEAPON_TYPES: Record<WeaponType, WeaponTypeDef> = {
   [WeaponType.Beam]: {
     id: WeaponType.Beam,
     name: 'Beam',
-    description: 'Elemental/status specialist. Good for shield/armor matchups and DoT.',
+    description: 'Elemental/status specialist. Good for shield/armor matchups and DoT — a very rude flashlight.',
     baseStats: {
       baseDamage: 60,
       attackSpeed: 1.5,

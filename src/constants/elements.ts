@@ -16,7 +16,7 @@ export const ELEMENTS: Record<Element, ElementDef> = {
     color: '#9CA3AF',
     strongAgainst: [],
     weakAgainst: [],
-    description: 'Neutral. No major strength or weakness. Reliable baseline.',
+    description: 'Neutral. No major strength or weakness. Reliable baseline, zero drama.',
   },
   [Element.Fire]: {
     id: Element.Fire,
@@ -24,7 +24,7 @@ export const ELEMENTS: Record<Element, ElementDef> = {
     color: '#EF4444',
     strongAgainst: ['flesh', 'organic'],
     weakAgainst: ['shield', 'fire-resistant'],
-    description: 'Strong against flesh/organic. Applies burn DoT. Weak against shield-heavy.',
+    description: 'Strong against flesh/organic, and it applies burn DoT. Shield-heavy targets shrug it off.',
   },
   [Element.Shock]: {
     id: Element.Shock,
@@ -32,7 +32,7 @@ export const ELEMENTS: Record<Element, ElementDef> = {
     color: '#3B82F6',
     strongAgainst: ['shield'],
     weakAgainst: ['armor', 'shock-resistant'],
-    description: 'Strong against shields. Helps shield break checks. Weak against heavy armor.',
+    description: 'Strong against shields; your best friend in shield break checks. Heavy armor laughs it off.',
   },
   [Element.Corrosive]: {
     id: Element.Corrosive,
@@ -40,7 +40,7 @@ export const ELEMENTS: Record<Element, ElementDef> = {
     color: '#22C55E',
     strongAgainst: ['armor', 'mechanical'],
     weakAgainst: ['flesh', 'shield'],
-    description: 'Strong against armor/mechanical. Helps armor break and anti-repair.',
+    description: 'Strong against armor/mechanical. Eats armor break checks and wrecks repair work.',
   },
   [Element.Cryo]: {
     id: Element.Cryo,
@@ -48,7 +48,7 @@ export const ELEMENTS: Record<Element, ElementDef> = {
     color: '#06B6D4',
     strongAgainst: ['fast', 'enrage'],
     weakAgainst: ['armor', 'cryo-resistant'],
-    description: 'Slows or staggers. Helps against fast bosses and enrage mechanics.',
+    description: 'Slows or staggers — a cold shower for fast bosses and enrage mechanics.',
   },
   [Element.Void]: {
     id: Element.Void,
@@ -56,7 +56,7 @@ export const ELEMENTS: Record<Element, ElementDef> = {
     color: '#8B5CF6',
     strongAgainst: ['elite', 'boss'],
     weakAgainst: ['consistent'],
-    description: 'High variance, curse, delayed burst. Powerful but less consistent.',
+    description: 'High variance, curse, delayed burst. Powerful but less consistent — it keeps its own schedule.',
   },
 };
 

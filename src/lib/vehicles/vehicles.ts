@@ -70,12 +70,12 @@ export interface VehicleClassDef {
 }
 
 export const VEHICLE_CLASSES: VehicleClassDef[] = [
-  { id: 'scrap_bike', displayName: 'Scrap Bike', unlockLevel: 1, baseYield: 1.15, fuelBurnPerTick: 0.9, conditionLossMultiplier: 1.1, materialYieldBonus: 0, role: 'Starter mobility.' },
-  { id: 'dune_buggy', displayName: 'Dune Buggy', unlockLevel: 8, baseYield: 1.35, fuelBurnPerTick: 1.1, conditionLossMultiplier: 1.0, materialYieldBonus: 0, role: 'General roaming travel.' },
-  { id: 'utility_rover', displayName: 'Utility Rover', unlockLevel: 18, baseYield: 1.25, fuelBurnPerTick: 0.7, conditionLossMultiplier: 0.7, materialYieldBonus: 0, role: 'Best fuel efficiency, slow wear — the long-haul farmer.' },
-  { id: 'cargo_hauler', displayName: 'Cargo Hauler', unlockLevel: 28, baseYield: 1.1, fuelBurnPerTick: 1.3, conditionLossMultiplier: 0.95, materialYieldBonus: 0.3, role: 'Material farming support: lower raw yield, bonus material quantity.' },
-  { id: 'armored_crawler', displayName: 'Armored Crawler', unlockLevel: 42, baseYield: 1.05, fuelBurnPerTick: 1.5, conditionLossMultiplier: 0.25, materialYieldBonus: 0, role: 'Dangerous-zone reliability: near-negligible wear.' },
-  { id: 'relay_skimmer', displayName: 'Relay Skimmer', unlockLevel: 60, baseYield: 1.6, fuelBurnPerTick: 2.0, conditionLossMultiplier: 1.25, materialYieldBonus: 0, role: 'Fastest yield, highest fuel burn, fragile.' },
+  { id: 'scrap_bike', displayName: 'Scrap Bike', unlockLevel: 1, baseYield: 1.15, fuelBurnPerTick: 0.9, conditionLossMultiplier: 1.1, materialYieldBonus: 0, role: 'Starter mobility. Wobbles with confidence.' },
+  { id: 'dune_buggy', displayName: 'Dune Buggy', unlockLevel: 8, baseYield: 1.35, fuelBurnPerTick: 1.1, conditionLossMultiplier: 1.0, materialYieldBonus: 0, role: 'General roaming travel. Maximum bounce included.' },
+  { id: 'utility_rover', displayName: 'Utility Rover', unlockLevel: 18, baseYield: 1.25, fuelBurnPerTick: 0.7, conditionLossMultiplier: 0.7, materialYieldBonus: 0, role: 'Best fuel efficiency, slow wear — the long-haul farmer\'s best friend.' },
+  { id: 'cargo_hauler', displayName: 'Cargo Hauler', unlockLevel: 28, baseYield: 1.1, fuelBurnPerTick: 1.3, conditionLossMultiplier: 0.95, materialYieldBonus: 0.3, role: 'Material farming support: lower raw yield, bonus material quantity — the pack mule.' },
+  { id: 'armored_crawler', displayName: 'Armored Crawler', unlockLevel: 42, baseYield: 1.05, fuelBurnPerTick: 1.5, conditionLossMultiplier: 0.25, materialYieldBonus: 0, role: 'Dangerous-zone reliability: wear is basically a rumor.' },
+  { id: 'relay_skimmer', displayName: 'Relay Skimmer', unlockLevel: 60, baseYield: 1.6, fuelBurnPerTick: 2.0, conditionLossMultiplier: 1.25, materialYieldBonus: 0, role: 'Fastest yield, highest fuel burn, fragile — speed has a price.' },
   // The Leviathan Rig (endgame vehicle brief, DECISIONS.md R11):
   // yield 1.50 — deliberately BELOW the Skimmer's 1.60. Its claim is
   // SUSTAINED yield: decay 0.50 (half the Skimmer's wear rate, double
@@ -83,7 +83,7 @@ export const VEHICLE_CLASSES: VehicleClassDef[] = [
   // ticks ties the Skimmer's 1.45 while burning ~20% less fuel, and
   // pulls ahead beyond the crossover. Material bonus 0.15 is exactly
   // half the Cargo Hauler's 0.30 — the Hauler keeps its identity.
-  { id: 'leviathan_rig', displayName: 'Leviathan Rig', unlockLevel: 75, baseYield: 1.5, fuelBurnPerTick: 1.6, conditionLossMultiplier: 0.5, materialYieldBonus: 0.15, role: 'Endgame flagship: near-Skimmer yield, Crawler-grade endurance, a working cargo rack.' },
+  { id: 'leviathan_rig', displayName: 'Leviathan Rig', unlockLevel: 75, baseYield: 1.5, fuelBurnPerTick: 1.6, conditionLossMultiplier: 0.5, materialYieldBonus: 0.15, role: 'Endgame flagship: near-Skimmer yield, Crawler-grade endurance, and a cargo rack that actually works.' },
 ];
 
 const CLASS_BY_ID = new Map(VEHICLE_CLASSES.map((c) => [c.id, c]));

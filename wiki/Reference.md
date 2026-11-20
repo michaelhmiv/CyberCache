@@ -50,12 +50,12 @@ Base stats below are the frame every roll starts from, before manufacturer bias,
 
 | Manufacturer | Founder | Slogan | Identity | Baked-in mechanic | Stat bias |
 | --- | --- | --- | --- | --- | --- |
-| **Redline** | Della Voss | It only gets faster. | Attack speed, ramping damage, sustained DPS | Attack speed +15% baked into every roll; its ramping damage is folded into base damage (+8%) | Attack Speed ×1.15, Base Damage ×0.95 |
-| **Ironwood** | Amos Thorne | Ironwood takes its time. Once. | Crits, precision, boss killing | High crit chance/damage; strong single-target modifiers (+20% crit damage vs bosses) | Crit Chance ×1.2, Crit Damage ×1.25, Base Damage ×1.05 |
-| **BlastForge** | Hollis Brandt | Subtlety was not in the budget. | Explosions, splash, stagger, armor cracking | Explosive damage helps armor break and boss phase checks (+25% armor damage) | Armor Damage ×1.25, Base Damage ×1.1, Attack Speed ×0.9 |
-| **Prismatek** | Iris Calloway | Every element, accounted for. | Elemental specialization | Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored | Status Chance ×1.3, Status Damage ×1.3, Base Damage ×0.95 |
-| **ThrowTech** | Tobin Larkin | Built to be left behind. | Deployables and disposable tech | Deployable-tech frames: +20% wave damage baked into every roll | Wave Damage ×1.2, Base Damage ×0.9 |
-| **HelixWorks** | Ada Kessler | No two alike. All of them calibrated. | Modular, flexible, better stat variance | Modular frames: +10 roll quality floor on every roll | Base Damage ×1 |
+| **Redline** | Della Voss | It only gets faster. And faster. | Attack speed, ramping damage, sustained DPS | Attack speed +15% baked into every roll; ramping damage folded into base damage (+8%). Slow was never an option. | Attack Speed ×1.15, Base Damage ×0.95 |
+| **Ironwood** | Amos Thorne | Ironwood takes its time. Once. | Crits, precision, boss killing | High crit chance/damage; strong single-target modifiers (+20% crit damage vs bosses). One shot is usually the argument. | Crit Chance ×1.2, Crit Damage ×1.25, Base Damage ×1.05 |
+| **BlastForge** | Hollis Brandt | Subtlety was not in the budget. | Explosions, splash, stagger, armor cracking | Explosive damage helps armor break and boss phase checks (+25% armor damage). Diplomacy, but louder. | Armor Damage ×1.25, Base Damage ×1.1, Attack Speed ×0.9 |
+| **Prismatek** | Iris Calloway | Every element, accounted for. Weaponized. | Elemental specialization | Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored. The periodic table, weaponized. | Status Chance ×1.3, Status Damage ×1.3, Base Damage ×0.95 |
+| **ThrowTech** | Tobin Larkin | Chuck it. Forget it. | Deployables and disposable tech | Deployable-tech frames: +20% wave damage baked into every roll. Deploy it, then wave goodbye. | Wave Damage ×1.2, Base Damage ×0.9 |
+| **HelixWorks** | Ada Kessler | No two alike. Somehow all calibrated. | Modular, flexible, better stat variance | Modular frames: +10 roll quality floor on every roll. No two alike — the floor is the promise. | Base Damage ×1 |
 
 ### Elements
 
@@ -63,12 +63,12 @@ A strong matchup deals ×1.3 damage; a weak one ×0.7 (from `getElementMatchup`,
 
 | Element | Strong against | Weak against | Notes |
 | --- | --- | --- | --- |
-| **Kinetic** | — | — | Neutral. No major strength or weakness. Reliable baseline. |
-| **Fire** | flesh, organic | shield, fire-resistant | Strong against flesh/organic. Applies burn DoT. Weak against shield-heavy. |
-| **Shock** | shield | armor, shock-resistant | Strong against shields. Helps shield break checks. Weak against heavy armor. |
-| **Corrosive** | armor, mechanical | flesh, shield | Strong against armor/mechanical. Helps armor break and anti-repair. |
-| **Cryo** | fast, enrage | armor, cryo-resistant | Slows or staggers. Helps against fast bosses and enrage mechanics. |
-| **Void** | elite, boss | consistent | High variance, curse, delayed burst. Powerful but less consistent. |
+| **Kinetic** | — | — | Neutral. No major strength or weakness. Reliable baseline, zero drama. |
+| **Fire** | flesh, organic | shield, fire-resistant | Strong against flesh/organic, and it applies burn DoT. Shield-heavy targets shrug it off. |
+| **Shock** | shield | armor, shock-resistant | Strong against shields; your best friend in shield break checks. Heavy armor laughs it off. |
+| **Corrosive** | armor, mechanical | flesh, shield | Strong against armor/mechanical. Eats armor break checks and wrecks repair work. |
+| **Cryo** | fast, enrage | armor, cryo-resistant | Slows or staggers — a cold shower for fast bosses and enrage mechanics. |
+| **Void** | elite, boss | consistent | High variance, curse, delayed burst. Powerful but less consistent — it keeps its own schedule. |
 
 ### Rarities
 
@@ -200,10 +200,10 @@ A shield's form IS its rolled behavior — the plate draws the device the behavi
 | Plate | Behavior | Form | What it does |
 | --- | --- | --- | --- |
 | <img src="images/gear/shield-standard.png" alt="Standard shield" width="240"> | **Standard** | balanced housing + top fins + hex emitter + side pods | No special behavior. |
-| <img src="images/gear/shield-nova.png" alt="Nova shield" width="240"> | **Nova** | shutter ring around a stepped core + vented back plate | When this shield breaks, it erupts in a burst of damage. |
-| <img src="images/gear/shield-absorb.png" alt="Absorb shield" width="240"> | **Absorb** | uneven shell plates around a seated core + side shell stacks | Chance to fully absorb a hit and restore shield. |
-| <img src="images/gear/shield-amp.png" alt="Amp shield" width="240"> | **Amp** | twin capacitor towers + coil console + bolt | Bonus damage while the shield is at full charge. |
-| <img src="images/gear/shield-turtle.png" alt="Turtle shield" width="240"> | **Turtle** | wide riveted bulwark slab + segmented emitter slit | Oversized capacity, slow recharge. |
+| <img src="images/gear/shield-nova.png" alt="Nova shield" width="240"> | **Nova** | shutter ring around a stepped core + vented back plate | When this shield breaks, it erupts in a parting burst of damage. |
+| <img src="images/gear/shield-absorb.png" alt="Absorb shield" width="240"> | **Absorb** | uneven shell plates around a seated core + side shell stacks | Chance to swallow a hit whole and restore shield. |
+| <img src="images/gear/shield-amp.png" alt="Amp shield" width="240"> | **Amp** | twin capacitor towers + coil console + bolt | Bonus damage while the shield is at full charge. No dents allowed. |
+| <img src="images/gear/shield-turtle.png" alt="Turtle shield" width="240"> | **Turtle** | wide riveted bulwark slab + segmented emitter slit | Huge capacity, recharge at a glacier's pace. |
 
 ### Ordnance
 
@@ -279,13 +279,13 @@ Baseline rates are the area design rates before gear, skills, vehicles, and the 
 
 | Plate | Class | Ladder tier | Yield | Fuel / tick | Wear rate | Material bonus | Role |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| <img src="images/vehicles/scrap-bike.png" alt="Scrap Bike" width="128"> | **Scrap Bike** | 1 | ×1.15 | 0.9 | ×1.1 | — | Starter mobility. |
-| <img src="images/vehicles/dune-buggy.png" alt="Dune Buggy" width="128"> | **Dune Buggy** | 8 | ×1.35 | 1.1 | ×1 | — | General roaming travel. |
-| <img src="images/vehicles/utility-rover.png" alt="Utility Rover" width="111"> | **Utility Rover** | 18 | ×1.25 | 0.7 | ×0.7 | — | Best fuel efficiency, slow wear — the long-haul farmer. |
-| <img src="images/vehicles/cargo-hauler.png" alt="Cargo Hauler" width="128"> | **Cargo Hauler** | 28 | ×1.1 | 1.3 | ×0.95 | +30% | Material farming support: lower raw yield, bonus material quantity. |
-| <img src="images/vehicles/armored-crawler.png" alt="Armored Crawler" width="128"> | **Armored Crawler** | 42 | ×1.05 | 1.5 | ×0.25 | — | Dangerous-zone reliability: near-negligible wear. |
-| <img src="images/vehicles/relay-skimmer.png" alt="Relay Skimmer" width="128"> | **Relay Skimmer** | 60 | ×1.6 | 2 | ×1.25 | — | Fastest yield, highest fuel burn, fragile. |
-| <img src="images/vehicles/leviathan-rig.png" alt="Leviathan Rig" width="128"> | **Leviathan Rig** | 75 | ×1.5 | 1.6 | ×0.5 | +15% | Endgame flagship: near-Skimmer yield, Crawler-grade endurance, a working cargo rack. |
+| <img src="images/vehicles/scrap-bike.png" alt="Scrap Bike" width="128"> | **Scrap Bike** | 1 | ×1.15 | 0.9 | ×1.1 | — | Starter mobility. Wobbles with confidence. |
+| <img src="images/vehicles/dune-buggy.png" alt="Dune Buggy" width="128"> | **Dune Buggy** | 8 | ×1.35 | 1.1 | ×1 | — | General roaming travel. Maximum bounce included. |
+| <img src="images/vehicles/utility-rover.png" alt="Utility Rover" width="111"> | **Utility Rover** | 18 | ×1.25 | 0.7 | ×0.7 | — | Best fuel efficiency, slow wear — the long-haul farmer's best friend. |
+| <img src="images/vehicles/cargo-hauler.png" alt="Cargo Hauler" width="128"> | **Cargo Hauler** | 28 | ×1.1 | 1.3 | ×0.95 | +30% | Material farming support: lower raw yield, bonus material quantity — the pack mule. |
+| <img src="images/vehicles/armored-crawler.png" alt="Armored Crawler" width="128"> | **Armored Crawler** | 42 | ×1.05 | 1.5 | ×0.25 | — | Dangerous-zone reliability: wear is basically a rumor. |
+| <img src="images/vehicles/relay-skimmer.png" alt="Relay Skimmer" width="128"> | **Relay Skimmer** | 60 | ×1.6 | 2 | ×1.25 | — | Fastest yield, highest fuel burn, fragile — speed has a price. |
+| <img src="images/vehicles/leviathan-rig.png" alt="Leviathan Rig" width="128"> | **Leviathan Rig** | 75 | ×1.5 | 1.6 | ×0.5 | +15% | Endgame flagship: near-Skimmer yield, Crawler-grade endurance, and a cargo rack that actually works. |
 
 The ladder tier is design data only (drop weighting, dispatch courier bands) — **no class has a level requirement**: vehicles are market goods, and if you can buy it, you can drive it.
 
