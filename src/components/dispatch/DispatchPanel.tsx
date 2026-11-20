@@ -307,7 +307,7 @@ export const DispatchPanel: React.FC = () => {
         <div className="text-[10px] leading-snug text-text-muted">
           Fuel is the shared vehicle tank, in units — one Generic Fuel Cell loads 100 units in the Garage. The vendor sells cells; the Workshop crafts them.
         </div>
-        {active.length === 0 && <div className="text-xs text-text-muted">No contracts out. Pick one from the board below.</div>}
+        {active.length === 0 && <div className="text-xs text-text-muted">Bay's empty — pick a contract from the board below.</div>}
         {active.map((m) => (
           <div key={m.id} className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
             <div className="text-xs text-text-primary">{missionLine(m)}<div className="text-[10px] text-text-muted">{remainingLabel(m.ends_at, nowMs)}</div></div>
@@ -362,7 +362,7 @@ export const DispatchPanel: React.FC = () => {
           </button>
         ))}
         {state.offers.length === 0 && (
-          <div className="text-xs text-text-muted">Every offer on this board has departed. Re-deal the board below for a fresh set of offers.</div>
+          <div className="text-xs text-text-muted">Board's cleaned out! Hit re-deal below to slap up a fresh batch of offers.</div>
         )}
         {/* Board re-deal (0068, economy brief §7.3): the price is the
             CURRENT escalating price and the count is today's
@@ -389,7 +389,7 @@ export const DispatchPanel: React.FC = () => {
             <div className="text-[11px] font-bold text-text-muted">Board re-deals reset at the day rollover</div>
           </div>
         )}
-        {slotsFull && <div className="text-[11px] font-bold text-amber">Bay is full — a contract must return (or be recalled) before another departs.</div>}
+        {slotsFull && <div className="text-[11px] font-bold text-amber">Bay's jammed—wait for a contract back (or yank one) before launching more.</div>}
 
         {offer && (
           <div className="space-y-2 border-t border-border/60 pt-2">
@@ -471,7 +471,7 @@ export const DispatchPanel: React.FC = () => {
             ) : (
               <>
                 <div className="text-[11px] font-bold text-text-muted">Assign a spare vehicle (the equipped ride stays with you):</div>
-                {vehicles.length === 0 && <div className="text-xs text-text-muted">No vehicles owned. Vehicles trade on the player Market.</div>}
+                {vehicles.length === 0 && <div className="text-xs text-text-muted">No vehicles owned — they trade on the player Market.</div>}
                 {vehicles.map((c) => {
                   const spare = c.runtimeState === 'available' && !c.equippedSlot;
                   const picked = pickedVehicle === c.id;
