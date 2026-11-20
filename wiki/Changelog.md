@@ -4,7 +4,7 @@ Per-release notes for CyberCache, newest first. Entries are written by hand in t
 
 ## 2026-11-20 — The cache reveal stays for a look
 
-- **The cache reveal stays for a look now** — a cache reveal used to end on its own clock: the risen item and its stat deck vanished a heartbeat after the deck's last line landed, too fast to read the roll. Now the reveal holds — the item and its full deck stay on stage until you tap **Collect** (or open another), and a tap during the animation skips you to that held reveal instead of past it. Collect settles the stage and presents the complete deck and its actions exactly as before. Boss and roaming reveals are unchanged.
+- **The cache reveal stays for a look now** — a cache reveal used to end on its own clock: the risen item and its stat deck vanished a heartbeat after the deck's last line landed, too fast to read the roll. Now the reveal holds — the item and its full deck stay on stage until you tap **Collect** (or open another), and a tap during the animation skips you to that held reveal instead of past it. The held reveal is a single screen with no scrolling: **Details**, **Open Another**, and **Collect** are all in view together, and Details opens the item's complete inspect sheet over the reveal — close it and the held reveal is right there as it was. Collect settles the stage and presents the complete deck and its actions exactly as before. Boss and roaming reveals are unchanged.
 
 ## 2026-11-19 — The ads file answers now
 

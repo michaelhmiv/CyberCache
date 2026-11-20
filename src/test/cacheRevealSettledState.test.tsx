@@ -52,6 +52,25 @@
  *     pin demanded; the deck's Collect then closes the reveal
  *     through the existing close flow.
  *
+ * ── PIN REVISED AGAIN, 2026-11-20 (owner ruling: one screen,
+ * no scrolling) ──
+ * The owner reviewed the hold's captures and superseded its
+ * scroll: reaching the actions took a scroll of the overlay, and
+ * he ruled the reveal is ONE screen — no scrolling on it, ever.
+ * The mechanism changed again; the demand did not. The overlay is
+ * now a non-scrolling single-viewport flex column: the stage is
+ * its flexing region (the h-dvh stage + scrolled page are gone),
+ * the action row's height is reserved from the first frame so the
+ * stage never resizes when the hold engages, and the held row
+ * presents THREE actions in the one viewport — Details, Open
+ * Another, Collect. Details opens the canonical GearInspectSheet
+ * for the revealed item over the reveal; closing it returns to
+ * the held reveal exactly as it was (the moment is never
+ * unmounted or released by the sheet). The pin's structural proxy
+ * moves with the layout: overlay overflow-hidden + flex column,
+ * stage flex-1 while held and h-[120px] only after Collect. The
+ * release layer (2) is untouched.
+ *
  * Unlike cacheRevealOnePage.test.tsx (which stubs the moment),
  * this harness plays the REAL LootMoment state machine to natural
  * completion on real timers.
@@ -225,15 +244,23 @@ describe('cache reveal — settled end state presents', () => {
     // actions present below the stage.
     const holdActions = await screen.findByTestId('cache-reveal-hold-actions', {}, { timeout: 10_000 });
 
-    // THE HOLD PRESENTS: the moment is still up at full stage
-    // height, its own deck carrying the item and its stats; the
-    // settled deck has NOT taken over yet.
+    // THE HOLD PRESENTS: the moment is still up on the stage, its
+    // own deck carrying the item and its stats; the settled deck
+    // has NOT taken over yet. ONE SCREEN (2026-11-20): the overlay
+    // is a non-scrolling single-viewport column and the stage is
+    // its flexing region — no h-dvh stage over a scrolled page.
     expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
     const stage = screen.getByTestId('cache-reveal-stage');
-    expect(stage.className).toContain('h-dvh');
+    const overlay = screen.getByTestId('cache-reveal-overlay');
+    expect(overlay.className).toContain('overflow-hidden');
+    expect(overlay.className).toContain('flex-col');
+    expect(overlay.className).not.toContain('overflow-y-auto');
+    expect(stage.className).toContain('flex-1');
+    expect(stage.className).not.toContain('h-[120px]');
     expect(screen.queryByTestId('cache-reveal-deck')).toBeNull();
     expect(screen.getByTestId('loot-card-hero').textContent).toContain('Cache Reaver');
     const holdQueries = within(holdActions);
+    expect(holdQueries.getByRole('button', { name: 'Details' })).toBeTruthy();
     expect(holdQueries.getByRole('button', { name: 'Collect' })).toBeTruthy();
     expect(holdQueries.getByRole('button', { name: 'Open Another' })).toBeTruthy();
 
@@ -241,7 +268,7 @@ describe('cache reveal — settled end state presents', () => {
     // everything is still presented exactly as it was.
     await new Promise((resolve) => setTimeout(resolve, 1_500));
     expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
-    expect(screen.getByTestId('cache-reveal-stage').className).toContain('h-dvh');
+    expect(screen.getByTestId('cache-reveal-stage').className).toContain('flex-1');
     expect(screen.queryByTestId('cache-reveal-deck')).toBeNull();
 
     // Collect releases the hold through the moment's ordinary done
@@ -254,7 +281,8 @@ describe('cache reveal — settled end state presents', () => {
     const deck = await screen.findByTestId('cache-reveal-deck', {}, { timeout: 10_000 });
     expect(screen.queryByTestId('cache-loot-moment')).toBeNull();
     expect(screen.queryByTestId('cache-reveal-hold-actions')).toBeNull();
-    expect(screen.getByTestId('cache-reveal-stage').className).not.toContain('h-dvh');
+    expect(screen.getByTestId('cache-reveal-stage').className).toContain('h-[120px]');
+    expect(screen.getByTestId('cache-reveal-stage').className).not.toContain('flex-1');
     expect(screen.getAllByText('CACHE DECRYPTED')).toHaveLength(1);
 
     const deckQueries = within(deck);
@@ -312,5 +340,43 @@ describe('cache reveal — settled end state presents', () => {
     const holdActions2 = await screen.findByTestId('cache-reveal-hold-actions', {}, { timeout: 10_000 });
     expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
     expect(within(holdActions2).getByRole('button', { name: 'Collect' })).toBeTruthy();
+  }, 30_000);
+
+  it('Details opens the inspect sheet over the held reveal, and closing it returns to the intact hold', async () => {
+    const weapon = makeWeapon('cache-w1', 'Cache Reaver');
+    mockOpen(weapon);
+
+    render(<ChestScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: 'OPEN WITH KEY (3)' }));
+
+    const holdActions = await screen.findByTestId('cache-reveal-hold-actions', {}, { timeout: 10_000 });
+    fireEvent.click(within(holdActions).getByRole('button', { name: 'Details' }));
+
+    // The canonical inspect sheet opens FOR THE REVEALED ITEM,
+    // over the reveal: its context label and its Stat Poster tape
+    // (the sheet's own furniture, not the moment deck's).
+    expect(await screen.findByText('Cache Reveal')).toBeTruthy();
+    expect(screen.getByText('Stat Poster')).toBeTruthy();
+    // The hold is untouched underneath: the moment is still
+    // mounted and held, its actions still presented, and the
+    // settled deck has NOT taken over.
+    expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
+    expect(screen.getByTestId('cache-reveal-hold-actions')).toBeTruthy();
+    expect(screen.queryByTestId('cache-reveal-deck')).toBeNull();
+
+    // Close through the sheet's own backdrop dismissal: the
+    // player is back on the held reveal exactly as it was.
+    const backdrop = screen.getByText('Cache Reveal').closest('.fixed');
+    expect(backdrop).toBeTruthy();
+    fireEvent.click(backdrop as Element);
+    await waitFor(() => expect(screen.queryByText('Cache Reveal')).toBeNull());
+    expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
+    expect(screen.getByTestId('cache-reveal-stage').className).toContain('flex-1');
+    expect(screen.queryByTestId('cache-reveal-deck')).toBeNull();
+
+    // Collect still releases the hold after a Details round-trip.
+    const holdActions2 = screen.getByTestId('cache-reveal-hold-actions');
+    fireEvent.click(within(holdActions2).getByRole('button', { name: 'Collect' }));
+    expect(await screen.findByTestId('cache-reveal-deck', {}, { timeout: 10_000 })).toBeTruthy();
   }, 30_000);
 });
