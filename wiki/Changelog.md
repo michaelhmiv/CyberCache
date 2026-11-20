@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-20 — The cache reveal stays for a look
+
+- **The cache reveal stays for a look now** — a cache reveal used to end on its own clock: the risen item and its stat deck vanished a heartbeat after the deck's last line landed, too fast to read the roll. Now the reveal holds — the item and its full deck stay on stage until you tap **Collect** (or open another), and a tap during the animation skips you to that held reveal instead of past it. Collect settles the stage and presents the complete deck and its actions exactly as before. Boss and roaming reveals are unchanged.
+
 ## 2026-11-19 — The ads file answers now
 
 - **The ads file answers now** — the ad network's store link landed, but its check of the developer site came back empty: the app-ads.txt file the network needs at the site's root was missing, so the app stayed limited. The file is there now, carrying the one line the network was given, and it answers even with the game page retired — the service is still app-only, and nothing else about the web surface changed.

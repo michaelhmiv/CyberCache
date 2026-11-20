@@ -24,11 +24,39 @@
  * stage must yield its full-viewport height so the deck flows
  * into the first screen under the header.)
  *
+ * ── PIN REVISED, 2026-11-19 (owner ruling: hold at settled) ──
+ * The owner then hit the opposite edge on device: the moment's
+ * Sample B durations leave the in-moment deck's last lines
+ * readable for only ~120–250 ms before unmount, so the reveal
+ * "left too quickly to read the stats". The ruling: the cache
+ * reveal now HOLDS at its settled state — when the ladder reaches
+ * the completed stack, the moment parks there (risen item + full
+ * in-moment deck stay on the full-height stage), the Collect /
+ * Open Another row presents below the stage, and only Collect
+ * releases the moment into the settled flow above.
+ *
+ * The pin therefore changed its MECHANISM, not its demand. The
+ * 2026-11-12 demand stands verbatim: the item, its stats, and its
+ * actions must be PRESENTED — never vanished, never stranded.
+ * It is now pinned at both layers:
+ *  1. THE HOLD: at natural completion the moment does NOT unmount
+ *     and the stage does NOT collapse — the item + its full
+ *     in-moment deck are presented in the stage itself, with the
+ *     Collect / Open Another actions presented below it. The hold
+ *     does not expire on the skip linger (or any timer).
+ *  2. THE RELEASE: Collect ends the hold through the moment's
+ *     ordinary done path — the stage yields its full-viewport
+ *     height and the settled deck (full stat deck + Equip / Lock /
+ *     Salvage + Open Another / Collect) presents in the first
+ *     viewport under CACHE DECRYPTED, exactly as the 2026-11-12
+ *     pin demanded; the deck's Collect then closes the reveal
+ *     through the existing close flow.
+ *
  * Unlike cacheRevealOnePage.test.tsx (which stubs the moment),
  * this harness plays the REAL LootMoment state machine to natural
  * completion on real timers.
  */
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => ({
@@ -159,6 +187,14 @@ function seedStores() {
   };
 }
 
+function mockOpen(weapon: Weapon) {
+  mockMakeItem.mockResolvedValue({
+    item: { id: weapon.id, is_locked: false, payload: { ...weapon } },
+    cache_lane: { keys: 2, rule: '' },
+    profile: { cache_tokens: 3 },
+  } as never);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -170,39 +206,57 @@ afterEach(() => {
 });
 
 describe('cache reveal — settled end state presents', () => {
-  it('after the real moment completes, the item + full stats + actions are presented in the first viewport (stage yields its full-viewport height)', async () => {
+  it('the reveal HOLDS at its settled state (item + deck + actions presented, no timer expiry), and Collect releases it into the settled deck presentation', async () => {
     const weapon = makeWeapon('cache-w1', 'Cache Reaver');
-    mockMakeItem.mockResolvedValue({
-      item: { id: weapon.id, is_locked: false, payload: { ...weapon } },
-      cache_lane: { keys: 2, rule: '' },
-      profile: { cache_tokens: 3 },
-    } as never);
+    mockOpen(weapon);
 
     render(<ChestScreen />);
     fireEvent.click(await screen.findByRole('button', { name: 'OPEN WITH KEY (3)' }));
 
-    // The real moment is playing on the stage; no settled deck yet.
+    // The real moment is playing on the stage; nothing settled yet.
     expect(await screen.findByTestId('cache-loot-moment')).toBeTruthy();
     expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
     expect(screen.queryByTestId('cache-reveal-deck')).toBeNull();
+    expect(screen.queryByTestId('cache-reveal-hold-actions')).toBeNull();
 
     // Natural completion: the Rare step's timer (Sample B, 1100 ms)
-    // ends the moment. The moment unmounts (its 'done' contract) —
-    // what must NOT happen is the player being left on an empty
-    // full-viewport stage.
+    // ends the ANIMATION — and the moment now PARKS on its completed
+    // stack instead of unmounting (the 2026-11-19 hold). The hold
+    // actions present below the stage.
+    const holdActions = await screen.findByTestId('cache-reveal-hold-actions', {}, { timeout: 10_000 });
+
+    // THE HOLD PRESENTS: the moment is still up at full stage
+    // height, its own deck carrying the item and its stats; the
+    // settled deck has NOT taken over yet.
+    expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
+    const stage = screen.getByTestId('cache-reveal-stage');
+    expect(stage.className).toContain('h-dvh');
+    expect(screen.queryByTestId('cache-reveal-deck')).toBeNull();
+    expect(screen.getByTestId('loot-card-hero').textContent).toContain('Cache Reaver');
+    const holdQueries = within(holdActions);
+    expect(holdQueries.getByRole('button', { name: 'Collect' })).toBeTruthy();
+    expect(holdQueries.getByRole('button', { name: 'Open Another' })).toBeTruthy();
+
+    // The hold does not expire: well past the 650 ms skip linger,
+    // everything is still presented exactly as it was.
+    await new Promise((resolve) => setTimeout(resolve, 1_500));
+    expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
+    expect(screen.getByTestId('cache-reveal-stage').className).toContain('h-dvh');
+    expect(screen.queryByTestId('cache-reveal-deck')).toBeNull();
+
+    // Collect releases the hold through the moment's ordinary done
+    // path — the settled presentation the 2026-11-12 pin demands:
+    // the moment unmounts, the stage yields its full-viewport
+    // height, and the deck presents in the first viewport under
+    // CACHE DECRYPTED with the item, its full stats, and its
+    // actions.
+    fireEvent.click(holdQueries.getByRole('button', { name: 'Collect' }));
     const deck = await screen.findByTestId('cache-reveal-deck', {}, { timeout: 10_000 });
     expect(screen.queryByTestId('cache-loot-moment')).toBeNull();
-
-    // THE SETTLED PRESENTATION: the stage yields its full-viewport
-    // height once the moment is done, so the deck sits in the first
-    // viewport under the CACHE DECRYPTED header — not stranded a
-    // full screen below the fold.
-    const stage = screen.getByTestId('cache-reveal-stage');
-    expect(stage.className).not.toContain('h-dvh');
+    expect(screen.queryByTestId('cache-reveal-hold-actions')).toBeNull();
+    expect(screen.getByTestId('cache-reveal-stage').className).not.toContain('h-dvh');
     expect(screen.getAllByText('CACHE DECRYPTED')).toHaveLength(1);
 
-    // The settled deck carries the actual revealed item, its full
-    // stat deck, and the player's actions.
     const deckQueries = within(deck);
     expect(deckQueries.getByText('Cache Reaver')).toBeTruthy();
     expect(deckQueries.getByText('DPS (vs standard)')).toBeTruthy();
@@ -212,5 +266,51 @@ describe('cache reveal — settled end state presents', () => {
     expect(deckQueries.getByRole('button', { name: /Salvage/ })).toBeTruthy();
     expect(deckQueries.getByRole('button', { name: 'Open Another' })).toBeTruthy();
     expect(deckQueries.getByRole('button', { name: 'Collect' })).toBeTruthy();
+
+    // The deck's Collect runs the existing close flow: the whole
+    // reveal page closes (the overlay's exit animation gets its
+    // beat — same waitFor pattern as the one-page suite).
+    fireEvent.click(deckQueries.getByRole('button', { name: 'Collect' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('cache-reveal-stage')).toBeNull();
+      expect(screen.queryByTestId('cache-reveal-deck')).toBeNull();
+    });
+    expect(await screen.findByRole('button', { name: 'OPEN WITH KEY (3)' })).toBeTruthy();
+  }, 30_000);
+
+  it('Open Another from the hold chains a fresh open, which holds again', async () => {
+    const first = makeWeapon('cache-w1', 'Cache Reaver');
+    const second = makeWeapon('cache-w2', 'Second Saint', { rarity: Rarity.Epic });
+    mockMakeItem
+      .mockResolvedValueOnce({
+        item: { id: first.id, is_locked: false, payload: { ...first } },
+        cache_lane: { keys: 2, rule: '' },
+        profile: { cache_tokens: 3 },
+      } as never)
+      .mockResolvedValue({
+        item: { id: second.id, is_locked: false, payload: { ...second } },
+        cache_lane: { keys: 1, rule: '' },
+        profile: { cache_tokens: 3 },
+      } as never);
+
+    render(<ChestScreen />);
+    fireEvent.click(await screen.findByRole('button', { name: 'OPEN WITH KEY (3)' }));
+
+    const holdActions = await screen.findByTestId('cache-reveal-hold-actions', {}, { timeout: 10_000 });
+    expect(mockMakeItem).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('loot-card-hero').textContent).toContain('Cache Reaver');
+
+    fireEvent.click(within(holdActions).getByRole('button', { name: 'Open Another' }));
+
+    // A fresh open runs (second makeItem call) and its moment
+    // mounts and holds in turn, presenting the new item.
+    await waitFor(() => expect(mockMakeItem).toHaveBeenCalledTimes(2));
+    await waitFor(
+      () => expect(screen.getByTestId('loot-card-hero').textContent).toContain('Second Saint'),
+      { timeout: 10_000 },
+    );
+    const holdActions2 = await screen.findByTestId('cache-reveal-hold-actions', {}, { timeout: 10_000 });
+    expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
+    expect(within(holdActions2).getByRole('button', { name: 'Collect' })).toBeTruthy();
   }, 30_000);
 });

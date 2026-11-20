@@ -157,6 +157,14 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   // The item was already granted by the server op before `revealed`
   // was set.
   const [momentDone, setMomentDone] = useState(false);
+  // Hold-at-settled (owner ruling, 2026-11-19): the cache moment
+  // PARKS on its completed stack — risen item + full deck stay on
+  // the full-height stage — until the player collects. `momentHeld`
+  // is reported by the moment (onSettled); `holdReleased` is the
+  // Collect signal that withdraws the hold and lets the moment end
+  // through its ordinary done path (stage settles, deck presents).
+  const [momentHeld, setMomentHeld] = useState(false);
+  const [holdReleased, setHoldReleased] = useState(false);
   const reducedMotion = !!useReducedMotion();
   const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked' | 'equipped'>>({});
   // Audit UX-01: the reveal equip's undo window (SwapUndoToast state).
@@ -205,6 +213,8 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     setItemActions({});
     setEquipUndo(null);
     setMomentDone(false);
+    setMomentHeld(false);
+    setHoldReleased(false);
     try {
       const result = await verifiedOps.makeItem({ payment, adUnitId });
       applyLaneFromResult(result);
@@ -261,6 +271,8 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     setItemActions({});
     setEquipUndo(null);
     setMomentDone(false);
+    setMomentHeld(false);
+    setHoldReleased(false);
   };
 
   // Reveal actions surface failures in the screen's error banner
@@ -487,7 +499,15 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 off-screen with no scroll cue. Once the moment is
                 done, the stage therefore yields its height and
                 settles to the header band, so the deck presents in
-                the first viewport directly under CACHE DECRYPTED. */}
+                the first viewport directly under CACHE DECRYPTED.
+                HOLD (owner ruling, 2026-11-19): the moment no longer
+                reaches 'done' on its own — it parks on its completed
+                stack at full stage height (the deck's last lines had
+                only ~120–250 ms of readability before unmount), the
+                Collect / Open Another row presents below the stage,
+                and Collect releases the hold into the exact settled
+                flow above. The deck is never stranded: while held,
+                the item + its full deck are the stage itself. */}
             <div
               data-testid="cache-reveal-stage"
               className={`relative w-full overflow-hidden ${reducedMotion ? '' : 'transition-[height] duration-500 ease-out'} ${momentDone ? 'h-[120px]' : 'h-dvh'}`}
@@ -510,7 +530,13 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 />
                 <div className="relative text-xl font-black text-amber">CACHE DECRYPTED</div>
               </div>
+              {/* Keyed by the revealed grant: a chained Open
+                  Another can land before this overlay's exit
+                  finishes, and AnimatePresence would otherwise
+                  reuse the subtree — the moment must start a fresh
+                  playback state machine for every open. */}
               <LootMoment
+                key={revealed.map((item) => item.id).join('|')}
                 items={revealed}
                 surface="stage"
                 reduced={reducedMotion}
@@ -519,9 +545,36 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 propCache
                 headerBandPx={{ top: 24, bottom: 72 }}
                 onDone={() => setMomentDone(true)}
+                holdSettled={!holdReleased}
+                onSettled={() => setMomentHeld(true)}
                 testId="cache-loot-moment"
               />
             </div>
+            {momentHeld && !momentDone && (
+              <div data-testid="cache-reveal-hold-actions" className="relative z-10 mx-auto w-full max-w-[480px] px-4 pb-10 pt-2">
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  {canOpenAnother && (
+                    <button
+                      onClick={() => {
+                        setRevealed(null);
+                        setItemActions({});
+                        setEquipUndo(null);
+                        handleOpenKey();
+                      }}
+                      className="px-5 py-2 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm active:scale-95 transition-transform"
+                    >
+                      Open Another
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setHoldReleased(true)}
+                    className="px-6 py-2 rounded-xl bg-amber text-bg font-bold text-sm active:scale-95 transition-transform"
+                  >
+                    Collect
+                  </button>
+                </div>
+              </div>
+            )}
             {momentDone && (
               <div data-testid="cache-reveal-deck" className="relative z-10 mx-auto w-full max-w-[480px] px-4 pb-10 pt-2">
                 <div className="space-y-3">
