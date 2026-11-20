@@ -375,25 +375,23 @@ async function caseTabBudget(browser) {
 
 // ── Case: decrypt completion (blueprint assertion 3) ─────────────
 // Poll a reveal that has been triggered (by OPEN WITH KEY or by the
-// deck's own Open Another) and assert its timing. Returns true when
-// the settled deck appeared.
+// deck's own Open Another) and assert its timing. Since the
+// hold-at-settled ruling (owner, 2026-11-20) the reveal does not
+// hand off to the deck on its own: it parks at settled — item,
+// deck lines, and the Collect / Open Another row presented —
+// until the player collects. The timing assertion therefore lands
+// on the HOLD presenting within the Sample B budget; the deck
+// itself follows Collect (settleDeck's path). Returns true when
+// the reveal held.
 async function observeReveal(page, c, label, t0) {
   let momentAt = null;
-  let deckAt = null;
+  let holdAt = null;
   let rarity = null;
-  // For chained opens the caller passes the fingerprint of the
-  // deck being left (c.lastDeckFp via settleDeck): a deck element
-  // still showing THAT content is the previous reveal, not this
-  // one — it only counts when its content changes (or a fresh
-  // moment has played).
-  const staleFp = c?.lastDeckFp ? String(c.lastDeckFp).replace(/\s+/g, ' ').slice(0, 60) : null;
   while (Date.now() - t0 < 20000) {
     const s = await page.evaluate(() => {
-      const deck = document.querySelector('[data-testid="cache-reveal-deck"]');
       return {
         moment: !!document.querySelector('[data-testid="cache-loot-moment"]'),
-        deck: !!deck,
-        deckFp: deck ? (deck.innerText ?? '').replace(/\s+/g, ' ').slice(0, 60) : null,
+        hold: !!document.querySelector('[data-testid="cache-reveal-hold-actions"]'),
         rarity:
           document.querySelector('[data-testid="cache-loot-moment"]')?.querySelector('[data-rarity]')?.getAttribute('data-rarity') ??
           null,
@@ -402,8 +400,8 @@ async function observeReveal(page, c, label, t0) {
     });
     if (s.moment && momentAt === null) momentAt = Date.now() - t0;
     if (s.rarity) rarity = s.rarity;
-    if (s.deck && (!staleFp || s.deckFp !== staleFp || momentAt !== null)) {
-      deckAt = Date.now() - t0;
+    if (s.hold) {
+      holdAt = Date.now() - t0;
       break;
     }
     await sleep(200);
@@ -411,11 +409,11 @@ async function observeReveal(page, c, label, t0) {
   const sampleB = BUDGET.sampleB[rarity ?? 'Legendary'] ?? BUDGET.sampleB.Legendary;
   c.check(`${label}: reveal moment plays`, momentAt !== null, `momentAt=${momentAt}ms rarity=${rarity}`);
   c.check(
-    `${label}: deck within Sample B (${sampleB}ms) + ${BUDGET.decryptSlackMs}ms slack of the moment`,
-    deckAt !== null && momentAt !== null && deckAt - momentAt <= sampleB + BUDGET.decryptSlackMs,
-    `deckAt=${deckAt}ms momentAt=${momentAt}ms`,
+    `${label}: hold within Sample B (${sampleB}ms) + ${BUDGET.decryptSlackMs}ms slack of the moment`,
+    holdAt !== null && momentAt !== null && holdAt - momentAt <= sampleB + BUDGET.decryptSlackMs,
+    `holdAt=${holdAt}ms momentAt=${momentAt}ms`,
   );
-  return deckAt !== null;
+  return holdAt !== null;
 }
 
 // Leave the settled deck. "Collect" is the primary path: it
@@ -432,6 +430,22 @@ async function observeReveal(page, c, label, t0) {
 // the per-open timing assertions this case exists for are
 // unaffected by which clean entry each open starts from.
 async function settleDeck(page, c) {
+  // Hold-at-settled (owner ruling, 2026-11-20): the reveal parks
+  // on its own Collect / Open Another row and the deck presents
+  // only after that Collect. Release the hold first when it is up,
+  // then the deck's own Collect below finishes the reveal.
+  const hold = page.locator('[data-testid="cache-reveal-hold-actions"]').first();
+  if (await hold.isVisible().catch(() => false)) {
+    const holdCollect = hold.getByRole('button', { name: /^Collect$/ });
+    await holdCollect
+      .click({ timeout: 3500 })
+      .catch(() => holdCollect.click({ timeout: 8000, force: true }).catch(() => {}));
+    await page
+      .locator('[data-testid="cache-reveal-deck"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .catch(() => {});
+  }
   const collect = page.getByRole('button', { name: /^Collect$/ }).first();
   if (await collect.isVisible().catch(() => false)) {
     await collect
@@ -551,7 +565,6 @@ async function caseDecrypt(browser) {
           // comment): reload and re-enter the cache screen so the
           // next open starts from the state open 1 proved, with
           // the key balance re-read from the server.
-          c.lastDeckFp = null;
           await page.reload({ waitUntil: 'domcontentloaded' });
           await page.waitForFunction((m) => eval(m), MARKERS.HOME, { timeout: 30000 });
           await enterCacheScreen(page);
@@ -563,7 +576,7 @@ async function caseDecrypt(browser) {
     }
   }
   // Variant 2 — sabotage: the display-only snapshot write stalls
-  // forever. Post-#512 that save is fire-and-forget, so the deck
+  // forever. Post-#512 that save is fire-and-forget, so the hold
   // must land on the same budget. (The pre-fix build hangs the
   // DECRYPTING overlay indefinitely here — this variant is the
   // regression tripwire for the owner's defect 3.)

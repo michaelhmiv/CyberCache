@@ -519,16 +519,24 @@ export function lootMomentMode(items: readonly GearItem[], surface: LootSurface)
 export interface LootMomentState {
   stepIndex: number;
   /** playing → advancing through the ladder; settled → skipped to the
-   *  completed stack; done → hand control back to the host. */
+   *  completed stack (or held there, see `held`); done → hand control
+   *  back to the host. */
   status: 'playing' | 'settled' | 'done';
   skipped: boolean;
+  /** Hold-at-settled (owner ruling, 2026-11-19): a host that opts in
+   *  (the cache reveal) parks the moment on its completed stack —
+   *  risen item + full deck stay presented — instead of ending on the
+   *  skip linger or the final step's timer. A held moment ends only
+   *  when the host releases the hold (its own Collect), which reaches
+   *  the reducer as an ordinary settleDone. */
+  held: boolean;
 }
 
-export const initialLootMomentState: LootMomentState = { stepIndex: 0, status: 'playing', skipped: false };
+export const initialLootMomentState: LootMomentState = { stepIndex: 0, status: 'playing', skipped: false, held: false };
 
 export type LootMomentAction =
-  | { type: 'advance'; stepCount: number }
-  | { type: 'tap'; seenBefore: boolean }
+  | { type: 'advance'; stepCount: number; holdSettled?: boolean }
+  | { type: 'tap'; seenBefore: boolean; holdSettled?: boolean }
   | { type: 'settleDone' };
 
 /**
@@ -539,17 +547,25 @@ export type LootMomentAction =
  * skip linger. Skipping only ever changes presentation state — the
  * drops themselves were awarded before the moment started and nothing
  * here can lose one.
+ *
+ * Hold variant (cache reveal only, owner ruling 2026-11-19): with
+ * holdSettled armed, reaching the completed stack — by the final
+ * step's timer OR by a tap — parks there (held) instead of ending.
+ * A tap in a held moment can therefore never skip PAST the item; it
+ * only skips the remaining animation TO it.
  */
 export function lootMomentReducer(state: LootMomentState, action: LootMomentAction): LootMomentState {
   switch (action.type) {
     case 'advance': {
       if (state.status !== 'playing') return state;
-      if (state.stepIndex + 1 >= action.stepCount) return { ...state, status: 'done' };
+      if (state.stepIndex + 1 >= action.stepCount) {
+        return action.holdSettled ? { ...state, status: 'settled', held: true } : { ...state, status: 'done' };
+      }
       return { ...state, stepIndex: state.stepIndex + 1 };
     }
     case 'tap': {
       if (state.status !== 'playing' || !action.seenBefore) return state;
-      return { ...state, status: 'settled', skipped: true };
+      return { ...state, status: 'settled', skipped: true, held: action.holdSettled === true };
     }
     case 'settleDone': {
       return state.status === 'settled' ? { ...state, status: 'done' } : state;

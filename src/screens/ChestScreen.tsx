@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Info, Lock, Play, Unlock } from 'lucide-react';
@@ -15,6 +15,7 @@ import { serverItemRowToDisplayGear, type ServerItemRow } from '@/lib/api/server
 import { GearItem, Weapon, Shield, ClassMod, Relic, Ordnance } from '@/types/items';
 import { ItemStatDeck } from '@/components/gear/itemStatDeck';
 import { GearIllustration } from '@/components/gearArt/GearIllustration';
+import { GearInspectSheet } from '@/components/gear/GearInspectSheet';
 import { LootMoment } from '@/components/pixelArt/LootMoment';
 import { getPixelSprite, pixelBackgroundForArea } from '@/lib/pixel/manifest';
 
@@ -157,7 +158,44 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   // The item was already granted by the server op before `revealed`
   // was set.
   const [momentDone, setMomentDone] = useState(false);
+  // Hold-at-settled (owner ruling, 2026-11-19): the cache moment
+  // PARKS on its completed stack — risen item + full deck stay on
+  // the full-height stage — until the player collects. `momentHeld`
+  // is reported by the moment (onSettled); `holdReleased` is the
+  // Collect signal that withdraws the hold and lets the moment end
+  // through its ordinary done path (stage settles, deck presents).
+  const [momentHeld, setMomentHeld] = useState(false);
+  const [holdReleased, setHoldReleased] = useState(false);
+  // Details (owner ruling, 2026-11-20): the held reveal's third
+  // action opens the canonical inspect sheet over the reveal;
+  // closing it returns to the held reveal exactly as it was.
+  const [inspectOpen, setInspectOpen] = useState(false);
   const reducedMotion = !!useReducedMotion();
+  // One-screen fit (owner ruling, 2026-11-20): the held reveal is
+  // a single non-scrolling viewport — stage, deck, and the action
+  // row all in frame down to small phones. The moment composes its
+  // stack above the ground line (groundYPct), so on a short stage
+  // the ground line lowers until the largest stack fits. The
+  // budget is that stack, top to bottom: the CACHE DECRYPTED
+  // header's clearance (~66), the risen weapon plate (~125), the
+  // deck gap (~6), the full Legendary deck with its effect banner,
+  // module strip, and every affix line (~370), and the ground
+  // spacer (~10) — 580 in all. The stage height is measured, never
+  // assumed; on tall stages the shipped 74% composition stands.
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [stageH, setStageH] = useState(0);
+  useLayoutEffect(() => {
+    const el = stageRef.current;
+    if (!el) return undefined;
+    const measure = () => setStageH(el.clientHeight);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [revealed]);
+  const revealGroundYPct =
+    stageH > 0 ? Math.min(100, Math.max(74, Math.ceil((580 / stageH) * 100))) : 74;
   const [itemActions, setItemActions] = useState<Record<string, 'none' | 'scrapped' | 'locked' | 'unlocked' | 'equipped'>>({});
   // Audit UX-01: the reveal equip's undo window (SwapUndoToast state).
   const [equipUndo, setEquipUndo] = useState<{ itemId: string; itemName: string; slot: LoadoutSlot; previousId: string | null } | null>(null);
@@ -205,6 +243,9 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     setItemActions({});
     setEquipUndo(null);
     setMomentDone(false);
+    setMomentHeld(false);
+    setHoldReleased(false);
+    setInspectOpen(false);
     try {
       const result = await verifiedOps.makeItem({ payment, adUnitId });
       applyLaneFromResult(result);
@@ -261,6 +302,9 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     setItemActions({});
     setEquipUndo(null);
     setMomentDone(false);
+    setMomentHeld(false);
+    setHoldReleased(false);
+    setInspectOpen(false);
   };
 
   // Reveal actions surface failures in the screen's error banner
@@ -469,7 +513,8 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 overflow-y-auto bg-black/90"
+            data-testid="cache-reveal-overlay"
+            className="fixed inset-0 z-50 flex h-dvh flex-col overflow-hidden bg-black/90"
           >
             {/* ONE reveal page (owner, 2026-11-04): the loot moment
                 plays on the stage at the top — its composition,
@@ -487,10 +532,32 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 off-screen with no scroll cue. Once the moment is
                 done, the stage therefore yields its height and
                 settles to the header band, so the deck presents in
-                the first viewport directly under CACHE DECRYPTED. */}
+                the first viewport directly under CACHE DECRYPTED.
+                HOLD (owner ruling, 2026-11-19): the moment no longer
+                reaches 'done' on its own — it parks on its completed
+                stack at full stage height (the deck's last lines had
+                only ~120–250 ms of readability before unmount), the
+                Collect / Open Another row presents below the stage,
+                and Collect releases the hold into the exact settled
+                flow above. The deck is never stranded: while held,
+                the item + its full deck are the stage itself.
+                ONE SCREEN (owner ruling, 2026-11-20, revising the
+                hold's scroll): the reveal itself never scrolls. The
+                overlay is a single-viewport flex column — the stage
+                flexes, the action row's height is reserved from the
+                first frame (so the stage never resizes when the
+                hold engages), and the held row carries THREE
+                actions in frame: Details (the canonical inspect
+                sheet for the revealed item, opened over the reveal
+                and closed back into it), Open Another, and Collect.
+                On short stages the moment's ground line lowers
+                (revealGroundYPct) so beam, item, deck, and buttons
+                all fit. Only the post-Collect deck region scrolls,
+                exactly as it did when the whole overlay scrolled. */}
             <div
+              ref={stageRef}
               data-testid="cache-reveal-stage"
-              className={`relative w-full overflow-hidden ${reducedMotion ? '' : 'transition-[height] duration-500 ease-out'} ${momentDone ? 'h-[120px]' : 'h-dvh'}`}
+              className={`relative w-full overflow-hidden ${reducedMotion ? '' : 'transition-[height] duration-500 ease-out'} ${momentDone ? 'h-[120px] shrink-0' : 'min-h-0 flex-1'}`}
             >
               {/* P3 loot moment over the pixel zone backdrop — the
                   cache's actual drop, celebrated before the cards. */}
@@ -510,20 +577,65 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 />
                 <div className="relative text-xl font-black text-amber">CACHE DECRYPTED</div>
               </div>
+              {/* Keyed by the revealed grant: a chained Open
+                  Another can land before this overlay's exit
+                  finishes, and AnimatePresence would otherwise
+                  reuse the subtree — the moment must start a fresh
+                  playback state machine for every open. */}
               <LootMoment
+                key={revealed.map((item) => item.id).join('|')}
                 items={revealed}
                 surface="stage"
                 reduced={reducedMotion}
                 anchorXPct={50}
-                groundYPct={74}
+                groundYPct={revealGroundYPct}
                 propCache
                 headerBandPx={{ top: 24, bottom: 72 }}
                 onDone={() => setMomentDone(true)}
+                holdSettled={!holdReleased}
+                onSettled={() => setMomentHeld(true)}
                 testId="cache-loot-moment"
               />
             </div>
+            {!momentDone && (
+              <div
+                data-testid="cache-reveal-actions-slot"
+                className="relative z-10 flex h-[64px] shrink-0 items-center justify-center px-4"
+              >
+                {momentHeld && (
+                  <div data-testid="cache-reveal-hold-actions" className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => setInspectOpen(true)}
+                      className="px-4 py-3 rounded-xl bg-surface-raised border border-border text-text-primary font-bold text-sm whitespace-nowrap active:scale-95 transition-transform"
+                    >
+                      Details
+                    </button>
+                    {canOpenAnother && (
+                      <button
+                        onClick={() => {
+                          setRevealed(null);
+                          setItemActions({});
+                          setEquipUndo(null);
+                          handleOpenKey();
+                        }}
+                        className="px-4 py-3 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm whitespace-nowrap active:scale-95 transition-transform"
+                      >
+                        Open Another
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setHoldReleased(true)}
+                      className="px-5 py-3 rounded-xl bg-amber text-bg font-bold text-sm whitespace-nowrap active:scale-95 transition-transform"
+                    >
+                      Collect
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             {momentDone && (
-              <div data-testid="cache-reveal-deck" className="relative z-10 mx-auto w-full max-w-[480px] px-4 pb-10 pt-2">
+              <div className="relative z-10 min-h-0 w-full flex-1 overflow-y-auto">
+              <div data-testid="cache-reveal-deck" className="mx-auto w-full max-w-[480px] px-4 pb-10 pt-2">
                 <div className="space-y-3">
                   {visibleItems.map((item, i) => (
                     <GearItemCard
@@ -563,10 +675,23 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                   </button>
                 </div>
               </div>
+              </div>
             )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Details (owner ruling, 2026-11-20): the held reveal's full
+          read is the canonical inspect sheet, portaled above the
+          reveal overlay. It opens and closes over the held reveal —
+          the moment underneath is never unmounted or released, so
+          closing the sheet returns to the reveal exactly as it was. */}
+      <GearInspectSheet
+        item={revealed?.[0] ?? null}
+        open={inspectOpen && !!revealed}
+        onClose={() => setInspectOpen(false)}
+        contextLabel="Cache Reveal"
+      />
 
       {/* Audit UX-01: equip confirmation + UNDO, same toast the
           loadout panel uses. Portaled, so it rides above the reveal

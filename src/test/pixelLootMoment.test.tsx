@@ -264,6 +264,83 @@ describe('LootMoment — full mode (stage surface)', () => {
   });
 });
 
+describe('LootMoment — hold-at-settled (cache host opt-in)', () => {
+  it('parks on the completed stack when the ladder plays out — no done, no linger expiry', () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+    const onSettled = vi.fn();
+    render(
+      <LootMoment items={[makeWeapon({ rarity: Rarity.Common })]} surface="stage" holdSettled onDone={onDone} onSettled={onSettled} testId="lm" />,
+    );
+    act(() => {
+      vi.advanceTimersByTime(MOVEMENT.LOOT_COMMON_MS + 10);
+    });
+    // Parked: the host is told the moment settled, done never fires,
+    // and the completed stack (risen item + full deck) stays up.
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByTestId('lm')).toBeTruthy();
+    expect(screen.getByTestId('loot-risen-item')).toBeTruthy();
+    expect(screen.getByTestId('loot-card-hero').textContent).toContain('Volt Carbine');
+    // The 650 ms skip linger must NOT end a held moment.
+    act(() => {
+      vi.advanceTimersByTime(MOVEMENT.LOOT_SKIP_LINGER_MS + 5_000);
+    });
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByTestId('lm')).toBeTruthy();
+  });
+
+  it('a seen tap skips TO the held stack, never past it', () => {
+    vi.useFakeTimers();
+    localStorage.setItem(SEEN_KEY, '1');
+    const onDone = vi.fn();
+    const onSettled = vi.fn();
+    const epic = makeWeapon({ id: 'e-9', name: 'Hexweaver', rarity: Rarity.Epic, weaponType: WeaponType.Beam });
+    render(<LootMoment items={[epic]} surface="stage" holdSettled onDone={onDone} onSettled={onSettled} testId="lm" />);
+    fireEvent.pointerDown(screen.getByTestId('lm'));
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('loot-card-hero').textContent).toContain('Hexweaver');
+    act(() => {
+      vi.advanceTimersByTime(MOVEMENT.LOOT_SKIP_LINGER_MS + 5_000);
+    });
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByTestId('lm')).toBeTruthy();
+  });
+
+  it('ends through the ordinary done path when the host withdraws the hold', () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+    const item = makeWeapon({ rarity: Rarity.Common });
+    const { rerender } = render(
+      <LootMoment items={[item]} surface="stage" holdSettled onDone={onDone} testId="lm" />,
+    );
+    act(() => {
+      vi.advanceTimersByTime(MOVEMENT.LOOT_COMMON_MS + 10);
+    });
+    expect(onDone).not.toHaveBeenCalled();
+    rerender(<LootMoment items={[item]} surface="stage" holdSettled={false} onDone={onDone} testId="lm" />);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('lm')).toBeNull();
+  });
+
+  it('reduced motion: the statically rendered stack holds instead of dismissing', () => {
+    vi.useFakeTimers();
+    const onDone = vi.fn();
+    const onSettled = vi.fn();
+    const emberfall = makeWeapon({ id: 'leg-9', name: 'Emberfall', rarity: Rarity.Legendary, legendaryEffectId: 'glass_sun' });
+    render(
+      <LootMoment items={[emberfall]} surface="stage" reduced holdSettled onDone={onDone} onSettled={onSettled} testId="lm" />,
+    );
+    act(() => {
+      vi.advanceTimersByTime(MOVEMENT.LOOT_LEGENDARY_MS + 10);
+    });
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByTestId('lm')).toBeTruthy();
+    expect(screen.getByTestId('loot-card-hero').textContent).toContain('Emberfall');
+  });
+});
+
 describe('LootMoment — light mode (feed surface)', () => {
   it('is pointer-transparent, shows beam + risen item + compact card, never dims', () => {
     render(<LootMoment items={[makeWeapon()]} surface="feed" testId="lm" />);

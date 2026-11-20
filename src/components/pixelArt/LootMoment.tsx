@@ -52,6 +52,15 @@ import { GearIllustration } from '@/components/gearArt/GearIllustration';
  * spin, shockwave, twinkles, or shine), all names/stats stay readable,
  * and the ladder still advances and ends on the same schedule.
  *
+ * Hold-at-settled (cache reveal only, owner ruling 2026-11-19): a
+ * host may arm `holdSettled` so the completed stack PARKS — the
+ * risen item and its full deck stay presented until the host
+ * withdraws the prop (its Collect) — because the Sample B step
+ * durations leave the deck's last lines readable for only a few
+ * hundred milliseconds before the moment unmounts. Under reduced
+ * motion the settled stack renders statically, so a held moment
+ * simply rests there; it still ends only on the host's release.
+ *
  * The seen-flag is a UI preference only (ARCHITECTURE.md §5 permits
  * localStorage for UI preferences) — it records that the player has
  * watched one full moment so later ones may be tap-skipped.
@@ -100,6 +109,16 @@ interface LootMomentProps {
   headerBandPx?: { top: number; bottom: number };
   /** Fired once when the moment finishes or is skipped through. */
   onDone?: () => void;
+  /** Hold-at-settled (cache reveal only, owner ruling 2026-11-19):
+   *  when the ladder reaches the completed stack — by playing out or
+   *  by a tap — the moment PARKS there (risen item + full deck stay
+   *  presented) instead of ending, and onDone does not fire. The hold
+   *  ends only when the host withdraws this prop (its Collect), which
+   *  settles the moment through the ordinary done path. Hosts that
+   *  never pass it (boss, endless, feed) keep the shipped behavior. */
+  holdSettled?: boolean;
+  /** Fired once when the moment parks in its held state. */
+  onSettled?: () => void;
   testId?: string;
 }
 
@@ -519,6 +538,8 @@ export const LootMoment: React.FC<LootMomentProps> = ({
   propCache = false,
   headerBandPx,
   onDone,
+  holdSettled = false,
+  onSettled,
   testId,
 }) => {
   const itemsKey = items.map((item) => `${item.id}:${item.rarity}`).join('|');
@@ -581,15 +602,25 @@ export const LootMoment: React.FC<LootMomentProps> = ({
     if (!plan) return;
     if (state.status === 'playing') {
       const step = plan.steps[state.stepIndex];
-      const timer = setTimeout(() => dispatch({ type: 'advance', stepCount }), step.celebration.durationMs);
+      const timer = setTimeout(() => dispatch({ type: 'advance', stepCount, holdSettled }), step.celebration.durationMs);
       return () => clearTimeout(timer);
     }
-    if (state.status === 'settled') {
+    if (state.status === 'settled' && !state.held) {
       const timer = setTimeout(() => dispatch({ type: 'settleDone' }), MOVEMENT.LOOT_SKIP_LINGER_MS);
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [plan, state.status, state.stepIndex, stepCount]);
+  }, [plan, state.status, state.held, state.stepIndex, stepCount, holdSettled]);
+
+  // Hold release: the host ends the hold by withdrawing the prop
+  // (its Collect). That settles the moment through the ordinary
+  // done path — onDone fires and the host's post-moment flow runs
+  // exactly as it does for an unheld moment.
+  useEffect(() => {
+    if (state.status === 'settled' && state.held && !holdSettled) {
+      dispatch({ type: 'settleDone' });
+    }
+  }, [state.status, state.held, holdSettled]);
 
   useEffect(() => {
     if (state.status !== 'done' || doneFiredRef.current) return;
@@ -597,6 +628,13 @@ export const LootMoment: React.FC<LootMomentProps> = ({
     markLootMomentSeen();
     onDone?.();
   }, [state.status, onDone]);
+
+  const settledFiredRef = useRef(false);
+  useEffect(() => {
+    if (state.status !== 'settled' || !state.held || settledFiredRef.current) return;
+    settledFiredRef.current = true;
+    onSettled?.();
+  }, [state.status, state.held, onSettled]);
 
   // Light-mode settled linger (Stage Iteration R2): the ladder's
   // durations are owner law and are NOT retimed — a Common roaming
@@ -629,7 +667,7 @@ export const LootMoment: React.FC<LootMomentProps> = ({
       data-mode={mode}
       data-step={state.stepIndex}
       className={`absolute inset-0 z-40 ${full ? '' : 'pointer-events-none'}`}
-      onPointerDown={full ? () => dispatch({ type: 'tap', seenBefore: hasSeenLootMoment() }) : undefined}
+      onPointerDown={full ? () => dispatch({ type: 'tap', seenBefore: hasSeenLootMoment(), holdSettled }) : undefined}
       role={full ? 'button' : undefined}
       aria-label={full ? 'Loot celebration — tap to skip' : undefined}
     >

@@ -348,7 +348,7 @@ describe('lootMomentReducer — playback + skip behavior', () => {
   it('advances through the ladder and finishes after the last step', () => {
     let state = initialLootMomentState;
     state = play(state, { type: 'advance', stepCount: 3 });
-    expect(state).toEqual({ stepIndex: 1, status: 'playing', skipped: false });
+    expect(state).toEqual({ stepIndex: 1, status: 'playing', skipped: false, held: false });
     state = play(state, { type: 'advance', stepCount: 3 });
     expect(state.stepIndex).toBe(2);
     state = play(state, { type: 'advance', stepCount: 3 });
@@ -372,10 +372,32 @@ describe('lootMomentReducer — playback + skip behavior', () => {
   });
 
   it('taps do nothing once settled or done', () => {
-    const settled: LootMomentState = { stepIndex: 1, status: 'settled', skipped: true };
+    const settled: LootMomentState = { stepIndex: 1, status: 'settled', skipped: true, held: false };
     expect(play(settled, { type: 'tap', seenBefore: true })).toBe(settled);
-    const done: LootMomentState = { stepIndex: 1, status: 'done', skipped: true };
+    const done: LootMomentState = { stepIndex: 1, status: 'done', skipped: true, held: false };
     expect(play(done, { type: 'tap', seenBefore: true })).toBe(done);
+  });
+
+  it('hold-armed: the final advance parks at settled (held) instead of done', () => {
+    let state = play(initialLootMomentState, { type: 'advance', stepCount: 2, holdSettled: true });
+    expect(state).toEqual({ stepIndex: 1, status: 'playing', skipped: false, held: false });
+    state = play(state, { type: 'advance', stepCount: 2, holdSettled: true });
+    expect(state.status).toBe('settled');
+    expect(state.held).toBe(true);
+    expect(state.skipped).toBe(false);
+    // Parked: further advances are no-ops; only the host's release
+    // (an ordinary settleDone) ends the hold.
+    expect(play(state, { type: 'advance', stepCount: 2, holdSettled: true })).toBe(state);
+    expect(play(state, { type: 'settleDone' }).status).toBe('done');
+  });
+
+  it('hold-armed: a seen tap lands ON the held stack — never past it', () => {
+    const state = play(initialLootMomentState, { type: 'tap', seenBefore: true, holdSettled: true });
+    expect(state.status).toBe('settled');
+    expect(state.held).toBe(true);
+    expect(state.skipped).toBe(true);
+    // The first-ever view stays unskippable even with the hold armed.
+    expect(play(initialLootMomentState, { type: 'tap', seenBefore: false, holdSettled: true })).toBe(initialLootMomentState);
   });
 });
 
