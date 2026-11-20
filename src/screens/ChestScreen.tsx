@@ -603,10 +603,10 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                 className="relative z-10 flex h-[64px] shrink-0 items-center justify-center px-4"
               >
                 {momentHeld && (
-                  <div data-testid="cache-reveal-hold-actions" className="flex items-center justify-center gap-3">
+                  <div data-testid="cache-reveal-hold-actions" className="flex items-center justify-center gap-2">
                     <button
                       onClick={() => setInspectOpen(true)}
-                      className="px-5 py-3 rounded-xl bg-surface-raised border border-border text-text-primary font-bold text-sm active:scale-95 transition-transform"
+                      className="px-4 py-3 rounded-xl bg-surface-raised border border-border text-text-primary font-bold text-sm whitespace-nowrap active:scale-95 transition-transform"
                     >
                       Details
                     </button>
@@ -618,14 +618,14 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
                           setEquipUndo(null);
                           handleOpenKey();
                         }}
-                        className="px-5 py-3 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm active:scale-95 transition-transform"
+                        className="px-4 py-3 rounded-xl bg-amber/20 border border-amber text-amber font-bold text-sm whitespace-nowrap active:scale-95 transition-transform"
                       >
                         Open Another
                       </button>
                     )}
                     <button
                       onClick={() => setHoldReleased(true)}
-                      className="px-6 py-3 rounded-xl bg-amber text-bg font-bold text-sm active:scale-95 transition-transform"
+                      className="px-5 py-3 rounded-xl bg-amber text-bg font-bold text-sm whitespace-nowrap active:scale-95 transition-transform"
                     >
                       Collect
                     </button>
