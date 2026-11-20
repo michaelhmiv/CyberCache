@@ -93,7 +93,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
   {
     id: 'xp',
     name: 'Fast Learner',
-    summary: 'XP earned from every source',
+    summary: 'XP from every source there is',
     leverKey: 'cacheRankXpPerRank',
     maxRanks: 10,
     icon: 'star',
@@ -129,7 +129,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
   {
     id: 'cacheQuality',
     name: 'Cache Optimizer',
-    summary: 'Cache quality — Epic and Legendary cache draws weigh heavier',
+    summary: 'Cache quality — Epic and Legendary cache draws land heavier',
     leverKey: 'cacheRankCacheQualityPerRank',
     maxRanks: 10,
     icon: 'hex',
@@ -138,7 +138,7 @@ export const CACHE_RANK_BONUS_DEFS: CacheRankBonusDef[] = [
   {
     id: 'marketProceeds',
     name: 'Silver Tongue',
-    summary: 'Rebates the market fee on your sales, up to the full fee',
+    summary: 'Rebates the market fee on your sales — up to the whole fee back',
     leverKey: 'cacheRankMarketProceedsPerRank',
     maxRanks: 10,
     icon: 'tag',

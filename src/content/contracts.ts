@@ -607,13 +607,13 @@ export function contractObjectiveText(
   bossName?: string,
 ): string {
   switch (template.kind) {
-    case 'kills': return `record ${target} roaming kills`;
-    case 'elites': return `down ${target} named elites`;
-    case 'events': return `trigger ${target} roaming events`;
+    case 'kills': return `rack up ${target} roaming kills`;
+    case 'elites': return `drop ${target} named elites`;
+    case 'events': return `set off ${target} roaming events`;
     case 'roaming_xp': return `earn ${target} roaming XP`;
-    case 'boss_victories': return `defeat ${target} ${target === 1 ? 'boss' : 'bosses'}`;
+    case 'boss_victories': return `put down ${target} ${target === 1 ? 'boss' : 'bosses'}`;
     case 'specific_boss': return `defeat ${bossName ?? params.bossId ?? 'the named boss'}`;
-    case 'endless_depth': return `reach depth ${target} in one endless run`;
+    case 'endless_depth': return `hit depth ${target} in one endless run`;
     case 'endless_runs': return `complete ${target} endless runs`;
     case 'crafts': return `complete ${target} craft units`;
     case 'consumables_crafted': return `craft ${target} consumables`;
@@ -626,8 +626,8 @@ export function contractObjectiveText(
     case 'reforges': return `complete ${target} reforges`;
     case 'cache_opens': return `open ${target} caches`;
     case 'consumables_used': return `use ${target} consumables`;
-    case 'discoveries': return `record ${target} new discoveries`;
-    case 'extraction_units': return `gather ${target} materials or essences`;
+    case 'discoveries': return `log ${target} new discoveries`;
+    case 'extraction_units': return `haul in ${target} materials or essences`;
     default: return `complete ${target}`;
   }
 }
@@ -728,8 +728,8 @@ function contractSetView(
   const bonus = contractSetBonusFor(kind, band, levers);
   const claimedCount = facts.instances.filter((i) => i.status === 'claimed').length;
   const setBonusLine = kind === 'daily'
-    ? `Clear all ${facts.instances.length} today: +${bonus.credits} credits`
-    : `Clear all ${facts.instances.length} this week: ${formatContractReward({ credits: bonus.credits, cacheKeys: bonus.cacheKeys })}`;
+    ? `Sweep all ${facts.instances.length} today: +${bonus.credits} credits`
+    : `Sweep all ${facts.instances.length} this week: ${formatContractReward({ credits: bonus.credits, cacheKeys: bonus.cacheKeys })}`;
   return {
     periodKind: kind,
     periodKey,
