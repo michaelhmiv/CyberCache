@@ -53,11 +53,11 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 5 | **Siege Mode** | small | 1 | 5 | +15% Heavy Weapon Burst | — |
 | 6 | **Ion Surge** | small | 1 | 5 | +10% Shield Break Contribution from Ordnance | — |
 | 6 | **Ion Cascade** | small | 1 | 5 | +10% Shield Break Contribution from Ordnance | — |
-| 1 | **Field Kitchen** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
-| 2 | **Powder Stores** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
-| 3 | **Grease and Wicks** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
-| 4 | **Spares Cache** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
-| 5 | **Forward Stockpile** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
+| 1 | **Field Kitchen** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
+| 2 | **Powder Stores** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
+| 3 | **Grease and Wicks** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
+| 4 | **Spares Cache** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
+| 5 | **Forward Stockpile** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
 | 7 | **Breaching Charge** | major | 3 | 1 | Ordnance strips an additional 20% shield before the DPS phase. Knock first. Loudly. | Ion Surge, Payload Expansion |
 | 7 | **Concussive Payload** | major | 3 | 1 | Stagger effects last 30% longer and reduce boss damage output by 15% while active. Keep them wobbling. | Concussion, Impact Force |
 | 8 | **Scorched Earth** | major | 3 | 1 | If you bring a Launcher as Heavy Weapon, gain +20% armor break and +10% boss DPS. Subtlety not included. | Penetrator Rounds, Crack Core |
@@ -106,7 +106,7 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 5 | **Rig Tuning** | small | 1 | 5 | +2% vehicle yield per point (stacks with yield affixes). Tuned to a purr. | — |
 | 5 | **Aero Fairings** | small | 1 | 5 | +2% vehicle yield bonus per point (+20% across both nodes). Fairings: because air is rude. | — |
 | 6 | **Lean Burn** | small | 1 | 5 | Vehicles burn −3% fuel per point, after fuel-efficiency affixes. Sip, do not gulp. | — |
-| 6 | **Appraiser's Eye** | small | 1 | 5 | +1% vendor buyback rate per point. Buyback rate caps at 90%. Marla respects the hustle. | — |
+| 6 | **Appraiser's Eye** | small | 1 | 5 | +1% vendor buyback rate per point. Buyback rate caps at 90%. The hustle pays. | — |
 | 7 | **Master Artificer** | major | 3 | 1 | Crafted gear temper chance +5%. The bench provides. | Calibrated Eye, Tolerance Stacking |
 | 7 | **Fleet Engineer** | major | 3 | 1 | Vehicles lose 25% less condition while fueled. Built to outlast the road. | Rig Tuning, Aero Fairings |
 | 8 | **House Brand** | major | 3 | 1 | Listing fees reduced an additional 15% for Workshop-crafted items you sell. House brand, house rules. | Appraiser's Eye |

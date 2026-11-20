@@ -20,14 +20,14 @@ pool a boss draws from is not printed.
 - **Boss level:** 5 · **Recommended power:** 120
 - **Health / Shield / Armor:** 800 / 0 / 0 · **Boss DPS:** 30
 - **Weaknesses:** Kinetic · **Resistances:** —
-- **Mechanic — No Special Mechanic:** Tutorial boss. No special requirement. He is the training wheels.
+- **Mechanic — No Special Mechanic:** Tutorial boss. No special requirement.
 - **Attack pattern:** hits every 6s; special **Sand Slam** every 18s after a 3s wind-up, carrying ~35% of its damage
 - **Entry / rematch:** 0 cr / 100 cr
 - **Dedicated drops:** Debt Collector, Warranty Void
 
 **Phases**
 
-- **Basic Boss Read** (survival check) — A simple opening check that teaches boss attempts without a hard counter requirement. Lesson one: do not die. Counters: basic weapon damage, Med Kit, Shield Cell.
+- **Basic Boss Read** (survival check) — A simple opening check that teaches boss attempts without a hard counter requirement. Counters: basic weapon damage, Med Kit, Shield Cell.
 
 **The arena** — every boss fights on its own ground:
 
@@ -40,15 +40,15 @@ pool a boss draws from is not printed.
 - **Boss level:** 10 · **Recommended power:** 300
 - **Health / Shield / Armor:** 1500 / 500 / 0 · **Boss DPS:** 55
 - **Weaknesses:** Fire · **Resistances:** Cryo
-- **Mechanic — Enrage Protocol:** At 50% HP the boss enrages. The fight is a kill-speed check: your DPS is measured against the enrage line (1.3) — fall short and the enrage taxes the whole attempt. He gets angrier; you get a deadline.
+- **Mechanic — Enrage Protocol:** At 50% HP the boss enrages. The fight is a kill-speed check: your DPS is measured against the enrage line (1.3) — fall short and the enrage taxes the whole attempt.
 - **Attack pattern:** hits every 4s; special **Enrage Surge** every 12s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 200 cr / 300 cr
 - **Dedicated drops:** Bad Decision, Glass Sun
 
 **Phases**
 
-- **Opening Burn** (dps check) — Pile on damage before the boss reaches the enrage window. Counters: Fire weapon, high DPS weapon, Target Painter, Void Ammo.
-- **50% Enrage Window** (dps check) — At half health, the boss spikes damage unless burst or control answers it. Answer loudly. Counters: Cryo Ammo, Jammer, Target Painter, high crit/burst weapon.
+- **Opening Burn** (dps check) — Build enough damage before the boss reaches the enrage window. Counters: Fire weapon, high DPS weapon, Target Painter, Void Ammo.
+- **50% Enrage Window** (dps check) — At half health, the boss spikes damage unless burst or control answers it. Counters: Cryo Ammo, Jammer, Target Painter, high crit/burst weapon.
 
 **The arena** — every boss fights on its own ground:
 
@@ -61,7 +61,7 @@ pool a boss draws from is not printed.
 - **Boss level:** 15 · **Recommended power:** 550
 - **Health / Shield / Armor:** 2000 / 1200 / 0 · **Boss DPS:** 70
 - **Weaknesses:** Shock · **Resistances:** Fire
-- **Mechanic — Rapid Shield Regen:** The shield knits itself back together mid-fight. Your shield break is measured against the regen line (1.2) — break less than the line and the loop taxes the whole attempt. Break it faster than it can sew.
+- **Mechanic — Rapid Shield Regen:** The shield knits itself back together mid-fight. Your shield break is measured against the regen line (1.2) — break less than the line and the loop taxes the whole attempt.
 - **Attack pattern:** hits every 5s; special **Aegis Slam** every 15s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 400 cr / 500 cr
 - **Dedicated drops:** Ricochet Gospel, Thunder Receipt
@@ -81,14 +81,14 @@ pool a boss draws from is not printed.
 - **Boss level:** 22 · **Recommended power:** 900
 - **Health / Shield / Armor:** 3500 / 0 / 800 · **Boss DPS:** 95
 - **Weaknesses:** Corrosive · **Resistances:** Fire
-- **Mechanic — Burning Ground:** The ground itself burns for the whole fight. Your survival is measured against the burn line (1.4) — a pool that merely survives the boss is not enough here. The floor is, in fact, lava.
+- **Mechanic — Burning Ground:** The ground itself burns for the whole fight. Your survival is measured against the burn line (1.4) — a pool that merely survives the boss is not enough here.
 - **Attack pattern:** hits every 3s; special **Eruption** every 15s after a 3s wind-up, carrying ~25% of its damage
 - **Entry / rematch:** 600 cr / 700 cr
 - **Dedicated drops:** Salvage Rights, Runaway
 
 **Phases**
 
-- **Burning Ground Attrition** (survival check) — Damage-over-time pressure raises the survival requirement across the fight. Everything is on fire, including the floor. Counters: Med Kit, Shield Cell, Nano Swarm, survival gear.
+- **Burning Ground Attrition** (survival check) — Damage-over-time pressure raises the survival requirement across the fight. Counters: Med Kit, Shield Cell, Nano Swarm, survival gear.
 
 **The arena** — every boss fights on its own ground:
 
@@ -101,15 +101,15 @@ pool a boss draws from is not printed.
 - **Boss level:** 28 · **Recommended power:** 1400
 - **Health / Shield / Armor:** 5000 / 1500 / 0 · **Boss DPS:** 110
 - **Weaknesses:** Shock · **Resistances:** Kinetic
-- **Mechanic — Phase Out:** The boss phases out periodically. Needs Stagger or Scanner to pin it down.
+- **Mechanic — Phase Out:** Boss phases out periodically. Needs Stagger or Scanner to pin.
 - **Attack pattern:** hits every 6s; special **Mirage Flurry** every 15s after a 3s wind-up, carrying ~45% of its damage
 - **Entry / rematch:** 1000 cr / 1200 cr
 - **Dedicated drops:** Borrowed Time, Kickback
 
 **Phases**
 
-- **Pin the Mirage** (mechanic check) — The boss phases out unless scanner, control, or stagger effects keep it targetable. Manners of a ghost. Counters: Boss Scanner, Cryo Ammo, Jammer, stagger effects.
-- **Mirage Shield** (shieldBreak check) — A lighter shield check — Shock support still earns its keep here. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
+- **Pin the Mirage** (mechanic check) — The boss phases out unless scanner, control, or stagger effects keep it targetable. Counters: Boss Scanner, Cryo Ammo, Jammer, stagger effects.
+- **Mirage Shield** (shieldBreak check) — A lighter shield check still rewards Shock support. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
 
 **The arena** — every boss fights on its own ground:
 
@@ -122,7 +122,7 @@ pool a boss draws from is not printed.
 - **Boss level:** 35 · **Recommended power:** 2000
 - **Health / Shield / Armor:** 6000 / 0 / 2500 · **Boss DPS:** 130
 - **Weaknesses:** Corrosive · **Resistances:** Shock
-- **Mechanic — Heavy Repair:** Heavy armor repair. Your armor break is measured against the repair line (1.5) — Corrosive and Ordnance throughput, or the repairs tax the whole attempt. It fixes faster than most hunters break.
+- **Mechanic — Heavy Repair:** Heavy armor repair. Your armor break is measured against the repair line (1.5) — Corrosive and Ordnance throughput, or the repairs tax the whole attempt.
 - **Attack pattern:** hits every 6s; special **Prophet's Hammer** every 18s after a 3s wind-up, carrying ~40% of its damage
 - **Entry / rematch:** 1500 cr / 1800 cr
 - **Dedicated drops:** Vampiric Ledger, Echo Chamber
@@ -142,16 +142,16 @@ pool a boss draws from is not printed.
 - **Boss level:** 45 · **Recommended power:** 3200
 - **Health / Shield / Armor:** 10000 / 3000 / 4000 · **Boss DPS:** 180
 - **Weaknesses:** Corrosive · **Resistances:** Fire
-- **Mechanic — Three-Phase Siege:** Shield -> Armor -> Enrage. All three layers are measured — shield break 1.25, armor break 1.25, kill speed 1.35 — and the weakest layer taxes the whole attempt. A siege, in three courses.
+- **Mechanic — Three-Phase Siege:** Shield -> Armor -> Enrage. All three layers are measured — shield break 1.25, armor break 1.25, kill speed 1.35 — and the weakest layer taxes the whole attempt.
 - **Attack pattern:** hits every 5s; special **Siege Barrage** every 15s after a 3s wind-up, carrying ~35% of its damage
 - **Entry / rematch:** 2500 cr / 3000 cr
 - **Dedicated drops:** Chain Lightning, Void Bargain, Jackpot
 
 **Phases**
 
-- **Siege Shield Phase** (shieldBreak check) — Shock or ordnance support is needed to clear the opening shield cleanly. Layer one of three. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
-- **Siege Armor Phase** (armorBreak check) — Corrosive or armor-break tools are needed after the shield drops. Layer two: the crunchy one. Counters: Corrosive weapon, Corrosive Ammo, BlastForge heavy weapon, Ordnance Charge.
-- **Final Enrage** (dps check) — The final phase rewards burst damage, survival margin, or control. He saves the sermon for last. Counters: high DPS weapon, Target Painter, Cryo Ammo, Shield Cell.
+- **Siege Shield Phase** (shieldBreak check) — Shock or ordnance support is needed to clear the opening shield cleanly. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
+- **Siege Armor Phase** (armorBreak check) — Corrosive or armor-break tools are needed after the shield drops. Counters: Corrosive weapon, Corrosive Ammo, BlastForge heavy weapon, Ordnance Charge.
+- **Final Enrage** (dps check) — The final phase rewards burst damage, survival margin, or control. Counters: high DPS weapon, Target Painter, Cryo Ammo, Shield Cell.
 
 **The arena** — every boss fights on its own ground:
 
@@ -171,9 +171,9 @@ pool a boss draws from is not printed.
 
 **Phases**
 
-- **Thread the Loom** (dps check) — Open hard before the loom-arms reach full spin. She is already warming up. Counters: high DPS weapon, Target Painter, Ammo Pack.
+- **Thread the Loom** (dps check) — Open hard before the loom-arms reach full spin. Counters: high DPS weapon, Target Painter, Ammo Pack.
 - **Overclock Window** (dps check) — Every second the fight drags, her strike tempo — and damage — climbs. Counters: burst weapon, Ironwood crit build, Adrenaline Shot.
-- **Web Snare** (survival check) — Filament snares tax your survival while the arms keep spinning. Cozy, it is not. Counters: Med Kit, Shield Cell, Nano Swarm.
+- **Web Snare** (survival check) — Filament snares tax your survival while the arms keep spinning. Counters: Med Kit, Shield Cell, Nano Swarm.
 
 **The arena** — every boss fights on its own ground:
 
@@ -193,9 +193,9 @@ pool a boss draws from is not printed.
 
 **Phases**
 
-- **Mirror Shield** (shieldBreak check) — A heavy reflective shield fronts the construct. She polished it for you. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
+- **Mirror Shield** (shieldBreak check) — A heavy reflective shield fronts the construct. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
 - **Attunement** (mechanic check) — She reads your primary and re-plates against it. Mixed elements keep a real answer live. Counters: mixed-element loadout, Hot Swapper secondary, Boss Scanner.
-- **Refraction Burst** (survival check) — Stored light returns as burst damage through the late fight. She kept the receipts. Counters: Shield Cell, Med Kit, Nano Swarm.
+- **Refraction Burst** (survival check) — Stored light returns as burst damage through the late fight. Counters: Shield Cell, Med Kit, Nano Swarm.
 
 **The arena** — every boss fights on its own ground:
 
@@ -215,9 +215,9 @@ pool a boss draws from is not printed.
 
 **Phases**
 
-- **Break the Chord** (mechanic check) — The shroud holds until stagger interrupts the harmony. Be the wrong note. Counters: stagger effects, Concussion skills, Cryo Ammo.
-- **Amplifier Armor** (armorBreak check) — Ribbed amplifier plating shrugs off weak armor break. Bring the strong stuff. Counters: Corrosive weapon, Armor-Piercing Ammo, Ordnance Charge.
-- **Feedback Wail** (survival check) — The full choir answers with a survival-taxing feedback wail. Everyone sings. Nobody asked them to. Counters: Med Kit, Shield Cell, Nano Swarm.
+- **Break the Chord** (mechanic check) — The shroud holds until stagger interrupts the harmony. Counters: stagger effects, Concussion skills, Cryo Ammo.
+- **Amplifier Armor** (armorBreak check) — Ribbed amplifier plating shrugs off weak armor break. Counters: Corrosive weapon, Armor-Piercing Ammo, Ordnance Charge.
+- **Feedback Wail** (survival check) — The full choir answers with a survival-taxing feedback wail. Counters: Med Kit, Shield Cell, Nano Swarm.
 
 **The arena** — every boss fights on its own ground:
 
@@ -230,7 +230,7 @@ pool a boss draws from is not printed.
 - **Boss level:** 65 · **Recommended power:** 12000
 - **Health / Shield / Armor:** 35000 / 0 / 9000 · **Boss DPS:** 355
 - **Weaknesses:** Fire · **Resistances:** Cryo
-- **Mechanic — Living Armor:** Heartwood plating regrows as it cracks. Your armor break is measured against the regrowth line (1.5) — sustained Corrosive and Ordnance throughput, or the Maw out-grows your damage and taxes the attempt. It is gardening, but hostile.
+- **Mechanic — Living Armor:** Heartwood plating regrows as it cracks. Your armor break is measured against the regrowth line (1.5) — sustained Corrosive and Ordnance throughput, or the Maw out-grows your damage and taxes the attempt.
 - **Attack pattern:** hits every 6s; special **The Maw Opens** every 20s after a 3s wind-up, carrying ~30% of its damage
 - **Entry / rematch:** 9500 cr / 11500 cr
 - **Dedicated drops:** Molten Core, Salvage Rights
@@ -259,7 +259,7 @@ pool a boss draws from is not printed.
 
 **Phases**
 
-- **Void Shield** (shieldBreak check) — A thin but real shield wraps the anchor. Thin is not the same as weak. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
+- **Void Shield** (shieldBreak check) — A thin but real shield wraps the anchor. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
 - **Collapse the Rift** (mechanic check) — The rift swallows clean hits until status effects destabilize it. Counters: status effects, elemental ammo, Boss Scanner.
 - **Event Horizon** (survival check) — She drags the fight toward the horizon — the survival check of the deep ladder. Counters: Shield Cell, Med Kit, Nano Swarm, Turtle shield.
 
@@ -281,8 +281,8 @@ pool a boss draws from is not printed.
 
 **Phases**
 
-- **Vault Shield Phase** (shieldBreak check) — The vault's shield layer comes first — Shock or ordnance clears it. Layer one of the big door. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
-- **Vault Plating Phase** (armorBreak check) — Combination-lock plating demands real armor break. No guessing the code. Counters: Corrosive weapon, Corrosive Ammo, BlastForge heavy weapon, Ordnance Charge.
+- **Vault Shield Phase** (shieldBreak check) — The vault's shield layer comes first — Shock or ordnance clears it. Counters: Shock weapon, Shock Ammo, Ordnance Charge.
+- **Vault Plating Phase** (armorBreak check) — Combination-lock plating demands real armor break. Counters: Corrosive weapon, Corrosive Ammo, BlastForge heavy weapon, Ordnance Charge.
 - **Final Overclock** (dps check) — The core spins up: every second left on the clock is damage you will eat. Counters: high DPS weapon, Target Painter, Adrenaline Shot, Cryo Ammo.
 
 **The arena** — every boss fights on its own ground:
