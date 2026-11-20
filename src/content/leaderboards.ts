@@ -108,7 +108,7 @@ export const LEADERBOARD_RACES: readonly LeaderboardRaceDef[] = [
     id: 'roaming_kills',
     label: 'Roaming Kills',
     unit: 'kills',
-    blurb: 'Hunter kills confirmed by roaming claims and offline settlements.',
+    blurb: 'Confirmed hunter kills from roaming claims and offline settlements.',
     minQualifyingValue: 25,
   },
   {
@@ -129,7 +129,7 @@ export const LEADERBOARD_RACES: readonly LeaderboardRaceDef[] = [
     id: 'caches_opened',
     label: 'Caches Opened',
     unit: 'caches',
-    blurb: 'Caches opened this week.',
+    blurb: 'Caches cracked open this week.',
     minQualifyingValue: 1,
   },
   {

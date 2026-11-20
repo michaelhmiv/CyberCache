@@ -95,19 +95,19 @@ export const SKIN_SETS: SkinSetDef[] = [
     id: 'bulwark',
     name: 'Bulwark',
     tier: 'shaped',
-    blurb: 'Heavy plate, shaped new: an oversized helm, a siege torso, and Stomper legs. The silhouette is the statement.',
+    blurb: 'Heavy plate, shaped new — oversized helm, siege torso, Stomper legs. The silhouette is the statement.',
   },
   {
     id: 'dreadplate',
     name: 'Dreadplate',
     tier: 'repaint',
-    blurb: 'Standard Issue silhouettes repainted in bone plate and crimson trim, with a red visor glow.',
+    blurb: 'Standard Issue silhouettes, repainted in bone plate and crimson trim with a red visor glow.',
   },
   {
     id: 'manufacturer',
     name: 'Manufacturer Heads',
     tier: 'palette',
-    blurb: 'The six maker helmets now live in one lane: the Standing rank-3 head pick, earned at the Rep Desk. Crafted copies from the old pool are retired — no new crafts, no new listings — and copies already owned wear forever.',
+    blurb: 'The six maker helmets live in one lane now: the Standing rank-3 head pick, earned at the Rep Desk. Crafted copies from the old pool are retired — no new crafts, no new listings — and copies already owned wear forever.',
   },
 ];
 

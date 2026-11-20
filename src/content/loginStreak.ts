@@ -377,7 +377,7 @@ export interface LoginStreakStateView {
 }
 
 export const LOGIN_STREAK_MISS_RULE =
-  'Miss a day and the streak restarts at Day 1 — your longest streak is kept on your profile.';
+  'Miss a day and the streak restarts at Day 1 — but your longest streak stays on your profile.';
 
 /**
  * Derive the panel view from server facts. Pure: the routes (and

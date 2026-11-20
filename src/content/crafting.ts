@@ -84,7 +84,7 @@ export const CRAFT_BENCHES: readonly CraftBenchDef[] = [
     costInputs: {},
     qualityFactor: 1.0,
     minQualityBonus: 0,
-    blurb: 'The bench. Runs every recipe in the catalog — materials, frames, relics, the crusher and the furnace.',
+    blurb: 'The bench. Runs every recipe in the catalog — materials, frames, relics, the crusher, the furnace, all of it.',
   },
 ];
 

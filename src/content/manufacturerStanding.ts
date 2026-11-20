@@ -210,7 +210,7 @@ export interface TurnInItemShape {
  * equipped, listed, and escrowed items all refuse), vehicles out.
  */
 export function standingTurnInRefusal(item: TurnInItemShape): string | null {
-  if (item.kind === 'vehicle') return 'Vehicles cannot be turned in for standing';
+  if (item.kind === 'vehicle') return 'The Rep Desk doesn’t take vehicles — no turning them in for standing';
   if (!isStandingManufacturer(item.manufacturer)) return 'Item has no manufacturer standing';
   if (item.isLocked) return 'Locked item';
   if (item.equippedSlot) return 'Unequip the item before turning it in';
@@ -350,7 +350,7 @@ export const STANDING_UNLOCKS: StandingUnlockDef[] = STANDING_MANUFACTURERS.flat
       rank: 1,
       kind: 'shelf' as const,
       label: 'Rep Shelf',
-      detail: `${shelf.consumableType} at list price from the Rep Desk — always stocked, flat 100% quality.`,
+      detail: `${shelf.consumableType} at list price from the Rep Desk — always in stock, flat 100% quality.`,
     },
     {
       id: standingUnlockId(manufacturer, 'recipe'),
@@ -374,7 +374,7 @@ export const STANDING_UNLOCKS: StandingUnlockDef[] = STANDING_MANUFACTURERS.flat
       rank: 4,
       kind: 'crate' as const,
       label: 'Parts Crate',
-      detail: `A weekly bundle of ${def.name} workshop materials from the Rep Desk.`,
+      detail: `A weekly bundle of ${def.name} workshop materials, courtesy of the Rep Desk.`,
     },
     {
       id: standingUnlockId(manufacturer, 'order'),

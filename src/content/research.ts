@@ -73,21 +73,21 @@ export const RESEARCH_FACULTIES: readonly ResearchFaculty[] = [
     name: 'Fabrication',
     home: 'The Workshop',
     color: '#FFB020',
-    blurb: 'Production study for crafters: quality, batch work, and the temper roll.',
+    blurb: 'Production study for crafters: quality, batch work, and the sacred temper roll.',
   },
   {
     id: 'field_mechanics',
     name: 'Field Mechanics',
     home: 'The bay + the road',
     color: '#39D0D8',
-    blurb: 'Wrench credentials: faster work, gentler miles, a master’s XP rate.',
+    blurb: 'Wrench credentials: faster work, gentler miles, and a master’s XP rate.',
   },
   {
     id: 'logistics_markets',
     name: 'Logistics & Markets',
     home: 'The economy',
     color: '#7FB069',
-    blurb: 'Supply-chain theory that pays in buyback, offline hours, and thinner fees.',
+    blurb: 'Supply-chain theory that pays out in buyback, offline hours, and thinner fees.',
   },
   {
     id: 'xenotech',
@@ -219,7 +219,7 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
     name: 'Production Systems', durationHours: 48, costCredits: 15000,
     prerequisite: 'shop_fundamentals',
     effects: {},
-    unlockText: 'Unlocks the three batch recipes — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units: fewer materials and less time per unit than three singles.',
+    unlockText: 'Unlocks the three batch recipes — Shield Cell ×3, Patch Kit ×3, Ordnance Charge ×3 — at 2.5× inputs and 2.2× unit time per 3 units: fewer materials and less time per unit than three singles. Batching pays.',
   },
   {
     id: 'master_fabricator', faculty: 'fabrication', tier: 3,
@@ -247,7 +247,7 @@ export const RESEARCH_COURSES: readonly ResearchCourse[] = [
     name: 'Master Mechanic Certification', durationHours: 168, costCredits: 60000,
     prerequisite: 'powertrain_systems',
     effects: { repairServiceXpBonus: 1 },
-    unlockText: 'Repair work you perform pays +1 player XP per condition point restored.',
+    unlockText: 'Repair work you perform pays +1 player XP per condition point restored. Wrenching counts.',
   },
   // Faculty 3 — Logistics & Markets (the economy)
   {
@@ -511,7 +511,7 @@ export interface ResearchStateView {
 }
 
 export const RESEARCH_CANCEL_TERMS =
-  'Cancelling forfeits the course: progress is lost and the enrollment fee is not refunded. Re-enrolling restarts from zero at the full price.';
+  'Cancel and it’s gone: progress is lost and the enrollment fee is not refunded. Re-enrolling restarts from zero at the full price.';
 
 /**
  * Derive the panel view from server facts. Pure: the routes (and
@@ -539,7 +539,7 @@ export function researchStateView(
     const canEnroll =
       status === 'available' && activeId === null && facts.credits >= terms.costCredits;
     if (status === 'available' && activeId !== null && activeId !== course.id) {
-      lockReasons.push('Another course is in progress — complete or cancel it first');
+      lockReasons.push('Another course is already in progress — finish it or cancel it first');
       status = 'locked';
     }
     return {

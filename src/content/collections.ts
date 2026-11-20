@@ -109,14 +109,14 @@ export const COLLECTION_ENTRIES: readonly CollectionEntry[] = [
       family: 'weapon_frame' as const,
       key: `${typeDef.id}:${mfgDef.id}`,
       name: `${mfgDef.name} ${typeDef.name}`,
-      hint: `A Legendary ${typeDef.name} built by ${mfgDef.name}, from any source.`,
+      hint: `A Legendary ${typeDef.name} built by ${mfgDef.name} — from any source, anywhere.`,
     })),
   ),
   ...ROAMING_AREAS.map((area) => ({
     family: 'named_elite' as const,
     key: area.id,
     name: NAMED_ELITES.find((e) => e.areaId === area.id)?.eliteName ?? 'Named Elite',
-    hint: `Named elite of ${area.name} — downed when a roaming elite kill escalates there.`,
+    hint: `Named elite of ${area.name} — yours when a roaming elite kill escalates there.`,
   })),
 ];
 
