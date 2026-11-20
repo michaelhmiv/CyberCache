@@ -1,21 +1,27 @@
 name: iOS CI signing (App Store Connect API)
+# Shared CI distribution certificate per Michael's 2026-11-20 ruling
+# (team cert cap; mint-per-build retired) — the cert lives in the
+# IOS_DIST_CERT_* secrets and is shared by all apps; only the App Store
+# provisioning profile is still created per-app via the ASC API.
 description: >-
-  Mint a fresh distribution certificate + App Store provisioning profile via
-  the App Store Connect API (the PitTech pattern: the runner signs itself,
-  no local-device steps, no stored signing material), install them into a
-  throwaway keychain, and stage the ASC API key for xcodebuild export.
-  The calling job must expose the ASC_KEY_ID, ASC_ISSUER_ID and
-  ASC_PRIVATE_KEY secrets as job-level environment variables.
+  Install the shared distribution certificate from the IOS_DIST_CERT_*
+  secrets and create a fresh per-app App Store provisioning profile via
+  the App Store Connect API (no local-device steps, no certificate
+  minting), install them into a throwaway keychain, and stage the ASC API
+  key for xcodebuild export. The calling job must expose the ASC_KEY_ID,
+  ASC_ISSUER_ID, ASC_PRIVATE_KEY, IOS_DIST_CERT_P12_BASE64,
+  IOS_DIST_CERT_P12_PASSWORD and IOS_DIST_CERT_ID secrets as job-level
+  environment variables.
 
 runs:
   using: composite
   steps:
-    - name: Require App Store Connect API key
+    - name: Require App Store Connect API key and shared distribution certificate
       shell: bash
       run: |
         set -euo pipefail
         missing=0
-        for secret_name in ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+        for secret_name in ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY IOS_DIST_CERT_P12_BASE64 IOS_DIST_CERT_P12_PASSWORD IOS_DIST_CERT_ID; do
           if [[ -z "${!secret_name:-}" ]]; then
             echo "::error::Configure ${secret_name} in this repository's Actions secrets before requesting a signed iOS build."
             missing=1
@@ -23,7 +29,7 @@ runs:
         done
         exit "$missing"
 
-    - name: Generate signing material with the App Store Connect API
+    - name: Prepare signing material from the shared distribution certificate
       shell: bash
       run: |
         set -euo pipefail

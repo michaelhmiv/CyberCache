@@ -1,36 +1,39 @@
 #!/usr/bin/env python3
-"""Mint CyberCache's iOS signing material with the App Store Connect API.
+"""Prepare CyberCache's iOS signing material with the App Store Connect API.
 
-Mirrors the PitTech CI signing pattern (repo michaelhmiv/PitTech,
-.github/workflows/ios-build.yml): the runner creates its own distribution
-certificate and App Store provisioning profile through the ASC API, so no
-signing material ever lives in the repo or on a local machine.
+Shared CI distribution certificate per Michael's 2026-11-20 ruling (team
+cert cap; mint-per-build retired): every app's iOS CI uses ONE shared Apple
+Distribution certificate, which lives in the IOS_DIST_CERT_* Actions
+secrets. This script never creates, revokes, or sweeps certificates.
 
-Flow (same order as PitTech, for the same reasons):
-  1. Delete the previous CI profile and revoke its certificate, freeing
-     Apple's single distribution-certificate slot.
-  2. Sweep for orphaned distribution certificates (a run that died between
-     minting a certificate and creating its profile leaves one behind, and
-     it holds the slot against every later run). A certificate referenced
-     by ANY profile is never touched.
-  3. Generate a fresh key + CSR on this runner; the private key never
-     leaves it. Create a DISTRIBUTION certificate from the CSR.
-  4. Resolve the bundle ID record for the app. If it does not exist yet,
+Flow:
+  1. Decode the shared distribution .p12 from IOS_DIST_CERT_P12_BASE64 and
+     extract the certificate and private key with openssl into the same
+     artifact names the mint-per-build flow produced in SIGN_DIR
+     (ci.cer in DER form, ci.pem, ci.key), then stage the .p12 itself as
+     distribution.p12 with IOS_DIST_CERT_P12_PASSWORD, so the install step
+     in .github/actions/ios-signing consumes exactly the paths and
+     environment variables it always has (CYBERCACHE_P12_PATH,
+     CYBERCACHE_P12_PASSWORD, CYBERCACHE_PROFILE_PATH).
+  2. Resolve the bundle ID record for the app. If it does not exist yet,
      fail with a named blocker: the App Store Connect app record must be
      created first (iOS launch brief, Track 4).
-  5. Ensure the Sign in with Apple capability is enabled on the bundle ID
-     (the CI-minted profile must carry it once the app enables the
-     entitlement — brief Track 3). A bare create is rejected by Apple, so
-     the PRIMARY_APP_CONSENT setting shape is sent, exactly as PitTech's
+  3. Ensure the Sign in with Apple capability is enabled on the bundle ID
+     (the profile must carry it once the app enables the entitlement —
+     brief Track 3). A bare create is rejected by Apple, so the
+     PRIMARY_APP_CONSENT setting shape is sent, exactly as PitTech's
      working flow does.
-  6. Create the App Store provisioning profile, bundle cert + key into a
-     .p12, and export paths for the install step via GITHUB_ENV.
+  4. Delete the app's previous CI provisioning profile if present, create
+     a fresh App Store provisioning profile for the bundle ID referencing
+     the shared certificate ID from IOS_DIST_CERT_ID, and download it.
+     Profiles are per-app and are not capped.
 
 Inputs (environment):
   ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY  — Actions secrets.
+  IOS_DIST_CERT_P12_BASE64, IOS_DIST_CERT_P12_PASSWORD, IOS_DIST_CERT_ID
+    — Actions secrets holding the shared CI distribution certificate.
   IOS_BUNDLE_ID       — default com.michaelhmiv.cybercache
   IOS_PROFILE_NAME    — default "CyberCache App Store CI"
-  IOS_CERT_CN         — default "CyberCache CI"
   SIGN_DIR            — working directory for signing material.
 """
 
@@ -49,7 +52,8 @@ key_id = os.environ["ASC_KEY_ID"]
 issuer_id = os.environ["ASC_ISSUER_ID"]
 bundle_identifier = os.environ.get("IOS_BUNDLE_ID", "com.michaelhmiv.cybercache")
 profile_name = os.environ.get("IOS_PROFILE_NAME", "CyberCache App Store CI")
-cert_cn = os.environ.get("IOS_CERT_CN", "CyberCache CI")
+shared_cert_id = os.environ["IOS_DIST_CERT_ID"]
+shared_p12_password = os.environ["IOS_DIST_CERT_P12_PASSWORD"]
 
 (sign_dir / "AuthKey.p8").write_text(os.environ["ASC_PRIVATE_KEY"])
 
@@ -95,68 +99,29 @@ def call(method, path, payload=None):
         raise SystemExit(f"ASC API {method} {path} failed ({error.code}): {error.read().decode()[:600]}")
 
 
-def get_all(path):
-    items = []
-    while path is not None:
-        page = call("GET", path)
-        items.extend(page.get("data", []))
-        next_link = page.get("links", {}).get("next")
-        path = next_link[len(api):] if next_link else None
-    return items
+# 1. Shared CI distribution certificate per Michael's 2026-11-20 ruling
+# (team cert cap; mint-per-build retired) — the cert lives in the
+# IOS_DIST_CERT_* secrets. Decode the shared .p12 and extract the
+# certificate (.cer/.der + .pem) and private key (.pem-format .key) with
+# openssl into the same SIGN_DIR artifact names the retired mint flow
+# produced, and stage the .p12 at distribution.p12, the path the install
+# step consumes via CYBERCACHE_P12_PATH.
+shared_p12_bytes = base64.b64decode(os.environ["IOS_DIST_CERT_P12_BASE64"])
+shared_p12_path = sign_dir / "shared-distribution.p12"
+shared_p12_path.write_bytes(shared_p12_bytes)
+subprocess.run(["openssl", "pkcs12", "-in", str(shared_p12_path),
+                "-passin", f"pass:{shared_p12_password}",
+                "-nocerts", "-nodes", "-out", str(sign_dir / "ci.key")], check=True)
+subprocess.run(["openssl", "pkcs12", "-in", str(shared_p12_path),
+                "-passin", f"pass:{shared_p12_password}",
+                "-clcerts", "-nokeys", "-out", str(sign_dir / "ci.pem")], check=True)
+subprocess.run(["openssl", "x509", "-in", str(sign_dir / "ci.pem"),
+                "-outform", "DER", "-out", str(sign_dir / "ci.cer")], check=True)
+p12_path = sign_dir / "distribution.p12"
+p12_path.write_bytes(shared_p12_bytes)
+print(f"Using shared distribution certificate {shared_cert_id}")
 
-
-# 1. Free the distribution-certificate slot held by the previous CI run.
-# Apple overrides the subject name on distribution certs, so the CI cert
-# cannot be found by name; find it through the CI profile, whose name IS
-# ours to choose, then delete the profile and revoke its cert.
-old_profiles = call("GET", "/profiles?filter[name]=" + profile_name.replace(" ", "%20") + "&limit=50").get("data", [])
-old_cert_ids = []
-for old_profile in old_profiles:
-    linked = call("GET", f"/profiles/{old_profile['id']}/certificates").get("data", [])
-    old_cert_ids.extend(cert["id"] for cert in linked)
-for old_profile in old_profiles:
-    call("DELETE", f"/profiles/{old_profile['id']}")
-    print(f"Deleted previous CI profile {old_profile['id']}")
-for cert_id in dict.fromkeys(old_cert_ids):
-    call("DELETE", f"/certificates/{cert_id}")
-    print(f"Revoked previous CI certificate {cert_id}")
-
-# 2. Orphan sweep: revoke distribution-family certificates that NO
-# provisioning profile references.
-referenced_cert_ids = set()
-for any_profile in get_all("/profiles?limit=200"):
-    linked = call("GET", f"/profiles/{any_profile['id']}/certificates").get("data", [])
-    referenced_cert_ids.update(cert["id"] for cert in linked)
-distribution_types = {"DISTRIBUTION", "IOS_DISTRIBUTION", "MAC_APP_DISTRIBUTION"}
-orphan_candidates = []
-for certificate in get_all("/certificates?limit=200"):
-    cert_type = certificate.get("attributes", {}).get("certificateType")
-    if cert_type not in distribution_types:
-        continue
-    if certificate["id"] in referenced_cert_ids:
-        print(f"Distribution certificate {certificate['id']} ({cert_type}) is referenced "
-              "by a profile; leaving it alone")
-    else:
-        orphan_candidates.append(certificate)
-        print(f"Orphan candidate: distribution certificate {certificate['id']} "
-              f"({cert_type}) is referenced by no profile")
-for orphan in orphan_candidates:
-    call("DELETE", f"/certificates/{orphan['id']}")
-    print(f"Revoked orphaned distribution certificate {orphan['id']}")
-if not orphan_candidates:
-    print("No orphaned distribution certificates found")
-
-# 3. Fresh key + CSR on this runner; create the distribution certificate.
-subprocess.run(["openssl", "genrsa", "-out", str(sign_dir / "ci.key"), "2048"], check=True)
-subprocess.run(["openssl", "req", "-new", "-key", str(sign_dir / "ci.key"),
-                "-out", str(sign_dir / "ci.csr"), "-subj", f"/CN={cert_cn}"], check=True)
-csr = (sign_dir / "ci.csr").read_text()
-created = call("POST", "/certificates", payload={"data": {"type": "certificates", "attributes": {
-    "certificateType": "DISTRIBUTION", "csrContent": csr}}})["data"]
-(sign_dir / "ci.cer").write_bytes(base64.b64decode(created["attributes"]["certificateContent"]))
-print(f"Created distribution certificate {created['id']}")
-
-# 4. Resolve the bundle ID record. Zero records means the App Store
+# 2. Resolve the bundle ID record. Zero records means the App Store
 # Connect app record has not been created yet — a named blocker, not a
 # signing failure.
 bundle_records = call("GET", f"/bundleIds?filter[identifier]={bundle_identifier}&limit=200").get("data", [])
@@ -175,7 +140,7 @@ if len(exact_matches) != 1:
 bundle_id = exact_matches[0]["id"]
 
 
-# 5. Ensure the Sign in with Apple capability (brief Track 3).
+# 3. Ensure the Sign in with Apple capability (brief Track 3).
 def ensure_capability(capability_type, settings=None):
     def is_present():
         current = call("GET", f"/bundleIds/{bundle_id}/bundleIdCapabilities").get("data", [])
@@ -204,7 +169,9 @@ def ensure_capability(capability_type, settings=None):
 ensure_capability("APPLE_ID_AUTH", settings=[{"key": "APPLE_ID_AUTH_APP_CONSENT",
     "options": [{"key": "PRIMARY_APP_CONSENT"}]}])
 
-# 6. Create the provisioning profile and the .p12 bundle.
+# 4. Create the provisioning profile for the shared certificate.
+# Profiles stay per-app and API-driven: delete the previous CI profile if
+# present, then create a fresh one referencing the shared cert ID.
 profiles = call("GET", "/profiles?filter[name]=" + profile_name.replace(" ", "%20") + "&limit=50").get("data", [])
 for profile in profiles:
     call("DELETE", f"/profiles/{profile['id']}")
@@ -212,20 +179,13 @@ for profile in profiles:
 profile = call("POST", "/profiles", payload={"data": {"type": "profiles", "attributes": {
     "name": profile_name, "profileType": "IOS_APP_STORE"}, "relationships": {
     "bundleId": {"data": {"type": "bundleIds", "id": bundle_id}},
-    "certificates": {"data": [{"type": "certificates", "id": created["id"]}]}}}})["data"]
+    "certificates": {"data": [{"type": "certificates", "id": shared_cert_id}]}}}})["data"]
 profile_path = sign_dir / "CyberCache.mobileprovision"
 profile_path.write_bytes(base64.b64decode(profile["attributes"]["profileContent"]))
 print(f"Created provisioning profile {profile['id']}")
 
-subprocess.run(["openssl", "x509", "-inform", "DER", "-in", str(sign_dir / "ci.cer"),
-                "-out", str(sign_dir / "ci.pem")], check=True)
-p12_password = subprocess.run(["uuidgen"], capture_output=True, text=True, check=True).stdout.strip()
-p12_path = sign_dir / "distribution.p12"
-subprocess.run(["openssl", "pkcs12", "-export", "-inkey", str(sign_dir / "ci.key"),
-                "-in", str(sign_dir / "ci.pem"), "-out", str(p12_path),
-                "-passout", f"pass:{p12_password}", "-name", cert_cn], check=True)
 with open(os.environ["GITHUB_ENV"], "a") as env_file:
     env_file.write(f"CYBERCACHE_P12_PATH={p12_path}\n")
-    env_file.write(f"CYBERCACHE_P12_PASSWORD={p12_password}\n")
+    env_file.write(f"CYBERCACHE_P12_PASSWORD={shared_p12_password}\n")
     env_file.write(f"CYBERCACHE_PROFILE_PATH={profile_path}\n")
 print("Signing material ready.")
