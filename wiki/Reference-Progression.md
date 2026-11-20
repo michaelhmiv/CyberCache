@@ -26,16 +26,16 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 5 | **High-Value Execution** | small | 1 | 5 | +10% Boss Damage | — |
 | 6 | **Procedural Loads** | small | 1 | 5 | +5% Status Chance | — |
 | 6 | **Shield Breach** | small | 1 | 5 | +5% Shield Damage | — |
-| 7 | **Focus Fire** | major | 3 | 1 | +15% Boss Damage when using Sniper or Pistol. | Target Priority, High-Value Execution |
-| 7 | **Speedloader** | major | 3 | 1 | +20% Attack Speed for first 10 seconds of boss fight. | Quick Cycle, Rapid Servos |
-| 8 | **Weakspot Analysis** | major | 3 | 1 | +25% Crit Damage against bosses below 50% HP. | Terminal Ballistics, Overpenetration |
-| 8 | **Elemental Overclock** | major | 3 | 1 | A weapon matching the boss's weakness grants +10% damage. | Procedural Loads |
+| 7 | **Focus Fire** | major | 3 | 1 | +15% Boss Damage when using Sniper or Pistol. Pick a spot. End the argument. | Target Priority, High-Value Execution |
+| 7 | **Speedloader** | major | 3 | 1 | +20% Attack Speed for the first 10 seconds of a boss fight. Say hello properly. | Quick Cycle, Rapid Servos |
+| 8 | **Weakspot Analysis** | major | 3 | 1 | +25% Crit Damage against bosses below 50% HP. Finish what you started. | Terminal Ballistics, Overpenetration |
+| 8 | **Elemental Overclock** | major | 3 | 1 | A weapon matching the boss's weakness grants +10% damage. Homework pays. | Procedural Loads |
 | 5 | **Tracer Loads** | small | 1 | 5 | +5% Status Chance | — |
 | 6 | **Breaching Loads** | small | 1 | 5 | +5% Shield Damage | — |
 | 4 | **Fast Hands** | small | 1 | 5 | +8% Attack Speed | — |
 | 3 | **Hair Trigger** | small | 1 | 5 | +8% Attack Speed | — |
 | 8 | **The Long Hunt** | major | 3 | 1 | +15% Shield Damage and +10% Status Chance — the roaming hunter’s edge. | Tracer Loads, Breaching Loads |
-| 9 | **Death by a Thousand Cuts** | keystone | 5 | 1 | Critical hits increase your DPS by an additional +25%. If crit chance exceeds 50%, gain +10% boss damage. | Focus Fire, Speedloader, Weakspot Analysis |
+| 9 | **Death by a Thousand Cuts** | keystone | 5 | 1 | Critical hits increase your DPS by an additional +25%. If crit chance exceeds 50%, gain +10% boss damage. Death by a thousand cuts, itemized. | Focus Fire, Speedloader, Weakspot Analysis |
 
 ### Demolition
 
@@ -53,16 +53,16 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 5 | **Siege Mode** | small | 1 | 5 | +15% Heavy Weapon Burst | — |
 | 6 | **Ion Surge** | small | 1 | 5 | +10% Shield Break Contribution from Ordnance | — |
 | 6 | **Ion Cascade** | small | 1 | 5 | +10% Shield Break Contribution from Ordnance | — |
-| 1 | **Field Kitchen** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
-| 2 | **Powder Stores** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
-| 3 | **Grease and Wicks** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
-| 4 | **Spares Cache** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
-| 5 | **Forward Stockpile** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. The rate is set when the job is queued. | — |
-| 7 | **Breaching Charge** | major | 3 | 1 | Ordnance strips an additional 20% shield before the DPS phase. | Ion Surge, Payload Expansion |
-| 7 | **Concussive Payload** | major | 3 | 1 | Stagger effects last 30% longer and reduce boss damage output by 15% while active. | Concussion, Impact Force |
-| 8 | **Scorched Earth** | major | 3 | 1 | If you bring a Launcher as Heavy Weapon, gain +20% armor break and +10% boss DPS. | Penetrator Rounds, Crack Core |
-| 8 | **Cluster Bombs** | major | 3 | 1 | Ordnance has a 25% chance to trigger twice (second trigger at 50% damage). | Volatile Mix, Blast Radius |
-| 9 | **Unstable Power** | keystone | 5 | 1 | Explosive damage counts toward Armor Break. When armor is broken, your next heavy weapon burst deals +50% damage. | Breaching Charge, Concussive Payload, Scorched Earth |
+| 1 | **Field Kitchen** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
+| 2 | **Powder Stores** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
+| 3 | **Grease and Wicks** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
+| 4 | **Spares Cache** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
+| 5 | **Forward Stockpile** | small | 1 | 5 | Craft jobs run faster: unit time falls in 2% steps across the five supply nodes — up to −20% with all five maxed. Set when the job is queued — no take-backs. | — |
+| 7 | **Breaching Charge** | major | 3 | 1 | Ordnance strips an additional 20% shield before the DPS phase. Knock first. Loudly. | Ion Surge, Payload Expansion |
+| 7 | **Concussive Payload** | major | 3 | 1 | Stagger effects last 30% longer and reduce boss damage output by 15% while active. Keep them wobbling. | Concussion, Impact Force |
+| 8 | **Scorched Earth** | major | 3 | 1 | If you bring a Launcher as Heavy Weapon, gain +20% armor break and +10% boss DPS. Subtlety not included. | Penetrator Rounds, Crack Core |
+| 8 | **Cluster Bombs** | major | 3 | 1 | Ordnance has a 25% chance to trigger twice (second trigger at 50% damage). Two booms for the price of one. | Volatile Mix, Blast Radius |
+| 9 | **Unstable Power** | keystone | 5 | 1 | Explosive damage counts toward Armor Break. When armor is broken, your next heavy weapon burst deals +50% damage. Unstable is the point. | Breaching Charge, Concussive Payload, Scorched Earth |
 
 ### Scavenger
 
@@ -76,47 +76,47 @@ The four trees hold **88 nodes** and **406 points** of spending room. A hunter e
 | 3 | **Parallel Download** | small | 1 | 5 | +10% Loot Quantity | — |
 | 4 | **Decompiler** | small | 1 | 5 | +20% Scrap Yield | — |
 | 4 | **Compression** | small | 1 | 5 | +20% Scrap Yield | — |
-| 5 | **Efficient Routines** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point, set at queue time. | — |
-| 5 | **Conservation** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (−20% across both nodes). | — |
+| 5 | **Efficient Routines** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point, set at queue time. Waste nothing, not even minutes. | — |
+| 5 | **Conservation** | small | 1 | 5 | Workshop craft jobs run faster: −2% unit time per point (−20% across both nodes). Time is loot too. | — |
 | 6 | **Encrypted Payloads** | small | 1 | 5 | +5% Cache Quality Modifier | — |
 | 6 | **Darknet Broker** | small | 1 | 5 | +5% Marketplace Listing Fee Reduction | — |
-| 7 | **Hoarder's Instinct** | major | 3 | 1 | Salvaging gear grants +25% bonus scrap. | Decompiler, Compression |
-| 7 | **Fine Print** | major | 3 | 1 | Consumables used in a victorious boss fight have a 50% chance to be refunded. | Efficient Routines, Conservation |
-| 8 | **Market Manipulator** | major | 3 | 1 | Listing fees reduced an additional 15% for items you personally found. | Darknet Broker |
-| 8 | **Lucky Find** | major | 3 | 1 | +15% Rare Drop Chance. | Data Miner, Scrap Filter |
+| 7 | **Hoarder's Instinct** | major | 3 | 1 | Salvaging gear grants +25% bonus scrap. One hunter's trash is your income. | Decompiler, Compression |
+| 7 | **Fine Print** | major | 3 | 1 | Consumables used in a victorious boss fight have a 50% chance to be refunded. Read the fine print; it pays. | Efficient Routines, Conservation |
+| 8 | **Market Manipulator** | major | 3 | 1 | Listing fees reduced an additional 15% for items you personally found. The market bends for its own. | Darknet Broker |
+| 8 | **Lucky Find** | major | 3 | 1 | +15% Rare Drop Chance. Luck, allegedly earned. | Data Miner, Scrap Filter |
 | 1 | **Borrowed Caliber** | small | 1 | 5 | +5% Weapon Damage | — |
 | 2 | **Found Ammunition** | small | 1 | 5 | +5% Weapon Damage | — |
 | 3 | **Opportunist** | small | 1 | 5 | +3% Crit Chance | — |
 | 4 | **Cheap Shot** | small | 1 | 5 | +3% Crit Chance | — |
 | 5 | **Soft Spot** | small | 1 | 5 | +10% Crit Damage | — |
-| 9 | **King of Scrap** | keystone | 5 | 1 | Low-rarity weapons gain +100% scrap value. Commons have 25% chance for bonus crafting material. Offline cap +4 hours. | Hoarder's Instinct, Fine Print, Lucky Find |
+| 9 | **King of Scrap** | keystone | 5 | 1 | Low-rarity weapons gain +100% scrap value. Commons have a 25% chance for bonus crafting material. Offline cap +4 hours. Long live the King of Scrap. | Hoarder's Instinct, Fine Print, Lucky Find |
 
 ### Fixer
 
 | Tier | Node | Type | Cost | Max points | Effect | Requires |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | **Assembly Rhythm** | small | 1 | 5 | Workshop craft jobs run faster: −2.5% unit time per point, set at queue time. | — |
-| 1 | **Parallel Hands** | small | 1 | 5 | Workshop craft jobs run faster: −2.5% unit time per point (−25% across both nodes). | — |
-| 2 | **Calibrated Eye** | small | 1 | 5 | +1 crafted quality shift per point, counted when a unit completes. | — |
-| 2 | **Tolerance Stacking** | small | 1 | 5 | +1 crafted quality shift per point (+10 across both nodes). | — |
-| 3 | **Torque Discipline** | small | 1 | 5 | Repair work runs faster: −3% unit time per point, set when the job starts. | — |
-| 3 | **Bay Choreography** | small | 1 | 5 | Repair work runs faster: −3% unit time per point (−30% across both nodes). | — |
-| 4 | **Kit Stretching** | small | 1 | 5 | Patch kits restore +2.5% more condition per point (multiplies repair efficiency). | — |
-| 4 | **Salvage Solder** | small | 1 | 5 | Patch kits restore +2.5% more condition per point (+25% across both nodes). | — |
-| 5 | **Rig Tuning** | small | 1 | 5 | +2% vehicle yield per point (stacks with yield affixes). | — |
-| 5 | **Aero Fairings** | small | 1 | 5 | +2% vehicle yield bonus per point (+20% across both nodes). | — |
-| 6 | **Lean Burn** | small | 1 | 5 | Vehicles burn −3% fuel per point, after fuel-efficiency affixes. | — |
-| 6 | **Appraiser's Eye** | small | 1 | 5 | +1% vendor buyback rate per point. Buyback rate caps at 90%. | — |
-| 7 | **Master Artificer** | major | 3 | 1 | Crafted gear temper chance +5%. | Calibrated Eye, Tolerance Stacking |
-| 7 | **Fleet Engineer** | major | 3 | 1 | Vehicles lose 25% less condition while fueled. | Rig Tuning, Aero Fairings |
-| 8 | **House Brand** | major | 3 | 1 | Listing fees reduced an additional 15% for Workshop-crafted items you sell. | Appraiser's Eye |
-| 8 | **Second Shift** | major | 3 | 1 | +1 concurrent self-repair job. | Torque Discipline, Bay Choreography |
+| 1 | **Assembly Rhythm** | small | 1 | 5 | Workshop craft jobs run faster: −2.5% unit time per point, set at queue time. Doc's benches do not dawdle. | — |
+| 1 | **Parallel Hands** | small | 1 | 5 | Workshop craft jobs run faster: −2.5% unit time per point (−25% across both nodes). Many hands, faster work. | — |
+| 2 | **Calibrated Eye** | small | 1 | 5 | +1 crafted quality shift per point, counted when a unit completes. Doc checks. Twice. | — |
+| 2 | **Tolerance Stacking** | small | 1 | 5 | +1 crafted quality shift per point (+10 across both nodes). Precision is a personality trait. | — |
+| 3 | **Torque Discipline** | small | 1 | 5 | Repair work runs faster: −3% unit time per point, set when the job starts. Broken things fear this node. | — |
+| 3 | **Bay Choreography** | small | 1 | 5 | Repair work runs faster: −3% unit time per point (−30% across both nodes). The bay runs like a dance. | — |
+| 4 | **Kit Stretching** | small | 1 | 5 | Patch kits restore +2.5% more condition per point (multiplies repair efficiency). Stretch every kit further. | — |
+| 4 | **Salvage Solder** | small | 1 | 5 | Patch kits restore +2.5% more condition per point (+25% across both nodes). Nothing wasted, ever. | — |
+| 5 | **Rig Tuning** | small | 1 | 5 | +2% vehicle yield per point (stacks with yield affixes). Tuned to a purr. | — |
+| 5 | **Aero Fairings** | small | 1 | 5 | +2% vehicle yield bonus per point (+20% across both nodes). Fairings: because air is rude. | — |
+| 6 | **Lean Burn** | small | 1 | 5 | Vehicles burn −3% fuel per point, after fuel-efficiency affixes. Sip, do not gulp. | — |
+| 6 | **Appraiser's Eye** | small | 1 | 5 | +1% vendor buyback rate per point. Buyback rate caps at 90%. Marla respects the hustle. | — |
+| 7 | **Master Artificer** | major | 3 | 1 | Crafted gear temper chance +5%. The bench provides. | Calibrated Eye, Tolerance Stacking |
+| 7 | **Fleet Engineer** | major | 3 | 1 | Vehicles lose 25% less condition while fueled. Built to outlast the road. | Rig Tuning, Aero Fairings |
+| 8 | **House Brand** | major | 3 | 1 | Listing fees reduced an additional 15% for Workshop-crafted items you sell. House brand, house rules. | Appraiser's Eye |
+| 8 | **Second Shift** | major | 3 | 1 | +1 concurrent self-repair job. Two bays, no waiting. | Torque Discipline, Bay Choreography |
 | 1 | **Proof Loads** | small | 1 | 5 | +10% Ordnance Damage | — |
 | 2 | **Bench-Tested** | small | 1 | 5 | +10% Ordnance Damage | — |
 | 3 | **Measured Charge** | small | 1 | 5 | +8% Explosive Damage | — |
 | 4 | **Stress Points** | small | 1 | 5 | +10% Armor Damage | — |
 | 5 | **Loose Bolts** | small | 1 | 5 | +5% Stagger Chance | — |
-| 9 | **Sutter's Hands** | keystone | 5 | 1 | Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%. | Master Artificer, Fleet Engineer, Second Shift |
+| 9 | **Sutter's Hands** | keystone | 5 | 1 | Legendary Core Catalyst gear crafts gain +1 generation draw per unit. Each bench queue holds +1 job. Workshop Rush Ticket reduction cap rises to 55%. Sutter's hands never idle. | Master Artificer, Fleet Engineer, Second Shift |
 <!-- /wiki-gen:skill-trees -->
 
 ## Cache Rank

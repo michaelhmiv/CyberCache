@@ -20,12 +20,12 @@ business is one tap from the rail.
 Every maker is one person's outfit, and the Rep Desk deals with you the
 way the founder built it:
 
-- **Redline — Della Voss.** “It only gets faster.”
+- **Redline — Della Voss.** “It only gets faster. And faster.”
 - **Ironwood — Amos Thorne.** “Ironwood takes its time. Once.”
 - **BlastForge — Hollis Brandt.** “Subtlety was not in the budget.”
-- **Prismatek — Iris Calloway.** “Every element, accounted for.”
-- **ThrowTech — Tobin Larkin.** “Built to be left behind.”
-- **HelixWorks — Ada Kessler.** “No two alike. All of them calibrated.”
+- **Prismatek — Iris Calloway.** “Every element, accounted for. Weaponized.”
+- **ThrowTech — Tobin Larkin.** “Chuck it. Forget it.”
+- **HelixWorks — Ada Kessler.** “No two alike. Somehow all calibrated.”
 
 The same two lines ride every gun card of that maker's work, under the
 Maker row — the founder's name and the house slogan, straight from the

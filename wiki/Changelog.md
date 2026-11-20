@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-20 — The wasteland gets louder
+
+- **Manufacturers, legends, and bosses talk bigger now** — maker slogans, legendary effect write-ups, boss dossiers, and the consumable and skill-tree descriptions were rewritten in a louder Borderlands voice: same numbers, same mechanics, more attitude. Wherever a line states a price, a percentage, or a duration, it says exactly what it said before — it just says it like it means it.
+
 ## 2026-11-20 — The cache reveal stays for a look
 
 - **The cache reveal stays for a look now** — a cache reveal used to end on its own clock: the risen item and its stat deck vanished a heartbeat after the deck's last line landed, too fast to read the roll. Now the reveal holds — the item and its full deck stay on stage until you tap **Collect** (or open another), and a tap during the animation skips you to that held reveal instead of past it. The held reveal is a single screen with no scrolling: **Details**, **Open Another**, and **Collect** are all in view together, and Details opens the item's complete inspect sheet over the reveal — close it and the held reveal is right there as it was. Collect settles the stage and presents the complete deck and its actions exactly as before. Boss and roaming reveals are unchanged.
@@ -442,14 +446,40 @@ The largest single expansion in the game's history, landing across one weekend:
 <!-- wiki-gen:changelog-ledger -->
 ### Merge ledger
 
-_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 338 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
+_Every pull request merged since 2026-11-01 (PR #262), recorded exactly as merged — 358 merges. This ledger is the completeness record behind the themed entries above it: if a merge shipped, it is listed here. Generated from master's merge history; see `docs/WIKI.md`._
 
-**2026-11-18** — 4 merges
+**2026-11-20** — 2 merges
+
+- #636 — Cache reveal holds at settled until Collect
+- #638 — Add GitHub Releases workflow
+
+**2026-11-19** — 6 merges
+
+- #629 — Serve app-ads.txt at the root in app-only mode
+- #630 — Move iOS manual signing off the xcodebuild command line
+- #631 — Wire real AdMob iOS IDs into iOS CI builds
+- #632 — Decision log: iOS straight to production + personalized ads stay (2026-11-19 rulings)
+- #633 — Serialize iOS signing jobs (shared concurrency group) to stop the cert-revocation race
+- #635 — Fix dead cache-open "Watch Ad to Open" button (pending state + show settlement)
+
+**2026-11-18** — 16 merges
 
 - #613 — First-screen lifts (B2): the datum leads its surface — 8 small lifts from the audit census
 - #614 — First-screen Gear batch: jump chips, all-kind compare strip, windowed slot picker
 - #615 — R2 bars: prep action bars, chamber + extract rundown zones, run-state lift (item 40)
 - #616 — Item 40 R3: inspect sheet first screen — trade-first, effect in header, Market price/Buy bar, roaming-DPS percent fix
+- #617 — Extraction set repaint: painterly stakes, sift rig, and crates replace the neon-glass set
+- #618 — Dedupe bench duration formatters onto lib/workshop/durationFormat
+- #619 — Glow set v3 swap: nine set pieces repainted in their scenes (owner-adopted)
+- #620 — Icon skill tree: medallion board, sheet-only spend, V3 copy, 88 node icons
+- #621 — Rewarded ads: no raw SDK error ever reaches the player
+- #622 — demo_cons copy: the withheld concise rewrite lands with migration 0103
+- #623 — Restore the three compliance pages in app-only mode
+- #624 — iOS launch Track 2: iOS CI lanes (signed archive + simulator smoke) + TestFlight delivery
+- #625 — Add Play open testing release workflow (track beta, draft-first)
+- #626 — iOS platform scaffold: Capacitor iOS target, CI signing shape, AdMob config seam (Track 1)
+- #627 — Sign in with Apple beside Google on iOS (iOS launch Track 3)
+- #628 — iOS: Sign in with Apple entitlement for the App target (Track 3 follow-on)
 
 **2026-11-17** — 11 merges
 
