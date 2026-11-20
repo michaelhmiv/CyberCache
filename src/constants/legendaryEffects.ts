@@ -5,7 +5,7 @@ export const LEGENDARY_EFFECTS: LegendaryEffectDef[] = [
   {
     id: 'debt_collector',
     name: 'Debt Collector',
-    description: 'The boss owes you: each failed attempt vs. the same boss grants +3% win chance next time, stacking to a cap of +30%.',
+    description: 'Each failed attempt vs. the same boss grants +3% win chance next time, stacking to a cap of +30%.',
     eligibleSources: [DropSource.BossDrop],
     minBossTier: 1,
     weaponType: WeaponType.Pistol,
