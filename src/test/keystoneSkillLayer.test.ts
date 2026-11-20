@@ -219,7 +219,7 @@ describe('replaced nodes — respec sanity', () => {
     expect(node?.type).toBe('major');
     expect(node?.cost).toBe(3);
     expect(node?.effects).toEqual({ rareDropChance: 0.15 });
-    expect(node?.description).toBe('+15% Rare Drop Chance.');
+    expect(node?.description).toBe('+15% Rare Drop Chance. Luck, allegedly earned.');
     const bonuses = computeSkillBonuses({ scav_major_4: 1 });
     expect(bonuses.rareDropChance).toBeCloseTo(0.15, 10);
     expect(bonuses.postBossDropChance).toBeUndefined();

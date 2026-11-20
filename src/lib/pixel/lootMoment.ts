@@ -210,7 +210,7 @@ export function lootStatLine(item: GearItem): string {
 export const LEGENDARY_FLAVOR_OVERRIDES: Record<string, string> = {
   emberfall: 'Sets the sky on fire. Literally.',
   'debt collector': 'It always collects. Eventually is not in its vocabulary.',
-  'warranty void': 'The manufacturer has been notified. They are devastated.',
+  'warranty void': 'Factory notified. They\'re crying into your warranty.',
   'ricochet gospel': 'It gets there in the end. Faith, but with angles.',
   'bad decision': 'You knew. You fired it anyway.',
   'glass sun': 'Do not look directly at the results.',
@@ -226,14 +226,14 @@ export const LEGENDARY_FLAVOR_OVERRIDES: Record<string, string> = {
   'echo chamber': 'It agrees with everything you fire. Loudly. Twice.',
   'insurance fraud': 'Act of god? No. Act of gun.',
   'market crash': "Sell. SELL. It's already sold.",
-  'stable loop': 'It hums at a frequency that makes physics behave.',
+  'stable loop': 'Hums loud enough to bully physics into behaving.',
   'phase shifter': 'Walls are a suggestion it politely declines.',
   'hot swapper': 'Reloading is a rumor it never believed.',
   'chain lightning': 'It introduces your enemies to each other.',
   'molten core': "The planet's worst idea, chambered.",
   'cryo stasis': 'It gives them time to think. Forever.',
   'void bargain': 'Sign here. The fine print signs back.',
-  jackpot: "Every 150th pull pays out. It keeps count so you don't have to.",
+  jackpot: "150th pull hits big. It counts so you can just keep blasting.",
 };
 
 export function legendaryFlavorOverride(name: string | undefined): string | undefined {

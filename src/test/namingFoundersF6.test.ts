@@ -53,12 +53,12 @@ function shippedFiles(): string[] {
 }
 
 const EXPECTED: Record<Manufacturer, { founder: string; slogan: string }> = {
-  [Manufacturer.Redline]: { founder: 'Della Voss', slogan: 'It only gets faster.' },
+  [Manufacturer.Redline]: { founder: 'Della Voss', slogan: 'It only gets faster. And faster.' },
   [Manufacturer.Ironwood]: { founder: 'Amos Thorne', slogan: 'Ironwood takes its time. Once.' },
   [Manufacturer.BlastForge]: { founder: 'Hollis Brandt', slogan: 'Subtlety was not in the budget.' },
-  [Manufacturer.Prismatek]: { founder: 'Iris Calloway', slogan: 'Every element, accounted for.' },
-  [Manufacturer.ThrowTech]: { founder: 'Tobin Larkin', slogan: 'Built to be left behind.' },
-  [Manufacturer.HelixWorks]: { founder: 'Ada Kessler', slogan: 'No two alike. All of them calibrated.' },
+  [Manufacturer.Prismatek]: { founder: 'Iris Calloway', slogan: 'Every element, accounted for. Weaponized.' },
+  [Manufacturer.ThrowTech]: { founder: 'Tobin Larkin', slogan: 'Chuck it. Forget it.' },
+  [Manufacturer.HelixWorks]: { founder: 'Ada Kessler', slogan: 'No two alike. Somehow all calibrated.' },
 };
 
 describe('F6 · the six founders and their slogans (the def is the one source)', () => {
@@ -161,32 +161,32 @@ describe('F6 · no mechanics moved (def-level pins, byte-identical to pre-F6 mas
     const pins: Record<Manufacturer, { identity: string; mechanic: string; bias: Record<string, number> }> = {
       [Manufacturer.Redline]: {
         identity: 'Attack speed, ramping damage, sustained DPS',
-        mechanic: 'Attack speed +15% baked into every roll; its ramping damage is folded into base damage (+8%)',
+        mechanic: 'Attack speed +15% baked into every roll; ramping damage folded into base damage (+8%). Slow was never an option.',
         bias: { attackSpeed: 1.15, baseDamage: 0.95 },
       },
       [Manufacturer.Ironwood]: {
         identity: 'Crits, precision, boss killing',
-        mechanic: 'High crit chance/damage; strong single-target modifiers (+20% crit damage vs bosses)',
+        mechanic: 'High crit chance/damage; strong single-target modifiers (+20% crit damage vs bosses). One shot is usually the argument.',
         bias: { critChance: 1.2, critDamage: 1.25, baseDamage: 1.05 },
       },
       [Manufacturer.BlastForge]: {
         identity: 'Explosions, splash, stagger, armor cracking',
-        mechanic: 'Explosive damage helps armor break and boss phase checks (+25% armor damage)',
+        mechanic: 'Explosive damage helps armor break and boss phase checks (+25% armor damage). Diplomacy, but louder.',
         bias: { armorDamageMod: 1.25, baseDamage: 1.1, attackSpeed: 0.9 },
       },
       [Manufacturer.Prismatek]: {
         identity: 'Elemental specialization',
-        mechanic: 'Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored',
+        mechanic: 'Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored. The periodic table, weaponized.',
         bias: { statusChance: 1.3, statusDamage: 1.3, baseDamage: 0.95 },
       },
       [Manufacturer.ThrowTech]: {
         identity: 'Deployables and disposable tech',
-        mechanic: 'Deployable-tech frames: +20% wave damage baked into every roll',
+        mechanic: 'Deployable-tech frames: +20% wave damage baked into every roll. Deploy it, then wave goodbye.',
         bias: { waveDamageMod: 1.2, baseDamage: 0.9 },
       },
       [Manufacturer.HelixWorks]: {
         identity: 'Modular, flexible, better stat variance',
-        mechanic: 'Modular frames: +10 roll quality floor on every roll',
+        mechanic: 'Modular frames: +10 roll quality floor on every roll. No two alike — the floor is the promise.',
         bias: { baseDamage: 1.0 },
       },
     };

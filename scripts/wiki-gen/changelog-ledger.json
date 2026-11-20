@@ -3,6 +3,48 @@
   "startDate": "2026-11-01",
   "days": [
     {
+      "date": "2026-11-20",
+      "merges": [
+        {
+          "number": 636,
+          "title": "Cache reveal holds at settled until Collect"
+        },
+        {
+          "number": 638,
+          "title": "Add GitHub Releases workflow"
+        }
+      ]
+    },
+    {
+      "date": "2026-11-19",
+      "merges": [
+        {
+          "number": 629,
+          "title": "Serve app-ads.txt at the root in app-only mode"
+        },
+        {
+          "number": 630,
+          "title": "Move iOS manual signing off the xcodebuild command line"
+        },
+        {
+          "number": 631,
+          "title": "Wire real AdMob iOS IDs into iOS CI builds"
+        },
+        {
+          "number": 632,
+          "title": "Decision log: iOS straight to production + personalized ads stay (2026-11-19 rulings)"
+        },
+        {
+          "number": 633,
+          "title": "Serialize iOS signing jobs (shared concurrency group) to stop the cert-revocation race"
+        },
+        {
+          "number": 635,
+          "title": "Fix dead cache-open \"Watch Ad to Open\" button (pending state + show settlement)"
+        }
+      ]
+    },
+    {
       "date": "2026-11-18",
       "merges": [
         {
@@ -20,6 +62,54 @@
         {
           "number": 616,
           "title": "Item 40 R3: inspect sheet first screen — trade-first, effect in header, Market price/Buy bar, roaming-DPS percent fix"
+        },
+        {
+          "number": 617,
+          "title": "Extraction set repaint: painterly stakes, sift rig, and crates replace the neon-glass set"
+        },
+        {
+          "number": 618,
+          "title": "Dedupe bench duration formatters onto lib/workshop/durationFormat"
+        },
+        {
+          "number": 619,
+          "title": "Glow set v3 swap: nine set pieces repainted in their scenes (owner-adopted)"
+        },
+        {
+          "number": 620,
+          "title": "Icon skill tree: medallion board, sheet-only spend, V3 copy, 88 node icons"
+        },
+        {
+          "number": 621,
+          "title": "Rewarded ads: no raw SDK error ever reaches the player"
+        },
+        {
+          "number": 622,
+          "title": "demo_cons copy: the withheld concise rewrite lands with migration 0103"
+        },
+        {
+          "number": 623,
+          "title": "Restore the three compliance pages in app-only mode"
+        },
+        {
+          "number": 624,
+          "title": "iOS launch Track 2: iOS CI lanes (signed archive + simulator smoke) + TestFlight delivery"
+        },
+        {
+          "number": 625,
+          "title": "Add Play open testing release workflow (track beta, draft-first)"
+        },
+        {
+          "number": 626,
+          "title": "iOS platform scaffold: Capacitor iOS target, CI signing shape, AdMob config seam (Track 1)"
+        },
+        {
+          "number": 627,
+          "title": "Sign in with Apple beside Google on iOS (iOS launch Track 3)"
+        },
+        {
+          "number": 628,
+          "title": "iOS: Sign in with Apple entitlement for the App target (Track 3 follow-on)"
         }
       ]
     },
