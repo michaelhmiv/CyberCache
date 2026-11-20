@@ -66,15 +66,15 @@ export const VOICE_MOMENT_WINDOW_MS = 3000;
 export const HUNTER_VOICE_POOLS: Record<HunterId, Record<HunterVoiceTrigger, readonly string[]>> = {
   vesper: {
     legendaryDrop: ['The cache owes her an arm. It pays in installments.'],
-    bossKill: ['Long odds. She collects on those.'],
+    bossKill: ['Long odds? She collects on those.'],
     nearDeathSave: ["Half of her is loot. Loot doesn't die, it drops."],
     streakComplete: ["Luck is just counting that hasn't been caught."],
   },
   silas: {
     legendaryDrop: ['It was ticking. He respects a colleague.'],
-    bossKill: ['It had a fuse. Everything does, to him.'],
+    bossKill: ['It had a fuse. To him, everything does.'],
     nearDeathSave: ['Almost defused. He took it personally.'],
-    streakComplete: ['Controlled burn. The control is also burning.'],
+    streakComplete: ["Controlled burn! Even the control's on fire!"],
   },
   josie: {
     legendaryDrop: ['Appraisal: priceless. Decision: bin.'],
@@ -84,7 +84,7 @@ export const HUNTER_VOICE_POOLS: Record<HunterId, Record<HunterVoiceTrigger, rea
   },
   doc: {
     legendaryDrop: ['New part. He means the weapon. Probably.'],
-    bossKill: ['Cause of death: pre-existing conditions. He checked.'],
+    bossKill: ['Pre-existing conditions—he checked. Case closed!'],
     nearDeathSave: ['Self-repair complete. The patient is ungrateful.'],
     streakComplete: ["Production is up. He's the factory and the union."],
   },

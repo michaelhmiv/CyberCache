@@ -259,7 +259,7 @@ export function checkClassModBinding(
   const owner = hunterForTree(modTree);
   return {
     ok: false,
-    reason: `Class mod is bound to ${owner.name} (${modTree}) — field ${owner.name} to equip it; ${hunter.name} cannot use it.`,
+    reason: `Bound to ${owner.name} (${modTree}) only — field ${owner.name} to equip it; ${hunter.name} cannot use it.`,
   };
 }
 
