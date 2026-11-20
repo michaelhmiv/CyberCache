@@ -148,6 +148,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
   const inventory = useInventoryStore();
 
   const [opening, setOpening] = useState(false);
+  const [adPending, setAdPending] = useState(false);
   const [revealed, setRevealed] = useState<GearItem[] | null>(null);
   // P3 loot moment: the cache's contents celebrate first (rarity
   // ladder + legendary treatment) on the reveal page's stage; when
@@ -225,8 +226,16 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     if (keys > 0) void openWith('key');
   };
   const handleOpenAd = async () => {
-    if (opening) return;
+    if (opening || adPending) return;
     setError(null);
+    // Pending mirrors the bench lane's earn button: set BEFORE
+    // the ad await so the tap lands visibly (the button disables
+    // and reads "Showing ad…") and re-taps stay inert for the
+    // whole attempt. A cold first load can take a while, and
+    // stacked attempts only compete with each other — with no
+    // pending state this button looked completely dead
+    // (owner device hit, 2026-11-19).
+    setAdPending(true);
     // The ad step stands alone: ANY failure in it — no fill,
     // dismissed, the ad stack not serving — lands as the game's
     // own notice. The raw SDK error text never reaches the
@@ -239,6 +248,8 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     } catch {
       setError('No ad is available right now, so the cache stayed closed — try again later.');
       return;
+    } finally {
+      setAdPending(false);
     }
     await openWith('ad', reward.adUnitId);
   };
@@ -386,11 +397,11 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
             </button>
             <button
               onClick={handleOpenAd}
-              disabled={opening || !adsReady}
+              disabled={opening || adPending || !adsReady}
               className="flex w-full items-center justify-center gap-2 py-3 rounded-xl bg-amber/20 border border-amber text-amber font-black text-sm uppercase tracking-wider disabled:opacity-40 active:scale-95 transition-transform"
             >
               <Play size={14} />
-              Watch Ad to Open
+              {adPending ? 'Showing ad…' : 'Watch Ad to Open'}
             </button>
             {!adsReady && (
               <div className="text-[10px] text-text-muted">
