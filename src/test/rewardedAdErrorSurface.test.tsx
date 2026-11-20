@@ -25,6 +25,11 @@
  *    no open op fired), and the raw SDK text never renders;
  *  - the success path is unchanged: reward → open op with the
  *    shown unit id.
+ *
+ * Pending-state pin (owner device hit, 2026-11-19): while the
+ * ad attempt is in flight the button disables and reads
+ * "Showing ad…" — the bench lane's treatment — and re-taps are
+ * inert, so a slow cold load no longer reads as a dead button.
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -215,5 +220,35 @@ describe('cache surface — ad failure shows the game notice, never the SDK text
     expect(await screen.findByTestId('loot-moment-stub')).toBeTruthy();
     expect(mockMakeItem).toHaveBeenCalledWith({ payment: 'ad', adUnitId: 'ca-app-pub-x/y' });
     expect(document.body.textContent).not.toContain(GAME_NOTICE);
+  });
+
+  it('while the ad attempt is in flight, the button disables, reads "Showing ad…", and ignores re-taps', async () => {
+    let rejectAd: (err: Error) => void = () => {};
+    surface.showRewardedCacheAd.mockImplementation(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          rejectAd = reject;
+        }),
+    );
+    render(<ChestScreen />);
+
+    const adButton = await screen.findByRole('button', { name: /Watch Ad to Open/i });
+    fireEvent.click(adButton);
+
+    // The tap lands visibly — the bench lane's pending treatment.
+    const pendingButton = await screen.findByRole('button', { name: /Showing ad/i });
+    expect((pendingButton as HTMLButtonElement).disabled).toBe(true);
+
+    // Re-taps while pending are inert: no second ad attempt.
+    fireEvent.click(pendingButton);
+    expect(surface.showRewardedCacheAd).toHaveBeenCalledTimes(1);
+
+    // When the attempt settles as a failure, the game notice
+    // shows and the button returns to its live state.
+    rejectAd(new Error('The ad was dismissed before the reward was earned.'));
+    expect(await screen.findByText(GAME_NOTICE)).toBeTruthy();
+    const restored = await screen.findByRole('button', { name: /Watch Ad to Open/i });
+    expect((restored as HTMLButtonElement).disabled).toBe(false);
+    expect(mockMakeItem).not.toHaveBeenCalled();
   });
 });

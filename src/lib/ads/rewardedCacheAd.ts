@@ -8,6 +8,7 @@
  */
 import { AdMob, AdmobConsentStatus, type RewardAdOptions } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
+import { presentRewardedAd } from './rewardedAdPresentation';
 
 const TEST_REWARDED_AD_UNIT_ID = 'ca-app-pub-3940256099942544/5224354917';
 
@@ -77,8 +78,11 @@ export async function showRewardedCacheAd(userId?: string): Promise<RewardedCach
     ...(userId ? { ssv: { userId } } : {}),
   };
 
-  await AdMob.prepareRewardVideoAd(options);
-  const reward = await AdMob.showRewardVideoAd();
+  // Presentation settles on EVERY outcome (reward, dismiss,
+  // fail-to-show, timeout) via the shared helper — the plugin's
+  // raw show call alone never settles on dismiss/fail-to-show,
+  // which hung this lane's button with no notice (2026-11-19).
+  const reward = await presentRewardedAd(options);
 
   return {
     adUnitId,
