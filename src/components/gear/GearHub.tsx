@@ -1069,7 +1069,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       {items.length === 0 && (
         <div className="py-8 text-center">
           <div className="text-sm text-text-muted">
-            {hasAnyFilter ? 'No gear matches these filters.' : 'No gear in inventory.'}
+            {hasAnyFilter ? 'No gear matches these filters — try loosening one.' : 'No gear in inventory. Roam or crack a cache to fix that.'}
           </div>
           {hasAnyFilter && (
             <button onClick={clearFilters} className="mt-2 text-xs font-black text-amber">Clear filters</button>

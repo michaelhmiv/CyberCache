@@ -310,7 +310,7 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ initialPageId = null, in
             <div className="px-3 py-2">
               {visibleGroups.length === 0 && (
                 <p className="py-4 text-[13px]" style={{ color: CK.label }}>
-                  No page matches that query. Clear the filter to see the full index.
+                  No page matches that query — clear the filter to see the full index.
                 </p>
               )}
               {visibleGroups.map((group) => (

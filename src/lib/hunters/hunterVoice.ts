@@ -3,11 +3,15 @@ import type { HunterId } from './hunters';
 /**
  * Hunter voice pools (Cache Hunters slice (c), brief §2.6).
  *
- * COPY STATUS: FINAL — owner-approved v2 (2026-11-15). The first
+ * COPY STATUS: FINAL — owner-approved v2 (2026-11-15), amended
+ * 2026-11-20 by the Borderlands-flare sweep (owner's full-sweep,
+ * all-categories ruling): 4 lines reworded — Silas streakComplete
+ * and Doc bossKill verbatim from the owner-approved samples,
+ * Vesper and Silas bossKill lightly punched — the other 12 lines
+ * remain the v2 mains verbatim. The first
  * draft was vetoed on sight ("stupid — need to be more clever
  * and witty"); the rewrite (prep: cache-hunters/voice-lines-v2.md)
- * was approved as written ("That's good", no vetoes) and the
- * lines below are those mains verbatim. The file's legendary-drop
+ * was approved as written ("That's good", no vetoes). The file's legendary-drop
  * alternates are spares and are deliberately NOT wired — the
  * pools stay at one line per hunter × trigger. Any future copy
  * change must still pass the C7 census: fixed pools, 3–4 lines
@@ -66,15 +70,15 @@ export const VOICE_MOMENT_WINDOW_MS = 3000;
 export const HUNTER_VOICE_POOLS: Record<HunterId, Record<HunterVoiceTrigger, readonly string[]>> = {
   vesper: {
     legendaryDrop: ['The cache owes her an arm. It pays in installments.'],
-    bossKill: ['Long odds. She collects on those.'],
+    bossKill: ['Long odds? She collects on those.'],
     nearDeathSave: ["Half of her is loot. Loot doesn't die, it drops."],
     streakComplete: ["Luck is just counting that hasn't been caught."],
   },
   silas: {
     legendaryDrop: ['It was ticking. He respects a colleague.'],
-    bossKill: ['It had a fuse. Everything does, to him.'],
+    bossKill: ['It had a fuse. To him, everything does.'],
     nearDeathSave: ['Almost defused. He took it personally.'],
-    streakComplete: ['Controlled burn. The control is also burning.'],
+    streakComplete: ["Controlled burn! Even the control's on fire!"],
   },
   josie: {
     legendaryDrop: ['Appraisal: priceless. Decision: bin.'],
@@ -84,7 +88,7 @@ export const HUNTER_VOICE_POOLS: Record<HunterId, Record<HunterVoiceTrigger, rea
   },
   doc: {
     legendaryDrop: ['New part. He means the weapon. Probably.'],
-    bossKill: ['Cause of death: pre-existing conditions. He checked.'],
+    bossKill: ['Pre-existing conditions—he checked. Case closed!'],
     nearDeathSave: ['Self-repair complete. The patient is ungrateful.'],
     streakComplete: ["Production is up. He's the factory and the union."],
   },

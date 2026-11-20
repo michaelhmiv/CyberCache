@@ -229,8 +229,8 @@ export const SettingsScreen: React.FC = () => {
         </div>
         <div className="text-[10px] text-text-muted">
           {nextCapMilestone
-            ? `Maximum hours of offline rewards that can pile up while away. Complete ${nextCapMilestone.courseName} in Research (Logistics & Markets) to raise the earned cap to ${nextCapMilestone.capHours}h.`
-            : 'Maximum hours of offline rewards that can pile up while away. Top of the Research ladder earned.'}
+            ? `Offline rewards pile up to this many hours while you're away. Complete ${nextCapMilestone.courseName} in Research (Logistics & Markets) to raise the earned cap to ${nextCapMilestone.capHours}h.`
+            : "Offline rewards pile up to this many hours while you're away. Top of the Research ladder earned."}
         </div>
       </MobileCard>
 

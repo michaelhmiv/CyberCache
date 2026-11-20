@@ -287,7 +287,7 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
     try {
       reward = await showRewardedCacheAd(player.id);
     } catch {
-      setError('No ad is available right now, so the cache stayed closed — try again later.');
+      setError('No ad available right now — the cache stays shut. Try again later.');
       return;
     } finally {
       setAdPending(false);

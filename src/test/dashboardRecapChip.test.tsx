@@ -183,7 +183,7 @@ describe('Dashboard recap — settlement-shape discrimination (Return Sheet)', (
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
     fireEvent.click(screen.getByTestId('top-offline-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
-    expect(screen.getByText('The benches kept working')).toBeTruthy();
+    expect(screen.getByText('The benches never clocked out')).toBeTruthy();
     expect(screen.getByText(/2 jobs finished/)).toBeTruthy();
   }, 30_000);
 
@@ -193,7 +193,7 @@ describe('Dashboard recap — settlement-shape discrimination (Return Sheet)', (
     expect(await screen.findByTestId('dashboard-top-bar')).toBeTruthy();
     fireEvent.click(screen.getByTestId('top-offline-button'));
     expect(await screen.findByText('While You Were Away')).toBeTruthy();
-    expect(screen.getByText('The site kept producing')).toBeTruthy();
+    expect(screen.getByText('The site never stopped digging')).toBeTruthy();
     expect(screen.getByText(/1 pass completed/)).toBeTruthy();
   }, 30_000);
 });

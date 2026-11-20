@@ -155,7 +155,7 @@ export const ConsumableLedger: React.FC<{
           {/* Coverage banner — only in full view */}
           {!isFocused && (
             <div className="mb-3 border-2 border-cyan/40 bg-cyan/10 p-2 text-[10px] font-bold text-cyan" style={{ clipPath: 'polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)' }}>
-              Armed coverage: {coverageRows.length > 0 ? coverageRows.map((row) => row.decisionHint).join(' ') : 'No consumables loaded.'}
+              Armed coverage: {coverageRows.length > 0 ? coverageRows.map((row) => row.decisionHint).join(' ') : "Belt's empty — nothing loaded."}
             </div>
           )}
 

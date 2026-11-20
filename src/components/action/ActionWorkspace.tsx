@@ -99,7 +99,7 @@ export const ActionFeed: React.FC<{
    * facts; the log keeps everything.
    */
   onOpenFullLog?: () => void;
-}> = ({ title = 'Live Loot Log', entries, empty = 'No action events yet — start a roam and the stream fills in here.', onGearEquip, onGearSalvage, gearActionBusy = false, gearActionError = null, onOpenFullLog }) => {
+}> = ({ title = 'Live Loot Log', entries, empty = 'Dead quiet—kick off a roam and watch the carnage roll in here.', onGearEquip, onGearSalvage, gearActionBusy = false, gearActionError = null, onOpenFullLog }) => {
   const reduceMotion = useReducedMotion();
   const [selectedGear, setSelectedGear] = useState<GearItem | null>(null);
 

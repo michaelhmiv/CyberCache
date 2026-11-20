@@ -200,7 +200,7 @@ describe('first-screen lift 3 — vendor staples controls lead', () => {
     expect(precedes(search, screen.getByText("Today's Rotation"))).toBe(true);
     // Same useFilterSort state, not a fork: typing filters the list.
     fireEvent.change(search, { target: { value: 'zzzz-no-match' } });
-    expect(screen.getByText('No vendor items match your search or filter.')).toBeTruthy();
+    expect(screen.getByText('Nothing on the counter matches that search or filter.')).toBeTruthy();
   });
 });
 
