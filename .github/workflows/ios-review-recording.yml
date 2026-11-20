@@ -1,0 +1,98 @@
+name: iOS Review Recording
+
+# App Review evidence run (Guideline 2.1 reply): builds the app for the
+# iOS simulator exactly like the ios-ci ios-simulator job, then drives
+# scripts/ios-smoke/record-review.mjs, which records a simulator screen
+# video of the launch -> guest -> sign-in -> account-deletion arc for
+# the App Review response. Manual dispatch only; no signing, no store
+# interaction, no deploys.
+#
+# The signed-in segment reads its session from the
+# REVIEW_ACCOUNT_SESSION_JSON secret (env on the driver step ONLY) —
+# the value never enters the repo, the workflow log, or the artifact.
+# Without the secret the driver records the guest arc and logs the
+# signed-in segment as skipped.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios-review-recording:
+    name: ios-review-recording
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require the iOS target
+        run: |
+          set -euo pipefail
+          if [[ ! -d ios/App/App.xcodeproj ]]; then
+            echo "::error::ios/App/App.xcodeproj not found — the iOS target (iOS launch brief Track 1) has not landed on this ref yet."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Confirm Apple toolchain
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        env:
+          VITE_ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID: ${{ secrets.ADMOB_REWARDED_CACHE_KEY_AD_UNIT_ID_IOS }}
+          VITE_ADMOB_TEST_ADS: "false"
+        run: npm run build
+
+      - name: Sync Capacitor iOS project
+        run: npx cap sync ios
+
+      - name: Install the WebInspector proxy (recording transport)
+        run: brew install ios-webkit-debug-proxy
+
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App
+
+      - name: Build for iOS Simulator
+        run: >-
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -destination 'generic/platform=iOS Simulator'
+          -derivedDataPath build/ios-simulator
+          CODE_SIGNING_ALLOWED=YES
+          CODE_SIGN_IDENTITY=-
+          build
+
+      - name: Record the App Review walkthrough
+        env:
+          REVIEW_SESSION_JSON: ${{ secrets.REVIEW_ACCOUNT_SESSION_JSON }}
+        run: |
+          set -euo pipefail
+          app=$(find build/ios-simulator/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' | head -1)
+          if [[ -z "$app" ]]; then
+            echo "::error::No simulator .app was produced by the build."
+            exit 1
+          fi
+          APP_PATH="$app" OUT_DIR=build/ios-review-recording node scripts/ios-smoke/record-review.mjs
+
+      - name: Upload review recording
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-review-recording
+          path: build/ios-review-recording/
+          if-no-files-found: warn
+          retention-days: 7
