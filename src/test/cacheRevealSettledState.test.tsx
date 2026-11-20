@@ -368,7 +368,9 @@ describe('cache reveal — settled end state presents', () => {
     // player is back on the held reveal exactly as it was.
     const backdrop = screen.getByText('Cache Reveal').closest('.fixed');
     expect(backdrop).toBeTruthy();
-    fireEvent.click(backdrop as Element);
+    // (Cast through unknown: this file imports the game's Element
+    // enum, which shadows the DOM type name.)
+    fireEvent.click(backdrop as unknown as HTMLElement);
     await waitFor(() => expect(screen.queryByText('Cache Reveal')).toBeNull());
     expect(screen.getByTestId('cache-loot-moment')).toBeTruthy();
     expect(screen.getByTestId('cache-reveal-stage').className).toContain('flex-1');
