@@ -116,7 +116,7 @@ export const VendorScreen: React.FC = () => {
   const handleBuyQty = async (target: VendorBuySheetTarget, qty: number) => {
     const { offer, name } = target;
     if (player.credits < offer.unitPrice * qty) {
-      setNotice('Not enough credits.');
+      setNotice('Not enough credits — come back richer.');
       return;
     }
     setBusyId(`buy:${offer.itemKey}`);
@@ -398,7 +398,7 @@ export const VendorScreen: React.FC = () => {
           <div className="space-y-2">
             {filtered.length === 0 ? (
               <div className="py-8 text-center text-xs text-text-muted">
-                {hasActiveFilters ? 'No vendor items match your search or filter.' : 'No vendor items available.'}
+                {hasActiveFilters ? 'Nothing on the counter matches that search or filter.' : 'Nothing on the counter right now.'}
               </div>
             ) : filtered.map((c) => consumableCard(c, offerByKey.get(c.id)))}
           </div>
