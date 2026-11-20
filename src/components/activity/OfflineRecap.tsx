@@ -225,7 +225,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
               <h2 className="text-lg font-black text-amber tracking-tight">
                 While You Were Away
               </h2>
-              <p className="text-xs text-zinc-500 mt-0.5">The benches kept working</p>
+              <p className="text-xs text-zinc-500 mt-0.5">The benches never clocked out</p>
             </div>
             <button onClick={acknowledge} className="bl-secondary p-1.5 rounded" aria-label="Dismiss">
               <X className="w-4 h-4" size={16} />
@@ -283,7 +283,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
           })}
           {c.completions.length === 0 && (
             <p className="text-xs text-zinc-500 text-center">
-              No units finished this time — the jobs are still on the benches.
+              Nothing finished this time — the benches are still chewing on the jobs.
             </p>
           )}
         </div>
@@ -317,7 +317,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
               <h2 className="text-lg font-black text-amber tracking-tight">
                 While You Were Away
               </h2>
-              <p className="text-xs text-zinc-500 mt-0.5">The site kept producing</p>
+              <p className="text-xs text-zinc-500 mt-0.5">The site never stopped digging</p>
             </div>
             <button onClick={acknowledge} className="bl-secondary p-1.5 rounded" aria-label="Dismiss">
               <X className="w-4 h-4" size={16} />
@@ -559,7 +559,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
       ) : (
         <div className="px-5 py-3">
           <p className="text-xs text-zinc-500 text-center">
-            No offline rewards to collect this time.
+            No offline rewards this time — the wilds stayed quiet.
           </p>
         </div>
       )}
@@ -580,7 +580,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
             </button>
             {claimFailed && (
               <p data-testid="return-claim-failed" className="mt-2 text-center text-xs font-bold text-red-400">
-                The claim didn't land — your earnings are still held. Try again.
+                The claim bounced — your earnings are still held. Try again.
               </p>
             )}
           </>

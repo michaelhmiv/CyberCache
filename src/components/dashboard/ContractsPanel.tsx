@@ -82,8 +82,8 @@ export const ContractsPanel: React.FC = () => {
       const next = await rerollContract({ nonce: newContractNonce('reroll'), instanceId: contract.id });
       setFlash({
         text: next.rerolled.freeReroll
-          ? 'Rerolled — free. New contract posted.'
-          : `Rerolled — ${next.rerolled.scrapCharged} scrap spent. New contract posted.`,
+          ? 'Rerolled — free. Fresh contract on the board.'
+          : `Rerolled — ${next.rerolled.scrapCharged} scrap spent. Fresh contract on the board.`,
         error: false,
       });
       applyResult(next);

@@ -538,7 +538,7 @@ export const WorkshopScreen: React.FC<{
       // The ad did not complete — dismissed, no fill, or ads not
       // serving right now: nothing was banked, and the panel says
       // so plainly rather than pretending an hour landed.
-      setBenchEarnError('The ad did not complete, so no bench time was banked. Ads may be unavailable right now — try again later.');
+      setBenchEarnError("The ad didn't finish, so no bench time was banked. Ads may be unavailable right now — try again later.");
     } finally {
       setBenchEarnPending(false);
     }
@@ -958,7 +958,7 @@ export const WorkshopScreen: React.FC<{
         <div className="text-[11px] text-text-secondary leading-relaxed">
           {isCrafting
             ? 'You are at the bench — the running job is progressing now.'
-            : 'Jobs pause while you do anything else. Switch to Crafting to work the bench; roaming, boss fights and salvaging all hold the action slot instead.'}
+            : 'Jobs pause while you do anything else — the bench only works while Crafting holds the action slot. Roaming, boss fights and salvaging all hold it instead.'}
         </div>
         {!isCrafting && (
           <motion.button
@@ -1530,7 +1530,7 @@ const RecipeCard: React.FC<{
             {catalystId && useCatalyst && (
               <div>{`Catalyst: +10/+15 quality bounds, 1 ${inputLabel(catalystId)} per unit.`}</div>
             )}
-            {ticketsOwned < 1 && <div>No rush tickets — they are crafted here (Utility recipes) and rotate through the vendor.</div>}
+            {ticketsOwned < 1 && <div>No rush tickets — craft them here (Utility recipes) or catch them rotating through the vendor.</div>}
             {useRush && ticketsOwned >= 1 && <div>One rush ticket is escrowed for this job — it runs faster by the ticket's quality.</div>}
           </div>
         )}

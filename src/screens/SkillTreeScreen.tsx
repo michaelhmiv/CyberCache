@@ -202,7 +202,7 @@ export const SkillTreeScreen: React.FC<{ embedded?: boolean }> = ({ embedded }) 
   // reason printed under the disabled button.
   const spendReason = (node: SkillNode): string | null => {
     const current = skillStore.spent[node.id] || 0;
-    if (current >= node.maxPoints) return 'This node is maxed out.';
+    if (current >= node.maxPoints) return 'This node is maxed out — nothing left to teach it.';
     if (pendingNodeId !== null && pendingNodeId !== node.id) {
       return 'Another node is training — one spend at a time.';
     }

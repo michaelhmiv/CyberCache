@@ -94,7 +94,7 @@ export function ActivityLogScreen() {
       })
       .catch(() => {
         if (cancelled || requestSeq.current !== seq) return;
-        setError('The record could not be read. Your history is safe on the server — try again.');
+        setError("The record wouldn't load. Your history is safe on the server — try again.");
         setRecords([]);
         setNextCursor(null);
       })
@@ -116,7 +116,7 @@ export function ActivityLogScreen() {
       setRecords((prev) => [...prev, ...page.records]);
       setNextCursor(page.nextCursor);
     } catch {
-      if (requestSeq.current === seq) setError('Older facts could not be read — try again.');
+      if (requestSeq.current === seq) setError("Older facts wouldn't load — try again.");
     } finally {
       if (requestSeq.current === seq) setLoadingMore(false);
     }

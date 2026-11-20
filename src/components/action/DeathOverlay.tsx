@@ -192,7 +192,7 @@ export const DeathOverlay: React.FC<DeathOverlayProps> = ({ className }) => {
               <div className="text-xs text-text-muted">
                 {lastKilledBy?.monsterName
                   ? `Killed by ${lastKilledBy.monsterName}${areaLabel ? ` in ${areaLabel}` : ''}.`
-                  : 'Your hunter is down. Choose a recovery option.'}
+                  : "Hunter's flatlined. Pick your patch-up."}
               </div>
             </div>
           </div>
