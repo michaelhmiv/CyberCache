@@ -263,7 +263,7 @@ export function describeShieldBehavior(
   const t = SHIELD_BEHAVIOR_TUNING;
   switch (behavior) {
     case 'nova':
-      return `When this shield breaks, it goes out swinging for ${novaDamageForCapacity(shield.hp)} damage (${Math.round(t.novaPctOfCapacity * 100)}% of capacity). Re-arms once the shield is restored above ${Math.round(t.novaRearmThreshold * 100)}%.`;
+      return `When this shield breaks, it erupts for ${novaDamageForCapacity(shield.hp)} damage (${Math.round(t.novaPctOfCapacity * 100)}% of capacity) — a parting shot. Re-arms once the shield is restored above ${Math.round(t.novaRearmThreshold * 100)}%.`;
     case 'absorb':
       return `Each hit taken while the shield is up has a ${Math.round(t.absorbChance * 100)}% chance to be swallowed whole, restoring ${Math.round(t.absorbRestore * 100)}% of capacity.`;
     case 'amp':

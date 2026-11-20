@@ -1718,7 +1718,7 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
       'inactive_continue',
       { attackSpeedMultiplier: 1.15 },
       { attackSpeedMultiplier: DELTA(1.30) },
-      'Overclock Serum consumed: attack speed up for a minute. Sixty seconds of hurry.',
+      'Overclock Serum consumed: attack speed up for a minute.',
       {
         activityRules: {
           boss: { trigger: 'fightStart', consumePolicy: 'onAttempt', zeroBehavior: 'inactive_continue' },
