@@ -70,7 +70,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 0,
     xpReward: 8,
     visualKey: 'monster_scavenger',
-    flavor: 'A hollow-eyed looter in salvage rags.',
+    flavor: 'Hollow-eyed, salvage-ragged, and looting on instinct.',
   },
   {
     id: 'dustwaste_drone',
@@ -82,7 +82,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.9,
     xpReward: 9,
     visualKey: 'monster_drone',
-    flavor: 'A tick-sized pursuit drone with a stunner needle.',
+    flavor: 'A tick-sized pursuit drone with a stunner needle and no off switch.',
   },
   {
     id: 'dustwaste_brute',
@@ -93,7 +93,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 2,
     xpReward: 14,
     visualKey: 'monster_brute',
-    flavor: 'A bear-sized raider in scrap plate.',
+    flavor: 'A bear-sized raider in scrap plate. The bear lost the comparison.',
   },
   {
     id: 'dustwaste_elite',
@@ -105,7 +105,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.9,
     xpReward: 45,
     visualKey: 'monster_marshal',
-    flavor: 'A grizzled route captain with a shock maul.',
+    flavor: 'A grizzled route captain whose shock maul does the talking.',
   },
 
   // ─── Tier 2 — Redline Circuit ────────────────────────────────────────
@@ -119,7 +119,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.92,
     xpReward: 18,
     visualKey: 'monster_runner',
-    flavor: 'A speed crew jockey burning out their thruster pack.',
+    flavor: 'A speed crew jockey burning out their thruster pack on purpose.',
   },
   {
     id: 'redline_drone',
@@ -131,7 +131,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.95,
     xpReward: 22,
     visualKey: 'monster_pursuit_drone',
-    flavor: 'A heavier drone with a shock net launcher.',
+    flavor: 'A heavier drone with a shock net launcher. It collects people.',
   },
   {
     id: 'redline_brute',
@@ -142,7 +142,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 5,
     xpReward: 30,
     visualKey: 'monster_brawler',
-    flavor: 'A road-armored enforcer with a jury-rigged cannon.',
+    flavor: 'A road-armored enforcer whose jury-rigged cannon passed no inspections.',
   },
   {
     id: 'redline_elite',
@@ -154,7 +154,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.92,
     xpReward: 85,
     visualKey: 'monster_circuit_marshal',
-    flavor: 'A route boss with a mag-lev interceptor rig.',
+    flavor: 'A route boss in a mag-lev interceptor rig. Tolls are non-negotiable.',
   },
 
   // ─── Tier 3 — Ironwood Bastion ───────────────────────────────────────
@@ -167,7 +167,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 8,
     xpReward: 42,
     visualKey: 'monster_sentinel',
-    flavor: 'A walking gun platform bolted to a perimeter pylon.',
+    flavor: 'A walking gun platform bolted to a perimeter pylon. It is the perimeter.',
   },
   {
     id: 'ironwood_ranger',
@@ -179,7 +179,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.96,
     xpReward: 48,
     visualKey: 'monster_ranger',
-    flavor: 'A sniper in camo cloak with a mag-round rifle.',
+    flavor: 'A sniper in a camo cloak with a mag-round rifle and endless patience.',
   },
   {
     id: 'ironwood_brute',
@@ -190,7 +190,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 12,
     xpReward: 62,
     visualKey: 'monster_mauler',
-    flavor: 'A plate-armored heavy with a hydraulic cleaver.',
+    flavor: 'A plate-armored heavy whose hydraulic cleaver does the negotiating.',
   },
   {
     id: 'ironwood_elite',
@@ -202,7 +202,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.93,
     xpReward: 165,
     visualKey: 'monster_commander',
-    flavor: 'A veteran captain in full ballistic plate.',
+    flavor: 'A veteran captain in full ballistic plate and fuller opinions.',
   },
 
   // ─── Tier 4 — Blastforge Yards ───────────────────────────────────────
@@ -215,7 +215,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 10,
     xpReward: 65,
     visualKey: 'monster_laborer',
-    flavor: 'A conscripted foundry worker with a rivet gun.',
+    flavor: 'A conscripted foundry worker with a rivet gun and nothing to lose.',
   },
   {
     id: 'blastforge_enforcer',
@@ -227,7 +227,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.94,
     xpReward: 78,
     visualKey: 'monster_enforcer',
-    flavor: 'A union thug with a shock baton and reinforced boots.',
+    flavor: 'A union thug with a shock baton, reinforced boots, and a grievance.',
   },
   {
     id: 'blastforge_brute',
@@ -238,7 +238,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 16,
     xpReward: 110,
     visualKey: 'monster_crucible',
-    flavor: 'A walking tank with a portable smelter.',
+    flavor: 'A walking tank with a portable smelter. Subtlety was not consulted.',
   },
   {
     id: 'blastforge_elite',
@@ -250,7 +250,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.93,
     xpReward: 290,
     visualKey: 'monster_overboss',
-    flavor: 'A blast-scarred overseer in full foundry plate.',
+    flavor: 'A blast-scarred overseer in full foundry plate. The scars are seniority.',
   },
 
   // ─── Tier 5 — Prismatek Reactor ──────────────────────────────────────
@@ -264,7 +264,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.97,
     xpReward: 135,
     visualKey: 'monster_refraction',
-    flavor: 'A floating drone with a prismatic beam emitter.',
+    flavor: 'A floating drone with a prismatic beam emitter and perfect posture.',
   },
   {
     id: 'prismatek_runner',
@@ -276,7 +276,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.95,
     xpReward: 155,
     visualKey: 'monster_courier',
-    flavor: 'A courier in a phase-shift suit with a sidearm.',
+    flavor: 'A courier in a phase-shift suit with a sidearm. Delivery is not guaranteed.',
   },
   {
     id: 'prismatek_brute',
@@ -287,7 +287,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 24,
     xpReward: 220,
     visualKey: 'monster_prism_guard',
-    flavor: 'A heavy guard in refractor armor.',
+    flavor: 'A heavy guard in refractor armor. Light bends; he does not.',
   },
   {
     id: 'prismatek_elite',
@@ -299,7 +299,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.94,
     xpReward: 480,
     visualKey: 'monster_warden',
-    flavor: 'A refractor-clad warden with a beam cannon.',
+    flavor: 'A refractor-clad warden with a beam cannon and zero small talk.',
   },
 
   // ─── Tier 6 — Throwtech Dumpnet ──────────────────────────────────────
@@ -312,7 +312,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 18,
     xpReward: 210,
     visualKey: 'monster_dump_scav',
-    flavor: 'A scavenger in a rebreather mask, loitering in the waste pits.',
+    flavor: 'A scavenger in a rebreather mask, loitering in the waste pits like he owns them.',
   },
   {
     id: 'throwtech_brute',
@@ -323,7 +323,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 32,
     xpReward: 340,
     visualKey: 'monster_compactor',
-    flavor: 'A prototype press-frame with operator cockpit.',
+    flavor: 'A prototype press-frame with an operator cockpit. Everything looks like scrap to it.',
   },
   {
     id: 'throwtech_sniper',
@@ -335,7 +335,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.97,
     xpReward: 320,
     visualKey: 'monster_sniper_salv',
-    flavor: 'A long-rig spotter with a thrown-tech coil rifle.',
+    flavor: 'A long-rig spotter with a thrown-tech coil rifle and a long memory.',
   },
   {
     id: 'throwtech_elite',
@@ -347,7 +347,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.94,
     xpReward: 720,
     visualKey: 'monster_dump_king',
-    flavor: 'A crowned scavenger with a salvage throne of crushed plate.',
+    flavor: 'A crowned scavenger on a salvage throne of crushed plate. Long live the king.',
   },
 
   // ─── Tier 7 — Helixworks Labyrinth ───────────────────────────────────
@@ -360,7 +360,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 28,
     xpReward: 380,
     visualKey: 'monster_researcher',
-    flavor: 'A lab tech with a sidearm and a manic grin.',
+    flavor: 'A lab tech with a sidearm and a manic grin. The grin is the warning.',
   },
   {
     id: 'helix_runner',
@@ -372,7 +372,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.95,
     xpReward: 430,
     visualKey: 'monster_subject',
-    flavor: 'A bolt-necked test subject with helix graft limbs.',
+    flavor: 'A bolt-necked test subject with helix graft limbs. The warranty on him expired.',
   },
   {
     id: 'helix_brute',
@@ -383,7 +383,7 @@ export const MONSTERS: MonsterDef[] = [
     defense: 42,
     xpReward: 580,
     visualKey: 'monster_helix_enforcer',
-    flavor: 'A black-plate enforcer with a helix-lance.',
+    flavor: 'A black-plate enforcer with a helix-lance and a signed permission slip.',
   },
   {
     id: 'helix_elite',
@@ -395,7 +395,7 @@ export const MONSTERS: MonsterDef[] = [
     accuracy: 0.95,
     xpReward: 1100,
     visualKey: 'monster_overseer',
-    flavor: 'A multi-eyed overseer with a helix-bore cannon.',
+    flavor: 'A multi-eyed overseer with a helix-bore cannon. All of the eyes are watching you.',
   },
 ];
 

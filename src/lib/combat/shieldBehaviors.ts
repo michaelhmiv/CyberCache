@@ -94,22 +94,22 @@ export const SHIELD_BEHAVIORS: Record<ShieldBehaviorId, ShieldBehaviorDef> = {
   nova: {
     id: 'nova',
     name: 'Nova',
-    blurb: 'When this shield breaks, it erupts in a burst of damage.',
+    blurb: 'When this shield breaks, it erupts in a parting burst of damage.',
   },
   absorb: {
     id: 'absorb',
     name: 'Absorb',
-    blurb: 'Chance to fully absorb a hit and restore shield.',
+    blurb: 'Chance to swallow a hit whole and restore shield.',
   },
   amp: {
     id: 'amp',
     name: 'Amp',
-    blurb: 'Bonus damage while the shield is at full charge.',
+    blurb: 'Bonus damage while the shield is at full charge. No dents allowed.',
   },
   turtle: {
     id: 'turtle',
     name: 'Turtle',
-    blurb: 'Oversized capacity, slow recharge.',
+    blurb: 'Huge capacity, recharge at a glacier\'s pace.',
   },
 };
 
@@ -263,13 +263,13 @@ export function describeShieldBehavior(
   const t = SHIELD_BEHAVIOR_TUNING;
   switch (behavior) {
     case 'nova':
-      return `When this shield breaks, it erupts for ${novaDamageForCapacity(shield.hp)} damage (${Math.round(t.novaPctOfCapacity * 100)}% of capacity). Re-arms once the shield is restored above ${Math.round(t.novaRearmThreshold * 100)}%.`;
+      return `When this shield breaks, it goes out swinging for ${novaDamageForCapacity(shield.hp)} damage (${Math.round(t.novaPctOfCapacity * 100)}% of capacity). Re-arms once the shield is restored above ${Math.round(t.novaRearmThreshold * 100)}%.`;
     case 'absorb':
-      return `Each hit taken while the shield is up has a ${Math.round(t.absorbChance * 100)}% chance to be fully absorbed, restoring ${Math.round(t.absorbRestore * 100)}% of capacity.`;
+      return `Each hit taken while the shield is up has a ${Math.round(t.absorbChance * 100)}% chance to be swallowed whole, restoring ${Math.round(t.absorbRestore * 100)}% of capacity.`;
     case 'amp':
-      return `While the shield is at full charge, your damage is increased by ${Math.round(t.ampPct * 100)}%.`;
+      return `A full shield hits harder: while it is at full charge, your damage is increased by ${Math.round(t.ampPct * 100)}%.`;
     case 'turtle':
-      return `Capacity is increased by ${Math.round((t.turtleCapacityMult - 1) * 100)}%, but recharge rate is halved.`;
+      return `Capacity is increased by ${Math.round((t.turtleCapacityMult - 1) * 100)}%, but recharge rate is halved. It is in no hurry whatsoever.`;
     case 'standard':
     default:
       return 'No special behavior.';
