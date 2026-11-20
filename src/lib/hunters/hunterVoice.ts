@@ -3,11 +3,15 @@ import type { HunterId } from './hunters';
 /**
  * Hunter voice pools (Cache Hunters slice (c), brief §2.6).
  *
- * COPY STATUS: FINAL — owner-approved v2 (2026-11-15). The first
+ * COPY STATUS: FINAL — owner-approved v2 (2026-11-15), amended
+ * 2026-11-20 by the Borderlands-flare sweep (owner's full-sweep,
+ * all-categories ruling): 4 lines reworded — Silas streakComplete
+ * and Doc bossKill verbatim from the owner-approved samples,
+ * Vesper and Silas bossKill lightly punched — the other 12 lines
+ * remain the v2 mains verbatim. The first
  * draft was vetoed on sight ("stupid — need to be more clever
  * and witty"); the rewrite (prep: cache-hunters/voice-lines-v2.md)
- * was approved as written ("That's good", no vetoes) and the
- * lines below are those mains verbatim. The file's legendary-drop
+ * was approved as written ("That's good", no vetoes). The file's legendary-drop
  * alternates are spares and are deliberately NOT wired — the
  * pools stay at one line per hunter × trigger. Any future copy
  * change must still pass the C7 census: fixed pools, 3–4 lines
