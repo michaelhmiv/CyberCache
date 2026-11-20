@@ -53,12 +53,12 @@ function shippedFiles(): string[] {
 }
 
 const EXPECTED: Record<Manufacturer, { founder: string; slogan: string }> = {
-  [Manufacturer.Redline]: { founder: 'Della Voss', slogan: 'It only gets faster.' },
+  [Manufacturer.Redline]: { founder: 'Della Voss', slogan: 'It only gets faster. And faster.' },
   [Manufacturer.Ironwood]: { founder: 'Amos Thorne', slogan: 'Ironwood takes its time. Once.' },
   [Manufacturer.BlastForge]: { founder: 'Hollis Brandt', slogan: 'Subtlety was not in the budget.' },
-  [Manufacturer.Prismatek]: { founder: 'Iris Calloway', slogan: 'Every element, accounted for.' },
-  [Manufacturer.ThrowTech]: { founder: 'Tobin Larkin', slogan: 'Built to be left behind.' },
-  [Manufacturer.HelixWorks]: { founder: 'Ada Kessler', slogan: 'No two alike. All of them calibrated.' },
+  [Manufacturer.Prismatek]: { founder: 'Iris Calloway', slogan: 'Every element, accounted for. Weaponized.' },
+  [Manufacturer.ThrowTech]: { founder: 'Tobin Larkin', slogan: 'Chuck it. Forget it.' },
+  [Manufacturer.HelixWorks]: { founder: 'Ada Kessler', slogan: 'No two alike. Somehow all calibrated.' },
 };
 
 describe('F6 · the six founders and their slogans (the def is the one source)', () => {

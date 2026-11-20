@@ -48,7 +48,7 @@ export const MANUFACTURERS: Record<Manufacturer, ManufacturerDef> = {
     id: Manufacturer.Prismatek,
     name: 'Prismatek',
     founder: 'Iris Calloway',
-    slogan: 'Every element, accounted for — then weaponized.',
+    slogan: 'Every element, accounted for. Weaponized.',
     identity: 'Elemental specialization',
     mechanic: 'Elemental specialization baked into every roll: +30% status chance and status damage, non-Kinetic elements favored. The periodic table, weaponized.',
     baseStatBias: { statusChance: 1.3, statusDamage: 1.3, baseDamage: 0.95 },
