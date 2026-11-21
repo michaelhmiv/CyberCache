@@ -24,6 +24,7 @@ import {
 } from '@/content/manufacturerStanding';
 import { salvageScrap } from '@/lib/skills/salvageBonuses';
 import { getMaterialVisual } from '@/constants/visualAssets';
+import { CONSUMABLES } from '@/constants/consumables';
 import { legendaryCoreYieldFor } from '@/content/collections';
 import type { GearItem } from '@/types/items';
 
@@ -52,6 +53,7 @@ export const RepDeskPanel: React.FC = () => {
   const loadout = useLoadoutStore();
   const [view, setView] = useState<StandingStateView | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ text: string; error: boolean } | null>(null);
   const [tributePick, setTributePick] = useState<Record<string, string>>({});
 
@@ -261,27 +263,53 @@ export const RepDeskPanel: React.FC = () => {
                 )}
               </select>
             )}
-            <button
-              type="button"
-              disabled={rankUpBlocked}
-              onClick={() =>
-                void run(
-                  `rankup:${m.manufacturer}`,
-                  () =>
-                    rankUpManufacturer({
-                      nonce: newStandingRankUpNonce(),
-                      manufacturer: m.manufacturer,
-                      tributeItemId: m.nextRank!.tributeMinRarity ? pickedTribute : null,
-                    }),
-                  (r: { rankedUp: { newRank: number; tributeCredits: number } }) =>
-                    `${m.name} Rank ${r.rankedUp.newRank} granted — ${r.rankedUp.tributeCredits.toLocaleString()}cr tribute paid.`,
-                )
-              }
-              className="w-full py-2 rounded-xl text-xs font-black disabled:opacity-40"
-              style={{ backgroundColor: m.color, color: '#0B0B0F' }}
-            >
-              {busy === `rankup:${m.manufacturer}` ? 'Ranking up…' : `Rank up • ${m.nextRank.tributeCredits.toLocaleString()}cr`}
-            </button>
+            {confirmKey === `rankup:${m.manufacturer}` ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={rankUpBlocked}
+                  onClick={() => {
+                    setConfirmKey(null);
+                    void run(
+                      `rankup:${m.manufacturer}`,
+                      () =>
+                        rankUpManufacturer({
+                          nonce: newStandingRankUpNonce(),
+                          manufacturer: m.manufacturer,
+                          tributeItemId: m.nextRank!.tributeMinRarity ? pickedTribute : null,
+                        }),
+                      (r: { rankedUp: { newRank: number; tributeCredits: number } }) =>
+                        `${m.name} Rank ${r.rankedUp.newRank} granted — ${r.rankedUp.tributeCredits.toLocaleString()}cr tribute paid.`,
+                    );
+                  }}
+                  className="min-h-[44px] flex-1 py-2 rounded-xl text-xs font-black disabled:opacity-40"
+                  style={{ backgroundColor: m.color, color: '#0B0B0F' }}
+                >
+                  {busy === `rankup:${m.manufacturer}`
+                    ? 'Ranking up…'
+                    : m.nextRank.tributeMinRarity
+                      ? `Confirm Rank Up (destroys item)`
+                      : `Confirm • ${m.nextRank.tributeCredits.toLocaleString()}cr`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmKey(null)}
+                  className="bl-secondary min-h-[44px] px-3 py-2 rounded-xl text-xs font-black"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={rankUpBlocked}
+                onClick={() => setConfirmKey(`rankup:${m.manufacturer}`)}
+                className="min-h-[44px] w-full py-2 rounded-xl text-xs font-black disabled:opacity-40"
+                style={{ backgroundColor: m.color, color: '#0B0B0F' }}
+              >
+                {busy === `rankup:${m.manufacturer}` ? 'Ranking up…' : `Rank up • ${m.nextRank.tributeCredits.toLocaleString()}cr`}
+              </button>
+            )}
           </div>
         )}
 
@@ -291,21 +319,23 @@ export const RepDeskPanel: React.FC = () => {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0 text-[11px] text-text-secondary">
-              <span className="font-bold text-text-primary">Rep Shelf:</span> {m.shelf.consumableType} · flat
+              <span className="font-bold text-text-primary">Rep Shelf:</span>{' '}
+              {CONSUMABLES[m.shelf.consumableType as keyof typeof CONSUMABLES]?.name ?? m.shelf.consumableType} · flat
               100% quality · always stocked
             </div>
             <button
               type="button"
               disabled={guest || !m.shelf.available || busy !== null}
-              onClick={() =>
+              onClick={() => {
+                const shelfName = CONSUMABLES[m.shelf.consumableType as keyof typeof CONSUMABLES]?.name ?? m.shelf.consumableType;
                 void run(
                   `buy:${m.shelf.offerKey}`,
                   () => standingBuy({ nonce: newStandingBuyNonce(), offerKey: m.shelf.offerKey, quantity: 1 }),
                   (r: { bought: { totalPrice: number } }) =>
-                    `${m.shelf.consumableType} bought from the ${m.name} shelf for ${r.bought.totalPrice.toLocaleString()}cr.`,
-                )
-              }
-              className="shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
+                    `${shelfName} bought from the ${m.name} shelf for ${r.bought.totalPrice.toLocaleString()}cr.`,
+                );
+              }}
+              className="min-h-[44px] shrink-0 px-3 py-1.5 rounded-lg border border-border bg-surface text-[11px] font-black text-text-primary disabled:opacity-40"
             >
               {m.shelf.available ? `Buy • ${m.shelf.priceCredits.toLocaleString()}cr` : 'Rank 1'}
             </button>
@@ -314,20 +344,22 @@ export const RepDeskPanel: React.FC = () => {
 
         {/* Turn-ins */}
         <div className="space-y-1.5">
-          <div className="text-[10px] font-black uppercase text-text-secondary">
+          <div className="text-[11px] font-black uppercase text-text-secondary">
             Turn in {m.name} gear
           </div>
           {m.rank >= 5 ? (
-            <div className="text-[10px] text-text-muted">
+            <div className="text-[11px] text-text-muted">
               Maximum rank reached — the desk takes no more turn-ins for {m.name}.
             </div>
           ) : eligible.length === 0 ? (
-            <div className="text-[10px] text-text-muted">
+            <div className="text-[11px] text-text-muted">
               No available {m.name} gear in your inventory. Equipped and locked items stay with you.
             </div>
           ) : (
             eligible.slice(0, 6).map((item) => {
               const facts = itemFacts(item);
+              const tKey = `turnin:${item.id}`;
+              const confirming = confirmKey === tKey;
               return (
                 <div
                   key={item.id}
@@ -336,28 +368,50 @@ export const RepDeskPanel: React.FC = () => {
                 >
                   <div className="min-w-0">
                     <div className="truncate text-[11px] font-bold text-text-primary">{item.name}</div>
-                    <div className="text-[10px] text-text-muted">
+                    <div className="text-[11px] text-text-muted">
                       {item.rarity} • Lv {item.level} • salvage {facts.scrapValue.toLocaleString()} scrap
                       {facts.cores > 0 ? ` + ${facts.cores} cores if salvaged` : ''} → turn-in pays standing
                       only
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    disabled={guest || busy !== null}
-                    onClick={() =>
-                      void run(
-                        `turnin:${item.id}`,
-                        () => turnInItem({ nonce: newStandingTurnInNonce(), itemId: item.id }),
-                        (r: { turnedIn: { standingAwarded: number; newBalance: number } }) =>
-                          `${item.name} turned in: +${r.turnedIn.standingAwarded} ${m.name} standing (${r.turnedIn.newBalance.toLocaleString()} total).`,
-                      )
-                    }
-                    className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-black disabled:opacity-40"
-                    style={{ backgroundColor: m.color, color: '#0B0B0F' }}
-                  >
-                    Turn in • +{facts.standingValue}
-                  </button>
+                  {confirming ? (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={guest || busy !== null}
+                        onClick={() => {
+                          setConfirmKey(null);
+                          void run(
+                            tKey,
+                            () => turnInItem({ nonce: newStandingTurnInNonce(), itemId: item.id }),
+                            (r: { turnedIn: { standingAwarded: number; newBalance: number } }) =>
+                              `${item.name} turned in: +${r.turnedIn.standingAwarded} ${m.name} standing (${r.turnedIn.newBalance.toLocaleString()} total).`,
+                          );
+                        }}
+                        className="min-h-[44px] shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-black disabled:opacity-40"
+                        style={{ backgroundColor: m.color, color: '#0B0B0F' }}
+                      >
+                        Confirm +{facts.standingValue}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmKey(null)}
+                        className="bl-secondary min-h-[44px] shrink-0 px-2 py-1.5 rounded-lg text-[11px] font-black"
+                      >
+                        Keep
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={guest || busy !== null}
+                      onClick={() => setConfirmKey(tKey)}
+                      className="min-h-[44px] shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-black disabled:opacity-40"
+                      style={{ backgroundColor: m.color, color: '#0B0B0F' }}
+                    >
+                      Turn in • +{facts.standingValue}
+                    </button>
+                  )}
                 </div>
               );
             })
@@ -453,19 +507,25 @@ export const RepDeskPanel: React.FC = () => {
     </MobileCard>
   );
 
+  const hasUnlockedWeekly = view.manufacturers.some((m) => m.rank >= 4);
+
+  const renderWeeklyBlock = () => {
+    if (hasUnlockedWeekly) return renderWeekly();
+    return (
+      <details className="rounded border border-border/70 bg-surface/60 px-2.5 py-2">
+        <summary className="cursor-pointer text-[11px] font-black uppercase tracking-wide text-text-muted">
+          Weekly Crates &amp; Signature Orders (unlocks at Rank 4–5)
+        </summary>
+        <div className="mt-2">{renderWeekly()}</div>
+      </details>
+    );
+  };
+
   return (
     <div className="space-y-3">
-      <div className="text-[11px] leading-snug text-text-muted">
-        The makers keep score. Kills with a manufacturer&apos;s weapon drip standing for that maker (up to
-        a daily cap), and turning in their gear at this desk pays its scrap value in standing. Standing
-        buys access, never power: shelf stock, an exclusive recipe, rig colors, parts crates, and — at
-        the top — a signature order. Each maker&apos;s ladder is its own; no maker holds another&apos;s
-        grudges.
-      </div>
       {guest && (
-        <div className="rounded border border-border px-2 py-2 text-[11px] text-text-secondary">
-          Guest desk is read-only — link Google sign-in to turn in gear, rank up, and buy from the Rep
-          Desk.
+        <div className="rounded border border-border px-2.5 py-2 text-[11px] text-text-secondary">
+          Guest desk is read-only — sign in to turn in gear, rank up, and buy from the Rep Desk.
         </div>
       )}
       {flash && (
@@ -479,7 +539,7 @@ export const RepDeskPanel: React.FC = () => {
           {flash.text}
         </div>
       )}
-      {renderWeekly()}
+      {renderWeeklyBlock()}
       {view.manufacturers.map(renderManufacturer)}
     </div>
   );

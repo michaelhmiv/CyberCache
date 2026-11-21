@@ -12,10 +12,20 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Preserve Capacitor bridge, plugins, and WebView JS interfaces under R8
+-keep class com.getcapacitor.** { *; }
+-keep class com.michaelhmiv.cybercache.** { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }
+-keepclassmembers class * {
+    @com.getcapacitor.PluginMethod public *;
+    @android.webkit.JavascriptInterface <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Preserve AdMob & Social Login plugin classes
+-keep class com.getcapacitor.community.admob.** { *; }
+-keep class ee.forgr.capacitor.social.** { *; }
+-keep class com.google.android.gms.ads.** { *; }
+
+# Keep stack trace line numbers for crash reporting
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

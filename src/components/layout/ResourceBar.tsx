@@ -148,6 +148,7 @@
  * is the §7 pixel icon `cog`.
  */
 import React, { useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { motion, useReducedMotion } from 'framer-motion';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { PixelWalletIcon } from '@/components/pixelArt/PixelWalletIcon';
@@ -321,9 +322,21 @@ interface ResourceBarProps {
 
 export const ResourceBar: React.FC<ResourceBarProps> = ({ className = '', onOpenSettings, variant = 'strip', onLevelPress, onNavigate }) => {
   const isHome = variant === 'home';
-  const player = usePlayerStore();
-  const inventory = useInventoryStore();
-  const loadout = useLoadoutStore();
+  const player = usePlayerStore(
+    useShallow((s) => ({
+      profileLoaded: s.profileLoaded,
+      credits: s.credits,
+      scrap: s.scrap,
+      cacheKeys: s.cacheKeys,
+      legendaryCores: s.legendaryCores,
+      level: s.level,
+      xp: s.xp,
+    })),
+  );
+  const inventoryItems = useInventoryStore((s) => s.items);
+  const loadoutSlots = useLoadoutStore((s) => s.slots);
+  const inventory = { items: inventoryItems };
+  const loadout = { slots: loadoutSlots };
 
   // CONS-04: gear slots only (7) via the shared loadout read model —
   // the vehicle slot in the raw map is not gear.

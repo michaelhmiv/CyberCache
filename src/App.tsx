@@ -57,6 +57,7 @@ import {
 import { isMarketStopId, useMarketStore } from './store/slices/marketSlice';
 import { SalvageToastContainer } from './components/action/SalvageToast';
 import { StarterBundleReveal } from './components/activity/StarterBundleReveal';
+import { useInitialBundleRevealStore } from './store/slices/initialBundleRevealSlice';
 import { useOfflineRecapListener } from './components/activity/useOfflineRecapListener';
 import { useOfflineResumeSettlement } from './components/activity/useOfflineResumeSettlement';
 import { useLeaveSignals } from './components/activity/useLeaveSignals';
@@ -107,7 +108,7 @@ function VerificationReminderBanner() {
       <button
         onClick={() => markVerificationReminderSeen()}
         disabled={actionLoading}
-        className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[10px] font-black disabled:opacity-50"
+        className="bl-secondary shrink-0 px-2 py-1 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-[11px] font-black disabled:opacity-50"
       >
         Dismiss
       </button>
@@ -117,6 +118,7 @@ function VerificationReminderBanner() {
 
 function App() {
   const { user, account, loading, authError, bootstrapError, retryBootstrap, signOut } = useAuth();
+  const starterBundleOpen = useInitialBundleRevealStore((s) => Boolean(s.grant));
   const [activeTab, setActiveTab] = useState<TabId>('home');
   // Keep-alive (tab-switch latency, 2026-11-12): a tab's screen
   // mounts on FIRST visit and then stays mounted, hidden with
@@ -374,6 +376,7 @@ function App() {
       return;
     }
     if (screen === 'vendor') {
+      useMarketStore.getState().requestMarketStop('vendor');
       activateTab('market');
       setSubScreen(null);
       return;
@@ -449,19 +452,16 @@ function App() {
 
     return (
       <div className="flex min-h-0 flex-1 flex-col bg-bg">
-        <div className="shrink-0 border-b-[3px] border-border bg-surface p-3 shadow-[0_6px_16px_rgba(0,0,0,0.45)]">
+        <div className="shrink-0 border-b-[3px] border-border bg-surface px-3 py-2.5 shadow-[0_6px_16px_rgba(0,0,0,0.45)]">
           <div className="flex items-center gap-3">
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={handleBack}
-              className="bl-secondary px-3 py-2 text-xs font-black text-amber active:text-amber/70"
+              className="bl-secondary min-h-[44px] px-3 py-2 text-xs font-black text-amber active:text-amber/70"
             >
               <span className="inline-flex items-center gap-1"><PxIcon name="chevL" size={13} /> Back</span>
             </motion.button>
-            <div>
-              <div className="bl-title text-2xl leading-none text-text-primary capitalize">{title}</div>
-              <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">Sub-screen / field station</div>
-            </div>
+            <div className="bl-title text-2xl leading-none text-text-primary capitalize">{title}</div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -488,7 +488,7 @@ function App() {
       )}
       <VerificationReminderBanner />
 
-      {usernamePrompt.prompt && (
+      {!starterBundleOpen && usernamePrompt.prompt && (
         <UsernameSetupModal
           dismissLabel="Not now"
           onComplete={usernamePrompt.completePrompt}
@@ -496,7 +496,7 @@ function App() {
         />
       )}
 
-      {hunterPick.prompt && !usernamePrompt.prompt && (
+      {!starterBundleOpen && hunterPick.prompt && !usernamePrompt.prompt && (
         <HunterPickSheet
           onPicked={hunterPick.completePrompt}
           onClose={hunterPick.deferPrompt}

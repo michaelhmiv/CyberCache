@@ -30,7 +30,6 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import {
   ConsoleStyles,
   Lamp,
-  Lcd,
   PushBtn,
   Rack,
   RackHead,
@@ -176,58 +175,38 @@ export const HelpScreen: React.FC<HelpScreenProps> = ({ initialPageId = null, in
   );
   const visibleCount = visibleGroups.reduce((n, g) => n + g.pages.length, 0);
   const corpusReady = wikiCorpusReady();
+  const linkCount = getWikiLinkCount();
   const textHits = q && corpusReady
     ? searchWikiText(query).filter((hit) => !titleMatchedIds.has(hit.page.id))
     : [];
-  const linkCount = getWikiLinkCount();
 
   return (
     <div ref={rootRef} className="flex flex-col gap-3 p-3 pb-6">
       <ConsoleStyles />
-
-      {/* ── Masthead: the unit plate ─────────────────────────── */}
-      <Rack>
-        <div
-          className="flex min-h-[36px] items-center gap-2 px-3"
-          style={{ borderBottom: `1px solid ${CK.bezel}`, boxShadow: '0 1px 0 rgba(0,0,0,0.6)' }}
-        >
-          <Lamp state="ok" />
-          <span className="flex-1 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: CK.boneDim }}>
-            Unit FM-09 · Field Manual
-          </span>
-          <Readout color={CK.green}>Wiki Uplink</Readout>
-        </div>
-        <div className="flex items-center gap-3 px-4 pt-3">
-          <PxIcon name="book" size={30} style={{ color: CK.bone }} />
-          <h1
-            className="flex-1"
-            style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, lineHeight: 1, letterSpacing: '0.03em', color: CK.bone }}
-          >
-            Field Manual
-          </h1>
-        </div>
-        <p className="px-4 pb-3 pt-1.5 text-[13px] leading-snug" style={{ color: CK.boneDim }}>
-          The game&apos;s wiki, rendered natively — the same pages the GitHub wiki publishes, read off the rig.
-        </p>
-        <div className="grid grid-cols-3 gap-2 px-3 pb-3">
-          <Lcd label="Pages" value={WIKI_STATS.pages} />
-          <Lcd label="Links" value={linkCount ?? '—'} />
-          <Lcd label="Source" value="Wiki/*.md" valueColor={CK.amber} />
-        </div>
-      </Rack>
 
       {currentId === null ? (
         <>
           {/* ── Search: titles instantly, body text once indexed ── */}
           <Rack testId="wiki-filter">
             <RackHead
-              icon={<PxIcon name="search" size={15} style={{ color: CK.label }} />}
-              label="Index Query"
+              icon={<PxIcon name="search" size={13} style={{ color: CK.label }} />}
+              label="Search Field Manual"
               readout={
                 <Readout>
-                  {q
-                    ? `${visibleCount} pages · ${corpusReady ? `${textHits.length} text hits` : 'indexing…'}`
-                    : `Showing ${visibleCount}/${WIKI_STATS.pages}`}
+                  {q ? (
+                    `${visibleCount} pages · ${corpusReady ? `${textHits.length} text hits` : 'indexing…'}`
+                  ) : (
+                    <>
+                      <span>{`${visibleCount}/${WIKI_STATS.pages} pages`}</span>
+                      {linkCount != null && (
+                        <>
+                          <span> · </span>
+                          <span data-testid="wiki-link-count">{String(linkCount)}</span>
+                          <span> links</span>
+                        </>
+                      )}
+                    </>
+                  )}
                 </Readout>
               }
             />

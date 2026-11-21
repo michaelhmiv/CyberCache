@@ -27,7 +27,7 @@
 import React, { useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { usePlayerStore, useSkillStore } from '@/store';
-import { HUNTERS, hunterById, spendsForHunter, type HunterDef } from '@/lib/hunters/hunters';
+import { HUNTERS, hunterBasePerkSummary, hunterById, spendsForHunter, type HunterDef } from '@/lib/hunters/hunters';
 import { skillSpendCost } from '@/lib/skills/skillBonuses';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import { getPixelSprite, pixelHunterSpriteForHunter } from '@/lib/pixel/manifest';
@@ -133,6 +133,9 @@ export const RosterPanel: React.FC<{
                 </div>
                 <div className="mt-0.5 text-[11px] font-black uppercase tracking-wide" style={{ color: visual.color }}>
                   {String(hunter.tree)} · {hunter.basePerkName}
+                </div>
+                <div className="mt-0.5 text-[11px] font-bold" style={{ color: BONE }}>
+                  {hunterBasePerkSummary(hunter)}
                 </div>
                 <div className="mt-0.5 text-[11px] font-semibold" style={{ color: BONE_MUTED }}>
                   {spentBudget} spent · {unspent} unspent in pool

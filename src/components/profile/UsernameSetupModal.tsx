@@ -57,17 +57,26 @@ export const UsernameSetupModal: React.FC<Props> = ({
 
   useEffect(() => {
     if (!value.trim() || validationError) return;
+    let cancelled = false;
 
     const timer = setTimeout(async () => {
       setChecking(true);
-      const available = await isUsernameAvailable(value);
-      setChecking(false);
-      if (!available) {
-        setAvailabilityError({ value, message: 'That username is already taken.' });
+      try {
+        const available = await isUsernameAvailable(value);
+        if (!cancelled && !available) {
+          setAvailabilityError({ value, message: 'That username is already taken.' });
+        }
+      } catch {
+        // Transient network lookup error: let submit re-validate authoritatively.
+      } finally {
+        if (!cancelled) setChecking(false);
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [validationError, value]);
 
   const handleSubmit = async (e: React.FormEvent) => {

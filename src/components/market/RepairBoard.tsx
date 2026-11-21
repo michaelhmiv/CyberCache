@@ -327,15 +327,17 @@ export const RepairBoard: React.FC<{
 
       {transactLockPrompt}
 
-      <RepairBayScene
-        working={!!activeWork}
-        progress={activeWork ? activeWork.progress : lastCompleted ? 1 : 0}
-        causeLabel={sceneJob ? vehicleLabel(sceneJob) : 'Repair bay'}
-        buysLabel={sceneJob ? `${sceneJob.kitsConsumed.length} kits used` : 'awaiting a job'}
-        result={activeWork ? undefined : lastCompleted ? 'success' : undefined}
-        vehicleSpriteId={sceneJob ? vehicleSpriteId(sceneJob.vehicle?.classId ?? null) : null}
-        unarmed={!hunterWeapon}
-      />
+      {(activeWork || lastCompleted) && (
+        <RepairBayScene
+          working={!!activeWork}
+          progress={activeWork ? activeWork.progress : lastCompleted ? 1 : 0}
+          causeLabel={sceneJob ? vehicleLabel(sceneJob) : 'Repair bay'}
+          buysLabel={sceneJob ? `${sceneJob.kitsConsumed.length} kits used` : 'awaiting a job'}
+          result={activeWork ? undefined : lastCompleted ? 'success' : undefined}
+          vehicleSpriteId={sceneJob ? vehicleSpriteId(sceneJob.vehicle?.classId ?? null) : null}
+          unarmed={!hunterWeapon}
+        />
+      )}
       {activeWork && (
         <div className="text-[11px] text-text-muted -mt-1">
           In the bay: {vehicleLabel(activeWork)} — {Math.floor(activeWork.pointsRestored)}/

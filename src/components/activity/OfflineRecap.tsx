@@ -401,7 +401,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
   const autoSalvageValue = s.autoSalvage
     ? [
         ...(s.autoSalvage.scrap_award > 0 ? [`+${formatNumber(s.autoSalvage.scrap_award)} scrap`] : []),
-        ...Object.entries(s.autoSalvage.materials).map(([mat, n]) => `+${n} ${mat}`),
+        ...Object.entries(s.autoSalvage.materials).map(([mat, n]) => `+${n} ${getVisualAsset('material', mat).label}`),
         ...(s.autoSalvage.cores_award > 0 ? [`+${s.autoSalvage.cores_award} cores`] : []),
       ].join(' · ')
     : '';
@@ -438,7 +438,7 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
             Away for <span className="font-bold text-white">{s.timeAway}</span>
           </span>
           {s.capReached && (
-            <span className="text-[10px] bg-amber/20 text-amber px-1.5 py-0.5 rounded font-bold">
+            <span className="text-[11px] bg-amber/20 text-amber px-1.5 py-0.5 rounded font-bold">
               CAPPED
             </span>
           )}
@@ -458,8 +458,8 @@ export function OfflineRecapCard({ onDone }: { onDone?: () => void }) {
         {held && (
           <p data-testid="return-held-note" className="text-xs font-bold text-amber">
             {claimable
-              ? 'Held by the Chef — not in your wallet yet. Claim below to bank it.'
-              : 'Held by the Chef — nothing payable in this stretch.'}
+              ? 'Waiting to claim — not in your wallet yet. Claim below to bank it.'
+              : 'Nothing payable in this stretch.'}
           </p>
         )}
       </div>

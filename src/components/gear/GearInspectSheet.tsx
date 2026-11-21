@@ -56,7 +56,7 @@ function Visual({ item }: { item: GearItem }) {
   const reduceMotion = useReducedMotion();
   return (
     <motion.div
-      className="relative flex h-48 items-center justify-center"
+      className="relative flex h-32 items-center justify-center"
       animate={
         reduceMotion
           ? undefined
@@ -66,8 +66,8 @@ function Visual({ item }: { item: GearItem }) {
       }
       transition={{ duration: isWeapon(item) ? 2.6 : 2.2, repeat: Infinity, ease: 'easeInOut' }}
     >
-      {isWeapon(item) && <div className="absolute inset-x-8 top-7 h-24 -rotate-6 bg-black/30 blur-xl" />}
-      <GearIllustration item={item} size="showcase" showBadges animate />
+      {isWeapon(item) && <div className="absolute inset-x-8 top-4 h-20 -rotate-6 bg-black/30 blur-xl" />}
+      <GearIllustration item={item} size={112} showBadges animate />
     </motion.div>
   );
 }

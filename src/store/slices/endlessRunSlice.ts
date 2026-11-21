@@ -37,6 +37,9 @@ interface EndlessRunState {
   /** Monotonic bank intent from the zone; the panel watches it. */
   bankRequests: number;
   requestBank: () => void;
+  /** Monotonic advance-encounter intent from the zone; the panel watches it. */
+  advanceRequests: number;
+  requestAdvance: () => void;
 }
 
 export const useEndlessRunStore = create<EndlessRunState>((set) => ({
@@ -44,4 +47,6 @@ export const useEndlessRunStore = create<EndlessRunState>((set) => ({
   publish: (view) => set({ view }),
   bankRequests: 0,
   requestBank: () => set((s) => ({ bankRequests: s.bankRequests + 1 })),
+  advanceRequests: 0,
+  requestAdvance: () => set((s) => ({ advanceRequests: s.advanceRequests + 1 })),
 }));

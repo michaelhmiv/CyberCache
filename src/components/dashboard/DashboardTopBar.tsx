@@ -232,11 +232,8 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
   // the chip renders only while there are points to spend. The
   // count is the same derivation the Hunter tab prints (level − 1
   // earned, minus the skill store's spent record).
-  const skillSpent = useSkillStore((s) => s.spent);
-  const unspentSkillPoints = Math.max(
-    0,
-    level - 1 - Object.values(skillSpent).reduce((sum, n) => sum + (n || 0), 0),
-  );
+  const activeSpentBudget = useSkillStore((s) => s.getActiveSpentBudget());
+  const unspentSkillPoints = Math.max(0, level - 1 - activeSpentBudget);
   const openSkillPoints = () => {
     onNavigate?.('skills');
   };
@@ -380,7 +377,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
   const contractsLabel = !board
     ? 'Contracts'
     : contractsGuestLocked
-      ? 'Contracts — sign in with Google to claim rewards'
+      ? 'Contracts — sign in to claim rewards'
       : claimable > 0
         ? `Contracts — ${claimable} ready to claim`
         : 'Contracts — none ready to claim';
@@ -713,8 +710,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           onClick={openSkillPoints}
           className="bl-panel relative flex min-h-[44px] w-full items-center gap-2 overflow-hidden px-2.5 py-1.5 text-left"
         >
-          <ClaimPulse color="#FF9000" testId="announce-points-pulse" />
-          <PxIcon name="nodes" size={15} />
+          <PxIcon name="nodes" size={17} />
           <span
             className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider"
             style={{ color: '#FF9000' }}
@@ -724,7 +720,7 @@ export const DashboardTopBar: React.FC<DashboardTopBarProps> = ({ onNavigate }) 
           <span className="min-w-0 flex-1 truncate text-xs font-bold text-text-primary">
             {unspentSkillPoints} unspent — spend them in Skill Trees
           </span>
-          <PxIcon name="chevR" size={14} />
+          <PxIcon name="chevR" size={13} />
         </button>
       )}
 

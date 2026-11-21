@@ -14,7 +14,7 @@ import { memo } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import type { ActivityRecord } from '@/lib/api/activityLogService';
 import {
-  bossWinChance, clockTime, dropChance, itemKindLabel, rarityHex, recordFace, recordKindIcon,
+  clockTime, dropChance, itemKindLabel, rarityHex, recordFace, recordKindIcon,
 } from '@/lib/activity/activityLogView';
 
 const RARITY_GLOW: Record<string, string> = {
@@ -35,7 +35,6 @@ export const ActivityRecordCard = memo(function ActivityRecordCard({
   const rarity = record.item?.rarity ?? null;
   const rarityColor = rarityHex(rarity);
   const drop = record.kind === 'drop' ? dropChance(record) : null;
-  const win = record.kind === 'boss' ? bossWinChance(record) : null;
   const time = clockTime(record.at);
 
   return (
@@ -57,10 +56,10 @@ export const ActivityRecordCard = memo(function ActivityRecordCard({
         }}
         aria-hidden
       >
-        <PxIcon name={recordKindIcon(record)} size={24} />
+        <PxIcon name={recordKindIcon(record)} size={26} />
         {record.away && (
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center border border-black bg-[#151821] text-[#3B82F6]">
-            <PxIcon name="clock" size={10} />
+            <PxIcon name="clock" size={13} />
           </span>
         )}
       </span>
@@ -90,16 +89,11 @@ export const ActivityRecordCard = memo(function ActivityRecordCard({
               {drop.pct} · {drop.oneIn}
             </span>
           )}
-          {win && (
-            <span className="text-text-secondary">
-              Won at {win.pct}
-            </span>
-          )}
         </span>
       </span>
 
       <span className="flex shrink-0 items-center text-text-muted transition-colors group-hover:text-text-primary" aria-hidden>
-        <PxIcon name="chevR" size={14} />
+        <PxIcon name="chevR" size={13} />
       </span>
     </button>
   );

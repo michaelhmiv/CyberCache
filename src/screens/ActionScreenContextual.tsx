@@ -200,6 +200,7 @@ export const ActionScreenContextual: React.FC<{
   const [feedActionBusy, setFeedActionBusy] = useState(false);
   const [feedActionError, setFeedActionError] = useState<string | null>(null);
   const [salvagePendingIds, setSalvagePendingIds] = useState<ReadonlySet<string>>(new Set());
+  const [confirmSalvageId, setConfirmSalvageId] = useState<string | null>(null);
   // Tick feed events from the canonical ticker — the single source of truth
   // for roaming rewards. The Action screen is a consumer, not an engine.
   const tickEvents = useTickFeedStore((s) => s.events);
@@ -869,35 +870,16 @@ export const ActionScreenContextual: React.FC<{
           <ChamberRundown />
         ) : (currentKind === 'extraction' || showExtraction) && extractionDelveKnown ? (
           <ExtractRundown />
-        ) : currentKind === 'crafting' ? (
+        ) : (showCraftBench || currentKind === 'crafting' || currentKind === 'workshop_service') ? (
           <BenchRundown />
         ) : (
           <HeroRundown boss={currentKind === 'boss_fight' ? (currentBoss ?? prepBossTarget) : null} />
         )}
       </div>
 
-      {/* 3. Consumable belt (§4) — in the mode rail's vacated
-          position since the owner's device ruling of 2026-11-04:
-          directly under the stage block, above the lit workspace,
-          so the use-in-loop slots sit between the rundown and the
-          mode's panel. It lived in the deck before Wave C and
-          under the workspace until this swap — same component,
-          relocated, mounted exactly once. The belt is
-          consumables only (owner decision 2026-11-10): the
-          vehicle chip that rode the belt row since the
-          2026-11-03 consolidation moved to the Strip's loot
-          segment (VehicleStripChip — permanent there, on foot
-          included), and the blocks that used to stack under the
-          workspace are gone from Home: the vehicle status line
-          (its Strip chip + the Garage's line carry the state),
-          the read-only Loadout
-          block (Gear → Loadout is the canonical surface), the
-          Activity Modifiers panel (its glance folded into the
-          rundown's buff line, its detail into the breakdown
-          sheets), and the compact HP/Keys/Tick strip (HP → the HP
-          plate + the hero rundown, Keys → the Strip, Tick → the
-          workspace footer and the feed). */}
-      <ConsumableBelt onNavigate={(target) => onNavigate?.(target)} />
+      {/* 3. Consumable belt (§4) — hidden while the Craft bench view
+          is open so bench queue and recipes lead above the fold. */}
+      {!showCraftBench && <ConsumableBelt onNavigate={(target) => onNavigate?.(target)} />}
 
       {/* 4. Action-specific panel — the lit workspace */}
       {workspace}
@@ -915,12 +897,12 @@ export const ActionScreenContextual: React.FC<{
       {/* Drawers — unchanged */}
       <AnimatePresence>
         <ContextualPickerSheet open={showSwitch} title="Switch Action" detail="Broad action changes live in this drawer so the Action tab stays clear." onClose={() => setShowSwitch(false)}>
-          {switchActions.map(({ label, detail: rowDetail, icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber">{icon}</div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[10px] text-text-muted">{rowDetail}</div></div></div></button>)}
+          {switchActions.map(({ label, detail: rowDetail, icon, run }) => <button key={label} type="button" onClick={run} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center border-2 border-border bg-bg text-amber">{icon}</div><div className="min-w-0 flex-1"><div className="text-sm font-black text-text-primary">{label}</div><div className="truncate text-[11px] text-text-muted">{rowDetail}</div></div></div></button>)}
         </ContextualPickerSheet>
         <ContextualPickerSheet open={showAreaSelect} title="Choose Area" detail={isRoaming ? `${selectedArea.name} · ${selectedArea.enemyType} · Loot bias: ${selectedArea.lootBias.slice(0,2).join(', ')}` : 'Pick where roaming happens — the stage follows the area you choose.'} onClose={() => setShowAreaSelect(false)}>
           {/* Compact area stats strip — replaces the removed Roaming Intel card */}
           {isRoaming && (
-            <div className="mb-3 grid grid-cols-3 gap-1.5 text-[9px]">
+            <div className="mb-3 grid grid-cols-3 gap-1.5 text-[11px]">
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Base credits</span><div className="font-black text-cyan">+{creditsPerTick}/tick</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Base scrap</span><div className="font-black text-green">+{scrapPerTick}/tick</div></div>
               <div className="border border-border bg-bg/70 p-1.5" style={smallClip}><span className="text-text-muted">Base gear</span><div className="font-black text-amber">{Math.round(GEAR_DROP_CHANCE * 100)}%/tick</div></div>
@@ -934,8 +916,43 @@ export const ActionScreenContextual: React.FC<{
         <ContextualPickerSheet open={showBossPicker} title="Choose Boss Target" detail="Pick your mark — check its intel and weaknesses, then prep the fight." onClose={() => setShowBossPicker(false)}>
           <BossPickerList onSelect={(boss) => startPrep(boss)} />
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down — salvage settles instantly. Estimates are the base scrap award; the server adds skill bonuses." onClose={() => setShowSalvagePicker(false)}>
-          {salvageCandidates.map((item) => <button key={item.id} type="button" onClick={() => { setShowSalvagePicker(false); startSalvage(item); }} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">Base ≈{salvageScrap(item.rarity, item.level)} scrap · higher rarity = more scrap</div></button>)}
+        <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down — salvage settles instantly. Estimates are the base scrap award; the server adds skill bonuses." onClose={() => { setConfirmSalvageId(null); setShowSalvagePicker(false); }}>
+          {salvageCandidates.map((item) => {
+            const confirming = confirmSalvageId === item.id;
+            return confirming ? (
+              <div key={item.id} className="w-full border-2 border-red/70 bg-surface p-3 space-y-2" style={smallClip}>
+                <div className="flex justify-between gap-2">
+                  <span className="truncate text-sm font-black text-text-primary">{item.name}</span>
+                  <span className="text-[11px] font-bold text-amber">{item.rarity}</span>
+                </div>
+                <div className="text-[11px] text-text-muted">Permanently breaks down for base ≈{salvageScrap(item.rarity, item.level)} scrap.</div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setConfirmSalvageId(null); setShowSalvagePicker(false); startSalvage(item); }}
+                    className="min-h-[44px] flex-1 bg-red px-3 py-2 text-xs font-black text-bg"
+                  >
+                    Confirm Salvage
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmSalvageId(null)}
+                    className="bl-secondary min-h-[44px] px-3 py-2 text-xs font-black"
+                  >
+                    Keep
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button key={item.id} type="button" onClick={() => setConfirmSalvageId(item.id)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}>
+                <div className="flex justify-between gap-2">
+                  <span className="truncate text-sm font-black text-text-primary">{item.name}</span>
+                  <span className="text-[11px] font-bold text-amber">{item.rarity}</span>
+                </div>
+                <div className="mt-1 text-[11px] text-text-muted">Base ≈{salvageScrap(item.rarity, item.level)} scrap · higher rarity = more scrap</div>
+              </button>
+            );
+          })}
         </ContextualPickerSheet>
       </AnimatePresence>
     </div>

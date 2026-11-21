@@ -47,6 +47,11 @@ import {
  * the server's, unchanged.
  */
 
+function formatMaterialLabel(id: string): string {
+  const vis = getMaterialVisual(id);
+  return vis && vis.label && vis.label !== 'Unknown' ? vis.label : id;
+}
+
 function remainingLabel(endsAt: string, nowMs: number): string {
   const ms = Date.parse(endsAt) - nowMs;
   if (ms <= 0) return 'due — refresh to settle';
@@ -126,23 +131,43 @@ export const DispatchPanel: React.FC = () => {
   // architecture guard, no impure calls during render.
   const [nowMs, setNowMs] = useState(() => Date.now());
 
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [confirmRecallId, setConfirmRecallId] = useState<string | null>(null);
+
   const refresh = useCallback(async () => {
-    const result = await getDispatchState();
-    setState(result.dispatch);
-    setNowMs(Date.now());
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const result = await getDispatchState();
+      setState(result.dispatch);
+      setNowMs(Date.now());
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Unable to load Dispatch right now.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     getDispatchState()
       .then((result) => {
-        if (!cancelled) {
-          setState(result.dispatch);
-          setNowMs(Date.now());
-        }
+        if (cancelled) return;
+        setState(result.dispatch);
+        setNowMs(Date.now());
+        setLoadError(null);
       })
-      .catch(() => { /* Chef unreachable: panel stays hidden. */ });
-    return () => { cancelled = true; };
+      .catch((err) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : 'Unable to load Dispatch right now.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const offer: ChefDispatchOffer | null = useMemo(
@@ -264,7 +289,32 @@ export const DispatchPanel: React.FC = () => {
     setPrefillReport({ buildName: preset.name, lines: prefill.lines });
   };
 
-  if (!state) return null;
+  if (!state) {
+    if (loadError) {
+      return (
+        <MobileCard className="space-y-2" rarityColor="#F25A5A">
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Dispatch Bay</div>
+          <div className="text-xs text-red-light">{loadError}</div>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="bl-secondary min-h-[44px] px-3 py-2 text-xs font-black"
+          >
+            Retry
+          </button>
+        </MobileCard>
+      );
+    }
+    if (loading) {
+      return (
+        <MobileCard className="space-y-2" rarityColor="#7FD4FF">
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Dispatch Bay</div>
+          <div className="text-xs text-text-muted">Loading contracts…</div>
+        </MobileCard>
+      );
+    }
+    return null;
+  }
 
   const active = state.missions.filter((m) => m.status === 'active');
   const history = state.missions.filter((m) => m.status !== 'active');
@@ -284,15 +334,16 @@ export const DispatchPanel: React.FC = () => {
   return (
     <div className="space-y-3">
       <MobileCard className="space-y-2" rarityColor="#7FD4FF">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Dispatch Bay</div>
           <div className="flex items-center gap-2">
-            <div className="text-[10px] font-bold text-text-muted">
+            <div className="text-[11px] font-bold text-text-muted">
               Slots {state.slotsUsed}/{state.slots} · Fuel {Math.floor(state.vehicleFuel)} units
             </div>
             <button
+              type="button"
               onClick={() => { refresh().catch(() => { /* stale state stays */ }); }}
-              className="bl-secondary px-2 py-0.5 text-[10px] font-black"
+              className="bl-secondary min-h-[44px] px-2.5 py-1.5 text-[11px] font-black"
             >
               <span className="inline-flex items-center gap-1"><PxIcon name="recycle" size={13} /> Settle</span>
             </button>
@@ -304,25 +355,47 @@ export const DispatchPanel: React.FC = () => {
             the shared vehicle tank (profiles.vehicle_fuel): the
             Garage loads it from Generic Fuel Cells at 100 units
             per cell, the same tank roaming burns. */}
-        <div className="text-[10px] leading-snug text-text-muted">
+        <div className="text-[11px] leading-snug text-text-muted">
           Fuel is the shared vehicle tank, in units — one Generic Fuel Cell loads 100 units in the Garage. The vendor sells cells; the Workshop crafts them.
         </div>
         {active.length === 0 && <div className="text-xs text-text-muted">Bay's empty — pick a contract from the board below.</div>}
         {active.map((m) => (
           <div key={m.id} className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-            <div className="text-xs text-text-primary">{missionLine(m)}<div className="text-[10px] text-text-muted">{remainingLabel(m.ends_at, nowMs)}</div></div>
-            <button
-              onClick={() => recall(m.id)}
-              disabled={busy}
-              className="bl-secondary shrink-0 px-2 py-1 text-[10px] font-black disabled:opacity-50"
-            >
-              Recall
-            </button>
+            <div className="text-xs text-text-primary">{missionLine(m)}<div className="text-[11px] text-text-muted">{remainingLabel(m.ends_at, nowMs)}</div></div>
+            {confirmRecallId === m.id ? (
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setConfirmRecallId(null); void recall(m.id); }}
+                  disabled={busy}
+                  className="bl-primary min-h-[44px] px-2.5 py-1.5 text-[11px] font-black disabled:opacity-50"
+                >
+                  Confirm Recall
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRecallId(null)}
+                  disabled={busy}
+                  className="bl-secondary min-h-[44px] px-2.5 py-1.5 text-[11px] font-black disabled:opacity-50"
+                >
+                  Keep
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmRecallId(m.id)}
+                disabled={busy}
+                className="bl-secondary min-h-[44px] shrink-0 px-3 py-1.5 text-[11px] font-black disabled:opacity-50"
+              >
+                Recall
+              </button>
+            )}
           </div>
         ))}
         {history.length > 0 && (
           <div className="border-t border-border/60 pt-2">
-            <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Returned</div>
+            <div className="text-[11px] font-black uppercase tracking-wide text-text-muted">Returned</div>
             {history.slice(0, 5).map((m) => (
               <div key={m.id} className="text-[11px] text-text-muted">{missionLine(m)} · {m.status}</div>
             ))}
@@ -334,9 +407,10 @@ export const DispatchPanel: React.FC = () => {
         <div className="text-xs font-black uppercase tracking-wide text-text-primary">Contract Board — today</div>
         {state.offers.map((o) => (
           <button
+            type="button"
             key={o.id}
             onClick={() => { setOfferId(offerId === o.id ? null : o.id); setPickedItems([]); setPickedVehicle(null); setPreview(null); setReasons([]); setPrefillReport(null); }}
-            className={`flex w-full items-center justify-between gap-2 border px-2 py-2 text-left ${offerId === o.id ? 'border-amber bg-amber/10' : 'border-border/60'}`}
+            className={`flex min-h-[44px] w-full items-center justify-between gap-2 border px-2.5 py-2 text-left ${offerId === o.id ? 'border-amber bg-amber/10' : 'border-border/60'}`}
           >
             <span className="min-w-0">
               <span className="block text-xs font-bold text-text-primary">
@@ -352,11 +426,11 @@ export const DispatchPanel: React.FC = () => {
                   vehicle's cargo bonus). */}
               {o.payout && (
                 <span className="block text-[11px] font-bold text-text-muted">
-                  Pays: {o.payout.credits} cr · {o.payout.scrap} scrap{o.payout.materialId ? ` · ${o.payout.materialUnits} ${o.payout.materialId}` : ''}
+                  Pays: {o.payout.credits} cr · {o.payout.scrap} scrap{o.payout.materialId ? ` · ${o.payout.materialUnits} ${formatMaterialLabel(o.payout.materialId)}` : ''}
                 </span>
               )}
             </span>
-            <span className="text-[10px] font-bold text-text-muted">
+            <span className="text-[11px] font-bold text-text-muted">
               {`${o.dangerRating} danger`}
             </span>
           </button>
@@ -463,7 +537,7 @@ export const DispatchPanel: React.FC = () => {
                       className={`flex w-full items-center justify-between px-2 py-1 text-left text-xs ${picked ? 'bg-amber/15 font-black text-text-primary' : 'text-text-primary'} disabled:opacity-40`}
                     >
                       <span className="inline-flex items-center gap-1">{picked ? <PxIcon name="check" size={13} /> : null}{c.name}</span>
-                      <span className="text-[10px] text-text-muted">{spare ? `Lv ${c.itemLevel}` : c.equippedSlot ? 'equipped' : c.runtimeState}</span>
+                      <span className="text-[11px] text-text-muted">{spare ? `Lv ${c.itemLevel}` : c.equippedSlot ? 'equipped' : c.runtimeState}</span>
                     </button>
                   );
                 })}
@@ -483,7 +557,7 @@ export const DispatchPanel: React.FC = () => {
                       className={`flex w-full items-center justify-between px-2 py-1 text-left text-xs ${picked ? 'bg-amber/15 font-black text-text-primary' : 'text-text-primary'} disabled:opacity-40`}
                     >
                       <span className="inline-flex items-center gap-1">{picked ? <PxIcon name="check" size={13} /> : null}{c.name}</span>
-                      <span className="text-[10px] text-text-muted">
+                      <span className="text-[11px] text-text-muted">
                         {spare ? `condition ${Math.round(c.conditionCurrent ?? 100)}` : c.equippedSlot ? 'equipped' : c.runtimeState}
                       </span>
                     </button>
@@ -527,7 +601,7 @@ export const DispatchPanel: React.FC = () => {
                 )}
                 {payout && (
                   <div className="font-bold">
-                    Pays: {payout.credits ?? 0} cr · {payout.scrap ?? 0} scrap{payout.materialId ? ` · ${payout.materialUnits ?? 0} ${payout.materialId}` : ''}
+                    Pays: {payout.credits ?? 0} cr · {payout.scrap ?? 0} scrap{payout.materialId ? ` · ${payout.materialUnits ?? 0} ${formatMaterialLabel(payout.materialId)}` : ''}
                   </div>
                 )}
               </div>

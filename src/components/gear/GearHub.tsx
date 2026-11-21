@@ -705,7 +705,7 @@ export const GearHub: React.FC<GearHubProps> = ({ onNavigate, onEquipRequest }) 
       useSalvageFeedStore.getState().push(item, salvageYieldFromRecycleResult(result));
       setSelectedIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
     } catch (error) {
-      console.warn('[GearHub] verified salvage failed:', error instanceof Error ? error.message : error);
+      setInspectNotice(`Couldn't salvage "${item.name}" — ${formatRpcError(error)}`);
     } finally {
       setPendingScrapIds((prev) => {
         const next = new Set(prev);

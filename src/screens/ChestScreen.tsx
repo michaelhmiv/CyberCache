@@ -64,6 +64,7 @@ const GearItemCard: React.FC<{
   const rarityDef = RARITIES[item.rarity];
   const itemIsWeapon = isWeapon(item);
   const itemIsLocked = item.isLocked;
+  const [confirmScrap, setConfirmScrap] = useState(false);
 
   if (action === 'scrapped') return null;
 
@@ -85,14 +86,14 @@ const GearItemCard: React.FC<{
           <span className="text-sm font-bold" style={{ color: rarityDef.color }}>
             {item.name}
           </span>
-          <span className="text-[10px] text-text-muted bg-surface-raised px-1.5 py-0.5 rounded">
+          <span className="text-[11px] text-text-muted bg-surface-raised px-1.5 py-0.5 rounded">
             {rarityDef.name}
           </span>
         </div>
-        <span className="text-[10px] text-text-muted">Lv.{item.level}</span>
+        <span className="text-[11px] text-text-muted">Lv.{item.level}</span>
       </div>
 
-      <div className="text-[10px] text-text-muted mb-2">
+      <div className="text-[11px] text-text-muted mb-2">
         {gearTypeLabel(item)}
         {itemIsWeapon && (item as Weapon).element && (
           <span className="ml-1">· {(item as Weapon).element}</span>
@@ -113,32 +114,50 @@ const GearItemCard: React.FC<{
         <ItemStatDeck item={item} />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {itemIsWeapon && (
           <button
             onClick={onEquip}
             disabled={action === 'equipped'}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber/20 text-amber text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-60"
+            className="flex min-h-[44px] items-center gap-1 px-3 py-1.5 rounded-lg bg-amber/20 text-amber text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-60"
           >
             <PxIcon name="crosshair" size={13} />
             {action === 'equipped' ? 'Equipped' : 'Equip'}
           </button>
         )}
         <button
-          onClick={onLockToggle}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-raised text-text-secondary text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
+          onClick={() => { setConfirmScrap(false); onLockToggle(); }}
+          className="flex min-h-[44px] items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-raised text-text-secondary text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
           {itemIsLocked ? <Lock size={12} /> : <Unlock size={12} />}
           {itemIsLocked ? 'Locked' : 'Lock'}
         </button>
-        <button
-          onClick={onScrap}
-          disabled={itemIsLocked}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
-        >
-          <PxIcon name="recycle" size={13} />
-          Salvage
-        </button>
+        {confirmScrap && !itemIsLocked ? (
+          <>
+            <button
+              onClick={() => { setConfirmScrap(false); onScrap(); }}
+              className="flex min-h-[44px] items-center gap-1 px-3 py-1.5 rounded-lg bg-red text-bg text-[11px] font-black active:scale-95 transition-transform"
+            >
+              <PxIcon name="recycle" size={13} />
+              Confirm Salvage
+            </button>
+            <button
+              onClick={() => setConfirmScrap(false)}
+              className="flex min-h-[44px] items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-raised text-text-secondary text-[11px] font-bold active:scale-95 transition-transform"
+            >
+              Keep
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setConfirmScrap(true)}
+            disabled={itemIsLocked}
+            className="flex min-h-[44px] items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
+          >
+            <PxIcon name="recycle" size={13} />
+            Salvage
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -448,22 +467,22 @@ export const ChestScreen: React.FC<{ onNavigate?: (screen: string) => void }> = 
               {adPending ? 'Showing ad…' : 'Watch Ad to Open'}
             </button>
             {!adsReady && (
-              <div className="text-[10px] text-text-muted">
-                Rewarded ads are available in Android app builds.
+              <div className="text-[11px] text-text-muted">
+                Rewarded ads are unavailable in this build right now.
               </div>
             )}
-            <div className="text-[10px] text-text-muted">
+            <div className="text-[11px] text-text-muted">
               {lane?.rule ?? CACHE_LANE_RULE}
             </div>
           </div>
-        <div className="flex items-center justify-center gap-1 text-[10px] text-text-muted">
-          <Info size={10} />
-          Server-verified rarity roll · Rare or better
+        <div className="flex items-center justify-center gap-1 text-[11px] text-text-muted">
+          <Info size={12} />
+          Rare or better guaranteed
         </div>
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs font-bold text-text-muted uppercase">Server Odds</div>
+        <div className="text-xs font-bold text-text-muted uppercase">Drop Odds</div>
         {Object.values(RARITIES).map((r) => (
           <div key={r.id} className="flex items-center justify-between text-xs">
             <span style={{ color: r.color }} className="font-bold">{r.name}</span>

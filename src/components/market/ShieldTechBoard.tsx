@@ -343,15 +343,17 @@ export const ShieldTechBoard: React.FC<{
 
       {transactLockPrompt}
 
-      <ShieldTechBayScene
-        working={!!activeWork}
-        progress={activeWork ? activeWork.progress : lastCompleted ? 1 : 0}
-        causeLabel={sceneJob ? `${shieldLabel(sceneJob)} — ${swapLabel(sceneJob)}` : 'Calibration rig'}
-        buysLabel={sceneJob ? `${sceneJob.kitsConsumed.length} cores used` : 'awaiting a job'}
-        result={activeWork ? undefined : lastCompleted ? 'success' : undefined}
-        behaviorGlyphId={sceneJob?.toBehavior ? `glyph-behavior-${sceneJob.toBehavior}` : null}
-        unarmed={!hunterWeapon}
-      />
+      {(activeWork || lastCompleted) && (
+        <ShieldTechBayScene
+          working={!!activeWork}
+          progress={activeWork ? activeWork.progress : lastCompleted ? 1 : 0}
+          causeLabel={sceneJob ? `${shieldLabel(sceneJob)} — ${swapLabel(sceneJob)}` : 'Calibration rig'}
+          buysLabel={sceneJob ? `${sceneJob.kitsConsumed.length} cores used` : 'awaiting a job'}
+          result={activeWork ? undefined : lastCompleted ? 'success' : undefined}
+          behaviorGlyphId={sceneJob?.toBehavior ? `glyph-behavior-${sceneJob.toBehavior}` : null}
+          unarmed={!hunterWeapon}
+        />
+      )}
       {activeWork && (
         <div className="text-[11px] text-text-muted -mt-1">
           In the rig: {shieldLabel(activeWork)} — {Math.floor(activeWork.pointsCalibrated)}/

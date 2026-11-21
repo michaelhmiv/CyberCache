@@ -55,6 +55,7 @@ export const VendorScreen: React.FC = () => {
   const buybackRate = player.vendorBuybackRate ?? VENDOR_BUYBACK_RATE_DEFAULT;
   const [notice, setNotice] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [confirmSellKey, setConfirmSellKey] = React.useState<string | null>(null);
   const [mode, setMode] = React.useState<'buy' | 'sell'>('buy');
   const [buyTarget, setBuyTarget] = React.useState<VendorBuySheetTarget | null>(null);
   // Marla's counter line (slice (f1)): one line per stop visit, drawn
@@ -375,23 +376,51 @@ export const VendorScreen: React.FC = () => {
               since the 2026-11-17 first-screen pass); its label
               row is folded into the card (amber name + ITEM OF THE
               DAY −25% chip on the card's face — same datum, one
-              row higher). */}
-          {itemOfTheDayDef && itemOfTheDayOffer && consumableCard(itemOfTheDayDef, itemOfTheDayOffer)}
+              row higher). Filtered alongside staples when search
+              or family facets are active. */}
+          {(() => {
+            const q = search.trim().toLowerCase();
+            const matchesConsumable = (def: ConsumableDef | undefined): def is ConsumableDef => {
+              if (!def) return false;
+              if (activeFamilies.size > 0 && !activeFamilies.has(def.family)) return false;
+              if (q) {
+                const hay = `${def.name} ${def.shortDescription} ${def.tacticalRole}`.toLowerCase();
+                if (!hay.includes(q)) return false;
+              }
+              return true;
+            };
+            const matchesMaterial = (id: string): boolean => {
+              if (activeFamilies.size > 0) return false;
+              const entry = VENDOR_MATERIALS.find((m) => m.id === id);
+              if (!entry) return false;
+              if (q && !entry.name.toLowerCase().includes(q) && !entry.kind.toLowerCase().includes(q)) return false;
+              return true;
+            };
+            const visibleRotConsumables = rotation.consumables
+              .map((id) => CONSUMABLES[id as keyof typeof CONSUMABLES])
+              .filter(matchesConsumable);
+            const visibleRotMaterials = rotation.materials.filter(matchesMaterial);
+            const showIotd = matchesConsumable(itemOfTheDayDef) && Boolean(itemOfTheDayOffer);
+            return (
+              <>
+                {showIotd && itemOfTheDayDef && itemOfTheDayOffer && consumableCard(itemOfTheDayDef, itemOfTheDayOffer)}
 
-          <div className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <div className="text-[11px] font-black uppercase text-text-secondary">Today&apos;s Rotation</div>
-              <div className="text-[11px] text-text-muted">New stock at 00:00 UTC</div>
-            </div>
-            {rotation.consumables.map((id) => {
-              const def = CONSUMABLES[id as keyof typeof CONSUMABLES];
-              return def ? consumableCard(def, offerByKey.get(id)) : null;
-            })}
-            {rotation.materials.map((id) => {
-              const offer = offerByKey.get(id);
-              return offer ? materialRow(offer) : null;
-            })}
-          </div>
+                {(visibleRotConsumables.length > 0 || visibleRotMaterials.length > 0) && (
+                  <div className="space-y-2">
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-[11px] font-black uppercase text-text-secondary">Today&apos;s Rotation</div>
+                      <div className="text-[11px] text-text-muted">New stock at 00:00 UTC</div>
+                    </div>
+                    {visibleRotConsumables.map((def) => consumableCard(def, offerByKey.get(def.id)))}
+                    {visibleRotMaterials.map((id) => {
+                      const offer = offerByKey.get(id);
+                      return offer ? materialRow(offer) : null;
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           <div className="text-[11px] font-black uppercase text-text-secondary">Staples — always in stock</div>
 
@@ -409,8 +438,8 @@ export const VendorScreen: React.FC = () => {
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => setMode('buy')}
-            className="flex items-center gap-2 border border-border bg-surface px-3 py-2 text-xs font-black text-text-secondary transition-colors hover:text-text-primary"
+            onClick={() => { setConfirmSellKey(null); setMode('buy'); }}
+            className="flex min-h-[44px] items-center gap-2 border border-border bg-surface px-3 py-2 text-xs font-black text-text-secondary transition-colors hover:text-text-primary"
           >
             <PxIcon name="vendor" size={17} /> Back to Vendor stock
           </button>
@@ -425,20 +454,44 @@ export const VendorScreen: React.FC = () => {
               <div className="py-4 text-center text-xs text-text-muted">No sellable gear — equipped and locked items stay with you.</div>
             ) : sellableGear.map(({ item, value }) => {
               const payout = vendorBuybackPayout(value, buybackRate);
-              const selling = busyId === `sell:gear:${item.id}`;
+              const key = `sell:gear:${item.id}`;
+              const selling = busyId === key;
+              const confirming = confirmSellKey === key;
               return (
                 <MobileCard key={item.id} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-xs font-bold leading-snug text-text-primary">{item.name}</div>
                     <div className="text-[11px] text-text-muted">{item.rarity} • Lv {item.level} • value {value.toLocaleString()}cr</div>
                   </div>
-                  <button
-                    onClick={() => handleSell(`sell:gear:${item.id}`, () => verifiedOps.vendorSellGear(item.id), item.name)}
-                    disabled={Boolean(busyId)}
-                    className={`shrink-0 px-3 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
-                  >
-                    {selling ? 'Selling…' : `Sell • ~${payout.toLocaleString()}cr`}
-                  </button>
+                  {confirming ? (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setConfirmSellKey(null); void handleSell(key, () => verifiedOps.vendorSellGear(item.id), item.name); }}
+                        disabled={Boolean(busyId)}
+                        className={`min-h-[44px] px-3 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
+                      >
+                        {selling ? 'Selling…' : `Confirm • ~${payout.toLocaleString()}cr`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmSellKey(null)}
+                        disabled={Boolean(busyId)}
+                        className="bl-secondary min-h-[44px] px-2.5 py-2 text-xs font-black disabled:opacity-40"
+                      >
+                        Keep
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmSellKey(key)}
+                      disabled={Boolean(busyId)}
+                      className={`min-h-[44px] shrink-0 px-3 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
+                    >
+                      {selling ? 'Selling…' : `Sell • ~${payout.toLocaleString()}cr`}
+                    </button>
+                  )}
                 </MobileCard>
               );
             })}
@@ -454,6 +507,8 @@ export const VendorScreen: React.FC = () => {
               const payoutOne = vendorBuybackPayout(unitValue, buybackRate);
               const payoutAll = vendorBuybackPayout(unitValue * batch.quantity, buybackRate);
               const selling = busyId?.startsWith(`sell:batch:${batch.id}`);
+              const allKey = `sell:batch:${batch.id}:all`;
+              const confirmingAll = confirmSellKey === allKey;
               return (
                 <MobileCard key={batch.id} className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
@@ -471,19 +526,42 @@ export const VendorScreen: React.FC = () => {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleSell(`sell:batch:${batch.id}:1`, () => verifiedOps.vendorSellConsumable(batch.id, 1), `${name} ×1`)}
+                      type="button"
+                      onClick={() => { setConfirmSellKey(null); void handleSell(`sell:batch:${batch.id}:1`, () => verifiedOps.vendorSellConsumable(batch.id, 1), `${name} ×1`); }}
                       disabled={Boolean(busyId)}
-                      className={`flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
+                      className="bl-secondary min-h-[44px] flex-1 py-2 text-xs font-black disabled:opacity-40"
                     >
                       {selling ? 'Selling…' : `Sell 1 • ~${payoutOne.toLocaleString()}cr`}
                     </button>
-                    <button
-                      onClick={() => handleSell(`sell:batch:${batch.id}:all`, () => verifiedOps.vendorSellConsumable(batch.id, batch.quantity), `${name} ×${batch.quantity}`)}
-                      disabled={Boolean(busyId)}
-                      className={`flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
-                    >
-                      {selling ? 'Selling…' : `Sell all • ~${payoutAll.toLocaleString()}cr`}
-                    </button>
+                    {confirmingAll ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setConfirmSellKey(null); void handleSell(allKey, () => verifiedOps.vendorSellConsumable(batch.id, batch.quantity), `${name} ×${batch.quantity}`); }}
+                          disabled={Boolean(busyId)}
+                          className={`min-h-[44px] flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
+                        >
+                          {selling ? 'Selling…' : `Confirm all (${batch.quantity})`}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmSellKey(null)}
+                          disabled={Boolean(busyId)}
+                          className="bl-secondary min-h-[44px] px-3 py-2 text-xs font-black disabled:opacity-40"
+                        >
+                          Keep
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmSellKey(allKey)}
+                        disabled={Boolean(busyId)}
+                        className={`min-h-[44px] flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
+                      >
+                        {selling ? 'Selling…' : `Sell all • ~${payoutAll.toLocaleString()}cr`}
+                      </button>
+                    )}
                   </div>
                 </MobileCard>
               );
@@ -498,6 +576,8 @@ export const VendorScreen: React.FC = () => {
               const payoutOne = vendorBuybackPayout(entry.unitPrice, buybackRate);
               const payoutAll = vendorBuybackPayout(entry.unitPrice * owned, buybackRate);
               const selling = busyId?.startsWith(`sell:mat:${entry.id}`);
+              const allKey = `sell:mat:${entry.id}:all`;
+              const confirmingAll = confirmSellKey === allKey;
               return (
                 <MobileCard key={entry.id} className="space-y-2">
                   <div className="flex items-start justify-between gap-3">
@@ -512,19 +592,42 @@ export const VendorScreen: React.FC = () => {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleSell(`sell:mat:${entry.id}:1`, () => verifiedOps.vendorSellMaterial(entry.id, 1), `${entry.name} ×1`)}
+                      type="button"
+                      onClick={() => { setConfirmSellKey(null); void handleSell(`sell:mat:${entry.id}:1`, () => verifiedOps.vendorSellMaterial(entry.id, 1), `${entry.name} ×1`); }}
                       disabled={Boolean(busyId)}
-                      className={`flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
+                      className="bl-secondary min-h-[44px] flex-1 py-2 text-xs font-black disabled:opacity-40"
                     >
                       {selling ? 'Selling…' : `Sell 1 • ~${payoutOne.toLocaleString()}cr`}
                     </button>
-                    <button
-                      onClick={() => handleSell(`sell:mat:${entry.id}:all`, () => verifiedOps.vendorSellMaterial(entry.id, owned), `${entry.name} ×${owned}`)}
-                      disabled={Boolean(busyId)}
-                      className={`flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
-                    >
-                      {selling ? 'Selling…' : `Sell all • ~${payoutAll.toLocaleString()}cr`}
-                    </button>
+                    {confirmingAll ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setConfirmSellKey(null); void handleSell(allKey, () => verifiedOps.vendorSellMaterial(entry.id, owned), `${entry.name} ×${owned}`); }}
+                          disabled={Boolean(busyId)}
+                          className={`min-h-[44px] flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
+                        >
+                          {selling ? 'Selling…' : `Confirm all (${owned})`}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmSellKey(null)}
+                          disabled={Boolean(busyId)}
+                          className="bl-secondary min-h-[44px] px-3 py-2 text-xs font-black disabled:opacity-40"
+                        >
+                          Keep
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmSellKey(allKey)}
+                        disabled={Boolean(busyId)}
+                        className={`min-h-[44px] flex-1 py-2 text-xs font-black disabled:opacity-40 ${vendorCtaCls}`}
+                      >
+                        {selling ? 'Selling…' : `Sell all • ~${payoutAll.toLocaleString()}cr`}
+                      </button>
+                    )}
                   </div>
                 </MobileCard>
               );
