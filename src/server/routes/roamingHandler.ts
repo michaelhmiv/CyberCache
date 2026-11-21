@@ -22,6 +22,7 @@ import { isHotArea } from '../../content/hotArea';
 import { cacheRankBonuses } from '../../content/cacheRank';
 import { mergeResearchBonuses } from '../../content/research';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
+import { computeCanonicalMaxHp } from '../../lib/combat/damageContract';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { resolveRoamingConsumableState } from './roamingConsumableState';
 import {
@@ -194,9 +195,46 @@ export function createClaimHandler(
         return;
       }
 
+      // Server-derived survival bounds (trust hardening):
+      // - Never trust client maxHp/shieldHp above equipped-gear ceilings:
+      //   maxHp clamps to the canonical pool (HTR-03) for the profile's
+      //   level, shield capacity, and Cache Rank Thick Skin bonus.
+      // - If the profile has a standing death record, force dead state so a
+      //   client cannot spoof alive/omitted survival to farm while dead.
+      const resolvedCacheRankBonuses = cacheRankBonuses(profile.cache_rank_spends, economyValues);
+      const equippedShield = equippedGear.find((g) => 'mitigation' in g) as { hp?: number } | undefined;
+      const serverShieldCap = Math.max(0, Math.floor(equippedShield?.hp ?? 0));
+      const serverMaxHp = computeCanonicalMaxHp(
+        profile.player_level,
+        serverShieldCap,
+        resolvedCacheRankBonuses.maxHp,
+      );
+      let standingDeathPreCheck: DeathRecord | null = null;
+      try {
+        standingDeathPreCheck = await store.getDeathRecord(playerId);
+      } catch { /* best-effort; post-claim death sync handles storage errors */ }
+
+      const sanitizedSurvival = standingDeathPreCheck
+        ? {
+            currentHp: 0,
+            shieldHp: 0,
+            maxHp: serverMaxHp,
+            trickleArmed: false,
+            shieldNovaArmed: false,
+          }
+        : body.survival != null
+          ? {
+              ...body.survival,
+              maxHp: serverMaxHp,
+              currentHp: Math.max(0, Math.min(serverMaxHp, Number.isFinite(body.survival.currentHp) ? body.survival.currentHp : serverMaxHp)),
+              shieldHp: Math.max(0, Math.min(serverShieldCap, Number.isFinite(body.survival.shieldHp) ? body.survival.shieldHp : serverShieldCap)),
+            }
+          : undefined;
+
       // Merge inventory + roaming state into the claim
       const claimWithConsumables: ClaimRequest = {
         ...claim,
+        survival: sanitizedSurvival,
         // The DB level is authoritative (same precedent as the
         // verify-boss route): it drives item generation levels,
         // never the client body's playerLevel.
@@ -208,7 +246,7 @@ export function createClaimHandler(
         // cache_rank_spends + the live levers — the body's copy
         // (spread in via `claim`) is overridden here and never
         // reaches the engine.
-        cacheRankBonuses: cacheRankBonuses(profile.cache_rank_spends, economyValues),
+        cacheRankBonuses: resolvedCacheRankBonuses,
         // Server-authoritative scrap bank (migration 0009): read from the
         // profile, never from the client body spread above.
         scrapRemainder: profile.scrap_remainder,
@@ -234,7 +272,9 @@ export function createClaimHandler(
           body.roamingConsumableState,
           profile.last_claimed_tick,
         ),
-        masteryLevels: body.masteryLevels,
+        // Client-supplied masteryLevels are never trusted; extraction
+        // mastery is server-owned state.
+        masteryLevels: {},
         vehicle: equippedVehicle
           ? {
               vehicle: equippedVehicle.vehicle,

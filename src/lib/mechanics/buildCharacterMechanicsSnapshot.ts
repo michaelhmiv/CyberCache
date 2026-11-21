@@ -236,26 +236,34 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
       contribution('skill', 'Skill tree', 'armorBreakSkillMods', skillArmorBreak),
     ]),
     ordnanceContribution: scalar(ordnanceContribution, [contribution('gear', input.ordnance?.name ?? 'No ordnance', 'ordnanceDamage', ordnanceContribution)]),
-    lootRareFind: scalar(
-      weapons.reduce((sum, weapon) => sum + weapon.rareDropChanceMod, 0) + skillTotal(input.spentSkills, 'rareDropChance') + affixTotal(gear, 'rareDropChanceMod') + activityRareFind + consumableRareFind,
-      [
-        ...weapons.map((weapon) => contribution('weapon', weapon.name, 'rareDropChanceMod', weapon.rareDropChanceMod)),
-        contribution('skill', 'Skill tree', 'rareDropChance', skillTotal(input.spentSkills, 'rareDropChance')),
-        contribution('gear', 'Gear affixes', 'rareDropChanceMod', affixTotal(gear, 'rareDropChanceMod')),
-        contribution('activity', 'Activity / area modifiers', 'rareDropChanceMod', activityRareFind),
-        contribution('consumable', 'Consumable / temporary modifiers', 'rareDropChanceMod', consumableRareFind),
-      ],
-    ),
-    scrapModifier: scalar(
-      weapons.reduce((sum, weapon) => sum + weapon.scrapYieldMod, 0) + skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'salvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus') + affixTotal(gear, 'scrapYieldMod') + activityScrap + consumableScrap,
-      [
-        ...weapons.map((weapon) => contribution('weapon', weapon.name, 'scrapYieldMod', weapon.scrapYieldMod)),
-        contribution('skill', 'Skill tree', 'scrapYield', skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'salvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus')),
-        contribution('gear', 'Gear affixes', 'scrapYieldMod', affixTotal(gear, 'scrapYieldMod')),
-        contribution('activity', 'Activity / area modifiers', 'scrapYieldMod', activityScrap),
-        contribution('consumable', 'Consumable / temporary modifiers', 'scrapYieldMod', consumableScrap),
-      ],
-    ),
+    lootRareFind: (() => {
+      const nonBakedGear = gear.filter((item) => item != null && !('weaponType' in item && Number((item as { rareDropChanceMod?: number }).rareDropChanceMod ?? 0) > 0));
+      const affixVal = affixTotal(nonBakedGear, 'rareDropChanceMod');
+      return scalar(
+        weapons.reduce((sum, weapon) => sum + weapon.rareDropChanceMod, 0) + skillTotal(input.spentSkills, 'rareDropChance') + affixVal + activityRareFind + consumableRareFind,
+        [
+          ...weapons.map((weapon) => contribution('weapon', weapon.name, 'rareDropChanceMod', weapon.rareDropChanceMod)),
+          contribution('skill', 'Skill tree', 'rareDropChance', skillTotal(input.spentSkills, 'rareDropChance')),
+          contribution('gear', 'Gear affixes', 'rareDropChanceMod', affixVal),
+          contribution('activity', 'Activity / area modifiers', 'rareDropChanceMod', activityRareFind),
+          contribution('consumable', 'Consumable / temporary modifiers', 'rareDropChanceMod', consumableRareFind),
+        ],
+      );
+    })(),
+    scrapModifier: (() => {
+      const nonBakedGear = gear.filter((item) => item != null && !('weaponType' in item && Number((item as { scrapYieldMod?: number }).scrapYieldMod ?? 0) > 0));
+      const affixVal = affixTotal(nonBakedGear, 'scrapYieldMod');
+      return scalar(
+        weapons.reduce((sum, weapon) => sum + weapon.scrapYieldMod, 0) + skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'salvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus') + affixVal + activityScrap + consumableScrap,
+        [
+          ...weapons.map((weapon) => contribution('weapon', weapon.name, 'scrapYieldMod', weapon.scrapYieldMod)),
+          contribution('skill', 'Skill tree', 'scrapYield', skillTotal(input.spentSkills, 'scrapYield') + skillTotal(input.spentSkills, 'salvageBonus') + skillTotal(input.spentSkills, 'lowRarityScrapBonus')),
+          contribution('gear', 'Gear affixes', 'scrapYieldMod', affixVal),
+          contribution('activity', 'Activity / area modifiers', 'scrapYieldMod', activityScrap),
+          contribution('consumable', 'Consumable / temporary modifiers', 'scrapYieldMod', consumableScrap),
+        ],
+      );
+    })(),
     xpModifier: scalar(
       affixTotal(gear, 'xpBoostMod') + skillTotal(input.spentSkills, 'xpBoostMod') + consumableXp,
       [
@@ -264,15 +272,19 @@ export function buildCharacterMechanicsSnapshot(input: BuildCharacterMechanicsSn
         contribution('consumable', 'Consumable / temporary modifiers', 'xpBoostMod', consumableXp),
       ],
     ),
-    offlineEarningModifier: scalar(
-      weapons.reduce((sum, weapon) => sum + weapon.offlineEarningsMod, 0) + skillTotal(input.spentSkills, 'offlineEarnings') + affixTotal(gear, 'offlineEarningsMod') + activityOffline + activityCreditsPerKill,
-      [
-        ...weapons.map((weapon) => contribution('weapon', weapon.name, 'offlineEarningsMod', weapon.offlineEarningsMod)),
-        contribution('skill', 'Skill tree', 'offlineEarnings', skillTotal(input.spentSkills, 'offlineEarnings')),
-        contribution('gear', 'Gear affixes', 'offlineEarningsMod', affixTotal(gear, 'offlineEarningsMod')),
-        contribution('activity', 'Activity / area modifiers', 'offlineEarningsMod', activityOffline),
-        contribution('activity', 'Credits per kill', 'creditsPerKill', activityCreditsPerKill),
-      ],
-    ),
+    offlineEarningModifier: (() => {
+      const nonBakedGear = gear.filter((item) => item != null && !('weaponType' in item && Number((item as { offlineEarningsMod?: number }).offlineEarningsMod ?? 0) > 0));
+      const affixVal = affixTotal(nonBakedGear, 'offlineEarningsMod');
+      return scalar(
+        weapons.reduce((sum, weapon) => sum + weapon.offlineEarningsMod, 0) + skillTotal(input.spentSkills, 'offlineEarnings') + affixVal + activityOffline + activityCreditsPerKill,
+        [
+          ...weapons.map((weapon) => contribution('weapon', weapon.name, 'offlineEarningsMod', weapon.offlineEarningsMod)),
+          contribution('skill', 'Skill tree', 'offlineEarnings', skillTotal(input.spentSkills, 'offlineEarnings')),
+          contribution('gear', 'Gear affixes', 'offlineEarningsMod', affixVal),
+          contribution('activity', 'Activity / area modifiers', 'offlineEarningsMod', activityOffline),
+          contribution('activity', 'Credits per kill', 'creditsPerKill', activityCreditsPerKill),
+        ],
+      );
+    })(),
   };
 }

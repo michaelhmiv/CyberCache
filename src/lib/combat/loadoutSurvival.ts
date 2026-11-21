@@ -74,19 +74,18 @@ export function computeEffectiveDpsFromGear(input: EffectiveDpsInput): number {
   }
 
   // 3. Relic affixes — sum any damage-affecting stats
+  // (activity waveDamageMod is summed once across allGear in Step 5 below.)
   let relicBonus = 0;
   if (relic && 'affixes' in relic && Array.isArray(relic.affixes)) {
     for (const affix of relic.affixes as Array<{ stat?: string; category?: string; subStats?: Record<string, number> }>) {
       if (affix.stat === 'bossDamageMod') {
         relicBonus += weaponDps * (affix as { value: number }).value;
       }
-      if (affix.category === 'activity' && affix.subStats?.waveDamageMod) {
-        weaponDps += weaponDps * affix.subStats.waveDamageMod;
-      }
     }
   }
 
   // 4. ClassMod affixes — weaponDamage, critChance
+  // (activity waveDamageMod is summed once across allGear in Step 5 below.)
   let classModBonus = 0;
   if (classMod && 'affixes' in classMod && Array.isArray(classMod.affixes)) {
     for (const affix of classMod.affixes as Array<{ stat?: string; value?: number; category?: string; subStats?: Record<string, number> }>) {
@@ -95,9 +94,6 @@ export function computeEffectiveDpsFromGear(input: EffectiveDpsInput): number {
       }
       if (affix.stat === 'critChance') {
         classModBonus += weaponDps * (affix.value ?? 0) * 0.5;
-      }
-      if (affix.category === 'activity' && affix.subStats?.waveDamageMod) {
-        weaponDps += weaponDps * affix.subStats.waveDamageMod;
       }
     }
   }
