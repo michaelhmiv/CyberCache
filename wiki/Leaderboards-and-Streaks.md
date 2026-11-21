@@ -29,6 +29,8 @@ At the top of the Standings page stands the **Board Hub** — the screen's contr
 
 Every name on the standings — weekly races and the all-time boards alike — is a door. Tap a hunter and a pop-up introduces them: the hunter they field, painted whole, their Trophy Shelf (hand-pinned trophies marked), their best depth, Cache Rank, and collection progress, and their headline stats. **View Full Profile** opens the whole public record: the hunter at stage size, painted whole, the full shelf, and every public stat — level, kills, boss tiers, mastery, collection. Profiles are read-only and open to everyone, guests included: a hunter's public record is the brag surface — what they pinned, the hunter they field, and what the game itself keeps score of. Nothing private travels with it: no balances beyond net worth, no account details, no history folds.
 
+Every row but your own also carries a small **Report** action at its edge. If a hunter's name doesn't belong on the boards, tap **Report**, tap once more to confirm, and the name is flagged for review — the row answers "Reported — thanks." Reporting never opens the hunter's profile and never touches their standing; it simply puts the name in front of a person. Your own name carries no Report action — you can't report yourself.
+
 ### Settlement and rewards
 
 Settlement rides the game's daily heartbeat: once a week has closed, it settles exactly once and rewards are paid from the settled standings.

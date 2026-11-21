@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { Clock, AlertTriangle, Info, Settings, ExternalLink } from 'lucide-react';
+import { Clock, AlertTriangle, Info, Settings, ExternalLink, LifeBuoy } from 'lucide-react';
 import { usePlayerStore, useIdleStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/api/verifiedOps';
@@ -9,8 +9,9 @@ import { BASE_OFFLINE_CAP_HOURS, OFFLINE_CAP_LIMITER_OPTIONS, OFFLINE_CAP_MILEST
 import { setOfflineCapLimiter } from '@/lib/api/offlineCapService';
 import { getAutoSalvageRule, setAutoSalvageRule, type AutoSalvageRule } from '@/lib/api/autoSalvageService';
 import { getResearchState } from '@/lib/chef/chefClient';
+import { DeleteAccountControl } from '@/components/profile/DeleteAccountControl';
 
-const DATA_DELETION_URL = 'https://chef-production.up.railway.app/data-deletion.html';
+const SUPPORT_URL = 'https://chef-production.up.railway.app/support.html';
 
 export const SettingsScreen: React.FC = () => {
   const player = usePlayerStore();
@@ -324,6 +325,25 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </MobileCard>
 
+      <MobileCard className="space-y-2" rarityColor="#3B82F6">
+        <div className="flex items-center gap-2">
+          <LifeBuoy size={16} className="text-blue" />
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Support</div>
+        </div>
+        <button
+          type="button"
+          data-testid="settings-support-row"
+          onClick={() => window.open(SUPPORT_URL, '_blank', 'noopener,noreferrer')}
+          className="bl-secondary flex min-h-[44px] w-full items-center justify-center gap-2 py-2 text-xs font-black text-text-secondary"
+        >
+          <ExternalLink size={14} />
+          Open the support page
+        </button>
+        <div className="text-[10px] text-text-muted">
+          Help, account questions, and contact — opens in your browser.
+        </div>
+      </MobileCard>
+
       <MobileCard className="space-y-2" rarityColor="#FF4B5C">
         <div className="flex items-center gap-2">
           <AlertTriangle size={16} className="text-red" />
@@ -360,18 +380,7 @@ export const SettingsScreen: React.FC = () => {
             </button>
           </div>
         )}
-        <div className="border-t border-border/60 pt-3">
-          <div className="mb-2 text-[10px] text-text-muted">
-            Request deletion of your CyberCache account and associated server-side gameplay data.
-          </div>
-          <button
-            onClick={() => window.open(DATA_DELETION_URL, '_blank', 'noopener,noreferrer')}
-            className="bl-secondary flex w-full items-center justify-center gap-2 py-2 text-xs font-black text-red"
-          >
-            <ExternalLink size={14} />
-            Delete Account / Data
-          </button>
-        </div>
+        <DeleteAccountControl />
       </MobileCard>
     </div>
   );

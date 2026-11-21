@@ -150,3 +150,20 @@ export interface WeeklyLeaderboards {
 export async function getWeeklyLeaderboards(): Promise<WeeklyLeaderboards> {
   return apiRequest<WeeklyLeaderboards>('/leaderboard/weekly');
 }
+
+/**
+ * Report a leaderboard name (Build 7 — App Review hardening,
+ * Guideline 1.2 insurance): POST /api/reports with the reported
+ * account's id — the `player_id` every board entry already carries —
+ * and the leaderboard context. Session required (the Chef derives
+ * the reporter from it and rejects self-reports; duplicates inside
+ * 24h fold server-side). Unlike the board reads above, failures
+ * THROW: the row action shows its own failure state instead of the
+ * report silently vanishing.
+ */
+export async function reportPlayer(reportedAccountId: string): Promise<void> {
+  await apiRequest('/reports', {
+    method: 'POST',
+    body: { reportedAccountId, context: 'leaderboard' },
+  });
+}

@@ -68,6 +68,7 @@ ALLOWED_TIMERS=(
   "$SRC/components/workshop/TintPanel.tsx:queued-flash dismissal timer (display-only)"
   "$SRC/screens/MarketScreen.tsx:toast dismissal timer"
   "$SRC/components/leaderboard/WeeklyEarningsPanel.tsx:badge-landing highlight dismissal timer (display-only)"
+  "$SRC/components/leaderboard/ReportPlayerAction.tsx:report arm/toast dismissal timers (display-only; the report itself posts immediately on confirm)"
   "$SRC/components/market/RepairBoard.tsx:browse-query debounce timer (200ms, display-only)"
   "$SRC/components/pixelArt/pixi/RoamPixiStage.tsx:palette-cache warm-up wait (bounded 25ms poll for the async palette wash to land before textures bake, presentation-only — no gameplay timing)"
   "$SRC/screens/ActivityLogScreen.tsx:search-query debounce timer (350ms, display-only — the search itself is server-side)"

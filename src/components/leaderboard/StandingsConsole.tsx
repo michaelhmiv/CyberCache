@@ -29,6 +29,7 @@ import {
   type WeeklyRaceBoard,
 } from '@/lib/api/leaderboardService';
 import type { HunterLookView } from '@/content/skins';
+import { ReportPlayerAction } from './ReportPlayerAction';
 import { LcdWell, Led, LedMeter, Panel, PanelLabel, RankWell } from './StandingsConsoleKit';
 import {
   AMBER,
@@ -180,17 +181,20 @@ const BoardRow: React.FC<{
   const ratio = leaderValue > 0 ? entry.value / leaderValue : 0;
   const unit = channelUnit(metric);
   return (
-    <button
-      type="button"
-      data-testid={`standings-row-${entry.player_id}`}
-      aria-label={`Open ${entry.username ?? 'Hunter'}'s profile`}
-      onClick={() => onRowClick?.(entry.player_id)}
-      className="flex w-full items-center gap-2 px-1.5 py-1.5 text-left"
+    <div
+      className="flex w-full items-center gap-1 px-1.5"
       style={{
         minHeight: 52,
         background: isMe ? 'rgba(255,144,0,0.10)' : 'transparent',
         boxShadow: isMe ? 'inset 0 0 0 1px rgba(255,144,0,0.45)' : undefined,
       }}
+    >
+    <button
+      type="button"
+      data-testid={`standings-row-${entry.player_id}`}
+      aria-label={`Open ${entry.username ?? 'Hunter'}'s profile`}
+      onClick={() => onRowClick?.(entry.player_id)}
+      className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left"
     >
       <RankWell rank={entry.rank} gold={entry.rank <= 3} mine={isMe} />
       {look && (
@@ -236,6 +240,10 @@ const BoardRow: React.FC<{
         />
       </span>
     </button>
+    {!isMe && (
+      <ReportPlayerAction reportedAccountId={entry.player_id} username={entry.username} />
+    )}
+    </div>
   );
 };
 
@@ -517,19 +525,22 @@ const RaceChannel: React.FC<{
           race.entries.map((entry, i) => {
             const isMe = entry.player_id === myPlayerId;
             return (
-              <button
+              <div
                 key={entry.player_id}
-                type="button"
-                data-testid={`standings-row-${entry.player_id}`}
-                aria-label={`Open ${entry.username ?? 'Hunter'}'s profile`}
-                onClick={() => onSelectPlayer?.(entry.player_id)}
-                className="flex w-full items-center gap-2 px-1.5 py-1 text-left"
+                className="flex w-full items-center gap-1 px-1.5"
                 style={{
                   minHeight: 44,
                   borderTop: i > 0 ? '1px solid rgba(58,52,43,0.55)' : undefined,
                   background: isMe ? 'rgba(255,144,0,0.10)' : 'transparent',
                   boxShadow: isMe ? 'inset 0 0 0 1px rgba(255,144,0,0.45)' : undefined,
                 }}
+              >
+              <button
+                type="button"
+                data-testid={`standings-row-${entry.player_id}`}
+                aria-label={`Open ${entry.username ?? 'Hunter'}'s profile`}
+                onClick={() => onSelectPlayer?.(entry.player_id)}
+                className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left"
               >
                 <RankWell rank={entry.rank} gold={entry.rank <= 3} mine={isMe} />
                 {looks[entry.player_id] && (
@@ -548,6 +559,10 @@ const RaceChannel: React.FC<{
                   <span style={{ fontSize: 11, color: FAINT }}>{race.unit}</span>
                 </span>
               </button>
+              {!isMe && (
+                <ReportPlayerAction reportedAccountId={entry.player_id} username={entry.username} />
+              )}
+              </div>
             );
           })
         )}
