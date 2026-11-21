@@ -94,7 +94,8 @@
    "plan": "capture/plans/market-repdesk.json",
    "prefix": "market-repdesk",
    "expect": [
-    "market-repdesk-top.png"
+    "market-repdesk-top.png",
+    "market-repdesk-rankup-armed.png"
    ]
   },
   {
@@ -177,6 +178,24 @@
    "prefix": "profile-roster",
    "expect": [
     "profile-roster-roster.png"
+   ]
+  },
+  {
+   "label": "profile-research-error",
+   "path": "/pr646-harness.html?screen=profile&focus=research&fail=research",
+   "plan": "capture/plans/profile-research-error.json",
+   "prefix": "profile-research-error",
+   "expect": [
+    "profile-research-error-error.png"
+   ]
+  },
+  {
+   "label": "profile-collections",
+   "path": "/pr646-harness.html?screen=profile",
+   "plan": "capture/plans/profile-collections.json",
+   "prefix": "profile-collections",
+   "expect": [
+    "profile-collections-panel.png"
    ]
   },
   {

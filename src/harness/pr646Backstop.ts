@@ -10,6 +10,9 @@ import { ACTIVITY_PAGE, MARKET_PAGE, OWN_PAGE, buildApiBodies } from './pr646See
 
 export function installPr646Backstop() {
   const bodies = buildApiBodies();
+  // ?fail=research makes the research route fail (503) so the
+  // panels' error states can be captured honestly on both sides.
+  const fail = new URLSearchParams(window.location.search).get('fail');
   const realFetch = window.fetch.bind(window);
   const json = (body: unknown, status = 200) =>
     Promise.resolve(
@@ -32,6 +35,7 @@ export function installPr646Backstop() {
       return json(ACTIVITY_PAGE);
     }
     if (method === 'GET' && url.includes('/research/me')) {
+      if (fail === 'research') return json({ error: 'harness offline' }, 503);
       return json({ verified: true, research: bodies.research });
     }
     if (method === 'GET' && url.includes('/cache-rank/me')) {

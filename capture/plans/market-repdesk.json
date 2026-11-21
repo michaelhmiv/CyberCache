@@ -11,6 +11,15 @@
   },
   {
    "shot": "top"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.toLowerCase().includes('rank up')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked *rank up'; } return 'MISS *rank up'; })()"
+  },
+  {
+   "wait": 900
+  },
+  {
+   "shot": "rankup-armed"
   }
  ]
 }
