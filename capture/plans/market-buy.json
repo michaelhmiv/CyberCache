@@ -1,0 +1,31 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "shot": "list"
+  },
+  {
+   "eval": "(() => { const rows = [...document.querySelectorAll('[data-testid=\"market-list-row\"]')]; const row = rows.find(r => r.textContent.includes('Ricochet Gospel Prime')); if (!row) return 'MISS row'; row.scrollIntoView({block:'center'}); row.click(); return 'clicked target row'; })()"
+  },
+  {
+   "wait": 1600
+  },
+  {
+   "shot": "inspect"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim().startsWith('Buy')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked ~Buy'; } return 'MISS ~Buy'; })()"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "buy-armed"
+  }
+ ]
+}

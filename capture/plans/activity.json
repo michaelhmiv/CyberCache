@@ -1,0 +1,28 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Won at') ? 'PRESENT Won at' : 'ABSENT Won at')()"
+  },
+  {
+   "shot": "list"
+  },
+  {
+   "eval": "(() => { const el = document.querySelector('[data-kind=\"boss\"]'); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked boss card'; } return 'MISS boss card'; })()"
+  },
+  {
+   "wait": 1600
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Win chance') ? 'PRESENT Win chance' : 'ABSENT Win chance')()"
+  },
+  {
+   "shot": "sheet"
+  }
+ ]
+}

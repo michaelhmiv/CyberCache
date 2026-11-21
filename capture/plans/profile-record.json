@@ -1,0 +1,25 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "eval": "(() => { const el = document.querySelector('[data-testid=\"hub-door-profile\"]'); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked hub-door-profile'; } return 'MISS hub-door-profile'; })()"
+  },
+  {
+   "wait": 1600
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Totals & Sources') ? 'PRESENT Totals & Sources' : 'ABSENT Totals & Sources')()"
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Trophy Shelf') ? 'PRESENT Trophy Shelf' : 'ABSENT Trophy Shelf')()"
+  },
+  {
+   "shot": "record"
+  }
+ ]
+}

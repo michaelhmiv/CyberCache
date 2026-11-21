@@ -1,0 +1,22 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "shot": "garage"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim().startsWith('Cancel')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked ~Cancel'; } return 'MISS ~Cancel'; })()"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "cancel-armed"
+  }
+ ]
+}

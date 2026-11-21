@@ -1,0 +1,16 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "dump": "(() => { const leaves = [...document.querySelectorAll('div,span,h1,h2,h3')].filter(e => e.children.length === 0 && e.textContent.trim().length > 2 && e.textContent.trim().length < 64); return JSON.stringify(leaves.slice(0, 16).map(e => [e.textContent.trim(), Math.round(e.getBoundingClientRect().top)])); })()"
+  },
+  {
+   "shot": "top"
+  }
+ ]
+}

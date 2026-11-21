@@ -1,0 +1,16 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "dump": "(() => { const root = document.querySelector('[data-testid=\"repair-board\"]'); if (!root) return 'MISS repair-board'; const c = root.querySelector('canvas'); return c ? 'CANVAS present in repair-board (' + c.width + 'x' + c.height + ')' : 'NO canvas in repair-board'; })()"
+  },
+  {
+   "shot": "board"
+  }
+ ]
+}

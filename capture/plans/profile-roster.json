@@ -1,0 +1,19 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "eval": "(() => { const el = document.querySelector('[data-testid=\"hub-door-roster\"]'); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked hub-door-roster'; } return 'MISS hub-door-roster'; })()"
+  },
+  {
+   "wait": 1600
+  },
+  {
+   "shot": "roster"
+  }
+ ]
+}

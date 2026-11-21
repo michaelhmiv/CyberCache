@@ -1,0 +1,16 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Unit FM-09') ? 'PRESENT Unit FM-09' : 'ABSENT Unit FM-09')()"
+  },
+  {
+   "shot": "top"
+  }
+ ]
+}

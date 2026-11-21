@@ -1,0 +1,25 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Filters') ? 'PRESENT Filters' : 'ABSENT Filters')()"
+  },
+  {
+   "shot": "open"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim() === 'Filters'); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked Filters'; } return 'MISS Filters'; })()"
+  },
+  {
+   "wait": 900
+  },
+  {
+   "shot": "filters"
+  }
+ ]
+}

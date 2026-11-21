@@ -1,0 +1,43 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "shot": "top"
+  },
+  {
+   "eval": "(() => { const el = document.querySelector('[data-testid=\"bench-rundown\"]'); if (el) { el.scrollIntoView({block:'center'}); return 'scrolled bench-rundown'; } return 'MISS bench-rundown'; })()"
+  },
+  {
+   "wait": 900
+  },
+  {
+   "shot": "zone"
+  },
+  {
+   "dump": "(() => { const out = {}; { const e = document.querySelector('[data-testid=\"bench-rundown\"]'); out['bench-rundown'] = e ? { top: Math.round(e.getBoundingClientRect().top), height: Math.round(e.getBoundingClientRect().height) } : null; }{ const e = document.querySelector('[data-testid=\"consumable-belt\"]'); out['consumable-belt'] = e ? { top: Math.round(e.getBoundingClientRect().top), height: Math.round(e.getBoundingClientRect().height) } : null; } return JSON.stringify(out); })()"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('div,span,button')].find(b => b.offsetParent !== null && b.textContent.includes('Cancel')); if (el) { el.scrollIntoView({block:'center'}); return 'scrolled *Cancel'; } return 'MISS *Cancel'; })()"
+  },
+  {
+   "wait": 900
+  },
+  {
+   "shot": "jobs"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim().startsWith('Cancel')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked ~Cancel'; } return 'MISS ~Cancel'; })()"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "cancel-armed"
+  }
+ ]
+}
