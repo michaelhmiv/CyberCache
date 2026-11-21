@@ -41,6 +41,7 @@ import { UsernameSetupModal } from './components/profile/UsernameSetupModal';
 import { useUsernamePrompt } from './auth/useUsernamePrompt';
 import { HunterPickSheet } from './components/profile/HunterPickSheet';
 import { useHunterPick } from './auth/useHunterPick';
+import { useInitialBundleRevealStore } from './store/slices/initialBundleRevealSlice';
 import { useIdleWarmOnce } from './hooks/useIdleWarmOnce';
 import { isGuestAccount, isVerificationGraceExpired, shouldShowVerificationReminder } from './auth/accountState';
 
@@ -192,6 +193,12 @@ function App() {
   // the hunter-name invitation is open, the pick waits (its
   // prompt state persists and renders when that sheet closes).
   const hunterPick = useHunterPick(account);
+
+  // Onboarding order (salvaged from PR #646): while the starter
+  // bundle reveal is open, the handle and hunter invitations wait —
+  // the sequence is bundle → handle → hunter, guaranteed by gating
+  // the mounts below rather than by timing.
+  const starterBundleOpen = useInitialBundleRevealStore((s) => Boolean(s.grant));
 
   // Listen for offline settlement completion events and route to recap store.
   useOfflineRecapListener();
@@ -488,7 +495,7 @@ function App() {
       )}
       <VerificationReminderBanner />
 
-      {usernamePrompt.prompt && (
+      {!starterBundleOpen && usernamePrompt.prompt && (
         <UsernameSetupModal
           dismissLabel="Not now"
           onComplete={usernamePrompt.completePrompt}
@@ -496,7 +503,7 @@ function App() {
         />
       )}
 
-      {hunterPick.prompt && !usernamePrompt.prompt && (
+      {!starterBundleOpen && hunterPick.prompt && !usernamePrompt.prompt && (
         <HunterPickSheet
           onPicked={hunterPick.completePrompt}
           onClose={hunterPick.deferPrompt}
