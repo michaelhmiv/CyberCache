@@ -473,15 +473,41 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
     });
   }, []);
 
+  // Load-state honesty (salvaged from PR #646, fixed copy only): a
+  // failed first load surfaces a named unavailable state with a
+  // retry — never the raw error text, which goes to the log only.
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadCacheRank = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const result = await getCacheRankState();
+      applyState(result.cacheRank);
+    } catch (err) {
+      console.warn('[CacheRankPanel] load failed:', err instanceof Error ? err.message : err);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [applyState]);
+
   useEffect(() => {
     let cancelled = false;
     getCacheRankState()
       .then((result) => {
-        if (!cancelled) applyState(result.cacheRank);
+        if (cancelled) return;
+        applyState(result.cacheRank);
+        setLoadError(false);
       })
-      .catch(() => {
-        // Chef unreachable: the panel stays hidden (Profile renders
-        // the rest from its own services).
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[CacheRankPanel] load failed:', err instanceof Error ? err.message : err);
+        setLoadError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -512,7 +538,34 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
     [applyState, busyTrack, state],
   );
 
-  if (!state) return null;
+  if (!state) {
+    if (loadError) {
+      return (
+        <Panel>
+          <div className="space-y-2 py-2">
+            <div className="text-xs font-black uppercase tracking-wide text-red">Cache Rank unavailable</div>
+            <div className="text-[11px] font-semibold" style={{ color: MUT }}>
+              Unable to load Cache Rank right now.
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadCacheRank()}
+              className="bl-secondary min-h-[44px] px-4 py-2 text-xs font-black uppercase text-amber"
+            >
+              Retry
+            </button>
+          </div>
+        </Panel>
+      );
+    }
+    return loading ? (
+      <Panel>
+        <div className="py-4 text-center text-xs font-bold uppercase tracking-wider" style={{ color: MUT }}>
+          Loading Cache Rank…
+        </div>
+      </Panel>
+    ) : null;
+  }
 
   return (
     <div className="space-y-3">

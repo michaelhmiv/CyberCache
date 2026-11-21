@@ -1107,6 +1107,7 @@ const JobCard: React.FC<{
   bossPhase?: string | null;
   onCancel: (jobId: string) => void;
 }> = ({ job, playerLevel, masteries, activeActionKind, bossPhase, onCancel }) => {
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const recipe = ALL_CRAFT_RECIPES.find((r) => r.id === job.recipeId);
   const xpPerUnit = craftUnitXp(job.unitDurationMs, playerLevel, CRAFT_XP_RATE_DEFAULT);
   const remainingUnits = job.unitsTotal - job.unitsCompleted;
@@ -1180,14 +1181,35 @@ const JobCard: React.FC<{
       <div className="h-1.5 bg-surface-raised rounded-full overflow-hidden">
         <div className="h-full bg-amber rounded-full transition-[width] duration-500" style={{ width: `${progressPct}%` }} />
       </div>
-      <div className="flex justify-end">
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onCancel(job.id)}
-          className="py-1.5 px-3 rounded-lg bg-red/10 border border-red/30 text-red text-[11px] font-bold active:bg-red/20 transition-colors"
-        >
-          Cancel Job
-        </motion.button>
+      <div className="flex justify-end gap-2">
+        {confirmCancel ? (
+          <>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => { setConfirmCancel(false); onCancel(job.id); }}
+              className="min-h-[44px] py-1.5 px-3 rounded-lg bg-red text-bg text-[11px] font-black transition-colors"
+            >
+              Confirm Cancel
+            </motion.button>
+            <button
+              type="button"
+              onClick={() => setConfirmCancel(false)}
+              className="bl-secondary min-h-[44px] py-1.5 px-3 rounded-lg text-[11px] font-bold"
+            >
+              Keep Job
+            </button>
+          </>
+        ) : (
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setConfirmCancel(true)}
+            className="min-h-[44px] py-1.5 px-3 rounded-lg bg-red/10 border border-red/30 text-red text-[11px] font-bold active:bg-red/20 transition-colors"
+          >
+            Cancel Job
+          </motion.button>
+        )}
       </div>
       <div className="text-[11px] text-text-muted">
         Cancel refunds unstarted units in full; the unit in progress refunds half its inputs.

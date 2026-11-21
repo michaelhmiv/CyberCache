@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MOVEMENT, particleField, tracerGeometry } from '@/lib/pixel/movement';
 import { fiveToneRamp, type FiveToneRamp } from '@/lib/pixel/gearCardCompositor';
+import { usePresentationActive } from '@/hooks/usePresentationActive';
 
 /**
  * Pixel combat FX kit (P2) — the reusable presentation effects of the
@@ -474,6 +475,7 @@ function useSteppedCanvas(
   opts: { reduced: boolean; staticMs: number; runMs?: number },
 ): void {
   const { reduced, staticMs, runMs } = opts;
+  const presentationActive = usePresentationActive();
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
@@ -502,7 +504,7 @@ function useSteppedCanvas(
     };
 
     paint(lastT);
-    if (reduced) return undefined;
+    if (reduced || !presentationActive) return undefined;
 
     const tick = () => {
       if (stopped) return;
@@ -530,7 +532,7 @@ function useSteppedCanvas(
       observer?.disconnect();
       if (typeof window !== 'undefined') window.removeEventListener('resize', onResize);
     };
-  }, [canvasRef, drawRef, reduced, staticMs, runMs]);
+  }, [canvasRef, drawRef, reduced, staticMs, runMs, presentationActive]);
 }
 
 /** Texel fan-ray angles, degrees from straight up. The ±108° pair is

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { statToneRailClass, statToneTextClass } from '@/components/stats/statToneStyles';
 import { useActivityStore, useEndlessRunStore, useLoadoutStore, usePlayerStore, useSurvivalStore } from '@/store';
@@ -33,7 +34,14 @@ import { HeroBuffLine } from './HeroRundown';
  */
 
 function useVitalsModel(): HeroRundownModel {
-  const survival = useSurvivalStore();
+  const survival = useSurvivalStore(
+    useShallow((s) => ({
+      currentHp: s.currentHp,
+      maxHp: s.maxHp,
+      shieldHp: s.shieldHp,
+      isDead: s.isDead,
+    })),
+  );
   const playerLevel = usePlayerStore((s) => s.level);
   const shieldHp = useLoadoutStore((s) => s.getShield()?.hp ?? 0);
   const { summary, snapshot, weapons, primary, skillBonuses } = useCharacterStatSummary(null);
@@ -46,12 +54,7 @@ function useVitalsModel(): HeroRundownModel {
         weapons,
         primary,
         skillBonuses,
-        survival: {
-          currentHp: survival.currentHp,
-          maxHp: survival.maxHp,
-          shieldHp: survival.shieldHp,
-          isDead: survival.isDead,
-        },
+        survival,
         bossContext: false,
       }),
     [summary, snapshot, weapons, primary, skillBonuses, survival],

@@ -126,23 +126,48 @@ export const DispatchPanel: React.FC = () => {
   // architecture guard, no impure calls during render.
   const [nowMs, setNowMs] = useState(() => Date.now());
 
+  // Load-state honesty (salvaged from PR #646, fixed copy only): a
+  // failed first load surfaces a named unavailable state with a
+  // retry — never the raw error text, which goes to the log only.
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [confirmRecallId, setConfirmRecallId] = useState<string | null>(null);
+
   const refresh = useCallback(async () => {
-    const result = await getDispatchState();
-    setState(result.dispatch);
-    setNowMs(Date.now());
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const result = await getDispatchState();
+      setState(result.dispatch);
+      setNowMs(Date.now());
+    } catch (err) {
+      console.warn('[DispatchPanel] load failed:', err instanceof Error ? err.message : err);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     getDispatchState()
       .then((result) => {
-        if (!cancelled) {
-          setState(result.dispatch);
-          setNowMs(Date.now());
-        }
+        if (cancelled) return;
+        setState(result.dispatch);
+        setNowMs(Date.now());
+        setLoadError(false);
       })
-      .catch(() => { /* Chef unreachable: panel stays hidden. */ });
-    return () => { cancelled = true; };
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[DispatchPanel] load failed:', err instanceof Error ? err.message : err);
+        setLoadError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const offer: ChefDispatchOffer | null = useMemo(
@@ -264,7 +289,33 @@ export const DispatchPanel: React.FC = () => {
     setPrefillReport({ buildName: preset.name, lines: prefill.lines });
   };
 
-  if (!state) return null;
+  if (!state) {
+    if (loadError) {
+      return (
+        <MobileCard className="space-y-2" rarityColor="#F25A5A">
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Dispatch Bay</div>
+          <div className="text-xs font-black uppercase tracking-wide text-red">Dispatch unavailable</div>
+          <div className="text-xs text-red-light">Unable to load Dispatch right now.</div>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="bl-secondary min-h-[44px] px-3 py-2 text-xs font-black"
+          >
+            Retry
+          </button>
+        </MobileCard>
+      );
+    }
+    if (loading) {
+      return (
+        <MobileCard className="space-y-2" rarityColor="#7FD4FF">
+          <div className="text-xs font-black uppercase tracking-wide text-text-primary">Dispatch Bay</div>
+          <div className="text-xs text-text-muted">Loading contracts…</div>
+        </MobileCard>
+      );
+    }
+    return null;
+  }
 
   const active = state.missions.filter((m) => m.status === 'active');
   const history = state.missions.filter((m) => m.status !== 'active');
@@ -311,13 +362,35 @@ export const DispatchPanel: React.FC = () => {
         {active.map((m) => (
           <div key={m.id} className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
             <div className="text-xs text-text-primary">{missionLine(m)}<div className="text-[10px] text-text-muted">{remainingLabel(m.ends_at, nowMs)}</div></div>
-            <button
-              onClick={() => recall(m.id)}
-              disabled={busy}
-              className="bl-secondary shrink-0 px-2 py-1 text-[10px] font-black disabled:opacity-50"
-            >
-              Recall
-            </button>
+            {confirmRecallId === m.id ? (
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => { setConfirmRecallId(null); void recall(m.id); }}
+                  disabled={busy}
+                  className="bl-primary min-h-[44px] px-2.5 py-1.5 text-[11px] font-black disabled:opacity-50"
+                >
+                  Confirm Recall
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRecallId(null)}
+                  disabled={busy}
+                  className="bl-secondary min-h-[44px] px-2.5 py-1.5 text-[11px] font-black disabled:opacity-50"
+                >
+                  Keep
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmRecallId(m.id)}
+                disabled={busy}
+                className="bl-secondary min-h-[44px] shrink-0 px-3 py-1.5 text-[10px] font-black disabled:opacity-50"
+              >
+                Recall
+              </button>
+            )}
           </div>
         ))}
         {history.length > 0 && (

@@ -625,14 +625,41 @@ export const ResearchPanel: React.FC = () => {
     setState(result.research);
   }, []);
 
+  // Load-state honesty (salvaged from PR #646, fixed copy only): a
+  // failed first load surfaces a named unavailable state with a
+  // retry — never the raw error text, which goes to the log only.
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const loadResearch = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const result = await getResearchState();
+      setState(result.research);
+    } catch (err) {
+      console.warn('[ResearchPanel] load failed:', err instanceof Error ? err.message : err);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     getResearchState()
       .then((result) => {
-        if (!cancelled) setState(result.research);
+        if (cancelled) return;
+        setState(result.research);
+        setLoadError(false);
       })
-      .catch(() => {
-        // Chef unreachable: the panel stays hidden.
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[ResearchPanel] load failed:', err instanceof Error ? err.message : err);
+        setLoadError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -675,7 +702,34 @@ export const ResearchPanel: React.FC = () => {
     }
   }, [busy, refresh]);
 
-  if (!state) return null;
+  if (!state) {
+    if (loadError) {
+      return (
+        <Module>
+          <div className="space-y-2 py-2">
+            <div className="text-xs font-black uppercase tracking-wide text-red">Research unavailable</div>
+            <div className="text-[11px] font-semibold" style={{ color: INK_FAINT }}>
+              Unable to load Research right now.
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadResearch()}
+              className="bl-secondary min-h-[44px] px-4 py-2 text-xs font-black uppercase text-amber"
+            >
+              Retry
+            </button>
+          </div>
+        </Module>
+      );
+    }
+    return loading ? (
+      <Module>
+        <div className="py-4 text-center text-xs font-bold uppercase tracking-wider" style={{ color: INK_FAINT }}>
+          Loading Research…
+        </div>
+      </Module>
+    ) : null;
+  }
 
   return (
     <div className="space-y-3">

@@ -14,7 +14,7 @@ import { memo } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import type { ActivityRecord } from '@/lib/api/activityLogService';
 import {
-  bossWinChance, clockTime, dropChance, itemKindLabel, rarityHex, recordFace, recordKindIcon,
+  clockTime, dropChance, itemKindLabel, rarityHex, recordFace, recordKindIcon,
 } from '@/lib/activity/activityLogView';
 
 const RARITY_GLOW: Record<string, string> = {
@@ -35,7 +35,6 @@ export const ActivityRecordCard = memo(function ActivityRecordCard({
   const rarity = record.item?.rarity ?? null;
   const rarityColor = rarityHex(rarity);
   const drop = record.kind === 'drop' ? dropChance(record) : null;
-  const win = record.kind === 'boss' ? bossWinChance(record) : null;
   const time = clockTime(record.at);
 
   return (
@@ -88,11 +87,6 @@ export const ActivityRecordCard = memo(function ActivityRecordCard({
           {drop && (
             <span className="text-[#FFEA3A]">
               {drop.pct} · {drop.oneIn}
-            </span>
-          )}
-          {win && (
-            <span className="text-text-secondary">
-              Won at {win.pct}
             </span>
           )}
         </span>

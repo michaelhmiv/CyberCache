@@ -217,7 +217,7 @@ beforeEach(() => {
 });
 
 describe('F5 — Action-tab salvage executes through the verified op', () => {
-  it('recycles the picked item immediately and never stages an activity', async () => {
+  it('recycles the picked item through the two-tap confirm and never stages an activity', async () => {
     vi.mocked(verifiedOps.recycleItem).mockResolvedValue({
       scrap_award: 42,
       cores_award: 0,
@@ -233,8 +233,12 @@ describe('F5 — Action-tab salvage executes through the verified op', () => {
     expect(salvageRow).toBeDefined();
     fireEvent.click(salvageRow!);
     // The item picker offers the owned weapon with its base estimate.
+    // First tap arms the two-tap confirm (client extraction salvage,
+    // 2026-11-21); the recycle fires only on Confirm Salvage.
     const row = await screen.findByText('Test Weapon');
     fireEvent.click(row.closest('button') ?? row);
+    expect(verifiedOps.recycleItem).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm Salvage' }));
 
     await waitFor(() => expect(verifiedOps.recycleItem).toHaveBeenCalledWith('weapon-1'));
     expect(await screen.findByText(/SALVAGED/)).toBeInTheDocument();
@@ -255,6 +259,7 @@ describe('F5 — Action-tab salvage executes through the verified op', () => {
     fireEvent.click(salvageRow!);
     const row = await screen.findByText('Test Weapon');
     fireEvent.click(row.closest('button') ?? row);
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm Salvage' }));
 
     expect(await screen.findByText(/SALVAGE FAILED/)).toBeInTheDocument();
     expect(screen.getByText(/Item is equipped/)).toBeInTheDocument();

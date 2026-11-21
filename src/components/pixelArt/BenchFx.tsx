@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { fiveToneRamp } from '@/lib/pixel/gearCardCompositor';
+import { usePresentationActive } from '@/hooks/usePresentationActive';
 import {
   sampleWorkCycle,
   WORK_CYCLE_PERIOD_MS,
@@ -94,9 +95,10 @@ function fillSteppedEllipse(
  */
 export const BenchFx: React.FC<BenchFxProps> = React.memo(({ spec, active, reduced = false, xPct, yPct, testId }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const presentationActive = usePresentationActive();
 
   useEffect(() => {
-    if (!active || reduced) return undefined;
+    if (!active || reduced || !presentationActive) return undefined;
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
     const ctx = tryGet2dContext(canvas);
@@ -188,7 +190,7 @@ export const BenchFx: React.FC<BenchFxProps> = React.memo(({ spec, active, reduc
       stopped = true;
       cancelAnimationFrame(raf);
     };
-  }, [spec, active, reduced]);
+  }, [spec, active, reduced, presentationActive]);
 
   if (!active || reduced) return null;
   return (

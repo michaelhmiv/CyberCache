@@ -61,6 +61,7 @@ const GearItemCard: React.FC<{
   onScrap: () => void;
   onLockToggle: () => void;
 }> = ({ item, action, onEquip, onScrap, onLockToggle }) => {
+  const [confirmScrap, setConfirmScrap] = useState(false);
   const rarityDef = RARITIES[item.rarity];
   const itemIsWeapon = isWeapon(item);
   const itemIsLocked = item.isLocked;
@@ -113,7 +114,7 @@ const GearItemCard: React.FC<{
         <ItemStatDeck item={item} />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {itemIsWeapon && (
           <button
             onClick={onEquip}
@@ -125,20 +126,38 @@ const GearItemCard: React.FC<{
           </button>
         )}
         <button
-          onClick={onLockToggle}
+          onClick={() => { setConfirmScrap(false); onLockToggle(); }}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-raised text-text-secondary text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
         >
           {itemIsLocked ? <Lock size={12} /> : <Unlock size={12} />}
           {itemIsLocked ? 'Locked' : 'Lock'}
         </button>
-        <button
-          onClick={onScrap}
-          disabled={itemIsLocked}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
-        >
-          <PxIcon name="recycle" size={13} />
-          Salvage
-        </button>
+        {confirmScrap && !itemIsLocked ? (
+          <>
+            <button
+              onClick={() => { setConfirmScrap(false); onScrap(); }}
+              className="flex min-h-[44px] items-center gap-1 px-3 py-1.5 rounded-lg bg-red text-bg text-[11px] font-black active:scale-95 transition-transform"
+            >
+              <PxIcon name="recycle" size={13} />
+              Confirm Salvage
+            </button>
+            <button
+              onClick={() => setConfirmScrap(false)}
+              className="flex min-h-[44px] items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-raised text-text-secondary text-[11px] font-bold active:scale-95 transition-transform"
+            >
+              Keep
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setConfirmScrap(true)}
+            disabled={itemIsLocked}
+            className="flex min-h-[44px] items-center gap-1 px-3 py-1.5 rounded-lg bg-red/10 text-red-light text-[11px] font-bold active:scale-95 transition-transform disabled:opacity-30"
+          >
+            <PxIcon name="recycle" size={13} />
+            Salvage
+          </button>
+        )}
       </div>
     </motion.div>
   );

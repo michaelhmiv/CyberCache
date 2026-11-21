@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import {
   useActiveBuffsStore,
@@ -72,7 +73,14 @@ export const HeroRundown: React.FC<{
   boss?: BossDef | null;
 }> = ({ boss }) => {
   const kind = useActivityStore((s) => s.current.kind);
-  const survival = useSurvivalStore();
+  const survival = useSurvivalStore(
+    useShallow((s) => ({
+      currentHp: s.currentHp,
+      maxHp: s.maxHp,
+      shieldHp: s.shieldHp,
+      isDead: s.isDead,
+    })),
+  );
   const playerLevel = usePlayerStore((s) => s.level);
   const shieldHp = useLoadoutStore((s) => s.getShield()?.hp ?? 0);
   const bossContext = kind === 'boss_fight';
@@ -99,12 +107,7 @@ export const HeroRundown: React.FC<{
       weapons,
       primary,
       skillBonuses,
-      survival: {
-        currentHp: survival.currentHp,
-        maxHp: survival.maxHp,
-        shieldHp: survival.shieldHp,
-        isDead: survival.isDead,
-      },
+      survival,
       bossContext,
     }),
     [summary, snapshot, weapons, primary, skillBonuses, survival, bossContext],
