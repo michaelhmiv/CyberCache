@@ -19,6 +19,8 @@ import type { Pool } from 'pg';
 import { mapProfile, SHOWCASE_LIMIT, type ProfileRowData } from '../reads/store.js';
 import { MAX_PLAYER_LEVEL, xpToNextLevel } from '../../content/simulation.js';
 import type { GearItem } from '../../types/items.js';
+import { DropSource, Rarity } from '../../types/game.js';
+import { generateWeapon } from '../lib/generators/weaponGenerator.js';
 import { isUsableWeaponPayload, skillBonusesFromRecords } from '../gameplay/serverLoadout.js';
 import { finalizePendingCraftedCosmetics, finalizePendingCraftedGear } from './craftFinalize.js';
 import {
@@ -717,19 +719,6 @@ export class Mulberry32 {
   }
 }
 
-const WEAPON_TYPES = ['Pistol', 'SMG', 'Shotgun', 'Sniper', 'Launcher', 'Beam'] as const;
-const MANUFACTURERS = ['Redline', 'Ironwood', 'BlastForge', 'Prismatek', 'ThrowTech', 'HelixWorks'] as const;
-const ELEMENTS = ['Kinetic', 'Fire', 'Shock', 'Corrosive', 'Cryo', 'Void'] as const;
-
-function pick<T>(values: readonly T[], roll: number): T {
-  return values[Math.min(values.length - 1, Math.floor(roll * values.length))];
-}
-
-function roundTo(value: number, places: number): number {
-  const factor = 10 ** places;
-  return Math.round(value * factor) / factor;
-}
-
 /**
  * cc_compute_item_estimated_value — the canonical implementation
  * lives in the vendor catalog module (its value is what buyback
@@ -738,77 +727,25 @@ function roundTo(value: number, places: number): number {
  */
 export { computeItemEstimatedValue } from '../../lib/vendor/catalog.js';
 
-interface WeaponBase {
-  baseDamage: number;
-  attackSpeed: number;
-  critChance: number;
-  critDamage: number;
-  statusChance: number;
-  statusDamage: number;
-  bossDamageMod: number;
-  waveDamageMod: number;
-  shieldDamageMod: number;
-  armorDamageMod: number;
-}
-
-const WEAPON_BASES: Record<string, WeaponBase> = {
-  Pistol: { baseDamage: 80, attackSpeed: 1.2, critChance: 0.1, critDamage: 1.5, statusChance: 0.08, statusDamage: 1.2, bossDamageMod: 1.0, waveDamageMod: 1.0, shieldDamageMod: 1.0, armorDamageMod: 1.0 },
-  SMG: { baseDamage: 45, attackSpeed: 2.0, critChance: 0.08, critDamage: 1.4, statusChance: 0.12, statusDamage: 1.1, bossDamageMod: 0.95, waveDamageMod: 1.15, shieldDamageMod: 1.05, armorDamageMod: 0.9 },
-  Shotgun: { baseDamage: 140, attackSpeed: 0.7, critChance: 0.06, critDamage: 1.6, statusChance: 0.1, statusDamage: 1.3, bossDamageMod: 0.9, waveDamageMod: 1.3, shieldDamageMod: 0.95, armorDamageMod: 1.05 },
-  Sniper: { baseDamage: 200, attackSpeed: 0.5, critChance: 0.25, critDamage: 2.0, statusChance: 0.05, statusDamage: 1.0, bossDamageMod: 1.2, waveDamageMod: 0.7, shieldDamageMod: 1.0, armorDamageMod: 1.1 },
-  Launcher: { baseDamage: 300, attackSpeed: 0.35, critChance: 0.03, critDamage: 1.8, statusChance: 0.15, statusDamage: 1.5, bossDamageMod: 1.15, waveDamageMod: 1.1, shieldDamageMod: 0.85, armorDamageMod: 1.3 },
-  Beam: { baseDamage: 60, attackSpeed: 1.5, critChance: 0.07, critDamage: 1.35, statusChance: 0.2, statusDamage: 1.4, bossDamageMod: 1.0, waveDamageMod: 0.95, shieldDamageMod: 1.15, armorDamageMod: 1.15 },
-};
-
-/** cc_generate_weapon_payload. `rng` replaces SQL random() for the 3 picks. */
+/** Canonical Cache Box weapon payload generator backed by weaponGenerator.ts
+ *  so every Cache Box drop (including Legendaries) ships with real parts,
+ *  affixes, manufacturer biases, activity modules, and Legendary Effects. */
 export function generateWeaponPayload(itemLevel: number, rarity: string, rng: () => number): Json {
-  const type = pick(WEAPON_TYPES, rng());
-  const manufacturer = pick(MANUFACTURERS, rng());
-  const element = pick(ELEMENTS, rng());
-  const levelScalar = 1 + (itemLevel - 1) * 0.08;
-  const rarityScalar =
-    rarity === 'Uncommon' ? 1.1 : rarity === 'Rare' ? 1.25 : rarity === 'Epic' ? 1.45 : rarity === 'Legendary' ? 1.7 : 1.0;
-  const base = WEAPON_BASES[type];
-  const baseDamage = Math.round(base.baseDamage * levelScalar * rarityScalar);
-  const attackSpeed = roundTo(base.attackSpeed * levelScalar * 0.98, 2);
-  const critChance = roundTo(Math.min(0.9, base.critChance * levelScalar * 0.95), 3);
-  const critDamage = roundTo(base.critDamage * levelScalar * 0.97, 2);
-  const statusChance = roundTo(Math.min(0.9, base.statusChance * levelScalar), 3);
-  const statusDamage = roundTo(base.statusDamage * levelScalar * 0.96, 2);
-  const combatPower = Math.round(
-    baseDamage * attackSpeed * (1 + critChance * critDamage) * (1 + statusChance * statusDamage * 0.3),
+  const validRarity = (Object.values(Rarity) as string[]).includes(rarity)
+    ? (rarity as Rarity)
+    : Rarity.Rare;
+  const weapon = generateWeapon(
+    {
+      source: DropSource.CacheForged,
+      level: Math.max(1, Math.floor(itemLevel) || 1),
+      forcedRarity: validRarity,
+    },
+    rng,
   );
   return {
+    ...weapon,
     id: null,
-    weaponType: type,
-    manufacturer,
-    element,
-    name: `${rarity} Cache ${type}`,
-    level: itemLevel,
-    rarity,
-    baseDamage,
-    attackSpeed,
-    critChance,
-    critDamage,
-    statusChance,
-    statusDamage,
-    bossDamageMod: base.bossDamageMod,
-    waveDamageMod: base.waveDamageMod,
-    shieldDamageMod: base.shieldDamageMod,
-    armorDamageMod: base.armorDamageMod,
-    offlineEarningsMod: 0,
-    rareDropChanceMod: 0,
-    scrapYieldMod: 0,
-    rollQuality: 50,
-    parts: [],
-    affixes: [],
-    sourceTag: 'Cache-Forged',
-    isLocked: false,
-    combatPower,
-    bossPower: combatPower,
-    farmPower: combatPower,
-    economyScore: 0,
-  };
+  } as unknown as Json;
 }
 
 export interface OddsDraw {
@@ -879,6 +816,43 @@ export function validateUsername(username: string | null | undefined): string | 
   if (cleaned.includes('  ') || cleaned.includes('__')) {
     return 'Username cannot contain repeated spaces or underscores.';
   }
+  return usernameBlocklistError(cleaned);
+}
+
+/**
+ * Username profanity blocklist (Build 7 §C): a tight, obvious-only list
+ * enforced server-side when a username is SET. Existing usernames are
+ * never re-validated — the check runs only on the set-username path.
+ * Matching folds case, common leetspeak, and separators, then requires
+ * the whole folded name to be a listed term (optionally trailed by
+ * digits), so ordinary names that merely contain a listed substring
+ * ("classy", "assassin") stay allowed.
+ */
+const USERNAME_BLOCKLIST: ReadonlySet<string> = new Set([
+  'fuck', 'fucker', 'fucking', 'fuckyou', 'motherfucker',
+  'shit', 'shithead', 'bullshit',
+  'bitch', 'bastard', 'asshole', 'dickhead', 'dumbass', 'jackass',
+  'cunt', 'whore', 'slut', 'pussy',
+  'nigger', 'nigga', 'faggot', 'retard', 'retarded',
+  'porn', 'porno', 'pornstar', 'blowjob', 'handjob', 'dildo',
+  'hitler', 'nazi',
+]);
+
+const LEET_FOLD: Record<string, string> = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's',
+};
+
+export function usernameBlocklistError(username: string | null | undefined): string | null {
+  const folded = (username ?? '')
+    .toLowerCase()
+    .split('')
+    .map((ch) => LEET_FOLD[ch] ?? ch)
+    .join('')
+    .replace(/[^a-z0-9]/g, '');
+  if (!folded) return null;
+  if (USERNAME_BLOCKLIST.has(folded)) return 'That username is not allowed.';
+  const stem = folded.replace(/[0-9]+$/, '');
+  if (stem !== folded && USERNAME_BLOCKLIST.has(stem)) return 'That username is not allowed.';
   return null;
 }
 
@@ -1409,13 +1383,43 @@ export class PgWriteStore implements WriteStore {
   initialBundle(playerId: string, nonce: string): Promise<Json> {
     return this.callJson('select public.cc_initial_bundle($1, $2) as result', [playerId, nonce]);
   }
-  makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json> {
-    return this.callJson('select public.cc_make_item($1, $2, $3, $4) as result', [
+  async makeItem(playerId: string, nonce: string, payment: string, adUnitId: string | null): Promise<Json> {
+    const result = await this.callJson('select public.cc_make_item($1, $2, $3, $4) as result', [
       playerId,
       nonce,
       payment,
       adUnitId,
     ]);
+    // Upgrade newly created Cache Box weapons from SQL's stub payload onto
+    // the canonical shared TS weaponGenerator (parts, affixes, Legendary Effects).
+    const rec = result && typeof result === 'object' && !Array.isArray(result)
+      ? (result as Record<string, unknown>)
+      : null;
+    const itemRow = rec?.item && typeof rec.item === 'object' && !Array.isArray(rec.item)
+      ? (rec.item as Record<string, unknown>)
+      : null;
+    const existingPayload = itemRow?.payload && typeof itemRow.payload === 'object' && !Array.isArray(itemRow.payload)
+      ? (itemRow.payload as Record<string, unknown>)
+      : null;
+    const isStub = existingPayload && Array.isArray(existingPayload.parts) && existingPayload.parts.length === 0;
+    if (rec && itemRow && itemRow.kind === 'weapon' && typeof itemRow.id === 'string' && isStub) {
+      const itemLevel = typeof itemRow.item_level === 'number' ? itemRow.item_level : 1;
+      const rarity = typeof itemRow.rarity === 'string' ? itemRow.rarity : 'Rare';
+      const fullPayload = generateWeaponPayload(itemLevel, rarity, Math.random) as Record<string, unknown>;
+      fullPayload.id = itemRow.id;
+      const updated = await this.pool.query(
+        `update public.item_instances
+            set payload = $1::jsonb, updated_at = now()
+          where id = $2 and owner_user_id = $3
+            and jsonb_array_length(coalesce(payload -> 'parts', '[]'::jsonb)) = 0
+          returning payload`,
+        [JSON.stringify(fullPayload), itemRow.id, playerId],
+      );
+      if (updated.rows[0]) {
+        itemRow.payload = updated.rows[0].payload as Json;
+      }
+    }
+    return result;
   }
   registerPushDevice(playerId: string, token: string, platform: string, appVersion: string | null): Promise<Json> {
     return this.callJson('select public.cc_register_push_device($1, $2, $3, $4) as result', [
@@ -2172,6 +2176,10 @@ export class PgWriteStore implements WriteStore {
   }
 
   async setUsername(playerId: string, username: string): Promise<{ ok: boolean; error?: string }> {
+    // Profanity blocklist runs in the Chef layer ahead of the RPC
+    // (Build 7 §C); the in-memory twin enforces it via validateUsername.
+    const blocked = usernameBlocklistError(username);
+    if (blocked) return { ok: false, error: blocked };
     const result = await this.callJson('select public.cc_set_username($1, $2) as result', [playerId, username]);
     const out: { ok: boolean; error?: string } = { ok: result.ok === true };
     if (typeof result.error === 'string') out.error = result.error;

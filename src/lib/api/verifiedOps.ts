@@ -10,6 +10,13 @@
  * existed solely as the ticker's error fallback, and its engine
  * (cc_claim_roaming_rewards) paid stale flat rates — it was removed
  * with the fallback rather than left as a wrong-rate back door.
+ *
+ * The retired legacy faucets are gone from here as well: idleClaim,
+ * battleResult, and claimCraftedConsumable had no production caller
+ * (offline/boss rewards run through the Chef routes; crafted
+ * consumables arrive through timed craft jobs), and their server
+ * routes are unmounted — the ops were removed rather than left
+ * pointing at 404s.
  */
 import { saveCurrentRuntimeStores } from '@/store/runtimeSupabaseSync';
 import {
@@ -96,12 +103,6 @@ export const verifiedOps = {
   vendorSellGear: (itemId: string) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'gear', item_id: itemId }),
   vendorSellConsumable: (batchId: string, quantity: number) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'consumable', batch_id: batchId, quantity }),
   vendorSellMaterial: (materialId: string, quantity: number) => op('/ops/vendor-sell', { nonce: requestId('vendor-sell'), kind: 'material', material_id: materialId, quantity }),
-  claimCraftedConsumable: (input: { recipeId: string; itemKey: string; quantity: number }) => op('/ops/claim-crafted-consumable', {
-    nonce: requestId('craft-consumable'),
-    recipe_id: input.recipeId,
-    item_key: input.itemKey,
-    quantity: input.quantity,
-  }),
   // Crafting-as-occupation (0024): the server job model. Intent only —
   // the server derives durations, bounds, XP and escrow from the
   // catalog + profile + skill records.
@@ -206,10 +207,8 @@ export const verifiedOps = {
   finishShieldTechJob: (jobId: string) => op('/ops/shieldtech-finish', { nonce: requestId('shieldtech-finish'), job_id: jobId }),
   cancelShieldTechJob: (jobId: string) => op('/ops/shieldtech-cancel', { nonce: requestId('shieldtech-cancel'), job_id: jobId }),
   reclaimShieldTechJob: (jobId: string) => op('/ops/shieldtech-reclaim', { nonce: requestId('shieldtech-reclaim'), job_id: jobId }),
-  idleClaim: () => op('/ops/idle-claim', { nonce: requestId('idle') }),
   retrain: () => op('/ops/retrain', { nonce: requestId('retrain') }),
   trainSkill: (nodeId: string) => op('/ops/train-skill', { nonce: requestId(`train:${nodeId}`), node_id: nodeId }),
-  battleResult: (targetId: string, stance = 'balanced') => op('/ops/battle-result', { nonce: requestId('battle'), target_id: targetId, stance }),
   // NOTE: no market_list event here — this one op lists gear,
   // cosmetic parts, and vehicles alike (the server stamps the kind
   // from the item), so the kind-accurate event fires at the
