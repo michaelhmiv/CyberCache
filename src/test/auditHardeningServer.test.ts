@@ -148,7 +148,7 @@ describe('username profanity blocklist (set-username, server layer)', () => {
       last_roaming_settled_at: null, last_settlement_nonce: null, offline_cap_hours: null,
       username_updated_at: null, username_change_count: 0,
       id: PLAYER,
-    } as ProfileRowData;
+    } as unknown as ProfileRowData;
     seed.profiles = [profile];
     return new InMemoryWriteStore(seed, { now: () => new Date('2026-11-21T12:00:00.000Z') });
   }
