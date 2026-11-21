@@ -1,0 +1,12 @@
+{
+  "width": 390, "height": 844, "dsf": 2,
+  "steps": [
+    { "wait": 3500 },
+    { "eval": "(()=>{let n=0;document.querySelectorAll('*').forEach(e=>{if(e.scrollHeight>e.clientHeight+40){e.scrollTop=e.scrollHeight;n++}});window.scrollTo(0,99999);return 'scrolled '+n})()" },
+    { "wait": 900 },
+    { "eval": "(()=>{let n=0;document.querySelectorAll('*').forEach(e=>{if(e.scrollHeight>e.clientHeight+40){e.scrollTop=e.scrollHeight;n++}});window.scrollTo(0,99999);return 'scrolled2 '+n})()" },
+    { "wait": 700 },
+    { "dump": "document.body.innerText.slice(-700)" },
+    { "shot": "bottom" }
+  ]
+}
