@@ -14,6 +14,7 @@ The fights themselves do not. **The Chamber is a fixed ladder, the same for ever
 - **Every 5th depth is a boss-tier encounter** wearing a shipped boss's kit — its mechanic, phases, weaknesses, and resistances — floored at the strength of the strongest boss at or below **that depth**, so a boss depth is always a genuine spike over the packs around it.
 - **You may swap gear between encounters.** Each encounter is priced against the loadout you currently hold, so adjusting your build mid-run for the next boss depth is legitimate play.
 - **Your prepared consumable belt is committed once, at entry**, and burned there. The run is one attempt; its encounters are phases. Unlike boss fights, you do not re-pay the belt per encounter — and the reward rates below are priced with that in mind.
+- **The Chamber paces the descent.** Starting a run asks a 10-second breather before the next start, and each depth advance asks 8 seconds before the next — the climb is measured, never a sprint. Boss attempts carry the same kind of breather: 15 seconds between challenges.
 
 Like [[Bosses|boss prep]], the Chamber's prep shows you the run's facts — scaling rates, first-encounter and first-boss vitals, reward rates, the fee schedule — and never a readiness figure or win chance for you.
 
