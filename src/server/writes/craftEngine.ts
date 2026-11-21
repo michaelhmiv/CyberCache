@@ -637,7 +637,7 @@ export function settleCraftJobs(
         } else {
           budget -= need;
           job.accrued_ms = 0;
-          const output = completeCraftUnit(adapter, profile, job, levers);
+          const output = completeCraftUnit(adapter, profile, job, levers, lane === 0);
           if (output.vehicleFull) {
             // Repair job whose vehicle reached full condition before
             // this unit started: end the job and refund every kit
@@ -964,6 +964,7 @@ function completeCraftUnit(
   profile: CraftProfileView,
   job: CraftJobRecord,
   levers: CraftLeverValues,
+  awardPlayerXp = true,
 ): CraftJobOutput {
   if (job.kind === 'repair') return completeRepairUnit(adapter, job);
   if (job.kind === 'shieldtech') return completeShieldTechUnit(adapter, job);
@@ -977,10 +978,14 @@ function completeCraftUnit(
   // bonus as every other source — applied after the peg rate,
   // before applyXp (the SQL twin scales v_xp in
   // cc_complete_craft_unit identically).
-  const xp = Math.round(
-    craftUnitXp(job.unit_duration_ms, profile.player_level, levers.craftXpRate) *
-      (1 + (adapter.cacheRankXpBonus?.(playerId) ?? 0)),
-  );
+  // Bench Time extra lanes (lane > 0) produce throughput only, never extra
+  // player XP, so total crafting XP/hr stays inside the [0.70, 0.85] law.
+  const xp = awardPlayerXp
+    ? Math.round(
+        craftUnitXp(job.unit_duration_ms, profile.player_level, levers.craftXpRate) *
+          (1 + (adapter.cacheRankXpBonus?.(playerId) ?? 0)),
+      )
+    : 0;
   const output: CraftJobOutput = { unit, kind: job.kind, xp, completedAtMs: adapter.nowMs() };
 
   if (job.kind === 'consumable' && recipe.consumableType) {
@@ -2075,7 +2080,7 @@ export function deriveJobDisplayState(
     .sort((a, b) => a.created_at_ms - b.created_at_ms || a.id.localeCompare(b.id));
   const position = ahead.findIndex((j) => j.id === job.id);
   if (position < 0 || position >= Math.max(1, runningLanes)) return 'queued';
-  const lane = job.kind === 'repair' ? 'workshop_service' : 'crafting';
+  const lane = job.kind === 'repair' || job.kind === 'shieldtech' ? 'workshop_service' : 'crafting';
   return activeActionKind === lane ? 'running' : 'paused';
 }
 

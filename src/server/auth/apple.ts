@@ -30,34 +30,52 @@ export type AppleJwksFetcher = () => Promise<{ keys: Record<string, unknown>[] }
 const APPLE_ISSUER = 'https://appleid.apple.com';
 const JWKS_URL = 'https://appleid.apple.com/auth/keys';
 const CACHE_MS = 60 * 60 * 1000;
+const MISS_REFRESH_COOLDOWN_MS = 60 * 1000;
+const JWKS_FETCH_TIMEOUT_MS = 5000;
 
 let cachedKeys: { fetchedAt: number; keys: Map<string, KeyObject> } | null = null;
+let lastMissRefreshAt = 0;
 
 export const defaultAppleJwksFetcher: AppleJwksFetcher = async () => {
-  const res = await fetch(JWKS_URL);
+  const res = await fetch(JWKS_URL, { signal: AbortSignal.timeout(JWKS_FETCH_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Apple JWKS fetch failed: ${res.status}`);
   return (await res.json()) as { keys: Record<string, unknown>[] };
 };
 
-async function keyFor(kid: string, fetcher: AppleJwksFetcher): Promise<KeyObject | null> {
-  if (!cachedKeys || Date.now() - cachedKeys.fetchedAt > CACHE_MS) {
-    const jwks = await fetcher();
-    const keys = new Map<string, KeyObject>();
+async function fetchKeys(fetcher: AppleJwksFetcher): Promise<Map<string, KeyObject>> {
+  const jwks = await fetcher();
+  const keys = new Map<string, KeyObject>();
+  if (jwks && Array.isArray(jwks.keys)) {
     for (const jwk of jwks.keys) {
-      if (typeof jwk.kid === 'string') {
+      if (jwk && typeof jwk.kid === 'string') {
         try {
           keys.set(jwk.kid, createPublicKey({ key: jwk as never, format: 'jwk' }));
         } catch { /* skip unusable key */ }
       }
     }
-    cachedKeys = { fetchedAt: Date.now(), keys };
   }
-  return cachedKeys.keys.get(kid) ?? null;
+  cachedKeys = { fetchedAt: Date.now(), keys };
+  return keys;
+}
+
+async function keyFor(kid: string, fetcher: AppleJwksFetcher): Promise<KeyObject | null> {
+  const now = Date.now();
+  if (!cachedKeys || now - cachedKeys.fetchedAt > CACHE_MS) {
+    await fetchKeys(fetcher);
+  }
+  let found = cachedKeys?.keys.get(kid) ?? null;
+  if (!found && now - lastMissRefreshAt >= MISS_REFRESH_COOLDOWN_MS) {
+    lastMissRefreshAt = now;
+    await fetchKeys(fetcher);
+    found = cachedKeys?.keys.get(kid) ?? null;
+  }
+  return found;
 }
 
 /** Test hook: drop the JWKS cache between cases. */
 export function resetAppleKeyCache(): void {
   cachedKeys = null;
+  lastMissRefreshAt = 0;
 }
 
 export class AppleTokenError extends Error {
@@ -81,6 +99,12 @@ export async function verifyAppleIdToken(
     header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'));
     payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
   } catch {
+    throw new AppleTokenError('malformed');
+  }
+  if (
+    !header || typeof header !== 'object' || Array.isArray(header) ||
+    !payload || typeof payload !== 'object' || Array.isArray(payload)
+  ) {
     throw new AppleTokenError('malformed');
   }
   if (header.alg !== 'RS256' || typeof header.kid !== 'string') throw new AppleTokenError('bad_header');

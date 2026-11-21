@@ -231,7 +231,38 @@ function numField(req: Request, res: Response, field: string, label: string): nu
   return value;
 }
 
-export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthConfig): void {
+export interface WriteRoutesConfig extends AuthConfig {
+  /** Enforce AdMob ad_unit_id format and per-account cooldown on ad-funded ops (enabled in production). */
+  enforceAdPacing?: boolean;
+  now?: () => Date;
+}
+
+const ADMOB_UNIT_RE = /^ca-app-pub-\d{16}\/\d{10}$/;
+const AD_REWARD_COOLDOWN_MS = 25_000;
+
+export function mountWriteRoutes(app: Express, store: WriteStore, config: WriteRoutesConfig): void {
+  const lastAdGrantMs = new Map<string, number>();
+
+  const checkAdGate = (playerId: string, adUnitId: string | null, res: Response): boolean => {
+    if (!config.enforceAdPacing) return true;
+    const clean = (adUnitId ?? '').trim();
+    if (!ADMOB_UNIT_RE.test(clean)) {
+      validation(res, 'A valid rewarded ad unit id is required');
+      return false;
+    }
+    const nowMs = (config.now?.() ?? new Date()).getTime();
+    const prevMs = lastAdGrantMs.get(playerId) ?? 0;
+    if (nowMs - prevMs < AD_REWARD_COOLDOWN_MS) {
+      res.status(429).json({
+        error: 'ad_rate_limited',
+        message: 'Wait for the current ad reward cooldown before claiming another',
+      });
+      return false;
+    }
+    lastAdGrantMs.set(playerId, nowMs);
+    return true;
+  };
+
   const op = (path: string, run: (playerId: string, req: Request, res: Response) => Promise<Json | null>) => {
     app.post(path, async (req, res) => {
       const playerId = caller(config, req, res);
@@ -246,12 +277,17 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   };
 
   op('/api/ops/initial-bundle', async (playerId, req) => store.initialBundle(playerId, str(body(req).nonce)));
-  op('/api/ops/make-item', async (playerId, req) => {
+  op('/api/ops/make-item', async (playerId, req, res) => {
+    const payment = optStr(body(req).payment) ?? 'key';
+    const adUnitId = optStr(body(req).ad_unit_id) ?? null;
+    if (payment.trim().toLowerCase() === 'ad' && !checkAdGate(playerId, adUnitId, res)) {
+      return null;
+    }
     const result = await store.makeItem(
       playerId,
       str(body(req).nonce),
-      optStr(body(req).payment) ?? 'key',
-      optStr(body(req).ad_unit_id) ?? null,
+      payment,
+      adUnitId,
     );
     await recordResultItemDiscoveries(store, playerId, result, 'cache_forge');
     return result;
@@ -316,15 +352,8 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     validation(res, 'A valid sell kind is required');
     return null;
   });
-  op('/api/ops/claim-crafted-consumable', async (playerId, req) =>
-    store.claimCraftedConsumable(
-      playerId,
-      str(body(req).nonce),
-      str(body(req).recipe_id),
-      str(body(req).item_key),
-      num(body(req).quantity) ?? 1,
-    ),
-  );
+  // NOTE: /api/ops/claim-crafted-consumable (cc_claim_crafted_consumable) was
+  // retired — crafting runs only through timed server jobs (/api/ops/craft-enqueue).
   // Crafting-as-occupation (0024): the server job model. The body
   // carries intent only (bench, recipe, units, rarity, catalyst/rush
   // toggles) — durations, quality bounds, XP and escrow are all
@@ -353,9 +382,11 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   // ad, attested client-side exactly like the cache lane — the
   // server's controls are the nonce and the bank cap. Guests bank
   // (banking is not transacting; no economy gate on the op).
-  op('/api/ops/bank-bench-time', async (playerId, req) =>
-    store.bankBenchTime(playerId, str(body(req).nonce), optStr(body(req).ad_unit_id) ?? null),
-  );
+  op('/api/ops/bank-bench-time', async (playerId, req, res) => {
+    const adUnitId = optStr(body(req).ad_unit_id) ?? null;
+    if (!checkAdGate(playerId, adUnitId, res)) return null;
+    return store.bankBenchTime(playerId, str(body(req).nonce), adUnitId);
+  });
   // The Workshop state read: settles the player's jobs server-side,
   // then returns benches/tools/jobs/masteries in the one view shape.
   app.get('/api/workshop/me', async (req, res) => {
@@ -592,18 +623,12 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       optStr(body(req).item_key) ?? undefined,
     );
   });
-  op('/api/ops/idle-claim', async (playerId, req) => store.idleClaim(playerId, str(body(req).nonce)));
-  // NOTE: /api/ops/claim-roaming (cc_claim_roaming_rewards) was removed
-  // with the ticker's silent fallback — it paid stale flat rates and
-  // existed only as that fallback's engine. Roaming claims go through
-  // the Chef (/api/claim) only. The SQL function remains in the
-  // database (migration 0004) as a deprecated, unrouted remnant.
+  // NOTE: /api/ops/idle-claim (cc_idle_claim), /api/ops/claim-roaming
+  // (cc_claim_roaming_rewards), and /api/ops/battle-result (cc_battle_result)
+  // are retired — roaming/offline/boss rewards go through the Chef routes only.
   op('/api/ops/retrain', async (playerId, req) => store.retrain(playerId, str(body(req).nonce)));
   op('/api/ops/train-skill', async (playerId, req) =>
     store.trainSkill(playerId, str(body(req).nonce), str(body(req).node_id)),
-  );
-  op('/api/ops/battle-result', async (playerId, req) =>
-    store.battleResult(playerId, str(body(req).nonce), str(body(req).target_id), optStr(body(req).stance) ?? 'balanced'),
   );
   op('/api/ops/market-create', async (playerId, req, res) => {
     const itemId = uuidField(req, res, 'item_id', 'item id');
@@ -837,31 +862,42 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     const playerId = caller(config, req, res);
     if (!playerId) return;
     const b = body(req);
+    const nonNegInt = (value: unknown): number => Math.max(0, int(value) ?? 0);
+    const safeIso = (value: unknown): string | null => {
+      const s = optStr(value);
+      if (!s) return null;
+      return Number.isNaN(Date.parse(s)) ? null : s;
+    };
     const numMap = (value: unknown): Record<string, number> => {
       if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
       const out: Record<string, number> = {};
+      let count = 0;
       for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+        if (count >= 200) break;
         const parsed = typeof raw === 'number' ? raw : Number(raw);
-        if (Number.isFinite(parsed)) out[key] = parsed;
+        if (Number.isFinite(parsed) && parsed >= 0) {
+          out[key.slice(0, 80)] = Math.round(parsed);
+          count += 1;
+        }
       }
       return out;
     };
     try {
       await store.saveCombatStats(playerId, {
         user_id: playerId,
-        total_kills: int(b.total_kills) ?? 0,
-        total_deaths: int(b.total_deaths) ?? 0,
-        longest_kill_streak: int(b.longest_kill_streak) ?? 0,
-        last_kill_at: optStr(b.last_kill_at),
-        run_started_at: optStr(b.run_started_at),
+        total_kills: nonNegInt(b.total_kills),
+        total_deaths: nonNegInt(b.total_deaths),
+        longest_kill_streak: nonNegInt(b.longest_kill_streak),
+        last_kill_at: safeIso(b.last_kill_at),
+        run_started_at: safeIso(b.run_started_at),
         kills_by_area: numMap(b.kills_by_area),
         kills_by_weapon_type: numMap(b.kills_by_weapon_type),
         kills_by_boss: numMap(b.kills_by_boss),
         kills_by_element: numMap(b.kills_by_element),
-        highest_boss_tier: int(b.highest_boss_tier) ?? 0,
-        active_play_seconds: int(b.active_play_seconds) ?? 0,
-        idle_play_seconds: int(b.idle_play_seconds) ?? 0,
-        updated_at: optStr(b.updated_at) ?? new Date().toISOString(),
+        highest_boss_tier: nonNegInt(b.highest_boss_tier),
+        active_play_seconds: nonNegInt(b.active_play_seconds),
+        idle_play_seconds: nonNegInt(b.idle_play_seconds),
+        updated_at: safeIso(b.updated_at) ?? new Date().toISOString(),
       });
       res.json({ ok: true });
     } catch (err) {

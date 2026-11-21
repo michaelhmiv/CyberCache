@@ -220,12 +220,17 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
       const sources = typeof req.query.source === 'string'
         ? req.query.source.split(',').map((s) => s.trim()).filter(Boolean)
         : undefined;
-      const limitRaw = typeof req.query.limit === 'string' ? Number.parseInt(req.query.limit, 10) : NaN;
+      const since = typeof req.query.since === 'string' ? req.query.since : undefined;
+      const until = typeof req.query.until === 'string' ? req.query.until : undefined;
+      if ((since && Number.isNaN(Date.parse(since))) || (until && Number.isNaN(Date.parse(until)))) {
+        return validation(res, 'since and until must be valid ISO timestamps');
+      }
+      const limit = req.query.limit !== undefined ? parseLimit(req.query.limit, 100, 500) : undefined;
       res.json(await store.getMyProgressionSnapshots(id, {
         sources,
-        since: typeof req.query.since === 'string' ? req.query.since : undefined,
-        until: typeof req.query.until === 'string' ? req.query.until : undefined,
-        limit: Number.isNaN(limitRaw) ? undefined : limitRaw,
+        since,
+        until,
+        limit,
       }));
     } catch (err) { fail(res, err); }
   });
@@ -274,10 +279,6 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
     } catch (err) { fail(res, err); }
   });
 
-  // Weekly race boards (0035): current week's live standings folded
-  // from server records + last week's finals and the caller's own
-  // reward outcome. Identity from the JWT only — no player id is
-  // read from the request anywhere in this payload.
   app.get('/api/leaderboard/weekly', async (req, res) => {
     const id = caller(config, req, res);
     if (!id) return;
@@ -288,11 +289,6 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
     } catch (err) { fail(res, err); }
   });
 
-  // Another player's public profile (0058): the flat public facts
-  // plus their Trophy Shelf showcase block — the brag facts a
-  // profile exists to show. No balances, no email, no lifetime
-  // credit/market folds: the PublicProfileData projection is the
-  // exposure contract (pinned in tests).
   app.get('/api/players/:playerId/public-profile', async (req, res) => {
     const id = caller(config, req, res);
     if (!id) return;
@@ -323,7 +319,9 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
     try {
       const stats = await store.getPublicStats(target);
       if (!stats) return notFound(res, 'Player');
-      res.json(stats);
+      // Strip private wallet balances so another player's credits/scrap/keys are never exposed.
+      const { credits: _c, scrap: _s, cache_tokens: _ct, cache_token_parts: _ctp, ...publicSafe } = stats as unknown as Record<string, unknown>;
+      res.json(publicSafe);
     } catch (err) { fail(res, err); }
   });
 

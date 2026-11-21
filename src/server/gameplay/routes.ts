@@ -71,6 +71,8 @@ export interface GameplayRoutesConfig extends AuthConfig {
   /** Clock override (tests pin the hot-area rotation to a fixed date;
    *  production omits it and the routes read the wall clock). */
   now?: () => Date;
+  /** Enforce wall-clock pacing / cooldowns on gameplay routes (enabled in production server). */
+  enforceWallClockPacing?: boolean;
 }
 
 export function mountGameplayRoutes(app: Express, store: ChefGameplayStore, config: GameplayRoutesConfig): void {

@@ -2334,11 +2334,14 @@ export class PgChefGameplayStore implements ChefGameplayStore {
   }
 
   holdOfflineItems(playerId: string, settlementNonce: string, items: Json, feedEvents: Json): Promise<Json> {
-    return this.callJson('select public.cc_hold_offline_items($1, $2, $3, $4) as result', [
+    // node-postgres serializes bare JS arrays as Postgres array literals
+    // (`{...}`) instead of jsonb (`[...]`), which throws 22P02 on non-empty
+    // loot arrays and silently drops all offline drops. Serialize explicitly.
+    return this.callJson('select public.cc_hold_offline_items($1, $2, $3::jsonb, $4::jsonb) as result', [
       playerId,
       settlementNonce,
-      items,
-      feedEvents,
+      JSON.stringify(items ?? []),
+      JSON.stringify(feedEvents ?? []),
     ]);
   }
 

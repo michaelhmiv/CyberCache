@@ -96,6 +96,9 @@ export interface ExtractionProfileFacts {
   researchOfflineCapHours: number;
   /** can_use_player_economy: verified, non-guest account. */
   verified: boolean;
+  /** Active Cache Hunter identity (0097) so hunter base perks (e.g. Josie lootQuantity) match Pg store. */
+  activeHunterId?: string | null;
+  actionSkillSelection?: string | null;
 }
 
 export interface ExtractionAdapter {
@@ -300,7 +303,16 @@ export function finalizeExtractionPasses(
     const fresh = adapter.profile(playerId) ?? profile;
     const items = adapter.equippedItems(playerId);
     const gear = items.map((e) => e.item as GearItem);
-    const skillBonuses = skillBonusesFromRecords(gear, fresh.skillSpends);
+    const skillBonuses = skillBonusesFromRecords(
+      gear,
+      fresh.skillSpends,
+      fresh.activeHunterId !== undefined || fresh.actionSkillSelection !== undefined
+        ? {
+            active_hunter_id: fresh.activeHunterId ?? null,
+            action_skill_selection: fresh.actionSkillSelection ?? null,
+          }
+        : undefined,
+    );
     const lootQuantity = Math.max(0, skillBonuses.lootQuantity ?? 0);
     const masteryLevel = adapter.masteryLevel(playerId, EXTRACTION_MASTERY_TRACK);
     const area = getRoamingArea(pass.areaId);

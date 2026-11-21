@@ -22,6 +22,7 @@ import { isHotArea } from '../../content/hotArea';
 import { cacheRankBonuses } from '../../content/cacheRank';
 import { mergeResearchBonuses } from '../../content/research';
 import { RESURRECTION_FREE_TIMER_MS } from '../../lib/combat/resurrectionCost';
+import { computeCanonicalMaxHp } from '../../lib/combat/damageContract';
 import { getAuthenticatedChefPlayer, sendRouteError } from './chefRouteAuth';
 import { resolveRoamingConsumableState } from './roamingConsumableState';
 import {
@@ -57,8 +58,16 @@ export async function recordItemDiscoveries(
 
 export function createClaimHandler(
   store: ChefGameplayStore,
-  config: AuthConfig & { economyConfig?: EconomyConfig; now?: () => Date },
+  config: AuthConfig & { economyConfig?: EconomyConfig; now?: () => Date; enforceWallClockPacing?: boolean },
 ) {
+  const killCycleState = new Map<string, {
+    areaId: string;
+    totalKills: number;
+    currentTargetId: string | null;
+    currentTargetHp: number;
+  }>();
+  const lastClaimClock = new Map<string, { atMs: number; bankedTicks: number }>();
+
   return async function handleClaim(req: Request, res: Response): Promise<void> {
     try {
       const body = req.body as ClaimRequest & {
@@ -76,6 +85,23 @@ export function createClaimHandler(
       }
 
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+
+      if (config.enforceWallClockPacing) {
+        const nowMs = (config.now?.() ?? new Date()).getTime();
+        const prev = lastClaimClock.get(playerId);
+        if (prev) {
+          const elapsedTicks = Math.max(0, (nowMs - prev.atMs) / 3000);
+          const available = Math.min(25, prev.bankedTicks + elapsedTicks);
+          if (body.ticks > Math.ceil(available + 2)) {
+            res.status(429).json({ error: 'claim_rate_limited', message: 'Claim arrived faster than tick cadence allows' });
+            return;
+          }
+          lastClaimClock.set(playerId, { atMs: nowMs, bankedTicks: Math.max(0, available - body.ticks) });
+        } else {
+          lastClaimClock.set(playerId, { atMs: nowMs, bankedTicks: 4 });
+        }
+      }
+
       // maxTicks is an internal offline-settlement option. Foreground
       // callers always use the engine's normal 20-tick ceiling.
       const claim: ClaimRequest = { ...body, playerId, maxTicks: undefined };
@@ -194,9 +220,71 @@ export function createClaimHandler(
         return;
       }
 
+      // Server-derived survival & killCycle bounds (trust hardening):
+      // - Never trust client maxHp/shieldHp above equipped-gear ceilings.
+      // - If the profile has a standing death record, force dead state so a
+      //   client cannot spoof alive/omitted survival to farm while dead.
+      // - Track killCycle.totalKills server-side across claims so a client
+      //   cannot replay totalKills=149 to mint a free Jackpot Cache Key every 3s.
+      // - Never trust client-supplied masteryLevels.
+      const resolvedCacheRankBonuses = cacheRankBonuses(profile.cache_rank_spends, economyValues);
+      const equippedShield = equippedGear.find((g) => 'mitigation' in g) as { hp?: number } | undefined;
+      const serverShieldCap = Math.max(0, Math.floor(equippedShield?.hp ?? 0));
+      const serverMaxHp = computeCanonicalMaxHp(
+        profile.player_level,
+        serverShieldCap,
+        resolvedCacheRankBonuses.maxHp,
+      );
+      let standingDeathPreCheck: DeathRecord | null = null;
+      try {
+        standingDeathPreCheck = await store.getDeathRecord(playerId);
+      } catch { /* best-effort; post-claim death sync handles storage errors */ }
+
+      const sanitizedSurvival = standingDeathPreCheck
+        ? {
+            currentHp: 0,
+            shieldHp: 0,
+            maxHp: serverMaxHp,
+            trickleArmed: false,
+            shieldNovaArmed: false,
+          }
+        : body.survival != null
+          ? {
+              ...body.survival,
+              maxHp: serverMaxHp,
+              currentHp: Math.max(0, Math.min(serverMaxHp, Number.isFinite(body.survival.currentHp) ? body.survival.currentHp : serverMaxHp)),
+              shieldHp: Math.max(0, Math.min(serverShieldCap, Number.isFinite(body.survival.shieldHp) ? body.survival.shieldHp : serverShieldCap)),
+            }
+          : undefined;
+
+      const prevKc = killCycleState.get(playerId);
+      const sanitizedKillCycle = body.killCycle
+        ? {
+            ...body.killCycle,
+            currentTargetHp:
+              prevKc && prevKc.areaId === body.areaId && prevKc.currentTargetId === body.killCycle.currentTargetId
+                ? Math.max(prevKc.currentTargetHp, Number.isFinite(body.killCycle.currentTargetHp) ? body.killCycle.currentTargetHp : prevKc.currentTargetHp)
+                : Math.max(0, Number.isFinite(body.killCycle.currentTargetHp) ? body.killCycle.currentTargetHp : 0),
+            totalKills: prevKc
+              ? prevKc.totalKills
+              : Math.max(0, Math.min(148, Number.isFinite(body.killCycle.totalKills) ? Math.floor(body.killCycle.totalKills) : 0)),
+          }
+        : prevKc && prevKc.areaId === body.areaId
+          ? {
+              currentTargetId: prevKc.currentTargetId,
+              currentTargetHp: prevKc.currentTargetHp,
+              currentTargetHpMax: prevKc.currentTargetHp,
+              monstersKilledCount: 0,
+              totalKills: prevKc.totalKills,
+              lastKilledMonsterId: null,
+            }
+          : undefined;
+
       // Merge inventory + roaming state into the claim
       const claimWithConsumables: ClaimRequest = {
         ...claim,
+        survival: sanitizedSurvival,
+        killCycle: sanitizedKillCycle,
         // The DB level is authoritative (same precedent as the
         // verify-boss route): it drives item generation levels,
         // never the client body's playerLevel.
@@ -208,7 +296,7 @@ export function createClaimHandler(
         // cache_rank_spends + the live levers — the body's copy
         // (spread in via `claim`) is overridden here and never
         // reaches the engine.
-        cacheRankBonuses: cacheRankBonuses(profile.cache_rank_spends, economyValues),
+        cacheRankBonuses: resolvedCacheRankBonuses,
         // Server-authoritative scrap bank (migration 0009): read from the
         // profile, never from the client body spread above.
         scrapRemainder: profile.scrap_remainder,
@@ -234,7 +322,7 @@ export function createClaimHandler(
           body.roamingConsumableState,
           profile.last_claimed_tick,
         ),
-        masteryLevels: body.masteryLevels,
+        masteryLevels: {},
         vehicle: equippedVehicle
           ? {
               vehicle: equippedVehicle.vehicle,
@@ -269,6 +357,12 @@ export function createClaimHandler(
       };
 
       const result = processRoamingClaim(claimWithConsumables);
+      killCycleState.set(playerId, {
+        areaId: body.areaId,
+        totalKills: result.killCycle.totalKills,
+        currentTargetId: result.killCycle.currentTargetId,
+        currentTargetHp: result.killCycle.currentTargetHp,
+      });
 
       let rpcResult: Json;
       try {

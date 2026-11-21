@@ -58,6 +58,10 @@ import { mergeResearchBonuses } from '../../content/research';
  * still never trusted beyond ownership: unknown types are rejected
  * and no type may be prepared beyond the owned count.
  */
+export const MAX_PREPARED_PER_TYPE = 5;
+export const MAX_PREPARED_TOTAL = 15;
+const BOSS_ATTEMPT_COOLDOWN_MS = 15_000;
+
 export function resolvePreparedConsumables(
   requested: unknown,
   owned: Record<string, number>,
@@ -67,14 +71,22 @@ export function resolvePreparedConsumables(
     return { error: 'consumables must be an object of type -> count' };
   }
   const prepared: Record<string, number> = {};
+  let totalPrepared = 0;
   for (const [type, rawCount] of Object.entries(requested as Record<string, unknown>)) {
     if (!CONSUMABLES[type]) return { error: `Unknown consumable type: ${type}` };
     const count = typeof rawCount === 'number' ? Math.floor(rawCount) : NaN;
     if (!Number.isFinite(count) || count < 0) return { error: `Invalid prepared count for ${type}` };
     if (count === 0) continue;
+    if (count > MAX_PREPARED_PER_TYPE) {
+      return { error: `Prepared count for ${type} exceeds belt limit (${MAX_PREPARED_PER_TYPE})` };
+    }
     const ownedCount = Math.max(0, Math.trunc(owned[type] ?? 0));
     if (count > ownedCount) {
       return { error: `Prepared consumables exceed owned inventory for ${type}: prepared ${count}, owned ${ownedCount}` };
+    }
+    totalPrepared += count;
+    if (totalPrepared > MAX_PREPARED_TOTAL) {
+      return { error: `Total prepared consumables (${totalPrepared}) exceeds belt limit (${MAX_PREPARED_TOTAL})` };
     }
     prepared[type] = count;
   }
@@ -83,8 +95,10 @@ export function resolvePreparedConsumables(
 
 export function createVerifyBossHandler(
   store: ChefGameplayStore,
-  config: AuthConfig & { economyConfig?: EconomyConfig },
+  config: AuthConfig & { economyConfig?: EconomyConfig; now?: () => Date; enforceWallClockPacing?: boolean },
 ) {
+  const lastBossAttemptMs = new Map<string, number>();
+
   return async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
     try {
       const body = req.body as BossAttemptRequest & { jwt?: string };
@@ -109,6 +123,19 @@ export function createVerifyBossHandler(
       }
 
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+
+      if (config.enforceWallClockPacing) {
+        const nowMs = (config.now?.() ?? new Date()).getTime();
+        const prevMs = lastBossAttemptMs.get(playerId) ?? 0;
+        if (nowMs - prevMs < BOSS_ATTEMPT_COOLDOWN_MS) {
+          res.status(429).json({
+            error: 'boss_rate_limited',
+            message: 'Wait a moment before challenging another boss',
+          });
+          return;
+        }
+        lastBossAttemptMs.set(playerId, nowMs);
+      }
 
       // --- Read server-authoritative profile data ---
       // Boss fight economy (consumables, credits, level, pity) must be

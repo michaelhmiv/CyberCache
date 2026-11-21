@@ -62,6 +62,12 @@ export function verifyAccessToken(secret: string, token: string, now = new Date(
   } catch {
     return { ok: false, reason: 'malformed' };
   }
+  if (
+    !headerJson || typeof headerJson !== 'object' || Array.isArray(headerJson) ||
+    !claims || typeof claims !== 'object' || Array.isArray(claims)
+  ) {
+    return { ok: false, reason: 'malformed' };
+  }
   if (headerJson.alg !== 'HS256' || headerJson.typ !== 'JWT') return { ok: false, reason: 'malformed' };
   const expected = sign(secret, `${header}.${payload}`);
   const a = Buffer.from(signature);

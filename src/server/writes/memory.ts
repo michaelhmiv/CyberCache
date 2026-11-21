@@ -184,9 +184,13 @@ import {
 import { activeHunterId, checkClassModBinding, computeHunterSkillBonuses, emptyHunterLoadout, loadoutForHunter, treeForHunter, type HunterLoadouts } from '../../lib/hunters/hunters.js';
 import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses.js';
 import {
+  CRAFTED_GEAR_MAX_VENDOR_VALUE,
+  CRAFTED_RELIC_MAX_VENDOR_VALUE,
   VENDOR_BUYBACK_RATE_DEFAULT,
   VENDOR_MATERIALS,
   consumableUnitVendorValue,
+  isCraftedGearPayload,
+  isCraftedNamedRelicPayload,
   vendorBuybackPayout,
   vendorDateKey,
   vendorOfferFor,
@@ -693,6 +697,18 @@ export class InMemoryWriteStore implements WriteStore {
       }
     }
     (p as { hunter_loadouts?: HunterLoadouts }).hunter_loadouts = { ...stored, [hunter]: next };
+  }
+
+  /** True if itemId is equipped on ANY hunter (fielded or benched) in profiles.hunter_loadouts. */
+  private isItemInAnyHunterLoadout(p: ProfileRowData, itemId: string): boolean {
+    const stored = ((p as { hunter_loadouts?: HunterLoadouts }).hunter_loadouts ?? {}) as Record<string, Record<string, string | null> | undefined>;
+    for (const loadout of Object.values(stored)) {
+      if (!loadout || typeof loadout !== 'object') continue;
+      for (const equippedId of Object.values(loadout)) {
+        if (equippedId === itemId) return true;
+      }
+    }
+    return false;
   }
 
   private activitySnapshot(row: ActiveActionData): Json {
@@ -1498,7 +1514,17 @@ export class InMemoryWriteStore implements WriteStore {
       // The vendor value of a gear instance is its stored estimated
       // value — the same number generation stamped on the row and
       // net worth sums (SQL twin: item_instances.estimated_value).
-      const vendorValue = Math.max(0, Math.floor(item.estimated_value) || 0);
+      const rawVendorValue = Math.max(0, Math.floor(item.estimated_value) || 0);
+      const itemPayload = (item.payload ?? {}) as Record<string, unknown>;
+      const isCrafted = item.supply_mode === 'crafted' || isCraftedGearPayload(itemPayload);
+      const vendorValue = isCrafted
+        ? Math.min(
+            rawVendorValue,
+            isCraftedNamedRelicPayload(itemPayload)
+              ? CRAFTED_RELIC_MAX_VENDOR_VALUE
+              : CRAFTED_GEAR_MAX_VENDOR_VALUE,
+          )
+        : rawVendorValue;
       const payout = vendorBuybackPayout(vendorValue, rate);
       item.runtime_state = 'consumed';
       item.tradeable = false;
@@ -1712,8 +1738,14 @@ export class InMemoryWriteStore implements WriteStore {
     if (!['available', 'equipped'].includes(item.runtime_state)) throw writeError('Item state invalid');
     // Market Crash (legendary): 4x scrap when recycling this weapon —
     // mirrors cc_recycle_item as amended by 0008_legendary_honesty.sql.
-    const baseAward = salvageScrap(item.rarity, item.item_level);
-    const payload = (item.payload ?? {}) as { legendaryEffectId?: string };
+    const rawBaseAward = salvageScrap(item.rarity, item.item_level);
+    const payload = (item.payload ?? {}) as Record<string, unknown> & { legendaryEffectId?: string };
+    const isCrafted = item.supply_mode === 'crafted' || isCraftedGearPayload(payload);
+    // Cap crafted gear salvage below fixed recipe scrap inputs so named craft
+    // relics (e.g., Reclaimer Head) and gear frames can never print Scrap.
+    const baseAward = isCrafted
+      ? Math.min(rawBaseAward, isCraftedNamedRelicPayload(payload) ? 5 : 15)
+      : rawBaseAward;
     const crashedAward = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
     // Salvage skill bonuses (Phase 2d; migration 0022 mirrors this in
     // cc_recycle_item): Hoarder's Instinct pays bonus scrap on every
@@ -1788,12 +1820,14 @@ export class InMemoryWriteStore implements WriteStore {
     if (prior) return prior;
     const ceiling = SALVAGE_CEILING_RANK[maxRarity];
     if (!ceiling) throw writeError('Invalid salvage ceiling');
+    const p = this.profile(playerId);
     const eligible = [...this.items.values()]
       .filter(
         (item) =>
           item.owner_user_id === playerId &&
           item.runtime_state === 'available' &&
           !item.is_locked &&
+          !this.isItemInAnyHunterLoadout(p, item.id) &&
           SALVAGE_BATCH_KINDS.has(item.kind) &&
           (SALVAGE_RARITY_RANK[item.rarity] ?? 99) <= ceiling,
       )
@@ -2152,6 +2186,17 @@ export class InMemoryWriteStore implements WriteStore {
         attentionCount += 1;
         continue;
       }
+      if (slotName === 'classMod') {
+        const binding = checkClassModBinding(
+          item.payload as { treeBonus?: string | null },
+          activeHunterId(p),
+        );
+        if (!binding.ok) {
+          outcomes.push({ ...base, outcome: 'incompatible' });
+          attentionCount += 1;
+          continue;
+        }
+      }
       if (slotName === 'vehicle') {
         const classId = (item.payload as Record<string, unknown>)?.vehicleClassId;
         if (!getVehicleClass(typeof classId === 'string' ? classId : null)) {
@@ -2168,6 +2213,8 @@ export class InMemoryWriteStore implements WriteStore {
       outcomes.push({ ...base, outcome: 'equipped' });
       equippedCount += 1;
     }
+
+    this.syncActiveHunterLoadout(playerId);
 
     const result: Json = {
       action_type: 'cc_apply_build',
@@ -3076,6 +3123,8 @@ export class InMemoryWriteStore implements WriteStore {
     const key = this.cleanNonce(nonce);
     const prior = this.prior(playerId, key);
     if (prior) return prior;
+    const cleanAdUnit = (adUnitId ?? '').trim();
+    if (!cleanAdUnit) throw writeError('ad_unit_id is required');
     const p = this.profile(playerId);
     const levers = this.craftLevers();
     const grant = levers.benchTimeGrantSeconds ?? BENCH_TIME_GRANT_SECONDS;

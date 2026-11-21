@@ -438,7 +438,7 @@ export const ECONOMY_CONFIG_KEYS: Record<EconomyConfigKey, EconomyConfigKeySpec>
     defaultOwner: 'new lever; 1.0 = the shipped area drop tables unchanged',
   },
   vendorBuybackRate: {
-    key: 'vendorBuybackRate', min: 0, max: 0.9, integer: false,
+    key: 'vendorBuybackRate', min: 0, max: 0.65, integer: false,
     defaultOwner: 'src/lib/vendor/catalog.ts VENDOR_BUYBACK_RATE_DEFAULT',
   },
   vehicleYieldScalar: {

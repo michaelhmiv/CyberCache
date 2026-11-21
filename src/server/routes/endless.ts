@@ -56,7 +56,32 @@ import { cacheRankBonuses } from '../../content/cacheRank';
 import { mergeResearchBonuses } from '../../content/research';
 import { cacheRankLevers } from './cacheRank';
 
-type EndlessConfig = AuthConfig & { economyConfig?: EconomyConfig };
+type EndlessConfig = AuthConfig & {
+  economyConfig?: EconomyConfig;
+  now?: () => Date;
+  enforceWallClockPacing?: boolean;
+};
+
+const ENDLESS_START_COOLDOWN_MS = 10_000;
+const ENDLESS_ENCOUNTER_COOLDOWN_MS = 8_000;
+
+/**
+ * Per-run snapshot of the FIFO-burned prepared consumable quality map
+ * captured at POST /api/endless/start BEFORE the belt is burned from
+ * profiles.consumables / consumable_batches. Prevents encounters from
+ * reading post-burn remaining inventory (which downgraded full stacks
+ * to Q100 or let mixed stacks spoof Q160).
+ */
+const endlessRunQualitySnapshots = new Map<string, Record<string, number>>();
+const MAX_QUALITY_SNAPSHOTS = 10_000;
+
+function recordRunQualitySnapshot(runId: string, quality: Record<string, number>): void {
+  if (endlessRunQualitySnapshots.size >= MAX_QUALITY_SNAPSHOTS) {
+    const oldest = endlessRunQualitySnapshots.keys().next().value;
+    if (oldest !== undefined) endlessRunQualitySnapshots.delete(oldest);
+  }
+  endlessRunQualitySnapshots.set(runId, quality);
+}
 
 const RISK_VALUES = new Set<string>(Object.values(RiskSetting));
 
@@ -124,6 +149,8 @@ function milestoneKind(item: GearItem): string {
 }
 
 export function createStartEndlessRunHandler(store: ChefGameplayStore, config: EndlessConfig) {
+  const lastStartMs = new Map<string, number>();
+
   return async function handleStartEndlessRun(req: Request, res: Response): Promise<void> {
     try {
       const body = (req.body ?? {}) as {
@@ -134,6 +161,20 @@ export function createStartEndlessRunHandler(store: ChefGameplayStore, config: E
         risk?: unknown;
       };
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+
+      if (config.enforceWallClockPacing) {
+        const nowMs = (config.now?.() ?? new Date()).getTime();
+        const prevMs = lastStartMs.get(playerId) ?? 0;
+        if (nowMs - prevMs < ENDLESS_START_COOLDOWN_MS) {
+          res.status(429).json({
+            error: 'endless_rate_limited',
+            message: 'Wait a moment before starting another Chaos Chamber run',
+          });
+          return;
+        }
+        lastStartMs.set(playerId, nowMs);
+      }
+
       const nonce =
         typeof body.nonce === 'string' && body.nonce.trim().length >= 8
           ? body.nonce
@@ -161,6 +202,16 @@ export function createStartEndlessRunHandler(store: ChefGameplayStore, config: E
       if ('error' in resolved) {
         res.status(400).json({ error: 'Invalid prepared consumables', detail: resolved.error });
         return;
+      }
+
+      // Snapshot the FIFO-burned quality map BEFORE startEndlessRun burns the belt.
+      const preBurnBatches = await store.getConsumableBatches(playerId);
+      const preBurnProfile = buildConsumableQualityProfile(preBurnBatches, ownedConsumables);
+      const burnedQualitySnapshot: Record<string, number> = {};
+      for (const [type, count] of Object.entries(resolved.prepared)) {
+        if (count > 0 && preBurnProfile[type]) {
+          burnedQualitySnapshot[type] = weightedQualityForUnits(preBurnProfile[type], count);
+        }
       }
 
       const levers = await endlessLevers(config);
@@ -194,6 +245,10 @@ export function createStartEndlessRunHandler(store: ChefGameplayStore, config: E
         return;
       }
       const record = applied as Record<string, unknown>;
+      const startedRun = record.run as { id?: string } | undefined;
+      if (startedRun?.id && record.idempotent_replay !== true) {
+        recordRunQualitySnapshot(startedRun.id, burnedQualitySnapshot);
+      }
       res.json({
         verified: true,
         run: record.run,
@@ -211,6 +266,8 @@ export function createStartEndlessRunHandler(store: ChefGameplayStore, config: E
 }
 
 export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: EndlessConfig) {
+  const lastEncounterMs = new Map<string, number>();
+
   return async function handleAdvanceEndless(req: Request, res: Response): Promise<void> {
     try {
       const body = (req.body ?? {}) as {
@@ -220,6 +277,20 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
         fireActionSkill?: unknown;
       };
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+
+      if (config.enforceWallClockPacing) {
+        const nowMs = (config.now?.() ?? new Date()).getTime();
+        const prevMs = lastEncounterMs.get(playerId) ?? 0;
+        if (nowMs - prevMs < ENDLESS_ENCOUNTER_COOLDOWN_MS) {
+          res.status(429).json({
+            error: 'endless_rate_limited',
+            message: 'Wait a moment before advancing to the next Chaos Chamber depth',
+          });
+          return;
+        }
+        lastEncounterMs.set(playerId, nowMs);
+      }
+
       const nonce =
         typeof body.nonce === 'string' && body.nonce.trim().length >= 8
           ? body.nonce
@@ -299,18 +370,27 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
         cacheRankMaxHpBonus: serverCacheRank.maxHp,
       };
 
-      // The belt burned at entry still prices into every encounter:
-      // quality from the server's batch rows against owned counts.
-      const ownedConsumables: Record<string, number> =
-        profile.consumables && typeof profile.consumables === 'object'
-          ? (profile.consumables as Record<string, number>)
-          : {};
-      const batches = await store.getConsumableBatches(playerId);
-      const qualityProfile = buildConsumableQualityProfile(batches, ownedConsumables);
+      // Use the FIFO-burned quality map snapshotted at run start; fall back
+      // to neutral Q100 (or batch rows only if a run pre-dated this server).
+      const snapshottedQuality = endlessRunQualitySnapshots.get(run.id);
       const consumableQuality: Record<string, number> = {};
-      for (const [type, count] of Object.entries(run.prepared_consumables)) {
-        if (count > 0 && qualityProfile[type]) {
-          consumableQuality[type] = weightedQualityForUnits(qualityProfile[type], count);
+      if (snapshottedQuality) {
+        for (const [type, count] of Object.entries(run.prepared_consumables)) {
+          if (count > 0 && snapshottedQuality[type] !== undefined) {
+            consumableQuality[type] = snapshottedQuality[type];
+          }
+        }
+      } else {
+        const ownedConsumables: Record<string, number> =
+          profile.consumables && typeof profile.consumables === 'object'
+            ? (profile.consumables as Record<string, number>)
+            : {};
+        const batches = await store.getConsumableBatches(playerId);
+        const qualityProfile = buildConsumableQualityProfile(batches, ownedConsumables);
+        for (const [type, count] of Object.entries(run.prepared_consumables)) {
+          if (count > 0 && qualityProfile[type]) {
+            consumableQuality[type] = weightedQualityForUnits(qualityProfile[type], count);
+          }
         }
       }
 

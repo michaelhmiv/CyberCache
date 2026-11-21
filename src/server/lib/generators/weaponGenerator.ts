@@ -191,6 +191,8 @@ export function generateWeapon(options: GenerateWeaponOptions, externalRng?: () 
   // Additive stats (crit, modifiers) add to the existing value. The
   // switch itself is shared with reforge (bakeWeaponAffixes).
   bakeWeaponAffixes(stats, affixes);
+  stats.critChance = parseFloat(Math.min(0.9, Math.max(0, stats.critChance)).toFixed(3));
+  stats.statusChance = parseFloat(Math.min(0.9, Math.max(0, stats.statusChance)).toFixed(3));
 
   // 10c. Roll activity module (procedural, Borderlands-style)
   // Chance increases with rarity: Common 15%, Uncommon 20%, Rare 30%, Epic 40%, Legendary 55%
