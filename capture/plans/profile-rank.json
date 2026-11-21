@@ -1,0 +1,22 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "eval": "(() => { const el = document.querySelector('[data-testid=\"hub-door-cache-rank\"]'); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked hub-door-cache-rank'; } return 'MISS hub-door-cache-rank'; })()"
+  },
+  {
+   "wait": 2200
+  },
+  {
+   "dump": "(() => { const leaves = [...document.querySelectorAll('div,span,h1,h2,h3,button')].filter(e => e.children.length === 0); const out = {}; { const e = leaves.find(x => x.textContent.trim() === 'Bonus Channels'); out['Bonus Channels'] = e ? Math.round(e.getBoundingClientRect().top) : null; }{ const e = leaves.find(x => x.textContent.trim() === 'Bonus channels'); out['Bonus channels'] = e ? Math.round(e.getBoundingClientRect().top) : null; }{ const e = leaves.find(x => x.textContent.trim() === 'Next token \u2014 charge meter'); out['Next token \u2014 charge meter'] = e ? Math.round(e.getBoundingClientRect().top) : null; } return JSON.stringify(out); })()"
+  },
+  {
+   "shot": "top"
+  }
+ ]
+}

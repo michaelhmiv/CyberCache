@@ -1,0 +1,31 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "eval": "(() => { const el = document.querySelector('[data-testid=\"hub-door-account\"]'); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked hub-door-account'; } return 'MISS hub-door-account'; })()"
+  },
+  {
+   "wait": 1600
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Link Google') ? 'PRESENT Link Google' : 'ABSENT Link Google')()"
+  },
+  {
+   "shot": "guest"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.toLowerCase().includes('sign out')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked *sign out'; } return 'MISS *sign out'; })()"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "signout-armed"
+  }
+ ]
+}

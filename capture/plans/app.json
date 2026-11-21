@@ -1,0 +1,31 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 9000
+  },
+  {
+   "shot": "onboard-1"
+  },
+  {
+   "eval": "(() => { const vis = [...document.querySelectorAll('button')].filter(b => b.offsetParent !== null); for (const t of ['Collect', 'Not now', 'Skip', 'Continue']) { const el = vis.find(b => b.textContent.trim() === t); if (el) { el.click(); return 'dismissed via ' + t; } } return 'no overlay button found'; })()"
+  },
+  {
+   "wait": 1600
+  },
+  {
+   "shot": "onboard-2"
+  },
+  {
+   "eval": "(() => { const vis = [...document.querySelectorAll('button')].filter(b => b.offsetParent !== null); for (const t of ['Collect', 'Not now', 'Skip', 'Continue']) { const el = vis.find(b => b.textContent.trim() === t); if (el) { el.click(); return 'dismissed via ' + t; } } return 'no overlay button found'; })()"
+  },
+  {
+   "wait": 1600
+  },
+  {
+   "shot": "onboard-3"
+  }
+ ]
+}

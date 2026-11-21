@@ -1,0 +1,28 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim() === 'Mine'); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked Mine'; } return 'MISS Mine'; })()"
+  },
+  {
+   "wait": 1600
+  },
+  {
+   "shot": "list"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim().startsWith('Cancel')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked ~Cancel'; } return 'MISS ~Cancel'; })()"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "cancel-armed"
+  }
+ ]
+}

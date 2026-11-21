@@ -1,0 +1,13 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "shot": "roam"
+  }
+ ]
+}

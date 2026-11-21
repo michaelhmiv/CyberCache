@@ -1,0 +1,22 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "shot": "board"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim().startsWith('Recall')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked ~Recall'; } return 'MISS ~Recall'; })()"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "recall-armed"
+  }
+ ]
+}

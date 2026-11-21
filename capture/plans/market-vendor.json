@@ -1,0 +1,46 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "shot": "top"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('div,span,button')].find(b => b.offsetParent !== null && b.textContent.includes('Sell to Vendor')); if (el) { el.scrollIntoView({block:'center'}); return 'scrolled *Sell to Vendor'; } return 'MISS *Sell to Vendor'; })()"
+  },
+  {
+   "wait": 900
+  },
+  {
+   "shot": "buyback"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim().startsWith('Sell') && !b.textContent.includes('Sell all')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked per-item sell'; } return 'MISS per-item sell'; })()"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "sell-armed"
+  },
+  {
+   "eval": "(() => { location.reload(); return 'reloading'; })()"
+  },
+  {
+   "wait": 9000
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim().startsWith('Sell all')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked ~Sell all'; } return 'MISS ~Sell all'; })()"
+  },
+  {
+   "wait": 800
+  },
+  {
+   "shot": "sellall-armed"
+  }
+ ]
+}

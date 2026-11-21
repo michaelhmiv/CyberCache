@@ -1,1 +1,251 @@
-{"captures":[{"expect":["rd-fodder","rd-runner","rd-sniper","rd-brute"],"label":"roamdom","path":"/roam-harness.html?renderer=dom","plan":"capture/plans/roam-rest.json","prefix":"rd"},{"expect":["rp-fodder","rp-runner","rp-sniper","rp-brute"],"label":"roampixi","path":"/roam-harness.html","plan":"capture/plans/roam-rest.json","prefix":"rp"}],"harnessPage":"/roam-harness.html","iter":"inkr6space","port":7143}
+{
+ "iter": "pr646-after",
+ "port": 7265,
+ "harnessPage": "/pr646-harness.html?screen=profile",
+ "viteConfig": "vite.pr646.config.ts",
+ "captures": [
+  {
+   "label": "auth",
+   "path": "/pr646-harness.html?screen=auth",
+   "plan": "capture/plans/auth.json",
+   "prefix": "auth",
+   "expect": [
+    "auth-ios.png"
+   ]
+  },
+  {
+   "label": "app",
+   "path": "/pr646-harness.html?screen=app",
+   "plan": "capture/plans/app.json",
+   "prefix": "app",
+   "expect": [
+    "app-onboard-1.png",
+    "app-onboard-2.png",
+    "app-onboard-3.png"
+   ]
+  },
+  {
+   "label": "home-roam",
+   "path": "/pr646-harness.html?screen=home-roam",
+   "plan": "capture/plans/home-roam.json",
+   "prefix": "home-roam",
+   "expect": [
+    "home-roam-roam.png"
+   ]
+  },
+  {
+   "label": "home-bench",
+   "path": "/pr646-harness.html?screen=home-bench",
+   "plan": "capture/plans/home-bench.json",
+   "prefix": "home-bench",
+   "expect": [
+    "home-bench-top.png",
+    "home-bench-zone.png",
+    "home-bench-jobs.png",
+    "home-bench-cancel-armed.png"
+   ]
+  },
+  {
+   "label": "home-endless",
+   "path": "/pr646-harness.html?screen=home-endless",
+   "plan": "capture/plans/home-endless.json",
+   "prefix": "home-endless",
+   "expect": [
+    "home-endless-top.png",
+    "home-endless-zone.png"
+   ]
+  },
+  {
+   "label": "market-buy",
+   "path": "/pr646-harness.html?screen=market&tab=buy",
+   "plan": "capture/plans/market-buy.json",
+   "prefix": "market-buy",
+   "expect": [
+    "market-buy-list.png",
+    "market-buy-inspect.png",
+    "market-buy-buy-armed.png"
+   ]
+  },
+  {
+   "label": "market-mine",
+   "path": "/pr646-harness.html?screen=market&tab=sell",
+   "plan": "capture/plans/market-mine.json",
+   "prefix": "market-mine",
+   "expect": [
+    "market-mine-list.png",
+    "market-mine-cancel-armed.png"
+   ]
+  },
+  {
+   "label": "market-vendor",
+   "path": "/pr646-harness.html?screen=market&tab=vendor",
+   "plan": "capture/plans/market-vendor.json",
+   "prefix": "market-vendor",
+   "expect": [
+    "market-vendor-top.png",
+    "market-vendor-buyback.png",
+    "market-vendor-sell-armed.png",
+    "market-vendor-sellall-armed.png"
+   ]
+  },
+  {
+   "label": "market-repdesk",
+   "path": "/pr646-harness.html?screen=market&tab=repdesk",
+   "plan": "capture/plans/market-repdesk.json",
+   "prefix": "market-repdesk",
+   "expect": [
+    "market-repdesk-top.png"
+   ]
+  },
+  {
+   "label": "market-repair",
+   "path": "/pr646-harness.html?screen=market&tab=repair",
+   "plan": "capture/plans/market-repair.json",
+   "prefix": "market-repair",
+   "expect": [
+    "market-repair-board.png"
+   ]
+  },
+  {
+   "label": "market-shield",
+   "path": "/pr646-harness.html?screen=market&tab=shieldTech",
+   "plan": "capture/plans/market-shield.json",
+   "prefix": "market-shield",
+   "expect": [
+    "market-shield-board.png"
+   ]
+  },
+  {
+   "label": "profile-hub",
+   "path": "/pr646-harness.html?screen=profile",
+   "plan": "capture/plans/profile-hub.json",
+   "prefix": "profile-hub",
+   "expect": [
+    "profile-hub-hub.png"
+   ]
+  },
+  {
+   "label": "profile-record",
+   "path": "/pr646-harness.html?screen=profile",
+   "plan": "capture/plans/profile-record.json",
+   "prefix": "profile-record",
+   "expect": [
+    "profile-record-record.png"
+   ]
+  },
+  {
+   "label": "profile-account",
+   "path": "/pr646-harness.html?screen=profile&auth=guest",
+   "plan": "capture/plans/profile-account.json",
+   "prefix": "profile-account",
+   "expect": [
+    "profile-account-guest.png",
+    "profile-account-signout-armed.png"
+   ]
+  },
+  {
+   "label": "profile-research",
+   "path": "/pr646-harness.html?screen=profile&focus=research",
+   "plan": "capture/plans/profile-research.json",
+   "prefix": "profile-research",
+   "expect": [
+    "profile-research-top.png"
+   ]
+  },
+  {
+   "label": "profile-rank",
+   "path": "/pr646-harness.html?screen=profile",
+   "plan": "capture/plans/profile-rank.json",
+   "prefix": "profile-rank",
+   "expect": [
+    "profile-rank-top.png"
+   ]
+  },
+  {
+   "label": "profile-wardrobe",
+   "path": "/pr646-harness.html?screen=profile&focus=wardrobe",
+   "plan": "capture/plans/profile-wardrobe.json",
+   "prefix": "profile-wardrobe",
+   "expect": [
+    "profile-wardrobe-top.png"
+   ]
+  },
+  {
+   "label": "profile-roster",
+   "path": "/pr646-harness.html?screen=profile",
+   "plan": "capture/plans/profile-roster.json",
+   "prefix": "profile-roster",
+   "expect": [
+    "profile-roster-roster.png"
+   ]
+  },
+  {
+   "label": "activity",
+   "path": "/pr646-harness.html?screen=activity",
+   "plan": "capture/plans/activity.json",
+   "prefix": "activity",
+   "expect": [
+    "activity-list.png",
+    "activity-sheet.png"
+   ]
+  },
+  {
+   "label": "settings",
+   "path": "/pr646-harness.html?screen=settings",
+   "plan": "capture/plans/settings.json",
+   "prefix": "settings",
+   "expect": [
+    "settings-top.png",
+    "settings-delete.png"
+   ]
+  },
+  {
+   "label": "help",
+   "path": "/pr646-harness.html?screen=help",
+   "plan": "capture/plans/help.json",
+   "prefix": "help",
+   "expect": [
+    "help-top.png"
+   ]
+  },
+  {
+   "label": "gear-inspect",
+   "path": "/pr646-harness.html?screen=gear-inspect",
+   "plan": "capture/plans/gear-inspect.json",
+   "prefix": "gear-inspect",
+   "expect": [
+    "gear-inspect-sheet.png"
+   ]
+  },
+  {
+   "label": "gear-picker",
+   "path": "/pr646-harness.html?screen=gear-picker",
+   "plan": "capture/plans/gear-picker.json",
+   "prefix": "gear-picker",
+   "expect": [
+    "gear-picker-open.png",
+    "gear-picker-filters.png"
+   ]
+  },
+  {
+   "label": "gear-garage",
+   "path": "/pr646-harness.html?screen=gear&garage=1",
+   "plan": "capture/plans/gear-garage.json",
+   "prefix": "gear-garage",
+   "expect": [
+    "gear-garage-garage.png",
+    "gear-garage-cancel-armed.png"
+   ]
+  },
+  {
+   "label": "dispatch",
+   "path": "/pr646-harness.html?screen=dispatch",
+   "plan": "capture/plans/dispatch.json",
+   "prefix": "dispatch",
+   "expect": [
+    "dispatch-board.png",
+    "dispatch-recall-armed.png"
+   ]
+  }
+ ]
+}

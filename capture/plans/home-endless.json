@@ -1,0 +1,28 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "shot": "top"
+  },
+  {
+   "eval": "(() => { const el = document.querySelector('[data-testid=\"chamber-rundown\"]'); if (el) { el.scrollIntoView({block:'center'}); return 'scrolled chamber-rundown'; } return 'MISS chamber-rundown'; })()"
+  },
+  {
+   "wait": 900
+  },
+  {
+   "shot": "zone"
+  },
+  {
+   "dump": "(() => { const out = {}; { const e = document.querySelector('[data-testid=\"chamber-rundown\"]'); out['chamber-rundown'] = e ? { top: Math.round(e.getBoundingClientRect().top), height: Math.round(e.getBoundingClientRect().height) } : null; }{ const e = document.querySelector('[data-testid=\"chamber-bank\"]'); out['chamber-bank'] = e ? { top: Math.round(e.getBoundingClientRect().top), height: Math.round(e.getBoundingClientRect().height) } : null; } return JSON.stringify(out); })()"
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Face Depth') ? 'PRESENT Face Depth' : 'ABSENT Face Depth')()"
+  }
+ ]
+}

@@ -1,0 +1,16 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "dump": "(() => { const sheet = [...document.querySelectorAll('div')].find(d => /\\bh-48\\b|\\bh-32\\b/.test(d.className) && d.className.includes('relative')); return sheet ? JSON.stringify({ cls: sheet.className.match(/h-\\d+/)?.[0], height: Math.round(sheet.getBoundingClientRect().height) }) : 'visual container not found'; })()"
+  },
+  {
+   "shot": "sheet"
+  }
+ ]
+}

@@ -1,0 +1,25 @@
+{
+ "width": 390,
+ "height": 844,
+ "dsf": 2,
+ "steps": [
+  {
+   "wait": 8000
+  },
+  {
+   "dump": "(() => document.body.innerText.includes('Options Board') ? 'PRESENT Options Board' : 'ABSENT Options Board')()"
+  },
+  {
+   "shot": "top"
+  },
+  {
+   "eval": "(() => { const el = [...document.querySelectorAll('div,span,button')].find(b => b.offsetParent !== null && b.textContent.includes('Delete')); if (el) { el.scrollIntoView({block:'center'}); return 'scrolled *Delete'; } return 'MISS *Delete'; })()"
+  },
+  {
+   "wait": 900
+  },
+  {
+   "shot": "delete"
+  }
+ ]
+}
