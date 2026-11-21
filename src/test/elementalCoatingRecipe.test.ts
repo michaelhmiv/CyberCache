@@ -171,8 +171,18 @@ describe('recipe_elemental_coating — catalog presence and costing', () => {
     expect(addedAfter0077).toEqual(['recipe_overclock_serum']);
     const withoutAdded = (rows: Array<Record<string, unknown>>) =>
       rows.filter((r) => ids0077.has(String(r.id)));
+    // Ruling 8 (2026-11-21, PR #646 adoptions): the named relic
+    // recipes gained maxUnits 1 after 0077 (migration 0105) — strip
+    // the field from the TS side before this deep-equal.
+    const stripRelicMaxUnits = (rows: Array<Record<string, unknown>>) =>
+      rows.map((r) => {
+        if (!r.namedRelic) return r;
+        const copy = { ...r };
+        delete copy.maxUnits;
+        return copy;
+      });
     expect(withoutRepriced(catalog as Array<Record<string, unknown>>))
-      .toEqual(withoutAdded(withoutRepriced(tsRecipes)));
+      .toEqual(stripRelicMaxUnits(withoutAdded(withoutRepriced(tsRecipes))));
     expect(MIGRATION_0077).toContain("('ElementalCoating', 75::numeric, 150::numeric)");
     // Provenance + the owner's apply order ride in the header.
     expect(MIGRATION_0077).toContain('chain head = 0073');

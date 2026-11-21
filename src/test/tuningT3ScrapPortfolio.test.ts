@@ -226,7 +226,15 @@ describe('P7 — migration 0087 restates the SQL catalog in sync', () => {
     expect(tsIds.filter((id) => !sqlIds.has(id)).sort()).toEqual(
       [...retiredHelms, ...addedByT6].sort(),
     );
-    const tsLive = JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)) as CatalogRow[];
+    const tsLive = (JSON.parse(JSON.stringify(ALL_CRAFT_RECIPES)) as Array<CatalogRow & { namedRelic?: string; maxUnits?: number }>).map((r) => {
+      // Ruling 8 (2026-11-21, PR #646 adoptions): the named relic
+      // recipes gained maxUnits 1 after 0087 (migration 0105) —
+      // strip the field before this deep-equal.
+      if (!r.namedRelic) return r;
+      const copy = { ...r };
+      delete copy.maxUnits;
+      return copy;
+    });
     expect(catalog0087).toEqual(
       tsLive.filter((r) => !retiredHelms.includes(r.id) && !addedByT6.includes(r.id)),
     );
