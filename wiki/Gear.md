@@ -333,7 +333,9 @@ card showing the totals you gained when it lands. If a settlement
 ever fails, nothing is scrapped — the items come back and a notice
 says so. **Epic & under** asks you to
 confirm first, with the epic count stated. Locked and equipped items
-are always left alone, and **Legendaries are never bulk-scrapped** —
+are always left alone — and so is any gear assigned to a benched
+hunter's saved loadout, even when it is not the set in your hands —
+and **Legendaries are never bulk-scrapped** —
 they are salvaged one at a time from the item's inspect sheet.
 
 **Auto-Salvage Rules** (in Settings) put that same breakdown on

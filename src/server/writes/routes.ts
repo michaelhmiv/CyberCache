@@ -9,7 +9,6 @@
  *   POST /api/ops/quickbuy-quote            verifiedOps.quickbuyQuote           cc_quickbuy_quote(...) — advisory read, no nonce/gate
  *   POST /api/ops/quickbuy-fill             verifiedOps.quickbuyFill            cc_quickbuy_fill(...)
  *   POST /api/ops/vendor-sell               verifiedOps.vendorSell*             cc_vendor_sell(...)
- *   POST /api/ops/claim-crafted-consumable  verifiedOps.claimCraftedConsumable  cc_claim_crafted_consumable(...)
  *   POST /api/ops/consume-consumable        verifiedOps.consumeConsumableItem   cc_consume_consumable(...)
  *   POST /api/ops/recycle-item              verifiedOps.recycleItem             cc_recycle_item(...)
  *   POST /api/ops/reforge-item              verifiedOps.reforgeItem             cc_reforge_item(...)
@@ -34,10 +33,8 @@
  *   POST /api/ops/shieldtech-cancel         verifiedOps.cancelShieldTechJob     cc_shieldtech_job_cancel(...)
  *   POST /api/ops/shieldtech-reclaim        verifiedOps.reclaimShieldTechJob    cc_shieldtech_job_reclaim(...)
  *   GET  /api/shieldtech/board              verifiedOps.fetchShieldTechBoard    cc_settle_shieldtech_jobs_for + board view
- *   POST /api/ops/idle-claim                verifiedOps.claimIdleRewards        cc_idle_claim(nonce)
  *   POST /api/ops/retrain                   verifiedOps.retrainSkills           cc_retrain(nonce)
  *   POST /api/ops/train-skill               verifiedOps.trainSkill              cc_train_skill(...)
- *   POST /api/ops/battle-result             verifiedOps.recordBattleResult      cc_battle_result(...)
  *   POST /api/ops/market-create             verifiedOps.createMarketListing     cc_market_create(...)
  *   POST /api/ops/market-create-consumable  verifiedOps.marketCreateConsumable  cc_market_create_consumable(...)
  *   POST /api/ops/market-create-material    verifiedOps.marketCreateMaterial    cc_market_create_material(...)
@@ -60,6 +57,12 @@
  *   POST /api/profile/mark-reminder-seen    verificationReminderService         cc_mark_reminder_seen()
  *   GET/PUT/DELETE /api/runtime/snapshot    runtimeStoreService                 player_runtime_snapshots (own row)
  *   GET/PUT /api/stats/combat               combatStatsService (B4)             combat_stats (own row; was a direct PostgREST table sync)
+ *
+ * Retired routes (unmounted; every one answers 404):
+ *   POST /api/ops/claim-crafted-consumable  (crafted consumables arrive via timed craft jobs)
+ *   POST /api/ops/idle-claim                (offline rewards settle through the Chef claim path)
+ *   POST /api/ops/battle-result             (boss fights resolve through the Chef boss route)
+ *   POST /api/ops/claim-roaming             (roaming claims go through /api/claim only)
  *
  * Identity rules (hard): the caller's player id comes ONLY from the
  * verified Chef JWT (chefPlayerId). Body player ids are never read — the
@@ -231,7 +234,38 @@ function numField(req: Request, res: Response, field: string, label: string): nu
   return value;
 }
 
-export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthConfig): void {
+export interface WriteRoutesConfig extends AuthConfig {
+  /** Enforce AdMob ad_unit_id format and per-account cooldown on ad-funded ops (enabled in production). */
+  enforceAdPacing?: boolean;
+  now?: () => Date;
+}
+
+const ADMOB_UNIT_RE = /^ca-app-pub-\d{16}\/\d{10}$/;
+const AD_REWARD_COOLDOWN_MS = 25_000;
+
+export function mountWriteRoutes(app: Express, store: WriteStore, config: WriteRoutesConfig): void {
+  const lastAdGrantMs = new Map<string, number>();
+
+  const checkAdGate = (playerId: string, adUnitId: string | null, res: Response): boolean => {
+    if (!config.enforceAdPacing) return true;
+    const clean = (adUnitId ?? '').trim();
+    if (!ADMOB_UNIT_RE.test(clean)) {
+      validation(res, 'A valid rewarded ad unit id is required');
+      return false;
+    }
+    const nowMs = (config.now?.() ?? new Date()).getTime();
+    const prevMs = lastAdGrantMs.get(playerId) ?? 0;
+    if (nowMs - prevMs < AD_REWARD_COOLDOWN_MS) {
+      res.status(429).json({
+        error: 'ad_rate_limited',
+        message: 'Wait for the current ad reward cooldown before claiming another',
+      });
+      return false;
+    }
+    lastAdGrantMs.set(playerId, nowMs);
+    return true;
+  };
+
   const op = (path: string, run: (playerId: string, req: Request, res: Response) => Promise<Json | null>) => {
     app.post(path, async (req, res) => {
       const playerId = caller(config, req, res);
@@ -246,12 +280,17 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   };
 
   op('/api/ops/initial-bundle', async (playerId, req) => store.initialBundle(playerId, str(body(req).nonce)));
-  op('/api/ops/make-item', async (playerId, req) => {
+  op('/api/ops/make-item', async (playerId, req, res) => {
+    const payment = optStr(body(req).payment) ?? 'key';
+    const adUnitId = optStr(body(req).ad_unit_id) ?? null;
+    if (payment.trim().toLowerCase() === 'ad' && !checkAdGate(playerId, adUnitId, res)) {
+      return null;
+    }
     const result = await store.makeItem(
       playerId,
       str(body(req).nonce),
-      optStr(body(req).payment) ?? 'key',
-      optStr(body(req).ad_unit_id) ?? null,
+      payment,
+      adUnitId,
     );
     await recordResultItemDiscoveries(store, playerId, result, 'cache_forge');
     return result;
@@ -316,15 +355,8 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
     validation(res, 'A valid sell kind is required');
     return null;
   });
-  op('/api/ops/claim-crafted-consumable', async (playerId, req) =>
-    store.claimCraftedConsumable(
-      playerId,
-      str(body(req).nonce),
-      str(body(req).recipe_id),
-      str(body(req).item_key),
-      num(body(req).quantity) ?? 1,
-    ),
-  );
+  // NOTE: /api/ops/claim-crafted-consumable (cc_claim_crafted_consumable) was
+  // retired — crafting runs only through timed server jobs (/api/ops/craft-enqueue).
   // Crafting-as-occupation (0024): the server job model. The body
   // carries intent only (bench, recipe, units, rarity, catalyst/rush
   // toggles) — durations, quality bounds, XP and escrow are all
@@ -353,9 +385,11 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
   // ad, attested client-side exactly like the cache lane — the
   // server's controls are the nonce and the bank cap. Guests bank
   // (banking is not transacting; no economy gate on the op).
-  op('/api/ops/bank-bench-time', async (playerId, req) =>
-    store.bankBenchTime(playerId, str(body(req).nonce), optStr(body(req).ad_unit_id) ?? null),
-  );
+  op('/api/ops/bank-bench-time', async (playerId, req, res) => {
+    const adUnitId = optStr(body(req).ad_unit_id) ?? null;
+    if (!checkAdGate(playerId, adUnitId, res)) return null;
+    return store.bankBenchTime(playerId, str(body(req).nonce), adUnitId);
+  });
   // The Workshop state read: settles the player's jobs server-side,
   // then returns benches/tools/jobs/masteries in the one view shape.
   app.get('/api/workshop/me', async (req, res) => {
@@ -592,18 +626,12 @@ export function mountWriteRoutes(app: Express, store: WriteStore, config: AuthCo
       optStr(body(req).item_key) ?? undefined,
     );
   });
-  op('/api/ops/idle-claim', async (playerId, req) => store.idleClaim(playerId, str(body(req).nonce)));
-  // NOTE: /api/ops/claim-roaming (cc_claim_roaming_rewards) was removed
-  // with the ticker's silent fallback — it paid stale flat rates and
-  // existed only as that fallback's engine. Roaming claims go through
-  // the Chef (/api/claim) only. The SQL function remains in the
-  // database (migration 0004) as a deprecated, unrouted remnant.
+  // NOTE: /api/ops/idle-claim (cc_idle_claim), /api/ops/claim-roaming
+  // (cc_claim_roaming_rewards), and /api/ops/battle-result (cc_battle_result)
+  // are retired — roaming/offline/boss rewards go through the Chef routes only.
   op('/api/ops/retrain', async (playerId, req) => store.retrain(playerId, str(body(req).nonce)));
   op('/api/ops/train-skill', async (playerId, req) =>
     store.trainSkill(playerId, str(body(req).nonce), str(body(req).node_id)),
-  );
-  op('/api/ops/battle-result', async (playerId, req) =>
-    store.battleResult(playerId, str(body(req).nonce), str(body(req).target_id), optStr(body(req).stance) ?? 'balanced'),
   );
   op('/api/ops/market-create', async (playerId, req, res) => {
     const itemId = uuidField(req, res, 'item_id', 'item id');
