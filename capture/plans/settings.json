@@ -7,7 +7,7 @@
    "wait": 8000
   },
   {
-   "dump": "(() => document.body.innerText.includes('Options Board') ? 'PRESENT Options Board' : 'ABSENT Options Board')()"
+   "dump": "(() => document.body.innerText.toLowerCase().includes('options board') ? 'PRESENT Options Board' : 'ABSENT Options Board')()"
   },
   {
    "shot": "top"

@@ -30,6 +30,7 @@ import { useInitialBundleRevealStore } from '@/store/slices/initialBundleRevealS
 import { researchStateView, RESEARCH_LEVER_DEFAULTS } from '@/content/research';
 import { cacheRankStateView } from '@/content/cacheRank';
 import { buildStandingStateView } from '@/content/manufacturerStanding';
+import { endlessIntel } from '@/content/endless';
 import type { WorkshopJobView, WorkshopServerView } from '@/store/slices/workshopSlice';
 
 // ── Gear (inspect round's deterministic set) ────────────────────
@@ -419,6 +420,36 @@ export function buildApiBodies() {
   };
   return { research, cacheRank, standing, dispatch };
 }
+
+/** The Chaos Chamber /me body: an active run at depth 6, with the
+ *  intel built by the game's own endlessIntel() — the EndlessPanel
+ *  publishes the run view (ChamberRundown's data) from this. */
+export const ENDLESS_ME = {
+  verified: true,
+  intel: endlessIntel(24, 1),
+  bestDepth: 9,
+  runsStartedToday: 1,
+  recentRuns: [],
+  activeRun: {
+    id: 'run-harness',
+    status: 'active',
+    started_at: new Date(Date.now() - 42 * 60_000).toISOString(),
+    ended_at: null,
+    start_level: 24,
+    risk: 'standard',
+    prepared_consumables: { AmmoPack: 10 },
+    depth_reached: 6,
+    escrow_credits: 18_400,
+    escrow_xp: 9_200,
+    escrow_scrap: 3_100,
+    entry_fee: 240,
+    milestone_drops: [],
+    paid_credits: 0,
+    paid_xp: 0,
+    paid_scrap: 0,
+    payout_fraction: null,
+  },
+};
 
 // ── Store seeds ─────────────────────────────────────────────────
 function seedSession() {

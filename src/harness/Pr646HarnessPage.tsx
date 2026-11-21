@@ -73,9 +73,13 @@ export const Pr646HarnessPage: React.FC = () => {
     // The iOS presentation of the sign-in screen: the real
     // component reads Capacitor's platform at render — present
     // the harness as iOS so the Apple button branch renders.
-    const cap = Capacitor as unknown as Record<string, unknown>;
-    cap.getPlatform = () => 'ios';
-    cap.isNativePlatform = () => true;
+    // ?native=0 skips the patch and captures the web presentation
+    // (where the guest-visibility copy lives).
+    if (params.get('native') !== '0') {
+      const cap = Capacitor as unknown as Record<string, unknown>;
+      cap.getPlatform = () => 'ios';
+      cap.isNativePlatform = () => true;
+    }
     return (
       <div style={{ height: '100vh', background: '#0B0B10' }} data-testid="pr646-harness-root">
         <AuthScreen />

@@ -10,7 +10,7 @@
    "shot": "list"
   },
   {
-   "eval": "(() => { const rows = [...document.querySelectorAll('[data-testid=\"market-list-row\"]')]; const row = rows.find(r => r.textContent.includes('Ricochet Gospel Prime')); if (!row) return 'MISS row'; row.scrollIntoView({block:'center'}); row.click(); return 'clicked target row'; })()"
+   "eval": "(() => { const rows = [...document.querySelectorAll('[data-testid=\"market-list-row\"]')]; const row = rows.find(r => r.textContent.includes('Ricochet Gospel Prime')); if (!row) return 'MISS row'; row.scrollIntoView({block:'center'}); const leaf = [...row.querySelectorAll('*')].find(e => e.children.length === 0 && e.textContent.includes('Ricochet Gospel')); (leaf || row).click(); return 'clicked target row name'; })()"
   },
   {
    "wait": 1600
@@ -19,7 +19,7 @@
    "shot": "inspect"
   },
   {
-   "eval": "(() => { const el = [...document.querySelectorAll('button')].find(b => b.offsetParent !== null && b.textContent.trim().startsWith('Buy')); if (el) { el.scrollIntoView({block:'center'}); el.click(); return 'clicked ~Buy'; } return 'MISS ~Buy'; })()"
+   "eval": "(() => { const els = [...document.querySelectorAll('button')].filter(b => b.offsetParent !== null && b.textContent.trim().startsWith('Buy')); const el = els[els.length - 1]; if (el) { el.click(); return 'clicked last Buy (' + el.textContent.trim() + ')'; } return 'MISS Buy'; })()"
   },
   {
    "wait": 800

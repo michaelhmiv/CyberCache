@@ -7,7 +7,7 @@
    "wait": 8000
   },
   {
-   "dump": "(() => document.body.innerText.includes('Won at') ? 'PRESENT Won at' : 'ABSENT Won at')()"
+   "dump": "(() => document.body.innerText.toLowerCase().includes('won at') ? 'PRESENT Won at' : 'ABSENT Won at')()"
   },
   {
    "shot": "list"
@@ -19,7 +19,7 @@
    "wait": 1600
   },
   {
-   "dump": "(() => document.body.innerText.includes('Win chance') ? 'PRESENT Win chance' : 'ABSENT Win chance')()"
+   "dump": "(() => document.body.innerText.toLowerCase().includes('win chance') ? 'PRESENT Win chance' : 'ABSENT Win chance')()"
   },
   {
    "shot": "sheet"

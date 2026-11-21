@@ -7,7 +7,7 @@
    "wait": 8000
   },
   {
-   "dump": "(() => document.body.innerText.includes('Unit FM-09') ? 'PRESENT Unit FM-09' : 'ABSENT Unit FM-09')()"
+   "dump": "(() => document.body.innerText.toLowerCase().includes('unit fm-09') ? 'PRESENT Unit FM-09' : 'ABSENT Unit FM-09')()"
   },
   {
    "shot": "top"

@@ -13,7 +13,7 @@
    "wait": 1600
   },
   {
-   "dump": "(() => document.body.innerText.includes('Link Google') ? 'PRESENT Link Google' : 'ABSENT Link Google')()"
+   "dump": "(() => document.body.innerText.toLowerCase().includes('link google') ? 'PRESENT Link Google' : 'ABSENT Link Google')()"
   },
   {
    "shot": "guest"
