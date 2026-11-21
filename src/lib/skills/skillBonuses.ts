@@ -58,22 +58,27 @@ export function effectiveSkillPoints(
 ): Record<string, number> {
   const effective: Record<string, number> = { ...spent };
 
-  // nodeBoosts: add directly (Borderlands-style: can exceed maxPoints).
-  for (const [nodeId, boost] of Object.entries(classModBoosts.nodeBoosts ?? {})) {
-    effective[nodeId] = (effective[nodeId] || 0) + boost;
-  }
-
-  // treeBonus: +1 to every node in the tree, capped at maxPoints.
+  // treeBonus: +1 to every SMALL node in the tree, capped at maxPoints.
+  // Applied BEFORE nodeBoosts so dedicated nodeBoosts can still exceed
+  // maxPoints Borderlands-style, and restricted to small nodes so a
+  // Level-1 Common class mod cannot unlock all 5 Majors + Keystone +
+  // Action Skill with zero points invested.
   if (classModBoosts.treeBonus) {
     const treeType = TREE_NAME_MAP[classModBoosts.treeBonus];
     if (treeType) {
-      const treeNodes = SKILL_NODES.filter((n) => n.tree === treeType);
+      const treeNodes = SKILL_NODES.filter((n) => n.tree === treeType && n.type === 'small');
       for (const node of treeNodes) {
         const current = effective[node.id] || 0;
         effective[node.id] = Math.min(node.maxPoints, current + 1);
       }
     }
   }
+
+  // nodeBoosts: add directly AFTER treeBonus (Borderlands-style: can exceed maxPoints).
+  for (const [nodeId, boost] of Object.entries(classModBoosts.nodeBoosts ?? {})) {
+    effective[nodeId] = (effective[nodeId] || 0) + boost;
+  }
+
   return effective;
 }
 

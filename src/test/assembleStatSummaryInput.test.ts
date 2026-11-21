@@ -138,10 +138,10 @@ describe('assembleStatSummaryInput', () => {
     const candidate = classMod('candidate-mod', { treeBonus: 'Gunslinger', nodeBoosts: { gs_dmg_1: 2 } });
     const input = assembleStatSummaryInput(state(), { slot: 'classMod', item: candidate });
     expect(input.classMod?.id).toBe('candidate-mod');
-    // Candidate boosts: gs_dmg_1 nodeBoost +2 (3 spent -> 5) and the
-    // Gunslinger treeBonus +1 capped at maxPoints 5 -> still 5.
-    // The worn mod's scav_idle_1 boost is GONE: 2 spent, no fold.
-    expect(input.spentSkills.gs_dmg_1).toBe(5);
+    // Candidate boosts: Gunslinger treeBonus +1 on gs_dmg_1 (3 -> 4, capped
+    // at maxPoints 5) applied BEFORE nodeBoost +2 -> 6 (Borderlands over-cap
+    // preserved!). The worn mod's scav_idle_1 boost is GONE: 2 spent, no fold.
+    expect(input.spentSkills.gs_dmg_1).toBe(6);
     expect(input.spentSkills.scav_idle_1).toBe(2);
   });
 

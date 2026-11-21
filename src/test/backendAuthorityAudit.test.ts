@@ -10,7 +10,7 @@ describe('backend authority audit', () => {
     // Route B (B4): the client calls the Chef write routes; the
     // canonical cc_* functions live server-side in the write store.
     const verifiedOps = readSource('src/lib/api/verifiedOps.ts');
-    expect(verifiedOps).toContain('/ops/claim-crafted-consumable');
+    expect(verifiedOps).toContain('/ops/craft-enqueue');
     expect(verifiedOps).toContain('/ops/recycle-item');
     expect(verifiedOps).toContain('/ops/market-create');
     expect(verifiedOps).toContain('/ops/market-cancel');
@@ -18,7 +18,7 @@ describe('backend authority audit', () => {
     expect(verifiedOps).toContain('/ops/make-item');
 
     const writeStore = readSource('src/server/writes/store.ts');
-    expect(writeStore).toContain('cc_claim_crafted_consumable');
+    expect(writeStore).toContain('cc_enqueue_craft_job');
     expect(writeStore).toContain('cc_recycle_item');
     expect(writeStore).toContain('cc_market_create');
     expect(writeStore).toContain('cc_market_cancel');

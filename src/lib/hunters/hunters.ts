@@ -119,6 +119,30 @@ export function hunterForTree(tree: SkillTreeType): HunterDef {
   return HUNTERS.find((h) => h.tree === tree) ?? HUNTERS[0];
 }
 
+/** Concise player-facing mechanical summary of a hunter's innate Base Perk. */
+export function hunterBasePerkSummary(hunter: HunterDef): string {
+  const parts: string[] = [];
+  if (hunter.basePerkEffects.critChance) {
+    parts.push(`+${Math.round(hunter.basePerkEffects.critChance * 100)}% Crit`);
+  }
+  if (hunter.basePerkEffects.bossDamageMod) {
+    parts.push(`+${Math.round(hunter.basePerkEffects.bossDamageMod * 100)}% Boss DMG`);
+  }
+  if (hunter.basePerkFloors.staggerChance) {
+    parts.push(`${Math.round(hunter.basePerkFloors.staggerChance * 100)}% Min Stagger`);
+  }
+  if (hunter.basePerkEffects.lootQuantity) {
+    parts.push(`+${Math.round(hunter.basePerkEffects.lootQuantity * 100)}% Loot Qty`);
+  }
+  if (hunter.basePerkEffects.craftSpeedBonus) {
+    parts.push(`+${(hunter.basePerkEffects.craftSpeedBonus * 100).toFixed(1).replace(/\.0$/, '')}% Craft Speed`);
+  }
+  if (hunter.basePerkEffects.craftQualityBonus) {
+    parts.push(`+${hunter.basePerkEffects.craftQualityBonus} Craft Quality`);
+  }
+  return parts.join(' · ');
+}
+
 export function treeForHunter(id: HunterId): SkillTreeType {
   return hunterById(id).tree;
 }

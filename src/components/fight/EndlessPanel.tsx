@@ -460,6 +460,18 @@ export const EndlessPanel: React.FC<{ onLeave: () => void }> = ({ onLeave }) => 
     void handleBankRef.current();
   }, [bankRequests]);
 
+  const advanceRequests = useEndlessRunStore((s) => s.advanceRequests);
+  const seenAdvanceRequestsRef = useRef(advanceRequests);
+  const handleAdvanceRef = useRef(handleAdvance);
+  useEffect(() => {
+    handleAdvanceRef.current = handleAdvance;
+  });
+  useEffect(() => {
+    if (advanceRequests === seenAdvanceRequestsRef.current) return;
+    seenAdvanceRequestsRef.current = advanceRequests;
+    void handleAdvanceRef.current();
+  }, [advanceRequests]);
+
   return (
     <div className="space-y-3" data-testid="endless-panel">
       {/* Header */}

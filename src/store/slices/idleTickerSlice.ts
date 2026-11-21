@@ -191,6 +191,9 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
         killedBy?: { monsterId: string; monsterName: string; areaId: string } | null;
         diedAt?: number | null;
         trickleArmed?: boolean;
+        medKitBuffer?: number;
+        nanoSwarmTicksRemaining?: number;
+        adrenalineActive?: boolean;
       }
     | undefined;
 
@@ -207,14 +210,6 @@ const applyServerRewards = (payload: Record<string, unknown> | undefined) => {
           .catch((e) => void e);
       }
     }
-  }
-
-  // Sync consumable state from Chef
-  const survivalData = payload.survival as
-    | { medKitBuffer?: number; nanoSwarmTicksRemaining?: number; adrenalineActive?: boolean; }
-    | undefined;
-  if (survival && survivalData) {
-    useSurvivalStore.getState().syncFromServer({ ...survival, ...survivalData });
   }
 
   // Store roaming consumable state for next claim
@@ -329,7 +324,7 @@ export const useIdleTickerStore = create<IdleTickerState>()((set, get) => ({
       if (serverTick > totalTickCount) {
         totalTickCount = serverTick;
       }
-      totalTickCount += 1;
+      totalTickCount += ticks;
 
       const playerId = usePlayerStore.getState().id;
       if (!playerId) return;

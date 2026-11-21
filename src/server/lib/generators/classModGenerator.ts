@@ -51,11 +51,15 @@ export function generateClassMod(level: number = 1, externalRng?: () => number, 
   const trees = Object.values(SkillTreeType);
   const treeBonus = trees[seededInt(0, trees.length - 1, rng)];
 
-  // Boost 2-3 random nodes
+  // Boost 2-4 random small nodes belonging to this class mod's own tree.
+  const treeSmallNodeIds = SKILL_NODES
+    .filter((n) => n.type === 'small' && n.tree === treeBonus)
+    .map((n) => n.id);
+  const boostPool = treeSmallNodeIds.length > 0 ? treeSmallNodeIds : SKILL_NODE_IDS;
   const numBoosts = seededInt(2, 4, rng);
   const nodeBoosts: Record<string, number> = {};
   for (let i = 0; i < numBoosts; i++) {
-    const nodeId = SKILL_NODE_IDS[seededInt(0, SKILL_NODE_IDS.length - 1, rng)];
+    const nodeId = boostPool[seededInt(0, boostPool.length - 1, rng)];
     nodeBoosts[nodeId] = seededInt(1, 3, rng);
   }
 

@@ -20,34 +20,52 @@ export type JwksFetcher = () => Promise<{ keys: Record<string, unknown>[] }>;
 const GOOGLE_ISSUERS = new Set(['accounts.google.com', 'https://accounts.google.com']);
 const JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 const CACHE_MS = 60 * 60 * 1000;
+const MISS_REFRESH_COOLDOWN_MS = 60 * 1000;
+const JWKS_FETCH_TIMEOUT_MS = 5000;
 
 let cachedKeys: { fetchedAt: number; keys: Map<string, KeyObject> } | null = null;
+let lastMissRefreshAt = 0;
 
 export const defaultJwksFetcher: JwksFetcher = async () => {
-  const res = await fetch(JWKS_URL);
+  const res = await fetch(JWKS_URL, { signal: AbortSignal.timeout(JWKS_FETCH_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Google JWKS fetch failed: ${res.status}`);
   return (await res.json()) as { keys: Record<string, unknown>[] };
 };
 
-async function keyFor(kid: string, fetcher: JwksFetcher): Promise<KeyObject | null> {
-  if (!cachedKeys || Date.now() - cachedKeys.fetchedAt > CACHE_MS) {
-    const jwks = await fetcher();
-    const keys = new Map<string, KeyObject>();
+async function fetchKeys(fetcher: JwksFetcher): Promise<Map<string, KeyObject>> {
+  const jwks = await fetcher();
+  const keys = new Map<string, KeyObject>();
+  if (jwks && Array.isArray(jwks.keys)) {
     for (const jwk of jwks.keys) {
-      if (typeof jwk.kid === 'string') {
+      if (jwk && typeof jwk.kid === 'string') {
         try {
           keys.set(jwk.kid, createPublicKey({ key: jwk as never, format: 'jwk' }));
         } catch { /* skip unusable key */ }
       }
     }
-    cachedKeys = { fetchedAt: Date.now(), keys };
   }
-  return cachedKeys.keys.get(kid) ?? null;
+  cachedKeys = { fetchedAt: Date.now(), keys };
+  return keys;
+}
+
+async function keyFor(kid: string, fetcher: JwksFetcher): Promise<KeyObject | null> {
+  const now = Date.now();
+  if (!cachedKeys || now - cachedKeys.fetchedAt > CACHE_MS) {
+    await fetchKeys(fetcher);
+  }
+  let found = cachedKeys?.keys.get(kid) ?? null;
+  if (!found && now - lastMissRefreshAt >= MISS_REFRESH_COOLDOWN_MS) {
+    lastMissRefreshAt = now;
+    await fetchKeys(fetcher);
+    found = cachedKeys?.keys.get(kid) ?? null;
+  }
+  return found;
 }
 
 /** Test hook: drop the JWKS cache between cases. */
 export function resetGoogleKeyCache(): void {
   cachedKeys = null;
+  lastMissRefreshAt = 0;
 }
 
 export class GoogleTokenError extends Error {
@@ -71,6 +89,12 @@ export async function verifyGoogleIdToken(
     header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'));
     payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
   } catch {
+    throw new GoogleTokenError('malformed');
+  }
+  if (
+    !header || typeof header !== 'object' || Array.isArray(header) ||
+    !payload || typeof payload !== 'object' || Array.isArray(payload)
+  ) {
     throw new GoogleTokenError('malformed');
   }
   if (header.alg !== 'RS256' || typeof header.kid !== 'string') throw new GoogleTokenError('bad_header');

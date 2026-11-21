@@ -33,7 +33,7 @@ Depth 10 opposition has roughly 1.4× the health and 1.3× the damage of depth 1
 Currency rewards do **not** pay out as you go. Credits, XP, and scrap from each cleared depth accrue into the run's **escrow**, and escrow is paid only when the run ends:
 
 - Per encounter cleared, escrow gains **encounter level × 6 XP**, **encounter level × 22 credits**, and **encounter level × 0.5 scrap** — each growing by an additional **+4% per depth** cleared.
-- **Milestone gear drops are the exception.** Boss-tier depths (every 5th) drop gear that is yours immediately, stored like boss loot at the encounter's level. Its Epic and Legendary weights grow the deeper you are when it drops — but even deep, a milestone Legendary stays rarer than a boss's dedicated-drop rate. The Chamber taxes the bank, never the trophies. And if your weekly [[Leaderboards and Streaks|leaderboard]] drop-luck buff is active, it covers Chamber milestone drops too, exactly as it covers roaming and boss drops.
+- **Milestone gear drops are the exception.** Boss-tier depths (every 5th) drop gear that is yours immediately, stored like boss loot at the encounter's level (clamped at the level cap). Its Epic and Legendary weights grow the deeper you are when it drops — but even deep, a milestone Legendary stays rarer than a boss's dedicated-drop rate. The Chamber taxes the bank, never the trophies. And if your weekly [[Leaderboards and Streaks|leaderboard]] drop-luck buff is active, it covers Chamber milestone drops too, exactly as it covers roaming and boss drops. While a run is live, both **Face Depth** and **Bank & Leave** sit right under the stage in the Chamber rundown so your next decision is never buried.
 
 ## Banking, death, and the tax
 

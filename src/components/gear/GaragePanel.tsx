@@ -393,6 +393,7 @@ const VehicleCard: React.FC<{
   const [kitType, setKitType] = useState<string>('PatchKit');
   const [units, setUnits] = useState(1);
   const [useRush, setUseRush] = useState(false);
+  const [confirmCancelRepair, setConfirmCancelRepair] = useState(false);
   const ownedOfSelected = kitCounts[kitType] ?? 0;
   const unitMs = repairKitUnitDurationMs(
     PATCH_KIT_BASES[kitType] ?? 30,
@@ -619,7 +620,7 @@ const VehicleCard: React.FC<{
         <div className="border-t border-border pt-2 space-y-2">
           <div className="flex justify-between text-[11px]">
             <span className="font-bold text-text-primary">
-              Repair job — {repairJob.repairKitType ?? 'PatchKit'}
+              Repair job — {KIT_LABELS[repairJob.repairKitType ?? 'PatchKit'] ?? repairJob.repairKitType ?? 'Patch Kit'}
             </span>
             <span className="text-text-muted">
               {repairJob.state === 'running' ? 'Working' : repairJob.state === 'queued' ? 'Queued' : 'Paused'}
@@ -641,25 +642,46 @@ const VehicleCard: React.FC<{
               }}
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {repairJob.state !== 'running' && (
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => onWorkRepair(repairJob)}
-                className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
+                className="min-h-[44px] px-3 py-1.5 text-xs font-bold border border-border bg-surface hover:text-amber disabled:opacity-40"
               >
                 Work on it
               </button>
             )}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onCancelRepair(repairJob)}
-              className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
-            >
-              Cancel job
-            </button>
+            {confirmCancelRepair ? (
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => { setConfirmCancelRepair(false); onCancelRepair(repairJob); }}
+                  className="min-h-[44px] px-3 py-1.5 text-xs font-black bg-red text-bg disabled:opacity-40"
+                >
+                  Confirm Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setConfirmCancelRepair(false)}
+                  className="min-h-[44px] px-3 py-1.5 text-xs font-bold border border-border bg-surface disabled:opacity-40"
+                >
+                  Keep Job
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmCancelRepair(true)}
+                className="min-h-[44px] px-3 py-1.5 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
+              >
+                Cancel job
+              </button>
+            )}
           </div>
           {/* Crafting consolidation (2026-11-04): repairs are
               managed at the bench — Home's Craft workspace carries

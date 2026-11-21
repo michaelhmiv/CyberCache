@@ -270,6 +270,11 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
     </ChipRail>
   );
 
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const primaryFacets = facets.filter((f) => f.key === 'rarity' || f.key === 'element');
+  const secondaryFacets = facets.filter((f) => f.key !== 'rarity' && f.key !== 'element');
+  const secondaryActiveCount = secondaryFacets.reduce((sum, f) => sum + (activeFacets[f.key]?.size ?? 0), 0);
+
   const header = (
     <>
       {/* Search bar */}
@@ -290,10 +295,13 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
         )}
       </div>
 
-      {/* Filter chips */}
-      <div className="space-y-1.5">{facets.map(renderChipRow)}</div>
+      {/* Primary filter chips (secondary facets fold behind Filters toggle) */}
+      <div className="space-y-1.5">
+        {primaryFacets.map(renderChipRow)}
+        {showMoreFilters && secondaryFacets.map(renderChipRow)}
+      </div>
 
-      {/* Sort + clear row */}
+      {/* Sort + filters + clear row */}
       <div className="flex items-center justify-between gap-2 pt-0.5">
         <div className="flex items-center gap-1.5">
           <ArrowUpDown size={11} className="text-text-muted" />
@@ -307,6 +315,20 @@ export const SlotGearPicker: React.FC<SlotGearPickerProps> = ({
               <option key={opt.key} value={opt.key}>{opt.label}</option>
             ))}
           </select>
+          {secondaryFacets.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowMoreFilters((v) => !v)}
+              className={`border px-2 py-0.5 text-[11px] font-black uppercase ${
+                showMoreFilters || secondaryActiveCount > 0
+                  ? 'border-amber/60 bg-amber/10 text-amber'
+                  : 'border-border/50 bg-bg/50 text-text-muted'
+              }`}
+              style={chipClip}
+            >
+              Filters{secondaryActiveCount > 0 ? ` (${secondaryActiveCount})` : ''}
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {hasActiveFilters && (

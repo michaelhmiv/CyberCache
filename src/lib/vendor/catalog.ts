@@ -162,16 +162,48 @@ export function vendorRotationForDate(dateKey: string): VendorRotation {
   return { dateKey, consumables, materials, itemOfTheDay };
 }
 
-/** Base (undiscounted) vendor price for any catalog item, or null. */
+/** True when a gear payload was Workshop-crafted (`origin: 'crafted'`). */
+export function isCraftedGearPayload(payload: Record<string, unknown> | null | undefined): boolean {
+  return Boolean(payload && payload.origin === 'crafted');
+}
+
+/** True when a gear payload is one of the named workshop craft relics (e.g., Reclaimer Head). */
+export function isCraftedNamedRelicPayload(payload: Record<string, unknown> | null | undefined): boolean {
+  if (!payload || payload.origin !== 'crafted') return false;
+  const name = typeof payload.name === 'string' ? payload.name : '';
+  return (
+    name === 'Precision Calipers' ||
+    name === 'Servo Bench Rig' ||
+    name === 'Reclaimer Head' ||
+    name === 'Prime Laboratory'
+  );
+}
+
+/** Vendor value caps on Workshop-crafted gear so fixed-cost recipes
+ *  (e.g., Reclaimer Head, gear frames) can never print credits at L50-L100. */
+export const CRAFTED_RELIC_MAX_VENDOR_VALUE = 250;
+export const CRAFTED_GEAR_MAX_VENDOR_VALUE = 500;
+
+/** Base (undiscounted) vendor price for any catalog item, or null.
+ *  Matches SQL cc_vendor_catalog: excludes vendorExcluded crafted-only consumables. */
 export function vendorBasePrice(itemKey: string): number | null {
   const def = CONSUMABLE_BY_ID.get(itemKey);
-  if (def) return def.market.vendorPrice;
+  if (def) {
+    if (def.market.vendorExcluded) return null;
+    if (!def.market.vendorStocked && !def.market.playerMarketAllowed) return null;
+    return def.market.vendorPrice;
+  }
   return MATERIAL_BY_ID.get(itemKey)?.unitPrice ?? null;
 }
 
 /** Catalog kind for an item key, or null when the vendor ignores it. */
 export function vendorItemKind(itemKey: string): VendorItemKind | null {
-  if (CONSUMABLE_BY_ID.has(itemKey)) return 'consumable';
+  const def = CONSUMABLE_BY_ID.get(itemKey);
+  if (def) {
+    if (def.market.vendorExcluded) return null;
+    if (!def.market.vendorStocked && !def.market.playerMarketAllowed) return null;
+    return 'consumable';
+  }
   const material = MATERIAL_BY_ID.get(itemKey);
   if (material) return material.kind;
   return null;
@@ -296,5 +328,12 @@ export function computeItemEstimatedValue(
     const affixCount = Array.isArray(payload.affixes) ? payload.affixes.length : 0;
     bonus = affixCount * 40 * mult;
   }
-  return Math.floor(base + bonus);
+  const raw = Math.floor(base + bonus);
+  if (isCraftedGearPayload(payload)) {
+    const cap = isCraftedNamedRelicPayload(payload)
+      ? CRAFTED_RELIC_MAX_VENDOR_VALUE
+      : CRAFTED_GEAR_MAX_VENDOR_VALUE;
+    return Math.min(raw, cap);
+  }
+  return raw;
 }

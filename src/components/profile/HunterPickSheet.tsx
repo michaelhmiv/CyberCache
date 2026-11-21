@@ -31,7 +31,7 @@
  */
 import React, { useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { HUNTERS, type HunterDef } from '@/lib/hunters/hunters';
+import { HUNTERS, hunterBasePerkSummary, type HunterDef } from '@/lib/hunters/hunters';
 import { getSkillTreeVisual } from '@/constants/skillTreeVisuals';
 import { getPixelSprite, pixelHunterSpriteForHunter } from '@/lib/pixel/manifest';
 import { fieldHunter } from '@/lib/hunters/fieldHunter';
@@ -76,7 +76,7 @@ export const HunterPickSheet: React.FC<HunterPickSheetProps> = ({ onPicked, onCl
       aria-label="Choose your hunter"
       data-testid="hunter-pick-sheet"
     >
-      <div className="w-full max-w-md space-y-2">
+      <div className="max-h-[92vh] w-full max-w-md space-y-2 overflow-y-auto">
         <div className="relative px-3.5 pb-3 pt-2.5" style={plateShell}>
           <Bolts />
           <div className="text-[17px] font-black uppercase tracking-wide" style={{ color: BONE }}>
@@ -119,6 +119,9 @@ export const HunterPickSheet: React.FC<HunterPickSheetProps> = ({ onPicked, onCl
                   </span>
                   <div className="mt-0.5 text-[11px] font-black uppercase tracking-wide" style={{ color: visual.color }}>
                     {String(hunter.tree)} · {hunter.basePerkName}
+                  </div>
+                  <div className="mt-0.5 text-[11px] font-bold" style={{ color: BONE }}>
+                    {hunterBasePerkSummary(hunter)}
                   </div>
                 </div>
                 <span

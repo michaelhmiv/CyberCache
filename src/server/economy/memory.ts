@@ -314,13 +314,18 @@ export class InMemoryEconomyStore implements EconomyStore {
     // The bundle fold counts grants x the shipped +500, mirroring
     // minted_other's 5000 x grants for the bundle's credits (the
     // bundle result carries no scrap field).
+    // cc_recycle_batch writes N individual cc_recycle_item rows plus one
+    // summary cc_recycle_batch row — summing both double-counted 100% of
+    // batch-salvaged Scrap. Count cc_recycle_item only.
     const scrapMintedSalvage =
-      sumBy(['cc_recycle_item', 'cc_recycle_batch'], (p) => num(dig(p, 'scrap_award')))
+      sumBy(['cc_recycle_item'], (p) => num(dig(p, 'scrap_award')))
       + sumBy(['cc_apply_boss_attempt'], (p) => num(dig(p, 'scrap_awarded')));
-    const scrapMintedRoaming = sumBy(
-      ['cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards'],
-      (p) => num(dig(p, 'rewards', 'scrap_awarded')),
-    );
+    const scrapMintedRoaming =
+      sumBy(
+        ['cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards'],
+        (p) => num(dig(p, 'rewards', 'scrap_awarded')) + num(dig(p, 'rewards', 'materials_awarded', 'Scrap')),
+      )
+      + sumBy(['cc_apply_extraction'], (p) => num(dig(p, 'finds_materials', 'Scrap')));
     const scrapMintedDispatch = sumBy(['cc_dispatch_settle'], (p) =>
       num(dig(p, 'payout', 'scrap')));
     const scrapMintedEndless =
@@ -351,17 +356,18 @@ export class InMemoryEconomyStore implements EconomyStore {
       }
     }
     const scrapDestroyedCrafting = Math.max(0, scrapCraftNet);
-    // Contract-reroll destruction joins the scrap total exactly as
-    // in SQL. (This twin's row does not surface the contracts
-    // breakouts — a pre-existing gap — but the fold itself is part
-    // of the total's definition and is computed here regardless.)
+    // Contract-reroll destruction and market cancel deposit burns (0087)
+    // join the scrap total.
     const scrapDestroyedContractRerolls = sumBy(['cc_reroll_contract'], (p) =>
       num(dig(p, 'scrap_charged')));
+    const scrapDestroyedMarketCancelDeposits = sumBy(['cc_cancel_listing'], (p) =>
+      num(dig(p, 'deposit_forfeited_scrap')));
     const scrapMintedTotal =
       scrapMintedSalvage + scrapMintedRoaming + scrapMintedDispatch
       + scrapMintedEndless + scrapMintedBundle;
     const scrapDestroyedTotal =
-      scrapDestroyedCrafting + scrapDestroyedReforge + scrapDestroyedContractRerolls;
+      scrapDestroyedCrafting + scrapDestroyedReforge + scrapDestroyedContractRerolls
+      + scrapDestroyedMarketCancelDeposits;
 
     // Extraction meters (0033): passes + XP from the
     // cc_apply_extraction ledger payloads; the mint map folds the
@@ -454,15 +460,21 @@ export class InMemoryEconomyStore implements EconomyStore {
 
     const creditsMintedVendorBuyback = sumBy(['cc_vendor_sell'], (p) =>
       num(dig(p, 'total_payout')));
+    const creditsMintedContracts = sumBy(['cc_claim_contract_reward'], (p) =>
+      num(dig(p, 'reward', 'credits')) + num(dig(p, 'credits_awarded')));
+    const repairFeesDestroyed = sumBy(['cc_complete_service_job'], (p) =>
+      num(dig(p, 'fee_credits')));
+    const shieldtechFeesDestroyed = sumBy(['cc_complete_shieldtech_job'], (p) =>
+      num(dig(p, 'fee_credits')));
     const creditsMintedTotal =
       creditsMintedRoaming + creditsMintedBoss + creditsMintedOffline + creditsMintedOther
       + creditsMintedVendorBuyback + endlessCreditsPaid + creditsMintedDispatch + creditsMintedCourier
-      + creditsMintedLoginStreak;
+      + creditsMintedLoginStreak + creditsMintedContracts;
     const creditsDestroyedTotal =
       creditsDestroyedMarketFees + creditsDestroyedVendor + creditsDestroyedResurrection
       + creditsDestroyedRespec + creditsDestroyedBossEntryFees + creditsDestroyedBossDeathFees
       + endlessFeesDestroyed + researchCreditsDestroyed + standingCreditsDestroyed
-      + creditsDestroyedDispatchRerolls;
+      + creditsDestroyedDispatchRerolls + repairFeesDestroyed + shieldtechFeesDestroyed;
 
     const row: EconomyMetricsRow = {
       day,

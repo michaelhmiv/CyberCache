@@ -71,43 +71,11 @@ const ConsoleHead: React.FC<{ state: CacheRankStateView }> = ({ state }) => {
   const spent = state.tokensEarned - state.tokens;
   return (
     <Panel>
-      <div className="flex items-start gap-3">
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center"
-          style={{
-            border: `1px solid ${STEEL_DARK}`,
-            backgroundColor: 'rgba(6,5,4,0.85)',
-            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.85)',
-            color: GOLD,
-          }}
-        >
-          <PxIcon name="chevs" size={26} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="uppercase leading-none" style={{ ...headStyle, fontSize: 24, color: INK }}>
-            Cache Rank
-          </div>
-          <div className="mt-1.5 text-[11px] font-semibold leading-snug" style={{ color: MUT }}>
-            Permanent bonuses, paid in tokens. Tokens come from levels only — there is no respec.
-          </div>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
-          <Led lit color={GOLD} size={8} />
-          <span
-            className="text-[11px] font-bold uppercase leading-none"
-            style={{ ...monoStyle, color: FAINT, letterSpacing: '0.1em' }}
-          >
-            Grants
-            <br />
-            auto
-          </span>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-4 gap-1.5">
-        <LcdWell value={String(state.tokens)} label="Tokens" color={GOLD} valueSize={24} />
-        <LcdWell value={String(state.level)} label="Level" valueSize={24} />
-        <LcdWell value={String(state.tokensEarned)} label="Earned" valueSize={24} />
-        <LcdWell value={String(spent)} label="Spent" valueSize={24} />
+      <div className="grid grid-cols-4 gap-1.5">
+        <LcdWell value={String(state.tokens)} label="Tokens" color={GOLD} valueSize={22} />
+        <LcdWell value={String(state.level)} label="Level" valueSize={22} />
+        <LcdWell value={String(state.tokensEarned)} label="Earned" valueSize={22} />
+        <LcdWell value={String(spent)} label="Spent" valueSize={22} />
       </div>
     </Panel>
   );
@@ -473,15 +441,36 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
     });
   }, []);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadCacheRank = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const result = await getCacheRankState();
+      applyState(result.cacheRank);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Unable to load Cache Rank right now.');
+    } finally {
+      setLoading(false);
+    }
+  }, [applyState]);
+
   useEffect(() => {
     let cancelled = false;
     getCacheRankState()
       .then((result) => {
-        if (!cancelled) applyState(result.cacheRank);
+        if (cancelled) return;
+        applyState(result.cacheRank);
+        setLoadError(null);
       })
-      .catch(() => {
-        // Chef unreachable: the panel stays hidden (Profile renders
-        // the rest from its own services).
+      .catch((err) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : 'Unable to load Cache Rank right now.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -512,17 +501,39 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
     [applyState, busyTrack, state],
   );
 
-  if (!state) return null;
+  if (!state) {
+    if (loadError) {
+      return (
+        <Panel>
+          <div className="space-y-2 py-2">
+            <div className="text-xs font-black uppercase tracking-wide text-red">Cache Rank unavailable</div>
+            <div className="text-[11px] font-semibold" style={{ color: MUT }}>{loadError}</div>
+            <button
+              type="button"
+              onClick={() => void loadCacheRank()}
+              className="bl-secondary min-h-[44px] px-4 py-2 text-xs font-black uppercase text-amber"
+            >
+              Retry
+            </button>
+          </div>
+        </Panel>
+      );
+    }
+    return loading ? (
+      <Panel>
+        <div className="py-4 text-center text-xs font-bold uppercase tracking-wider" style={{ color: MUT }}>
+          Loading Cache Rank…
+        </div>
+      </Panel>
+    ) : null;
+  }
 
   return (
     <div className="space-y-3">
       <ConsoleHead state={state} />
-      <ChargeGauge state={state} />
-      {/* Bonus channels — the spending surface — lead the tape
-          (first-screen lift, 2026-11-17): the Milestone Tape is
-          informational and used to seat the channels ~570px down,
-          with Thick Skin below the fold. Channels now follow the
-          charge gauge directly; the tape rides below them. */}
+      {/* Bonus channels — the primary spending surface — follow the
+          compact token readout immediately so 5-6 tracks sit above the
+          fold; the charge gauge and milestone tape sit below them. */}
       <div className="px-0.5 pt-1">
         <PanelLabel label="Bonus channels" right="7 TRACKS · 30 TOK TO MAX ONE" />
       </div>
@@ -541,6 +552,7 @@ export const CacheRankPanel: React.FC<{ readOnly?: boolean }> = ({ readOnly = fa
         />
       ))}
       {error && <div className="text-[11px] font-bold text-red">{error}</div>}
+      <ChargeGauge state={state} />
       <MilestoneTape state={state} />
       <OutputBank state={state} />
       {readOnly && (

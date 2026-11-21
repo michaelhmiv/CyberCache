@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
 import { statToneRailClass, statToneTextClass } from '@/components/stats/statToneStyles';
 import { useActivityStore, useEndlessRunStore, useLoadoutStore, usePlayerStore, useSurvivalStore } from '@/store';
@@ -33,7 +34,14 @@ import { HeroBuffLine } from './HeroRundown';
  */
 
 function useVitalsModel(): HeroRundownModel {
-  const survival = useSurvivalStore();
+  const survival = useSurvivalStore(
+    useShallow((s) => ({
+      currentHp: s.currentHp,
+      maxHp: s.maxHp,
+      shieldHp: s.shieldHp,
+      isDead: s.isDead,
+    })),
+  );
   const playerLevel = usePlayerStore((s) => s.level);
   const shieldHp = useLoadoutStore((s) => s.getShield()?.hp ?? 0);
   const { summary, snapshot, weapons, primary, skillBonuses } = useCharacterStatSummary(null);
@@ -46,12 +54,7 @@ function useVitalsModel(): HeroRundownModel {
         weapons,
         primary,
         skillBonuses,
-        survival: {
-          currentHp: survival.currentHp,
-          maxHp: survival.maxHp,
-          shieldHp: survival.shieldHp,
-          isDead: survival.isDead,
-        },
+        survival,
         bossContext: false,
       }),
     [summary, snapshot, weapons, primary, skillBonuses, survival],
@@ -91,6 +94,7 @@ export const ChamberRundown: React.FC = () => {
   const kind = useActivityStore((s) => s.current.kind);
   const run = useEndlessRunStore((s) => s.view);
   const requestBank = useEndlessRunStore((s) => s.requestBank);
+  const requestAdvance = useEndlessRunStore((s) => s.requestAdvance);
   const vitals = useVitalsModel();
 
   if (!run) return null;
@@ -133,13 +137,22 @@ export const ChamberRundown: React.FC = () => {
         <span className="text-text-muted"> · Lv.{next.level} {next.kind === 'boss' ? 'boss' : 'pack'} · best depth {run.bestDepth}</span>
       </div>
       <VitalsLine model={vitals} />
-      <div className="border-t border-border/60 px-2 py-2">
+      <div className="grid grid-cols-2 gap-2 border-t border-border/60 px-2 py-2">
+        <button
+          type="button"
+          data-testid="chamber-advance"
+          onClick={requestAdvance}
+          disabled={run.busy}
+          className="bl-primary min-h-[48px] px-3 text-[11px] font-black uppercase tracking-wider disabled:opacity-50"
+        >
+          {run.busy ? 'Resolving…' : `Face Depth ${nextDepth}`}
+        </button>
         <button
           type="button"
           data-testid="chamber-bank"
           onClick={requestBank}
           disabled={run.busy}
-          className="bl-primary min-h-[48px] w-full px-4 text-[11px] font-black uppercase tracking-wider disabled:opacity-50"
+          className="bl-secondary min-h-[48px] px-2.5 text-[11px] font-black uppercase tracking-wider disabled:opacity-50"
         >
           Bank &amp; Leave — {run.escrowCredits.toLocaleString()} cr · {run.escrowXp.toLocaleString()} XP · {run.escrowScrap.toLocaleString()} scrap
         </button>

@@ -90,7 +90,7 @@ describe('market-cancel lock pairing (audit A-14)', () => {
   it('client: the Cancel button no longer routes through guardTransact; buy/sell still do', () => {
     const src = readFileSync(resolve(process.cwd(), 'src/screens/MarketScreen.tsx'), 'utf8');
     expect(src).not.toContain("guardTransact('cancel a listing'");
-    expect(src).toContain('onClick={() => void handleCancelListing(listing)}');
+    expect(src).toContain('void handleCancelListing(listing)');
     expect(src).toContain("guardTransact('buy'");
     expect(src).toContain("guardTransact('sell'");
   });

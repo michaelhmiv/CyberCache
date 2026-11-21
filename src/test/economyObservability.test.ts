@@ -396,16 +396,18 @@ describe('scrap meters — attribution (0071)', () => {
     const store = new InMemoryEconomyStore(scrapSeededDay());
     const m = await store.computeMetricsForDay(SCRAP_DAY);
     expect(m.scrapMintedRoaming).toBe(207); // 120 + 80 + 7
-    expect(m.scrapMintedSalvage).toBe(235); // 35 + 140 + 60
+    // cc_recycle_batch is a summary row over individual cc_recycle_item rows
+    // and must NOT be summed alongside cc_recycle_item (no 2x double-count).
+    expect(m.scrapMintedSalvage).toBe(95); // 35 + 60
     expect(m.scrapMintedDispatch).toBe(45);
     expect(m.scrapMintedEndless).toBe(43); // 33 + 10 abandoned
     expect(m.scrapMintedBundle).toBe(1000); // 2 grants x 500
-    expect(m.scrapMintedTotal).toBe(1530);
+    expect(m.scrapMintedTotal).toBe(1390);
     // Crafting: 100 escrow + 25 tint escrow − 40 cancel refund.
     expect(m.scrapDestroyedCrafting).toBe(85);
     expect(m.scrapDestroyedReforge).toBe(105);
     expect(m.scrapDestroyedTotal).toBe(290); // 85 + 105 + 100
-    expect(m.netScrapChange).toBe(1240);
+    expect(m.netScrapChange).toBe(1100);
     // The materials jsonb fold keeps its shipped scope: enqueue
     // escrows net of refunds, WITHOUT the tint leg — Scrap 60 +
     // BallisticParts 5 here, against the scalar column's 85. The

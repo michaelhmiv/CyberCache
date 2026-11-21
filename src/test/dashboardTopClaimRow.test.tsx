@@ -362,7 +362,7 @@ describe('Claim row — icon-only, one line, every state (owner ruling 2026-11-0
     expect(cacheButton.getAttribute('aria-label')).toBe('Cache — 3 cache keys held. Opens the cache chest.');
     expect(offlineButton.getAttribute('aria-label')).toContain('nothing waiting');
     expect(streakButton.getAttribute('aria-label')).toContain('Daily streak — day 1');
-    expect(contractsButton.getAttribute('aria-label')).toContain('sign in with Google');
+    expect(contractsButton.getAttribute('aria-label')).toContain('sign in to claim rewards');
 
     // DATA stays: the bubble is the CACHE key's only text —
     // the true count, a real child of the button.

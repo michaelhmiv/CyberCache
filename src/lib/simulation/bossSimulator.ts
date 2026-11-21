@@ -3,7 +3,7 @@ import { type Weapon, type Shield, type Ordnance, type ClassMod, type Relic } fr
 import { Element, Manufacturer, RiskSetting, WeaponType } from '../../types/game';
 import { getElementMatchup } from '../../constants/elements';
 import { CONSUMABLES, type ConsumableDef, getConsumableRuntimeEffects } from '../../constants/consumables';
-import { applyLegendaryEffects, applyBadDecisionBonus, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
+import { applyLegendaryEffects, getHotSwapperSecondaryMult, getInsuranceFraudRefundChance } from '../legendaryEffects';
 import { computeEffectiveCritChance, computeWeaponDps } from '../stats/dpsChain';
 import { computeCanonicalMaxHp } from '../combat/damageContract';
 import {
@@ -80,11 +80,15 @@ export interface BossSimulationInput {
   skillBonuses: Record<string, number>;
   pityCount?: number;
   playerCredits?: number;
+  /** Lifetime enemy kill count used by the_accountant legendary effect. */
+  enemyKillCount?: number;
 }
 
 export interface BossSimulationOutput extends BossPrepAnalysis {
   winChance: number;
   survivalScore: number;
+  /** Pre-consumable survival score (excluding MedKit/ShieldCell/NanoSwarm healing), used to evaluate ifUsed consumption honestly. */
+  baseSurvivalScore: number;
   breakScore: number;
   dpsScore: number;
   mechanicScore: number;
@@ -636,7 +640,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // (src/lib/legendaryEffects.ts) and in MECHANICS.md §1. Effects with
   // real economy hooks (second_opinion, salvage_rights, market_crash,
   // jackpot) are implemented in the Chef / Postgres appliers, not here.
-  const legendary = applyLegendaryEffects(primary, pityCount);
+  const legendary = applyLegendaryEffects(primary, pityCount, input.enemyKillCount ?? 0);
 
   // Adaptive Plating (Mnemosyne Mirror, boss roster expansion): the
   // boss attunes to the PRIMARY weapon's element — it is struck from
@@ -739,7 +743,9 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
   // pool statement and was deliberately left out of the canonical
   // pool unification; the pool it starts from (playerHP +
   // playerShieldHP) is the canonical one.
-  let totalSurvival = (playerHP + playerShieldHP + medkitHealing + shieldCellBoost + nanoSwarmRepair) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
+  const consumableHealingTotal = medkitHealing + shieldCellBoost + nanoSwarmRepair;
+  const baseSurvivalRatio = (playerHP + playerShieldHP) / Math.max(1, playerHP + playerShieldHP + consumableHealingTotal);
+  let totalSurvival = (playerHP + playerShieldHP + consumableHealingTotal) * rm.survivalMult * legendary.survivalMult * (1 + (skillBonuses.survival || 0));
 
   // Shield mitigation: % damage reduction effectively multiplies the survival pool.
   // Capped at 80% mitigation (i.e., max 5× effective HP multiplier).
@@ -1039,12 +1045,15 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     ordnanceFlatDamage = ordnance.damage * Math.max(1, grenades);
   }
 
-  // Ordnance element matchup: modifies shield/armor break (Phase 5b).
+  // Ordnance element matchup: modifies shield/armor break against their respective bars (Phase 5b).
   if (ordnance && ordnance.element) {
-    const ordElemMatch = getElementMatchup(ordnance.element, 'shield');
-    if (ordElemMatch !== 1) {
-      ordnanceShieldBreak += ordnance.shieldDamage * grenades * (ordElemMatch - 1);
-      ordnanceArmorBreak += ordnance.armorDamage * grenades * (ordElemMatch - 1);
+    const ordShieldMatch = getElementMatchup(ordnance.element, 'shield');
+    if (ordShieldMatch !== 1) {
+      ordnanceShieldBreak += ordnance.shieldDamage * grenades * (ordShieldMatch - 1);
+    }
+    const ordArmorMatch = getElementMatchup(ordnance.element, 'armor');
+    if (ordArmorMatch !== 1) {
+      ordnanceArmorBreak += ordnance.armorDamage * grenades * (ordArmorMatch - 1);
     }
   }
 
@@ -1262,7 +1271,7 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     [primary, secondary, heavy].some((weapon) => weapon && effectiveWeaknesses.includes(weapon.element))
       ? (skillBonuses.weaknessMatchDamage || 0)
       : 0;
-  const effectiveCritChance = computeEffectiveCritChance(primary, skillBonuses, consumableCritBonus);
+  const effectiveCritChance = computeEffectiveCritChance(primary, skillBonuses, consumableCritBonus + classModCritChance);
   const highCritBonus = effectiveCritChance > 0.5 ? (skillBonuses.highCritBossDamage || 0) : 0;
   dps *= rm.dpsMult * (1 + (skillBonuses.dps || 0)) * (1 + (skillBonuses.cacheRankDamageBonus || 0)) * (1 + (skillBonuses.bossDamageMod || 0) + relicBossDmgMod + classModBossDmgMod + focusFireBonus + weaknessMatchBonus + highCritBonus) * classModDpsMult;
 
@@ -1283,24 +1292,26 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
         : `Deadeye Salvo: the burst burns ${Math.round(actionSkillFlatDamage)} health outright.`,
     );
   }
-  const netBossHp = Math.max(1, boss.health - ordnanceFlatDamage - (bossShieldModel?.novaDamage ?? 0) - actionSkillFlatDamage);
+  const flatBurstDamage = ordnanceFlatDamage + (bossShieldModel?.novaDamage ?? 0) + actionSkillFlatDamage;
+  const remainingBossHp = Math.max(0, boss.health - flatBurstDamage);
+  const netBossHp = Math.max(1, remainingBossHp);
 
   // Speedloader (Gunslinger major, Phase 2d): attack speed is boosted
   // for the first 10 seconds of the fight. The boost's fight-average
   // weight is the share of the kill time inside that window, priced
   // off the un-boosted time to kill.
   const openingAttackSpeed = skillBonuses.openingAttackSpeed || 0;
-  let timeToKill = netBossHp / (dps || 1);
+  let timeToKill = dps > 0 ? netBossHp / dps : remainingBossHp === 0 ? 1 : netBossHp;
   if (openingAttackSpeed > 0 && dps > 0) {
     const openingShare = Math.min(10, timeToKill) / timeToKill;
     dps *= 1 + openingAttackSpeed * openingShare;
-    timeToKill = netBossHp / (dps || 1);
+    timeToKill = netBossHp / dps;
     reasons.push(
       `Speedloader: +${Math.round(openingAttackSpeed * 100)}% attack speed for the first 10 seconds (about ${Math.round(openingShare * 100)}% of this fight).`,
     );
   }
 
-  let dpsScore = 30 / timeToKill;
+  let dpsScore = dps > 0 ? 30 / timeToKill : remainingBossHp === 0 ? 1.5 : 0;
 
   // Death by a Thousand Cuts (Gunslinger keystone, Phase 2d): crits
   // count extra toward the DPS CHECK SCORE — the crit-attributable
@@ -1458,9 +1469,11 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     mechanicScore = 1;
   }
 
+  const baseSurvivalScore = effectiveSurvivalScore * baseSurvivalRatio;
+
   if (rules.recommendationIntel > 0) {
     const weakest = [
-      { label: 'survival', score: survivalScore },
+      { label: 'survival', score: effectiveSurvivalScore },
       { label: 'break', score: breakScore },
       { label: 'DPS', score: dpsScore },
       { label: 'mechanic', score: mechanicScore },
@@ -1519,12 +1532,17 @@ export function simulateBoss(input: BossSimulationInput): BossSimulationOutput {
     consumablesAtRisk,
     riskSummary: getRiskSummary(risk),
     survivalScore: effectiveSurvivalScore,
+    baseSurvivalScore,
     breakScore,
     dpsScore,
     mechanicScore,
     reasons: unique(reasons),
     recommendations: unique(recommendations),
-    expectedConsumableUsage: getBossConsumableUsage(consumables, winChance >= 0.5, effectiveSurvivalScore),
+    expectedConsumableUsage: getBossConsumableUsage(
+      consumables,
+      winChance >= 0.5,
+      Math.min(effectiveSurvivalScore, baseSurvivalScore),
+    ),
     deathFee,
     bonusLootChance: rules.bonusLootChance,
     extraLootRollChance: rules.extraLootRollChance,
@@ -1550,7 +1568,7 @@ export function executeBossAttempt(
 ): { result: BossAttemptResult; creditsDelta: number; loot: Weapon[]; consumedConsumables: Record<string, number>; extraLoot: boolean; bonusLootRolls: number } {
   const sim = simulateBoss(input);
   const rules = getRuleTotals(input.consumables, input.consumableQuality);
-  const legendary = applyLegendaryEffects(input.primary, input.pityCount || 0);
+  const legendary = applyLegendaryEffects(input.primary, input.pityCount || 0, input.enemyKillCount ?? 0);
   // Apply chaos/RNG in actual combat (not in preview)
   const chaosRoll = (Math.random() - 0.5) * 0.1 + (input.risk === 'Conservative' ? -0.02 : input.risk === 'Greedy' ? 0.02 : input.risk === 'AllIn' ? 0.04 : 0);
   const adjustedChance = Math.max(0.02, Math.min(0.98, sim.winChance + chaosRoll));
@@ -1566,8 +1584,8 @@ export function executeBossAttempt(
   const deathFeeCap = input.boss.tier <= 1 ? 2500 : input.boss.tier <= 2 ? 10000 : input.boss.tier <= 3 ? 25000 : 50000;
   const deathFee = win ? 0 : Math.min(Math.round(playerCredits * deathFeePercent), deathFeeCap);
 
-  const creditsDelta = win ? Math.round(input.boss.level * 150 * legendary.creditMult) : -deathFee;
-  const finalCredits = applyBadDecisionBonus(creditsDelta, input.primary);
+  // bad_decision's 1.25x credit bonus is already included in legendary.creditMult.
+  const finalCredits = win ? Math.round(input.boss.level * 150 * legendary.creditMult) : -deathFee;
   const projectedPhase = sim.projectedFailurePhase;
 
   // Determine phase of failure if lost
@@ -1581,8 +1599,12 @@ export function executeBossAttempt(
     bossHpRemaining = Math.round((1 - Math.random() * 0.6) * 100);
   }
 
-  const consumedConsumables = getBossConsumableUsage(input.consumables, win, sim.survivalScore);
-  const insuranceRefundChance = getInsuranceFraudRefundChance(input.primary);
+  const consumedConsumables = getBossConsumableUsage(
+    input.consumables,
+    win,
+    Math.min(sim.survivalScore, sim.baseSurvivalScore),
+  );
+  const insuranceRefundChance = !win ? getInsuranceFraudRefundChance(input.primary) : 0;
   if (insuranceRefundChance > 0) {
     Object.keys(consumedConsumables).forEach((type) => {
       if (Math.random() < insuranceRefundChance) {
@@ -1630,7 +1652,7 @@ export function executeBossAttempt(
     // Client-side twin only — entry fees are a Chef/route concern (the
     // authoritative path charges them in processBossAttempt).
     entryFee: 0,
-    creditsGained: win ? creditsDelta : 0,
+    creditsGained: win ? finalCredits : 0,
     creditsLost: win ? 0 : deathFee,
     loot: [],
     reasons: unique(resultReasons),

@@ -207,8 +207,15 @@ describe('scrap merge — migration 0069 pins', () => {
     expect(addedAfter0077).toEqual(['recipe_overclock_serum']);
     const withoutAdded = (rows: Array<Record<string, unknown>>) =>
       rows.filter((r) => ids0077.has(String(r.id)));
+    const stripRelicMaxUnits = (rows: Array<Record<string, unknown>>) =>
+      rows.map((r) => {
+        if (!r.namedRelic) return r;
+        const copy = { ...r };
+        delete copy.maxUnits;
+        return copy;
+      });
     expect(withoutRepriced(catalog0077))
-      .toEqual(withoutAdded(withoutRepriced(tsRecipes)));
+      .toEqual(stripRelicMaxUnits(withoutAdded(withoutRepriced(tsRecipes))));
     // 65 recipes price in Scrap after the rename; none keys the old id.
     expect(catalog.filter((r) => JSON.stringify(r.inputs ?? {}).includes('"Scrap"'))).toHaveLength(65);
     expect(JSON.stringify(catalog)).not.toContain('ScrapAlloy');

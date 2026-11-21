@@ -124,7 +124,7 @@ const ActionRow: React.FC<{ glyph?: string; icon?: PxIconName; label: string; de
       {/* Audit DISP-02: descriptions wrap to two lines — never cut
           mid-word (the row has the full card width; nothing here may
           ellipsize a description). */}
-      <div className="text-[10px] leading-snug text-text-muted [overflow-wrap:anywhere]">{desc}</div>
+      <div className="text-[11px] leading-snug text-text-muted [overflow-wrap:anywhere]">{desc}</div>
     </div>
   </button>
 );
@@ -143,6 +143,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false);
   const [detailMetric, setDetailMetric] = useState<{ metric: ProgressionMetric; leaderboardMetric?: LeaderboardMetric; label: string; value: number; color: string } | null>(null);
   // Totals & Sources (Home consolidation, 2026-11-03): the full
   // all-metrics source breakdown lives behind this door now —
@@ -430,6 +431,34 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       {stopSection('profile', (
         <>
       <PlatesBackRow stopLabel={STOP_LABELS.profile} onBack={() => goToStop('hub')} />
+      {/* Quick-door bar: keeps Totals & Sources, Trophy Shelf, and Activity Log
+          one tap from the top of Profile & Record instead of 2,000px down. */}
+      <div className="grid grid-cols-3 gap-1.5">
+        <button
+          type="button"
+          onClick={() => setTotalsOpen(true)}
+          className="bl-secondary min-h-[44px] px-2 py-1.5 text-[11px] font-black uppercase tracking-wide text-amber"
+        >
+          Totals &amp; Sources
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.getElementById('profile-trophy-shelf');
+            el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          className="bl-secondary min-h-[44px] px-2 py-1.5 text-[11px] font-black uppercase tracking-wide text-text-primary"
+        >
+          Trophy Shelf
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate?.('activity-log')}
+          className="bl-secondary min-h-[44px] px-2 py-1.5 text-[11px] font-black uppercase tracking-wide text-text-primary"
+        >
+          Activity Log
+        </button>
+      </div>
       {/* Profile & Record in Register B, "Service Telemetry"
           (Instrument Panel; owner pick from the Hunter sub-page
           review PDF, 2026-11-05): identity as a unit readout,
@@ -519,7 +548,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
           gives it its own door and stop (owner-approved,
           2026-11-05); the Gear page's figure-stage door (Exec C)
           lands there via the 'wardrobe' focus. */}
-      <TrophyShelfPanel bare onOpenCollections={() => goToStop('collections')} />
+      <div id="profile-trophy-shelf">
+        <TrophyShelfPanel bare onOpenCollections={() => goToStop('collections')} />
+      </div>
 
       {/* Totals & Sources — the full source breakdown's home
           (Home consolidation): every effective stat with every
@@ -694,14 +725,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
       </MobileCard>
 
       <div className="space-y-2">
-        <div className="text-[10px] font-black uppercase tracking-wide text-text-muted">Account Tools</div>
-        {/* Guests get a deliberate path to link Google (flow-fix F9):
-            linking upgrades the guest in place server-side, keeping
-            all progress. Before this row the only link entry points
-            were the sign-in screen a signed-in guest never sees again
-            and the locked-feature wall. On iOS the same row offers
-            Apple beside Google (iOS launch Track 3). */}
-        {isGuestAccount(account) && (
+        <div className="text-[11px] font-black uppercase tracking-wide text-text-muted">Account Tools</div>
+        {isGuestAccount(account) && Capacitor.isNativePlatform() && (
           <ActionRow glyph="G" label={actionLoading ? 'Linking…' : 'Link Google'} desc="Keep your progress — upgrade this guest account in place and unlock trading, services, and leaderboards" onClick={() => signInWithGoogle()} tone="#5AA7FF" />
         )}
         {isGuestAccount(account) && Capacitor.getPlatform() === 'ios' && (
@@ -709,9 +734,49 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         )}
         <ActionRow icon="cog" label="Settings" desc="Preferences, display, and local save controls" onClick={() => onNavigate?.('settings')} tone="#9CA3AF" />
         <ActionRow glyph="?" label="Field Manual" desc="Mechanics, progression, caches, combat, and economy rules" onClick={() => onNavigate?.('help')} tone="#F7D20B" />
-        <ActionRow icon="star" label="Collections" desc="The trophy shelf — effects, bosses, frames, and named elites you've proven, plus your legendary cores" onClick={() => goToStop('collections')} tone="#FF9800" />
         <ActionRow icon="person" label="Identity" desc="Manage your public hunter name and profile identity" onClick={() => (account?.username || profileSummary?.username ? setRenameOpen(true) : setSetupOpen(true))} tone="#5AA7FF" />
-        <ActionRow icon="power" label={actionLoading ? 'Signing out…' : 'Sign Out'} desc="End this CyberCache session on this device" onClick={() => signOut()} tone="#FF4B5C" />
+        {isGuestAccount(account) && confirmGuestSignOut ? (
+          <MobileCard className="space-y-2" rarityColor="#FF4B5C">
+            <div className="text-xs font-black uppercase tracking-wide text-red">Abandon unlinked guest progress?</div>
+            <div className="text-[11px] text-text-secondary">
+              Signing out of a guest account clears this session on your device and cannot be recovered unless linked first.
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmGuestSignOut(false)}
+                className="bl-secondary min-h-[44px] flex-1 py-2 text-xs font-black text-text-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmGuestSignOut(false);
+                  void signOut();
+                }}
+                disabled={actionLoading}
+                className="min-h-[44px] flex-1 border border-red bg-red/20 py-2 text-xs font-black text-red disabled:opacity-50"
+              >
+                Confirm Sign Out
+              </button>
+            </div>
+          </MobileCard>
+        ) : (
+          <ActionRow
+            icon="power"
+            label={actionLoading ? 'Signing out…' : 'Sign Out'}
+            desc={isGuestAccount(account) ? 'End this unlinked guest session (cannot be recovered unless linked)' : 'End this CyberCache session on this device'}
+            onClick={() => {
+              if (isGuestAccount(account)) {
+                setConfirmGuestSignOut(true);
+              } else {
+                void signOut();
+              }
+            }}
+            tone="#FF4B5C"
+          />
+        )}
       </div>
         </>
       ))}

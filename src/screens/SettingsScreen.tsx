@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PxIcon } from '@/components/pixelArt/PxIcon';
-import { Clock, AlertTriangle, Info, Settings, ExternalLink, LifeBuoy } from 'lucide-react';
+import { Clock, AlertTriangle, Info, ExternalLink, LifeBuoy } from 'lucide-react';
 import { usePlayerStore, useIdleStore, useSkillStore } from '@/store';
 import { MobileCard } from '@/components/layout/MobileCard';
 import { verifiedOps } from '@/lib/api/verifiedOps';
@@ -163,16 +163,6 @@ export const SettingsScreen: React.FC = () => {
 
   return (
     <div className="bl-page space-y-4 p-4 pb-20">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="bl-title text-3xl leading-none text-text-primary">Options Board</div>
-          <div className="text-xs text-text-muted">Idle tuning, salvage rules, and account controls.</div>
-        </div>
-        <div className="bl-icon-plate flex h-12 w-12 shrink-0 -rotate-2 items-center justify-center text-amber">
-          <Settings size={22} />
-        </div>
-      </div>
-
       <MobileCard className="space-y-2" rarityColor="#3B82F6">
         <div className="flex items-center gap-2">
           <Clock size={16} className="text-blue" />
@@ -180,7 +170,7 @@ export const SettingsScreen: React.FC = () => {
         </div>
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-black text-text-primary">{effectiveCapHours}h</span>
-          <span className="text-[10px] text-text-muted">
+          <span className="text-[11px] text-text-muted">
             effective cap · earned {earnedCapHours + offlineCapBonus}h — {BASE_OFFLINE_CAP_HOURS}h base
             {researchCapHours > 0 && <> + {researchCapHours}h from Research</>}
             {offlineCapBonus > 0 && <> (incl. +{offlineCapBonus}h King of Scrap)</>}
@@ -194,21 +184,21 @@ export const SettingsScreen: React.FC = () => {
             return (
               <div
                 key={step.hours}
-                className={`py-1.5 text-center text-xs font-black ${current ? 'bl-primary' : earned ? 'bl-secondary text-text-secondary' : 'bl-secondary text-text-muted opacity-50'}`}
+                className={`border py-1.5 text-center text-xs font-black ${current ? 'border-amber/70 bg-amber/15 text-amber' : earned ? 'bl-secondary text-text-secondary' : 'bl-secondary text-text-muted opacity-50'}`}
               >
                 {step.hours}h
-                <div className="text-[8px] font-bold uppercase tracking-wide">{earned ? step.courseName : <span className="inline-flex items-center justify-center gap-0.5">{step.courseName} <PxIcon name="lock" size={13} /></span>}</div>
+                <div className="text-[11px] font-bold uppercase tracking-wide">{earned ? step.courseName : <span className="inline-flex items-center justify-center gap-0.5">{step.courseName} <PxIcon name="lock" size={13} /></span>}</div>
               </div>
             );
           })}
         </div>
         <div className="space-y-1.5">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Your limiter — settle at most</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Your limiter — settle at most</div>
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => void handleLimiter(null)}
               disabled={limiterSaving}
-              className={`py-1.5 px-2.5 text-[10px] font-black ${limiter === null ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+              className={`min-h-[44px] px-3 py-2 text-[11px] font-black ${limiter === null ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
             >
               No limit
             </button>
@@ -217,21 +207,18 @@ export const SettingsScreen: React.FC = () => {
                 key={hours}
                 onClick={() => void handleLimiter(hours)}
                 disabled={limiterSaving}
-                className={`py-1.5 px-2.5 text-[10px] font-black ${limiter === hours ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+                className={`min-h-[44px] px-3 py-2 text-[11px] font-black ${limiter === hours ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
               >
                 {hours}h
               </button>
             ))}
           </div>
-          {limiterError && <div className="text-[10px] font-bold text-red-400">{limiterError}</div>}
-          <div className="text-[10px] text-text-muted">
-            The limiter can only shorten a settlement — it never raises the cap past what you have earned. Nothing can exceed the 24h ceiling.
+          {limiterError && <div className="text-[11px] font-bold text-red-400">{limiterError}</div>}
+          <div className="text-[11px] text-text-muted">
+            {nextCapMilestone
+              ? `Next cap: complete ${nextCapMilestone.courseName} in Research for ${nextCapMilestone.capHours}h.`
+              : 'Maximum Research offline cap earned (24h ceiling).'}
           </div>
-        </div>
-        <div className="text-[10px] text-text-muted">
-          {nextCapMilestone
-            ? `Offline rewards pile up to this many hours while you're away. Complete ${nextCapMilestone.courseName} in Research (Logistics & Markets) to raise the earned cap to ${nextCapMilestone.capHours}h.`
-            : "Offline rewards pile up to this many hours while you're away. Top of the Research ladder earned."}
         </div>
       </MobileCard>
 
@@ -241,14 +228,14 @@ export const SettingsScreen: React.FC = () => {
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Auto-Salvage Rules</div>
         </div>
         <div className="space-y-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Auto-Salvage</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Auto-Salvage</div>
           <div className="grid grid-cols-2 gap-1.5">
             {([true, false] as const).map((on) => (
               <button
                 key={String(on)}
                 onClick={() => void handleSalvage({ ...salvageRule, enabled: on })}
                 disabled={salvageSaving}
-                className={`py-1.5 text-[10px] font-black ${salvageRule.enabled === on ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+                className={`min-h-[44px] py-2 text-[11px] font-black ${salvageRule.enabled === on ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
               >
                 {on ? 'On' : 'Off'}
               </button>
@@ -256,14 +243,14 @@ export const SettingsScreen: React.FC = () => {
           </div>
         </div>
         <div className="space-y-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Max Rarity to Auto-Salvage</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Max Rarity to Auto-Salvage</div>
           <div className="grid grid-cols-4 gap-1.5">
             {salvageOptions.map((r) => (
               <button
                 key={r}
                 onClick={() => void handleSalvage({ ...salvageRule, maxRarity: r })}
                 disabled={salvageSaving}
-                className={`py-1.5 text-[10px] font-black ${salvageRule.maxRarity === r ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+                className={`min-h-[44px] py-2 text-[11px] font-black ${salvageRule.maxRarity === r ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
               >
                 {r}
               </button>
@@ -271,14 +258,14 @@ export const SettingsScreen: React.FC = () => {
           </div>
         </div>
         <div className="space-y-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Max Roll Quality to Salvage</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Max Roll Quality to Salvage</div>
           <div className="grid grid-cols-5 gap-1.5">
             {qualityOptions.map((q) => (
               <button
                 key={q}
                 onClick={() => void handleSalvage({ ...salvageRule, maxQuality: q })}
                 disabled={salvageSaving}
-                className={`py-1.5 text-[10px] font-black ${salvageRule.maxQuality === q ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+                className={`min-h-[44px] py-2 text-[11px] font-black ${salvageRule.maxQuality === q ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
               >
                 {q}
               </button>
@@ -286,30 +273,30 @@ export const SettingsScreen: React.FC = () => {
           </div>
         </div>
         <div className="space-y-2">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">Salvage Yield</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Salvage Yield</div>
           <div className="grid grid-cols-2 gap-1.5">
             <button
               onClick={() => void handleSalvage({ ...salvageRule, toMaterials: false })}
               disabled={salvageSaving}
-              className={`py-1.5 text-[10px] font-black ${!salvageRule.toMaterials ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+              className={`min-h-[44px] py-2 text-[11px] font-black ${!salvageRule.toMaterials ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
             >
               Scrap
             </button>
             <button
               onClick={() => void handleSalvage({ ...salvageRule, toMaterials: true })}
               disabled={salvageSaving}
-              className={`py-1.5 text-[10px] font-black ${salvageRule.toMaterials ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
+              className={`min-h-[44px] py-2 text-[11px] font-black ${salvageRule.toMaterials ? 'bl-primary' : 'bl-secondary text-text-secondary'}`}
             >
               Materials
             </button>
           </div>
-          <div className="text-[10px] text-text-muted">
-            Materials breaks each salvaged item down into its kind&apos;s crafting material instead of scrap.
+          <div className="text-[11px] text-text-muted">
+            Materials converts salvaged drops into crafting materials scaled by scrap value.
           </div>
         </div>
-        {salvageError && <div className="text-[10px] font-bold text-red-400">{salvageError}</div>}
-        <div className="text-[10px] text-text-muted">
-          Applied as roaming and offline drops land. Boss loot, cache contents, market goods, and crafted items are never auto-salvaged, and gear already in your bag is never swept.
+        {salvageError && <div className="text-[11px] font-bold text-red-400">{salvageError}</div>}
+        <div className="text-[11px] text-text-muted">
+          Applies to new roaming and offline drops only — boss, cache, market, crafted, and bag items are never auto-salvaged.
         </div>
       </MobileCard>
 
@@ -318,10 +305,9 @@ export const SettingsScreen: React.FC = () => {
           <Info size={16} className="text-blue" />
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">About</div>
         </div>
-        <div className="space-y-1 text-[10px] text-text-secondary">
-          <div>CyberCache v0.1.0</div>
-          <div>Mobile-first idle roguelite looter RPG</div>
-          <div>React 19 · TypeScript · Tailwind CSS · Framer Motion</div>
+        <div className="space-y-1 text-[11px] text-text-secondary">
+          <div>CyberCache</div>
+          <div>Idle roguelite looter RPG</div>
         </div>
       </MobileCard>
 
@@ -339,7 +325,7 @@ export const SettingsScreen: React.FC = () => {
           <ExternalLink size={14} />
           Open the support page
         </button>
-        <div className="text-[10px] text-text-muted">
+        <div className="text-[11px] text-text-muted">
           Help, account questions, and contact — opens in your browser.
         </div>
       </MobileCard>
@@ -350,31 +336,31 @@ export const SettingsScreen: React.FC = () => {
           <div className="text-xs font-black uppercase tracking-wide text-red">Danger Zone</div>
         </div>
         {resetError && (
-          <div className="bl-card p-2 text-[10px] text-red">
+          <div className="bl-card p-2 text-[11px] text-red">
             {resetError}
           </div>
         )}
         {!showReset ? (
           <button
             onClick={() => setShowReset(true)}
-            className="bl-secondary w-full py-2 text-xs font-black text-red"
+            className="bl-secondary min-h-[44px] w-full py-2 text-xs font-black text-red"
           >
             Reset All Save Data
           </button>
         ) : (
           <div className="space-y-2">
-            <div className="text-[10px] text-red">This permanently resets Supabase-backed progress, items, and runtime settings. This cannot be undone.</div>
+            <div className="text-[11px] text-red">This permanently resets your saved progress, items, and settings. This cannot be undone.</div>
             <button
               onClick={handleReset}
               disabled={resetting}
-              className={`w-full py-2 text-xs font-black disabled:opacity-50 ${resetConfirmed ? 'bl-primary animate-pulse' : 'bl-secondary text-red'}`}
+              className={`min-h-[44px] w-full py-2 text-xs font-black disabled:opacity-50 ${resetConfirmed ? 'bl-primary animate-pulse' : 'bl-secondary text-red'}`}
             >
               {resetting ? 'Resetting…' : resetConfirmed ? 'RESET EVERYTHING' : 'Confirm Reset'}
             </button>
             <button
               onClick={() => { setShowReset(false); setResetConfirmed(false); setResetError(null); }}
               disabled={resetting}
-              className="bl-secondary w-full py-2 text-xs font-black text-text-secondary disabled:opacity-50"
+              className="bl-secondary min-h-[44px] w-full py-2 text-xs font-black text-text-secondary disabled:opacity-50"
             >
               Cancel
             </button>

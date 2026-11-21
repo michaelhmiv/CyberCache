@@ -46,22 +46,16 @@ export const AuthScreen: React.FC = () => {
           <AuthHero className="mx-auto rounded-lg overflow-hidden" height={100} />
           <div>
             <div className="bl-title text-4xl leading-none text-amber">CyberCache</div>
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-text-muted">Load Hunter File</div>
+            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-text-muted">Load Hunter File</div>
           </div>
           <div className="text-xs leading-relaxed text-text-secondary">
             Roam the wastes, loot gear, build your hunter, and take down bosses — the hunt keeps paying out while you&apos;re away.
           </div>
-          <div className="text-xs leading-relaxed text-text-muted">
-            {isNative ? (
-              <>
-                Jump in as a guest and play right away — the vendor yard is open to everyone. Sign in with {isIos ? 'Google or Apple' : 'Google'} to unlock the player market and services, and to keep your hunter on any device.
-              </>
-            ) : (
-              <>
-                Jump in as a guest and look around — every screen is open to guests, with real data. Signing in lives in the CyberCache app: there, Google sign-in unlocks the player market and services, and keeps your hunter on any device. This web build is a guest preview.
-              </>
-            )}
-          </div>
+          {isNative && (
+            <div className="text-xs leading-relaxed text-text-muted">
+              Jump in as a guest and play right away, or sign in with {isIos ? 'Apple or Google' : 'Google'} to unlock the player market and sync across devices.
+            </div>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -71,8 +65,8 @@ export const AuthScreen: React.FC = () => {
             </div>
           )}
           {diagnosticText && (
-            <details className="bl-card px-3 py-2 text-[10px] text-text-muted">
-              <summary className="cursor-pointer font-black uppercase tracking-wide text-amber">Google debug packet</summary>
+            <details className="bl-card px-3 py-2 text-[11px] text-text-muted">
+              <summary className="cursor-pointer font-black uppercase tracking-wide text-amber">Sign-in diagnostics</summary>
               <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-words font-mono leading-snug text-text-primary">
                 {diagnosticText}
               </pre>
@@ -80,12 +74,24 @@ export const AuthScreen: React.FC = () => {
           )}
           {isNative ? (
           <>
+          {isIos && (
+            <button
+              onClick={() => auth.signInWithApple()}
+              disabled={auth.actionLoading}
+              className="bl-primary flex min-h-11 w-full items-center justify-center gap-2 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+              </svg>
+              Continue with Apple
+            </button>
+          )}
           <button
             onClick={() => auth.signInWithGoogle()}
             disabled={auth.actionLoading}
             className="bl-primary flex min-h-11 w-full items-center justify-center gap-2 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -93,26 +99,16 @@ export const AuthScreen: React.FC = () => {
             </svg>
             Continue with Google
           </button>
-          {isIos && (
-            <button
-              onClick={() => auth.signInWithApple()}
-              disabled={auth.actionLoading}
-              className="bl-secondary flex min-h-11 w-full items-center justify-center gap-2 py-3 text-sm font-black uppercase tracking-wide disabled:opacity-50"
-            >
-              Continue with Apple
-            </button>
-          )}
           </>
           ) : (
             <div className="text-xs leading-relaxed text-text-muted" data-testid="auth-web-signin-note">
-              Sign-in happens in the CyberCache app — open the app to sign in with Google and keep
-              your hunter on any device. Here on the web, continue as a guest to look around.
+              This web build is a guest preview — sign in inside the CyberCache mobile app to unlock the player market and sync across devices.
             </div>
           )}
           <button
             onClick={() => auth.continueAsGuest()}
             disabled={auth.actionLoading}
-            className="bl-secondary min-h-11 w-full py-3 text-sm font-bold disabled:opacity-50"
+            className={`${isNative ? 'bl-secondary font-bold' : 'bl-primary font-black uppercase tracking-wide'} min-h-11 w-full py-3 text-sm disabled:opacity-50`}
           >
             Continue as Guest
           </button>

@@ -106,18 +106,22 @@ stop — buys back almost anything, instantly, at
 **40% of the item's vendor value**:
 
 - **Gear** pays 40% of its estimated value (level, rarity, and stats set
-  the value). Equipped and locked gear can't be sold — unequip and unlock
-  first.
+  the value; crafted gear and crafted workshop relics carry an item-value
+  ceiling so crafting can't loop credits at the counter). Equipped and
+  locked gear can't be sold — unequip and unlock first.
 - **Consumable batches** pay 40% of base price scaled by the batch's
   quality % — a 140% batch is worth 40% more per unit than a 100% batch.
-  Sell one at a time or the whole stack.
+  Sell one at a time or confirm to sell the whole stack.
 - **Materials and essences** pay 40% of their unit value in the table
   above — except **Scrap**, which the vendor places no value on at
   all: it can't be sold here. Sell Scrap to other hunters on the
   player market instead.
 
-The payout for a sale is rounded down once, on the total. The screen shows
-an estimate before you sell and the confirmed payout after. Buyback is the
+The payout for a sale is rounded down once, on the total. Gear sales and
+Sell-all stack sales ask for a second tap to confirm; search and family
+filters on the counter filter Item of the Day and Today's Rotation
+alongside staples. The screen shows an estimate before you sell and the
+confirmed payout after. Buyback is the
 fast, guaranteed exit — the [[The Market|player market]] usually pays
 more, but it makes you wait for a buyer.
 

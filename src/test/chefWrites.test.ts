@@ -209,13 +209,13 @@ describe('auth gate', () => {
   });
 
   it('rejects a short nonce with the SQL validation message', async () => {
-    const res = await post(h, '/api/ops/idle-claim', h.tokenA, { nonce: 'short' });
+    const res = await post(h, '/api/ops/initial-bundle', h.tokenA, { nonce: 'short' });
     expect(res.status).toBe(400);
     expect(res.json).toMatchObject({ error: 'validation', message: 'nonce is required' });
   });
 });
 
-describe('initial bundle + idle claim', () => {
+describe('initial bundle + retired legacy routes', () => {
   let h: Harness;
   beforeAll(async () => {
     h = await makeServer();
@@ -245,13 +245,15 @@ describe('initial bundle + idle claim', () => {
     expect(again.json.message).toBe('Initial bundle already claimed');
   });
 
-  it('idle claim pays 10 credits per xp minute, capped at 2 hours', async () => {
-    // last_idle_claim_at is 2026-10-29T10:00Z, clock is 12:00Z -> 120 xp.
-    const res = await post(h, '/api/ops/idle-claim', h.tokenB, { nonce: nonce() });
-    expect(res.status).toBe(200);
-    expect(res.json.rewards).toEqual({ xp: 120, credits: 1200 });
-    const prof = res.json.profile as Record<string, unknown>;
-    expect(prof.credits).toBe(1700);
+  it('unmounts retired legacy faucet routes (idle-claim, claim-crafted-consumable, battle-result)', async () => {
+    for (const path of ['/api/ops/idle-claim', '/api/ops/claim-crafted-consumable', '/api/ops/battle-result']) {
+      const res = await fetch(`${h.base}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${h.tokenA}` },
+        body: JSON.stringify({ nonce: nonce() }),
+      });
+      expect(res.status, path).toBe(404);
+    }
   });
 });
 
@@ -317,28 +319,6 @@ describe('cache draws, vendor, crafting, consumables', () => {
     const unknown = await post(h, '/api/ops/vendor-buy', h.tokenA, { nonce: nonce(), item_key: 'nope', quantity: 1 });
     expect(unknown.status).toBe(400);
     expect(unknown.json.message).toBe('Not offered by the vendor today');
-  });
-
-  it('crafting consumes materials and fails cleanly without them', async () => {
-    rngQueue = [0.5];
-    const res = await post(h, '/api/ops/claim-crafted-consumable', h.tokenA, {
-      nonce: nonce(), recipe_id: 'recipe_medkit', item_key: 'MedKit', quantity: 1,
-    });
-    expect(res.status).toBe(200);
-    const prof = res.json.profile as Record<string, unknown>;
-    // Recipe materials are charged once per craft, not per unit.
-    // Econ 5: the unified seed stock is 120 (100 field + 20 stack);
-    // the medkit's Scrap leg is 15.
-    expect((prof.materials as Record<string, number>).Scrap).toBe(105);
-    expect((prof.materials as Record<string, number>).ReactiveComponents).toBe(2);
-    // 2 from the vendor-buy test above (shared store in this describe) + 1 crafted.
-    expect((prof.consumables as Record<string, number>).MedKit).toBe(3);
-
-    const poor = await post(h, '/api/ops/claim-crafted-consumable', h.tokenB, {
-      nonce: nonce(), recipe_id: 'recipe_medkit', item_key: 'MedKit', quantity: 1,
-    });
-    expect(poor.status).toBe(400);
-    expect(poor.json.message).toBe('Insufficient material Scrap');
   });
 
   it('consume decrements the profile count and drains batches FIFO', async () => {
@@ -514,21 +494,6 @@ describe('skills + battle', () => {
     const ledger = h.store.seed.ledger.filter((row) => row.user_id === B && row.action_type === 'cc_retrain');
     expect(ledger).toHaveLength(0);
     expect(h.store.seed.profiles.find((p) => p.id === B)?.credits).toBe(500);
-  });
-
-  it('battle result draws odds; the fragment leg pays nothing (fragments abolished)', async () => {
-    rngQueue = [0.9]; // sorted outcomes: defeat(50), victory(50) -> roll 91..100? floor(0.9*100)+1 = 91 -> victory
-    const res = await post(h, '/api/ops/battle-result', h.tokenA, { nonce: nonce(), target_id: 'boss-1', stance: 'balanced' });
-    expect(res.status).toBe(200);
-    expect((res.json.draw as Record<string, unknown>).outcome).toBe('victory');
-    // The seeded victory payload still names fragment_reward 2, but
-    // 0082 zeroes those payloads in the live table and the leg pays
-    // nothing in either twin — no parts, no 5:1 conversion.
-    expect(res.json.rewards).toEqual({ xp: 75, credits: 125, parts: 0 });
-    const prof = res.json.profile as Record<string, unknown>;
-    // The snapshot no longer carries a fragment balance at all.
-    expect(prof).not.toHaveProperty('cache_token_parts');
-    expect((prof.boss_state as Record<string, unknown>).last_target_id).toBe('boss-1');
   });
 });
 

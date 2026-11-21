@@ -329,7 +329,7 @@ const EntryRow: React.FC<{
         </span>
         <span className="mt-0.5 block truncate font-mono text-[11px] leading-snug text-text-muted">
           {found
-            ? `Logged · ${discovery.source} · ${formatLogDate(discovery.discovered_at)}`
+            ? `Logged · ${formatSourceLabel(discovery.source)} · ${formatLogDate(discovery.discovered_at)}`
             : UNDISCOVERED_TEASERS[entry.family]}
         </span>
       </span>
@@ -342,6 +342,28 @@ const EntryRow: React.FC<{
     </button>
   );
 };
+
+function formatSourceLabel(source: string): string {
+  const MAP: Record<string, string> = {
+    world_drop: 'World Drop',
+    boss_drop: 'Boss Drop',
+    boss_victory: 'Boss victory',
+    cache_box: 'Cache Box',
+    cache_forged: 'Cache Box',
+    crafted: 'Crafted',
+    extraction: 'Extraction',
+    endless: 'Chaos Chamber',
+    standing_order: 'Signature Order',
+    market: 'Market',
+    vendor: 'Vendor',
+  };
+  const key = source.trim().toLowerCase();
+  if (MAP[key]) return MAP[key];
+  if (!/[_-]/.test(source) && /\s/.test(source)) return source;
+  return source
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
 
 interface SpecTarget {
   entry: CollectionEntry;
@@ -402,7 +424,7 @@ const SpecSheet: React.FC<{ target: SpecTarget; onClose: () => void }> = ({ targ
         <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
           <Readout label="Status" value={found ? 'LOGGED' : 'NO SIGNAL'} accent={found ? hue : '#55606C'} />
           <Readout label="Channel" value={FAMILY_SHORT[entry.family]} />
-          <Readout label="Source" value={found ? discovery.source : '—'} />
+          <Readout label="Source" value={found ? formatSourceLabel(discovery.source) : '—'} />
           <Readout label="Logged on" value={found ? formatLogDate(discovery.discovered_at) : '—'} />
         </div>
 

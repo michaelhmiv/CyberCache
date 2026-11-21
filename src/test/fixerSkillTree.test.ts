@@ -178,12 +178,13 @@ describe('Fixer tree — shape and identity', () => {
       description: 'Crafting, repair, vehicles, and trade.',
     });
     // skillBonuses TREE_NAME_MAP: a Fixer treeBonus mod with no spends
-    // grants +1 effective point to every Fixer node (capped per node).
+    // grants +1 effective point to every SMALL Fixer node (capped per node),
+    // without unlocking uninvested Majors or the Keystone.
     const bonuses = computeSkillBonuses({}, { treeBonus: 'Fixer', nodeBoosts: {} });
     expect(bonuses.craftSpeedBonus).toBeCloseTo(0.05, 10); // two nodes × 1pt × 0.025
     expect(bonuses.craftQualityBonus).toBeCloseTo(2, 10);
-    expect(bonuses.bonusRepairJobs).toBe(1);
-    expect(bonuses.rushReductionCapBonus).toBeCloseTo(0.1, 10);
+    expect(bonuses.bonusRepairJobs).toBeUndefined();
+    expect(bonuses.rushReductionCapBonus).toBeUndefined();
   });
 
   it('the dead MAX_SKILL_POINTS = 50 constant is gone', () => {

@@ -7,7 +7,7 @@
  * the existing profile/item tables keyed by the same account id.
  */
 import { randomUUID } from 'node:crypto';
-import { hashPassword, verifyPassword } from './passwords';
+import { hashPassword, hashPasswordAsync, MAX_PASSWORD_LENGTH, verifyPasswordAsync } from './passwords';
 import { hashRefreshToken, newRefreshToken, REFRESH_TOKEN_TTL_MS } from './tokens';
 
 export interface Account {
@@ -43,6 +43,11 @@ export class AuthStoreError extends Error {
   }
 }
 
+export interface PlayerReportResult {
+  ok: true;
+  deduplicated: boolean;
+}
+
 export interface AuthStore {
   createGuest(now: Date): Promise<Session>;
   register(email: string, password: string, now: Date, upgradeAccountId?: string): Promise<Session>;
@@ -51,6 +56,8 @@ export interface AuthStore {
   loginWithIdentity(provider: string, identity: { subject: string; email: string | null; emailVerified: boolean }, now: Date, linkAccountId?: string): Promise<Session>;
   logout(refreshToken: string): Promise<void>;
   getAccount(id: string): Promise<Account | null>;
+  deleteAccount(accountId: string): Promise<boolean>;
+  createReport(reporterId: string, reportedAccountId: string, context: string, now: Date): Promise<PlayerReportResult>;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,10 +71,12 @@ export function normalizeEmail(email: string): string {
 }
 
 export function validatePassword(password: string): void {
-  if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+  if (typeof password !== 'string' || password.length < 8 || password.length > MAX_PASSWORD_LENGTH) {
     throw new AuthStoreError('validation', 'Password must be 8–128 characters');
   }
 }
+
+const REPORT_DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
 // In-memory implementation (tests; single-process dev)
@@ -91,10 +100,19 @@ interface MemRefresh {
   revokedReason: string | null;
 }
 
+interface MemReport {
+  id: string;
+  reporterId: string;
+  reportedAccountId: string;
+  context: string;
+  createdAt: Date;
+}
+
 export class InMemoryAuthStore implements AuthStore {
   private accounts = new Map<string, MemAccount>();
   private byEmail = new Map<string, string>();
   private refreshTokens = new Map<string, MemRefresh>();
+  private reports: MemReport[] = [];
 
   private issueSession(account: MemAccount, now: Date): Session {
     const { token, hash } = newRefreshToken();
@@ -115,6 +133,7 @@ export class InMemoryAuthStore implements AuthStore {
     const normalized = normalizeEmail(email);
     validatePassword(password);
     if (this.byEmail.has(normalized)) throw new AuthStoreError('email_taken', 'That email is already registered');
+    const passwordHash = await hashPasswordAsync(password);
     let account: MemAccount;
     if (upgradeAccountId) {
       const existing = this.accounts.get(upgradeAccountId);
@@ -122,11 +141,11 @@ export class InMemoryAuthStore implements AuthStore {
       account = existing;
       account.email = normalized;
       account.isGuest = false;
-      account.passwordHash = hashPassword(password);
+      account.passwordHash = passwordHash;
     } else {
       account = {
         id: randomUUID(), email: normalized, isGuest: false, emailVerifiedAt: null, createdAt: now,
-        passwordHash: hashPassword(password),
+        passwordHash,
       };
       this.accounts.set(account.id, account);
     }
@@ -136,10 +155,15 @@ export class InMemoryAuthStore implements AuthStore {
 
   async login(email: string, password: string, now: Date): Promise<Session> {
     const normalized = normalizeEmail(email);
+    if (typeof password !== 'string' || password.length > MAX_PASSWORD_LENGTH) {
+      throw new AuthStoreError('invalid_credentials', 'Email or password is incorrect');
+    }
     const id = this.byEmail.get(normalized);
     const account = id ? this.accounts.get(id) : undefined;
     // Verify against a hash either way so timing does not reveal existence.
-    const ok = account?.passwordHash ? verifyPassword(password, account.passwordHash) : (verifyPassword(password, DUMMY_HASH), false);
+    const ok = account?.passwordHash
+      ? await verifyPasswordAsync(password, account.passwordHash)
+      : (await verifyPasswordAsync(password, DUMMY_HASH), false);
     if (!account || !ok) throw new AuthStoreError('invalid_credentials', 'Email or password is incorrect');
     return this.issueSession(account, now);
   }
@@ -192,6 +216,12 @@ export class InMemoryAuthStore implements AuthStore {
     if (linkAccountId) {
       const account = this.accounts.get(linkAccountId);
       if (!account) throw new AuthStoreError('invalid_refresh', 'Linking account no longer exists');
+      if (!account.email && identity.email) {
+        const existingOwner = this.byEmail.get(identity.email);
+        if (existingOwner && existingOwner !== account.id) {
+          throw new AuthStoreError('email_taken', 'That email already belongs to another account');
+        }
+      }
       this.identities.set(key, account.id);
       if (!account.email && identity.email) {
         account.email = identity.email;
@@ -263,6 +293,48 @@ export class InMemoryAuthStore implements AuthStore {
     const account = this.accounts.get(id);
     return account ? publicAccount(account) : null;
   }
+
+  async deleteAccount(accountId: string): Promise<boolean> {
+    const existing = this.accounts.get(accountId);
+    if (!existing) return false;
+    if (existing.email) this.byEmail.delete(existing.email);
+    this.accounts.delete(accountId);
+    for (const [k, v] of this.identities.entries()) {
+      if (v === accountId) this.identities.delete(k);
+    }
+    for (const [hash, row] of this.refreshTokens.entries()) {
+      if (row.accountId === accountId) this.refreshTokens.delete(hash);
+    }
+    return true;
+  }
+
+  async createReport(reporterId: string, reportedAccountId: string, context: string, now: Date): Promise<PlayerReportResult> {
+    if (reporterId === reportedAccountId) {
+      throw new AuthStoreError('validation', 'You cannot report your own account');
+    }
+    const cutoff = now.getTime() - REPORT_DEDUP_WINDOW_MS;
+    const dup = this.reports.find(
+      (r) =>
+        r.reporterId === reporterId &&
+        r.reportedAccountId === reportedAccountId &&
+        r.context === context &&
+        r.createdAt.getTime() >= cutoff,
+    );
+    if (dup) return { ok: true, deduplicated: true };
+    this.reports.push({
+      id: randomUUID(),
+      reporterId,
+      reportedAccountId,
+      context,
+      createdAt: now,
+    });
+    return { ok: true, deduplicated: false };
+  }
+
+  /** Test inspection helper. */
+  getReports(): readonly MemReport[] {
+    return this.reports;
+  }
 }
 
 function publicAccount(a: MemAccount): Account {
@@ -275,8 +347,14 @@ const DUMMY_HASH = hashPassword('dummy-password-for-timing-parity');
 // Postgres implementation (Railway) — see db/migrations/0001_auth.sql
 // ---------------------------------------------------------------------------
 
+export interface PgClient {
+  query(text: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  release(): void;
+}
+
 export interface PgQuery {
   query(text: string, params?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  connect?(): Promise<PgClient>;
 }
 
 interface PgAccountRow {
@@ -298,10 +376,28 @@ function rowToAccount(r: PgAccountRow): Account & { passwordHash: string | null 
 export class PgAuthStore implements AuthStore {
   constructor(private readonly db: PgQuery) {}
 
-  private async issueSession(account: Account, now: Date): Promise<Session> {
+  private async withTx<T>(fn: (q: Pick<PgQuery, 'query'>) => Promise<T>): Promise<T> {
+    if (!this.db.connect) {
+      return fn(this.db);
+    }
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch { /* ignore rollback error */ }
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async issueSession(account: Account, now: Date, q: PgQuery = this.db): Promise<Session> {
     const { token, hash } = newRefreshToken();
     const expiresAt = new Date(now.getTime() + REFRESH_TOKEN_TTL_MS);
-    await this.db.query(
+    await q.query(
       'insert into auth_refresh_tokens (token_hash, account_id, expires_at) values ($1, $2, $3)',
       [hash, account.id, expiresAt],
     );
@@ -318,7 +414,7 @@ export class PgAuthStore implements AuthStore {
   async register(email: string, password: string, now: Date, upgradeAccountId?: string): Promise<Session> {
     const normalized = normalizeEmail(email);
     validatePassword(password);
-    const passwordHash = hashPassword(password);
+    const passwordHash = await hashPasswordAsync(password);
     try {
       if (upgradeAccountId) {
         const { rows } = await this.db.query(
@@ -345,42 +441,55 @@ export class PgAuthStore implements AuthStore {
 
   async login(email: string, password: string, now: Date): Promise<Session> {
     const normalized = normalizeEmail(email);
+    if (typeof password !== 'string' || password.length > MAX_PASSWORD_LENGTH) {
+      throw new AuthStoreError('invalid_credentials', 'Email or password is incorrect');
+    }
     const { rows } = await this.db.query(
       'select id, email, is_guest, email_verified_at, created_at, password_hash from auth_accounts where email = $1',
       [normalized],
     );
     const account = rows.length ? rowToAccount(rows[0] as unknown as PgAccountRow) : null;
-    const ok = account?.passwordHash ? verifyPassword(password, account.passwordHash) : (verifyPassword(password, DUMMY_HASH), false);
+    const ok = account?.passwordHash
+      ? await verifyPasswordAsync(password, account.passwordHash)
+      : (await verifyPasswordAsync(password, DUMMY_HASH), false);
     if (!account || !ok) throw new AuthStoreError('invalid_credentials', 'Email or password is incorrect');
     return this.issueSession(account, now);
   }
 
   async refresh(refreshToken: string, now: Date): Promise<Session> {
     const hash = hashRefreshToken(refreshToken);
-    const { rows } = await this.db.query(
-      'select account_id, expires_at, revoked_at, revoked_reason from auth_refresh_tokens where token_hash = $1',
-      [hash],
-    );
-    if (rows.length === 0) throw new AuthStoreError('invalid_refresh', 'Refresh token is not recognized');
-    const row = rows[0] as { account_id: string; expires_at: Date; revoked_at: Date | null; revoked_reason: string | null };
-    if (row.revoked_at) {
-      // A token revoked by an explicit sign-out is not theft
-      // (audit A-05 partial): refuse it plainly, revoke nothing else.
-      if (row.revoked_reason === 'logout') {
-        throw new AuthStoreError('invalid_refresh', 'Refresh token revoked');
+    return this.withTx(async (q) => {
+      const { rows } = await q.query(
+        'select account_id, expires_at, revoked_at, revoked_reason from auth_refresh_tokens where token_hash = $1 for update',
+        [hash],
+      );
+      if (rows.length === 0) throw new AuthStoreError('invalid_refresh', 'Refresh token is not recognized');
+      const row = rows[0] as { account_id: string; expires_at: Date; revoked_at: Date | null; revoked_reason: string | null };
+      if (row.revoked_at) {
+        if (row.revoked_reason === 'logout') {
+          throw new AuthStoreError('invalid_refresh', 'Refresh token revoked');
+        }
+        // Revoke all active sessions on reuse detection (commit revocation outside tx if throwing).
+        await this.db.query('update auth_refresh_tokens set revoked_at = $2 where account_id = $1 and revoked_at is null', [row.account_id, now]);
+        throw new AuthStoreError('refresh_reuse', 'Refresh token reuse detected; all sessions revoked');
       }
-      await this.db.query('update auth_refresh_tokens set revoked_at = $2 where account_id = $1 and revoked_at is null', [row.account_id, now]);
-      throw new AuthStoreError('refresh_reuse', 'Refresh token reuse detected; all sessions revoked');
-    }
-    if (new Date(row.expires_at).getTime() <= now.getTime()) throw new AuthStoreError('invalid_refresh', 'Refresh token expired');
-    const account = await this.getAccount(row.account_id);
-    if (!account) throw new AuthStoreError('invalid_refresh', 'Account no longer exists');
-    const session = await this.issueSession(account, now);
-    await this.db.query(
-      'update auth_refresh_tokens set revoked_at = $2, replaced_by_hash = $3 where token_hash = $1',
-      [hash, now, hashRefreshToken(session.refreshToken)],
-    );
-    return session;
+      if (new Date(row.expires_at).getTime() <= now.getTime()) throw new AuthStoreError('invalid_refresh', 'Refresh token expired');
+      const acctRows = await q.query(
+        'select id, email, is_guest, email_verified_at, created_at from auth_accounts where id = $1',
+        [row.account_id],
+      );
+      const account = acctRows.rows.length ? rowToAccount(acctRows.rows[0] as unknown as PgAccountRow) : null;
+      if (!account) throw new AuthStoreError('invalid_refresh', 'Account no longer exists');
+      const session = await this.issueSession(account, now, q);
+      const updated = await q.query(
+        'update auth_refresh_tokens set revoked_at = $2, replaced_by_hash = $3 where token_hash = $1 and revoked_at is null returning token_hash',
+        [hash, now, hashRefreshToken(session.refreshToken)],
+      );
+      if (updated.rows.length === 0) {
+        throw new AuthStoreError('refresh_reuse', 'Refresh token reuse detected; all sessions revoked');
+      }
+      return session;
+    });
   }
 
   async loginWithIdentity(provider: string, identity: { subject: string; email: string | null; emailVerified: boolean }, now: Date, linkAccountId?: string): Promise<Session> {
@@ -389,9 +498,6 @@ export class PgAuthStore implements AuthStore {
       [provider, identity.subject],
     );
     if (found.rows.length > 0) {
-      // Audit A-12: same link-conflict refusal as the in-memory store —
-      // a live link request meeting an identity bound to a different
-      // account refuses instead of silently switching accounts.
       if (linkAccountId && (found.rows[0].account_id as string) !== linkAccountId) {
         throw new AuthStoreError('identity_link_conflict', IDENTITY_LINK_CONFLICT_MESSAGE);
       }
@@ -399,32 +505,49 @@ export class PgAuthStore implements AuthStore {
       if (account) return this.issueSession(account, now);
     }
     if (linkAccountId) {
-      const account = await this.getAccount(linkAccountId);
-      if (!account) throw new AuthStoreError('invalid_refresh', 'Linking account no longer exists');
-      await this.db.query(
-        'insert into auth_identities (provider, provider_subject, account_id) values ($1, $2, $3) on conflict do nothing',
-        [provider, identity.subject, account.id],
-      );
-      if (!account.email && identity.email) {
-        await this.db.query('update auth_accounts set email = $2, updated_at = now() where id = $1', [account.id, identity.email]);
-        account.email = identity.email;
-      }
-      if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
-        await this.db.query('update auth_accounts set email_verified_at = $2, updated_at = now() where id = $1', [account.id, now]);
-        account.emailVerifiedAt = now;
-      }
-      // Linking a real identity promotes the account in place (audit A-01):
-      // it stops being a guest, exactly as the email-register upgrade does.
-      if (account.isGuest) {
-        await this.db.query('update auth_accounts set is_guest = false, updated_at = now() where id = $1', [account.id]);
-        account.isGuest = false;
-      }
-      return this.issueSession(account, now);
+      return this.withTx(async (q) => {
+        const acctRows = await q.query(
+          'select id, email, is_guest, email_verified_at, created_at from auth_accounts where id = $1 for update',
+          [linkAccountId],
+        );
+        const account = acctRows.rows.length ? rowToAccount(acctRows.rows[0] as unknown as PgAccountRow) : null;
+        if (!account) throw new AuthStoreError('invalid_refresh', 'Linking account no longer exists');
+        try {
+          const insertedIdentity = await q.query(
+            'insert into auth_identities (provider, provider_subject, account_id) values ($1, $2, $3) on conflict do nothing returning account_id',
+            [provider, identity.subject, account.id],
+          );
+          if (insertedIdentity.rows.length === 0) {
+            const existing = await q.query(
+              'select account_id from auth_identities where provider = $1 and provider_subject = $2',
+              [provider, identity.subject],
+            );
+            if (existing.rows.length > 0 && (existing.rows[0].account_id as string) !== account.id) {
+              throw new AuthStoreError('identity_link_conflict', IDENTITY_LINK_CONFLICT_MESSAGE);
+            }
+          }
+          if (!account.email && identity.email) {
+            await q.query('update auth_accounts set email = $2, updated_at = now() where id = $1', [account.id, identity.email]);
+            account.email = identity.email;
+          }
+          if (identity.emailVerified && account.email === identity.email && !account.emailVerifiedAt) {
+            await q.query('update auth_accounts set email_verified_at = $2, updated_at = now() where id = $1', [account.id, now]);
+            account.emailVerifiedAt = now;
+          }
+          if (account.isGuest) {
+            await q.query('update auth_accounts set is_guest = false, updated_at = now() where id = $1', [account.id]);
+            account.isGuest = false;
+          }
+          return this.issueSession(account, now, q);
+        } catch (err) {
+          if (err instanceof AuthStoreError) throw err;
+          if ((err as { code?: string }).code === '23505') {
+            throw new AuthStoreError('email_taken', 'That email already belongs to another account');
+          }
+          throw err;
+        }
+      });
     }
-    // Find-or-create. The insert runs first, exactly as it always
-    // has: a free email creates its account here. A unique violation
-    // proves the email is already owned, and only then does the
-    // cross-provider resolution get its chance (below).
     const inserted = await this.db.query(
       `insert into auth_accounts (email, is_guest, password_hash, email_verified_at) values ($1, false, null, $2)
        returning id, email, is_guest, email_verified_at, created_at`,
@@ -441,16 +564,6 @@ export class PgAuthStore implements AuthStore {
       );
       return this.issueSession(account, now);
     }
-    // Cross-provider resolution (iOS launch Track 3, brief account
-    // rule) — the in-memory twin carries the same rule as a
-    // pre-create check: a bare identity sign-in whose VERIFIED email
-    // matches an existing identity-backed, email-verified account
-    // links the new identity to that account instead of failing —
-    // an Apple identity and a Google identity with the same verified
-    // email are the same player. Resolution is best-effort on top of
-    // an established ownership conflict: a password-only owner, an
-    // unverified owner or incoming email, or any failure to prove
-    // eligibility keeps the audit A-13 email_taken refusal below.
     if (identity.email && identity.emailVerified) {
       try {
         const ownerRows = await this.db.query(
@@ -488,5 +601,38 @@ export class PgAuthStore implements AuthStore {
       [id],
     );
     return rows.length ? rowToAccount(rows[0] as unknown as PgAccountRow) : null;
+  }
+
+  async deleteAccount(accountId: string): Promise<boolean> {
+    const { rows } = await this.db.query(
+      'select public.cc_delete_account($1) as deleted',
+      [accountId],
+    );
+    return Boolean(rows[0]?.deleted);
+  }
+
+  async createReport(reporterId: string, reportedAccountId: string, context: string, now: Date): Promise<PlayerReportResult> {
+    if (reporterId === reportedAccountId) {
+      throw new AuthStoreError('validation', 'You cannot report your own account');
+    }
+    const { rows } = await this.db.query(
+      `with existing as (
+         select id from public.player_reports
+          where reporter_id = $1
+            and reported_account_id = $2
+            and context = $3
+            and created_at >= ($4::timestamptz - interval '24 hours')
+          limit 1
+       ),
+       ins as (
+         insert into public.player_reports (reporter_id, reported_account_id, context, created_at)
+         select $1, $2, $3, $4::timestamptz
+          where not exists (select 1 from existing)
+         returning id
+       )
+       select exists(select 1 from existing) as deduplicated`,
+      [reporterId, reportedAccountId, context, now.toISOString()],
+    );
+    return { ok: true, deduplicated: Boolean(rows[0]?.deduplicated) };
   }
 }

@@ -108,32 +108,24 @@ const ClusterHeader: React.FC<{ state: ResearchStateView }> = ({ state }) => {
   const cells = state.courses.flatMap((course) => courseCells(course, state));
   return (
     <Module>
-      <div className="flex items-start justify-between gap-3">
-        <div
-          className="text-[32px] uppercase leading-none"
-          style={{ ...titleStyle, color: INK }}
-        >
-          Research
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] font-semibold tracking-[0.08em]" style={{ ...MONO, color: INK_FAINT }}>
+          {state.completedCount}/{state.totalCourses} COURSES · {pct}% COMPLETE
         </div>
-        <div className="flex items-center gap-2 pt-1.5">
+        <div className="flex items-center gap-2">
           <Lamp color={AMBER} lit={inSession} />
           <span className="text-[11px] font-bold tracking-[0.14em]" style={{ ...MONO, color: inSession ? AMBER : INK_FAINT }}>
             {inSession ? 'IN SESSION' : 'TRACK OPEN'}
           </span>
         </div>
       </div>
-      <div className="mt-2 text-[11px] font-semibold tracking-[0.08em]" style={{ ...MONO, color: INK_FAINT }}>
-        PARALLEL EDUCATION TRACK · {state.totalCourses} COURSES · {state.faculties.length} FACULTIES · ONE ENROLLMENT AT A TIME
-      </div>
 
       <div
-        className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 pt-3"
+        className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 pt-2.5"
         style={{ borderTop: `1px solid ${HAIRLINE}` }}
       >
-        <Readout label="Credits" value={`${state.credits.toLocaleString()} CR`} />
         <Readout label="Courses logged" value={`${state.completedCount}/${state.totalCourses}`} />
         <Readout label="Last log" value={last ? last.name.toUpperCase() : '—'} valueSize={13} />
-        <Readout label="Catalog complete" value={`${pct}%`} />
       </div>
 
       <div className="mt-3">
@@ -625,14 +617,36 @@ export const ResearchPanel: React.FC = () => {
     setState(result.research);
   }, []);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadResearch = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const result = await getResearchState();
+      setState(result.research);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Unable to load Research right now.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     getResearchState()
       .then((result) => {
-        if (!cancelled) setState(result.research);
+        if (cancelled) return;
+        setState(result.research);
+        setLoadError(null);
       })
-      .catch(() => {
-        // Chef unreachable: the panel stays hidden.
+      .catch((err) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : 'Unable to load Research right now.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -675,11 +689,35 @@ export const ResearchPanel: React.FC = () => {
     }
   }, [busy, refresh]);
 
-  if (!state) return null;
+  if (!state) {
+    if (loadError) {
+      return (
+        <Module>
+          <div className="space-y-2 py-2">
+            <div className="text-xs font-black uppercase tracking-wide text-red">Research unavailable</div>
+            <div className="text-[11px] font-semibold" style={{ color: INK_FAINT }}>{loadError}</div>
+            <button
+              type="button"
+              onClick={() => void loadResearch()}
+              className="bl-secondary min-h-[44px] px-4 py-2 text-xs font-black uppercase text-amber"
+            >
+              Retry
+            </button>
+          </div>
+        </Module>
+      );
+    }
+    return loading ? (
+      <Module>
+        <div className="py-4 text-center text-xs font-bold uppercase tracking-wider" style={{ color: INK_FAINT }}>
+          Loading Research…
+        </div>
+      </Module>
+    ) : null;
+  }
 
   return (
     <div className="space-y-3">
-      <ClusterHeader state={state} />
       {state.activeEnrollment && (
         <SessionModule
           state={state}
@@ -688,6 +726,7 @@ export const ResearchPanel: React.FC = () => {
           onCancel={() => void cancel()}
         />
       )}
+      <ClusterHeader state={state} />
       {state.faculties.map((faculty, i) => (
         <FacultyModule
           key={faculty.id}

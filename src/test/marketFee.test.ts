@@ -254,14 +254,14 @@ describe('marketFee shared computation', () => {
     expect(b.fee).toBe(375);
   });
 
-  it('Scavenger treeBonus class mod grants +1 to both fee nodes', () => {
+  it('Scavenger treeBonus class mod grants +1 to small fee node only (not uninvested Major)', () => {
     const found = marketFeeForSeller({
       price: 10_000, skillSpends: {},
       classModBoosts: { treeBonus: 'Scavenger', nodeBoosts: {} },
       foundBySeller: true,
     });
-    // Darknet 1pt (5%) + Manipulator 1pt (15%) = 20% reduction.
-    expect(found.fee).toBe(400);
+    // Darknet 1pt (5%) only; Manipulator is a Major and not unlocked free by treeBonus.
+    expect(found.fee).toBe(475);
     const notFound = marketFeeForSeller({
       price: 10_000, skillSpends: {},
       classModBoosts: { treeBonus: 'Scavenger', nodeBoosts: {} },
@@ -354,10 +354,9 @@ describe('market fee — shipped path', () => {
       nonce: nonce(), listing_id: listingId,
     });
     expect(bought.status).toBe(200);
-    // Scavenger treeBonus: Darknet +1 (5%) and Manipulator +1 (15%)
-    // on a personally found item → 20% reduction → fee 400.
-    expect(bought.json.market_fee).toMatchObject({ fee_credits: 400, seller_proceeds: 9_600 });
-    expect(creditsOf(h, M)).toBe(9_600);
+    // Scavenger treeBonus: Darknet +1 (5%) on small nodes only (Manipulator is a Major) → fee 475.
+    expect(bought.json.market_fee).toMatchObject({ fee_credits: 475, seller_proceeds: 9_525 });
+    expect(creditsOf(h, M)).toBe(9_525);
   });
 
   it('bought-and-relisted items do NOT get the Manipulator reduction', async () => {

@@ -182,12 +182,12 @@ export function canUseFeature(account: AccountState | null, feature: GatedFeatur
   if (isGuestAccount(account)) {
     return {
       allowed: false,
-      reason: 'Sign in with Google to use player economy features.',
+      reason: 'Sign in to use player economy features.',
     };
   }
 
   return {
     allowed: false,
-    reason: 'Sign in with Google to unlock player economy features.',
+    reason: 'Verify your account to unlock player economy features.',
   };
 }

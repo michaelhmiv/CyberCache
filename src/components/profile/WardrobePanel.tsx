@@ -74,28 +74,21 @@ export const WardrobePanel: React.FC = () => {
     <div className="space-y-3" data-testid="wardrobe-console">
       {/* ── CONSOLE HEAD ─────────────────────────────────────────── */}
       <Panel testId="wardrobe-console-head">
-        <PanelLabel label="Fitting console" right="SYS NOMINAL" />
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[26px] uppercase leading-none" style={{ ...headStyle, color: INK }}>
-            Wardrobe
-          </h2>
-          <span className="flex items-center gap-2">
+          <div className="text-[12px] font-bold uppercase" style={{ ...monoStyle, color: MUT }}>
+            {hunter.name} · {String(hunter.tree)} · LV {player.level}
+          </div>
+          <span className="flex items-center gap-1.5">
             <Led lit color={GREEN} />
             <span className="text-[11px] font-black uppercase" style={{ ...monoStyle, color: GREEN, letterSpacing: '0.1em' }}>
               Cosmetic only
             </span>
           </span>
         </div>
-        <div className="mt-2 text-[12px] font-bold uppercase" style={{ ...monoStyle, color: MUT }}>
-          Unit {hunter.name} · {String(hunter.tree)} · LV {player.level}
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-1.5">
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
           <LcdWell value={String(counts.worn)} label="Worn" valueSize={20} />
           <LcdWell value={String(counts.owned)} label="Owned" valueSize={20} />
           <LcdWell value={String(skins.length)} label="Catalog" valueSize={20} />
-        </div>
-        <div className="mt-3 text-[11px] font-bold uppercase leading-relaxed" style={{ ...monoStyle, color: FAINT }}>
-          Pure cosmetic — zero stats · one painting, worn whole
         </div>
       </Panel>
 

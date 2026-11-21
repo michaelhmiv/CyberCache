@@ -86,7 +86,6 @@ import {
   type BossSimulationInput,
 } from '../lib/simulation/bossSimulator';
 import {
-  applyBadDecisionBonus,
   applyLegendaryEffects,
   getInsuranceFraudRefundChance,
   getSalvageRightsScrapMult,
@@ -104,8 +103,8 @@ import { resolveRarityWeights } from '../content/lootResolver';
 import type { BossAttemptResult } from '../types/boss';
 import { resolveAreaMonsters, pickAreaMonster } from '../lib/combat/areaMonsterSelector';
 import { pickNextTarget } from '../lib/combat/killCycleHelpers';
-import { computePlayerDamageVsMonster } from '../lib/combat/damageContract';
-import { computeMonsterDamageVsHunter, type HunterSurvivalStats } from '../lib/combat/damageContract';
+import { computePlayerDamageVsMonster, computeHunterMaxHp, computeMonsterDamageVsHunter, type HunterSurvivalStats } from '../lib/combat/damageContract';
+import { MAX_PLAYER_LEVEL } from '../content/simulation';
 import {
   SHIELD_BEHAVIOR_TUNING,
   ampDamageMultiplier,
@@ -115,6 +114,7 @@ import {
 import { computeEffectiveDpsFromGear } from '../lib/combat/loadoutSurvival';
 import {
   activateFromInventory,
+  reconcileRoamingStateWithInventory,
   processTick,
   getSurvivalState,
   buildActiveBuffs,
@@ -569,16 +569,26 @@ export function processRoamingClaim(
   // than their gear actually provides.
   const serverIdleMods = { offlineEarningsMod: 0, scrapYieldMod: 0, rareDropChanceMod: 0 };
   for (const gear of equippedGear ?? []) {
-    if ('offlineEarningsMod' in gear) serverIdleMods.offlineEarningsMod += (gear.offlineEarningsMod ?? 0);
-    if ('scrapYieldMod' in gear) serverIdleMods.scrapYieldMod += (gear.scrapYieldMod ?? 0);
-    if ('rareDropChanceMod' in gear) serverIdleMods.rareDropChanceMod += (gear.rareDropChanceMod ?? 0);
+    const isWeapon = 'weaponType' in gear;
+    const topOffline = 'offlineEarningsMod' in gear ? (gear.offlineEarningsMod ?? 0) : 0;
+    const topScrap = 'scrapYieldMod' in gear ? (gear.scrapYieldMod ?? 0) : 0;
+    const topRare = 'rareDropChanceMod' in gear ? (gear.rareDropChanceMod ?? 0) : 0;
+    let affixOffline = 0;
+    let affixScrap = 0;
+    let affixRare = 0;
     if ('affixes' in gear && Array.isArray(gear.affixes)) {
       for (const affix of gear.affixes as Array<{ stat?: string; value?: number }>) {
-        if (affix.stat === 'offlineEarningsMod') serverIdleMods.offlineEarningsMod += affix.value ?? 0;
-        if (affix.stat === 'scrapYieldMod') serverIdleMods.scrapYieldMod += affix.value ?? 0;
-        if (affix.stat === 'rareDropChanceMod') serverIdleMods.rareDropChanceMod += affix.value ?? 0;
+        if (affix.stat === 'offlineEarningsMod') affixOffline += affix.value ?? 0;
+        if (affix.stat === 'scrapYieldMod') affixScrap += affix.value ?? 0;
+        if (affix.stat === 'rareDropChanceMod') affixRare += affix.value ?? 0;
       }
     }
+    // bakeWeaponAffixes sums weapon idle affixes into top-level weapon fields
+    // while keeping the affix rows; take the baked top-level value when present
+    // so weapon idle affixes are never double-counted.
+    serverIdleMods.offlineEarningsMod += isWeapon ? (topOffline !== 0 ? topOffline : affixOffline) : (topOffline + affixOffline);
+    serverIdleMods.scrapYieldMod += isWeapon ? (topScrap !== 0 ? topScrap : affixScrap) : (topScrap + affixScrap);
+    serverIdleMods.rareDropChanceMod += isWeapon ? (topRare !== 0 ? topRare : affixRare) : (topRare + affixRare);
   }
 
   // The primary weapon for legendary-effect purposes. The client builds
@@ -788,52 +798,22 @@ export function processRoamingClaim(
   // Survival state
   let survHp = request.survival?.currentHp ?? 0;
   let survShield = request.survival?.shieldHp ?? 0;
-  const survMaxHp = request.survival?.maxHp ?? 700;
+  const survMaxHp = request.survival?.maxHp ?? computeHunterMaxHp(playerLevel, shieldCapacity);
   let survDead = survHp <= 0;
-  // Death attribution for THIS claim: set only when the sim's own hit
-  // takes the hunter from alive to dead (a hunter who enters the claim
-  // already dead has no new killer — the standing death record, if
-  // any, remains the truth).
   let survKilledBy: ClaimResult['survival']['killedBy'] = null;
   let survDiedAt: number | null = null;
-  // Nova arm state for this claim (Phase 2c): the client's round-trip
-  // wins; when absent, a shield charged at or above the re-arm
-  // threshold is presumed armed (it either never fired or has since
-  // recharged past the threshold — the two are indistinguishable
-  // without the flag, and the threshold rule is the standing law).
   let shieldNovaArmed =
     request.survival?.shieldNovaArmed ??
     (shieldCapacity > 0 &&
       survShield >= SHIELD_BEHAVIOR_TUNING.novaRearmThreshold * shieldCapacity);
 
-  // Death-loop trickle guard (owner ruling 2026-11-02): the presence
-  // trickle — per-tick credit/scrap/XP accrual and the per-tick loot
-  // roll (gear / field-sweep materials) — pays only while
-  // the hunter has killed at least one hostile since their last
-  // death. Entering a claim already dead starts disarmed; entering
-  // alive with no flag starts armed (fresh life). Kills re-arm (see
-  // the kill sites); deaths disarm (see the death sites). Without
-  // this, a hunter dying on loop in a top area accrued its trickle
-  // at full rate — death gated the kill cycle, not the reward roll.
-  //
-  // The guard reads death ONLY from a modeled survival state. A
-  // claim that carries no survival block at all (legacy routes,
-  // internal callers) has no hunter body to pronounce dead — survHp
-  // defaults to 0 there, which is an absent input, not a corpse —
-  // and such claims pay exactly as they did before the guard.
   const survivalModeled = request.survival != null;
   let trickleArmed = survivalModeled
     ? !survDead && (request.survival?.trickleArmed ?? true)
     : true;
 
   // --- Consumable engine initialization ---
-  // Local copy: the Wounded Scavenger event can spend a carried
-  // survival consumable mid-claim, and the request object is not ours
-  // to mutate.
   const consumableInventory: Record<string, number> = { ...(request.consumableInventory ?? {}) };
-  // Initial owned counts for every buffer-type consumable (the Med Kit
-  // line), keyed by type — claim-end consumption is derived per type
-  // from how much of each type's buffer pool was absorbed.
   const initialBufferCounts: Record<string, number> = {};
   for (const [id, count] of Object.entries(consumableInventory)) {
     if (count > 0 && isBufferConsumable(id)) initialBufferCounts[id] = count;
@@ -841,8 +821,26 @@ export function processRoamingClaim(
   const masteryLevels = request.masteryLevels ?? {};
   let roamingState: RoamingConsumableState | undefined = request.roamingConsumableState;
   if (!roamingState) {
-    // Activate ALL owned consumables from inventory (no slot gating).
     roamingState = activateFromInventory(consumableInventory, tickCount - ticks, request.consumableQualityProfile, { maxHp: survMaxHp, shieldCapacity });
+  } else {
+    // Reconcile persisted state (migration 0096) with current inventory so
+    // newly acquired/restocked roaming consumables activate immediately and
+    // restocked Med Kits top up their buffer instead of being destroyed.
+    roamingState = reconcileRoamingStateWithInventory(
+      roamingState,
+      consumableInventory,
+      tickCount - ticks,
+      request.consumableQualityProfile,
+      { maxHp: survMaxHp, shieldCapacity },
+    );
+  }
+  // Snapshot each buffer slot's starting remainingBuffer after reconciliation
+  // so claim-end consumption measures ONLY units absorbed during THIS claim.
+  const initialBufferRemaining: Record<string, number> = {};
+  for (const slot of roamingState.slots) {
+    if (isBufferConsumable(slot.consumableId)) {
+      initialBufferRemaining[slot.consumableId] = Math.max(0, slot.remainingBuffer);
+    }
   }
   const consumedConsumables: Record<string, number> = {};
 
@@ -1370,6 +1368,7 @@ export function processRoamingClaim(
         pushEventFeed(def.blurb);
         for (const entry of res.entries) {
           let qty = entry.min + Math.floor(eventRng() * (entry.max - entry.min + 1));
+          if (qty <= 0) continue;
           if (entry.kind === 'material' && consumableMods.materialEventYieldBonus > 0) {
             qty = Math.max(1, Math.round(qty * (1 + consumableMods.materialEventYieldBonus)));
           }
@@ -1456,6 +1455,7 @@ export function processRoamingClaim(
           redline_pursuit_pack: { archetype: 'runner', hpMult: 1 },
           ironwood_sentry_nest: { archetype: 'sniper', hpMult: 2 },
           throwtech_turret_nest: { archetype: 'sniper', hpMult: 2 },
+          helix_prototype_escape: { archetype: 'brute', hpMult: 1.5 },
           helixworks_prototype_escape: { archetype: 'brute', hpMult: 1.5 },
           helixworks_specimen_release: { archetype: 'runner', hpMult: 1.5 },
         };
@@ -1597,9 +1597,11 @@ export function processRoamingClaim(
       roamingState = tickResult.state;
       consumableMods = tickResult.mods;
 
-      // Track consumed consumables
+      // Track consumed consumables and decrement local inventory so subsequent
+      // ticks in a multi-tick / offline batch see the true remaining stock.
       for (const c of tickResult.consumed) {
         consumedConsumables[c.id] = (consumedConsumables[c.id] ?? 0) + c.count;
+        consumableInventory[c.id] = Math.max(0, (consumableInventory[c.id] ?? 0) - c.count);
       }
 
       // Push consumable feed events
@@ -1985,10 +1987,13 @@ export function processRoamingClaim(
         // body — plus consumable damage reduction (Shield Cell
         // resistance). This is the value the snapshot's Effective HP
         // math advertises; display and engine now agree.
+        const equippedShield = (equippedGear ?? []).find((g) => 'mitigation' in g) as { element?: Element } | undefined;
         const hunter: HunterSurvivalStats = {
           maxHp: survMaxHp,
           shieldHp: survShield,
           mitigation: Math.min(0.8, serverMitigation + consumableMods.damageReductionPct),
+          dodgeChance: Math.min(0.4, request.skillBonuses?.staggerChance ?? 0),
+          shieldElement: equippedShield?.element,
           shieldBehavior,
           shieldCapacity,
           shieldNovaArmed,
@@ -2267,12 +2272,15 @@ export function processRoamingClaim(
       if (initialCount <= 0) continue;
       const perUnit = bufferHealPerUnit(slot.consumableId, slot.qualityPercent ?? 100, { maxHp: survMaxHp, shieldCapacity });
       if (perUnit <= 0) continue;
-      const remainingFull = Math.floor(Math.max(0, slot.remainingBuffer) / perUnit);
-      const consumed = initialCount - remainingFull;
+      const startBuf = initialBufferRemaining[slot.consumableId] ?? initialCount * perUnit;
+      const startFull = Math.floor(Math.max(0, startBuf) / perUnit);
+      const endFull = Math.floor(Math.max(0, slot.remainingBuffer) / perUnit);
+      const consumed = Math.min(initialCount, Math.max(0, startFull - endFull));
       if (consumed > 0) {
         consumedConsumables[slot.consumableId] =
           (consumedConsumables[slot.consumableId] ?? 0) + consumed;
       }
+      (slot as typeof slot & { bufferCountSnapshot?: number }).bufferCountSnapshot = Math.max(0, initialCount - consumed);
     }
   }
 
@@ -2427,8 +2435,9 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
     ? Math.round(boss.level * 150 * legendary.creditMult * (1 + (request.cacheRankBonuses?.credits ?? 0)))
     : -deathFee;
   // The entry fee is charged on every resolved attempt, win or lose —
-  // it is part of the net delta the applier persists.
-  const creditsDelta = applyBadDecisionBonus(rawCreditsDelta, request.primary) - entryFee;
+  // it is part of the net delta the applier persists. (bad_decision's
+  // 1.25x credit bonus is already folded into legendary.creditMult above.)
+  const creditsDelta = rawCreditsDelta - entryFee;
 
   let xpMult = 1;
   // Relic affixes with xpBoostMod
@@ -2446,8 +2455,13 @@ export function processBossAttempt(request: BossAttemptRequest): BossAttemptChef
   // Cache Rank Fast Learner (0031) multiplies last.
   const xpAwarded = victory ? Math.round(boss.level * 50 * xpMult * (1 + (request.cacheRankBonuses?.xp ?? 0))) : 0;
 
-  const consumedConsumables = getBossConsumableUsage(request.consumables, victory, sim.survivalScore);
-  const refundChance = getInsuranceFraudRefundChance(request.primary);
+  const consumedConsumables = getBossConsumableUsage(
+    request.consumables,
+    victory,
+    Math.min(sim.survivalScore, sim.baseSurvivalScore),
+  );
+  // Insurance Fraud (legendary weapon): 50% consumable refund on DEFEAT only.
+  const refundChance = !victory ? getInsuranceFraudRefundChance(request.primary) : 0;
   if (refundChance > 0) {
     Object.keys(consumedConsumables).forEach((type) => {
       if (rng() < refundChance) delete consumedConsumables[type];
@@ -2859,25 +2873,26 @@ export function processEndlessEncounter(request: EndlessEncounterRequest): Endle
     const area = ROAMING_AREAS.find((entry) => entry.id === encounter.areaId) ?? ROAMING_AREAS[0];
     const weights = endlessMilestoneRarityWeights(request.depth, levers, request.dropLuckBonus ?? 0);
     const kind = rollAreaDropKind(area, rng);
+    const dropLevel = Math.min(MAX_PLAYER_LEVEL, encounter.level);
     let drop: GearItem | null = null;
     switch (kind) {
       case 'weapon':
         drop = generateWeapon(
-          { source: DropSource.BossDrop, level: encounter.level, bossTier: boss.tier, zoneWeights: weights },
+          { source: DropSource.BossDrop, level: dropLevel, bossTier: boss.tier, zoneWeights: weights },
           rng,
         );
         break;
       case 'shield':
-        drop = generateShield(encounter.level, rng, weights);
+        drop = generateShield(dropLevel, rng, weights);
         break;
       case 'classMod':
-        drop = generateClassMod(encounter.level, rng, weights);
+        drop = generateClassMod(dropLevel, rng, weights);
         break;
       case 'relic':
-        drop = generateRelic(encounter.level, rng, weights);
+        drop = generateRelic(dropLevel, rng, weights);
         break;
       case 'ordnance':
-        drop = generateOrdnance(encounter.level, rng, weights);
+        drop = generateOrdnance(dropLevel, rng, weights);
         break;
       default:
         break;

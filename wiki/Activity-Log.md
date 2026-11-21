@@ -8,7 +8,7 @@ The Activity Log is your hunter's whole record — every drop, trade, craft, and
 
 - **Drops**, each with its receipt (below)
 - **Kill stretches** — roaming kills land as one summary line per stretch, not one line per kill; the drops they produced are their own entries
-- **[[Bosses|Boss fights]]** — outcome, the win chance going in, credits won or lost, and the victory loot
+- **[[Bosses|Boss fights]]** — outcome, credits won or lost, and the victory loot
 - **[[Caches]]** — the item, the outcome, and the draw exactly as rolled
 - **[[Crafting|Crafts]]** — recipe, units, bench, XP, and what came off the bench — plus the steps around the work: a craft you queue, and one you cancel for its inputs back, each leave their own line
 - **[[The Market|Market trades]]** — price, fee, and who was on the other side; for your own sales, the exact amount you were credited (price minus fee, plus any proceeds bonus) — the figure the Sold announcement on Home shows. Putting a listing up, and pulling one back down, leave their own lines beside the trades

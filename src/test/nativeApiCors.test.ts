@@ -13,7 +13,7 @@ describe('native API CORS contract', () => {
 
   it('answers API preflights with the headers required by authenticated Chef POSTs', () => {
     expect(serverIndex).toContain("Access-Control-Allow-Origin");
-    expect(serverIndex).toContain("Access-Control-Allow-Methods', 'GET,POST,OPTIONS'");
+    expect(serverIndex).toContain("Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS'");
     expect(serverIndex).toContain("Access-Control-Allow-Headers', 'Content-Type,Authorization'");
     expect(serverIndex).toContain("req.method === 'OPTIONS'");
     expect(serverIndex).toContain('res.status(204).end()');

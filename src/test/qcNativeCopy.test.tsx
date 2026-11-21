@@ -38,10 +38,10 @@ afterEach(() => {
 });
 
 describe('Landing honesty — native app unchanged (QC B3)', () => {
-  it('AuthScreen in the app keeps the original sign-in copy', () => {
+  it('AuthScreen in the app keeps the native sign-in copy', () => {
     render(<AuthScreen />);
-    expect(screen.getByText(/vendor yard is open to everyone/)).toBeTruthy();
-    expect(screen.getByText(/keep your hunter on any device/)).toBeTruthy();
+    expect(screen.getByText(/Jump in as a guest and play right away/)).toBeTruthy();
+    expect(screen.getByText(/unlock the player market and sync across devices/)).toBeTruthy();
     expect(screen.queryByText(/guest preview/)).toBeNull();
   });
 

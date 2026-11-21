@@ -375,7 +375,7 @@ describe('Dashboard top — pop-ups hold the real panels', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('top-contracts-button').getAttribute('aria-label'))
-        .toBe('Contracts — sign in with Google to claim rewards');
+        .toBe('Contracts — sign in to claim rewards');
     });
     const icon = screen.getByTestId('top-contracts-button');
     // Assumption-gaps G10: the guest badge prints its why as a

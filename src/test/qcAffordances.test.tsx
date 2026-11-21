@@ -286,7 +286,7 @@ describe('Landing honesty on the web build (QC B3)', () => {
   it('AuthScreen web copy calls the web build a guest preview, no sign-in promise', () => {
     render(<AuthScreen />);
     expect(screen.getByText(/This web build is a guest preview/)).toBeTruthy();
-    expect(screen.getByText(/Signing in lives in the CyberCache app/)).toBeTruthy();
+    expect(screen.getByText(/sign in inside the CyberCache mobile app/)).toBeTruthy();
     expect(screen.queryByText(/vendor yard is open to everyone/)).toBeNull();
   });
 

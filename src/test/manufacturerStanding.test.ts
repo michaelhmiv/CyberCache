@@ -222,7 +222,7 @@ describe('standing content — the unlock catalog', () => {
       expect(def.market.vendorPrice).toBe(shelf.priceCredits);
     }
     expect(STANDING_SHELF_TYPES[Manufacturer.Redline]).toEqual({ consumableType: 'OverchargeStim', priceCredits: 800 });
-    expect(STANDING_SHELF_TYPES[Manufacturer.HelixWorks]).toEqual({ consumableType: 'LuckBooster', priceCredits: 350 });
+    expect(STANDING_SHELF_TYPES[Manufacturer.HelixWorks]).toEqual({ consumableType: 'DataSkimmer', priceCredits: 900 });
   });
 
   it('exclusive recipe outputs exist, are vendor-excluded, and match the recipe table', () => {
@@ -1069,8 +1069,12 @@ describe('standing routes', () => {
 
 describe('migration 0043 — textual pins', () => {
   it('cc_standing_catalog rows equal STANDING_OFFERS exactly', () => {
+    const catalogSql = readFileSync(
+      join(process.cwd(), 'db/migrations/0104_audit_hardening.sql'),
+      'utf8',
+    );
     const rowRe = /\('((?:shelf|crate):[A-Za-z]+)', '([A-Za-z]+)', '(shelf|crate)', (\d+), (\d+), (null|'[^']*'), '(\{.*\})'::jsonb\)/g;
-    const rows = [...MIGRATION.matchAll(rowRe)].map((m) => ({
+    const rows = [...catalogSql.matchAll(rowRe)].map((m) => ({
       offerKey: m[1],
       manufacturer: m[2],
       kind: m[3],

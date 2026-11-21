@@ -185,7 +185,7 @@ describe('extraction content: the gear factor from the shipped damage path', () 
 
   it('the lever floor clamps the factor from below', () => {
     const floored = extractionGearFactor({
-      level: 1, shield: null, area: dustwaste,
+      level: 1, shield: null, area: getRoamingArea('helixworks_labyrinth'),
       levers: resolveExtractionLevers({ extractGearFactorFloor: 0.9 }),
     });
     expect(floored).toBe(0.9);
@@ -532,7 +532,7 @@ describe('extraction gameplay store: accrual + finalization', () => {
 
   it('mid-session degradation: a gear swap reprices the unfinished pass at completion', async () => {
     const rig = makeGameplayRig(T0);
-    seedExtractionRun(rig, { level: 25, method: 'deep', masteryXp: 3000 });
+    seedExtractionRun(rig, { level: 10, areaId: 'helixworks_labyrinth', method: 'deep', masteryXp: 3000 });
     rig.store.seedItem({
       id: 'shield-strong', owner_user_id: A, kind: 'shield',
       payload: { kind: 'shield', hp: 100000, mitigation: 0.9, element: null },

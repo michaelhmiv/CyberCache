@@ -27,14 +27,14 @@ describe('account state gates', () => {
     const guest: AccountState = { ...baseAccount, accountType: 'guest', isAnonymous: true, email: null };
     expect(canUseFeature(guest, 'market')).toEqual({
       allowed: false,
-      reason: 'Sign in with Google to use player economy features.',
+      reason: 'Sign in to use player economy features.',
     });
   });
 
   it('blocks registered but unverified users from player economy features', () => {
     expect(canUseFeature(baseAccount, 'service_jobs')).toEqual({
       allowed: false,
-      reason: 'Sign in with Google to unlock player economy features.',
+      reason: 'Verify your account to unlock player economy features.',
     });
   });
 
