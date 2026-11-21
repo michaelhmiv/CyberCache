@@ -167,3 +167,19 @@ export async function signOut(): Promise<void> {
     await setSession(null);
   }
 }
+
+/**
+ * In-app account deletion (Build 7 — App Review hardening,
+ * Guideline 5.1.1(v)): POST /api/account/delete carries no body —
+ * the Chef derives the account from the session and deletes it with
+ * its data server-side. On success the local session clears exactly
+ * like sign-out (setSession(null) removes the stored record under
+ * cybercache.chef.session.v1 and notifies listeners), so the app
+ * returns to the sign-in screen. A failed call throws BEFORE the
+ * session is touched: the account still exists, so the player
+ * stays signed in and the caller shows its plain failure state.
+ */
+export async function deleteAccount(): Promise<void> {
+  await apiRequest('/account/delete', { method: 'POST' });
+  await setSession(null);
+}

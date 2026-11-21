@@ -2,6 +2,10 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-20 — Your account, ended in the app
+
+- **Account deletion lives in the app now** — the Danger Zone's **Delete Account / Data** used to send you to a web page; it now opens a confirmation right in Settings that names everything that goes — your account, profile and username, saved progress, hunters, gear and inventory, market listings, and leaderboard places — and, on your confirm, deletes it on the spot and signs you out. It cannot be undone, and the sheet says so before you ever tap. The web page remains as a **Learn more** link for anyone who wants the long version first. Settings also gained a **Support** row that opens the support page, and every name on the Standings boards but your own now carries a **Report** action: two taps and the name is flagged for review.
+
 ## 2026-11-20 — The wasteland gets louder
 
 - **Manufacturers, legends, and bosses talk bigger now** — maker slogans, legendary effect write-ups, boss dossiers, and the consumable and skill-tree descriptions were rewritten in a louder Borderlands voice: same numbers, same mechanics, more attitude. Wherever a line states a price, a percentage, or a duration, it says exactly what it said before — it just says it like it means it.
