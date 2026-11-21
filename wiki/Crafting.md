@@ -255,7 +255,8 @@ the Gear Frames lane at a **fixed Epic** rarity with **fixed
 effects** — no roll, no temper, no catalyst — and they apply to
 every job **while equipped** in your relic slot. Relics never wear
 out, and a craft relic's effects can never be reforged away: they
-are the relic's identity.
+are the relic's identity. Each named relic crafts **one unit per
+job** — the bench makes them one at a time.
 
 - **Precision Calipers** — rolled craft quality **×1.08**.
 - **Servo Bench Rig** — craft unit durations **×0.85**.
@@ -374,6 +375,9 @@ essences their cards name. Salvage from the [[Gear]] tab pays **Scrap**
 come back only as an occasional single bonus material for Common
 items once you hold the King of Scrap keystone, so treat salvage as
 your Scrap income, never as a way to stock a specific material.
+Salvaging gear you crafted pays at most 5 Scrap for a named workshop
+relic and 15 for any other crafted piece, before salvage bonuses —
+the bench's own output never out-pays its inputs.
 There is only one Scrap stock: what salvage pays is exactly what
 skin parts, tints, reforge and rerolls draw from — and the same
 stack you can list on [[The Market]], so a short bench can be

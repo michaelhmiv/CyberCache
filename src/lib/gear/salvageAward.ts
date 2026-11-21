@@ -31,11 +31,14 @@
  * module instead).
  */
 import {
+  CRAFTED_GEAR_MAX_SALVAGE_SCRAP,
+  CRAFTED_RELIC_MAX_SALVAGE_SCRAP,
   SALVAGE_FALLBACK_MATERIAL,
   SALVAGE_MATERIAL_BY_KIND,
   applySalvageSkillBonuses,
   salvageScrap,
 } from '@/lib/skills/salvageBonuses';
+import { isCraftedGearPayload, isCraftedNamedRelicPayload } from '@/lib/vendor/catalog';
 import { legendaryCoreYieldFor } from '@/content/collections';
 import type { GearItem, Weapon } from '@/types/items';
 
@@ -109,15 +112,27 @@ export function salvageKindOf(item: GearItem): string {
  * computeSkillBonuses record — the same derivation the server twins
  * feed applySalvageSkillBonuses from the player's own records).
  *
- * Composition order mirrors cc_recycle_item (0053) and both
- * in-memory twins exactly: base award → Market Crash ×4 → skill
- * multipliers composed by applySalvageSkillBonuses with the twins'
- * own no-grant roll sentinel (materialRoll 1 — the scrap award never
- * depends on the roll) → cores from legendaryCoreYieldFor, unscaled.
+ * Composition order mirrors cc_recycle_item (0105) and both
+ * in-memory twins exactly: base award → crafted-gear cap (ruling
+ * 2026-11-21: 5 scrap for named craft relics, 15 for other crafted
+ * gear — the client item IS the server payload, so its `origin`
+ * names it) → Market Crash ×4 → skill multipliers composed by
+ * applySalvageSkillBonuses with the twins' own no-grant roll
+ * sentinel (materialRoll 1 — the scrap award never depends on the
+ * roll) → cores from legendaryCoreYieldFor, unscaled.
  */
 export function projectSalvageYield(item: GearItem, bonuses: Record<string, number>): SalvageYield {
   const kind = salvageKindOf(item);
-  const base = salvageScrap(item.rarity, item.level ?? 1);
+  const rawBase = salvageScrap(item.rarity, item.level ?? 1);
+  const payload = item as unknown as Record<string, unknown>;
+  const base = isCraftedGearPayload(payload)
+    ? Math.min(
+        rawBase,
+        isCraftedNamedRelicPayload(payload)
+          ? CRAFTED_RELIC_MAX_SALVAGE_SCRAP
+          : CRAFTED_GEAR_MAX_SALVAGE_SCRAP,
+      )
+    : rawBase;
   // Legendary Honesty (0008): Market Crash — this weapon's scrap
   // value is 4x normal when recycled, applied before skill bonuses.
   const crashed = (item as Weapon).legendaryEffectId === 'market_crash' ? base * 4 : base;

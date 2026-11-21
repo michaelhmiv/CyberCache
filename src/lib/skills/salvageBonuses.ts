@@ -47,6 +47,19 @@ export const SALVAGE_MATERIAL_BY_KIND: Record<string, string> = {
 
 export const SALVAGE_FALLBACK_MATERIAL = 'Scrap';
 
+/** Crafted-gear salvage caps (owner ruling 2026-11-21, PR #646
+ *  adoptions): the BASE award for Workshop-crafted gear is capped
+ *  below the fixed recipe scrap inputs — 5 for the named craft
+ *  relics, 15 for any other crafted gear — so a craft can never
+ *  print Scrap through salvage. The cap lands on the base award,
+ *  before Market Crash and skill multipliers, in every twin:
+ *  cc_recycle_item (migration 0105), both in-memory stores, and the
+ *  client projection in lib/gear/salvageAward.ts. Crafted detection
+ *  lives in lib/vendor/catalog.ts (isCraftedGearPayload /
+ *  isCraftedNamedRelicPayload). */
+export const CRAFTED_RELIC_MAX_SALVAGE_SCRAP = 5;
+export const CRAFTED_GEAR_MAX_SALVAGE_SCRAP = 15;
+
 /** Rarities the King of Scrap treats as "low-rarity". */
 export function isLowRarity(rarity: string): boolean {
   return rarity === 'Common' || rarity === 'Uncommon';

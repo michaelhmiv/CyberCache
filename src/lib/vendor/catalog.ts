@@ -162,6 +162,35 @@ export function vendorRotationForDate(dateKey: string): VendorRotation {
   return { dateKey, consumables, materials, itemOfTheDay };
 }
 
+/** True when a gear payload was Workshop-crafted (`origin: 'crafted'`). */
+export function isCraftedGearPayload(payload: Record<string, unknown> | null | undefined): boolean {
+  return Boolean(payload && payload.origin === 'crafted');
+}
+
+/** The named Workshop craft relics — the four fixed-Epic relic
+ *  recipes in src/content/crafting.ts (CRAFT_RELIC_RECIPES). */
+export const CRAFTED_NAMED_RELICS: readonly string[] = [
+  'Precision Calipers',
+  'Servo Bench Rig',
+  'Reclaimer Head',
+  'Prime Laboratory',
+];
+
+/** True when a gear payload is one of the named workshop craft relics (e.g., Reclaimer Head). */
+export function isCraftedNamedRelicPayload(payload: Record<string, unknown> | null | undefined): boolean {
+  if (!payload || payload.origin !== 'crafted') return false;
+  const name = typeof payload.name === 'string' ? payload.name : '';
+  return CRAFTED_NAMED_RELICS.includes(name);
+}
+
+/** Vendor value caps on Workshop-crafted gear so fixed-cost recipes
+ *  (e.g., Reclaimer Head, gear frames) can never print credits at
+ *  L50-L100 (owner ruling 2026-11-21, PR #646 adoptions). The SQL
+ *  twin caps the same values at sell time in cc_vendor_sell
+ *  (migration 0105); salvage caps live with the recycle twins. */
+export const CRAFTED_RELIC_MAX_VENDOR_VALUE = 250;
+export const CRAFTED_GEAR_MAX_VENDOR_VALUE = 500;
+
 /** Base (undiscounted) vendor price for any catalog item, or null. */
 export function vendorBasePrice(itemKey: string): number | null {
   const def = CONSUMABLE_BY_ID.get(itemKey);
@@ -296,5 +325,12 @@ export function computeItemEstimatedValue(
     const affixCount = Array.isArray(payload.affixes) ? payload.affixes.length : 0;
     bonus = affixCount * 40 * mult;
   }
-  return Math.floor(base + bonus);
+  const raw = Math.floor(base + bonus);
+  if (isCraftedGearPayload(payload)) {
+    const cap = isCraftedNamedRelicPayload(payload)
+      ? CRAFTED_RELIC_MAX_VENDOR_VALUE
+      : CRAFTED_GEAR_MAX_VENDOR_VALUE;
+    return Math.min(raw, cap);
+  }
+  return raw;
 }

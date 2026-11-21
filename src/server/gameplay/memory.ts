@@ -70,7 +70,13 @@ import {
   type ClassModBoosts,
 } from '../../lib/skills/skillBonuses';
 import { activeHunterId, checkClassModBinding, computeHunterSkillBonuses, emptyHunterLoadout, HUNTER_GEAR_SLOTS, isHunterId, itemsAssignedToAnyHunter, loadoutForHunter, treeForHunter, type HunterLoadouts } from '../../lib/hunters/hunters';
-import { applySalvageSkillBonuses, SALVAGE_MATERIAL_BY_KIND } from '../../lib/skills/salvageBonuses';
+import {
+  applySalvageSkillBonuses,
+  CRAFTED_GEAR_MAX_SALVAGE_SCRAP,
+  CRAFTED_RELIC_MAX_SALVAGE_SCRAP,
+  SALVAGE_MATERIAL_BY_KIND,
+} from '../../lib/skills/salvageBonuses';
+import { isCraftedGearPayload, isCraftedNamedRelicPayload } from '../../lib/vendor/catalog';
 import { legendaryCoreYieldFor, type DiscoveryRecord } from '../../content/collections';
 import {
   accrueActionSkillCharge,
@@ -4016,10 +4022,18 @@ export class InMemoryChefGameplayStore implements ChefGameplayStore {
     if (!['available', 'equipped'].includes(item.runtime_state)) {
       throw new GameplayStoreError('Item state invalid');
     }
+    // Crafted-gear salvage cap (ruling 2026-11-21; SQL twin:
+    // cc_recycle_item in migration 0105): the base award for crafted
+    // gear caps at 5 scrap (named craft relics) / 15 scrap (other
+    // crafted gear) before any multiplier.
+    const rawBaseAward = salvageScrap(item.rarity ?? '', item.item_level);
+    const payload = (item.payload ?? {}) as Record<string, unknown> & { legendaryEffectId?: string };
+    const isCrafted = item.supply_mode === 'crafted' || isCraftedGearPayload(payload);
+    const baseAward = isCrafted
+      ? Math.min(rawBaseAward, isCraftedNamedRelicPayload(payload) ? CRAFTED_RELIC_MAX_SALVAGE_SCRAP : CRAFTED_GEAR_MAX_SALVAGE_SCRAP)
+      : rawBaseAward;
     // Market Crash (legendary): 4x scrap when recycling this weapon —
     // mirrors cc_recycle_item as amended by 0008_legendary_honesty.sql.
-    const baseAward = salvageScrap(item.rarity ?? '', item.item_level);
-    const payload = (item.payload ?? {}) as { legendaryEffectId?: string };
     const crashedAward = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
     // Salvage skill bonuses (Phase 2d; migration 0022 mirrors this in
     // cc_recycle_item): Hoarder's Instinct bonus scrap, King of Scrap

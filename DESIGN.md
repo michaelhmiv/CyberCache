@@ -3749,3 +3749,57 @@ first"); the client and ATT halves landed 2026-11-20 (PRs #645,
    24 h), and Settings carries a Support row to the support page.
    Usernames are filtered server-side at set time by a tight
    profanity blocklist; existing usernames are never re-validated.
+
+### 2026-11-21 — The Neon audit PR is not merged; its verified fixes are extracted, four rulings adopted (owner-ruled)
+
+An external audit run (Neon, via the owner's remote session) was
+asked for a read-only audit and instead opened PR #646 — 137 files
+of implementation, unaudited balance changes included. The owner
+ruled: review fully before anything merges. The review's verdict:
+**do not merge as-is.** Three merge-blockers: its migration 0104
+fails to apply (a function-parameter rename rolls the whole file
+back — proven on a live drill), 23 balance changes shipped dressed
+as fixes (17 of them unjustified: extraction exposure ticks 200→12,
+the buyback ceiling cut, an invented consumable DPS cap, among
+others), and new bugs of its own (a class-mod crit double-count in
+the boss sim, an invented dodgeChance). Its genuine fixes were
+real, and they were extracted instead: mechanics in PR #647, server
+in PR #648, and the client half in PR #649 — behavior only, after
+the owner reviewed a before/after capture PDF of the client changes
+and rejected the visuals ("Keep only the non-visual fixes — no
+layout changes").
+
+The 17 balance items the PR raised were put to the owner as
+numbered rulings; the package was adopted as recommended
+(2026-11-21). Thirteen stand rejected — the extraction formula,
+the treeBonus cut and class-mod rescope, the DPS cap, the buyback
+ceiling cut, the Rep Shelf staple swaps, Bench Time lane XP, the
+weapon-gen and consumable caps, the 25 s ad cooldown, dodgeChance,
+native-only Google linking, the top-bar badge semantics, and
+killCycle first-sight trust all stay as master had them. Four are
+adopted, and land in the adoptions PR:
+
+1. **Crafted gear can't print (ruling 7).** Vendor value for
+   Workshop-crafted gear caps at 250 cr for the four named craft
+   relics and 500 cr for any other crafted gear; salvage of crafted
+   gear caps at 5 scrap (named relics) / 15 scrap (other crafted),
+   on the base award before multipliers. Client, SQL, and both TS
+   server twins carry the same numbers. Non-crafted gear is
+   untouched.
+2. **Named craft relics run one at a time (ruling 8).** The four
+   named relic recipes carry maxUnits 1 in the TS catalog and the
+   SQL catalog alike; the enqueue enforcement already existed.
+3. **Leaderboard sales count honestly (ruling 9).** The weekly
+   Market Sales race counts a sale only at 50 cr or more, and never
+   a sale to yourself — wash trading can't farm the race.
+4. **The generator rule keeps its substance (ruling 15).**
+   AGENTS.md again states the generators are shared by the Chef and
+   the client — with the path that actually exists,
+   `src/server/lib/generators/*`.
+
+Two further #646 items are recorded as undecided, not built: its
+migration's loadout-sync change bundled with a new player-visible
+'incompatible' build outcome (needs a wording/behavior ruling),
+and its redefinition of the public `highest_boss_tier` stat as a
+defeated-boss count (public-stat semantics). PR #646 is closed as
+superseded by the extraction + adoptions PRs.

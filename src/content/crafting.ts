@@ -502,12 +502,14 @@ export function composeCraftRelicEffects(
  *  a relic now. The Prime Laboratory's recipe prices at the tier
  *  the Lab itself drew from (furnace composites + void work). All
  *  four mint at fixed Epic rarity: their effects never scaled with
- *  rarity in the tool era and do not start now. */
+ *  rarity in the tool era and do not start now. Each carries
+ *  maxUnits 1 (owner ruling 2026-11-21, PR #646 adoptions): a named
+ *  relic craft runs one unit at a time. */
 const CRAFT_RELIC_RECIPES: CraftRecipe[] = [
-  { id: 'tool_precision_calipers', kind: 'gear', name: 'Precision Calipers', category: 'gear', inputs: { CircuitLattice: 2, PrismShards: 2 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Precision Calipers', fixedRarity: Rarity.Epic },
-  { id: 'tool_servo_bench_rig', kind: 'gear', name: 'Servo Bench Rig', category: 'gear', inputs: { CompositePlating: 2, MagnetiteCores: 2 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Servo Bench Rig', fixedRarity: Rarity.Epic },
-  { id: 'tool_reclaimer_head', kind: 'gear', name: 'Reclaimer Head', category: 'gear', inputs: { CompositePlating: 1, CircuitLattice: 1, Voidweave: 1 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Reclaimer Head', fixedRarity: Rarity.Epic },
-  { id: 'relic_prime_laboratory', kind: 'gear', name: 'Prime Laboratory', category: 'gear', inputs: { Voidweave: 2, CircuitLattice: 2, CompositePlating: 2, PrismShards: 4 }, unitDurationMs: 240 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Prime Laboratory', fixedRarity: Rarity.Epic },
+  { id: 'tool_precision_calipers', kind: 'gear', name: 'Precision Calipers', category: 'gear', inputs: { CircuitLattice: 2, PrismShards: 2 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Precision Calipers', fixedRarity: Rarity.Epic, maxUnits: 1 },
+  { id: 'tool_servo_bench_rig', kind: 'gear', name: 'Servo Bench Rig', category: 'gear', inputs: { CompositePlating: 2, MagnetiteCores: 2 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Servo Bench Rig', fixedRarity: Rarity.Epic, maxUnits: 1 },
+  { id: 'tool_reclaimer_head', kind: 'gear', name: 'Reclaimer Head', category: 'gear', inputs: { CompositePlating: 1, CircuitLattice: 1, Voidweave: 1 }, unitDurationMs: 60 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Reclaimer Head', fixedRarity: Rarity.Epic, maxUnits: 1 },
+  { id: 'relic_prime_laboratory', kind: 'gear', name: 'Prime Laboratory', category: 'gear', inputs: { Voidweave: 2, CircuitLattice: 2, CompositePlating: 2, PrismShards: 4 }, unitDurationMs: 240 * MIN, requiresLevel: 1, requiresBench: 1, station: 'bench', gearSlot: 'relic', namedRelic: 'Prime Laboratory', fixedRarity: Rarity.Epic, maxUnits: 1 },
 ];
 
 // ─── Catalysts (§2.5b) ───────────────────────────────────────────────
