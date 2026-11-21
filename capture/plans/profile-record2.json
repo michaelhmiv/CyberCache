@@ -1,0 +1,10 @@
+{
+  "width": 390, "height": 844, "dsf": 2,
+  "steps": [
+    { "wait": 3500 },
+    { "eval": "(()=>{const els=[...document.querySelectorAll('button,[role=button],a,div')].filter(e=>(e.textContent||'').includes('Profile & Record')&&e.offsetParent!==null);if(!els.length)return 'MISS door';els.sort((a,b)=>a.textContent.length-b.textContent.length);els[0].click();return 'CLICKED record door'})()" },
+    { "wait": 1800 },
+    { "dump": "document.body.innerText.slice(0,500)" },
+    { "shot": "record-top" }
+  ]
+}
