@@ -53,9 +53,6 @@
   "src/components/common/PickerSheet.tsx": {
     "text-[10px]": 1
   },
-  "src/components/common/RollQualityBadge.tsx": {
-    "text-[10px]": 1
-  },
   "src/components/consumables/ConsumableCompare.tsx": {
     "text-[9px]": 1,
     "text-[8px]": 1
@@ -125,15 +122,8 @@
   "src/components/profile/LifetimeStatsPanel.tsx": {
     "text-[10px]": 5
   },
-  "src/components/profile/StatCard.tsx": {
-    "text-[10px]": 1,
-    "text-[9px]": 1
-  },
   "src/components/profile/StatDetailPanel.tsx": {
     "text-[9px]": 4,
-    "text-[10px]": 3
-  },
-  "src/components/progression/ProgressionHistoryCard.tsx": {
     "text-[10px]": 3
   },
   "src/components/stats/ActiveBuffPills.tsx": {
