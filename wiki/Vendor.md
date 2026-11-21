@@ -106,7 +106,10 @@ stop — buys back almost anything, instantly, at
 **40% of the item's vendor value**:
 
 - **Gear** pays 40% of its estimated value (level, rarity, and stats set
-  the value). Equipped and locked gear can't be sold — unequip and unlock
+  the value). Gear you crafted yourself carries a value ceiling at the
+  counter — 250 credits for the four named workshop relics, 500 for any
+  other crafted piece — so the bench can't turn a fixed recipe into a
+  credit loop. Equipped and locked gear can't be sold — unequip and unlock
   first.
 - **Consumable batches** pay 40% of base price scaled by the batch's
   quality % — a 140% batch is worth 40% more per unit than a 100% batch.

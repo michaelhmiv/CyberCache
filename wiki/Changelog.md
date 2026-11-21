@@ -2,6 +2,12 @@
 
 Per-release notes for CyberCache, newest first. Entries are written by hand in the same PR as any release, grouped by day and theme. The merge ledger at the foot of this page is generated from master's merge history (Wiki Phase 4) and lists every pull request the entries summarize — and the freshness gate fails if a master merge ever lands without this page catching up, so the list cannot silently lapse again.
 
+## 2026-11-21 — The bench can't print money
+
+- **Crafted gear sells and salvages for what it's worth — no more** — gear from your own bench used to price at the vendor like any found gear, and a cheap recipe at a high level could turn materials into credits and Scrap faster than playing could. Crafted gear now carries a ceiling at the counter: 250 credits of value for the four named workshop relics, 500 for any other crafted piece, and salvage pays at most 5 Scrap for a named relic and 15 for other crafted gear. Found gear is priced exactly as before.
+- **Named relics craft one at a time** — a Precision Calipers, Servo Bench Rig, Reclaimer Head, or Prime Laboratory job now runs a single unit, the way the prestige crafts already did.
+- **Market Sales only counts real sales** — the weekly Market Sales race now counts a sale only at 50 credits or more, and buying your own listing never counts. Wash trading can't farm the board.
+
 ## 2026-11-21 — The vault keeps its promises
 
 - **Deletion and reports now run all the way through** — yesterday's entry put the buttons in the app; the server half has caught up. **Delete Account / Data** in Settings now ends the account on the server itself: your listings are pulled down, anything you were mid-job on for another player is unwound with their escrow handed back, every session is signed out, and the account and everything hanging off it is gone. The **Report** action on the Standings boards now files the report where it is kept — one report per name per day is enough. And a short list of names the game will not wear is refused when a username is set; names already in use are untouched.
