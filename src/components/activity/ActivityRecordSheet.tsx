@@ -19,7 +19,7 @@ import { PxIcon } from '@/components/pixelArt/PxIcon';
 import type { PxIconName } from '@/lib/pixel/icons';
 import type { ActivityRecord } from '@/lib/api/activityLogService';
 import {
-  bossWinChance, cachePaymentLabel, dropChance, elapsedLabel, earningsLine,
+  cachePaymentLabel, dropChance, elapsedLabel, earningsLine,
   foundViaLabel, fullWhen, goodsDisplayName, itemKindLabel, rarityHex, recordFace, recordKindIcon,
 } from '@/lib/activity/activityLogView';
 
@@ -175,11 +175,9 @@ function kindSections(record: ActivityRecord): ReactNode {
     case 'boss': {
       const b = record.boss;
       if (!b) return null;
-      const win = bossWinChance(record);
       const rows: FactRow[] = [
         { label: 'Outcome', value: b.victory ? 'Victory' : 'Defeat', tone: b.victory ? 'text-[#7CFC00]' : 'text-[#FF4B5C]' },
       ];
-      if (win) rows.push({ label: 'Win chance', value: `${win.pct} going in` });
       if (b.creditsGained > 0) rows.push({ label: 'Credits gained', value: `+${fmtNum(b.creditsGained)} cr`, tone: 'text-[#7CFC00]' });
       if (b.creditsLost > 0) rows.push({ label: 'Credits lost', value: `−${fmtNum(b.creditsLost)} cr`, tone: 'text-[#FF4B5C]' });
       if (typeof b.dedicatedChance === 'number') rows.push({ label: 'Dedicated chance', value: oddsPct(b.dedicatedChance) });
