@@ -66,6 +66,10 @@ vi.mock('@capacitor/core', () => ({
   Capacitor: {
     isNativePlatform: () => true,
     isPluginAvailable: () => true,
+    // These suites model the Android app: no ATT off iOS, so the
+    // presentation path's tracking step stays out of the way and
+    // every pin below is about consent + settlement only.
+    getPlatform: () => 'android',
   },
 }));
 

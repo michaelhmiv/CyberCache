@@ -28,6 +28,8 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>CyberCache uses your device identifier to deliver personalized ads. If you decline, the game plays exactly the same and the ads are non-personalized instead.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
