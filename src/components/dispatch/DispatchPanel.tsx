@@ -294,6 +294,7 @@ export const DispatchPanel: React.FC = () => {
       return (
         <MobileCard className="space-y-2" rarityColor="#F25A5A">
           <div className="text-xs font-black uppercase tracking-wide text-text-primary">Dispatch Bay</div>
+          <div className="text-xs font-black uppercase tracking-wide text-red">Dispatch unavailable</div>
           <div className="text-xs text-red-light">Unable to load Dispatch right now.</div>
           <button
             type="button"
