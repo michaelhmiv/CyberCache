@@ -33,7 +33,7 @@ export function getAuthenticatedChefPlayer(
   claimedPlayerId?: string,
 ): string {
   const header = req.header('authorization') ?? req.header('Authorization');
-  const bearer = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : '';
+  const bearer = header && header.toLowerCase().startsWith('bearer ') ? header.slice('bearer '.length).trim() : '';
   const token = bearer || (typeof bodyJwt === 'string' ? bodyJwt.trim() : '');
 
   if (!token) {
@@ -63,6 +63,6 @@ export function sendRouteError(res: Response, fallback: string, err: unknown): v
     return;
   }
 
-  const message = err instanceof Error ? err.message : String(err);
-  res.status(500).json({ error: fallback, detail: message });
+  console.error('[chef-route] unexpected error:', err);
+  res.status(500).json({ error: fallback });
 }

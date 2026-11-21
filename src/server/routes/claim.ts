@@ -81,10 +81,14 @@ export function resolvePreparedConsumables(
   return { prepared };
 }
 
+const BOSS_ATTEMPT_COOLDOWN_MS = 15_000;
+
 export function createVerifyBossHandler(
   store: ChefGameplayStore,
-  config: AuthConfig & { economyConfig?: EconomyConfig },
+  config: AuthConfig & { economyConfig?: EconomyConfig; now?: () => Date; enforceWallClockPacing?: boolean },
 ) {
+  const lastBossAttemptMs = new Map<string, number>();
+
   return async function handleVerifyBoss(req: Request, res: Response): Promise<void> {
     try {
       const body = req.body as BossAttemptRequest & { jwt?: string };
@@ -109,6 +113,19 @@ export function createVerifyBossHandler(
       }
 
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+
+      if (config.enforceWallClockPacing) {
+        const nowMs = (config.now?.() ?? new Date()).getTime();
+        const prevMs = lastBossAttemptMs.get(playerId) ?? 0;
+        if (nowMs - prevMs < BOSS_ATTEMPT_COOLDOWN_MS) {
+          res.status(429).json({
+            error: 'boss_rate_limited',
+            message: 'Wait a moment before challenging another boss',
+          });
+          return;
+        }
+        lastBossAttemptMs.set(playerId, nowMs);
+      }
 
       // --- Read server-authoritative profile data ---
       // Boss fight economy (consumables, credits, level, pity) must be

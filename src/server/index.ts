@@ -51,7 +51,7 @@ function apiCors(req: Request, res: Response, next: NextFunction): void {
   if (typeof origin === 'string' && isAllowedApiOrigin(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
     res.setHeader('Access-Control-Max-Age', '86400');
   }
@@ -80,13 +80,18 @@ mountChefHealthRoute(app);
 // All Route B surfaces mount only when both the database and the JWT
 // secret are configured. Token issuance fails closed: no secret, no
 // auth routes; no database, no gameplay routes.
-const chefJwtSecret = process.env.CHEF_JWT_SECRET;
-const databaseUrl = process.env.DATABASE_URL;
-const chefJobSecret = process.env.CHEF_JOB_SECRET;
-if (chefJwtSecret && databaseUrl) {
-  // Lazy import keeps `pg` out of the boot path until Route B is configured.
-  void import('pg')
-    .then(({ Pool }) => {
+//
+// Boot is awaited end to end: every route mounts before the SPA /
+// app-only web gate and before app.listen(), so an API request can
+// never race the mounts or fall through to the SPA fallback mid-boot.
+async function boot(): Promise<void> {
+  const chefJwtSecret = process.env.CHEF_JWT_SECRET;
+  const databaseUrl = process.env.DATABASE_URL;
+  const chefJobSecret = process.env.CHEF_JOB_SECRET;
+  if (chefJwtSecret && databaseUrl) {
+    try {
+      // Lazy import keeps `pg` out of the boot path until Route B is configured.
+      const { Pool } = await import('pg');
       const pool = new Pool({ connectionString: databaseUrl });
       const googleClientIds = (process.env.GOOGLE_OAUTH_CLIENT_IDS ?? '')
         .split(',').map((v) => v.trim()).filter(Boolean);
@@ -100,8 +105,9 @@ if (chefJwtSecret && databaseUrl) {
       console.log('[chef-reads] read APIs mounted (Route B B2)');
       // Route B write APIs (slice B3) — same gate: every mutation derives
       // its actor from the Chef JWT and lands in the cc_* write functions.
+      // Production mounts enforce the bench-time ad gate.
       const writeStore = new PgWriteStore(pool);
-      mountWriteRoutes(app, writeStore, { jwtSecret: chefJwtSecret });
+      mountWriteRoutes(app, writeStore, { jwtSecret: chefJwtSecret, enforceAdPacing: true });
       console.log('[chef-writes] write APIs mounted (Route B B3)');
       // Economy observability (0018): one store + one lever accessor,
       // shared by the gameplay routes (lever consumers) and the job
@@ -111,11 +117,13 @@ if (chefJwtSecret && databaseUrl) {
       // Route B cutover (slice B6) — the legacy Chef gameplay routes
       // (/api/claim, /api/settle-offline, /api/verify-boss, /api/salvage)
       // on Chef JWT auth + the Postgres gameplay store. With this mount
-      // the Chef has no Supabase dependency left.
+      // the Chef has no Supabase dependency left. Production mounts
+      // enforce wall-clock pacing on claims and boss/endless attempts.
       const gameplayStore = new PgChefGameplayStore(pool);
       mountGameplayRoutes(app, gameplayStore, {
         jwtSecret: chefJwtSecret,
         economyConfig,
+        enforceWallClockPacing: true,
       });
       // Action skill routes (0030): state/selection on the gameplay
       // store, the Overclock workshop fire on the write store.
@@ -190,20 +198,24 @@ if (chefJwtSecret && databaseUrl) {
           ? '[chef-jobs] job routes + push test mounted (Route B B5)'
           : '[chef-jobs] push test mounted; job routes disabled (CHEF_JOB_SECRET not set)',
       );
-    })
-    .catch((err) => console.error('[chef-auth] failed to initialize pg pool', err));
-} else {
-  console.log('[chef-auth] disabled (CHEF_JWT_SECRET / DATABASE_URL not both set)');
-  console.log('[chef] gameplay routes disabled (Route B not configured)');
+    } catch (err) {
+      console.error('[chef-auth] failed to initialize pg pool', err);
+    }
+  } else {
+    console.log('[chef-auth] disabled (CHEF_JWT_SECRET / DATABASE_URL not both set)');
+    console.log('[chef] gameplay routes disabled (Route B not configured)');
+  }
+
+  // The web client is env-gated (src/server/webClient.ts): production
+  // runs app-only with SERVE_WEB_CLIENT=false so crawlers get no page to
+  // execute; every other boot — local, staging, CI, the e2e fixture —
+  // serves the SPA exactly as before. Mounted after all /api/* routes.
+  mountWebClient(app, DIST_DIR, isWebClientEnabled());
+
+  app.listen(PORT, () => {
+    console.log(`[cybercache] server running on port ${PORT}`);
+    console.log(`[cybercache] chef worker mounted at /api/claim`);
+  });
 }
 
-// The web client is env-gated (src/server/webClient.ts): production
-// runs app-only with SERVE_WEB_CLIENT=false so crawlers get no page to
-// execute; every other boot — local, staging, CI, the e2e fixture —
-// serves the SPA exactly as before.
-mountWebClient(app, DIST_DIR, isWebClientEnabled());
-
-app.listen(PORT, () => {
-  console.log(`[cybercache] server running on port ${PORT}`);
-  console.log(`[cybercache] chef worker mounted at /api/claim`);
-});
+void boot();

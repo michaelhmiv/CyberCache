@@ -323,7 +323,9 @@ export function mountReadRoutes(app: Express, store: ReadStore, config: AuthConf
     try {
       const stats = await store.getPublicStats(target);
       if (!stats) return notFound(res, 'Player');
-      res.json(stats);
+      // Strip private wallet balances so another player's credits/scrap/keys are never exposed.
+      const { credits: _c, scrap: _s, cache_tokens: _ct, cache_token_parts: _ctp, ...publicSafe } = stats as unknown as Record<string, unknown>;
+      res.json(publicSafe);
     } catch (err) { fail(res, err); }
   });
 

@@ -58,8 +58,10 @@ export async function recordItemDiscoveries(
 
 export function createClaimHandler(
   store: ChefGameplayStore,
-  config: AuthConfig & { economyConfig?: EconomyConfig; now?: () => Date },
+  config: AuthConfig & { economyConfig?: EconomyConfig; now?: () => Date; enforceWallClockPacing?: boolean },
 ) {
+  const lastClaimClock = new Map<string, { atMs: number; bankedTicks: number }>();
+
   return async function handleClaim(req: Request, res: Response): Promise<void> {
     try {
       const body = req.body as ClaimRequest & {
@@ -77,6 +79,26 @@ export function createClaimHandler(
       }
 
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+
+      // Wall-clock pacing (production mounts): a claim's tick count may
+      // not exceed the ticks that could have elapsed since the player's
+      // last claim (3s each) plus a small banked allowance, so a client
+      // cannot mint roaming time faster than real time.
+      if (config.enforceWallClockPacing) {
+        const nowMs = (config.now?.() ?? new Date()).getTime();
+        const prev = lastClaimClock.get(playerId);
+        if (prev) {
+          const elapsedTicks = Math.max(0, (nowMs - prev.atMs) / 3000);
+          const available = Math.min(25, prev.bankedTicks + elapsedTicks);
+          if (body.ticks > Math.ceil(available + 2)) {
+            res.status(429).json({ error: 'claim_rate_limited', message: 'Claim arrived faster than tick cadence allows' });
+            return;
+          }
+          lastClaimClock.set(playerId, { atMs: nowMs, bankedTicks: Math.max(0, available - body.ticks) });
+        } else {
+          lastClaimClock.set(playerId, { atMs: nowMs, bankedTicks: 4 });
+        }
+      }
       // maxTicks is an internal offline-settlement option. Foreground
       // callers always use the engine's normal 20-tick ceiling.
       const claim: ClaimRequest = { ...body, playerId, maxTicks: undefined };

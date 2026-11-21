@@ -56,7 +56,14 @@ import { cacheRankBonuses } from '../../content/cacheRank';
 import { mergeResearchBonuses } from '../../content/research';
 import { cacheRankLevers } from './cacheRank';
 
-type EndlessConfig = AuthConfig & { economyConfig?: EconomyConfig };
+type EndlessConfig = AuthConfig & {
+  economyConfig?: EconomyConfig;
+  now?: () => Date;
+  enforceWallClockPacing?: boolean;
+};
+
+const ENDLESS_START_COOLDOWN_MS = 10_000;
+const ENDLESS_ENCOUNTER_COOLDOWN_MS = 8_000;
 
 const RISK_VALUES = new Set<string>(Object.values(RiskSetting));
 
@@ -124,6 +131,8 @@ function milestoneKind(item: GearItem): string {
 }
 
 export function createStartEndlessRunHandler(store: ChefGameplayStore, config: EndlessConfig) {
+  const lastStartMs = new Map<string, number>();
+
   return async function handleStartEndlessRun(req: Request, res: Response): Promise<void> {
     try {
       const body = (req.body ?? {}) as {
@@ -134,6 +143,20 @@ export function createStartEndlessRunHandler(store: ChefGameplayStore, config: E
         risk?: unknown;
       };
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+
+      if (config.enforceWallClockPacing) {
+        const nowMs = (config.now?.() ?? new Date()).getTime();
+        const prevMs = lastStartMs.get(playerId) ?? 0;
+        if (nowMs - prevMs < ENDLESS_START_COOLDOWN_MS) {
+          res.status(429).json({
+            error: 'endless_rate_limited',
+            message: 'Wait a moment before starting another Chaos Chamber run',
+          });
+          return;
+        }
+        lastStartMs.set(playerId, nowMs);
+      }
+
       const nonce =
         typeof body.nonce === 'string' && body.nonce.trim().length >= 8
           ? body.nonce
@@ -211,6 +234,8 @@ export function createStartEndlessRunHandler(store: ChefGameplayStore, config: E
 }
 
 export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: EndlessConfig) {
+  const lastEncounterMs = new Map<string, number>();
+
   return async function handleAdvanceEndless(req: Request, res: Response): Promise<void> {
     try {
       const body = (req.body ?? {}) as {
@@ -220,6 +245,20 @@ export function createAdvanceEndlessHandler(store: ChefGameplayStore, config: En
         fireActionSkill?: unknown;
       };
       const playerId = getAuthenticatedChefPlayer(config, req, body.jwt, body.playerId);
+
+      if (config.enforceWallClockPacing) {
+        const nowMs = (config.now?.() ?? new Date()).getTime();
+        const prevMs = lastEncounterMs.get(playerId) ?? 0;
+        if (nowMs - prevMs < ENDLESS_ENCOUNTER_COOLDOWN_MS) {
+          res.status(429).json({
+            error: 'endless_rate_limited',
+            message: 'Wait a moment before advancing to the next Chaos Chamber depth',
+          });
+          return;
+        }
+        lastEncounterMs.set(playerId, nowMs);
+      }
+
       const nonce =
         typeof body.nonce === 'string' && body.nonce.trim().length >= 8
           ? body.nonce
