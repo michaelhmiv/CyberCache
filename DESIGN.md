@@ -3720,3 +3720,32 @@ files, constants + flavor, voice + UI).
    default; the copy law (complete but concise, player language
    only, no paragraphs on screens, no emojis) still binds every
    rewritten line.
+
+### 2026-11-20 — Build 7: in-app deletion, ATT, and report/support (owner-ruled)
+
+Ruled 2026-11-20 (owner approved the Build 7 brief, "Build 7
+first"); the client and ATT halves landed 2026-11-20 (PRs #645,
+#644), the server half lands with the audit-extraction PR.
+
+1. **Account deletion lives in the app** (App Store Guideline
+   5.1.1(v)): Settings carries a Danger Zone deletion flow, and the
+   Chef's POST /api/account/delete deletes the account
+   transactionally with exactly the semantics the public
+   data-deletion page promises — listings unwound, service-job
+   escrow refunded to counterparties, sessions revoked, the
+   account row and everything hanging off it gone. Identity comes
+   from the session JWT only. Known gap, accepted at ruling time:
+   the Chef holds no Apple refresh token or .p8 material, so
+   deletion cannot revoke Apple tokens; Apple's own token lifetime
+   bounds that exposure.
+2. **ATT before ads on iOS** (Guideline 5.1.2(i)): the App Tracking
+   Transparency prompt precedes any ad load, with the shipped
+   purpose string; the personalized-ads ruling of 2026-11-19 stands
+   and the privacy label keeps Device ID under "Data Used to Track
+   You."
+3. **Report + Support** (Guideline 1.2): players can report another
+   player from the leaderboard (server table `player_reports`,
+   POST /api/reports, self-reports refused, one report per pair per
+   24 h), and Settings carries a Support row to the support page.
+   Usernames are filtered server-side at set time by a tight
+   profanity blocklist; existing usernames are never re-validated.
