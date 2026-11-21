@@ -39,7 +39,6 @@
     "express": "^5.2.1",
     "firebase": "^13.2.0",
     "framer-motion": "^12.40.0",
-    "idb": "^8.0.3",
     "lucide-react": "^1.17.0",
     "pg": "^8.23.1",
     "pixi.js": "^8.22.0",
