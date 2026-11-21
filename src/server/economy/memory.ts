@@ -314,8 +314,11 @@ export class InMemoryEconomyStore implements EconomyStore {
     // The bundle fold counts grants x the shipped +500, mirroring
     // minted_other's 5000 x grants for the bundle's credits (the
     // bundle result carries no scrap field).
+    // cc_recycle_batch writes N individual cc_recycle_item rows plus one
+    // summary cc_recycle_batch row — summing both double-counted 100% of
+    // batch-salvaged Scrap. Count cc_recycle_item only.
     const scrapMintedSalvage =
-      sumBy(['cc_recycle_item', 'cc_recycle_batch'], (p) => num(dig(p, 'scrap_award')))
+      sumBy(['cc_recycle_item'], (p) => num(dig(p, 'scrap_award')))
       + sumBy(['cc_apply_boss_attempt'], (p) => num(dig(p, 'scrap_awarded')));
     const scrapMintedRoaming = sumBy(
       ['cc_apply_chef_rewards', 'cc_settle_offline_roaming', 'cc_claim_roaming_rewards'],

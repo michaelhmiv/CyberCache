@@ -695,6 +695,18 @@ export class InMemoryWriteStore implements WriteStore {
     (p as { hunter_loadouts?: HunterLoadouts }).hunter_loadouts = { ...stored, [hunter]: next };
   }
 
+  /** True if itemId is equipped on ANY hunter (fielded or benched) in profiles.hunter_loadouts. */
+  private isItemInAnyHunterLoadout(p: ProfileRowData, itemId: string): boolean {
+    const stored = ((p as { hunter_loadouts?: HunterLoadouts }).hunter_loadouts ?? {}) as Record<string, Record<string, string | null> | undefined>;
+    for (const loadout of Object.values(stored)) {
+      if (!loadout || typeof loadout !== 'object') continue;
+      for (const equippedId of Object.values(loadout)) {
+        if (equippedId === itemId) return true;
+      }
+    }
+    return false;
+  }
+
   private activitySnapshot(row: ActiveActionData): Json {
     return {
       user_id: row.user_id,
@@ -1788,12 +1800,14 @@ export class InMemoryWriteStore implements WriteStore {
     if (prior) return prior;
     const ceiling = SALVAGE_CEILING_RANK[maxRarity];
     if (!ceiling) throw writeError('Invalid salvage ceiling');
+    const p = this.profile(playerId);
     const eligible = [...this.items.values()]
       .filter(
         (item) =>
           item.owner_user_id === playerId &&
           item.runtime_state === 'available' &&
           !item.is_locked &&
+          !this.isItemInAnyHunterLoadout(p, item.id) &&
           SALVAGE_BATCH_KINDS.has(item.kind) &&
           (SALVAGE_RARITY_RANK[item.rarity] ?? 99) <= ceiling,
       )
