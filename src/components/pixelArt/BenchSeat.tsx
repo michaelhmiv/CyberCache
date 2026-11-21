@@ -16,6 +16,7 @@ import {
 } from '@/lib/pixel/workCycle';
 import { useInventoryStore } from '@/store/slices/inventorySlice';
 import { useVehicleStore } from '@/store/slices/vehicleSlice';
+import { usePresentationActive } from '@/hooks/usePresentationActive';
 
 /**
  * BenchItemRender (Motion M4b) — paints a bench seat / rise plan
@@ -147,8 +148,9 @@ export const BenchSeatWorkMotion: React.FC<{
   children: React.ReactNode;
 }> = ({ spec, active, reduced = false, scale, children }) => {
   const ref = useRef<HTMLDivElement | null>(null);
+  const presentationActive = usePresentationActive();
   useEffect(() => {
-    if (!active || reduced) return undefined;
+    if (!active || reduced || !presentationActive) return undefined;
     const el = ref.current;
     if (!el) return undefined;
     let raf = 0;
@@ -171,7 +173,7 @@ export const BenchSeatWorkMotion: React.FC<{
       stopped = true;
       cancelAnimationFrame(raf);
     };
-  }, [spec, active, reduced, scale]);
+  }, [spec, active, reduced, scale, presentationActive]);
   return (
     <div ref={ref} style={{ transform: `scale(${scale})`, transformOrigin: '50% 100%' }}>
       {children}
