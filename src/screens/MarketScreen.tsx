@@ -291,6 +291,8 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
   const [pendingBuyId, setPendingBuyId] = useState<string | null>(null);
   const [pendingListId, setPendingListId] = useState<string | null>(null);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
+  const [confirmBuyId, setConfirmBuyId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   // Guests land wherever the tab state points — every tab is
   // viewable now, so there is no vendor redirect on mount (the old
@@ -797,8 +799,27 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
         <button onClick={() => guardTransact('buy', () => void handleBuy(liveInspectListing))} aria-label={`Not enough credits — short by ${inspectShortfall.toLocaleString()} cr`} className="flex h-11 shrink-0 items-center justify-center rounded-lg border border-red-400/50 bg-red-400/10 px-2 text-center text-[11px] font-bold leading-tight text-red-300">
           Short by {inspectShortfall.toLocaleString()} cr
         </button>
+      ) : confirmBuyId === liveInspectListing.id && !marketLocked ? (
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button onClick={() => { setConfirmBuyId(null); guardTransact('buy', () => void handleBuy(liveInspectListing)); }} disabled={pendingBuyId === liveInspectListing.id} className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-amber px-3 text-[12px] font-black text-bg disabled:opacity-40">
+            {pendingBuyId === liveInspectListing.id ? 'Buying…' : `Confirm ${liveInspectListing.price.toLocaleString()} cr`}
+          </button>
+          <button type="button" onClick={() => setConfirmBuyId(null)} className="bl-secondary h-11 shrink-0 rounded-lg px-2.5 text-[11px] font-bold">
+            Cancel
+          </button>
+        </div>
       ) : (
-        <button onClick={() => guardTransact('buy', () => void handleBuy(liveInspectListing))} disabled={pendingBuyId === liveInspectListing.id} className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber px-4 text-[13px] font-black text-bg disabled:opacity-40">
+        <button
+          onClick={() => {
+            if (!marketLocked && liveInspectListing.price >= 5000) {
+              setConfirmBuyId(liveInspectListing.id);
+              return;
+            }
+            guardTransact('buy', () => void handleBuy(liveInspectListing));
+          }}
+          disabled={pendingBuyId === liveInspectListing.id}
+          className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber px-4 text-[13px] font-black text-bg disabled:opacity-40"
+        >
           {pendingBuyId === liveInspectListing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
         </button>
       )}
@@ -996,8 +1017,27 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
                     <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} aria-label={`Not enough credits — short by ${shortfall.toLocaleString()} cr`} className="flex h-11 shrink-0 items-center justify-center rounded-lg border border-red-400/50 bg-red-400/10 px-2 text-center text-[11px] font-bold leading-tight text-red-300">
                       Short by {shortfall.toLocaleString()} cr
                     </button>
+                  ) : confirmBuyId === listing.id && !marketLocked ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button onClick={() => { setConfirmBuyId(null); guardTransact('buy', () => void handleBuy(listing)); }} disabled={pendingBuyId === listing.id} className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-amber px-2.5 text-[11px] font-black text-bg disabled:opacity-40">
+                        {pendingBuyId === listing.id ? 'Buying…' : 'Confirm'}
+                      </button>
+                      <button type="button" onClick={() => setConfirmBuyId(null)} className="bl-secondary h-11 shrink-0 rounded-lg px-2 text-[11px] font-bold">
+                        No
+                      </button>
+                    </div>
                   ) : (
-                    <button onClick={() => guardTransact('buy', () => void handleBuy(listing))} disabled={pendingBuyId === listing.id} className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber px-3 text-[11px] font-bold text-bg disabled:opacity-40">
+                    <button
+                      onClick={() => {
+                        if (!marketLocked && listing.price >= 5000) {
+                          setConfirmBuyId(listing.id);
+                          return;
+                        }
+                        guardTransact('buy', () => void handleBuy(listing));
+                      }}
+                      disabled={pendingBuyId === listing.id}
+                      className="flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber px-3 text-[11px] font-bold text-bg disabled:opacity-40"
+                    >
                       {pendingBuyId === listing.id ? 'Buying…' : (<>Buy Now{marketLocked && <PxIcon name="lock" size={13} aria-hidden />}</>)}
                     </button>
                   )}
@@ -1359,8 +1399,31 @@ export const MarketScreen: React.FC<MarketScreenProps> = ({ onNavigate, active =
                 netLine={`Net ${preview.sellerProceeds.toLocaleString()}cr after the ${preview.pctLabel}% fee`}
                 onInspect={listing.kind === 'gear' && listing.itemSnapshot ? () => { setInspectItem(listing.itemSnapshot); setInspectListing(null); } : undefined}
                 onShowUsage={setUsageMaterialId}
-                action={(
-                  <button onClick={() => void handleCancelListing(listing)} disabled={pendingCancelId === listing.id} className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-red-600 px-3 text-[11px] font-bold text-bg hover:bg-red-500 disabled:opacity-50">
+                action={confirmCancelId === listing.id ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => { setConfirmCancelId(null); void handleCancelListing(listing); }}
+                      disabled={pendingCancelId === listing.id}
+                      className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-red-600 px-2.5 text-[11px] font-black text-bg hover:bg-red-500 disabled:opacity-50"
+                    >
+                      {pendingCancelId === listing.id ? 'Cancelling…' : 'Confirm — deposit is lost'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmCancelId(null)}
+                      className="bl-secondary h-11 shrink-0 rounded-lg px-2 text-[11px] font-bold"
+                    >
+                      Keep
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmCancelId(listing.id)}
+                    disabled={pendingCancelId === listing.id}
+                    className="flex h-11 shrink-0 items-center justify-center rounded-lg bg-red-600 px-3 text-[11px] font-bold text-bg hover:bg-red-500 disabled:opacity-50"
+                  >
                     {pendingCancelId === listing.id ? 'Cancelling…' : 'Cancel Listing'}
                   </button>
                 )}
