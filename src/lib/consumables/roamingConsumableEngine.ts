@@ -130,6 +130,8 @@ export interface ActiveSlotState {
   qualityPercent?: number;
   /** Units drawn from the quality profile for this slot's window. */
   qualityUnitsBurned?: number;
+  /** Snapshot of owned inventory count when a buffer slot (Med Kit line) was last reconciled. */
+  bufferCountSnapshot?: number;
 }
 
 /** Serializable state carried between claim batches. */
@@ -485,11 +487,80 @@ export function activateFromInventory(
     };
     initializeSlotQuality(activeSlot, count, qualityProfile);
     initializeSlotFields(activeSlot, startTick, count, pools);
+    if (isBufferConsumable(id)) {
+      (activeSlot as ActiveSlotState & { bufferCountSnapshot?: number }).bufferCountSnapshot = count;
+    }
 
     slots.push(activeSlot);
   }
 
   return { slots, tickIndex: startTick };
+}
+
+/**
+ * Reconcile an existing persisted RoamingConsumableState (migration 0096)
+ * against the player's current authoritative inventory at claim start:
+ * - Any newly acquired or restocked roaming-scoped consumable not currently
+ *   present in `state.slots` is activated immediately.
+ * - Any existing buffer slot (Med Kit line) whose owned inventory grew since
+ *   the previous claim has the newly added units appended to `remainingBuffer`
+ *   so restocking never causes instant deletion on claim end.
+ */
+export function reconcileRoamingStateWithInventory(
+  state: RoamingConsumableState,
+  inventory: Record<string, number>,
+  startTick: number,
+  qualityProfile?: Record<string, number[]>,
+  pools?: ConsumablePoolContext,
+): RoamingConsumableState {
+  const nextSlots: ActiveSlotState[] = state.slots.map((s) => ({ ...s }));
+  const byId = new Map<string, ActiveSlotState>();
+  for (const slot of nextSlots) {
+    byId.set(slot.consumableId, slot);
+  }
+
+  for (const [consumableId, count] of Object.entries(inventory)) {
+    if (count <= 0) continue;
+    const id = consumableId as ConsumableType;
+    if (!isRoamingConsumable(id)) continue;
+
+    const existing = byId.get(id);
+    if (!existing) {
+      const activeSlot: ActiveSlotState = {
+        slot: 'active' as ConsumableSlotName,
+        consumableId: id,
+        family: classifyFamily(id),
+        activatedAtTick: startTick,
+        expiresAtTick: 0,
+        remainingBuffer: 0,
+        remainingRegenTicks: 0,
+        armed: false,
+        remainingBurstTicks: 0,
+        ordnanceNextFireTick: 0,
+      };
+      initializeSlotQuality(activeSlot, count, qualityProfile);
+      initializeSlotFields(activeSlot, startTick, count, pools);
+      if (isBufferConsumable(id)) {
+        (activeSlot as ActiveSlotState & { bufferCountSnapshot?: number }).bufferCountSnapshot = count;
+      }
+      nextSlots.push(activeSlot);
+      byId.set(id, activeSlot);
+    } else if (isBufferConsumable(id)) {
+      const perUnit = bufferHealPerUnit(id, existing.qualityPercent ?? 100, pools);
+      if (perUnit > 0) {
+        const prevSnap = (existing as ActiveSlotState & { bufferCountSnapshot?: number }).bufferCountSnapshot;
+        const impliedPrev = prevSnap ?? Math.ceil(Math.max(0, existing.remainingBuffer) / perUnit);
+        if (count > impliedPrev) {
+          existing.remainingBuffer += (count - impliedPrev) * perUnit;
+        } else if (existing.remainingBuffer > count * perUnit) {
+          existing.remainingBuffer = count * perUnit;
+        }
+        (existing as ActiveSlotState & { bufferCountSnapshot?: number }).bufferCountSnapshot = count;
+      }
+    }
+  }
+
+  return { ...state, slots: nextSlots };
 }
 
 /**
