@@ -249,11 +249,11 @@ export interface StandingUnlockDef {
 /** Rank-1 Rep Shelf picks: an existing rotation-pool consumable matched to each identity, at list price. */
 export const STANDING_SHELF_TYPES: Record<Manufacturer, { consumableType: string; priceCredits: number }> = {
   [Manufacturer.Redline]: { consumableType: 'OverchargeStim', priceCredits: 800 },
-  [Manufacturer.Ironwood]: { consumableType: 'BossScanner', priceCredits: 600 },
-  [Manufacturer.BlastForge]: { consumableType: 'OrdnanceCharge', priceCredits: 400 },
+  [Manufacturer.Ironwood]: { consumableType: 'TargetPainter', priceCredits: 600 },
+  [Manufacturer.BlastForge]: { consumableType: 'IncendiaryAmmo', priceCredits: 450 },
   [Manufacturer.Prismatek]: { consumableType: 'VoidAmmo', priceCredits: 700 },
   [Manufacturer.ThrowTech]: { consumableType: 'MagnetizedPayload', priceCredits: 650 },
-  [Manufacturer.HelixWorks]: { consumableType: 'LuckBooster', priceCredits: 350 },
+  [Manufacturer.HelixWorks]: { consumableType: 'DataSkimmer', priceCredits: 900 },
 };
 
 /** Rank-2 exclusive recipe outputs (defs in src/constants/consumables.ts, recipes in src/content/crafting.ts). */

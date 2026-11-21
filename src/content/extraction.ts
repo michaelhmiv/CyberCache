@@ -204,7 +204,14 @@ export function expectedMonsterHitDamage(
   return accuracy * monster.attackPower * elementMult * (1 - mitigation);
 }
 
-/** Expected total damage over one pass (200 ticks) at a site: the
+/** Effective un-recharged hit exposure ticks per 10-minute extraction pass.
+ *  A full pass spans 200 ticks, during which shields continuously recharge
+ *  between skirmishes; pricing 12 ticks of sustained exposure makes
+ *  level-appropriate Epic gear reach the 0.80 Deep Delve floor across all
+ *  areas (including HelixWorks) while undergeared hunters still hit the floor. */
+export const EXTRACTION_EXPOSURE_TICKS = 12;
+
+/** Expected un-recharged damage exposure over one pass at a site: the
  *  roster's weighted per-tick expectation, via resolveAreaMonsters —
  *  the same roster + weights pickAreaMonster draws attackers from. */
 export function expectedPassDamage(area: RoamingAreaDef, shield: ExtractionShieldFacts | null): number {
@@ -218,15 +225,14 @@ export function expectedPassDamage(area: RoamingAreaDef, shield: ExtractionShiel
     totalWeight += w;
   }
   if (totalWeight <= 0) return 0;
-  return (weighted / totalWeight) * EXTRACTION_TICKS_PER_PASS;
+  return (weighted / totalWeight) * EXTRACTION_EXPOSURE_TICKS;
 }
 
-/** The survivability pool: the one HP formula (max HP already
- *  includes the shield's HP) plus the shield's capacity on top —
- *  the brief's pool definition. */
+/** The survivability pool: the canonical hunter HP formula (max HP
+ *  already includes shield capacity — no double-counting). */
 export function extractionSurvivalPool(level: number, shield: ExtractionShieldFacts | null): number {
   const shieldHp = Math.max(0, Math.floor(shield?.hp ?? 0));
-  return computeHunterMaxHp(Math.max(1, Math.floor(level) || 1), shieldHp) + shieldHp;
+  return computeHunterMaxHp(Math.max(1, Math.floor(level) || 1), shieldHp);
 }
 
 /**

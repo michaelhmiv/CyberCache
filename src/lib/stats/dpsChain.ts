@@ -88,13 +88,17 @@ const counterElementMultiplier = (
  * exposed by `src/constants/consumables.ts` contribute here; the caller can
  * pass the full consumables table without creating a second DPS item list.
  */
+const MAX_DPS_CONSUMABLE_STACK = 5;
+const MAX_CONSUMABLE_DPS_MULTIPLIER = 2.5;
+
 function consumableMultiplier(
   consumables: Record<string, number> | undefined,
   consumableQuality?: Record<string, number>,
 ): number {
   if (!consumables) return 1;
   let mult = 1;
-  for (const [key, count] of Object.entries(consumables)) {
+  for (const [key, rawCount] of Object.entries(consumables)) {
+    const count = Math.min(Math.max(0, Math.floor(rawCount)), MAX_DPS_CONSUMABLE_STACK);
     if (count <= 0) continue;
     // Quality wiring (§2.4): a type with a quality entry reads its
     // dpsMultiplier through the def's declared scaling at that
@@ -111,7 +115,7 @@ function consumableMultiplier(
       mult *= 1 + effect * count;
     }
   }
-  return mult;
+  return Math.min(MAX_CONSUMABLE_DPS_MULTIPLIER, mult);
 }
 
 /**

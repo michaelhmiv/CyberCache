@@ -383,6 +383,10 @@ export async function restoreRuntimeStoresFromSupabase(userId: string): Promise<
 
 export async function saveCurrentRuntimeStores(userId = activeUserId): Promise<void> {
   if (!userId || isApplyingSnapshot) return;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
   if (isSaving) {
     saveQueued = true;
     return;
