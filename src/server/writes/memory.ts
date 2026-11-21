@@ -182,11 +182,19 @@ import {
   type ClassModBoosts,
 } from '../../lib/skills/skillBonuses.js';
 import { activeHunterId, checkClassModBinding, computeHunterSkillBonuses, emptyHunterLoadout, loadoutForHunter, treeForHunter, type HunterLoadouts } from '../../lib/hunters/hunters.js';
-import { applySalvageSkillBonuses } from '../../lib/skills/salvageBonuses.js';
 import {
+  CRAFTED_GEAR_MAX_SALVAGE_SCRAP,
+  CRAFTED_RELIC_MAX_SALVAGE_SCRAP,
+  applySalvageSkillBonuses,
+} from '../../lib/skills/salvageBonuses.js';
+import {
+  CRAFTED_GEAR_MAX_VENDOR_VALUE,
+  CRAFTED_RELIC_MAX_VENDOR_VALUE,
   VENDOR_BUYBACK_RATE_DEFAULT,
   VENDOR_MATERIALS,
   consumableUnitVendorValue,
+  isCraftedGearPayload,
+  isCraftedNamedRelicPayload,
   vendorBuybackPayout,
   vendorDateKey,
   vendorOfferFor,
@@ -1510,7 +1518,19 @@ export class InMemoryWriteStore implements WriteStore {
       // The vendor value of a gear instance is its stored estimated
       // value — the same number generation stamped on the row and
       // net worth sums (SQL twin: item_instances.estimated_value).
-      const vendorValue = Math.max(0, Math.floor(item.estimated_value) || 0);
+      // Crafted gear is capped at sell time (ruling 2026-11-21;
+      // SQL twin: cc_vendor_sell in migration 0105).
+      const rawVendorValue = Math.max(0, Math.floor(item.estimated_value) || 0);
+      const itemPayload = (item.payload ?? {}) as Record<string, unknown>;
+      const isCrafted = item.supply_mode === 'crafted' || isCraftedGearPayload(itemPayload);
+      const vendorValue = isCrafted
+        ? Math.min(
+            rawVendorValue,
+            isCraftedNamedRelicPayload(itemPayload)
+              ? CRAFTED_RELIC_MAX_VENDOR_VALUE
+              : CRAFTED_GEAR_MAX_VENDOR_VALUE,
+          )
+        : rawVendorValue;
       const payout = vendorBuybackPayout(vendorValue, rate);
       item.runtime_state = 'consumed';
       item.tradeable = false;
@@ -1722,10 +1742,19 @@ export class InMemoryWriteStore implements WriteStore {
     const item = this.ownItem(playerId, itemId);
     if (item.is_locked) throw writeError('Locked item');
     if (!['available', 'equipped'].includes(item.runtime_state)) throw writeError('Item state invalid');
+    // Crafted-gear salvage cap (ruling 2026-11-21; SQL twin:
+    // cc_recycle_item in migration 0105): the base award for crafted
+    // gear caps below the fixed recipe scrap inputs — 5 for the
+    // named craft relics, 15 for other crafted gear — before any
+    // multiplier, so a craft can never print Scrap through salvage.
+    const rawBaseAward = salvageScrap(item.rarity, item.item_level);
+    const payload = (item.payload ?? {}) as Record<string, unknown> & { legendaryEffectId?: string };
+    const isCrafted = item.supply_mode === 'crafted' || isCraftedGearPayload(payload);
+    const baseAward = isCrafted
+      ? Math.min(rawBaseAward, isCraftedNamedRelicPayload(payload) ? CRAFTED_RELIC_MAX_SALVAGE_SCRAP : CRAFTED_GEAR_MAX_SALVAGE_SCRAP)
+      : rawBaseAward;
     // Market Crash (legendary): 4x scrap when recycling this weapon —
     // mirrors cc_recycle_item as amended by 0008_legendary_honesty.sql.
-    const baseAward = salvageScrap(item.rarity, item.item_level);
-    const payload = (item.payload ?? {}) as { legendaryEffectId?: string };
     const crashedAward = payload.legendaryEffectId === 'market_crash' ? baseAward * 4 : baseAward;
     // Salvage skill bonuses (Phase 2d; migration 0022 mirrors this in
     // cc_recycle_item): Hoarder's Instinct pays bonus scrap on every

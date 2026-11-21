@@ -140,10 +140,17 @@ function ledgerContribution(
       return null;
     case 'market_sales': {
       if (row.action_type !== 'cc_accept_listing') return null;
-      const seller = foldRecord(payload.listing).seller_user_id;
-      return typeof seller === 'string' && seller.length > 0
-        ? { playerId: seller, delta: 1 }
-        : null;
+      const listing = foldRecord(payload.listing);
+      const seller = listing.seller_user_id;
+      const price = foldNum(listing.price_credits);
+      if (typeof seller !== 'string' || seller.length === 0) return null;
+      if (seller === row.user_id) return null;
+      // Wash-trade filter (owner ruling 2026-11-21, PR #646
+      // adoptions): a sale counts toward the race only at 50 cr or
+      // more — below that, zero-fee wash trading could farm the
+      // race rewards; buying your own listing never counts.
+      if (price < 50) return null;
+      return { playerId: seller, delta: 1 };
     }
     case 'extraction_passes':
       if (row.action_type === 'cc_apply_extraction') {
