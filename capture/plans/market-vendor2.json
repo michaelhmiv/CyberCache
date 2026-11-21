@@ -1,0 +1,20 @@
+{
+  "width": 390, "height": 844, "dsf": 2,
+  "steps": [
+    { "wait": 3500 },
+    { "shot": "top" },
+    { "eval": "(()=>{const b=[...document.querySelectorAll('button')].find(x=>(x.textContent||'').includes('Sell to Vendor'));if(!b)return 'MISS buyback row';b.click();return 'CLICKED buyback row'})()" },
+    { "wait": 1500 },
+    { "shot": "buyback" },
+    { "eval": "(()=>{const bs=[...document.querySelectorAll('button')].filter(b=>{const t=(b.textContent||'').trim();return t.startsWith('Sell')&&t.length>4&&!t.startsWith('Sell all')});if(!bs.length)return 'MISS per-item sell';bs[0].click();return 'CLICKED '+bs[0].textContent.trim()})()" },
+    { "wait": 700 },
+    { "shot": "sell-armed" },
+    { "eval": "(()=>{location.href=location.href;return 'RELOAD'})()" },
+    { "wait": 3500 },
+    { "eval": "(()=>{const b=[...document.querySelectorAll('button')].find(x=>(x.textContent||'').includes('Sell to Vendor'));if(!b)return 'MISS buyback row 2';b.click();return 'CLICKED buyback row 2'})()" },
+    { "wait": 1500 },
+    { "eval": "(()=>{const b=[...document.querySelectorAll('button')].find(x=>(x.textContent||'').trim().startsWith('Sell all'));if(!b)return 'MISS sell all';b.click();return 'CLICKED sell all'})()" },
+    { "wait": 700 },
+    { "shot": "sellall-armed" }
+  ]
+}
