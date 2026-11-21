@@ -141,6 +141,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
   const hunterPickPending = needsHunterPick(account);
   const [stats, setStats] = useState<PlayerPublicStats | null>(null);
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
+  const [confirmGuestSignOut, setConfirmGuestSignOut] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [detailMetric, setDetailMetric] = useState<{ metric: ProgressionMetric; leaderboardMetric?: LeaderboardMetric; label: string; value: number; color: string } | null>(null);
@@ -711,7 +712,48 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onNavigate, focusS
         <ActionRow glyph="?" label="Field Manual" desc="Mechanics, progression, caches, combat, and economy rules" onClick={() => onNavigate?.('help')} tone="#F7D20B" />
         <ActionRow icon="star" label="Collections" desc="The trophy shelf — effects, bosses, frames, and named elites you've proven, plus your legendary cores" onClick={() => goToStop('collections')} tone="#FF9800" />
         <ActionRow icon="person" label="Identity" desc="Manage your public hunter name and profile identity" onClick={() => (account?.username || profileSummary?.username ? setRenameOpen(true) : setSetupOpen(true))} tone="#5AA7FF" />
-        <ActionRow icon="power" label={actionLoading ? 'Signing out…' : 'Sign Out'} desc="End this CyberCache session on this device" onClick={() => signOut()} tone="#FF4B5C" />
+        {isGuestAccount(account) && confirmGuestSignOut ? (
+          <MobileCard className="space-y-2" rarityColor="#FF4B5C">
+            <div className="text-xs font-black uppercase tracking-wide text-red">Abandon unlinked guest progress?</div>
+            <div className="text-[11px] text-text-secondary">
+              Signing out of a guest account clears this session on your device and cannot be recovered unless linked first.
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmGuestSignOut(false)}
+                className="bl-secondary min-h-[44px] flex-1 py-2 text-xs font-black text-text-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmGuestSignOut(false);
+                  void signOut();
+                }}
+                disabled={actionLoading}
+                className="min-h-[44px] flex-1 border border-red bg-red/20 py-2 text-xs font-black text-red disabled:opacity-50"
+              >
+                Confirm Sign Out
+              </button>
+            </div>
+          </MobileCard>
+        ) : (
+          <ActionRow
+            icon="power"
+            label={actionLoading ? 'Signing out…' : 'Sign Out'}
+            desc="End this CyberCache session on this device"
+            onClick={() => {
+              if (isGuestAccount(account)) {
+                setConfirmGuestSignOut(true);
+              } else {
+                void signOut();
+              }
+            }}
+            tone="#FF4B5C"
+          />
+        )}
       </div>
         </>
       ))}

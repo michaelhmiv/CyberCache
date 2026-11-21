@@ -393,6 +393,7 @@ const VehicleCard: React.FC<{
   const [kitType, setKitType] = useState<string>('PatchKit');
   const [units, setUnits] = useState(1);
   const [useRush, setUseRush] = useState(false);
+  const [confirmCancelRepair, setConfirmCancelRepair] = useState(false);
   const ownedOfSelected = kitCounts[kitType] ?? 0;
   const unitMs = repairKitUnitDurationMs(
     PATCH_KIT_BASES[kitType] ?? 30,
@@ -652,14 +653,35 @@ const VehicleCard: React.FC<{
                 Work on it
               </button>
             )}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onCancelRepair(repairJob)}
-              className="px-2 py-1 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
-            >
-              Cancel job
-            </button>
+            {confirmCancelRepair ? (
+              <>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => { setConfirmCancelRepair(false); onCancelRepair(repairJob); }}
+                  className="min-h-[44px] px-3 py-1.5 text-xs font-black bg-red text-bg disabled:opacity-40"
+                >
+                  Confirm Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setConfirmCancelRepair(false)}
+                  className="min-h-[44px] px-3 py-1.5 text-xs font-bold border border-border bg-surface disabled:opacity-40"
+                >
+                  Keep Job
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmCancelRepair(true)}
+                className="min-h-[44px] px-3 py-1.5 text-xs font-bold border border-border bg-surface hover:text-red-400 disabled:opacity-40"
+              >
+                Cancel job
+              </button>
+            )}
           </div>
           {/* Crafting consolidation (2026-11-04): repairs are
               managed at the bench — Home's Craft workspace carries

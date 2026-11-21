@@ -178,6 +178,7 @@ export const ActionScreenContextual: React.FC<{
   const [showAreaSelect, setShowAreaSelect] = useState(false);
   const [showBossPicker, setShowBossPicker] = useState(false);
   const [showSalvagePicker, setShowSalvagePicker] = useState(false);
+  const [confirmSalvageId, setConfirmSalvageId] = useState<string | null>(null);
   const [showEndless, setShowEndless] = useState(false);
   const [showExtraction, setShowExtraction] = useState(false);
   // The Craft bench as a view (consolidation, 2026-11-04): like the
@@ -934,8 +935,37 @@ export const ActionScreenContextual: React.FC<{
         <ContextualPickerSheet open={showBossPicker} title="Choose Boss Target" detail="Pick your mark — check its intel and weaknesses, then prep the fight." onClose={() => setShowBossPicker(false)}>
           <BossPickerList onSelect={(boss) => startPrep(boss)} />
         </ContextualPickerSheet>
-        <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down — salvage settles instantly. Estimates are the base scrap award; the server adds skill bonuses." onClose={() => setShowSalvagePicker(false)}>
-          {salvageCandidates.map((item) => <button key={item.id} type="button" onClick={() => { setShowSalvagePicker(false); startSalvage(item); }} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">Base ≈{salvageScrap(item.rarity, item.level)} scrap · higher rarity = more scrap</div></button>)}
+        <ContextualPickerSheet open={showSalvagePicker} title="Choose Salvage Item" detail="Select any unlocked item to break down — salvage settles instantly. Estimates are the base scrap award; the server adds skill bonuses." onClose={() => { setConfirmSalvageId(null); setShowSalvagePicker(false); }}>
+          {salvageCandidates.map((item) => {
+            const confirming = confirmSalvageId === item.id;
+            return confirming ? (
+              <div key={item.id} className="w-full border-2 border-red/70 bg-surface p-3 space-y-2" style={smallClip}>
+                <div className="flex justify-between gap-2">
+                  <span className="truncate text-sm font-black text-text-primary">{item.name}</span>
+                  <span className="text-[11px] font-bold text-amber">{item.rarity}</span>
+                </div>
+                <div className="text-[11px] text-text-muted">Permanently breaks down for base ≈{salvageScrap(item.rarity, item.level)} scrap.</div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setConfirmSalvageId(null); setShowSalvagePicker(false); startSalvage(item); }}
+                    className="min-h-[44px] flex-1 bg-red px-3 py-2 text-xs font-black text-bg"
+                  >
+                    Confirm Salvage
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmSalvageId(null)}
+                    className="bl-secondary min-h-[44px] px-3 py-2 text-xs font-black"
+                  >
+                    Keep
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button key={item.id} type="button" onClick={() => setConfirmSalvageId(item.id)} className="w-full border-2 border-border bg-surface p-3 text-left" style={smallClip}><div className="flex justify-between gap-2"><span className="truncate text-sm font-black text-text-primary">{item.name}</span><span className="text-[9px] text-amber">{item.rarity}</span></div><div className="mt-1 text-[10px] text-text-muted">Base ≈{salvageScrap(item.rarity, item.level)} scrap · higher rarity = more scrap</div></button>
+            );
+          })}
         </ContextualPickerSheet>
       </AnimatePresence>
     </div>

@@ -52,6 +52,7 @@ export const RepDeskPanel: React.FC = () => {
   const loadout = useLoadoutStore();
   const [view, setView] = useState<StandingStateView | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ text: string; error: boolean } | null>(null);
   const [tributePick, setTributePick] = useState<Record<string, string>>({});
 
@@ -261,27 +262,53 @@ export const RepDeskPanel: React.FC = () => {
                 )}
               </select>
             )}
-            <button
-              type="button"
-              disabled={rankUpBlocked}
-              onClick={() =>
-                void run(
-                  `rankup:${m.manufacturer}`,
-                  () =>
-                    rankUpManufacturer({
-                      nonce: newStandingRankUpNonce(),
-                      manufacturer: m.manufacturer,
-                      tributeItemId: m.nextRank!.tributeMinRarity ? pickedTribute : null,
-                    }),
-                  (r: { rankedUp: { newRank: number; tributeCredits: number } }) =>
-                    `${m.name} Rank ${r.rankedUp.newRank} granted — ${r.rankedUp.tributeCredits.toLocaleString()}cr tribute paid.`,
-                )
-              }
-              className="w-full py-2 rounded-xl text-xs font-black disabled:opacity-40"
-              style={{ backgroundColor: m.color, color: '#0B0B0F' }}
-            >
-              {busy === `rankup:${m.manufacturer}` ? 'Ranking up…' : `Rank up • ${m.nextRank.tributeCredits.toLocaleString()}cr`}
-            </button>
+            {confirmKey === `rankup:${m.manufacturer}` ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={rankUpBlocked}
+                  onClick={() => {
+                    setConfirmKey(null);
+                    void run(
+                      `rankup:${m.manufacturer}`,
+                      () =>
+                        rankUpManufacturer({
+                          nonce: newStandingRankUpNonce(),
+                          manufacturer: m.manufacturer,
+                          tributeItemId: m.nextRank!.tributeMinRarity ? pickedTribute : null,
+                        }),
+                      (r: { rankedUp: { newRank: number; tributeCredits: number } }) =>
+                        `${m.name} Rank ${r.rankedUp.newRank} granted — ${r.rankedUp.tributeCredits.toLocaleString()}cr tribute paid.`,
+                    );
+                  }}
+                  className="min-h-[44px] flex-1 py-2 rounded-xl text-xs font-black disabled:opacity-40"
+                  style={{ backgroundColor: m.color, color: '#0B0B0F' }}
+                >
+                  {busy === `rankup:${m.manufacturer}`
+                    ? 'Ranking up…'
+                    : m.nextRank.tributeMinRarity
+                      ? 'Confirm Rank Up (destroys item)'
+                      : `Confirm • ${m.nextRank.tributeCredits.toLocaleString()}cr`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmKey(null)}
+                  className="bl-secondary min-h-[44px] px-3 py-2 rounded-xl text-xs font-black"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={rankUpBlocked}
+                onClick={() => setConfirmKey(`rankup:${m.manufacturer}`)}
+                className="min-h-[44px] w-full py-2 rounded-xl text-xs font-black disabled:opacity-40"
+                style={{ backgroundColor: m.color, color: '#0B0B0F' }}
+              >
+                {busy === `rankup:${m.manufacturer}` ? 'Ranking up…' : `Rank up • ${m.nextRank.tributeCredits.toLocaleString()}cr`}
+              </button>
+            )}
           </div>
         )}
 
@@ -328,6 +355,8 @@ export const RepDeskPanel: React.FC = () => {
           ) : (
             eligible.slice(0, 6).map((item) => {
               const facts = itemFacts(item);
+              const tKey = `turnin:${item.id}`;
+              const confirming = confirmKey === tKey;
               return (
                 <div
                   key={item.id}
@@ -342,22 +371,44 @@ export const RepDeskPanel: React.FC = () => {
                       only
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    disabled={guest || busy !== null}
-                    onClick={() =>
-                      void run(
-                        `turnin:${item.id}`,
-                        () => turnInItem({ nonce: newStandingTurnInNonce(), itemId: item.id }),
-                        (r: { turnedIn: { standingAwarded: number; newBalance: number } }) =>
-                          `${item.name} turned in: +${r.turnedIn.standingAwarded} ${m.name} standing (${r.turnedIn.newBalance.toLocaleString()} total).`,
-                      )
-                    }
-                    className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-black disabled:opacity-40"
-                    style={{ backgroundColor: m.color, color: '#0B0B0F' }}
-                  >
-                    Turn in • +{facts.standingValue}
-                  </button>
+                  {confirming ? (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={guest || busy !== null}
+                        onClick={() => {
+                          setConfirmKey(null);
+                          void run(
+                            tKey,
+                            () => turnInItem({ nonce: newStandingTurnInNonce(), itemId: item.id }),
+                            (r: { turnedIn: { standingAwarded: number; newBalance: number } }) =>
+                              `${item.name} turned in: +${r.turnedIn.standingAwarded} ${m.name} standing (${r.turnedIn.newBalance.toLocaleString()} total).`,
+                          );
+                        }}
+                        className="min-h-[44px] shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-black disabled:opacity-40"
+                        style={{ backgroundColor: m.color, color: '#0B0B0F' }}
+                      >
+                        Confirm +{facts.standingValue}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmKey(null)}
+                        className="bl-secondary min-h-[44px] shrink-0 px-2 py-1.5 rounded-lg text-[11px] font-black"
+                      >
+                        Keep
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={guest || busy !== null}
+                      onClick={() => setConfirmKey(tKey)}
+                      className="min-h-[44px] shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-black disabled:opacity-40"
+                      style={{ backgroundColor: m.color, color: '#0B0B0F' }}
+                    >
+                      Turn in • +{facts.standingValue}
+                    </button>
+                  )}
                 </div>
               );
             })
