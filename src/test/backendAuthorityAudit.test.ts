@@ -10,7 +10,12 @@ describe('backend authority audit', () => {
     // Route B (B4): the client calls the Chef write routes; the
     // canonical cc_* functions live server-side in the write store.
     const verifiedOps = readSource('src/lib/api/verifiedOps.ts');
-    expect(verifiedOps).toContain('/ops/claim-crafted-consumable');
+    // The retired legacy faucets are gone from the client op surface
+    // (audit extraction, 2026-11-21): their routes are unmounted and
+    // the ops were removed rather than left pointing at 404s.
+    expect(verifiedOps).not.toContain('/ops/claim-crafted-consumable');
+    expect(verifiedOps).not.toContain('/ops/idle-claim');
+    expect(verifiedOps).not.toContain('/ops/battle-result');
     expect(verifiedOps).toContain('/ops/recycle-item');
     expect(verifiedOps).toContain('/ops/market-create');
     expect(verifiedOps).toContain('/ops/market-cancel');

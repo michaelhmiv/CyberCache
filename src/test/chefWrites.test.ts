@@ -209,13 +209,13 @@ describe('auth gate', () => {
   });
 
   it('rejects a short nonce with the SQL validation message', async () => {
-    const res = await post(h, '/api/ops/idle-claim', h.tokenA, { nonce: 'short' });
+    const res = await post(h, '/api/ops/initial-bundle', h.tokenA, { nonce: 'short' });
     expect(res.status).toBe(400);
     expect(res.json).toMatchObject({ error: 'validation', message: 'nonce is required' });
   });
 });
 
-describe('initial bundle + idle claim', () => {
+describe('initial bundle + retired idle claim', () => {
   let h: Harness;
   beforeAll(async () => {
     h = await makeServer();
@@ -245,13 +245,18 @@ describe('initial bundle + idle claim', () => {
     expect(again.json.message).toBe('Initial bundle already claimed');
   });
 
-  it('idle claim pays 10 credits per xp minute, capped at 2 hours', async () => {
-    // last_idle_claim_at is 2026-10-29T10:00Z, clock is 12:00Z -> 120 xp.
-    const res = await post(h, '/api/ops/idle-claim', h.tokenB, { nonce: nonce() });
-    expect(res.status).toBe(200);
-    expect(res.json.rewards).toEqual({ xp: 120, credits: 1200 });
-    const prof = res.json.profile as Record<string, unknown>;
-    expect(prof.credits).toBe(1700);
+  it('the /api/ops/idle-claim route no longer exists', async () => {
+    // Retired legacy faucet (audit extraction, 2026-11-21): offline
+    // rewards settle through the Chef claim path; the direct
+    // cc_idle_claim route is unmounted and pays nothing.
+    // (Raw fetch: the unrouted path returns Express's HTML 404.)
+    const res = await fetch(`${h.base}/api/ops/idle-claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${h.tokenB}` },
+      body: JSON.stringify({ nonce: nonce() }),
+    });
+    expect(res.status).toBe(404);
+    expect(h.store.seed.profiles.find((p) => p.id === B)?.credits).toBe(500);
   });
 });
 
@@ -319,26 +324,21 @@ describe('cache draws, vendor, crafting, consumables', () => {
     expect(unknown.json.message).toBe('Not offered by the vendor today');
   });
 
-  it('crafting consumes materials and fails cleanly without them', async () => {
-    rngQueue = [0.5];
-    const res = await post(h, '/api/ops/claim-crafted-consumable', h.tokenA, {
-      nonce: nonce(), recipe_id: 'recipe_medkit', item_key: 'MedKit', quantity: 1,
+  it('the /api/ops/claim-crafted-consumable route no longer exists', async () => {
+    // Retired legacy faucet (audit extraction, 2026-11-21): crafted
+    // consumables arrive through timed craft jobs (craft-enqueue);
+    // the direct cc_claim_crafted_consumable route is unmounted and
+    // charges nothing. (Raw fetch: Express's HTML 404.)
+    const res = await fetch(`${h.base}/api/ops/claim-crafted-consumable`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${h.tokenA}` },
+      body: JSON.stringify({ nonce: nonce(), recipe_id: 'recipe_medkit', item_key: 'MedKit', quantity: 1 }),
     });
-    expect(res.status).toBe(200);
-    const prof = res.json.profile as Record<string, unknown>;
-    // Recipe materials are charged once per craft, not per unit.
-    // Econ 5: the unified seed stock is 120 (100 field + 20 stack);
-    // the medkit's Scrap leg is 15.
-    expect((prof.materials as Record<string, number>).Scrap).toBe(105);
-    expect((prof.materials as Record<string, number>).ReactiveComponents).toBe(2);
-    // 2 from the vendor-buy test above (shared store in this describe) + 1 crafted.
-    expect((prof.consumables as Record<string, number>).MedKit).toBe(3);
-
-    const poor = await post(h, '/api/ops/claim-crafted-consumable', h.tokenB, {
-      nonce: nonce(), recipe_id: 'recipe_medkit', item_key: 'MedKit', quantity: 1,
-    });
-    expect(poor.status).toBe(400);
-    expect(poor.json.message).toBe('Insufficient material Scrap');
+    expect(res.status).toBe(404);
+    const profA = h.store.seed.profiles.find((p) => p.id === A);
+    expect((profA?.materials as Record<string, number>).Scrap).toBe(120);
+    // Still exactly the 2 MedKits from the vendor-buy test above.
+    expect((profA?.consumables as Record<string, number>).MedKit).toBe(2);
   });
 
   it('consume decrements the profile count and drains batches FIFO', async () => {
@@ -516,19 +516,21 @@ describe('skills + battle', () => {
     expect(h.store.seed.profiles.find((p) => p.id === B)?.credits).toBe(500);
   });
 
-  it('battle result draws odds; the fragment leg pays nothing (fragments abolished)', async () => {
-    rngQueue = [0.9]; // sorted outcomes: defeat(50), victory(50) -> roll 91..100? floor(0.9*100)+1 = 91 -> victory
-    const res = await post(h, '/api/ops/battle-result', h.tokenA, { nonce: nonce(), target_id: 'boss-1', stance: 'balanced' });
-    expect(res.status).toBe(200);
-    expect((res.json.draw as Record<string, unknown>).outcome).toBe('victory');
-    // The seeded victory payload still names fragment_reward 2, but
-    // 0082 zeroes those payloads in the live table and the leg pays
-    // nothing in either twin — no parts, no 5:1 conversion.
-    expect(res.json.rewards).toEqual({ xp: 75, credits: 125, parts: 0 });
-    const prof = res.json.profile as Record<string, unknown>;
-    // The snapshot no longer carries a fragment balance at all.
-    expect(prof).not.toHaveProperty('cache_token_parts');
-    expect((prof.boss_state as Record<string, unknown>).last_target_id).toBe('boss-1');
+  it('the /api/ops/battle-result route no longer exists', async () => {
+    // Retired legacy faucet (audit extraction, 2026-11-21): boss
+    // fights resolve through the Chef boss route (/api/verify-boss);
+    // the direct cc_battle_result route is unmounted and pays
+    // nothing. (Raw fetch: Express's HTML 404.)
+    const res = await fetch(`${h.base}/api/ops/battle-result`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${h.tokenA}` },
+      body: JSON.stringify({ nonce: nonce(), target_id: 'boss-1', stance: 'balanced' }),
+    });
+    expect(res.status).toBe(404);
+    const profA = h.store.seed.profiles.find((p) => p.id === A);
+    // Unchanged by the retired call: 1000 seed − 300 retrain above.
+    expect(profA?.credits).toBe(700);
+    expect((profA?.boss_state as Record<string, unknown>).last_target_id).toBeUndefined();
   });
 });
 
