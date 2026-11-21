@@ -90,7 +90,12 @@ describe('market-cancel lock pairing (audit A-14)', () => {
   it('client: the Cancel button no longer routes through guardTransact; buy/sell still do', () => {
     const src = readFileSync(resolve(process.cwd(), 'src/screens/MarketScreen.tsx'), 'utf8');
     expect(src).not.toContain("guardTransact('cancel a listing'");
-    expect(src).toContain('onClick={() => void handleCancelListing(listing)}');
+    // Two-tap confirm (client extraction salvage, 2026-11-21): the
+    // row's first tap arms the confirm; only the confirm button —
+    // labeled with the deposit consequence — executes the cancel,
+    // still without guardTransact.
+    expect(src).toContain('onClick={() => setConfirmCancelId(listing.id)}');
+    expect(src).toContain('Confirm — deposit is lost');
     expect(src).toContain("guardTransact('buy'");
     expect(src).toContain("guardTransact('sell'");
   });
