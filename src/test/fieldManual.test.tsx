@@ -11,9 +11,9 @@ import { HelpScreen } from '@/screens/HelpScreen';
 import { getWikiLinkCount, wikiCorpusReady } from '@/lib/wiki/wikiCorpus';
 
 describe('Field Manual (HelpScreen)', () => {
-  it('renders the masthead and the sidebar-grouped index', async () => {
+  it('renders the search bar and the sidebar-grouped index', async () => {
     const { container } = render(<HelpScreen />);
-    expect(screen.getByText('Unit FM-09 · Field Manual')).toBeTruthy();
+    expect(screen.getByText('Search Field Manual')).toBeTruthy();
     expect(screen.getByText('Start Here')).toBeTruthy();
     const row = container.querySelector('[data-page="Getting-Started"]');
     expect(row).toBeTruthy();

@@ -306,10 +306,11 @@ describe('stats truth — roaming claim (HTTP)', () => {
     expect(claimMit.status).toBe(200);
     expect(claimRaw.status).toBe(200);
 
-    const hpMit = (claimMit.json.survival as { currentHp: number }).currentHp;
-    const hpRaw = (claimRaw.json.survival as { currentHp: number }).currentHp;
-    const takenMit = 10000 - hpMit;
-    const takenRaw = 10000 - hpRaw;
+    const startHp = computeHunterMaxHp(10, 500);
+    const survMit = claimMit.json.survival as { currentHp: number };
+    const survRaw = claimRaw.json.survival as { currentHp: number };
+    const takenMit = startHp - survMit.currentHp;
+    const takenRaw = startHp - survRaw.currentHp;
     // Sanity: the unmitigated hunter actually took damage (survival ran).
     expect(takenRaw).toBeGreaterThan(30);
     // Pre-fix both took the same damage — the Chef read mitigation from

@@ -147,7 +147,11 @@ shield's element recolors the painting's lit surfaces — its
 emitter heart and glow lines — while the body stays the same
 metal in every colorway; a class mod's casing painting arrives
 with its deck window empty, and the live node field is drawn into
-that window from the mod's own boosts.
+that window from the mod's own boosts. A class mod's tree bonus
+applies to small nodes you have invested in within its bound tree,
+while its named node boosts can push those specific nodes past
+their base cap; bulk salvage automatically protects gear equipped
+by any hunter in your roster, fielded or benched.
 
 ## Rarity and affixes
 

@@ -122,19 +122,19 @@ describe('action skill content', () => {
     expect(qualifiedActionSkillTrees({ gs_major_1: 1, demo_major_2: 1 })).toEqual([]);
   });
 
-  it('qualification counts class-mod boosts (nodeBoosts and treeBonus), like #222/#225', () => {
-    // A mod boosting the keystone node qualifies with zero spends.
+  it('qualification counts explicit keystone nodeBoosts, while treeBonus alone does not grant free keystones', () => {
+    // A mod explicitly boosting the keystone node qualifies with zero spends.
     expect(
       qualifiedActionSkillTrees({}, { nodeBoosts: { demo_keystone: 1 } }),
     ).toEqual([SkillTreeType.Demolition]);
-    // A mod whose treeBonus matches the tree grants +1 to its keystone.
+    // A mod whose treeBonus matches the tree boosts small nodes only —
+    // it does not grant a free Level-1 Keystone / Action Skill with zero spends.
     expect(
       qualifiedActionSkillTrees({}, { nodeBoosts: {}, treeBonus: 'Scavenger' }),
-    ).toEqual([SkillTreeType.Scavenger]);
-    // A mod for another tree does not leak across trees.
+    ).toEqual([]);
     expect(
       qualifiedActionSkillTrees({}, { nodeBoosts: {}, treeBonus: 'Gunslinger' }),
-    ).toEqual([SkillTreeType.Gunslinger]);
+    ).toEqual([]);
   });
 
   it('selection resolves only while qualified; respec-away stops it resolving', () => {

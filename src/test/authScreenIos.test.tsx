@@ -68,7 +68,7 @@ describe('AuthScreen — native platform branch', () => {
     expect(screen.getByRole('button', { name: /Continue with Google/i })).toBeTruthy();
     const apple = screen.getByRole('button', { name: /Continue with Apple/i });
     expect(apple).toBeTruthy();
-    expect(screen.getByText(/Sign in with Google or Apple/i)).toBeTruthy();
+    expect(screen.getByText(/Sign in with Apple or Google/i)).toBeTruthy();
     fireEvent.click(apple);
     expect(hoisted.auth.signInWithApple).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /Continue as Guest/i })).toBeTruthy();
@@ -79,7 +79,7 @@ describe('AuthScreen — native platform branch', () => {
     render(<AuthScreen />);
     expect(screen.getByRole('button', { name: /Continue with Google/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Continue with Apple/i })).toBeNull();
-    expect(screen.queryByText(/Google or Apple/i)).toBeNull();
-    expect(hoisted.auth.signInWithApple).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Apple or Google/i)).toBeNull();
+    expect(hoisted.auth.signInWithApple).not.toBeCalled();
   });
 });

@@ -58,7 +58,7 @@ A courier contract sends a vehicle instead of a loadout, on one of three tiers. 
 
 ## Settlement
 
-Contracts settle in full at term, from server timestamps, the next time the bay is read. A contract that ends **early** — you recall it, or the vehicle breaks down — settles **pro-rata**: you are paid for the fraction of the route actually covered, the unflown fraction of the fuel is refunded, and only the flown fraction of the wear is applied. Partial work pays the fraction done, never a rounded-up whole.
+Contracts settle in full at term, from server timestamps, the next time the bay is read. A contract that ends **early** — you recall it (confirmed with a second tap), or the vehicle breaks down — settles **pro-rata**: you are paid for the fraction of the route actually covered, the unflown fraction of the fuel is refunded, and only the flown fraction of the wear is applied. Partial work pays the fraction done, never a rounded-up whole.
 
 Where spares come from: roaming drops and the vendor for gear, the [[The Market|player market]] for vehicles.
 

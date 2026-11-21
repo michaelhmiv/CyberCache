@@ -61,9 +61,12 @@ are timed jobs on the **service lane**: they progress only while
 **Workshop Service** is your active action, aimed at the job. They
 are managed in the Craft workspace's **Repairs & Service** section —
 progress, a **Work** button that aims the service action at the job,
-and cancel, which refunds every kit or core not yet applied, whole.
-Finished work lands on its own: condition restored, shield behavior
-flipped — there is nothing to claim.
+and cancel (which asks for a second tap to confirm and refunds every kit
+or core not yet applied, whole). Finished work lands on its own: condition
+restored, shield behavior flipped — there is nothing to claim. Extra
+parallel lanes unlocked by Bench Time produce goods at full speed while
+player XP accrues on the primary lane only, keeping crafting XP within
+its occupation band.
 
 ## Finding what you can make
 

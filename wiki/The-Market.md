@@ -91,8 +91,8 @@ listing.)
 1. Open the **Buy** stop. The listings start right under the search
    box and the category chips — the lane is listings-first.
 2. Narrow the list with the category chips (Weapons, Shields, Relics, Class
-   Mods, Ordnance, Consumables, Materials, Cache Fragments, Legendary
-   Cores, Essences, Skins), or open the **Filters** sheet: the Filters button
+   Mods, Ordnance, Consumables, Materials, Legendary Cores, Essences, Skins),
+   or open the **Filters** sheet: the Filters button
    prints how many filters are active and the current sort, and the
    sheet holds the rarity chips, the weapon type and element filters
    (on weapon searches), the level range and price range, and the
@@ -106,8 +106,8 @@ listing.)
    edge — with the recent-sales median printed under it when real
    sales exist — and the Buy button beside it; tap
    the item itself for the full stat poster and its market history.
-   Tap Buy and confirm. You pay exactly the
-   listed price — the fee
+   Tap Buy (high-value listings of 5,000 credits or more ask for a
+   second tap to confirm). You pay exactly the listed price — the fee
    (below) comes out of the seller's side, never added on top for you.
 
    [[images/ui/market-row.png]]

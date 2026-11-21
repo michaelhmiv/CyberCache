@@ -232,9 +232,12 @@ describe('F5 — Action-tab salvage executes through the verified op', () => {
     );
     expect(salvageRow).toBeDefined();
     fireEvent.click(salvageRow!);
-    // The item picker offers the owned weapon with its base estimate.
+    // The item picker offers the owned weapon with its base estimate;
+    // first tap arms 2-tap confirmation, second tap executes salvage.
     const row = await screen.findByText('Test Weapon');
     fireEvent.click(row.closest('button') ?? row);
+    expect(verifiedOps.recycleItem).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm Salvage' }));
 
     await waitFor(() => expect(verifiedOps.recycleItem).toHaveBeenCalledWith('weapon-1'));
     expect(await screen.findByText(/SALVAGED/)).toBeInTheDocument();
@@ -255,6 +258,7 @@ describe('F5 — Action-tab salvage executes through the verified op', () => {
     fireEvent.click(salvageRow!);
     const row = await screen.findByText('Test Weapon');
     fireEvent.click(row.closest('button') ?? row);
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm Salvage' }));
 
     expect(await screen.findByText(/SALVAGE FAILED/)).toBeInTheDocument();
     expect(screen.getByText(/Item is equipped/)).toBeInTheDocument();
@@ -385,16 +389,22 @@ describe('F6 — Leaderboards visible to guests + error state', () => {
   });
 });
 
-describe('F9 — Profile carries the guest Google link row', () => {
-  it('guests see Link Google and tapping it starts the in-place upgrade', async () => {
-    hoisted.auth.account = guestAccount;
-    render(<ProfileScreen onNavigate={() => {}} />);
-    // Lazy sections (2026-11-12): the link row lives on the
-    // Account stop — open its door first.
-    fireEvent.click(screen.getByTestId('hub-door-account'));
-    const row = await screen.findByText('Link Google');
-    fireEvent.click(row.closest('button') ?? row);
-    expect(hoisted.auth.signInWithGoogle).toHaveBeenCalledTimes(1);
+describe('F9 — Profile carries the guest Google link row on native', () => {
+  it('native guests see Link Google and tapping it starts the in-place upgrade', async () => {
+    const { Capacitor } = await import('@capacitor/core');
+    const spy = vi.spyOn(Capacitor, 'isNativePlatform').mockReturnValue(true);
+    try {
+      hoisted.auth.account = guestAccount;
+      render(<ProfileScreen onNavigate={() => {}} />);
+      // Lazy sections (2026-11-12): the link row lives on the
+      // Account stop — open its door first.
+      fireEvent.click(screen.getByTestId('hub-door-account'));
+      const row = await screen.findByText('Link Google');
+      fireEvent.click(row.closest('button') ?? row);
+      expect(hoisted.auth.signInWithGoogle).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('verified accounts do not see the link row', async () => {

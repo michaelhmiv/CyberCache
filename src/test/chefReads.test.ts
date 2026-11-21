@@ -286,18 +286,20 @@ describe('read routes (HTTP)', () => {
     expect((await get(`/api/players/${D}/public-profile`, tokenA)).status).toBe(404);
   });
 
-  it('public stats returns exactly the player_public_stats field set', async () => {
+  it('public stats strips private wallet fields and returns only public stat fields', async () => {
     const res = await get(`/api/players/${B}/public-stats`, tokenA);
     expect(res.status).toBe(200);
     expect(Object.keys(res.json).sort()).toEqual([
-      'active_play_seconds', 'cache_token_parts', 'cache_tokens', 'credits', 'display_name',
+      'active_play_seconds', 'display_name',
       'highest_boss_tier', 'highest_item_level', 'highest_mastery_level', 'idle_play_seconds',
       'joined_at', 'kill_death_ratio', 'kills_by_area', 'kills_by_element', 'kills_by_weapon_type',
       'last_active_at', 'legendary_items', 'longest_kill_streak', 'net_worth', 'player_level',
-      'player_xp', 'scrap', 'total_deaths', 'total_items', 'total_kills', 'total_mastery_xp',
+      'player_xp', 'total_deaths', 'total_items', 'total_kills', 'total_mastery_xp',
       'user_id', 'username', 'weapons_owned',
     ]);
-    expect(res.json.credits).toBe(900); // exposed by cc_public_stats today — mirrored, not widened
+    for (const forbidden of ['credits', 'scrap', 'cache_tokens', 'cache_token_parts']) {
+      expect(res.json).not.toHaveProperty(forbidden);
+    }
   });
 
   it('own snapshots are caller-scoped and honor source/since/limit filters', async () => {

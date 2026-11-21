@@ -504,13 +504,13 @@ describe('migration 0075 — provenance and shape pins', () => {
     return text.slice(start, text.indexOf('\n$$;\n', start));
   };
 
-  it('0075 is the chain head for every function it restates', () => {
+  it('0075 is superseded cleanly by 0104 for cc_settle_craft_jobs and 0102 for cc_enqueue_craft_job', () => {
     for (const name of ['cc_settle_craft_jobs']) {
       const definers = readdirSync(dir)
         .filter((f) => f.endsWith('.sql'))
         .filter((f) => readFileSync(join(dir, f), 'utf8').includes(`create or replace function public.${name}(`))
         .sort();
-      expect(definers[definers.length - 1]).toBe('0075_bench_time.sql');
+      expect(definers[definers.length - 1]).toBe('0104_audit_hardening.sql');
     }
     // Superseded for cc_enqueue_craft_job by migration 0102
     // (skill-routing fix): 0102 restates the craft enqueue for the

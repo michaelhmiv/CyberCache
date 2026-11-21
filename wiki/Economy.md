@@ -29,8 +29,10 @@ job before earning anything.
 - **Selling on [[The Market]]** — another player's credits become yours
   (minus the fee below). A transfer, not a creation — except that the
   fee share leaves the economy for good.
-- **[[Vendor]] buyback** — the vendor pays **40% of an item's value**,
-  on demand, for gear, consumables, materials, and essences.
+- **[[Vendor]] buyback** — the vendor pays **40% of an item's value**
+  (up to the live buyback cap, with value ceilings on crafted gear and
+  crafted relics so crafting cannot loop credits), on demand, for gear,
+  consumables, materials, and essences.
 
 ## Where credits are destroyed (sinks)
 

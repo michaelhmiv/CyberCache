@@ -60,7 +60,7 @@ Parts** lane) and is paid for mostly in **Scrap** — the same salvage
 currency that drops everywhere — plus a few materials per part.
 Short on Scrap? It is a material like any other, so it trades on
 [[The Market]] — buy the stack instead of grinding for it.
-Skin recipes carry **no level requirement**: the bench tier and
+Skin recipes carry **no level requirement**: the materials and
 the scrap are the whole gate.
 Crafting a part is a normal timed Workshop job: it advances only
 while crafting is your active action, and it pays into its own

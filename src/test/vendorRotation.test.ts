@@ -522,12 +522,12 @@ describe('vendor buyback — shipped sell path', () => {
 // ---------------------------------------------------------------------------
 
 describe('vendorBuybackRate lever + economy attribution', () => {
-  it('is registered with the catalog default and the 0..0.9 range', () => {
+  it('is registered with the catalog default and the 0..0.65 range', () => {
     expect(ECONOMY_CONFIG_DEFAULTS.vendorBuybackRate).toBe(VENDOR_BUYBACK_RATE_DEFAULT);
     expect(VENDOR_BUYBACK_RATE_DEFAULT).toBe(0.4);
     expect(validateEconomyConfigValue('vendorBuybackRate', 0)).toBe(0);
-    expect(validateEconomyConfigValue('vendorBuybackRate', 0.9)).toBe(0.9);
-    expect(validateEconomyConfigValue('vendorBuybackRate', 0.91)).toBeNull();
+    expect(validateEconomyConfigValue('vendorBuybackRate', 0.65)).toBe(0.65);
+    expect(validateEconomyConfigValue('vendorBuybackRate', 0.66)).toBeNull();
     expect(validateEconomyConfigValue('vendorBuybackRate', -0.1)).toBeNull();
     expect(resolveEconomyConfigValues({ vendorBuybackRate: 0.25 }).vendorBuybackRate).toBe(0.25);
     expect(resolveEconomyConfigValues({ vendorBuybackRate: 7 }).vendorBuybackRate).toBe(0.4);

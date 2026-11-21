@@ -14,7 +14,7 @@ Weeks run on ISO time: a week opens **Monday 00:00 UTC** and closes the next Mon
 | Caches Opened | Caches opened | 1 cache |
 | Items Salvaged | Items recycled through salvage | 5 items |
 | Endless Depth | Deepest depth in an [[Endless Mode]] run that **ended** that week | 1 depth |
-| Market Sales | Your [[The Market]] listings that sold | 1 sale |
+| Market Sales | Your [[The Market]] listings that sold to another player (≥50 cr) | 1 sale |
 | Extraction Passes | Extraction passes finalised | 1 pass |
 
 Standings list everyone with a score above zero, but **rewards only pay at or above the qualifying minimum** — a quiet week doesn't hand a champion's prize to a token effort. Note the Endless rule: only runs that ended inside the week count. An unfinished run proves nothing.

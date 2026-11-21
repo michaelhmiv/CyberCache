@@ -74,10 +74,10 @@ maker:
 
 - **Rank 1 — Rep Shelf.** One consumable matched to the maker's identity,
   always stocked at the Rep Desk at list price, flat 100% quality:
-  Redline sells the Overcharge Stim (800 cr), Ironwood the Boss Scanner
-  (600 cr), BlastForge the Ordnance Charge (400 cr), Prismatek Void Ammo
+  Redline sells the Overcharge Stim (800 cr), Ironwood the Target Painter
+  (600 cr), BlastForge the Incendiary Ammo (450 cr), Prismatek Void Ammo
   (700 cr), ThrowTech the Magnetized Payload (650 cr), and HelixWorks the
-  Luck Booster (350 cr).
+  Data Skimmer (900 cr).
 - **Rank 2 — Exclusive recipe.** A maker-only consumable you can craft:
   the Redline Tonic, Heartwood Sight Oil, Forgeheart Charge, Prism
   Coating, ThrowTech Decoy Kit, or Helix Calibration Kit. Crafted, so it
