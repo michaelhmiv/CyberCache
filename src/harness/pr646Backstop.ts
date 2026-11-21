@@ -6,7 +6,7 @@
  * mount-time reads settle immediately and NO request can ever
  * reach a real backend from a capture run.
  */
-import { ACTIVITY_PAGE, MARKET_PAGE, OWN_PAGE, buildApiBodies } from './pr646Seed';
+import { ACTIVITY_PAGE, ENDLESS_ME, MARKET_PAGE, OWN_PAGE, buildApiBodies } from './pr646Seed';
 
 export function installPr646Backstop() {
   const bodies = buildApiBodies();
@@ -46,6 +46,9 @@ export function installPr646Backstop() {
     }
     if (method === 'GET' && url.includes('/dispatch/me')) {
       return json({ verified: true, dispatch: bodies.dispatch });
+    }
+    if (method === 'GET' && url.includes('/endless/me')) {
+      return json(ENDLESS_ME);
     }
     if (url.includes('/api/') || url.includes('railway.app')) {
       return json({ error: 'harness offline' }, 503);

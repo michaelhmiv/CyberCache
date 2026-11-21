@@ -13,10 +13,10 @@
    "wait": 1600
   },
   {
-   "dump": "(() => document.body.innerText.includes('Totals & Sources') ? 'PRESENT Totals & Sources' : 'ABSENT Totals & Sources')()"
+   "dump": "(() => document.body.innerText.toLowerCase().includes('totals & sources') ? 'PRESENT Totals & Sources' : 'ABSENT Totals & Sources')()"
   },
   {
-   "dump": "(() => document.body.innerText.includes('Trophy Shelf') ? 'PRESENT Trophy Shelf' : 'ABSENT Trophy Shelf')()"
+   "dump": "(() => document.body.innerText.toLowerCase().includes('trophy shelf') ? 'PRESENT Trophy Shelf' : 'ABSENT Trophy Shelf')()"
   },
   {
    "shot": "record"

@@ -10,7 +10,16 @@
    "plan": "capture/plans/auth.json",
    "prefix": "auth",
    "expect": [
-    "auth-ios.png"
+    "auth-ios"
+   ]
+  },
+  {
+   "label": "auth-web",
+   "path": "/pr646-harness.html?screen=auth&native=0",
+   "plan": "capture/plans/auth-web.json",
+   "prefix": "auth-web",
+   "expect": [
+    "auth-web-web"
    ]
   },
   {
@@ -19,9 +28,9 @@
    "plan": "capture/plans/app.json",
    "prefix": "app",
    "expect": [
-    "app-onboard-1.png",
-    "app-onboard-2.png",
-    "app-onboard-3.png"
+    "app-onboard-1",
+    "app-onboard-2",
+    "app-onboard-3"
    ]
   },
   {
@@ -30,7 +39,7 @@
    "plan": "capture/plans/home-roam.json",
    "prefix": "home-roam",
    "expect": [
-    "home-roam-roam.png"
+    "home-roam-roam"
    ]
   },
   {
@@ -39,10 +48,10 @@
    "plan": "capture/plans/home-bench.json",
    "prefix": "home-bench",
    "expect": [
-    "home-bench-top.png",
-    "home-bench-zone.png",
-    "home-bench-jobs.png",
-    "home-bench-cancel-armed.png"
+    "home-bench-top",
+    "home-bench-zone",
+    "home-bench-jobs",
+    "home-bench-cancel-armed"
    ]
   },
   {
@@ -51,8 +60,8 @@
    "plan": "capture/plans/home-endless.json",
    "prefix": "home-endless",
    "expect": [
-    "home-endless-top.png",
-    "home-endless-zone.png"
+    "home-endless-top",
+    "home-endless-zone"
    ]
   },
   {
@@ -61,9 +70,9 @@
    "plan": "capture/plans/market-buy.json",
    "prefix": "market-buy",
    "expect": [
-    "market-buy-list.png",
-    "market-buy-inspect.png",
-    "market-buy-buy-armed.png"
+    "market-buy-list",
+    "market-buy-inspect",
+    "market-buy-buy-armed"
    ]
   },
   {
@@ -72,8 +81,8 @@
    "plan": "capture/plans/market-mine.json",
    "prefix": "market-mine",
    "expect": [
-    "market-mine-list.png",
-    "market-mine-cancel-armed.png"
+    "market-mine-list",
+    "market-mine-cancel-armed"
    ]
   },
   {
@@ -82,10 +91,10 @@
    "plan": "capture/plans/market-vendor.json",
    "prefix": "market-vendor",
    "expect": [
-    "market-vendor-top.png",
-    "market-vendor-buyback.png",
-    "market-vendor-sell-armed.png",
-    "market-vendor-sellall-armed.png"
+    "market-vendor-top",
+    "market-vendor-buyback",
+    "market-vendor-sell-armed",
+    "market-vendor-sellall-armed"
    ]
   },
   {
@@ -94,8 +103,8 @@
    "plan": "capture/plans/market-repdesk.json",
    "prefix": "market-repdesk",
    "expect": [
-    "market-repdesk-top.png",
-    "market-repdesk-rankup-armed.png"
+    "market-repdesk-top",
+    "market-repdesk-rankup-armed"
    ]
   },
   {
@@ -104,7 +113,7 @@
    "plan": "capture/plans/market-repair.json",
    "prefix": "market-repair",
    "expect": [
-    "market-repair-board.png"
+    "market-repair-board"
    ]
   },
   {
@@ -113,7 +122,7 @@
    "plan": "capture/plans/market-shield.json",
    "prefix": "market-shield",
    "expect": [
-    "market-shield-board.png"
+    "market-shield-board"
    ]
   },
   {
@@ -122,7 +131,7 @@
    "plan": "capture/plans/profile-hub.json",
    "prefix": "profile-hub",
    "expect": [
-    "profile-hub-hub.png"
+    "profile-hub-hub"
    ]
   },
   {
@@ -131,7 +140,7 @@
    "plan": "capture/plans/profile-record.json",
    "prefix": "profile-record",
    "expect": [
-    "profile-record-record.png"
+    "profile-record-record"
    ]
   },
   {
@@ -140,8 +149,8 @@
    "plan": "capture/plans/profile-account.json",
    "prefix": "profile-account",
    "expect": [
-    "profile-account-guest.png",
-    "profile-account-signout-armed.png"
+    "profile-account-guest",
+    "profile-account-signout-armed"
    ]
   },
   {
@@ -150,7 +159,7 @@
    "plan": "capture/plans/profile-research.json",
    "prefix": "profile-research",
    "expect": [
-    "profile-research-top.png"
+    "profile-research-top"
    ]
   },
   {
@@ -159,7 +168,7 @@
    "plan": "capture/plans/profile-rank.json",
    "prefix": "profile-rank",
    "expect": [
-    "profile-rank-top.png"
+    "profile-rank-top"
    ]
   },
   {
@@ -168,7 +177,7 @@
    "plan": "capture/plans/profile-wardrobe.json",
    "prefix": "profile-wardrobe",
    "expect": [
-    "profile-wardrobe-top.png"
+    "profile-wardrobe-top"
    ]
   },
   {
@@ -177,7 +186,7 @@
    "plan": "capture/plans/profile-roster.json",
    "prefix": "profile-roster",
    "expect": [
-    "profile-roster-roster.png"
+    "profile-roster-roster"
    ]
   },
   {
@@ -186,7 +195,7 @@
    "plan": "capture/plans/profile-research-error.json",
    "prefix": "profile-research-error",
    "expect": [
-    "profile-research-error-error.png"
+    "profile-research-error-error"
    ]
   },
   {
@@ -195,7 +204,7 @@
    "plan": "capture/plans/profile-collections.json",
    "prefix": "profile-collections",
    "expect": [
-    "profile-collections-panel.png"
+    "profile-collections-panel"
    ]
   },
   {
@@ -204,8 +213,8 @@
    "plan": "capture/plans/activity.json",
    "prefix": "activity",
    "expect": [
-    "activity-list.png",
-    "activity-sheet.png"
+    "activity-list",
+    "activity-sheet"
    ]
   },
   {
@@ -214,8 +223,8 @@
    "plan": "capture/plans/settings.json",
    "prefix": "settings",
    "expect": [
-    "settings-top.png",
-    "settings-delete.png"
+    "settings-top",
+    "settings-delete"
    ]
   },
   {
@@ -224,7 +233,7 @@
    "plan": "capture/plans/help.json",
    "prefix": "help",
    "expect": [
-    "help-top.png"
+    "help-top"
    ]
   },
   {
@@ -233,7 +242,7 @@
    "plan": "capture/plans/gear-inspect.json",
    "prefix": "gear-inspect",
    "expect": [
-    "gear-inspect-sheet.png"
+    "gear-inspect-sheet"
    ]
   },
   {
@@ -242,8 +251,8 @@
    "plan": "capture/plans/gear-picker.json",
    "prefix": "gear-picker",
    "expect": [
-    "gear-picker-open.png",
-    "gear-picker-filters.png"
+    "gear-picker-open",
+    "gear-picker-filters"
    ]
   },
   {
@@ -252,8 +261,8 @@
    "plan": "capture/plans/gear-garage.json",
    "prefix": "gear-garage",
    "expect": [
-    "gear-garage-garage.png",
-    "gear-garage-cancel-armed.png"
+    "gear-garage-garage",
+    "gear-garage-cancel-armed"
    ]
   },
   {
@@ -262,8 +271,8 @@
    "plan": "capture/plans/dispatch.json",
    "prefix": "dispatch",
    "expect": [
-    "dispatch-board.png",
-    "dispatch-recall-armed.png"
+    "dispatch-board",
+    "dispatch-recall-armed"
    ]
   }
  ]

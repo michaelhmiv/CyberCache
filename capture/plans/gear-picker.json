@@ -7,7 +7,7 @@
    "wait": 8000
   },
   {
-   "dump": "(() => document.body.innerText.includes('Filters') ? 'PRESENT Filters' : 'ABSENT Filters')()"
+   "dump": "(() => document.body.innerText.toLowerCase().includes('filters') ? 'PRESENT Filters' : 'ABSENT Filters')()"
   },
   {
    "shot": "open"
