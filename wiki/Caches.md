@@ -18,7 +18,7 @@ Each opening forges **one weapon at your current level**. The rarity is rolled f
 - **Epic — 32%**
 - **Legendary — 8%**
 
-There are no Common or Uncommon cache weapons. A cache Legendary is a strong weapon — but a cache-forged weapon **never carries a [[Legendary Effects|legendary effect]]**. Named legendary effects come from boss drops — see [[Legendary Effects]] for how they work. That line is what keeps found legendaries special, and it is not for sale at any price.
+There are no Common or Uncommon cache weapons. Every cache weapon is forged whole — real parts, real affixes, a maker's bias — and a cache Legendary carries a [[Legendary Effects|legendary effect]] drawn from the cache-eligible set. The boss-exclusive effects stay boss-only: those named drops come from boss kills and nowhere else — see [[Legendary Effects]] for how they work. That line is what keeps the boss legendaries special, and it is not for sale at any price.
 
 Your build can improve the draw itself: Scavenger investment and the Cache Optimizer track raise your cache quality, which bends the rarity draw in your favor.
 
